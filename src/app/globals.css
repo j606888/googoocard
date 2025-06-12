@@ -4,7 +4,21 @@
   --background: #ffffff;
   --foreground: #171717;
 }
+@theme {
+    /* Primary Colors */
+    --color-primary-900: #1B5E4A;
+    --color-primary-700: #2B8E6E;
+    --color-primary-500: #55BD95;
+    --color-primary-300: #A7E1CB;
+    --color-primary-100: #E3F7F0;
+    --color-primary-50:  #F1FAF6;
+  
+    /* Warning Colors */
+    --color-warning-100: #FFF3E9;
+    --color-warning-500: #F4A15E;
+    --color-warning-900: #BC5F15;
 
+}
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
