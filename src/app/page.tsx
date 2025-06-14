@@ -1,4 +1,5 @@
 import { IdCard, BookOpenText, Users, Snail } from 'lucide-react'
+import Link from 'next/link'
 
 const FEATURES = [
   {
@@ -44,12 +45,16 @@ export default function Home() {
       </div>
 
       <div className="flex flex-col gap-4 px-6 py-6 w-full">
-        <button className="bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg">
-          Sign up
-        </button>
-        <button className="border-1 border-primary-500 bg-white w-full text-primary-500 px-4 py-3 rounded-md font-bold text-lg">
+        <Link href="/signup">
+          <button className="bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg">
+            Sign up
+          </button>
+        </Link>
+        <Link href="/login">
+          <button className="border-1 border-primary-500 bg-white w-full text-primary-500 px-4 py-3 rounded-md font-bold text-lg">
           Login
-        </button>
+          </button>
+        </Link>
       </div>
     </main>
   );
