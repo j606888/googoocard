@@ -10,12 +10,14 @@
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
+    "@reduxjs/toolkit": "^2.8.2",
     "bcryptjs": "^3.0.2",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.514.0",
     "next": "15.3.3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-redux": "^9.2.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

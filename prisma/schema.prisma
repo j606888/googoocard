@@ -32,6 +32,7 @@ model Classroom {
   memberships Membership[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  teachers Teacher[]
 }
 
 model Membership {
@@ -45,4 +46,13 @@ model Membership {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, classroomId])
+}
+
+model Teacher {
+  id        Int      @id @default(autoincrement())
+  name      String
+  classroomId Int
+  classroom Classroom @relation(fields: [classroomId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
