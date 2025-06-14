@@ -1,6 +1,6 @@
 "use client";
 
-import {  Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -9,6 +9,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,15 +24,30 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    setLoading(true);
 
-    await fetch("/api/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    });
-    router.push("/onboarding");
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        router.push("/onboarding");
+      } else {
+        setError(data.error);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setError("An error occurred. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,9 +63,7 @@ export default function LoginPage() {
       </div>
       <div className="h-[60vh] bg-white rounded-t-3xl w-full p-6 flex flex-col items-center z-1 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="w-full">
-          <h2 className="text-[28px] font-semibold mb-4 text-center">
-            Login
-          </h2>
+          <h2 className="text-[28px] font-semibold mb-4 text-center">Login</h2>
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3">
               <Mail className="w-6 h-6 text-gray-500" />
@@ -60,7 +75,6 @@ export default function LoginPage() {
                   value={email}
                   onChange={handleEmailChange}
                 />
-               
               </div>
             </div>
             <div className="relative flex items-center gap-3">
@@ -69,10 +83,17 @@ export default function LoginPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
-                  className="w-full border-b-2 border-gray-300 px-1.5 py-3 text-base focus:outline-none"
+                  className={`w-full border-b-2 ${
+                    error ? "border-red-500" : "border-gray-300"
+                  } px-1.5 py-3 text-base focus:outline-none`}
                   value={password}
                   onChange={handlePasswordChange}
                 />
+                {error && (
+                  <p className="text-red-500 text-sm mt-1 absolute -bottom-5 left-0">
+                    {error}
+                  </p>
+                )}
               </div>
               <button className="absolute right-0 top-0 bottom-0 p-3">
                 {showPassword ? (
@@ -92,7 +113,10 @@ export default function LoginPage() {
         </div>
         <div className="mt-auto w-full">
           <button
-            className="bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg"
+            className={`bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg ${
+              loading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            disabled={loading}
             onClick={handleSubmit}
           >
             Login

@@ -2,25 +2,45 @@
 
 import {  Store } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-export default function LoginPage() {
+export default function OnboardingPage() {
   const [classroomName, setClassroomName] = useState("");
-
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!classroomName.trim()) {
+      setError("Classroom name is required");
+      return;
+    }
 
-    const response = await fetch("/api/classrooms", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ name: classroomName }),
-    });
-    const data = await response.json();
-    
-    console.log(data);
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/classrooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: classroomName }),
+      });
+  
+      const data = await response.json();
+  
+      if (response.ok) {
+        router.push("/");
+      } else {
+        console.error(data);
+      }
+    } catch (error) {
+      console.error("Onboarding error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,17 +66,27 @@ export default function LoginPage() {
                 <input
                   type="text"
                   placeholder="Your classroom name"
-                  className="w-full border-b-2 border-gray-300 px-1.5 py-3 text-base focus:outline-none"
+                  className={`w-full border-b-2 ${
+                    error ? "border-red-500" : "border-gray-300"
+                  } px-1.5 py-3 text-base focus:outline-none`}
                   value={classroomName}
                   onChange={(e) => setClassroomName(e.target.value)}
                 />
+                {error && (
+                  <p className="text-red-500 text-sm mt-1 absolute -bottom-5 left-0">
+                    {error}
+                  </p>
+                )}
               </div>
             </div>
           </div>
         </div>
         <div className="mt-auto w-full">
           <button
-            className="bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg"
+            className={`bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg ${
+              loading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            disabled={loading}
             onClick={handleSubmit}
           >
             Submit
