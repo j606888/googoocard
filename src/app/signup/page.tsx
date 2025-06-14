@@ -18,13 +18,13 @@ const validatePassword = (password: string) => {
     return "Password must contain at least one lowercase letter";
   }
 
-  if (!/[A-Z]/.test(password)) {
-    return "Password must contain at least one uppercase letter";
-  }
+  // if (!/[A-Z]/.test(password)) {
+  //   return "Password must contain at least one uppercase letter";
+  // }
 
-  if (!/\d/.test(password)) {
-    return "Password must contain at least one number";
-  }
+  // if (!/\d/.test(password)) {
+  //   return "Password must contain at least one number";
+  // }
 
   return "";
 };
