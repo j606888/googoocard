@@ -3,8 +3,6 @@ import { api } from '../api';
 export interface Teacher {
   id: string;
   name: string;
-  email: string;
-  subject: string;
 }
 
 const teachersApi = api.injectEndpoints({
@@ -14,11 +12,11 @@ const teachersApi = api.injectEndpoints({
       providesTags: ['Teacher'],
     }),
   
-    createTeacher: builder.mutation<Teacher, Omit<Teacher, 'id'>>({
-      query: (teacher) => ({
+    createTeacher: builder.mutation<Teacher, { name: string, classroomId: number }>({
+      query: ({ name, classroomId }) => ({
         url: 'teachers',
         method: 'POST',
-        body: teacher,
+        body: { name, classroomId },
       }),
       invalidatesTags: ['Teacher'],
     }),
