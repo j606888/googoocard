@@ -32,7 +32,7 @@ export default function OnboardingPage() {
       const data = await response.json();
   
       if (response.ok) {
-        router.push("/");
+        router.push("/teachers");
       } else {
         console.error(data);
       }

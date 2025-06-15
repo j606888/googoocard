@@ -1,39 +1,34 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
 import prisma from '@/lib/prisma';
+import { createAuthSession, decodeAuthToken } from '@/lib/auth';
 
-const JWT_SECRET = process.env.JWT_SECRET!;
+export async function GET() {
+  const { userId, classroomId } = await decodeAuthToken();
+  const classrooms = await prisma.classroom.findMany({
+    where: {
+      ownerId: userId!,
+    },
+  });
+
+  return NextResponse.json({ classrooms, currentClassroomId: classroomId });
+}
 
 export async function POST(request: Request) {
   try {
     const { name } = await request.json();
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth_token')?.value;
+    const { userId } = await decodeAuthToken();
 
-    console.log({token});
-
-    if (!token) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
-    const userId = +decoded.id;
-
-    console.log({userId});
-
-    // Create classroom + membership in one transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const classroom = await prisma.$transaction(async (tx) => {
       const classroom = await tx.classroom.create({
         data: {
           name,
-          ownerId: userId,
+          ownerId: userId!,
         },
       });
 
       await tx.membership.create({
         data: {
-          userId,
+          userId: userId!,
           classroomId: classroom.id,
           role: 'owner',
         },
@@ -42,7 +37,9 @@ export async function POST(request: Request) {
       return classroom;
     });
 
-    return NextResponse.json({ success: true, classroom: result });
+    await createAuthSession(userId!, classroom.id);
+
+    return NextResponse.json({ success: true, classroom });
   } catch (err) {
     console.error('[CREATE_CLASSROOM_ERROR]', err);
     return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
