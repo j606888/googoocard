@@ -20,10 +20,18 @@ const teachersApi = api.injectEndpoints({
       }),
       invalidatesTags: ['Teacher'],
     }),
+    deleteTeacher: builder.mutation<Teacher, { id: string }>({
+      query: ({ id }) => ({
+        url: `teachers/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Teacher'],
+    }),
   }),
 });
 
 export const {
   useGetTeachersQuery,
   useCreateTeacherMutation,
+  useDeleteTeacherMutation,
 } = teachersApi;

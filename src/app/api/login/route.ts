@@ -9,6 +9,9 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { email },
+      include: {
+        memberships: true,
+      }
     });
 
     if (!user) {
@@ -27,7 +30,9 @@ export async function POST(request: Request) {
       );
     }
 
-    await createAuthSession(user.id.toString());
+    const firstClassroomId = user.memberships[0].classroomId;
+
+    await createAuthSession(user.id, firstClassroomId);
 
     return NextResponse.json({
       message: "Login successful",

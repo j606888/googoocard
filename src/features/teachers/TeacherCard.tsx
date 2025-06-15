@@ -1,6 +1,7 @@
-import { EllipsisVertical, BookOpenText, Pencil, Trash } from "lucide-react";
+import { EllipsisVertical, BookOpenText, Trash } from "lucide-react";
 import Menu from "@/components/Menu";
 import { useRef, useState } from "react";
+import { useDeleteTeacherMutation } from "@/store/slices/teachers";
 
 const TeacherCard = ({
   teacher,
@@ -10,10 +11,16 @@ const TeacherCard = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
+  const [deleteTeacher] = useDeleteTeacherMutation();
+
+  const handleDelete = async () => {
+    await deleteTeacher({ id: teacher.id });
+  };
+
   return (
     <div
       key={teacher.id}
-      className="flex border-1 border-gray-200 rounded-sm px-3 py-2 items-center"
+      className="flex border-1 border-gray-200 rounded-sm px-3 py-2 items-center shadow-sm"
     >
       <div className="flex flex-col mr-auto gap-1.5">
         <h4 className="text-xl font-semibold">{teacher.name}</h4>
@@ -32,12 +39,8 @@ const TeacherCard = ({
         anchorEl={buttonRef.current}
         onClose={() => setMenuOpen(false)}
       >
-        <button className='flex gap-3 items-center p-3 hover:bg-gray-100 rounded-sm'>
-          <Pencil className="w-5 h-5" />
-          <span>Edit</span>
-        </button>
-        <button className='flex gap-3 items-center p-3 hover:bg-gray-100 rounded-sm'>
-          <Trash className="w-5 h-5" />
+        <button className='flex gap-3 items-center p-3 hover:bg-gray-100 rounded-sm' onClick={handleDelete}>
+          <Trash className="w-4 h-4" />
           <span>Delete</span>
         </button>
       </Menu>
