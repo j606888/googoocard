@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, ChevronDown, BookOpenText, CreditCard, GraduationCap, Users, Boxes, DollarSign, LogOut } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 
 const LINKS = [
   {
@@ -41,7 +42,11 @@ const LINKS = [
 
 const Sidebar = () => {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   const router = useRouter();
+
+  const { data } = useGetClassroomsQuery();
+  const currentClassroom = data?.classrooms.find((classroom) => classroom.id === data.currentClassroomId);
 
   const handleLogout = async () => {
     await fetch("/api/logout", {
@@ -49,6 +54,8 @@ const Sidebar = () => {
     });
     router.push("/login");
   }
+
+  if (!data) return null;
 
   return (
     <>
@@ -73,15 +80,15 @@ const Sidebar = () => {
               transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
             >
               <div className="flex gap-4 items-center pb-6 border-b border-gray-200">
-                <div className='w-9 h-9  flex items-center justify-center bg-primary-500 rounded-lg text-white'>B</div>
-                <h2 className="text-xl font-semibold">Bail&apos;more Studio</h2>
+                <div className='w-9 h-9 font-bold flex items-center justify-center bg-primary-500 rounded-lg text-white'>{currentClassroom?.name.slice(0, 1)}</div>
+                <h2 className="text-xl font-semibold">{currentClassroom?.name}</h2>
                 <button className="ml-auto">
                   <ChevronDown className="w-6 h-6" />
                 </button>
               </div>
               <div className="flex flex-col gap-2 mt-4">
                 {LINKS.map((link) => (
-                  <Link href={link.href} key={link.name} className="flex gap-4 items-center p-3 hover:bg-gray-100 rounded-sm">
+                  <Link href={link.href} key={link.name} className={`flex gap-4 items-center p-3 hover:bg-gray-100 rounded-sm ${pathname === link.href ? "bg-primary-100 text-primary-900 font-semibold" : "text-gray-700"}`}>
                     <link.icon className="w-6 h-6" />
                     <span>{link.name}</span>
                   </Link>
