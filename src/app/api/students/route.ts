@@ -5,21 +5,21 @@ import { decodeAuthToken } from "@/lib/auth";
 export async function GET() {
   const { classroomId } = await decodeAuthToken();
 
-  const teachers = await prisma.teacher.findMany({
+  const students = await prisma.student.findMany({
     where: {
       classroomId,
     },
   });
-  return NextResponse.json(teachers);
+  return NextResponse.json(students);
 }
 
 export async function POST(request: Request) {
-  const { name } = await request.json();
+  const { name, avatarUrl } = await request.json();
   const { classroomId } = await decodeAuthToken();
 
-  const teacher = await prisma.teacher.create({
-    data: { name, classroomId: classroomId! },
+  const student = await prisma.student.create({
+    data: { name, avatarUrl, classroomId: classroomId! },
   });
 
-  return NextResponse.json(teacher);
+  return NextResponse.json(student);
 }

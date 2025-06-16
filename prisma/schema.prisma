@@ -31,6 +31,7 @@ model Classroom {
   name      String
   memberships Membership[]
   cards Card[]
+  students Student[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   teachers Teacher[]
@@ -64,6 +65,16 @@ model Card {
   price     Int
   sessions  Int
   expiredAt DateTime?
+  classroomId Int
+  classroom Classroom @relation(fields: [classroomId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Student {
+  id        Int      @id @default(autoincrement())
+  name      String
+  avatarUrl String
   classroomId Int
   classroom Classroom @relation(fields: [classroomId], references: [id])
   createdAt DateTime @default(now())
