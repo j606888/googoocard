@@ -16,6 +16,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const { name } = await request.json();
   const { classroomId } = await decodeAuthToken();
+  console.log({ classroomId });
 
   const teacher = await prisma.teacher.create({
     data: { name, classroomId: classroomId! },

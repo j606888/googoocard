@@ -9,9 +9,10 @@ interface BottomSheetDialogProps {
   title: string;
   onClose: () => void;
   onSubmit: () => void;
+  isLoading?: boolean;
 }
 
-const Drawer = ({ title, open, onClose, onSubmit, children }: BottomSheetDialogProps) => {
+const Drawer = ({ title, open, onClose, onSubmit, children, isLoading }: BottomSheetDialogProps) => {
   return (
     <AnimatePresence>
       {open && (
@@ -31,7 +32,7 @@ const Drawer = ({ title, open, onClose, onSubmit, children }: BottomSheetDialogP
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
           >
             <div className='relative flex items-center justify-center mb-6 '>
               <h2 className='text-xl font-semibold'>{title}</h2>
@@ -43,8 +44,8 @@ const Drawer = ({ title, open, onClose, onSubmit, children }: BottomSheetDialogP
             <div className='mt-auto w-full'>
               <button
                 type="submit"
-                className="mt-auto w-full bg-primary-500 text-white font-semibold py-2 rounded"
-                onClick={onSubmit}
+                className={`mt-auto w-full bg-primary-500 text-white font-semibold py-2 rounded ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                onClick={() => !isLoading && onSubmit()}
               >
                 CREATE
               </button>
