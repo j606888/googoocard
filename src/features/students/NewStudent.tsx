@@ -46,6 +46,7 @@ const NewStudent = () => {
     await createStudent({ name, avatarUrl: selectedAvatarUrl });
     setName("");
     setOpen(false);
+    setIsLoading(false);
   };
 
   const handleCardNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,7 +84,7 @@ const NewStudent = () => {
             onChange={handleCardNameChange}
             error={errors.name}
           />
-          <div className="flex gap-3 items-center justify-center flex-wrap">
+          <div className="flex px-3 gap-3 items-center justify-center flex-wrap">
             {avatarUrls.map((avatarUrl) => (
               <div
                 key={avatarUrl}

@@ -1,9 +1,10 @@
 import { api } from "../api";
 
 export interface Student {
-  id: string;
+  id: number;
   name: string;
   avatarUrl: string;
+  createdAt: string;
 }
 
 const studentsApi = api.injectEndpoints({
