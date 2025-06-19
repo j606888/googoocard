@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 
 interface BottomSheetDialogProps {
   open: boolean;
@@ -44,10 +44,11 @@ const Drawer = ({ title, open, onClose, onSubmit, children, isLoading }: BottomS
             <div className='mt-auto w-full'>
               <button
                 type="submit"
-                className={`mt-auto w-full bg-primary-500 text-white font-semibold py-2 rounded ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`mt-auto w-full bg-primary-500 text-white font-semibold py-2 rounded flex items-center justify-center gap-2 ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                 onClick={() => !isLoading && onSubmit()}
               >
-                CREATE
+                <span>CREATE</span>
+                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               </button>
             </div>
           </motion.div>

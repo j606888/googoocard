@@ -17,7 +17,7 @@ const InputField = ({
     <div className="w-full relative">
       <label className="block mb-2 font-medium">{label}</label>
       <input
-        className={`w-full mb-4 p-2 rounded bg-gray-100 focus:outline-primary-500 ${error ? "border-1 border-red-500" : ""}`}
+        className={`w-full p-2 rounded bg-gray-100 focus:outline-primary-500 ${error ? "border-1 border-red-500" : ""}`}
         value={value}
         placeholder={placeholder}
         type={type}
@@ -25,7 +25,7 @@ const InputField = ({
         pattern={type === "number" ? "\d*" : undefined}
         onChange={onChange}
       />
-      {error && <p className="text-red-500 text-xs absolute bottom-0 left-0">{error}</p>}
+      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
     </div>
   );
 };
