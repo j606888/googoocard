@@ -1,0 +1,90 @@
+import ProgressBall from "@/components/ProgressBall";
+import InputField from "@/components/InputField";
+import { useState } from "react";
+import CardSelect from "./CardSelect";
+import Button from "@/components/Button";
+import TeacherSelect from "./TeacherSelect";
+
+const validationErrors = {
+  lessonName: "Must provide a name",
+  teachers: "Must select at least one teacher",
+  cards: "Must select at least one card",
+};
+
+const validateForm = (data: { lessonName: string; teachers: number[]; cards: number[] }) => {
+  const errors: { lessonName?: string; teachers?: string; cards?: string } = {};
+  if (!data.lessonName) {
+    errors.lessonName = validationErrors.lessonName;
+  }
+  if (data.teachers.length === 0) {
+    errors.teachers = validationErrors.teachers;
+  }
+  if (data.cards.length === 0) {
+    errors.cards = validationErrors.cards;
+  }
+  return errors;
+};
+
+const Step1 = () => {
+  const [lessonName, setLessonName] = useState("");
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>([]);
+  const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
+  const [errors, setErrors] = useState<{ lessonName?: string; teachers?: string; cards?: string }>({});
+
+  const handleLessonNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (errors.lessonName) {
+      setErrors((prev) => ({ ...prev, lessonName: undefined }));
+    }
+    setLessonName(e.target.value);
+  };
+
+  const handleTeacherChange = (value: number[]) => {
+    setSelectedTeacherIds(value);
+    if (errors.teachers) {
+      setErrors((prev) => ({ ...prev, teachers: undefined }));
+    }
+  };
+
+  const handleCardChange = (value: number[]) => {
+    setSelectedCardIds(value);
+    if (errors.cards) {
+      setErrors((prev) => ({ ...prev, cards: undefined }));
+    }
+  };
+
+  const handleSubmit = () => {
+    const errors = validateForm({ lessonName, teachers: selectedTeacherIds, cards: selectedCardIds });
+    setErrors(errors);
+    if (Object.keys(errors).length === 0) {
+      console.log({
+        lessonName,
+        teachers: selectedTeacherIds,
+        cards: selectedCardIds,
+      })
+    }
+  };
+
+  return (
+    <div className="px-5 py-5 flex flex-col gap-5">
+      <h2 className="text-xl font-semibold text-center">Basic information</h2>
+      <ProgressBall currentStep={1} />
+      <div className="flex flex-col gap-4 mb-5">
+        <InputField
+          label="Lesson Name"
+          placeholder="E.g. Bachata Lv1"
+          value={lessonName}
+          onChange={handleLessonNameChange}
+          error={errors.lessonName}
+        />
+        <TeacherSelect error={errors.teachers} onChange={handleTeacherChange} />
+        <CardSelect error={errors.cards} onChange={handleCardChange} />
+      </div>
+      <div className="flex gap-4">
+        <Button outline>Back</Button>
+        <Button onClick={handleSubmit}>Next</Button>
+      </div>
+    </div>
+  );
+};
+
+export default Step1;
