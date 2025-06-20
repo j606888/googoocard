@@ -4,6 +4,7 @@ import { useState } from "react";
 import CardSelect from "./CardSelect";
 import Button from "@/components/Button";
 import TeacherSelect from "./TeacherSelect";
+import { useRouter } from "next/navigation";
 
 const validationErrors = {
   lessonName: "Must provide a name",
@@ -11,21 +12,8 @@ const validationErrors = {
   cards: "Must select at least one card",
 };
 
-const validateForm = (data: { lessonName: string; teachers: number[]; cards: number[] }) => {
-  const errors: { lessonName?: string; teachers?: string; cards?: string } = {};
-  if (!data.lessonName) {
-    errors.lessonName = validationErrors.lessonName;
-  }
-  if (data.teachers.length === 0) {
-    errors.teachers = validationErrors.teachers;
-  }
-  if (data.cards.length === 0) {
-    errors.cards = validationErrors.cards;
-  }
-  return errors;
-};
-
 const Step1 = () => {
+  const router = useRouter();
   const [lessonName, setLessonName] = useState("");
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>([]);
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
@@ -61,6 +49,8 @@ const Step1 = () => {
         teachers: selectedTeacherIds,
         cards: selectedCardIds,
       })
+
+      router.push('/lessons/new/step-2');
     }
   };
 
@@ -85,6 +75,20 @@ const Step1 = () => {
       </div>
     </div>
   );
+};
+
+const validateForm = (data: { lessonName: string; teachers: number[]; cards: number[] }) => {
+  const errors: { lessonName?: string; teachers?: string; cards?: string } = {};
+  if (!data.lessonName) {
+    errors.lessonName = validationErrors.lessonName;
+  }
+  if (data.teachers.length === 0) {
+    errors.teachers = validationErrors.teachers;
+  }
+  if (data.cards.length === 0) {
+    errors.cards = validationErrors.cards;
+  }
+  return errors;
 };
 
 export default Step1;

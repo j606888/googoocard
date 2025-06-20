@@ -41,7 +41,10 @@ const NewCard = ({ onChange, error }: { onChange: (value: number[]) => void, err
       setErrors(errors);
       return;
     }
-    await createCard({ name: cardName, price: Number(price), sessions: Number(sessions) });
+    const card = await createCard({ name: cardName, price: Number(price), sessions: Number(sessions) });
+    if (card.data) {
+      setSelectedCards([...selectedCards, card.data.id]);
+    }
     setCardName("");
     setPrice("");
     setSessions("");
