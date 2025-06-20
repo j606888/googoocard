@@ -15,7 +15,7 @@ const Step2 = () => {
       setError("Please add at least one period");
       return;
     }
-    router.push("/lessons/new/step3");
+    router.push("/lessons/new/step-3");
   };
 
   const handleAddPeriod = (period: { date: string, fromTime: string, toTime: string }) => {
