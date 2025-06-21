@@ -2,7 +2,7 @@ import { Search, X } from "lucide-react";
 import { Student } from "@/store/slices/students";
 import { useState } from "react";
 
-const Searchbar = ({ onSearch, selectedStudents }: { onSearch: (search: string) => void, selectedStudents: Student[] }) => {
+const Searchbar = ({ onSearch, selectedStudents, error }: { onSearch: (search: string) => void, selectedStudents: Student[], error: string | null }) => {
   const [search, setSearch] = useState("");
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -12,7 +12,10 @@ const Searchbar = ({ onSearch, selectedStudents }: { onSearch: (search: string) 
 
   return (
     <div className="flex flex-col gap-3">
-      <p>Selected ({selectedStudents.length})</p>
+      <div>
+        <p>Selected ({selectedStudents.length})</p>
+        {error && <p className="text-red-500">{error}</p>}
+      </div>
       <div className="flex items-center gap-3 p-3 rounded-sm border-1 border-[#e2e2e2]">
         <Search className="w-5 h-5 text-[#808080] flex-shrink-0" />
         <input

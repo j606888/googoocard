@@ -11,13 +11,18 @@ import { useState } from "react";
 const Step3 = () => {
   const { data: students } = useGetStudentsQuery();
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
-  const router = useRouter();
   const [filterKeyword, setFilterKeyword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
   const selectedStudents =
     students?.filter((student) => selectedStudentIds.includes(student.id)) ||
     [];
 
   const handleSubmit = () => {
+    if (selectedStudents.length === 0) {
+      setError("Please select at least one student");
+      return;
+    }
     router.push("/lessons/new/step-4");
   };
 
@@ -42,6 +47,7 @@ const Step3 = () => {
       <ProgressBall currentStep={3} />
       <div className="border-t-1 border-gray-200 mt-2 pt-3 mb-10 flex flex-col gap-4">
         <Searchbar
+          error={error}
           onSearch={handleSearch}
           selectedStudents={selectedStudents}
         />
