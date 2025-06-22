@@ -14,85 +14,135 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  password  String
-  classrooms Classroom[]  @relation("OwnedClassrooms")
+  id          Int          @id @default(autoincrement())
+  email       String       @unique
+  name        String
+  password    String
+  classrooms  Classroom[]  @relation("OwnedClassrooms")
   memberships Membership[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model Classroom {
-  id        Int      @id @default(autoincrement())
-  ownerId   Int
-  owner     User     @relation("OwnedClassrooms", fields: [ownerId], references: [id])
-  name      String
+  id          Int          @id @default(autoincrement())
+  ownerId     Int
+  owner       User         @relation("OwnedClassrooms", fields: [ownerId], references: [id])
+  name        String
   memberships Membership[]
-  cards Card[]
-  students Student[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  teachers Teacher[]
+  cards       Card[]
+  students    Student[]
+  lessons     Lesson[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  teachers    Teacher[]
 }
 
 model Membership {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
   classroomId Int
-  classroom Classroom @relation(fields: [classroomId], references: [id])
-  role      String   @default("owner")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  role        String    @default("owner")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@unique([userId, classroomId])
 }
 
 model Teacher {
-  id        Int      @id @default(autoincrement())
-  name      String
+  id          Int             @id @default(autoincrement())
+  name        String
   classroomId Int
-  classroom Classroom @relation(fields: [classroomId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  classroom   Classroom       @relation(fields: [classroomId], references: [id])
+  lessons     LessonTeacher[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 }
 
 model Card {
-  id        Int      @id @default(autoincrement())
-  name      String
-  price     Int
-  sessions  Int
-  expiredAt DateTime?
-  classroomId Int
+  id           Int           @id @default(autoincrement())
+  name         String
+  price        Int
+  sessions     Int
+  expiredAt    DateTime?
+  classroomId  Int
   studentCards StudentCard[]
-  classroom Classroom @relation(fields: [classroomId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  lessons      LessonCard[]
+  classroom    Classroom     @relation(fields: [classroomId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Student {
-  id        Int      @id @default(autoincrement())
-  name      String
-  avatarUrl String
-  classroomId Int
-  classroom Classroom @relation(fields: [classroomId], references: [id])
+  id           Int           @id @default(autoincrement())
+  name         String
+  avatarUrl    String
+  classroomId  Int
+  classroom    Classroom     @relation(fields: [classroomId], references: [id])
   studentCards StudentCard[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model StudentCard {
-  id        Int      @id @default(autoincrement())
-  studentId Int
-  student Student @relation(fields: [studentId], references: [id])
-  cardId Int
-  card Card @relation(fields: [cardId], references: [id])
-  basePrice Int
-  finalPrice Int
-  totalSessions Int
+  id                Int      @id @default(autoincrement())
+  studentId         Int
+  student           Student  @relation(fields: [studentId], references: [id])
+  cardId            Int
+  card              Card     @relation(fields: [cardId], references: [id])
+  basePrice         Int
+  finalPrice        Int
+  totalSessions     Int
   remainingSessions Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Lesson {
+  id          Int             @id @default(autoincrement())
+  name        String
+  classroomId Int
+  classroom   Classroom       @relation(fields: [classroomId], references: [id])
+  teachers    LessonTeacher[]
+  cards       LessonCard[]
+  periods     LessonPeriod[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model LessonTeacher {
+  id        Int      @id @default(autoincrement())
+  lessonId  Int
+  teacherId Int
+  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lessonId, teacherId])
+}
+
+model LessonCard {
+  id        Int      @id @default(autoincrement())
+  lessonId  Int
+  cardId    Int
+  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  card      Card     @relation(fields: [cardId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lessonId, cardId])
+}
+
+model LessonPeriod {
+  id        Int      @id @default(autoincrement())
+  lessonId  Int
+  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  date      DateTime
+  timeFrom  String
+  timeTo    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

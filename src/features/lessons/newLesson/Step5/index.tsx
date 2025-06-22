@@ -25,7 +25,7 @@ const Step4 = () => {
         <Button outline onClick={() => router.push("/lessons/new/step-4")}>
           Back
           </Button>
-          <Button onClick={handleSubmit}>Next</Button>
+          <Button onClick={handleSubmit}>Save</Button>
         </div>
     </div>
   );
