@@ -6,9 +6,13 @@ import RoundCheckbox from "@/components/RoundCheckbox";
 const StudentList = ({
   students,
   answers,
+  currentStudentId,
+  onClick,
 }: {
   students: Student[];
   answers: Answer[];
+  currentStudentId: number | null;
+  onClick: (studentId: number) => void;
 }) => {
   const doneStudentIds = answers.map((answer) => answer.studentId);
   return (
@@ -17,7 +21,8 @@ const StudentList = ({
         {students.map((student) => (
           <div
             key={student.id}
-            className={`relative flex flex-col items-center gap-1 border-1 border-gray-200 rounded-sm px-1  py-2 w-16`}
+            className={`relative flex flex-col items-center gap-1 border-1 border-gray-200 rounded-sm px-1  py-2 w-16 ${currentStudentId === student.id ? "bg-primary-100 border-primary-500" : ""}`}
+            onClick={() => onClick(student.id)}
           >
             <Image
               src={student.avatarUrl}

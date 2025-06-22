@@ -24,9 +24,8 @@ const validateForm = (data: { cardName: string; price: string; sessions: string 
   return errors;
 };
 
-const NewCard = ({ onChange, error }: { onChange: (value: number[]) => void, error?: string }) => {
+const NewCard = ({ selectedCardIds, onChange, error }: { selectedCardIds: number[], onChange: (value: number[]) => void, error?: string }) => {
   const { data: cards } = useGetCardsQuery();
-  const [selectedCards, setSelectedCards] = useState<number[]>([]);
   const [open, setOpen] = useState(false);
   const [cardName, setCardName] = useState("");
   const [price, setPrice] = useState("");
@@ -43,7 +42,7 @@ const NewCard = ({ onChange, error }: { onChange: (value: number[]) => void, err
     }
     const card = await createCard({ name: cardName, price: Number(price), sessions: Number(sessions) });
     if (card.data) {
-      setSelectedCards([...selectedCards, card.data.id]);
+      onChange([...selectedCardIds, card.data.id]);
     }
     setCardName("");
     setPrice("");
@@ -90,14 +89,13 @@ const NewCard = ({ onChange, error }: { onChange: (value: number[]) => void, err
       <label className="block font-medium mb-1">Cards</label>
       <MultiSelect
         options={cardOptions}
-        values={selectedCards}
+        values={selectedCardIds}
         placeholder="Select cards"
         newOptionLabel="New card"
         newOptionOnClick={() => {
           setOpen(true);
         }}
         onChange={(values) => {
-          setSelectedCards(values as number[]);
           onChange(values as number[]);
         }}
         error={error}

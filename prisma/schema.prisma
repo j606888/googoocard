@@ -66,6 +66,7 @@ model Card {
   sessions  Int
   expiredAt DateTime?
   classroomId Int
+  studentCards StudentCard[]
   classroom Classroom @relation(fields: [classroomId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -77,6 +78,21 @@ model Student {
   avatarUrl String
   classroomId Int
   classroom Classroom @relation(fields: [classroomId], references: [id])
+  studentCards StudentCard[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StudentCard {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  student Student @relation(fields: [studentId], references: [id])
+  cardId Int
+  card Card @relation(fields: [cardId], references: [id])
+  basePrice Int
+  finalPrice Int
+  totalSessions Int
+  remainingSessions Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

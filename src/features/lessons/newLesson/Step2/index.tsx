@@ -2,7 +2,7 @@ import Button from "@/components/Button";
 import ProgressBall from "@/components/ProgressBall";
 import { Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AddPeriodForm from "./AddPeriodForm";
 
 const Step2 = () => {
@@ -15,17 +15,38 @@ const Step2 = () => {
       setError("Please add at least one period");
       return;
     }
+    const draft = JSON.parse(localStorage.getItem('lesson-draft') || '{}');
+    localStorage.setItem("lesson-draft", JSON.stringify({
+      ...draft,
+      periods,
+    }));
     router.push("/lessons/new/step-3");
   };
 
   const handleAddPeriod = (period: { date: string, fromTime: string, toTime: string }) => {
     setPeriods([...periods, period]);
     setError(null);
+    syncPeriods([...periods, period]);
   };
 
   const handleDeletePeriod = (index: number) => {
-    setPeriods(periods.filter((_, i) => i !== index));
+    const newPeriods = periods.filter((_, i) => i !== index);
+    setPeriods(newPeriods);
+    syncPeriods(newPeriods);
   };
+
+  useEffect(() => {
+    const draft = JSON.parse(localStorage.getItem('lesson-draft') || '{}');
+    setPeriods(draft.periods || []);
+  }, []);
+
+  const syncPeriods = (periods: { date: string, fromTime: string, toTime: string }[]) => {
+    const draft = JSON.parse(localStorage.getItem('lesson-draft') || '{}');
+    localStorage.setItem("lesson-draft", JSON.stringify({
+      ...draft,
+      periods,
+    }));
+  }
 
   return (
     <div className="px-5 py-5 flex flex-col gap-5">
@@ -41,7 +62,7 @@ const Step2 = () => {
         {error && <p className="text-red-500 text-sm">{error}</p>}
       </div>
       <div className="flex gap-4">
-        <Button outline onClick={() => router.back()}>
+        <Button outline onClick={() => router.push("/lessons/new/step-1")}>
           Back
         </Button>
         <Button onClick={handleSubmit}>Next</Button>

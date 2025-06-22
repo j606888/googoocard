@@ -6,7 +6,7 @@ import CreateStudent from "./CreateStudent";
 import StudentSelectList from "./StudentSelectList";
 import Searchbar from "./Searchbar";
 import SelectedStudents from "./SelectedStudents";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const Step3 = () => {
   const { data: students } = useGetStudentsQuery();
@@ -23,6 +23,11 @@ const Step3 = () => {
       setError("Please select at least one student");
       return;
     }
+    const draft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
+    localStorage.setItem("lesson-draft", JSON.stringify({
+      ...draft,
+      studentIds: selectedStudentIds,
+    }));
     router.push("/lessons/new/step-4");
   };
 
@@ -40,6 +45,11 @@ const Step3 = () => {
         filterKeyword === "" ||
         student.name.toLowerCase().includes(filterKeyword.toLowerCase())
     ) || [];
+
+  useEffect(() => {
+    const draft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
+    setSelectedStudentIds(draft.studentIds || []);
+  }, []);
 
   return (
     <div className="px-5 py-5 flex flex-col gap-5">
@@ -76,7 +86,7 @@ const Step3 = () => {
         </div>
       </div>
       <div className="fixed bottom-0 left-0 right-0 bg-white flex gap-4 px-5 py-4">
-        <Button outline onClick={() => router.back()}>
+        <Button outline onClick={() => router.push("/lessons/new/step-2")}>
           Back
         </Button>
         <Button onClick={handleSubmit}>Next</Button>

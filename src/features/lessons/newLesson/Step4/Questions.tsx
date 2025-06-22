@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { Student } from "@/store/slices/students";
+import { Student, useGetStudentCardsQuery } from "@/store/slices/students";
 import InputField from "@/components/InputField";
 import RoundCheckbox from "@/components/RoundCheckbox";
-import { useGetCardsQuery } from "@/store/slices/cards";
+import { Card, useGetCardsQuery } from "@/store/slices/cards";
 import Button from "@/components/Button";
 
 export type Answer = {
@@ -13,8 +13,15 @@ export type Answer = {
   cardSessions: string;
   cardPrice: string;
 };
+
+const validationErrors = {
+  selectedCardId: "Must select a card",
+  nonZero: "Must be greater than 0",
+};
+
 const Questions = ({
   student,
+  firstStudent,
   defaultAnswers = {
     studentId: 0,
     createNewCard: true,
@@ -26,11 +33,13 @@ const Questions = ({
   onBack = () => {},
 }: {
   student: Student;
+  firstStudent: boolean;
   defaultAnswers?: Answer;
   onSubmit?: (answers: Answer) => void;
   onBack?: () => void;
 }) => {
   const { data: cards } = useGetCardsQuery();
+  const { data: studentCards } = useGetStudentCardsQuery({ id: student.id });
   const [createNewCard, setCreateNewCard] = useState<boolean>(
     defaultAnswers?.createNewCard || true
   );
@@ -43,13 +52,69 @@ const Questions = ({
   const [cardPrice, setCardPrice] = useState<string>(
     defaultAnswers?.cardPrice || ""
   );
-  const hasExistingCard = false;
+  const [errors, setErrors] = useState<{
+    selectedCardId?: string;
+    cardSessions?: string;
+  }>({
+    selectedCardId: "",
+    cardSessions: "",
+  });
+
+  const cardOptions = useMemo(() => {
+    if (!cards) return [];
+
+    const activeCards = cards?.activeCards || [];
+    const lessonDraft = localStorage.getItem("lesson-draft") || "{}";
+    const cardIds = JSON.parse(lessonDraft).cardIds || [];
+
+    return cardIds.map((cardId: number) => {
+      return activeCards.find((card) => card.id === cardId)
+    }) as Card[]
+  }, [cards])
+
+  const hasExistingCard = useMemo(() => {
+    const usableCards = studentCards?.filter((card) => card.remainingSessions > 0) || [];
+    const usableCardIds = usableCards.map((card) => card.cardId) || []
+
+    const lessonDraft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
+    const cardIds = lessonDraft.cardIds || [];
+    return cardIds.some((cardId: number) => usableCardIds.includes(cardId));
+  }, [studentCards]);
 
   const handleSelectCard = (cardId: number) => {
     setSelectedCardId(cardId);
+    if (errors.selectedCardId) {
+      setErrors({
+        ...errors,
+        selectedCardId: "",
+      });
+    }
+  };
+
+  const handleCardSessionsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === "" || parseInt(value) > 0) {
+      setCardSessions(value);
+      setErrors({
+        ...errors,
+        cardSessions: "",
+      });
+    }
+  };
+
+  const handleCardPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCardPrice(value);
   };
 
   const handleSubmit = () => {
+    const errors = validateForm({
+      selectedCardId,
+      cardSessions,
+      cardPrice,
+    });
+    setErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     onSubmit({
       studentId: student.id,
       createNewCard,
@@ -70,12 +135,6 @@ const Questions = ({
       }
     }
   }, [selectedCardId, cards, defaultAnswers.selectedCardId]);
-
-  useEffect(() => {
-    if (!defaultAnswers.selectedCardId) {
-      setSelectedCardId(cards?.activeCards[0].id || null);
-    }
-  }, [cards, defaultAnswers.selectedCardId]);
 
   return (
     <div className="border-t-1 border-gray-200 mt-3 pt-3 mb-10">
@@ -114,7 +173,7 @@ const Questions = ({
           <>
             <p>Choose card</p>
             <div className="flex flex-wrap gap-2 pt-2">
-              {cards?.activeCards.map((card) => (
+              {cardOptions?.map((card) => (
                 <div
                   key={card.id}
                   className={`flex gap-2 items-center px-4 py-3 border-1 border-gray-200 rounded-sm ${
@@ -128,6 +187,9 @@ const Questions = ({
                   <p>{card.name}</p>
                 </div>
               ))}
+              {errors.selectedCardId && (
+                <p className="text-red-500 text-sm">{errors.selectedCardId}</p>
+              )}
             </div>
           </>
         )}
@@ -138,28 +200,48 @@ const Questions = ({
             <InputField
               label="Card sessions"
               value={cardSessions}
-              onChange={(e) => setCardSessions(e.target.value)}
+              onChange={handleCardSessionsChange}
               type="number"
+              error={errors.cardSessions}
             />
           </div>
           <div className="mb-4">
             <InputField
               label="Card Price"
               value={cardPrice}
-              onChange={(e) => setCardPrice(e.target.value)}
+              onChange={handleCardPriceChange}
               type="number"
             />
           </div>
         </>
       )}
       <div className="flex flex-col gap-3">
-        <Button outline onClick={onBack}>
-          Back to previous student
-        </Button>
+        {!firstStudent && (
+          <Button outline onClick={onBack}>
+            Back to previous student
+          </Button>
+        )}
         <Button onClick={handleSubmit}>Go to next student</Button>
       </div>
     </div>
   );
 };
 
+const validateForm = (data: {
+  selectedCardId: number | null;
+  cardSessions: string;
+  cardPrice: string;
+}) => {
+  const errors: { selectedCardId?: string; cardSessions?: string; cardPrice?: string } = {};
+
+  if (!data.selectedCardId) {
+    errors.selectedCardId = validationErrors.selectedCardId;
+    return errors;
+  }
+  if (!data.cardSessions || parseInt(data.cardSessions) <= 0) {
+    errors.cardSessions = validationErrors.nonZero;
+  }
+
+  return errors;
+}
 export default Questions;

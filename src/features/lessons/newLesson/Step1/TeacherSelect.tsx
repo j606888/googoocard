@@ -4,12 +4,11 @@ import { useCreateTeacherMutation } from "@/store/slices/teachers";
 import MultiSelect from "@/components/MultiSelect";
 import { useGetTeachersQuery } from "@/store/slices/teachers";
 
-const TeacherSelect = ({ onChange, error }: { onChange: (value: number[]) => void, error?: string }) => {
+const TeacherSelect = ({ selectedTeacherIds, onChange, error }: { selectedTeacherIds: number[], onChange: (value: number[]) => void, error?: string }) => {
   const { data: teachers } = useGetTeachersQuery();
   const [newTeacherModalOpen, setNewTeacherModalOpen] = useState(false);
   const [newTeacherName, setNewTeacherName] = useState("");
   const [createTeacher, { isLoading }] = useCreateTeacherMutation();
-  const [selectedTeachers, setSelectedTeachers] = useState<number[]>([])
 
   const teacherOptions = teachers?.map((teacher) => ({
     label: teacher.name,
@@ -20,7 +19,7 @@ const TeacherSelect = ({ onChange, error }: { onChange: (value: number[]) => voi
     const teacher = await createTeacher({ name: newTeacherName, classroomId: 1 });
 
     if (teacher.data) {
-      setSelectedTeachers([...selectedTeachers, teacher.data.id]);
+      onChange([...selectedTeacherIds, teacher.data.id]);
     }
     setNewTeacherModalOpen(false);
     setNewTeacherName("");
@@ -31,14 +30,13 @@ const TeacherSelect = ({ onChange, error }: { onChange: (value: number[]) => voi
       <label className="block font-medium mb-1">Teachers</label>
       <MultiSelect
         options={teacherOptions}
-        values={selectedTeachers}
+        values={selectedTeacherIds}
         newOptionLabel="New teacher"
         placeholder="Select teachers"
         newOptionOnClick={() => {
           setNewTeacherModalOpen(true);
         }}
         onChange={(values) => {
-          setSelectedTeachers(values as number[]);
           onChange(values as number[]);
         }}
         error={error}

@@ -2,60 +2,110 @@ import ProgressBall from "@/components/ProgressBall";
 import { useGetStudentsQuery } from "@/store/slices/students";
 import Questions, { Answer } from "./Questions";
 import StudentList from "./StudentList";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Button from "@/components/Button";
 import { useRouter } from "next/navigation";
 
 const Step4 = () => {
   const { data: students } = useGetStudentsQuery();
-  const selectedStudents = students?.slice(0, 5) || [];
-  const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
-  const currentStudent = selectedStudents[currentStudentIndex];
+  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+  const selectedStudents =
+    students?.filter((student) => selectedStudentIds.includes(student.id)) ||
+    [];
+  const [currentStudentId, setCurrentStudentId] = useState<number | null>(null);
+  const currentStudent = selectedStudents.find(
+    (student) => student.id === currentStudentId
+  );
   const [answers, setAnswers] = useState<Answer[]>([]);
   const router = useRouter();
 
   const handleSubmit = useCallback(() => {
+    const lessonDraft = JSON.parse(
+      localStorage.getItem("lesson-draft") || "{}"
+    );
+    localStorage.setItem(
+      "lesson-draft",
+      JSON.stringify({
+        ...lessonDraft,
+        answers,
+      })
+    );
     router.push("/lessons/new/step-5");
-  }, [router]);
+  }, [router, answers]);
 
-  const handleSubmitAnswer = useCallback((answer: Answer) => {
-    const studentId = answer.studentId;
-    const existingAnswer = answers.find((a) => a.studentId === studentId);
-    if (existingAnswer) {
-      setAnswers(answers.map((a) => (a.studentId === studentId ? answer : a)));
-    } else {
-      setAnswers([...answers, answer]);
-    }
-    setCurrentStudentIndex(currentStudentIndex + 1);
-  }, [answers, currentStudentIndex]);
+  const handleSubmitAnswer = useCallback(
+    (answer: Answer) => {
+      const studentId = answer.studentId;
+      const existingAnswer = answers.find((a) => a.studentId === studentId);
+      const newAnswers = existingAnswer
+        ? answers.map((a) => (a.studentId === studentId ? answer : a))
+        : [...answers, answer];
+      setAnswers(newAnswers);
+      const draft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
+      localStorage.setItem(
+        "lesson-draft",
+        JSON.stringify({
+          ...draft,
+          answers: newAnswers,
+        })
+      );
+      const nextStudentId =
+        selectedStudentIds[selectedStudentIds.indexOf(studentId) + 1];
+      setCurrentStudentId(nextStudentId);
+    },
+    [answers, selectedStudentIds]
+  );
+
+  const handleStudentClick = useCallback((studentId: number) => {
+    setCurrentStudentId(studentId);
+  }, []);
+
+  useEffect(() => {
+    const draft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
+    setSelectedStudentIds(draft.studentIds || []);
+    setAnswers(draft.answers || []);
+    setCurrentStudentId(draft.answers?.[0]?.studentId || null);
+  }, []);
 
   return (
     <div className="px-5 py-5 flex flex-col gap-5">
       <h2 className="text-xl font-semibold text-center">Class cards</h2>
       <ProgressBall currentStep={4} />
       <div>
-        <StudentList students={selectedStudents} answers={answers} />
+        <StudentList
+          students={selectedStudents}
+          answers={answers}
+          currentStudentId={currentStudentId}
+          onClick={handleStudentClick}
+        />
         {currentStudent && (
           <Questions
-            key={currentStudentIndex}
+            key={currentStudentId}
             student={currentStudent}
+            firstStudent={selectedStudentIds.indexOf(currentStudent.id) === 0}
+            defaultAnswers={
+              answers.find((a) => a.studentId === currentStudent.id) ||
+              undefined
+            }
             onSubmit={handleSubmitAnswer}
             onBack={() => {
-              if (currentStudentIndex > 0) {
-                setCurrentStudentIndex(currentStudentIndex - 1);
+              if (selectedStudentIds.indexOf(currentStudent.id) > 0) {
+                setCurrentStudentId(
+                  selectedStudentIds[
+                    selectedStudentIds.indexOf(currentStudent.id) - 1
+                  ]
+                );
               }
             }}
           />
         )}
       </div>
-      {answers.length === selectedStudents.length && (
-        <div className="bg-white flex gap-4 px-5 py-4">
-        <Button outline onClick={() => router.back()}>
+      <div className="bg-white flex gap-4">
+        <Button outline onClick={() => router.push("/lessons/new/step-3")}>
           Back
-          </Button>
-          <Button onClick={handleSubmit}>Next</Button>
-        </div>
-      )}
+        </Button>
+        <Button onClick={handleSubmit}>Next</Button>
+      </div>
     </div>
   );
 };

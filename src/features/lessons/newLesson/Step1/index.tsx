@@ -5,6 +5,7 @@ import CardSelect from "./CardSelect";
 import Button from "@/components/Button";
 import TeacherSelect from "./TeacherSelect";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 const validationErrors = {
   lessonName: "Must provide a name",
@@ -17,7 +18,11 @@ const Step1 = () => {
   const [lessonName, setLessonName] = useState("");
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>([]);
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
-  const [errors, setErrors] = useState<{ lessonName?: string; teachers?: string; cards?: string }>({});
+  const [errors, setErrors] = useState<{
+    lessonName?: string;
+    teachers?: string;
+    cards?: string;
+  }>({});
 
   const handleLessonNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (errors.lessonName) {
@@ -41,18 +46,38 @@ const Step1 = () => {
   };
 
   const handleSubmit = () => {
-    const errors = validateForm({ lessonName, teachers: selectedTeacherIds, cards: selectedCardIds });
+    const errors = validateForm({
+      lessonName,
+      teachers: selectedTeacherIds,
+      cards: selectedCardIds,
+    });
     setErrors(errors);
-    if (Object.keys(errors).length === 0) {
-      console.log({
-        lessonName,
-        teachers: selectedTeacherIds,
-        cards: selectedCardIds,
-      })
 
-      router.push('/lessons/new/step-2');
+    if (Object.keys(errors).length === 0) {
+      const draft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
+      localStorage.setItem(
+        "lesson-draft",
+        JSON.stringify({
+          ...draft,
+          lessonName,
+          teacherIds: selectedTeacherIds,
+          cardIds: selectedCardIds,
+        })
+      );
+
+      router.push("/lessons/new/step-2");
     }
   };
+
+  useEffect(() => {
+    const draft = localStorage.getItem("lesson-draft");
+    if (draft) {
+      const { lessonName, teacherIds, cardIds } = JSON.parse(draft);
+      setLessonName(lessonName);
+      setSelectedTeacherIds(teacherIds);
+      setSelectedCardIds(cardIds);
+    }
+  }, []);
 
   return (
     <div className="px-5 py-5 flex flex-col gap-5">
@@ -66,18 +91,29 @@ const Step1 = () => {
           onChange={handleLessonNameChange}
           error={errors.lessonName}
         />
-        <TeacherSelect error={errors.teachers} onChange={handleTeacherChange} />
-        <CardSelect error={errors.cards} onChange={handleCardChange} />
+        <TeacherSelect
+          error={errors.teachers}
+          onChange={handleTeacherChange}
+          selectedTeacherIds={selectedTeacherIds}
+        />
+        <CardSelect
+          error={errors.cards}
+          onChange={handleCardChange}
+          selectedCardIds={selectedCardIds}
+        />
       </div>
       <div className="flex gap-4">
-        <Button outline>Back</Button>
         <Button onClick={handleSubmit}>Next</Button>
       </div>
     </div>
   );
 };
 
-const validateForm = (data: { lessonName: string; teachers: number[]; cards: number[] }) => {
+const validateForm = (data: {
+  lessonName: string;
+  teachers: number[];
+  cards: number[];
+}) => {
   const errors: { lessonName?: string; teachers?: string; cards?: string } = {};
   if (!data.lessonName) {
     errors.lessonName = validationErrors.lessonName;

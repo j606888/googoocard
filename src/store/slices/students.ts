@@ -7,6 +7,18 @@ export interface Student {
   createdAt: string;
 }
 
+export interface StudentCard {
+  id: number;
+  studentId: number;
+  cardId: number;
+  basePrice: number;
+  finalPrice: number;
+  totalSessions: number;
+  remainingSessions: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const studentsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getStudents: builder.query<Student[], void>({
@@ -31,6 +43,10 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Student"],
     }),
+    getStudentCards: builder.query<StudentCard[], { id: number }>({
+      query: ({ id }) => `students/${id}/student-cards`,
+      providesTags: ["StudentCard"],
+    }),
   }),
 });
 
@@ -38,4 +54,5 @@ export const {
   useGetStudentsQuery,
   useCreateStudentMutation,
   useDeleteStudentMutation,
+  useGetStudentCardsQuery,
 } = studentsApi;
