@@ -58,13 +58,19 @@ const Step3 = () => {
           onSearch={handleSearch}
           selectedStudents={selectedStudents}
         />
-        {selectedStudents.length > 0 && (
+        <div 
+          className={`transition-all duration-1000 ease-in-out overflow-hidden ${
+            selectedStudents.length > 0 
+              ? 'max-h-96 opacity-100' 
+              : 'max-h-0 opacity-0'
+          }`}
+        >
           <SelectedStudents
             selectedStudents={selectedStudents}
             onRemoveStudent={handleRemoveStudent}
           />
-        )}
-        <div className="flex flex-col gap-4  max-h-[calc(100vh-522px)] overflow-y-auto">
+        </div>
+        <div className="flex flex-col gap-4 pb-4 ">
           <CreateStudent
             defaultName={filterKeyword}
             onCreate={(student) => {

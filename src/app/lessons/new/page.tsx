@@ -4,9 +4,15 @@ import Button from "@/components/Button";
 import SubNavbar from "@/features/SubNavbar";
 import { AlarmClock } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { clearLessonDraft } from "@/lib/lessonDraftStorage";
 
 const NewLessonPage = () => {
   const router = useRouter();
+
+  const handleClick = () => {
+    clearLessonDraft();
+    router.push("/lessons/new/step-1");
+  }
 
   return <div className='flex flex-col left-0 right-0 top-0 bottom-0 absolute bg-primary-50 overflow-hidden'>
     <SubNavbar title="New Lesson" backUrl="/lessons" />
@@ -24,7 +30,7 @@ const NewLessonPage = () => {
         <Step step={4} description="Class card" />
         <Step step={5} description="Review & Submit" />
       </div>
-      <Button onClick={() => router.push("/lessons/new/step-1")} className="mt-auto">START</Button>
+      <Button onClick={handleClick} className="mt-auto">START</Button>
     </div>
   </div>
 };
