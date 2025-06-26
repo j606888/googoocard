@@ -7,6 +7,7 @@ import StudentSelectList from "./StudentSelectList";
 import Searchbar from "./Searchbar";
 import SelectedStudents from "./SelectedStudents";
 import { useEffect, useState } from "react";
+import { getLessonDraft, updateLessonDraft } from "@/lib/lessonDraftStorage";
 
 const Step3 = () => {
   const { data: students } = useGetStudentsQuery();
@@ -23,11 +24,7 @@ const Step3 = () => {
       setError("Please select at least one student");
       return;
     }
-    const draft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
-    localStorage.setItem("lesson-draft", JSON.stringify({
-      ...draft,
-      studentIds: selectedStudentIds,
-    }));
+    updateLessonDraft({ studentIds: selectedStudentIds });
     router.push("/lessons/new/step-4");
   };
 
@@ -47,8 +44,8 @@ const Step3 = () => {
     ) || [];
 
   useEffect(() => {
-    const draft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
-    setSelectedStudentIds(draft.studentIds || []);
+    const draft = getLessonDraft();
+    setSelectedStudentIds(draft?.studentIds || []);
   }, []);
 
   return (

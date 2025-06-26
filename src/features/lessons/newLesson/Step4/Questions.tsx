@@ -5,14 +5,7 @@ import InputField from "@/components/InputField";
 import RoundCheckbox from "@/components/RoundCheckbox";
 import { Card, useGetCardsQuery } from "@/store/slices/cards";
 import Button from "@/components/Button";
-
-export type Answer = {
-  studentId: number;
-  createNewCard: boolean;
-  selectedCardId: number | null;
-  cardSessions: string;
-  cardPrice: string;
-};
+import { Answer } from "@/store/slices/lessons";
 
 const validationErrors = {
   selectedCardId: "Must select a card",

@@ -6,6 +6,7 @@ import Button from "@/components/Button";
 import TeacherSelect from "./TeacherSelect";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { getLessonDraft, updateLessonDraft } from "@/lib/lessonDraftStorage";
 
 const validationErrors = {
   lessonName: "Must provide a name",
@@ -54,28 +55,22 @@ const Step1 = () => {
     setErrors(errors);
 
     if (Object.keys(errors).length === 0) {
-      const draft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
-      localStorage.setItem(
-        "lesson-draft",
-        JSON.stringify({
-          ...draft,
-          lessonName,
-          teacherIds: selectedTeacherIds,
-          cardIds: selectedCardIds,
-        })
-      );
+      updateLessonDraft({
+        lessonName,
+        teacherIds: selectedTeacherIds,
+        cardIds: selectedCardIds,
+      });
 
       router.push("/lessons/new/step-2");
     }
   };
 
   useEffect(() => {
-    const draft = localStorage.getItem("lesson-draft");
+    const draft = getLessonDraft();
     if (draft) {
-      const { lessonName, teacherIds, cardIds } = JSON.parse(draft);
-      setLessonName(lessonName);
-      setSelectedTeacherIds(teacherIds);
-      setSelectedCardIds(cardIds);
+      setLessonName(draft.lessonName);
+      setSelectedTeacherIds(draft.teacherIds);
+      setSelectedCardIds(draft.cardIds);
     }
   }, []);
 

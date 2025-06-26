@@ -4,6 +4,7 @@ import { Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AddPeriodForm from "./AddPeriodForm";
+import { getLessonDraft, updateLessonDraft } from "@/lib/lessonDraftStorage";
 
 const Step2 = () => {
   const [periods, setPeriods] = useState<{ date: string, fromTime: string, toTime: string }[]>([]);
@@ -15,11 +16,7 @@ const Step2 = () => {
       setError("Please add at least one period");
       return;
     }
-    const draft = JSON.parse(localStorage.getItem('lesson-draft') || '{}');
-    localStorage.setItem("lesson-draft", JSON.stringify({
-      ...draft,
-      periods,
-    }));
+    updateLessonDraft({ periods });
     router.push("/lessons/new/step-3");
   };
 
@@ -36,8 +33,8 @@ const Step2 = () => {
   };
 
   useEffect(() => {
-    const draft = JSON.parse(localStorage.getItem('lesson-draft') || '{}');
-    setPeriods(draft.periods || []);
+    const draft = getLessonDraft();
+    setPeriods(draft?.periods || []);
   }, []);
 
   const syncPeriods = (periods: { date: string, fromTime: string, toTime: string }[]) => {

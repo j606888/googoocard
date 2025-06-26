@@ -1,10 +1,12 @@
 import ProgressBall from "@/components/ProgressBall";
 import { useGetStudentsQuery } from "@/store/slices/students";
-import Questions, { Answer } from "./Questions";
+import Questions from "./Questions";
+import { Answer } from "@/store/slices/lessons";
 import StudentList from "./StudentList";
 import { useCallback, useEffect, useState } from "react";
 import Button from "@/components/Button";
 import { useRouter } from "next/navigation";
+import { getLessonDraft, updateLessonDraft } from "@/lib/lessonDraftStorage";
 
 const Step4 = () => {
   const { data: students } = useGetStudentsQuery();
@@ -41,14 +43,7 @@ const Step4 = () => {
         ? answers.map((a) => (a.studentId === studentId ? answer : a))
         : [...answers, answer];
       setAnswers(newAnswers);
-      const draft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
-      localStorage.setItem(
-        "lesson-draft",
-        JSON.stringify({
-          ...draft,
-          answers: newAnswers,
-        })
-      );
+      updateLessonDraft({ answers: newAnswers });
       const nextStudentId =
         selectedStudentIds[selectedStudentIds.indexOf(studentId) + 1];
       setCurrentStudentId(nextStudentId);
@@ -61,10 +56,10 @@ const Step4 = () => {
   }, []);
 
   useEffect(() => {
-    const draft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
-    setSelectedStudentIds(draft.studentIds || []);
-    setAnswers(draft.answers || []);
-    setCurrentStudentId(draft.answers?.[0]?.studentId || null);
+    const draft = getLessonDraft();
+    setSelectedStudentIds(draft?.studentIds || []);
+    setAnswers(draft?.answers || []);
+    setCurrentStudentId(draft?.answers?.[0]?.studentId || null);
   }, []);
 
   return (
