@@ -37,11 +37,11 @@ const BasicInformation = () => {
         </div>
       </div>
       <div className="mb-2">
-        <p className="text-sm font-semibold">Lesson name:</p>
+        <p className="text-sm mb-1 text-gray-600">Lesson name:</p>
         <p>{lessonName}</p>
       </div>
       <div className="mb-2">
-        <p className="text-sm font-semibold">Teachers:</p>
+        <p className="text-sm mb-1 text-gray-600">Teachers:</p>
         <ul className="list-disc list-inside">
           {selectedTeachers?.map((teacher) => (
             <li key={teacher.id}>{teacher.name}</li>
@@ -49,7 +49,7 @@ const BasicInformation = () => {
         </ul>
       </div>
       <div className="mb-2">
-        <p className="text-sm font-semibold">Cards:</p>
+        <p className="text-sm mb-1 text-gray-600">Cards:</p>
         <ul className="list-disc list-inside">
           {selectedCards?.map((card) => (
             <li key={card.id}>{card.name} / {card.sessions} sessions / ${card.price}</li>

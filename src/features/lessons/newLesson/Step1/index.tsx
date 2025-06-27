@@ -1,4 +1,3 @@
-import ProgressBall from "@/components/ProgressBall";
 import InputField from "@/components/InputField";
 import { useState } from "react";
 import CardSelect from "./CardSelect";
@@ -7,6 +6,7 @@ import TeacherSelect from "./TeacherSelect";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { getLessonDraft, updateLessonDraft } from "@/lib/lessonDraftStorage";
+import ProgressHeader from "@/components/ProgressHeader";
 
 const validationErrors = {
   lessonName: "Must provide a name",
@@ -75,32 +75,33 @@ const Step1 = () => {
   }, []);
 
   return (
-    <div className="px-5 py-5 flex flex-col gap-5">
-      <h2 className="text-xl font-semibold text-center">Basic information</h2>
-      <ProgressBall currentStep={1} />
-      <div className="flex flex-col gap-4 mb-5">
-        <InputField
-          label="Lesson Name"
-          placeholder="E.g. Bachata Lv1"
-          value={lessonName}
-          onChange={handleLessonNameChange}
-          error={errors.lessonName}
-        />
-        <TeacherSelect
-          error={errors.teachers}
-          onChange={handleTeacherChange}
-          selectedTeacherIds={selectedTeacherIds}
-        />
-        <CardSelect
-          error={errors.cards}
-          onChange={handleCardChange}
-          selectedCardIds={selectedCardIds}
-        />
+    <>
+      <ProgressHeader currentStep={1} />
+      <div className="px-5 py-5 flex flex-col gap-5">
+        <div className="flex flex-col gap-4 mb-5">
+          <InputField
+            label="Lesson Name"
+            placeholder="E.g. Bachata Lv1"
+            value={lessonName}
+            onChange={handleLessonNameChange}
+            error={errors.lessonName}
+          />
+          <TeacherSelect
+            error={errors.teachers}
+            onChange={handleTeacherChange}
+            selectedTeacherIds={selectedTeacherIds}
+          />
+          <CardSelect
+            error={errors.cards}
+            onChange={handleCardChange}
+            selectedCardIds={selectedCardIds}
+          />
+        </div>
+        <div className="fixed bottom-0 left-0 right-0 p-4 flex gap-4">
+          <Button onClick={handleSubmit}>Next</Button>
+        </div>
       </div>
-      <div className="flex gap-4">
-        <Button onClick={handleSubmit}>Next</Button>
-      </div>
-    </div>
+    </>
   );
 };
 

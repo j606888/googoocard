@@ -1,4 +1,3 @@
-import ProgressBall from "@/components/ProgressBall";
 import { useGetStudentsQuery } from "@/store/slices/students";
 import Questions from "./Questions";
 import { Answer } from "@/store/slices/lessons";
@@ -7,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import Button from "@/components/Button";
 import { useRouter } from "next/navigation";
 import { getLessonDraft, updateLessonDraft } from "@/lib/lessonDraftStorage";
+import ProgressHeader from "@/components/ProgressHeader";
 
 const Step4 = () => {
   const { data: students } = useGetStudentsQuery();
@@ -59,14 +59,13 @@ const Step4 = () => {
     const draft = getLessonDraft();
     setSelectedStudentIds(draft?.studentIds || []);
     setAnswers(draft?.answers || []);
-    setCurrentStudentId(draft?.answers?.[0]?.studentId || null);
+    setCurrentStudentId(draft?.answers?.[0]?.studentId || draft?.studentIds[0] || null);
   }, []);
 
   return (
-    <div className="px-5 py-5 flex flex-col gap-5">
-      <h2 className="text-xl font-semibold text-center">Class cards</h2>
-      <ProgressBall currentStep={4} />
-      <div>
+    <>
+      <ProgressHeader currentStep={4} />
+      <div className="px-5 py-1 pb-16 flex flex-col">
         <StudentList
           students={selectedStudents}
           answers={answers}
@@ -95,13 +94,15 @@ const Step4 = () => {
           />
         )}
       </div>
-      <div className="bg-white flex gap-4">
+      <div className="fixed bottom-0 left-0 right-0 bg-white flex gap-4 px-5 py-4">
         <Button outline onClick={() => router.push("/lessons/new/step-3")}>
           Back
         </Button>
-        <Button onClick={handleSubmit}>Next</Button>
+        <Button onClick={handleSubmit} disabled={answers.length !== selectedStudents.length}>
+          Next
+        </Button>
       </div>
-    </div>
+    </>
   );
 };
 

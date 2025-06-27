@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { Student } from "@/store/slices/students";
-import { Answer } from "./Questions";
+import { Answer } from "@/store/slices/lessons";
 import RoundCheckbox from "@/components/RoundCheckbox";
 
 const StudentList = ({
@@ -17,11 +17,15 @@ const StudentList = ({
   const doneStudentIds = answers.map((answer) => answer.studentId);
   return (
     <>
-      <div className="border-t-1 border-gray-200 mt-2 py-3 flex flex-nowrap gap-3 overflow-x-auto">
+      <div className="pb-3 py-3 flex flex-nowrap gap-3 overflow-x-auto">
         {students.map((student) => (
           <div
             key={student.id}
-            className={`relative flex flex-col items-center gap-1 border-1 border-gray-200 rounded-sm px-1  py-2 w-16 ${currentStudentId === student.id ? "bg-primary-100 border-primary-500" : ""}`}
+            className={`relative flex flex-col items-center gap-1 border-1 border-gray-200 rounded-sm px-1 py-2 w-16 ${
+              currentStudentId === student.id
+                ? "bg-primary-100 border-primary-500"
+                : ""
+            }`}
             onClick={() => onClick(student.id)}
           >
             <Image
@@ -43,9 +47,7 @@ const StudentList = ({
       </div>
       <div className="flex gap-3 items-center">
         <div className="flex gap-2 items-center pl-3 flex-1 h-12 text-white bg-primary-500 rounded-sm">
-          <p className="text-[28px] font-bold">
-            {doneStudentIds.length}
-          </p>
+          <p className="text-[28px] font-bold">{doneStudentIds.length}</p>
           <p className="text-sm">done</p>
         </div>
         <div className="flex gap-2 items-center pl-3 flex-1 h-12 text-primary-900 bg-primary-100 rounded-sm">

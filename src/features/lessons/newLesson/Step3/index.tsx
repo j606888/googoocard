@@ -1,5 +1,5 @@
 import Button from "@/components/Button";
-import ProgressBall from "@/components/ProgressBall";
+import ProgressHeader from "@/components/ProgressHeader";
 import { useGetStudentsQuery } from "@/store/slices/students";
 import { useRouter } from "next/navigation";
 import CreateStudent from "./CreateStudent";
@@ -49,52 +49,45 @@ const Step3 = () => {
   }, []);
 
   return (
-    <div className="px-5 py-5 flex flex-col gap-5">
-      <h2 className="text-xl font-semibold text-center">Attend students</h2>
-      <ProgressBall currentStep={3} />
-      <div className="border-t-1 border-gray-200 mt-2 pt-3 mb-10 flex flex-col gap-4">
-        <Searchbar
-          error={error}
-          onSearch={handleSearch}
-          selectedStudents={selectedStudents}
-        />
-        <div 
-          className={`transition-all duration-1000 ease-in-out overflow-hidden ${
-            selectedStudents.length > 0 
-              ? 'max-h-96 opacity-100' 
-              : 'max-h-0 opacity-0'
-          }`}
-        >
+    <>
+      <ProgressHeader currentStep={3} />
+      <div className="px-5 py-5 flex flex-col gap-5">
+        <div className="mb-10 flex flex-col gap-4">
+          <Searchbar
+            error={error}
+            onSearch={handleSearch}
+            selectedStudents={selectedStudents}
+          />
           <SelectedStudents
             selectedStudents={selectedStudents}
             onRemoveStudent={handleRemoveStudent}
           />
-        </div>
-        <div className="flex flex-col gap-4 pb-4 ">
-          <CreateStudent
-            defaultName={filterKeyword}
-            onCreate={(student) => {
-              setSelectedStudentIds([...selectedStudentIds, student.id]);
-            }}
-          />
-          {filteredStudents && (
-            <StudentSelectList
-              students={filteredStudents}
-              selectedStudents={selectedStudents}
-              setSelectedStudents={(students) => {
-                setSelectedStudentIds(students.map((student) => student.id));
+          <div className="flex flex-col gap-4 pb-4 ">
+            <CreateStudent
+              defaultName={filterKeyword}
+              onCreate={(student) => {
+                setSelectedStudentIds([...selectedStudentIds, student.id]);
               }}
             />
-          )}
+            {filteredStudents && (
+              <StudentSelectList
+                students={filteredStudents}
+                selectedStudents={selectedStudents}
+                setSelectedStudents={(students) => {
+                  setSelectedStudentIds(students.map((student) => student.id));
+                }}
+              />
+            )}
+          </div>
+        </div>
+        <div className="fixed bottom-0 left-0 right-0 bg-white flex gap-4 px-5 py-4">
+          <Button outline onClick={() => router.push("/lessons/new/step-2")}>
+            Back
+          </Button>
+          <Button onClick={handleSubmit}>Next</Button>
         </div>
       </div>
-      <div className="fixed bottom-0 left-0 right-0 bg-white flex gap-4 px-5 py-4">
-        <Button outline onClick={() => router.push("/lessons/new/step-2")}>
-          Back
-        </Button>
-        <Button onClick={handleSubmit}>Next</Button>
-      </div>
-    </div>
+    </>
   );
 };
 
