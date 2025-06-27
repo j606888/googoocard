@@ -4,12 +4,19 @@ import BasicInformation from "./BasicInformation";
 import Periods from "./Periods";
 import StudentsAndCards from "./StudentsAndCards";
 import ProgressHeader from "@/components/ProgressHeader";
+import { useCreateLessonMutation } from "@/store/slices/lessons";
+import { getLessonDraft } from "@/lib/lessonDraftStorage";
 
 const Step4 = () => {
   const router = useRouter();
-
-  const handleSubmit = () => {
-    router.push("/lessons");
+  const [createLesson, { isLoading }] = useCreateLessonMutation();
+  
+  const handleSubmit = async () => {
+    const draftLesson = getLessonDraft();
+    if (draftLesson) {
+      await createLesson(draftLesson);
+      router.push("/lessons");
+    }
   };
 
   return (
@@ -24,7 +31,7 @@ const Step4 = () => {
         <Button outline onClick={() => router.push("/lessons/new/step-4")}>
           Back
         </Button>
-        <Button onClick={handleSubmit}>Save</Button>
+        <Button onClick={handleSubmit} isLoading={isLoading}>Save</Button>
       </div>
     </>
   );

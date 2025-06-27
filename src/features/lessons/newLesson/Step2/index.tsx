@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 import AddPeriodForm from "./AddPeriodForm";
 import { getLessonDraft, updateLessonDraft } from "@/lib/lessonDraftStorage";
 import ProgressHeader from "@/components/ProgressHeader";
+import { format } from "date-fns";
 
 const Step2 = () => {
   const [periods, setPeriods] = useState<
-    { date: string; fromTime: string; toTime: string }[]
+    { startTime: string; endTime: string }[]
   >([]);
+  console.log({ periods })
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -23,9 +25,8 @@ const Step2 = () => {
   };
 
   const handleAddPeriod = (period: {
-    date: string;
-    fromTime: string;
-    toTime: string;
+    startTime: string;
+    endTime: string;
   }) => {
     setPeriods([...periods, period]);
     setError(null);
@@ -44,7 +45,7 @@ const Step2 = () => {
   }, []);
 
   const syncPeriods = (
-    periods: { date: string; fromTime: string; toTime: string }[]
+    periods: { startTime: string; endTime: string }[]
   ) => {
     const draft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
     localStorage.setItem(
@@ -88,20 +89,22 @@ const PeriodCard = ({
   period,
   onDelete,
 }: {
-  period: { date: string; fromTime: string; toTime: string };
+  period: { startTime: string; endTime: string };
   onDelete: () => void;
 }) => {
-  const weekday = new Date(period.date).toLocaleDateString("en-US", {
-    weekday: "short",
-  });
+  const date = format(new Date(period.startTime), "MMM d");
+  const weekday = format(new Date(period.startTime), "EEE");
+
   return (
     <div className="flex items-center gap-2">
       <div className="flex items-center justify-between w-full px-3 py-2 bg-primary-100 rounded-sm">
         <span className="text-sm font-semibold">
-          {period.date}, {weekday}
+          {date}, {weekday}
         </span>
         <span className="text-xs">
-          {period.fromTime} ~ {period.toTime}
+          {format(new Date(period.startTime), "hh:mm aa")}
+          {" ~ "}
+          {format(new Date(period.endTime), "hh:mm aa")}
         </span>
       </div>
       <Trash className="w-4 h-4 cursor-pointer" onClick={onDelete} />

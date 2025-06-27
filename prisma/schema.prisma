@@ -82,6 +82,7 @@ model Student {
   classroomId  Int
   classroom    Classroom     @relation(fields: [classroomId], references: [id])
   studentCards StudentCard[]
+  lessons      LessonStudent[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -108,6 +109,7 @@ model Lesson {
   teachers    LessonTeacher[]
   cards       LessonCard[]
   periods     LessonPeriod[]
+  students    LessonStudent[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 }
@@ -140,9 +142,18 @@ model LessonPeriod {
   id        Int      @id @default(autoincrement())
   lessonId  Int
   lesson    Lesson   @relation(fields: [lessonId], references: [id])
-  date      DateTime
-  timeFrom  String
-  timeTo    String
+  startTime DateTime
+  endTime   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LessonStudent {
+  id        Int      @id @default(autoincrement())
+  lessonId  Int
+  studentId Int
+  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  student   Student  @relation(fields: [studentId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

@@ -1,17 +1,20 @@
 import AddButton from "@/components/AddButton";
 import Drawer from "@/components/Drawer";
 import InputField from "@/components/InputField";
+import { addDays, format } from "date-fns";
 import { useState } from "react";
-
 
 const validationErrors = {
   empty: "Can not be empty",
   toTimeMustGreater: "Must greater than From",
 };
 
-const validateForm = (data: { date: string; fromTime: string; toTime: string }) => {
-  const errors: { date?: string; fromTime?: string; toTime?: string } = {
-  };
+const validateForm = (data: {
+  date: string;
+  fromTime: string;
+  toTime: string;
+}) => {
+  const errors: { date?: string; fromTime?: string; toTime?: string } = {};
   if (!data.date) {
     errors.date = validationErrors.empty;
   }
@@ -28,23 +31,31 @@ const validateForm = (data: { date: string; fromTime: string; toTime: string }) 
   return errors;
 };
 
-const AddPeriodForm = ({ onAddPeriod }: { onAddPeriod: (period: { date: string, fromTime: string, toTime: string }) => void }) => {
+const AddPeriodForm = ({
+  onAddPeriod,
+}: {
+  onAddPeriod: (period: { startTime: string; endTime: string }) => void;
+}) => {
   const [newPeriodModalOpen, setNewPeriodModalOpen] = useState(false);
   const [date, setDate] = useState("");
   const [fromTime, setFromTime] = useState("");
   const [toTime, setToTime] = useState("");
-  const [errors, setErrors] = useState<{ date?: string; fromTime?: string; toTime?: string }>({});
+  const [errors, setErrors] = useState<{
+    date?: string;
+    fromTime?: string;
+    toTime?: string;
+  }>({});
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (errors.date) {
-      setErrors({...errors, date: undefined});
+      setErrors({ ...errors, date: undefined });
     }
     setDate(e.target.value);
   };
 
   const handleFromTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (errors.fromTime) {
-      setErrors({...errors, fromTime: undefined});
+      setErrors({ ...errors, fromTime: undefined });
     }
     const fromTime = e.target.value;
     setFromTime(fromTime);
@@ -56,26 +67,32 @@ const AddPeriodForm = ({ onAddPeriod }: { onAddPeriod: (period: { date: string, 
 
   const handleToTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (errors.toTime && e.target.value > fromTime) {
-      setErrors({...errors, toTime: undefined});
+      setErrors({ ...errors, toTime: undefined });
       return;
     }
     setToTime(e.target.value);
   };
 
   const handleSubmit = () => {
-    const errors = validateForm({date, fromTime, toTime});
+    const errors = validateForm({ date, fromTime, toTime });
     if (Object.keys(errors).length > 0) {
       setErrors(errors);
       return;
     }
 
-    onAddPeriod({date, fromTime, toTime});
+    const startTime = format(
+      new Date(`${date}T${fromTime}`),
+      "yyyy-MM-dd HH:mm"
+    );
+    const endTime = format(new Date(`${date}T${toTime}`), "yyyy-MM-dd HH:mm");
+
+    onAddPeriod({
+      startTime,
+      endTime,
+    });
     setNewPeriodModalOpen(false);
     setDate("");
-    const dateObj = new Date(date)
-    const oneWeekLater = new Date(dateObj)
-    oneWeekLater.setDate(dateObj.getDate() + 7)
-    const newDateStr = oneWeekLater.toISOString().slice(0, 10) // "2025-06-12"
+    const newDateStr = format(addDays(new Date(date), 7), "yyyy-MM-dd");
     setDate(newDateStr);
   };
 
@@ -100,7 +117,7 @@ const AddPeriodForm = ({ onAddPeriod }: { onAddPeriod: (period: { date: string, 
               placeholder="E.g. 2025/5/27"
               onChange={handleDateChange}
               error={errors.date}
-              />
+            />
             <div className="flex gap-4">
               <InputField
                 label="From"

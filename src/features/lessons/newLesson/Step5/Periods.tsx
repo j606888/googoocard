@@ -1,12 +1,12 @@
 import { Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 
 const Periods = () => {
   const [periods, setPeriods] = useState<{
-    date: string;
-    fromTime: string;
-    toTime: string;
+    startTime: string;
+    endTime: string;
   }[]>([]);
   const router = useRouter();
   useEffect(() => {
@@ -25,10 +25,10 @@ const Periods = () => {
       </div>
       <div className="mb-2 flex flex-col gap-3">
         {periods.map(period => (
-          <div key={`${period.date}-${period.fromTime}-${period.toTime}`} className="flex gap-3 items-center">
+          <div key={`${period.startTime}-${period.endTime}`} className="flex gap-3 items-center">
             <span className="w-3 h-3 bg-primary-500 rounded-full"></span>
-            <span className="text-sm font-medium">{period.date}, {new Date(period.date).toLocaleDateString('en-US', { weekday: 'short' })}</span>
-            <span className='text-sm ml-auto'>{new Date(`2000/01/01 ${period.fromTime}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true })} ~ {new Date(`2000/01/01 ${period.toTime}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true })}</span>
+            <span className="text-sm font-medium">{format(new Date(period.startTime), "MMM d")}, {format(new Date(period.startTime), "EEE")}</span>
+            <span className='text-sm ml-auto'>{format(new Date(period.startTime), "hh:mm aa")} ~ {format(new Date(period.endTime), "hh:mm aa")}</span>
           </div>
         ))}
 
