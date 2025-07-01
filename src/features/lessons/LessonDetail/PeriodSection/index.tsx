@@ -2,6 +2,7 @@ import { Period } from "@/store/slices/lessons";
 import NewPeriod from "./NewPeriod";
 import { format } from "date-fns";
 import { EllipsisVertical, PenTool } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const PeriodSection = ({ periods }: { periods: Period[] }) => {
   const firstPendingPeriodId = periods[0]?.id;
@@ -34,11 +35,17 @@ const PeriodCard = ({
   period: Period;
   canCheck?: boolean;
 }) => {
+  const router = useRouter();
   const startTime = new Date(period.startTime);
   const endTime = new Date(period.endTime);
   const date = format(startTime, "yyyy/MM/dd, EEE");
   const startHour = format(startTime, "h:mm a");
   const endHour = format(endTime, "h:mm a");
+
+  const handleCheck = () => {
+    router.push(`/lessons/${period.lessonId}/periods/${period.id}/check`);
+  };
+
   return (
     <div key={period.id} className="flex flex-col gap-3 p-3 border border-gray-200 rounded-md">
       <div className="flex items-center justify-between">
@@ -53,7 +60,9 @@ const PeriodCard = ({
         </div>
       </div>
       {canCheck && (
-        <button className="flex items-center justify-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md text-sm">
+        <button className="flex items-center justify-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md text-sm cursor-pointer"
+        onClick={handleCheck}
+        >
           <PenTool className="w-4 h-4" />
           Check
         </button>

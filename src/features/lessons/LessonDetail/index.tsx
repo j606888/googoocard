@@ -24,7 +24,7 @@ export const TABS = [
 
 const LessonDetail = () => {
   const { id } = useParams();
-  const [activeTab, setActiveTab] = useState("settings");
+  const [activeTab, setActiveTab] = useState("periods");
   const { data: lesson } = useGetLessonQuery(id as string);
 
   if (!lesson) return <div>Loading...</div>;
