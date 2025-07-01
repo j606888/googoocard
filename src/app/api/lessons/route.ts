@@ -3,6 +3,30 @@ import { DraftLesson } from "@/store/slices/lessons";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+export async function GET() {
+  const { classroomId } = await decodeAuthToken();
+  const lessons = await prisma.lesson.findMany({
+    where: {
+      classroomId: classroomId,
+    },
+    include: {
+      periods: true,
+      students: {
+        include: {
+          student: true,
+        },
+      },
+    },
+  });
+
+  const result = lessons.map((lesson) => ({
+    ...lesson,
+    students: lesson.students.map((student) => student.student)
+  }));
+
+  return NextResponse.json(result);
+}
+
 export async function POST(request: Request) {
   const { userId, classroomId } = await decodeAuthToken();
   const draftLesson = await request.json() as DraftLesson;

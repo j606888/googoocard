@@ -118,6 +118,11 @@ export default function SignupPage() {
                   } px-1.5 py-3 text-base focus:outline-none`}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSubmit(e);
+                    }
+                  }}
                 />
                 {errors.password && (
                   <p className="text-red-500 text-sm mt-1 absolute -bottom-5 left-0">
