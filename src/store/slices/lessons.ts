@@ -19,6 +19,7 @@ export interface Period {
   lessonId: number;
   startTime: string;
   endTime: string;
+  attendanceTakenAt: string | null;
 }
 
 export interface Answer {
@@ -39,6 +40,16 @@ export interface DraftLesson {
   }[];
   studentIds: number[];
   answers: Answer[];
+}
+
+export interface AttendanceRecord {
+  studentId: number;
+  studentName: string;
+  studentAvatarUrl: string;
+  cardId: number;
+  cardName: string;
+  remainingSessions: number;
+  income: number;
 }
 
 const lessonsApi = api.injectEndpoints({
@@ -66,9 +77,15 @@ const lessonsApi = api.injectEndpoints({
     }),
     takeAttendance: builder.mutation<void, { id: number; periodId: number; studentIds: number[] }>({
       query: ({ id, periodId, studentIds }) => ({
-        url: `lessons/${id}/periods/${periodId}/take-attendance`,
+        url: `lessons/${id}/periods/${periodId}/attendance`,
         method: "POST",
         body: { studentIds },
+      }),
+    }),
+    getAttendance: builder.query<AttendanceRecord[], { id: number; periodId: number }>({
+      query: ({ id, periodId }) => ({
+        url: `lessons/${id}/periods/${periodId}/attendance`,
+        method: "GET",
       }),
     }),
   }),
@@ -80,4 +97,5 @@ export const {
   useGetLessonQuery,
   useLazyCheckStudentCardsQuery,
   useTakeAttendanceMutation,
+  useGetAttendanceQuery,
 } = lessonsApi;

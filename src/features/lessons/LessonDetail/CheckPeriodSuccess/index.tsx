@@ -1,11 +1,13 @@
 import SubNavbar from "@/features/SubNavbar";
 import { useParams } from "next/navigation";
-import { useGetLessonQuery } from "@/store/slices/lessons";
+import {
+  useGetAttendanceQuery,
+  useGetLessonQuery,
+} from "@/store/slices/lessons";
 import { Check, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { periodInfo } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
-import { useGetStudentsQuery } from "@/store/slices/students";
 import StudentInfo from "@/components/StudentInfo";
 import Link from "next/link";
 import { useState } from "react";
@@ -13,15 +15,22 @@ import { useState } from "react";
 const CheckPeriodSuccess = () => {
   const [showIncome, setShowIncome] = useState(false);
   const { id, periodId } = useParams();
+  const { data: attendanceRecords } = useGetAttendanceQuery({
+    id: Number(id),
+    periodId: Number(periodId),
+  });
   const { data: lesson } = useGetLessonQuery(id as string);
   const period = lesson?.periods.find(
     (period) => period.id === Number(periodId)
   );
-  const { data: students } = useGetStudentsQuery();
   const { date, startHour, endHour } = periodInfo(period);
+  const formattedNow =
+    period?.attendanceTakenAt &&
+    format(period?.attendanceTakenAt, "yyyy/MM/dd, hh:mm a");
 
-  const now = new Date();
-  const formattedNow = format(now, "yyyy/MM/dd, hh:mm a");
+  if (!attendanceRecords) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <>
@@ -48,27 +57,43 @@ const CheckPeriodSuccess = () => {
           <Switch checked={showIncome} onCheckedChange={setShowIncome} />
         </div>
         <div className="flex flex-col gap-2 w-full mb-4">
-          {students?.map((student) => (
-            <div className="flex gap-2 items-center" key={student.id}>
-              <StudentInfo student={student} size="small" className="mr-auto" />
+          {attendanceRecords?.map((attendanceRecord) => (
+            <div
+              className="flex gap-2 items-center"
+              key={attendanceRecord.studentId}
+            >
+              <StudentInfo
+                avatarUrl={attendanceRecord?.studentAvatarUrl}
+                name={attendanceRecord?.studentName}
+                size="small"
+                className="mr-auto"
+              />
               <div className="px-3 py-1.5 bg-primary-50 rounded-sm border border-primary-500 text-sm font-medium text-primary-700">
-                6堂(進階)
+                {attendanceRecord?.cardName}
               </div>
-              {showIncome ? (
-                <div className="text-sm text-[#555555] w-16 text-right">
-                  $333.3
-                </div>
-              ) : (
-                <div className="text-sm text-[#555555] w-25 text-right">
-                  4 sessons left
-                </div>
-              )}
+              <div className="text-sm text-[#555555] w-25 text-right">
+                {showIncome ? (
+                  <span>${Math.round(attendanceRecord?.income)}</span>
+                ) : (
+                  <span>
+                    {attendanceRecord?.remainingSessions} sessons left
+                  </span>
+                )}
+              </div>
             </div>
           ))}
           {showIncome && (
             <div className="flex justify-between w-full p-2 bg-primary-50 rounded-sm mt-2">
               <span className="text-sm font-medium">Total</span>
-              <span className="text-sm font-medium">$333.3</span>
+              <span className="text-sm font-medium">
+                $
+                {Math.round(
+                  attendanceRecords?.reduce(
+                    (acc, record) => acc + record.income,
+                    0
+                  )
+                )}
+              </span>
             </div>
           )}
         </div>

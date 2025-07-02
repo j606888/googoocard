@@ -1,6 +1,41 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string; periodId: string } }
+) {
+  const { periodId } = await params;
+
+  const lessonPeriod = await prisma.lessonPeriod.findUnique({
+    where: { id: parseInt(periodId) },
+    include: {
+      attendanceRecords: {
+        include: {
+          studentCard: {
+            include: {
+              card: true,
+              student: true,
+            },
+          }
+        },
+      },
+    },
+  });
+
+  const attendanceRecords = lessonPeriod?.attendanceRecords.map((record) => ({
+    studentId: record.studentId,
+    studentAvatarUrl: record.studentCard.student.avatarUrl,
+    studentName: record.studentCard.student.name,
+    cardId: record.studentCard.cardId,
+    cardName: record.studentCard.card.name,
+    remainingSessions: record.studentCard.remainingSessions,
+    income: record.studentCard.finalPrice / record.studentCard.totalSessions,
+  }));
+
+  return NextResponse.json(attendanceRecords);
+}
+
 export async function POST(
   request: Request,
   { params }: { params: { id: string; periodId: string } }
