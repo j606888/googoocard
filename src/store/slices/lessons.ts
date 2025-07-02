@@ -56,6 +56,14 @@ const lessonsApi = api.injectEndpoints({
         body: draftLesson,
       }),
     }),
+    checkStudentCards: builder.query<{ invalidStudentIds: number[] }, { id: number; studentIds: number[] }>({
+      query: ({ id, studentIds }) => ({
+        url: `lessons/${id}/check-student-cards`,
+        method: "POST",
+        body: { studentIds },
+      }),
+      providesTags: ["StudentCard"],
+    }),
   }),
 });
 
@@ -63,4 +71,5 @@ export const {
   useCreateLessonMutation,
   useGetLessonsQuery,
   useGetLessonQuery,
+  useLazyCheckStudentCardsQuery,
 } = lessonsApi;

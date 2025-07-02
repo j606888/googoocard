@@ -11,7 +11,6 @@ const Step2 = () => {
   const [periods, setPeriods] = useState<
     { startTime: string; endTime: string }[]
   >([]);
-  console.log({ periods })
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 

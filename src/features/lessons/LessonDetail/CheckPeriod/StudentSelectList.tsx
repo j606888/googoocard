@@ -6,11 +6,13 @@ const StudentSelectList = ({
   selectedStudents,
   setSelectedStudents,
   attendStudentIds,
+  invalidStudentIds,
 }: {
   students: Student[];
   selectedStudents: Student[];
   setSelectedStudents: (students: Student[]) => void;
   attendStudentIds: number[];
+  invalidStudentIds: number[];
 }) => {
   const handleCheckboxClick = (student: Student) => {
     if (selectedStudents.includes(student)) {
@@ -22,17 +24,22 @@ const StudentSelectList = ({
 
   return (
     <div className="flex flex-col gap-1">
-      {students?.map((student) => (
-        <StudentOption
-        key={student.id}
-        student={student}
-        isAttended={attendStudentIds.includes(student.id)}
-        isChecked={selectedStudents.includes(student)}
-        onClick={handleCheckboxClick}
-        isFirstTime={student.id === 1}
-        noCard={student.id === 3}
-        />
-      ))}
+      {students?.map((student) => {
+        const isAttended = attendStudentIds.includes(student.id);
+        const isChecked = selectedStudents.includes(student);
+
+        return (
+          <StudentOption
+            key={student.id}
+            student={student}
+            isAttended={isAttended}
+            isChecked={isChecked}
+            onClick={handleCheckboxClick}
+            isFirstTime={!isAttended && isChecked}
+            noCard={invalidStudentIds.includes(student.id)}
+          />
+        );
+      })}
     </div>
   );
 };

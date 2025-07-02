@@ -97,6 +97,7 @@ model StudentCard {
   finalPrice        Int
   totalSessions     Int
   remainingSessions Int
+  paid              Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

@@ -1,7 +1,8 @@
 import { Student } from "@/store/slices/students";
 import RoundCheckbox from "@/components/RoundCheckbox";
 import Image from "next/image";
-import { MdInfo, MdWarning, MdAddCard } from "react-icons/md";
+import { MdInfo, MdWarning } from "react-icons/md";
+import BuyCard from "./BuyCard";
 
 const StudentOption = ({
   student,
@@ -55,10 +56,7 @@ const StudentOption = ({
           <span className="text-sm font-medium text-warning-900">
           No available card.
           </span>
-          <div className="ml-auto bg-[#F4A15E] rounded-full px-3 py-1 flex items-center gap-1">
-            <MdAddCard className="w-4.5 h-4.5 text-white" />
-            <span className="text-sm font-medium text-white">Buy Card</span>
-          </div>
+          <BuyCard student={student} />
         </div>
       )}
     </div>

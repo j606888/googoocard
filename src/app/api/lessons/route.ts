@@ -28,14 +28,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { userId, classroomId } = await decodeAuthToken();
+  const { classroomId } = await decodeAuthToken();
   const draftLesson = await request.json() as DraftLesson;
-
-  console.log({
-    userId,
-    classroomId,
-    draftLesson,
-  })
 
   await prisma.$transaction(async (tx) => {
     const lesson = await tx.lesson.create({

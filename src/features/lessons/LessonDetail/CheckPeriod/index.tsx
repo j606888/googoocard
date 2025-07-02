@@ -6,14 +6,14 @@ import StudentSelectList from "./StudentSelectList";
 import Searchbar from "./Searchbar";
 import SelectedStudents from "./SelectedStudents";
 import { useEffect, useState } from "react";
-import { getLessonDraft, updateLessonDraft } from "@/lib/lessonDraftStorage";
-import { useGetLessonQuery } from "@/store/slices/lessons";
+import { useGetLessonQuery, useLazyCheckStudentCardsQuery } from "@/store/slices/lessons";
 import PeriodInfo from "./PeriodInfo";
 
-const Step3 = () => {
+const CheckPeriod = () => {
   const { id, periodId } = useParams();
   const { data: students } = useGetStudentsQuery();
   const { data: lesson } = useGetLessonQuery(id as string);
+  const [trigger, { data: checkResult }] = useLazyCheckStudentCardsQuery();
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [filterKeyword, setFilterKeyword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,8 +22,8 @@ const Step3 = () => {
   const selectedStudents =
     students?.filter((student) => selectedStudentIds.includes(student.id)) ||
     [];
+  const invalidStudentIds = checkResult?.invalidStudentIds || [];
 
-    console.log(( attendStudentIds ))
   const period = lesson?.periods.find((period) => period.id === Number(periodId));
 
   const handleSubmit = () => {
@@ -31,7 +31,6 @@ const Step3 = () => {
       setError("Please select at least one student");
       return;
     }
-    updateLessonDraft({ studentIds: selectedStudentIds });
     router.push("/lessons/new/step-4");
   };
 
@@ -51,9 +50,10 @@ const Step3 = () => {
     ) || [];
 
   useEffect(() => {
-    const draft = getLessonDraft();
-    setSelectedStudentIds(draft?.studentIds || []);
-  }, []);
+    if (selectedStudentIds.length > 0) {
+      trigger({ id: Number(id), studentIds: selectedStudentIds });
+    }
+  }, [selectedStudentIds, trigger, id]);
 
   if (!period) return <div>Loading...</div>;
 
@@ -83,19 +83,17 @@ const Step3 = () => {
                 setSelectedStudents={(students) => {
                   setSelectedStudentIds(students.map((student) => student.id));
                 }}
+                invalidStudentIds={invalidStudentIds}
               />
             )}
           </div>
         </div>
         <div className="fixed bottom-0 left-0 right-0 bg-white flex gap-4 px-5 py-4">
-          <Button outline onClick={() => router.push("/lessons/new/step-2")}>
-            Back
-          </Button>
-          <Button onClick={handleSubmit}>Next</Button>
+          <Button onClick={handleSubmit} disabled={selectedStudents.length === 0 || invalidStudentIds.length > 0}>Take Attendance</Button>
         </div>
       </div>
     </>
   );
 };
 
-export default Step3;
+export default CheckPeriod;
