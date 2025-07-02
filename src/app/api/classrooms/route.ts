@@ -4,6 +4,15 @@ import { createAuthSession, decodeAuthToken } from '@/lib/auth';
 
 export async function GET() {
   const { userId, classroomId } = await decodeAuthToken();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!classroomId) {
+    return NextResponse.json({ error: "No classroom selected" }, { status: 400 });
+  }
+
   const classrooms = await prisma.classroom.findMany({
     where: {
       ownerId: userId!,

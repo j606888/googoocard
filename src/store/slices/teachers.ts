@@ -1,7 +1,7 @@
 import { api } from '../api';
 
 export interface Teacher {
-  id: string;
+  id: number;
   name: string;
 }
 

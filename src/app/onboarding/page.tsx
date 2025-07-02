@@ -1,10 +1,12 @@
 "use client";
 
 import {  Store } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 
 export default function OnboardingPage() {
+  const { data } = useGetClassroomsQuery();
   const [classroomName, setClassroomName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,6 +45,12 @@ export default function OnboardingPage() {
     }
   };
 
+  useEffect(() => {
+    if (data?.currentClassroomId) {
+      router.push("/lessons");
+    }
+  }, [data]);
+
   return (
     <div className="flex flex-col items-center justify-center left-0 right-0 top-0 bottom-0 absolute bg-primary-500 overflow-hidden">
       <div className="relative w-full flex items-center justify-center h-[40vh]">
@@ -71,6 +79,11 @@ export default function OnboardingPage() {
                   } px-1.5 py-3 text-base focus:outline-none`}
                   value={classroomName}
                   onChange={(e) => setClassroomName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSubmit(e);
+                    }
+                  }}
                 />
                 {error && (
                   <p className="text-red-500 text-sm mt-1 absolute -bottom-5 left-0">

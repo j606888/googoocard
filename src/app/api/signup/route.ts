@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     });
 
     // Create auth session
-    await createAuthSession(user.id.toString());
+    await createAuthSession(Number(user.id));
 
     return NextResponse.json({
       message: "Signup successful",

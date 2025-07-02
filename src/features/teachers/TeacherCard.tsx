@@ -29,7 +29,7 @@ const TeacherCard = ({
           <span className="text-sm text-gray-500">0 Lessons</span>
         </div>
       </div>
-      <button onClick={() => setMenuOpen(true)} ref={buttonRef}>
+      <button onClick={() => setMenuOpen(!menuOpen)} ref={buttonRef}>
         <EllipsisVertical
           className="w-6 h-6 text-gray-500"
       />
@@ -39,8 +39,8 @@ const TeacherCard = ({
         anchorEl={buttonRef.current}
         onClose={() => setMenuOpen(false)}
       >
-        <button className='flex gap-3 items-center p-3 hover:bg-gray-100 rounded-sm' onClick={handleDelete}>
-          <Trash className="w-4 h-4" />
+        <button className='flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm' onClick={handleDelete}>
+          <Trash className="w-4.5 h-4.5" />
           <span>Delete</span>
         </button>
       </Menu>
