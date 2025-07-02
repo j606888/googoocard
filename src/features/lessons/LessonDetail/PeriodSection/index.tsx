@@ -1,11 +1,13 @@
 import { Period } from "@/store/slices/lessons";
 import NewPeriod from "./NewPeriod";
 import { format } from "date-fns";
-import { EllipsisVertical, PenTool } from "lucide-react";
+import { EllipsisVertical, PenTool, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 const PeriodSection = ({ periods }: { periods: Period[] }) => {
-  const firstPendingPeriodId = periods[0]?.id;
+  const firstPendingPeriodId = periods.find(
+    (period) => !period.attendanceTakenAt
+  )?.id;
 
   return (
     <div className="flex flex-col gap-4 px-5">
@@ -47,9 +49,17 @@ const PeriodCard = ({
   };
 
   return (
-    <div key={period.id} className="flex flex-col gap-3 p-3 border border-gray-200 rounded-md">
+    <div
+      key={period.id}
+      className="flex flex-col gap-3 p-3 border border-gray-200 rounded-md"
+    >
       <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold">{date}</div>
+        <div className="text-sm font-semibold flex items-center gap-2">
+          {date}
+          {period.attendanceTakenAt && (
+            <Check className="w-5 h-5 text-primary-500" />
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 text-sm ">
             <span>{startHour}</span>
@@ -60,8 +70,9 @@ const PeriodCard = ({
         </div>
       </div>
       {canCheck && (
-        <button className="flex items-center justify-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md text-sm cursor-pointer"
-        onClick={handleCheck}
+        <button
+          className="flex items-center justify-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md text-sm cursor-pointer"
+          onClick={handleCheck}
         >
           <PenTool className="w-4 h-4" />
           Check

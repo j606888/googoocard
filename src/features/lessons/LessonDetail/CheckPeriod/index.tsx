@@ -43,7 +43,7 @@ const CheckPeriod = () => {
       id: Number(id),
       periodId: Number(periodId),
       studentIds: selectedStudentIds,
-    });
+    })
     router.push(`/lessons/${id}/periods/${periodId}/check-success`);
   };
 

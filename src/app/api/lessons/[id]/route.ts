@@ -6,7 +6,11 @@ export async function GET(request: Request, { params }: { params: { id: string }
   const lesson = await prisma.lesson.findUnique({
     where: { id: parseInt(id) },
     include: {
-      periods: true,
+      periods: {
+        orderBy: {
+          startTime: "asc",
+        },
+      },
       students: {
         include: {
           student: true,

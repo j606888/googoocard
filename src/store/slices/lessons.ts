@@ -52,13 +52,22 @@ export interface AttendanceRecord {
   income: number;
 }
 
+export interface LessonStudent {
+  id: number;
+  name: string;
+  avatarUrl: string;
+  attendances: ("not_started" | "attended" | "absent")[];
+}
+
 const lessonsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getLessons: builder.query<Lesson[], void>({
       query: () => "lessons",
+      providesTags: ["Lesson"],
     }),
     getLesson: builder.query<Lesson, string | number>({
       query: (id) => `lessons/${id}`,
+      providesTags: ["Lesson"],
     }),
     createLesson: builder.mutation<void, DraftLesson>({
       query: (draftLesson) => ({
@@ -66,6 +75,7 @@ const lessonsApi = api.injectEndpoints({
         method: "POST",
         body: draftLesson,
       }),
+      invalidatesTags: ["Lesson"],
     }),
     checkStudentCards: builder.query<{ invalidStudentIds: number[] }, { id: number; studentIds: number[] }>({
       query: ({ id, studentIds }) => ({
@@ -81,12 +91,20 @@ const lessonsApi = api.injectEndpoints({
         method: "POST",
         body: { studentIds },
       }),
+      invalidatesTags: ["Lesson"],
     }),
     getAttendance: builder.query<AttendanceRecord[], { id: number; periodId: number }>({
       query: ({ id, periodId }) => ({
         url: `lessons/${id}/periods/${periodId}/attendance`,
         method: "GET",
       }),
+    }),
+    getLessonStudents: builder.query<LessonStudent[], { id: number }>({
+      query: ({ id }) => ({
+        url: `lessons/${id}/students`,
+        method: "GET",
+      }),
+      providesTags: ["Lesson"],
     }),
   }),
 });
@@ -98,4 +116,5 @@ export const {
   useLazyCheckStudentCardsQuery,
   useTakeAttendanceMutation,
   useGetAttendanceQuery,
+  useGetLessonStudentsQuery,
 } = lessonsApi;
