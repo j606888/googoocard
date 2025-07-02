@@ -1,5 +1,5 @@
 import { Card } from "@/store/slices/cards";
-import { EllipsisVertical, Trash, Ban, Lightbulb } from "lucide-react";
+import { EllipsisVertical, Trash, Ban, Lightbulb, Pencil } from "lucide-react";
 import { useState, useRef } from "react";
 import Menu from "@/components/Menu";
 import {
@@ -8,7 +8,7 @@ import {
   useEnableCardMutation,
 } from "@/store/slices/cards";
 
-const SingleCard = ({ card }: { card: Card }) => {
+const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [deleteCard] = useDeleteCardMutation();
@@ -25,6 +25,11 @@ const SingleCard = ({ card }: { card: Card }) => {
 
   const handleEnable = async () => {
     await enableCard(card.id);
+  };
+
+  const handleEdit = async () => {
+    setMenuOpen(false);
+    onEdit?.();
   };
 
   return (
@@ -48,7 +53,7 @@ const SingleCard = ({ card }: { card: Card }) => {
         <div className="flex items-center justify-between">
           <Block label="Price" value={`${card.price}`} />
           <Block label="Sessions" value={`${card.sessions}`} />
-          <Block label="Purchased" value={`${0}`} />
+          <Block label="Purchased" value={`${card.purchasedCount}`} />
         </div>
       </div>
       <Menu
@@ -56,13 +61,24 @@ const SingleCard = ({ card }: { card: Card }) => {
         anchorEl={buttonRef.current}
         onClose={() => setMenuOpen(false)}
       >
-        <button
-          className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm"
-          onClick={handleDelete}
-        >
-          <Trash className="w-4.5 h-4.5" />
-          <span>Delete</span>
-        </button>
+        {!card.expiredAt && (
+          <button
+            className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm"
+            onClick={handleEdit}
+          >
+            <Pencil className="w-4.5 h-4.5" />
+            <span>Edit</span>
+          </button>
+        )}
+        {card.purchasedCount === 0 && (
+          <button
+            className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm"
+            onClick={handleDelete}
+          >
+            <Trash className="w-4.5 h-4.5" />
+            <span>Delete</span>
+          </button>
+        )}
         {card.expiredAt ? (
           <button
             className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm"

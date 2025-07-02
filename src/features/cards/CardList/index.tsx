@@ -1,8 +1,10 @@
+import { useState } from "react";
+import { useGetCardsQuery } from "@/store/slices/cards";
 import { CreditCard, EyeClosed, Eye } from "lucide-react";
 import NewCard from "./NewCard";
-import { useGetCardsQuery } from "@/store/slices/cards";
 import SingleCard from "./SingleCard";
-import { useState } from "react";
+import CardListSkeleton from "./CardListSkeleton";
+import EditCard from "./EditCard";
 
 const CardList = () => {
   const { data, isLoading } = useGetCardsQuery();
@@ -11,9 +13,10 @@ const CardList = () => {
     expiredCards: [],
   };
   const [showExpiredCards, setShowExpiredCards] = useState(false);
+  const [editCardId, setEditCardId] = useState<number | null>(null);
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <CardListSkeleton />;
   }
 
   return (
@@ -42,7 +45,7 @@ const CardList = () => {
           </div>
           <div className="flex flex-col gap-4 mb-6">
             {activeCards?.map((card) => (
-              <SingleCard key={card.id} card={card} />
+              <SingleCard key={card.id} card={card} onEdit={() => setEditCardId(card.id)} />
             ))}
           </div>
         </>
@@ -70,6 +73,7 @@ const CardList = () => {
           )}
         </>
       )}
+      {editCardId && <EditCard cardId={editCardId} onClose={() => setEditCardId(null)} />}
     </div>
   );
 };

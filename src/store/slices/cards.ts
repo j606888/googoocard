@@ -6,6 +6,7 @@ export interface Card {
   price: number;
   sessions: number;
   expiredAt: Date | null;
+  purchasedCount: number;
 }
 
 const cardsApi = api.injectEndpoints({
@@ -43,6 +44,14 @@ const cardsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Card"],
     }),
+    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number }>({
+      query: ({ id, name, price, sessions }) => ({
+        url: `cards/${id}`,
+        method: "PATCH",
+        body: { name, price, sessions },
+      }),
+      invalidatesTags: ["Card"],
+    }),
   }),
 });
 export const {
@@ -51,4 +60,5 @@ export const {
   useDeleteCardMutation,
   useExpireCardMutation,
   useEnableCardMutation,
+  useUpdateCardMutation,
 } = cardsApi;
