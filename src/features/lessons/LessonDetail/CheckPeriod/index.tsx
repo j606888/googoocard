@@ -6,13 +6,18 @@ import StudentSelectList from "./StudentSelectList";
 import Searchbar from "./Searchbar";
 import SelectedStudents from "./SelectedStudents";
 import { useEffect, useState } from "react";
-import { useGetLessonQuery, useLazyCheckStudentCardsQuery } from "@/store/slices/lessons";
+import {
+  useGetLessonQuery,
+  useLazyCheckStudentCardsQuery,
+  useTakeAttendanceMutation,
+} from "@/store/slices/lessons";
 import PeriodInfo from "./PeriodInfo";
 
 const CheckPeriod = () => {
   const { id, periodId } = useParams();
   const { data: students } = useGetStudentsQuery();
   const { data: lesson } = useGetLessonQuery(id as string);
+  const [takeAttendance, { isLoading }] = useTakeAttendanceMutation();
   const [trigger, { data: checkResult }] = useLazyCheckStudentCardsQuery();
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [filterKeyword, setFilterKeyword] = useState("");
@@ -24,14 +29,22 @@ const CheckPeriod = () => {
     [];
   const invalidStudentIds = checkResult?.invalidStudentIds || [];
 
-  const period = lesson?.periods.find((period) => period.id === Number(periodId));
+  const period = lesson?.periods.find(
+    (period) => period.id === Number(periodId)
+  );
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (selectedStudents.length === 0) {
       setError("Please select at least one student");
       return;
     }
-    router.push("/lessons/new/step-4");
+
+    await takeAttendance({
+      id: Number(id),
+      periodId: Number(periodId),
+      studentIds: selectedStudentIds,
+    });
+    router.push(`/lessons/${id}/periods/${periodId}/check-success`);
   };
 
   const handleSearch = (search: string) => {
@@ -89,7 +102,15 @@ const CheckPeriod = () => {
           </div>
         </div>
         <div className="fixed bottom-0 left-0 right-0 bg-white flex gap-4 px-5 py-4">
-          <Button onClick={handleSubmit} disabled={selectedStudents.length === 0 || invalidStudentIds.length > 0}>Take Attendance</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={
+              selectedStudents.length === 0 || invalidStudentIds.length > 0
+            }
+            isLoading={isLoading}
+          >
+            Take Attendance
+          </Button>
         </div>
       </div>
     </>

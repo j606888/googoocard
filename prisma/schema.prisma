@@ -83,6 +83,7 @@ model Student {
   classroom    Classroom     @relation(fields: [classroomId], references: [id])
   studentCards StudentCard[]
   lessons      LessonStudent[]
+  attendanceRecords AttendanceRecord[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -98,6 +99,7 @@ model StudentCard {
   totalSessions     Int
   remainingSessions Int
   paid              Boolean  @default(true)
+  attendanceRecords AttendanceRecord[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
@@ -143,10 +145,12 @@ model LessonPeriod {
   id        Int      @id @default(autoincrement())
   lessonId  Int
   lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  attendanceRecords AttendanceRecord[]
   startTime DateTime
   endTime   DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  attendanceTakenAt DateTime?
 }
 
 model LessonStudent {
@@ -155,6 +159,20 @@ model LessonStudent {
   studentId Int
   lesson    Lesson   @relation(fields: [lessonId], references: [id])
   student   Student  @relation(fields: [studentId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lessonId, studentId])
+}
+
+model AttendanceRecord {
+  id        Int      @id @default(autoincrement())
+  lessonPeriodId Int
+  lessonPeriod LessonPeriod @relation(fields: [lessonPeriodId], references: [id])
+  studentId Int
+  student   Student  @relation(fields: [studentId], references: [id])
+  studentCardId Int
+  studentCard StudentCard @relation(fields: [studentCardId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

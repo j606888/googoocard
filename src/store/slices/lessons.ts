@@ -64,6 +64,13 @@ const lessonsApi = api.injectEndpoints({
       }),
       providesTags: ["StudentCard"],
     }),
+    takeAttendance: builder.mutation<void, { id: number; periodId: number; studentIds: number[] }>({
+      query: ({ id, periodId, studentIds }) => ({
+        url: `lessons/${id}/periods/${periodId}/take-attendance`,
+        method: "POST",
+        body: { studentIds },
+      }),
+    }),
   }),
 });
 
@@ -72,4 +79,5 @@ export const {
   useGetLessonsQuery,
   useGetLessonQuery,
   useLazyCheckStudentCardsQuery,
+  useTakeAttendanceMutation,
 } = lessonsApi;
