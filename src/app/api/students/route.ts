@@ -21,6 +21,7 @@ export async function GET(request: Request) {
     include: {
       studentCards: {
         where: {
+          expiredAt: null,
           remainingSessions: {
             gt: 0,
           },

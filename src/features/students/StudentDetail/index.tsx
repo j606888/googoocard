@@ -1,8 +1,8 @@
 import { useState } from "react";
 import Basic from "./Basic";
-import Cards from "./Cards";
-import Attend from "./Attend";
-import { Student } from "@/store/slices/students";
+import CardsSection from "./CardsSection";
+import AttendSection from "./AttendSection";
+import { StudentWithDetail } from "@/store/slices/students";
 
 const tabs = [
   {
@@ -19,7 +19,7 @@ const tabs = [
   },
 ];
 
-const StudentDetail = ({ student }: { student: Student }) => {
+const StudentDetail = ({ student }: { student: StudentWithDetail }) => {
   const [activeTab, setActiveTab] = useState(tabs[0].query);
 
   return (
@@ -30,7 +30,7 @@ const StudentDetail = ({ student }: { student: Student }) => {
             key={tab.query}
             className={`flex-1 text-center border-b-1 border-b-gray-300 p-2.5 text-sm ${
               activeTab === tab.query
-                ? "text-primary-500 font-bold border-b-primary-500 border-b-2"
+                ? "text-primary-500 font-bold border-b-primary-500 border-b-3"
                 : ""
             }`}
             onClick={() => setActiveTab(tab.query)}
@@ -40,8 +40,8 @@ const StudentDetail = ({ student }: { student: Student }) => {
         ))}
       </div>
       {activeTab === "basic" && <Basic student={student} />}
-      {activeTab === "cards" && <Cards />}
-      {activeTab === "attend" && <Attend />}
+      {activeTab === "cards" && <CardsSection student={student} studentCards={student.studentCards} />}
+      {activeTab === "attend" && <AttendSection student={student} />}
     </div>
   );
 };

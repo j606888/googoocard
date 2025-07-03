@@ -1,15 +1,14 @@
 "use client";
 
 import StudentDetail from "@/features/students/StudentDetail";
-import { useGetStudentsQuery } from "@/store/slices/students";
+import { useGetStudentQuery } from "@/store/slices/students";
 import { ArrowLeftIcon } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
 const StudentPage = () => {
   const { id } = useParams();
-  const { data: students } = useGetStudentsQuery();
-  const student = students?.find((student) => student.id === Number(id));
+  const { data: student } = useGetStudentQuery({ id: Number(id) });
   return (
     <>
       <div className="relative h-16 bg-primary-500 w-full flex items-center justify-center">

@@ -9,6 +9,34 @@ export interface Student {
   studentCards: StudentCardWithCard[];
 }
 
+export interface StudentWithDetail extends Student {
+  overview: {
+    lastAttendAt: string | null;
+    cardCount: number;
+    attendLessonCount: number;
+    totalSpend: number;
+    totalSaved: number;
+  }
+  attendanceByLesson: {
+    lessonId: number;
+    lessonName: string;
+    totalPeriods: number;
+    lessonPeriodIds: number[];
+    attendances: {
+      periodNumber: number;
+      periodStartTime: number;
+    }[]
+  }[]
+  attendancesByDate: {
+    date: number;
+    attendances: {
+      lessonName: string;
+      periodNumber: number;
+      totalPeriods: number;
+    }[]
+  }[]
+}
+
 export interface StudentCardWithCard extends StudentCard {
   card: Card;
 }
@@ -23,11 +51,12 @@ export interface StudentCard {
   remainingSessions: number;
   createdAt: string;
   updatedAt: string;
+  expiredAt: string | null;
 }
 
 const studentsApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getStudents: builder.query<Student[], { query?: string }>({
+    getStudents: builder.query<Student[], { query?: string } | void>({
       query: ({ query } = {}) => `students${query ? `?query=${query}` : ""}`,
       providesTags: ["Student"],
     }),
@@ -59,7 +88,18 @@ const studentsApi = api.injectEndpoints({
         method: "POST",
         body: { cardId, sessions, price, paid },
       }),
-      invalidatesTags: ["StudentCard"],
+      invalidatesTags: ["StudentCard", "Student"],
+    }),
+    expireStudentCard: builder.mutation<StudentCard, { id: number; studentCardId: number }>({
+      query: ({ id, studentCardId }) => ({
+        url: `students/${id}/student-cards/${studentCardId}/expire`,
+        method: "POST",
+      }),
+      invalidatesTags: ["StudentCard", "Student"],
+    }),
+    getStudent: builder.query<StudentWithDetail, { id: number }>({
+      query: ({ id }) => `students/${id}`,
+      providesTags: ["Student"],
     }),
   }),
 });
@@ -70,4 +110,6 @@ export const {
   useDeleteStudentMutation,
   useGetStudentCardsQuery,
   useCreateStudentCardMutation,
+  useGetStudentQuery,
+  useExpireStudentCardMutation,
 } = studentsApi;
