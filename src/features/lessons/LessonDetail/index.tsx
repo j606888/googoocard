@@ -1,6 +1,9 @@
 import { useParams } from "next/navigation";
 import LessonTabs from "./LessonTabs";
-import { useGetLessonQuery, useGetLessonStudentsQuery } from "@/store/slices/lessons";
+import {
+  useGetLessonQuery,
+  useGetLessonStudentsQuery,
+} from "@/store/slices/lessons";
 import SubNavbar from "@/features/SubNavbar";
 import { useState } from "react";
 import PeriodSection from "./PeriodSection";
@@ -24,19 +27,25 @@ export const TABS = [
 
 const LessonDetail = () => {
   const { id } = useParams();
-  const [activeTab, setActiveTab] = useState("students");
+  const [activeTab, setActiveTab] = useState("periods");
   const { data: lesson } = useGetLessonQuery(id as string);
-  const { data: students } = useGetLessonStudentsQuery({ id: parseInt(id as string) });
+  const { data: students } = useGetLessonStudentsQuery({
+    id: parseInt(id as string),
+  });
 
   if (!lesson) return <div>Loading...</div>;
-  
-  return <>
-    <SubNavbar title={lesson?.name || ""} backUrl={`/lessons`} />
-    <LessonTabs activeTab={activeTab} onTabChange={setActiveTab} />
-    {activeTab === "periods" && <PeriodSection periods={lesson?.periods || []} />}
-    {activeTab === "students" && <StudentSection students={students || []} />}
-    {activeTab === "settings" && <SettingSection lesson={lesson} />}
-  </>;
+
+  return (
+    <>
+      <SubNavbar title={lesson?.name || ""} backUrl={`/lessons`} />
+      <LessonTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      {activeTab === "periods" && (
+        <PeriodSection lesson={lesson} periods={lesson?.periods || []} />
+      )}
+      {activeTab === "students" && <StudentSection students={students || []} />}
+      {activeTab === "settings" && <SettingSection lesson={lesson} />}
+    </>
+  );
 };
 
 export default LessonDetail;

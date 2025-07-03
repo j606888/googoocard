@@ -106,6 +106,21 @@ const lessonsApi = api.injectEndpoints({
       }),
       providesTags: ["Lesson"],
     }),
+    createPeriod: builder.mutation<void, { id: number; startTime: string; endTime: string }>({
+      query: ({ id, startTime, endTime }) => ({
+        url: `lessons/${id}/periods`,
+        method: "POST",
+        body: { startTime, endTime },
+      }),
+      invalidatesTags: ["Lesson"],
+    }),
+    deletePeriod: builder.mutation<void, { id: number; periodId: number }>({
+      query: ({ id, periodId }) => ({
+        url: `lessons/${id}/periods/${periodId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Lesson"],
+    }),
   }),
 });
 
@@ -117,4 +132,6 @@ export const {
   useTakeAttendanceMutation,
   useGetAttendanceQuery,
   useGetLessonStudentsQuery,
+  useCreatePeriodMutation,
+  useDeletePeriodMutation,
 } = lessonsApi;
