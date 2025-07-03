@@ -10,6 +10,16 @@ export async function GET() {
       classroomId,
       expiredAt: null,
     },
+    include: {
+      _count: {
+        select: {
+          studentCards: true
+        }
+      }
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
   });
 
   const expiredCards = await prisma.card.findMany({
@@ -19,8 +29,24 @@ export async function GET() {
         not: null,
       },
     },
+    include: {
+      _count: {
+        select: {
+          studentCards: true
+        }
+      }
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
   });
-  return NextResponse.json({ activeCards, expiredCards });
+
+  const result = {
+    activeCards: activeCards.map((card) => ({ ...card, purchasedCount: card._count.studentCards })),
+    expiredCards: expiredCards.map((card) => ({ ...card, purchasedCount: card._count.studentCards })),
+  };
+
+  return NextResponse.json(result);
 }
 
 export async function POST(request: Request) {

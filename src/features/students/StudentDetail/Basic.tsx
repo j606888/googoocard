@@ -1,8 +1,7 @@
-import { Student } from "@/store/slices/students";
+import { StudentWithDetail } from "@/store/slices/students";
+import { formatDate } from "@/lib/utils";
 
-const Basic = ({ student }: { student: Student }) => {
-  const date = new Date(student.createdAt);
-  const formatted = date.toISOString().slice(0, 10); // "2025-06-16"
+const Basic = ({ student }: { student: StudentWithDetail }) => {
 
   return (
     <div className="flex flex-col gap-3">
@@ -16,20 +15,20 @@ const Basic = ({ student }: { student: Student }) => {
         </div>
         <div className="flex items-center gap-3 text-[#777777]">
           <div className="w-30">Last attend:</div>
-          <div className="font-semibold">-</div>
+          <div className="text-sm font-semibold">{formatDate(student.overview.lastAttendAt)}</div>
         </div>
         <div className="flex items-center gap-3 text-[#777777]">
           <div className="w-30">Joined at:</div>
-          <div className="font-semibold">{formatted}</div>
+          <div className="text-sm font-semibold">{formatDate(student.createdAt)}</div>
         </div>
       </div>
       <div className="flex gap-3">
-        <Info label="Class Attend" value="0" />
-        <Info label="Buy Card" value="0" />
+        <Info label="Class Attend" value={student.overview.attendLessonCount.toString()} />
+        <Info label="Buy Card" value={student.overview.cardCount.toString()} />
       </div>
       <div className="flex gap-3">
-        <Info label="Total Spend" value="0" />
-        <Info label="Total Saved" value="0" />
+        <Info label="Total Spend" value={`$${student.overview.totalSpend}`} />
+        <Info label="Total Saved" value={`$${student.overview.totalSaved}`} />
       </div>
     </div>
   );

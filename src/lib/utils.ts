@@ -17,3 +17,10 @@ export function periodInfo(period?: Period) {
   const endHour = format(endTime, "h:mm a");
   return { date, startHour, endHour };
 }
+
+export function formatDate(dateNumber: number | string | null, formatString = 'yyyy/MM/dd') {
+  if (!dateNumber) return "-";
+
+  const date = new Date(dateNumber);
+  return format(date, formatString);
+}

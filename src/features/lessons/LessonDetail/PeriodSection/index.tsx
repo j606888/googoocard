@@ -1,10 +1,13 @@
-import { Period } from "@/store/slices/lessons";
-import NewPeriod from "./NewPeriod";
+import { Lesson, Period } from "@/store/slices/lessons";
+import AddPeriodForm from "./AddPeriodForm";
 import { format } from "date-fns";
-import { EllipsisVertical, PenTool, Check } from "lucide-react";
+import Menu from "@/components/Menu";
+import { EllipsisVertical, PenTool, Check, NotepadText, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+import { useDeletePeriodMutation } from "@/store/slices/lessons";
 
-const PeriodSection = ({ periods }: { periods: Period[] }) => {
+const PeriodSection = ({ lesson, periods }: { lesson: Lesson; periods: Period[] }) => {
   const firstPendingPeriodId = periods.find(
     (period) => !period.attendanceTakenAt
   )?.id;
@@ -15,7 +18,7 @@ const PeriodSection = ({ periods }: { periods: Period[] }) => {
         <h3 className="text-base font-medium">
           Total {periods.length} periods
         </h3>
-        <NewPeriod />
+        <AddPeriodForm lessonId={lesson.id} lastPeriod={periods[periods.length - 1]} />
       </div>
       <div className="flex flex-col gap-3">
         {periods.map((period) => (
@@ -37,16 +40,31 @@ const PeriodCard = ({
   period: Period;
   canCheck?: boolean;
 }) => {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
   const startTime = new Date(period.startTime);
   const endTime = new Date(period.endTime);
   const date = format(startTime, "yyyy/MM/dd, EEE");
   const startHour = format(startTime, "h:mm a");
   const endHour = format(endTime, "h:mm a");
+  const [deletePeriod] = useDeletePeriodMutation();
 
   const handleCheck = () => {
     router.push(`/lessons/${period.lessonId}/periods/${period.id}/check`);
   };
+
+  const handleDelete = () => {
+    setMenuOpen(false);
+    const confirmed = confirm("Are you sure you want to delete this period?");
+    if (confirmed) {
+      deletePeriod({ id: period.lessonId, periodId: period.id });
+    }
+  }
+
+  const handleViewAttendance = () => {
+    router.push(`/lessons/${period.lessonId}/periods/${period.id}/check-success`);
+  }
 
   return (
     <div
@@ -66,7 +84,9 @@ const PeriodCard = ({
             <span>~</span>
             <span>{endHour}</span>
           </div>
-          <EllipsisVertical className="w-4 h-4" />
+          <button onClick={() => setMenuOpen(!menuOpen)} ref={buttonRef}>
+            <EllipsisVertical className="w-4 h-4" />
+          </button>
         </div>
       </div>
       {canCheck && (
@@ -78,6 +98,23 @@ const PeriodCard = ({
           Check
         </button>
       )}
+      <Menu
+        open={menuOpen}
+        anchorEl={buttonRef.current}
+        onClose={() => setMenuOpen(false)}
+      >
+        {period.attendanceTakenAt ? (
+          <button className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm" onClick={handleViewAttendance}>
+          <NotepadText className="w-4 h-4" />
+          View Attendance
+        </button>
+        ) : (
+          <button className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm" onClick={handleDelete}>
+            <Trash className="w-4 h-4" />
+            Delete
+          </button>
+        )}
+      </Menu>
     </div>
   );
 };
