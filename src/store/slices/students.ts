@@ -1,10 +1,16 @@
 import { api } from "../api";
+import { Card } from "./cards";
 
 export interface Student {
   id: number;
   name: string;
   avatarUrl: string;
   createdAt: string;
+  studentCards: StudentCardWithCard[];
+}
+
+export interface StudentCardWithCard extends StudentCard {
+  card: Card;
 }
 
 export interface StudentCard {
@@ -21,8 +27,8 @@ export interface StudentCard {
 
 const studentsApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getStudents: builder.query<Student[], void>({
-      query: () => "students",
+    getStudents: builder.query<Student[], { query?: string }>({
+      query: ({ query } = {}) => `students${query ? `?query=${query}` : ""}`,
       providesTags: ["Student"],
     }),
     createStudent: builder.mutation<
