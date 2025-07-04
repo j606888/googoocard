@@ -1,13 +1,16 @@
 "use client";
 
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const RedirectPage = () => {
   const { data, isLoading } = useGetClassroomsQuery();
   const router = useRouter();
   const [dots, setDots] = useState(".");
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
+  const redirect = searchParams.get("redirect");
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -24,12 +27,23 @@ const RedirectPage = () => {
   useEffect(() => {
     if (isLoading) return;
 
-    if (data?.currentClassroomId) {
-      router.push("/lessons");
-    } else {
-      router.push("/onboarding");
+    if (token) {
+      router.push(`/invitations?token=${token}`);
+      return;
     }
-  }, [data, isLoading, router]);
+
+    if (!data?.currentClassroomId) {
+      router.push("/onboarding");
+      return;
+    }
+
+    if (redirect) {
+      router.push(redirect)
+      return;
+    }
+
+    router.push("/lessons");
+  }, [data, isLoading, router, token, redirect]);
 
   return (
     <div className="flex flex-col items-center justify-center left-0 right-0 top-0 bottom-0 absolute bg-primary-500 overflow-hidden">

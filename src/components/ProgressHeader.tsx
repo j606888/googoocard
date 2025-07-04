@@ -1,6 +1,8 @@
 'use client';
 
 import { CheckIcon } from "lucide-react";
+import { ArrowLeftIcon } from "lucide-react";
+import Link from "next/link";
 
 const STEPS = [
   {
@@ -30,6 +32,8 @@ const ProgressHeader = ({ currentStep }: { currentStep: number }) => {
   const rightPart: React.ReactNode[] = []
   const widthPercentage = (currentStep / 5) * 100
 
+  leftPart.push(<Link href={'/lessons'}><ArrowLeftIcon className="w-5 h-5 text-gray-600" /></Link>)
+
   STEPS.forEach((step) => {
     if (step.number < currentStep) {
       leftPart.push(<StepBall key={step.number} number={step.number} status="done" />)
@@ -42,7 +46,7 @@ const ProgressHeader = ({ currentStep }: { currentStep: number }) => {
   
   return (
     <div className="sticky top-0 w-full px-3 py-5 flex justify-between bg-white z-20">
-      <div className='flex gap-3'>
+      <div className='flex gap-3 items-center'>
         {leftPart}
       </div>
       <div className='flex gap-3'>

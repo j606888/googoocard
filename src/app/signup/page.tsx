@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { validateForm, ValidationErrors } from "@/lib/validation";
+import { buildUrlWithParams } from "@/lib/utils";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -46,15 +47,8 @@ export default function SignupPage() {
         return;
       }
 
-      if (redirect) {
-        if (token) {
-          router.push(`${redirect}?token=${token}`);
-        } else {
-          router.push(redirect);
-        }
-      } else {
-        router.push("/onboarding");
-      }
+      const redirectUrl = buildUrlWithParams('/redirect', { redirect, token });
+      router.push(redirectUrl);
     } catch (err) {
       console.error("Signup error:", err);
       setErrors({ email: "An error occurred. Please try again." });

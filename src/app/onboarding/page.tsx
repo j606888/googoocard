@@ -1,14 +1,14 @@
 "use client";
 
-import {  Store } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Store } from "lucide-react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useGetClassroomsQuery } from "@/store/slices/classrooms";
+import { useCreateClassroomMutation } from "@/store/slices/classrooms";
 
 export default function OnboardingPage() {
-  const { data } = useGetClassroomsQuery();
   const [classroomName, setClassroomName] = useState("");
   const [error, setError] = useState("");
+  const [createClassroom] = useCreateClassroomMutation();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -23,33 +23,14 @@ export default function OnboardingPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/classrooms", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name: classroomName }),
-      });
-  
-      const data = await response.json();
-  
-      if (response.ok) {
-        router.push("/teachers");
-      } else {
-        console.error(data);
-      }
+      await createClassroom({ name: classroomName }).unwrap();
+      router.push("/lessons");
     } catch (error) {
       console.error("Onboarding error:", error);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (data?.currentClassroomId) {
-      router.push("/lessons");
-    }
-  }, [data]);
 
   return (
     <div className="flex flex-col items-center justify-center left-0 right-0 top-0 bottom-0 absolute bg-primary-500 overflow-hidden">
