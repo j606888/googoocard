@@ -13,11 +13,15 @@ export async function GET() {
     return NextResponse.json({ error: "No classroom selected" }, { status: 400 });
   }
 
-  const classrooms = await prisma.classroom.findMany({
+  const memberships = await prisma.membership.findMany({
     where: {
-      ownerId: userId!,
+      userId: userId,
+    },
+    include: {
+      classroom: true,
     },
   });
+  const classrooms = memberships.map((membership) => membership.classroom);
 
   return NextResponse.json({ classrooms, currentClassroomId: classroomId });
 }

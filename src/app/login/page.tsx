@@ -2,7 +2,7 @@
 
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 export default function LoginPage() {
@@ -12,6 +12,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect");
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
@@ -38,7 +40,11 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        router.push("/onboarding");
+        if (redirect) {
+          router.push(redirect);
+        } else {
+          router.push("/redirect");
+        }
       } else {
         setError(data.error);
       }
