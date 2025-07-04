@@ -34,13 +34,13 @@ export const validateForm = (data: { name?: string; email: string; password: str
       errors.password = "At least 8 characters long";
     } else if (!isDevelopment) {
       // Additional password rules only for staging and production
-      if (!/[a-z]/.test(data.password)) {
-        errors.password = "At least one lowercase letter";
-      } else if (!/[A-Z]/.test(data.password)) {
-        errors.password = "At least one uppercase letter";
-      } else if (!/\d/.test(data.password)) {
-        errors.password = "At least one number";
-      }
+      // if (!/[a-z]/.test(data.password)) {
+      //   errors.password = "At least one lowercase letter";
+      // } else if (!/[A-Z]/.test(data.password)) {
+      //   errors.password = "At least one uppercase letter";
+      // } else if (!/\d/.test(data.password)) {
+      //   errors.password = "At least one number";
+      // }
     }
   }
 

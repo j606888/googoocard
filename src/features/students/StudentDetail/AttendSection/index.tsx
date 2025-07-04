@@ -15,10 +15,10 @@ const TABS = [
 ];
 
 const AttendSection = ({ student }: { student: StudentWithDetail }) => {
-  const { attendanceByLesson, attendancesByDate } = student;
+  const { attendancesByLesson, attendancesByDate } = student;
   const [activeTab, setActiveTab] = useState(TABS[0].value);
 
-  if (attendanceByLesson.length === 0) {
+  if (attendancesByLesson.length === 0) {
     return (
       <div className="flex flex-col gap-3">
         <div className="w-full p-5 bg-primary-50 text-center rounded-sm font-light">
@@ -45,7 +45,7 @@ const AttendSection = ({ student }: { student: StudentWithDetail }) => {
       </div>
       {activeTab === "group_by_lesson" ? (
         <div className="flex flex-col gap-3">
-          {attendanceByLesson.map((lesson) => (
+          {attendancesByLesson.map((lesson) => (
             <div
               key={lesson.lessonId}
               className="rounded-sm bg-white shadow-sm overflow-hidden"

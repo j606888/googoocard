@@ -17,7 +17,7 @@ export interface StudentWithDetail extends Student {
     totalSpend: number;
     totalSaved: number;
   }
-  attendanceByLesson: {
+  attendancesByLesson: {
     lessonId: number;
     lessonName: string;
     totalPeriods: number;

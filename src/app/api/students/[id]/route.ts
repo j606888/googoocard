@@ -71,7 +71,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
   })
 
-  const attend = lessons.map((lesson) => {
+  const attendancesByLesson = lessons.map((lesson) => {
     return {
       lessonId: lesson.id,
       lessonName: lesson.name,
@@ -112,11 +112,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       periodNumber: lesson.periods.findIndex((period) => period.id === lessonPeriodId) + 1,
       totalPeriods: lesson.periods.length,
     }
-    attend.find((lesson) => lesson.lessonId === lessonId)?.attendances.push(attendanceData);
+    attendancesByLesson.find((lesson) => lesson.lessonId === lessonId)?.attendances.push(attendanceData);
   })
 
 
-  attend.forEach((lesson) => {
+  attendancesByLesson.forEach((lesson) => {
     lesson.attendances.forEach((attendance) => {
       const dateKey = formatDate(attendance.periodStartTime.getTime());
       if (!attendancesByDate[dateKey]) {
@@ -144,8 +144,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   return NextResponse.json({
     overview,
-    attend,
     attendancesByDate: sortedAttendancesByDate,
+    attendancesByLesson,
     ...studentData,
   });
 }
