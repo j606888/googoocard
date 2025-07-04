@@ -24,3 +24,16 @@ export function formatDate(dateNumber: number | string | null, formatString = 'y
   const date = new Date(dateNumber);
   return format(date, formatString);
 }
+
+export function buildUrlWithParams(basePath: string, params: Record<string, string | null | undefined>): string {
+  const searchParams = new URLSearchParams();
+  
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) {
+      searchParams.append(key, value);
+    }
+  });
+  
+  const queryString = searchParams.toString();
+  return queryString ? `${basePath}?${queryString}` : basePath;
+}

@@ -9,10 +9,6 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!classroomId) {
-    return NextResponse.json({ error: "No classroom selected" }, { status: 400 });
-  }
-
   const memberships = await prisma.membership.findMany({
     where: {
       userId: userId,

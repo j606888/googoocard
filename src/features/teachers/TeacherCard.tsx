@@ -2,11 +2,12 @@ import { EllipsisVertical, BookOpenText, Trash } from "lucide-react";
 import Menu from "@/components/Menu";
 import { useRef, useState } from "react";
 import { useDeleteTeacherMutation } from "@/store/slices/teachers";
+import { Teacher } from "@/store/slices/teachers";
 
 const TeacherCard = ({
   teacher,
 }: {
-  teacher: { id: string; name: string };
+  teacher: Teacher
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -14,7 +15,7 @@ const TeacherCard = ({
   const [deleteTeacher] = useDeleteTeacherMutation();
 
   const handleDelete = async () => {
-    await deleteTeacher({ id: teacher.id });
+    await deleteTeacher({ id: teacher.id.toString() });
   };
 
   return (

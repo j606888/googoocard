@@ -40,11 +40,7 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        if (redirect) {
-          router.push(redirect);
-        } else {
-          router.push("/redirect");
-        }
+        router.push(`/redirect?redirect=${redirect}`);
       } else {
         setError(data.error);
       }
