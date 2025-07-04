@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { validateForm, ValidationErrors } from "@/lib/validation";
-import { buildUrlWithParams } from "@/lib/utils";
 
-export default function SignupPage() {
+function SignupForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,8 +46,15 @@ export default function SignupPage() {
         return;
       }
 
-      const redirectUrl = buildUrlWithParams('/redirect', { redirect, token });
-      router.push(redirectUrl);
+      if (redirect) {
+        if (token) {
+          router.push(`${redirect}?token=${token}`);
+        } else {
+          router.push(redirect);
+        }
+      } else {
+        router.push("/onboarding");
+      }
     } catch (err) {
       console.error("Signup error:", err);
       setErrors({ email: "An error occurred. Please try again." });
@@ -164,5 +170,14 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SignupForm />
+    </Suspense>
   );
 }

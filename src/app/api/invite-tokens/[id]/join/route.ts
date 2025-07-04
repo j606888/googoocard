@@ -4,7 +4,7 @@ import { createAuthSession, decodeAuthToken } from "@/lib/auth";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: token } = await params;
   const { userId, classroomId } = await decodeAuthToken();

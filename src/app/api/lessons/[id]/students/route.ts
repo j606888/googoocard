@@ -9,9 +9,9 @@ const ATTENDANCE_STATUS = {
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
   const lesson = await prisma.lesson.findUnique({
     where: { id: parseInt(id) },
     include: {

@@ -3,9 +3,9 @@
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -137,5 +137,51 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LoginPageFallback() {
+  return (
+    <div className="flex flex-col items-center justify-center left-0 right-0 top-0 bottom-0 absolute bg-primary-500 overflow-hidden">
+      <div className="relative w-full flex items-center justify-center h-[40vh]">
+        <h2 className="text-white text-center text-2xl font-semibold">
+          Still using the Lesson Card?
+          <br />
+          Throw it right away!
+        </h2>
+        <div className="w-30 h-30 rounded-full bg-primary-50 absolute -bottom-15 -left-15"></div>
+        <div className="w-30 h-30 rounded-full bg-primary-50 absolute -top-15 -right-15"></div>
+      </div>
+      <div className="h-[60vh] bg-white rounded-t-3xl w-full p-6 flex flex-col items-center z-1 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+        <div className="w-full">
+          <h2 className="text-[28px] font-semibold mb-4 text-center">Login</h2>
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center gap-3">
+              <Mail className="w-6 h-6 text-gray-500" />
+              <div className="relative w-full">
+                <div className="w-full border-b-2 border-gray-300 px-1.5 py-3 text-base bg-gray-50 animate-pulse h-6"></div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 relative">
+              <Lock className="w-6 h-6 text-gray-500" />
+              <div className="relative w-full">
+                <div className="w-full border-b-2 border-gray-300 px-1.5 py-3 text-base bg-gray-50 animate-pulse h-6"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-auto w-full">
+          <div className="bg-gray-200 w-full px-4 py-3 rounded-md animate-pulse h-12"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 import { Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Answer } from "../Step4/Questions";
+import { Answer } from "@/store/slices/lessons";
 import { Card, useGetCardsQuery } from "@/store/slices/cards";
 import { Student, useGetStudentsQuery } from "@/store/slices/students";
 import { useRouter } from "next/navigation";

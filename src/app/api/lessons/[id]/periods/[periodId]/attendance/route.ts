@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string; periodId: string } }
+  { params }: { params: Promise<{ id: string; periodId: string }> }
 ) {
   const { periodId } = await params;
 
@@ -38,7 +38,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string; periodId: string } }
+  { params }: { params: Promise<{ id: string; periodId: string }> }
 ) {
   const { id, periodId } = await params;
   const { studentIds } = await request.json();

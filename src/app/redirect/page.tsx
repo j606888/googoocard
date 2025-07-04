@@ -2,9 +2,9 @@
 
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
-const RedirectPage = () => {
+function RedirectContent() {
   const { data, isLoading } = useGetClassroomsQuery();
   const router = useRouter();
   const [dots, setDots] = useState(".");
@@ -56,6 +56,29 @@ const RedirectPage = () => {
         </h2>
       </div>
     </div>
+  );
+}
+
+function RedirectPageFallback() {
+  return (
+    <div className="flex flex-col items-center justify-center left-0 right-0 top-0 bottom-0 absolute bg-primary-500 overflow-hidden">
+      <div className="relative w-full flex flex-col items-center justify-center h-[40vh] gap-4">
+        <h2
+          className="text-white text-center text-xl font-semibold w-30
+         mx-auto"
+        >
+          Loading...
+        </h2>
+      </div>
+    </div>
+  );
+}
+
+const RedirectPage = () => {
+  return (
+    <Suspense fallback={<RedirectPageFallback />}>
+      <RedirectContent />
+    </Suspense>
   );
 };
 

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useJoinInviteTokenMutation } from "@/store/slices/membershipts";
 
-export default function InvitationsPage() {
+function InvitationsContent() {
   const [joinInviteToken, { error }] = useJoinInviteTokenMutation();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -37,5 +37,17 @@ export default function InvitationsPage() {
         <p>{(error as any)?.data?.error}</p>
       )}
     </>
+  );
+}
+
+function InvitationsPageFallback() {
+  return <p>Loading...</p>;
+}
+
+export default function InvitationsPage() {
+  return (
+    <Suspense fallback={<InvitationsPageFallback />}>
+      <InvitationsContent />
+    </Suspense>
   );
 }

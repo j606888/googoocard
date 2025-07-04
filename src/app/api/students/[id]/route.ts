@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const student = await prisma.student.findUnique({
@@ -71,7 +71,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     }
   })
 
-  const attendanceByLesson = lessons.map((lesson) => {
+  const attend = lessons.map((lesson) => {
     return {
       lessonId: lesson.id,
       lessonName: lesson.name,
@@ -112,11 +112,11 @@ export async function GET(request: Request, { params }: { params: { id: string }
       periodNumber: lesson.periods.findIndex((period) => period.id === lessonPeriodId) + 1,
       totalPeriods: lesson.periods.length,
     }
-    attendanceByLesson.find((lesson) => lesson.lessonId === lessonId)?.attendances.push(attendanceData);
+    attend.find((lesson) => lesson.lessonId === lessonId)?.attendances.push(attendanceData);
   })
 
 
-  attendanceByLesson.forEach((lesson) => {
+  attend.forEach((lesson) => {
     lesson.attendances.forEach((attendance) => {
       const dateKey = formatDate(attendance.periodStartTime.getTime());
       if (!attendancesByDate[dateKey]) {
@@ -144,7 +144,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
   return NextResponse.json({
     overview,
-    attendanceByLesson,
+    attend,
     attendancesByDate: sortedAttendancesByDate,
     ...studentData,
   });
