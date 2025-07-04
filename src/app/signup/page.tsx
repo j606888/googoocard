@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { validateForm, ValidationErrors } from "@/lib/validation";
@@ -14,6 +14,9 @@ export default function SignupPage() {
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
+  const redirect = searchParams.get("redirect");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +46,15 @@ export default function SignupPage() {
         return;
       }
 
-      router.push("/onboarding");
+      if (redirect) {
+        if (token) {
+          router.push(`${redirect}?token=${token}`);
+        } else {
+          router.push(redirect);
+        }
+      } else {
+        router.push("/onboarding");
+      }
     } catch (err) {
       console.error("Signup error:", err);
       setErrors({ email: "An error occurred. Please try again." });

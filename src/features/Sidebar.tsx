@@ -29,9 +29,9 @@ const LINKS = [
     href: '/students',
   },
   {
-    name: 'Team',
+    name: 'Teams',
     icon: Boxes,
-    href: '/team',
+    href: '/teams',
   },
   {
     name: 'Income',
