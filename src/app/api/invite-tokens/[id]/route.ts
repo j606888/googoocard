@@ -10,3 +10,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   });
   return NextResponse.json({ success: true });
 }
+
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: token } = await params;
+  const inviteToken = await prisma.inviteToken.findUnique({
+    where: { token },
+    include: {
+      classroom: true,
+    },
+  });
+  return NextResponse.json(inviteToken);
+}

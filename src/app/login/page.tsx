@@ -4,6 +4,7 @@ import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { useLoginMutation } from "@/store/slices/me";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -14,6 +15,8 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect");
+  const token = searchParams.get("token");
+  const [login] = useLoginMutation();
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
@@ -29,24 +32,11 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        router.push(`/redirect?redirect=${redirect}`);
-      } else {
-        setError(data.error);
-      }
+      await login({ email, password, token: token ?? undefined }).unwrap();
+      router.push(redirect || "/redirect");
     } catch (error) {
       console.error("Login error:", error);
-      setError("An error occurred. Please try again.");
+      setError("email or password incorrect")
     } finally {
       setLoading(false);
     }

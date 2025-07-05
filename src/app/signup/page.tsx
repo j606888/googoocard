@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { validateForm, ValidationErrors } from "@/lib/validation";
+import { useSignupMutation } from "@/store/slices/me";
 
 function SignupForm() {
   const [name, setName] = useState("");
@@ -13,6 +14,7 @@ function SignupForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [loading, setLoading] = useState(false);
+  const [signup] = useSignupMutation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -31,30 +33,9 @@ function SignupForm() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name, email, password }),
-      });
+      await signup({ name, email, password, token: token ?? undefined }).unwrap();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setErrors({ email: data.error });
-        return;
-      }
-
-      if (redirect) {
-        if (token) {
-          router.push(`${redirect}?token=${token}`);
-        } else {
-          router.push(redirect);
-        }
-      } else {
-        router.push("/onboarding");
-      }
+      router.push(redirect || "/redirect");
     } catch (err) {
       console.error("Signup error:", err);
       setErrors({ email: "An error occurred. Please try again." });

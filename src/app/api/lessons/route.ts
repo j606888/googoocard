@@ -5,6 +5,11 @@ import prisma from "@/lib/prisma";
 
 export async function GET() {
   const { classroomId } = await decodeAuthToken();
+
+  if (!classroomId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const lessons = await prisma.lesson.findMany({
     where: {
       classroomId: classroomId,

@@ -1,16 +1,33 @@
-import { Lesson, Period } from "@/store/slices/lessons";
+import { Lesson, Period, useResetAttendanceMutation } from "@/store/slices/lessons";
 import AddPeriodForm from "./AddPeriodForm";
 import { format } from "date-fns";
 import Menu from "@/components/Menu";
-import { EllipsisVertical, PenTool, Check, NotepadText, Trash } from "lucide-react";
+import {
+  EllipsisVertical,
+  PenTool,
+  Check,
+  NotepadText,
+  Trash,
+  Eraser,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useDeletePeriodMutation } from "@/store/slices/lessons";
+import { toast } from "sonner";
 
-const PeriodSection = ({ lesson, periods }: { lesson: Lesson; periods: Period[] }) => {
+const PeriodSection = ({
+  lesson,
+  periods,
+}: {
+  lesson: Lesson;
+  periods: Period[];
+}) => {
   const firstPendingPeriodId = periods.find(
     (period) => !period.attendanceTakenAt
   )?.id;
+  const lastAttendPeriodId = periods
+    .filter((period) => period.attendanceTakenAt)
+    .at(-1)?.id;
 
   return (
     <div className="flex flex-col gap-4 px-5">
@@ -18,7 +35,10 @@ const PeriodSection = ({ lesson, periods }: { lesson: Lesson; periods: Period[] 
         <h3 className="text-base font-medium">
           Total {periods.length} periods
         </h3>
-        <AddPeriodForm lessonId={lesson.id} lastPeriod={periods[periods.length - 1]} />
+        <AddPeriodForm
+          lessonId={lesson.id}
+          lastPeriod={periods[periods.length - 1]}
+        />
       </div>
       <div className="flex flex-col gap-3">
         {periods.map((period) => (
@@ -26,6 +46,7 @@ const PeriodSection = ({ lesson, periods }: { lesson: Lesson; periods: Period[] 
             key={period.id}
             period={period}
             canCheck={period.id === firstPendingPeriodId}
+            isLastAttend={period.id === lastAttendPeriodId}
           />
         ))}
       </div>
@@ -36,9 +57,11 @@ const PeriodSection = ({ lesson, periods }: { lesson: Lesson; periods: Period[] 
 const PeriodCard = ({
   period,
   canCheck = false,
+  isLastAttend = false,
 }: {
   period: Period;
   canCheck?: boolean;
+  isLastAttend?: boolean;
 }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -49,6 +72,7 @@ const PeriodCard = ({
   const startHour = format(startTime, "h:mm a");
   const endHour = format(endTime, "h:mm a");
   const [deletePeriod] = useDeletePeriodMutation();
+  const [resetAttendance] = useResetAttendanceMutation();
 
   const handleCheck = () => {
     router.push(`/lessons/${period.lessonId}/periods/${period.id}/check`);
@@ -60,11 +84,22 @@ const PeriodCard = ({
     if (confirmed) {
       deletePeriod({ id: period.lessonId, periodId: period.id });
     }
-  }
+  };
 
   const handleViewAttendance = () => {
-    router.push(`/lessons/${period.lessonId}/periods/${period.id}/check-success`);
-  }
+    router.push(
+      `/lessons/${period.lessonId}/periods/${period.id}/check-success`
+    );
+  };
+
+  const handleReset = () => {
+    const confirmed = confirm("Are you sure you want to reset this period?");
+    if (confirmed) {
+      resetAttendance({ id: period.lessonId, periodId: period.id });
+    }
+    toast.success("Reset attendance successfully");
+    setMenuOpen(false);
+  };
 
   return (
     <div
@@ -103,17 +138,34 @@ const PeriodCard = ({
         anchorEl={buttonRef.current}
         onClose={() => setMenuOpen(false)}
       >
-        {period.attendanceTakenAt ? (
-          <button className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm" onClick={handleViewAttendance}>
-          <NotepadText className="w-4 h-4" />
-          View Attendance
-        </button>
-        ) : (
-          <button className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm" onClick={handleDelete}>
-            <Trash className="w-4 h-4" />
-            Delete
-          </button>
-        )}
+        <div className="flex flex-col gap-3 p-3">
+          {period.attendanceTakenAt ? (
+            <button
+              className="flex gap-2 items-center hover:bg-gray-100 rounded-sm"
+              onClick={handleViewAttendance}
+            >
+              <NotepadText className="w-4 h-4" />
+              View Attendance
+            </button>
+          ) : (
+            <button
+              className="flex gap-2 items-center hover:bg-gray-100 rounded-sm"
+              onClick={handleDelete}
+            >
+              <Trash className="w-4 h-4" />
+              Delete
+            </button>
+          )}
+          {isLastAttend && (
+            <button
+              className="flex gap-2 items-center hover:bg-gray-100 rounded-sm"
+              onClick={handleReset}
+            >
+              <Eraser className="w-4 h-4" />
+              Reset
+            </button>
+          )}
+        </div>
       </Menu>
     </div>
   );

@@ -1,4 +1,5 @@
 import { api } from "../api";
+import { Student } from "./students";
 
 export interface Card {
   id: number;
@@ -7,6 +8,15 @@ export interface Card {
   sessions: number;
   expiredAt: Date | null;
   purchasedCount: number;
+}
+
+export interface UnpaidStudentCard {
+  id: number;
+  studentId: number;
+  cardId: number;
+  paid: boolean;
+  student: Student;
+  card: Card;
 }
 
 const cardsApi = api.injectEndpoints({
@@ -52,6 +62,10 @@ const cardsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Card"],
     }),
+    unpaidStudentCards: builder.query<UnpaidStudentCard[], void>({
+      query: () => "cards/unpaid",
+      providesTags: ["Card"],
+    }),
   }),
 });
 export const {
@@ -61,4 +75,5 @@ export const {
   useExpireCardMutation,
   useEnableCardMutation,
   useUpdateCardMutation,
+  useUnpaidStudentCardsQuery,
 } = cardsApi;

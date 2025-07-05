@@ -99,6 +99,13 @@ const lessonsApi = api.injectEndpoints({
         method: "GET",
       }),
     }),
+    resetAttendance: builder.mutation<void, { id: number; periodId: number }>({
+      query: ({ id, periodId }) => ({
+        url: `lessons/${id}/periods/${periodId}/reset`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Lesson"],
+    }),
     getLessonStudents: builder.query<LessonStudent[], { id: number }>({
       query: ({ id }) => ({
         url: `lessons/${id}/students`,
@@ -131,6 +138,7 @@ export const {
   useLazyCheckStudentCardsQuery,
   useTakeAttendanceMutation,
   useGetAttendanceQuery,
+  useResetAttendanceMutation,
   useGetLessonStudentsQuery,
   useCreatePeriodMutation,
   useDeletePeriodMutation,

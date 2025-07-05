@@ -8,7 +8,7 @@ import {
   useDeleteInviteTokenMutation,
   useGetInviteTokensQuery,
   useGetMembershipsQuery,
-} from "@/store/slices/membershipts";
+} from "@/store/slices/memberships";
 import { useGetMeQuery } from "@/store/slices/me";
 
 const TABS = ["Members", "Invitations"] as const;

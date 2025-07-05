@@ -1,4 +1,4 @@
-import { api } from "../api";
+import { api, TAG_TYPES } from "../api";
 
 export interface Membership {
   id: number;
@@ -16,6 +16,11 @@ export interface InviteToken {
   token: string;
   maxUses: number;
   uses: number;
+  classroomId: number;
+  classroom: {
+    id: number;
+    name: string;
+  };
 }
 
 const membershipsApi = api.injectEndpoints({
@@ -36,6 +41,13 @@ const membershipsApi = api.injectEndpoints({
       query: () => "invite-tokens",
       providesTags: ["InviteToken"],
     }),
+    joinInviteToken: builder.mutation<void, { token: string }>({
+      query: ({ token }) => ({
+        url: `invite-tokens/${token}/join`,
+        method: "POST",
+      }),
+      invalidatesTags: TAG_TYPES,
+    }),
     deleteInviteToken: builder.mutation<void, { id: number }>({
       query: ({ id }) => ({
         url: `invite-tokens/${id}`,
@@ -43,12 +55,11 @@ const membershipsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["InviteToken"],
     }),
-    joinInviteToken: builder.mutation<void, { token: string }>({
+    getInviteToken: builder.query<InviteToken, { token: string }>({
       query: ({ token }) => ({
-        url: `invite-tokens/${token}/join`,
-        method: "POST",
+        url: `invite-tokens/${token}`,
+        method: "GET",
       }),
-      invalidatesTags: ["InviteToken"],
     }),
   }),
 });
@@ -58,5 +69,6 @@ export const {
   useCreateInviteTokenMutation,
   useGetInviteTokensQuery,
   useDeleteInviteTokenMutation,
+  useGetInviteTokenQuery,
   useJoinInviteTokenMutation,
 } = membershipsApi;

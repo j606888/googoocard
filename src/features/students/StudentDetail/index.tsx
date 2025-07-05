@@ -3,6 +3,7 @@ import Basic from "./Basic";
 import CardsSection from "./CardsSection";
 import AttendSection from "./AttendSection";
 import { StudentWithDetail } from "@/store/slices/students";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const tabs = [
   {
@@ -20,7 +21,15 @@ const tabs = [
 ];
 
 const StudentDetail = ({ student }: { student: StudentWithDetail }) => {
-  const [activeTab, setActiveTab] = useState(tabs[0].query);
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tab || tabs[0].query);
+  const router = useRouter();
+
+  const handleTabClick = (tab: string) => {
+    setActiveTab(tab);
+    router.push(`/students/${student.id}?tab=${tab}`, { scroll: false });
+  };
 
   return (
     <div className="px-5 py-3">
@@ -33,7 +42,7 @@ const StudentDetail = ({ student }: { student: StudentWithDetail }) => {
                 ? "text-primary-500 font-bold border-b-primary-500 border-b-3"
                 : ""
             }`}
-            onClick={() => setActiveTab(tab.query)}
+            onClick={() => handleTabClick(tab.query)}
           >
             {tab.label}
           </div>
