@@ -15,7 +15,10 @@ import {
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useGetClassroomsQuery, useSwitchClassroomMutation } from "@/store/slices/classrooms";
+import {
+  useGetClassroomsQuery,
+  useSwitchClassroomMutation,
+} from "@/store/slices/classrooms";
 import { useLogoutMutation } from "@/store/slices/me";
 
 const LINKS = [
@@ -78,7 +81,7 @@ const Sidebar = () => {
     router.push("/lessons");
     setOpen(false);
     setSwitchClassroomOpen(false);
-  }
+  };
 
   if (!data) return null;
 
@@ -129,7 +132,11 @@ const Sidebar = () => {
                   </p>
                   <div className="flex flex-col gap-2">
                     {otherClassrooms?.map((classroom) => (
-                      <div key={classroom.id} className="flex gap-3 items-center" onClick={() => handleSwitchClassroom(classroom.id)}>
+                      <div
+                        key={classroom.id}
+                        className="flex gap-3 items-center"
+                        onClick={() => handleSwitchClassroom(classroom.id)}
+                      >
                         <div className="w-7 h-7 font-bold text-sm flex items-center justify-center bg-primary-500 rounded-sm text-white">
                           {classroom.name.slice(0, 1)}
                         </div>
@@ -163,12 +170,15 @@ const Sidebar = () => {
                   </Link>
                 ))}
               </div>
-              <div className="flex flex-col gap-4 items-start p-3 hover:bg-gray-100 rounded-sm mt-auto">
-                <div className="flex gap-4 items-center" onClick={handleLogout}>
+              <div className="flex flex-col items-start  rounded-sm mt-auto">
+                <div
+                  className="flex gap-4 items-center hover:bg-gray-100 w-full rounded-sm p-3"
+                  onClick={handleLogout}
+                >
                   <LogOut className="w-6 h-6" />
                   <span>Logout</span>
                 </div>
-                <div className="text-gray-700 ">
+                <div className="text-gray-700 p-3">
                   <span>@GOOGOOCARD</span>
                 </div>
               </div>
