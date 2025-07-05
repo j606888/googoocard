@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { createAuthSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { joinClassroom } from "@/service/classroom";
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password } = await request.json();
+    const { name, email, password, token } = await request.json();
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -31,8 +32,13 @@ export async function POST(request: Request) {
       },
     });
 
-    // Create auth session
-    await createAuthSession(Number(user.id));
+    let classroomId: number | null = null;
+
+    if (token) {
+      classroomId = await joinClassroom({ userId: user.id, token });
+    }
+
+    await createAuthSession(Number(user.id), classroomId ?? undefined);
 
     return NextResponse.json({
       message: "Signup successful",

@@ -16,6 +16,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useGetClassroomsQuery, useSwitchClassroomMutation } from "@/store/slices/classrooms";
+import { useLogoutMutation } from "@/store/slices/me";
 
 const LINKS = [
   {
@@ -57,6 +58,7 @@ const Sidebar = () => {
   const [switchClassroom] = useSwitchClassroomMutation();
   const pathname = usePathname();
   const router = useRouter();
+  const [logout] = useLogoutMutation();
 
   const { data } = useGetClassroomsQuery();
   const otherClassrooms = data?.classrooms.filter(
@@ -67,9 +69,7 @@ const Sidebar = () => {
   );
 
   const handleLogout = async () => {
-    await fetch("/api/logout", {
-      method: "POST",
-    });
+    await logout();
     router.push("/login");
   };
 

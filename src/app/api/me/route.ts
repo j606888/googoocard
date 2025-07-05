@@ -4,6 +4,11 @@ import prisma from "@/lib/prisma";
 
 export async function GET() {
   const { userId } = await decodeAuthToken();
+
+  if (!userId) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
   });

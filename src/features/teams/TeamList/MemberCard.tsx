@@ -1,5 +1,5 @@
 import { Crown } from "lucide-react";
-import { Membership } from "@/store/slices/membershipts";
+import { Membership } from "@/store/slices/memberships";
 
 const MemberCard = ({ membership, isMe }: { membership: Membership, isMe: boolean }) => {
   return (
