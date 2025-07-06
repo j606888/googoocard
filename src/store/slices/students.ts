@@ -26,6 +26,12 @@ export interface StudentWithDetail extends Student {
       periodNumber: number;
       periodStartTime: number;
     }[]
+    studentAttendances: {
+      periodId: number;
+      periodStartTime: number;
+      periodAttendantCheck: boolean;
+      studentAttend: boolean;
+    }[]
   }[]
   attendancesByDate: {
     date: number;

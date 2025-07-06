@@ -80,6 +80,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       lessonName: lesson.name,
       totalPeriods: lesson.periods.length,
       lessonPeriodIds: lesson.periods.map((period) => period.id),
+      studentAttendances: lesson.periods.map((period) => {
+        return {
+          studentAttend: false,
+          periodId: period.id,
+          periodStartTime: period.startTime,
+          periodAttendantCheck: !!period.attendanceTakenAt
+        }
+      }),
       attendances: [] as {
         periodStartTime: Date;
         periodNumber: number;
@@ -118,6 +126,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       totalPeriods: lesson.periods.length,
     }
     attendancesByLesson.find((lesson) => lesson.lessonId === lessonId)?.attendances.push(attendanceData);
+    const studentAttendance = attendancesByLesson.find((lesson) => lesson.lessonId === lessonId)?.studentAttendances.find((attendance) => attendance.periodId === lessonPeriodId);
+    if (studentAttendance) {
+      studentAttendance.studentAttend = true
+    }
     
     // Group attendance records by student card
     if (record.studentCardId) {
