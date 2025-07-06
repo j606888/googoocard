@@ -20,6 +20,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       attendanceRecords: {
         include: {
           lessonPeriod: true,
+          studentCard: true,
         },
         orderBy: {
           createdAt: "desc",
@@ -44,16 +45,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     },
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { lessons: _unusedLessons, attendanceRecords, studentCards, ...studentData } = student;
+
   const overview = {
     lastAttendAt: lastAttendance?.lessonPeriod.attendanceTakenAt,
     attendLessonCount: student.lessons.length,
-    cardCount: student.studentCards.length,
-    totalSpend: student.studentCards.reduce((acc, card) => acc + card.finalPrice, 0),
-    totalSaved: student.studentCards.reduce((acc, card) => acc + (card.basePrice - card.finalPrice), 0),
+    cardCount: studentCards.length,
+    totalSpend: studentCards.reduce((acc, card) => acc + card.finalPrice, 0),
+    totalSaved: studentCards.reduce((acc, card) => acc + (card.basePrice - card.finalPrice), 0),
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { lessons: _unusedLessons, attendanceRecords, ...studentData } = student;
+  
 
   const attendLessonIds = [...new Set(attendanceRecords.map((record) => record.lessonPeriod.lessonId))]
   const lessons = await prisma.lesson.findMany({
@@ -96,6 +99,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
   }
 
+  // Create a map to group attendance records by student card
+  const studentCardAttendances = new Map<number, Array<{ lessonName: string; periodStartTime: Date }>>()
 
   attendanceRecords.forEach((record) => {
     const lessonId = record.lessonPeriod.lessonId;
@@ -113,8 +118,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       totalPeriods: lesson.periods.length,
     }
     attendancesByLesson.find((lesson) => lesson.lessonId === lessonId)?.attendances.push(attendanceData);
+    
+    // Group attendance records by student card
+    if (record.studentCardId) {
+      const cardAttendances = studentCardAttendances.get(record.studentCardId) || [];
+      cardAttendances.push({
+        lessonName: lesson.name,
+        periodStartTime,
+      });
+      studentCardAttendances.set(record.studentCardId, cardAttendances);
+    }
   })
 
+  // Create enhanced student cards with attendance records
+  const studentCardsWithAttendances = studentCards.map(card => ({
+    ...card,
+    attendanceRecords: studentCardAttendances.get(card.id) || []
+  }))
 
   attendancesByLesson.forEach((lesson) => {
     lesson.attendances.forEach((attendance) => {
@@ -146,6 +166,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     overview,
     attendancesByDate: sortedAttendancesByDate,
     attendancesByLesson,
+    studentCards: studentCardsWithAttendances,
     ...studentData,
   });
 }

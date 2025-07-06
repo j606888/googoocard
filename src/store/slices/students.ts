@@ -39,6 +39,10 @@ export interface StudentWithDetail extends Student {
 
 export interface StudentCardWithCard extends StudentCard {
   card: Card;
+  attendanceRecords: {
+    lessonName: string;
+    periodStartTime: number;
+  }[]
 }
 
 export interface StudentCard {
