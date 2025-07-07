@@ -43,10 +43,15 @@ const NewStudent = () => {
       setErrors(errors);
       return;
     }
-    await createStudent({ name, avatarUrl: selectedAvatarUrl });
-    setName("");
-    setOpen(false);
-    setIsLoading(false);
+    try {
+      await createStudent({ name, avatarUrl: selectedAvatarUrl }).unwrap();
+      setName("");
+      setOpen(false);
+      setIsLoading(false);
+    } catch (error) {
+      setErrors({ name: "Student already exists" });
+      console.error(error);
+    }
   };
 
   const handleCardNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,7 +89,7 @@ const NewStudent = () => {
             onChange={handleCardNameChange}
             error={errors.name}
           />
-          <div className="flex px-3 gap-3 items-center justify-center flex-wrap">
+          <div className="flex px-3 gap-3 items-center justify-center flex-wrap mt-4">
             {avatarUrls.map((avatarUrl) => (
               <div
                 key={avatarUrl}

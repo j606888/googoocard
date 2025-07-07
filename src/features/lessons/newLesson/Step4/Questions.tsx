@@ -102,6 +102,7 @@ const Questions = ({
 
   const handleSubmit = () => {
     const errors = validateForm({
+      createNewCard,
       selectedCardId,
       cardSessions,
       cardPrice,
@@ -221,11 +222,16 @@ const Questions = ({
 };
 
 const validateForm = (data: {
+  createNewCard: boolean;
   selectedCardId: number | null;
   cardSessions: string;
   cardPrice: string;
 }) => {
   const errors: { selectedCardId?: string; cardSessions?: string; cardPrice?: string } = {};
+
+  if (!data.createNewCard) {
+    return errors
+  }
 
   if (!data.selectedCardId) {
     errors.selectedCardId = validationErrors.selectedCardId;

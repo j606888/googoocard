@@ -76,10 +76,12 @@ const CardAnswer = ({
           )}
         </div>
       </div>
-      <div className="text-sm text-gray-500">
-        <span>{card?.name}</span>
-        {Number(answer.cardSessions) !== card?.sessions && ` - ${answer?.cardSessions} sessions left`}
-      </div>
+      {answer.createNewCard && (
+        <div className="text-sm text-gray-500">
+          <span>{card?.name}</span>
+          {Number(answer.cardSessions) !== card?.sessions && ` - ${answer?.cardSessions} sessions left`}
+        </div>
+      )}
     </div>
   );
 };

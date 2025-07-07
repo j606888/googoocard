@@ -8,9 +8,10 @@ import Searchbar from "./Searchbar";
 import SelectedStudents from "./SelectedStudents";
 import { useEffect, useState } from "react";
 import { getLessonDraft, updateLessonDraft } from "@/lib/lessonDraftStorage";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Step3 = () => {
-  const { data: students } = useGetStudentsQuery();
+  const { data: students, isLoading: isStudentsLoading } = useGetStudentsQuery();
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [filterKeyword, setFilterKeyword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +70,17 @@ const Step3 = () => {
                 setSelectedStudentIds([...selectedStudentIds, student.id]);
               }}
             />
+            {isStudentsLoading && (
+              <div className="flex flex-col gap-2">
+                {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="flex gap-2">
+                  <Skeleton className="w-9 h-9 rounded-full" />
+                  <Skeleton className="w-27 h-9 rounded-full" />
+                    <Skeleton className="w-9 h-9 rounded-full ml-auto" />
+                  </div>
+                ))}
+              </div>
+            )}
             {filteredStudents && (
               <StudentSelectList
                 students={filteredStudents}
