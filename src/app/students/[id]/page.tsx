@@ -5,10 +5,12 @@ import { useGetStudentQuery } from "@/store/slices/students";
 import { ArrowLeftIcon } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import ListSkeleton from "@/components/skeletons/ListSkeleton";
 
 const StudentPage = () => {
   const { id } = useParams();
-  const { data: student } = useGetStudentQuery({ id: Number(id) });
+  const { data: student, isLoading } = useGetStudentQuery({ id: Number(id) });
+
   return (
     <>
       <div className="relative h-16 bg-primary-500 w-full flex items-center justify-center">
@@ -19,7 +21,7 @@ const StudentPage = () => {
         </div>
         <h2 className="text-white text-lg font-semibold">{student?.name}</h2>
       </div>
-      {student && <StudentDetail student={student} />}
+      {isLoading || !student ? <ListSkeleton /> : <StudentDetail student={student} />}
     </>
   );
 };

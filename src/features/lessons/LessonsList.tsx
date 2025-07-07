@@ -1,10 +1,13 @@
 import { BookOpenText, Plus, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useGetLessonsQuery } from "@/store/slices/lessons";
+import ListSkeleton from "@/components/skeletons/ListSkeleton";
 
 const LessonsList = () => {
   const router = useRouter();
-  const { data: lessons } = useGetLessonsQuery();
+  const { data: lessons, isLoading } = useGetLessonsQuery();
+
+  if (isLoading) return <ListSkeleton />;
 
   return (
     <div className="px-5 py-3">
