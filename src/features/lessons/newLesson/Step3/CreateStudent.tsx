@@ -42,12 +42,18 @@ const CreateStudent = ({ defaultName, onCreate }: { defaultName: string, onCreat
       setErrors(errors);
       return;
     }
-    const student = await createStudent({ name: newStudentName, avatarUrl: selectedAvatarUrl });
-    if (student.data) {
-      onCreate(student.data);
+    try {
+
+      const student = await createStudent({ name: newStudentName, avatarUrl: selectedAvatarUrl }).unwrap();
+      if (student) {
+        onCreate(student);
+      }
+      setNewStudentName("");
+      setIsDrawerOpen(false);
+    } catch (error) {
+      setErrors({ name: "Student already exists" });
+      console.error(error);
     }
-    setNewStudentName("");
-    setIsDrawerOpen(false);
   };
 
   useEffect(() => {

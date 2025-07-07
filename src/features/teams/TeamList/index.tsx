@@ -10,6 +10,7 @@ import {
   useGetMembershipsQuery,
 } from "@/store/slices/memberships";
 import { useGetMeQuery } from "@/store/slices/me";
+import ListSkeleton from "@/components/skeletons/ListSkeleton";
 
 const TABS = ["Members", "Invitations"] as const;
 
@@ -18,10 +19,10 @@ const TeamList = () => {
   const [activeTab, setActiveTab] = useState<"Members" | "Invitations">(
     "Members"
   );
-  const { data: memberships } = useGetMembershipsQuery();
+  const { data: memberships, isLoading: isMembershipsLoading } = useGetMembershipsQuery();
   const [createInviteToken] = useCreateInviteTokenMutation();
   const [deleteInviteToken] = useDeleteInviteTokenMutation();
-  const { data: inviteTokens } = useGetInviteTokensQuery();
+  const { data: inviteTokens, isLoading: isInviteTokensLoading } = useGetInviteTokensQuery();
   const { data: me } = useGetMeQuery();
   const [maxUses, setMaxUses] = useState(1);
 
@@ -37,6 +38,8 @@ const TeamList = () => {
     }
     await deleteInviteToken({ id });
   };
+
+  if (isMembershipsLoading || isInviteTokensLoading) return <ListSkeleton />;
 
   return (
     <>

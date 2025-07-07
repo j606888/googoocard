@@ -32,7 +32,7 @@ const ProgressHeader = ({ currentStep }: { currentStep: number }) => {
   const rightPart: React.ReactNode[] = []
   const widthPercentage = (currentStep / 5) * 100
 
-  leftPart.push(<Link href={'/lessons'}><ArrowLeftIcon className="w-5 h-5 text-gray-600" /></Link>)
+  leftPart.push(<Link key='back' href={'/lessons'}><ArrowLeftIcon className="w-5 h-5 text-gray-600" /></Link>)
 
   STEPS.forEach((step) => {
     if (step.number < currentStep) {

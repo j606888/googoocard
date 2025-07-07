@@ -20,7 +20,9 @@ const StudentCard = ({ studentCard }: { studentCard: StudentCardWithCard }) => {
   const [markStudentCardAsPaid] = useMarkStudentCardAsPaidMutation();
 
   const handleExpire = async () => {
-    const confirm = window.confirm("Are you sure you want to expire this card?");
+    const confirm = window.confirm(
+      "Are you sure you want to expire this card?"
+    );
     if (!confirm) return;
 
     await expireStudentCard({
@@ -32,7 +34,9 @@ const StudentCard = ({ studentCard }: { studentCard: StudentCardWithCard }) => {
   };
 
   const handlePay = async () => {
-    const confirm = window.confirm("Are you sure you want to mark this card as paid?");
+    const confirm = window.confirm(
+      "Are you sure you want to mark this card as paid?"
+    );
     if (!confirm) return;
 
     await markStudentCardAsPaid({
@@ -41,7 +45,7 @@ const StudentCard = ({ studentCard }: { studentCard: StudentCardWithCard }) => {
     });
     setMenuOpen(false);
     toast.success("Card marked as paid");
-  }
+  };
 
   return (
     <div
@@ -60,12 +64,23 @@ const StudentCard = ({ studentCard }: { studentCard: StudentCardWithCard }) => {
           <span>Not Paid yet</span>
         </div>
       )}
-      <div className="flex border-b-1 border-b-gray-200 pb-2">
-        <div className="flex-1 flex flex-col gap-1">
-          <span className="text-sm font-medium">{studentCard.card.name}</span>
-          <div className="flex items-center gap-2">
+      <div className="flex justify-between">
+        <h4 className="text-sm font-semibold">{studentCard.card.name}</h4>
+        {(!disabled || !studentCard.paid) && (
+          <button
+            className="absolute top-4 right-4"
+            ref={buttonRef}
+            onClick={() => setMenuOpen(true)}
+          >
+            <EllipsisVertical className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+      <div className="flex">
+        <LabelItem label="Price">
+          <div className="flex items-center gap-1">
             <span
-              className={`text-sm text-gray-500 font-medium ${
+              className={`text-sm text-gray-600 font-medium ${
                 hasDiscount ? "line-through" : ""
               }`}
             >
@@ -77,34 +92,36 @@ const StudentCard = ({ studentCard }: { studentCard: StudentCardWithCard }) => {
               </span>
             )}
           </div>
-        </div>
-        <div className="flex-1 flex flex-col gap-1">
-          <span className="text-sm font-medium">{`${studentCard.remainingSessions}/${studentCard.totalSessions}`}</span>
-          <span className="text-sm text-gray-500">sessions</span>
-        </div>
+        </LabelItem>
+        <LabelItem label="Sessions">
+          <span className="text-sm font-medium">
+            {studentCard.remainingSessions} / {studentCard.totalSessions}
+          </span>
+        </LabelItem>
       </div>
       <div className="flex">
-        <div className="flex-1 flex flex-col gap-1">
-          <span className="text-sm text-gray-500">Purchased at</span>
-          <span className="text-sm font-medium">
+        <LabelItem label="Purchased at">
+          <span className="text-xs font-medium">
             {formatDate(studentCard.createdAt)}
           </span>
-        </div>
-        <div className="flex-1 flex flex-col gap-1">
-          <span className="text-sm text-gray-500">Expired at</span>
-          <span className="text-sm font-medium">
+        </LabelItem>
+        <LabelItem label="Purchased at">
+          <span className="text-xs font-medium">
             {studentCard.expiredAt ? formatDate(studentCard.expiredAt) : "-"}
           </span>
-        </div>
+        </LabelItem>
       </div>
-      {(!disabled || !studentCard.paid) && (
-        <button
-          className="absolute top-4 right-4"
-          ref={buttonRef}
-          onClick={() => setMenuOpen(true)}
-        >
-          <EllipsisVertical className="w-4 h-4" />
-        </button>
+      {studentCard.attendanceRecords.length > 0 && (
+        <div className="flex flex-col px-3 bg-white rounded-sm mt-2">
+          {studentCard.attendanceRecords.map((record, index) => (
+            <div key={index} className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+              <span className="text-xs font-medium">{record.lessonName}</span>
+              <span className="text-xs text-gray-700">
+                {formatDate(record.periodStartTime)}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
       <Menu
         open={menuOpen}
@@ -132,6 +149,21 @@ const StudentCard = ({ studentCard }: { studentCard: StudentCardWithCard }) => {
           )}
         </div>
       </Menu>
+    </div>
+  );
+};
+
+const LabelItem = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => {
+  return (
+    <div className="flex flex-1 flex-col gap-1">
+      <span className="text-xs text-gray-500">{label}</span>
+      {children}
     </div>
   );
 };

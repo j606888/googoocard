@@ -48,6 +48,17 @@ export async function POST(request: Request) {
   const { name, avatarUrl } = await request.json();
   const { classroomId } = await decodeAuthToken();
 
+  const existingStudent = await prisma.student.findFirst({
+    where: {
+      name,
+      classroomId,
+    },
+  });
+
+  if (existingStudent) {
+    return NextResponse.json({ error: "Student already exists" }, { status: 400 });
+  }
+
   const student = await prisma.student.create({
     data: { name, avatarUrl, classroomId: classroomId! },
   });

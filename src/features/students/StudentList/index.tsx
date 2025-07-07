@@ -4,10 +4,13 @@ import SingleStudent from "./SingleStudent";
 import Searchbar from "./Searchbar";
 import { useState } from "react";
 import { Users } from "lucide-react";
+import ListSkeleton from "@/components/skeletons/ListSkeleton";
 
 const StudentList = () => {
   const [query, setQuery] = useState("");
-  const { data: students } = useGetStudentsQuery({ query });
+  const { data: students, isLoading } = useGetStudentsQuery({ query });
+
+  if (isLoading) return <ListSkeleton />;
 
   return (
     <div className="px-5 py-3">

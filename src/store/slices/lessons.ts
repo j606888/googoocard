@@ -56,7 +56,10 @@ export interface LessonStudent {
   id: number;
   name: string;
   avatarUrl: string;
-  attendances: ("not_started" | "attended" | "absent")[];
+  attendances: {
+    startTime: string;
+    attendanceStatus: "not_started" | "attended" | "absent";
+  }[];
 }
 
 const lessonsApi = api.injectEndpoints({

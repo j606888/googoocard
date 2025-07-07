@@ -48,15 +48,20 @@ const CreateStudent = ({
       setErrors(errors);
       return;
     }
-    const student = await createStudent({
-      name: newStudentName,
-      avatarUrl: selectedAvatarUrl,
-    });
-    if (student.data) {
-      onCreate(student.data);
+    try {
+      const student = await createStudent({
+        name: newStudentName,
+        avatarUrl: selectedAvatarUrl,
+      }).unwrap();
+      if (student) {
+        onCreate(student);
+      }
+      setNewStudentName("");
+      setIsDrawerOpen(false);
+    } catch (error) {
+      setErrors({ name: "Student already exists" });
+      console.error(error);
     }
-    setNewStudentName("");
-    setIsDrawerOpen(false);
   };
 
   useEffect(() => {
@@ -84,7 +89,10 @@ const CreateStudent = ({
             label="Student Name"
             value={newStudentName}
             placeholder="E.g. Dingding"
-            onChange={(e) => setNewStudentName(e.target.value)}
+            onChange={(e) => {
+              setNewStudentName(e.target.value);
+              setErrors({});
+            }}
             error={errors.name}
           />
           <div className="flex px-3 gap-3 items-center justify-center flex-wrap mt-4">

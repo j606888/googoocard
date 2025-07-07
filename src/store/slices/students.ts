@@ -26,6 +26,12 @@ export interface StudentWithDetail extends Student {
       periodNumber: number;
       periodStartTime: number;
     }[]
+    studentAttendances: {
+      periodId: number;
+      periodStartTime: number;
+      periodAttendantCheck: boolean;
+      studentAttend: boolean;
+    }[]
   }[]
   attendancesByDate: {
     date: number;
@@ -39,6 +45,10 @@ export interface StudentWithDetail extends Student {
 
 export interface StudentCardWithCard extends StudentCard {
   card: Card;
+  attendanceRecords: {
+    lessonName: string;
+    periodStartTime: number;
+  }[]
 }
 
 export interface StudentCard {
