@@ -1,11 +1,14 @@
 import { api } from "../api";
 import { Card } from "./cards";
+import { Classroom } from "./classrooms";
 
 export interface Student {
   id: number;
   name: string;
+  randomKey: string;
   avatarUrl: string;
   createdAt: string;
+  classroom: Classroom;
   studentCards: StudentCardWithCard[];
 }
 
@@ -71,6 +74,10 @@ const studentsApi = api.injectEndpoints({
       query: ({ query } = {}) => `students${query ? `?query=${query}` : ""}`,
       providesTags: ["Student"],
     }),
+    getPublicStudent: builder.query<StudentWithDetail, { randomKey: string }>({
+      query: ({ randomKey }) => `public-students/${randomKey}`,
+      providesTags: ["Student"],
+    }),
     createStudent: builder.mutation<
       Student,
       { name: string; avatarUrl: string }
@@ -124,6 +131,7 @@ const studentsApi = api.injectEndpoints({
 
 export const {
   useGetStudentsQuery,
+  useGetPublicStudentQuery,
   useCreateStudentMutation,
   useDeleteStudentMutation,
   useGetStudentCardsQuery,

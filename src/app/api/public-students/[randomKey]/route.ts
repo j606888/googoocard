@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export async function GET(request: Request, { params }: { params: Promise<{ randomKey: string }> }) {
+  const { randomKey } = await params;
 
   const student = await prisma.student.findUnique({
-    where: { id: parseInt(id) },
+    where: { randomKey },
     include: {
       lessons: true,
       classroom: true,
@@ -36,7 +36,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const lastAttendance = await prisma.attendanceRecord.findFirst({
     where: {
-      studentId: parseInt(id),
+      studentId: student.id,
     },
     include: {
       lessonPeriod: true,

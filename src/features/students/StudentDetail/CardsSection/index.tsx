@@ -2,11 +2,10 @@ import { StudentCardWithCard, StudentWithDetail } from "@/store/slices/students"
 import StudentCard from "./StudentCard";
 import BuyCard from "./BuyCard";
 
-const CardsSection = ({ student, studentCards }: { student: StudentWithDetail, studentCards: StudentCardWithCard[] }) => {
+const CardsSection = ({ student, studentCards, isPublic }: { student: StudentWithDetail, studentCards: StudentCardWithCard[], isPublic?: boolean }) => {
   return (
     <div className="flex flex-col gap-3">
-      <BuyCard student={student} />
-
+      {!isPublic && <BuyCard student={student} />}
       {studentCards.length > 0 ? (
         <div className="flex flex-col gap-3">
           {studentCards.map((studentCard) => (
