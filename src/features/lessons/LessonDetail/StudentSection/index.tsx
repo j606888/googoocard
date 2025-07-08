@@ -54,7 +54,7 @@ const Round = ({
 
   return (
     <div
-      className={`flex gap-1 items-center rounded-full text-xs font-semibold px-3 py-2 ${
+      className={`flex gap-1 items-center justify-center rounded-full text-xs font-semibold px-3 py-2 w-17 ${
         BADGE_STYLES[attendance.attendanceStatus]
       }`}
     >

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
+import { nanoid } from "nanoid";
 
 export async function GET(request: Request) {
   const { classroomId } = await decodeAuthToken();
@@ -11,12 +12,14 @@ export async function GET(request: Request) {
   const students = await prisma.student.findMany({
     where: {
       classroomId,
-      ...(query ? {
-        name: {
-          contains: query,
-          mode: "insensitive",
-        },
-      } : {}),
+      ...(query
+        ? {
+            name: {
+              contains: query,
+              mode: "insensitive",
+            },
+          }
+        : {}),
     },
     include: {
       studentCards: {
@@ -56,11 +59,14 @@ export async function POST(request: Request) {
   });
 
   if (existingStudent) {
-    return NextResponse.json({ error: "Student already exists" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Student already exists" },
+      { status: 400 }
+    );
   }
 
   const student = await prisma.student.create({
-    data: { name, avatarUrl, classroomId: classroomId! },
+    data: { name, avatarUrl, classroomId: classroomId!, randomKey: nanoid(8) },
   });
 
   return NextResponse.json(student);

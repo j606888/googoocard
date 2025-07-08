@@ -3,7 +3,7 @@ import Basic from "./Basic";
 import CardsSection from "./CardsSection";
 import AttendSection from "./AttendSection";
 import { StudentWithDetail } from "@/store/slices/students";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 const tabs = [
   {
@@ -20,15 +20,16 @@ const tabs = [
   },
 ];
 
-const StudentDetail = ({ student }: { student: StudentWithDetail }) => {
+const StudentDetail = ({ student, isPublic = false }: { student: StudentWithDetail, isPublic?: boolean }) => {
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState(tab || tabs[0].query);
-  const router = useRouter();
 
   const handleTabClick = (tab: string) => {
     setActiveTab(tab);
-    router.push(`/students/${student.id}?tab=${tab}`, { scroll: false });
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.replaceState({}, '', url);
   };
 
   return (
@@ -48,8 +49,8 @@ const StudentDetail = ({ student }: { student: StudentWithDetail }) => {
           </div>
         ))}
       </div>
-      {activeTab === "basic" && <Basic student={student} />}
-      {activeTab === "cards" && <CardsSection student={student} studentCards={student.studentCards} />}
+      {activeTab === "basic" && <Basic student={student} isPublic={isPublic} />}
+      {activeTab === "cards" && <CardsSection student={student} studentCards={student.studentCards} isPublic={isPublic} />}
       {activeTab === "attend" && <AttendSection student={student} />}
     </div>
   );

@@ -10,7 +10,9 @@ export function middleware(req: NextRequest) {
     pathname.startsWith('/signup') ||
     pathname.startsWith('/invitations') ||
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/api')
+    pathname.startsWith('/images') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/public-students')
 
   const token = req.cookies.get('auth_token');
 
