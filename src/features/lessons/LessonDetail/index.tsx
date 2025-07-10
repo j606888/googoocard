@@ -39,7 +39,7 @@ const LessonDetail = () => {
 
   return (
     <>
-      <SubNavbar title={lesson?.name || ""} backUrl={`/lessons`} />
+      <SubNavbar title={lesson?.name || ""} backUrl={`/lessons`} withUnpaidBell />
       {isLessonLoading || isStudentsLoading || !lesson ? (
         <ListSkeleton />
       ) : (
