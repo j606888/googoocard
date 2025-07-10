@@ -31,9 +31,11 @@ const validateForm = (data: {
   return errors;
 };
 
-const AddPeriodForm2 = ({
+const AddPeriodForm = ({
+  periods,
   onAddPeriod,
 }: {
+  periods: { startTime: string; endTime: string }[];
   onAddPeriod: (period: { startTime: string; endTime: string }) => void;
 }) => {
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -78,6 +80,22 @@ const AddPeriodForm2 = ({
     setToTime(time);
   };
 
+  const addOneWeek = () => {
+    if (errors.date) {
+      setErrors({ ...errors, date: undefined });
+    }
+    const newDate = addDays(new Date(date || new Date()), 7);
+    setDate(newDate);
+  }
+
+  const minusOneWeek = () => {
+    if (errors.date) {
+      setErrors({ ...errors, date: undefined });
+    }
+    const newDate = addDays(new Date(date || new Date()), -7);
+    setDate(newDate);
+  }
+
   const handleSubmit = () => {
     const errors = validateForm({ date, fromTime: fromTime?.value, toTime: toTime?.value });
 
@@ -91,26 +109,39 @@ const AddPeriodForm2 = ({
     }
 
     const dateString = format(date, "yyyy-MM-dd");
-
-    console.log({ dateString, fromTime, toTime })
     const startTime = format(
       new Date(`${dateString}T${fromTime?.value}`),
       "yyyy-MM-dd HH:mm"
     );
     const endTime = format(new Date(`${dateString}T${toTime?.value}`), "yyyy-MM-dd HH:mm");
 
+    const isDuplicated = periods.some((period) => {
+      return period.startTime === startTime && period.endTime === endTime;
+    });
+
+    if (isDuplicated) {
+      setErrors({ ...errors, date: "This period already exists" });
+      return;
+    }
+
     onAddPeriod({
       startTime,
       endTime,
     });
-    const newDate = addDays(new Date(date || new Date()), 7);
-    setDate(newDate);
   };
 
   return (
     <div className="border-b border-gray-200 py-1 flex flex-col gap-3">
-      <DatePicker date={date} setDate={handleDateChange} />
-      {errors.date && <p className="text-sm text-red-500">{errors.date}</p>}
+      <div className="flex gap-4 items-center justify-between">
+        <div className="flex flex-col gap-0.5">
+          <DatePicker date={date} setDate={handleDateChange} />
+          {errors.date && <p className="text-sm text-red-500">{errors.date}</p>}
+        </div>
+        <div className="flex gap-2">
+          <div className="text-sm border border-primary-500 rounded-md px-2 py-1 text-primary-700" onClick={minusOneWeek}>-1 Week</div>
+          <div className="text-sm border border-primary-500 rounded-md px-2 py-1 text-primary-700" onClick={addOneWeek}>+1 Week</div>
+        </div>
+      </div>
       <div className="flex gap-2 items-center">
         <div className="">
           <TimePicker selectedTime={fromTime} setSelectedTime={handleFromTimeChange} />
@@ -129,4 +160,4 @@ const AddPeriodForm2 = ({
   );
 };
 
-export default AddPeriodForm2;
+export default AddPeriodForm;

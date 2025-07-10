@@ -16,13 +16,12 @@ export function DatePicker({ date, setDate }: { date: Date | undefined, setDate:
 
   return (
     <div className="flex flex-col gap-3">
-      
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="secondary"
             id="date"
-            className="w-48 justify-between font-normal"
+            className="w-40 justify-between font-normal"
           >
             {date ? date.toLocaleDateString() : "Select date"}
             <ChevronDownIcon />

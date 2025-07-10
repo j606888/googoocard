@@ -27,9 +27,13 @@ const Step2 = () => {
     startTime: string;
     endTime: string;
   }) => {
-    setPeriods([...periods, period]);
+    const newPeriods = [...periods, period];
+    const sortedPeriods = newPeriods.sort((a, b) => {
+      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+    });
     setError(null);
-    syncPeriods([...periods, period]);
+    setPeriods(sortedPeriods);
+    syncPeriods(sortedPeriods);
   };
 
   const handleDeletePeriod = (index: number) => {
@@ -60,7 +64,7 @@ const Step2 = () => {
     <>
       <ProgressHeader currentStep={2} />
       <div className="px-5 py-3 flex flex-col gap-5">
-        <AddPeriodForm onAddPeriod={handleAddPeriod} />
+        <AddPeriodForm periods={periods} onAddPeriod={handleAddPeriod} />
         <div className="flex flex-col gap-3 mb-20">
             {periods.map((period, index) => (
               <PeriodCard
