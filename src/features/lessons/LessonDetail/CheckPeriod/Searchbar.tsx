@@ -3,7 +3,7 @@ import { Student } from "@/store/slices/students";
 import { useState } from "react";
 import CreateStudent from "./CreateStudent";
 
-const Searchbar = ({ onSearch, selectedStudents, error }: { onSearch: (search: string) => void, selectedStudents: Student[], error: string | null }) => {
+const Searchbar = ({ onSearch, selectedStudents, error, onCreateStudent }: { onSearch: (search: string) => void, selectedStudents: Student[], error: string | null, onCreateStudent: (id: number) => void }) => {
   const [search, setSearch] = useState("");
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -21,8 +21,7 @@ const Searchbar = ({ onSearch, selectedStudents, error }: { onSearch: (search: s
         <CreateStudent
           defaultName={search}
           onCreate={(student) => {
-            setSearch(student.name);
-            onSearch(student.name);
+            onCreateStudent(student.id);
           }}
         />
       </div>

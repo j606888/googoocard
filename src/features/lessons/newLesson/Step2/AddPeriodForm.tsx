@@ -1,8 +1,11 @@
-import AddButton from "@/components/AddButton";
-import Drawer from "@/components/Drawer";
-import InputField from "@/components/InputField";
-import { addDays, format } from "date-fns";
 import { useState } from "react";
+import { DatePicker } from "@/components/DatePicker";
+import TimePicker, {
+  Option,
+  generateTimeOptions,
+} from "@/components/TimePicker";
+import { format, addDays } from "date-fns";
+import { Plus } from "lucide-react";
 
 const validationErrors = {
   empty: "Can not be empty",
@@ -10,9 +13,9 @@ const validationErrors = {
 };
 
 const validateForm = (data: {
-  date: string;
-  fromTime: string;
-  toTime: string;
+  date: Date | undefined;
+  fromTime: string | undefined;
+  toTime: string | undefined;
 }) => {
   const errors: { date?: string; fromTime?: string; toTime?: string } = {};
   if (!data.date) {
@@ -25,121 +28,175 @@ const validateForm = (data: {
     errors.toTime = validationErrors.empty;
   }
   // fromTime: "16:00", toTime: "17:00"
-  if (data.fromTime >= data.toTime) {
+  if (data.fromTime && data.toTime && data.fromTime >= data.toTime) {
     errors.toTime = validationErrors.toTimeMustGreater;
   }
   return errors;
 };
 
 const AddPeriodForm = ({
+  periods,
   onAddPeriod,
 }: {
+  periods: { startTime: string; endTime: string }[];
   onAddPeriod: (period: { startTime: string; endTime: string }) => void;
 }) => {
-  const [newPeriodModalOpen, setNewPeriodModalOpen] = useState(false);
-  const [date, setDate] = useState("");
-  const [fromTime, setFromTime] = useState("");
-  const [toTime, setToTime] = useState("");
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [fromTime, setFromTime] = useState<Option | null>(null);
+  const [toTime, setToTime] = useState<Option | null>(null);
   const [errors, setErrors] = useState<{
     date?: string;
     fromTime?: string;
     toTime?: string;
   }>({});
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDateChange = (date: Date | undefined) => {
     if (errors.date) {
       setErrors({ ...errors, date: undefined });
     }
-    setDate(e.target.value);
+    setDate(date);
   };
 
-  const handleFromTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFromTimeChange = (time: Option | null) => {
     if (errors.fromTime) {
       setErrors({ ...errors, fromTime: undefined });
     }
-    const fromTime = e.target.value;
-    setFromTime(fromTime);
-    const [fromHour, fromMinute] = fromTime.split(":");
-    const toHour = parseInt(fromHour) + 1;
-    const toMinute = fromMinute;
-    setToTime(`${toHour}:${toMinute}`);
+    setFromTime(time);
+    if (time) {
+      const [hour, minute] = time.value.split(":");
+      const toHour = parseInt(hour) + 1;
+      const toMinute = minute;
+      const timeOptions = generateTimeOptions();
+      const toValue = `${toHour}:${toMinute}`;
+      const toTimeOption = timeOptions.find(
+        (option) => option.value === toValue
+      );
+      if (toTimeOption) {
+        setToTime(toTimeOption);
+      }
+    }
   };
 
-  const handleToTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (errors.toTime && e.target.value > fromTime) {
+  const handleToTimeChange = (time: Option | null) => {
+    if (errors.toTime) {
       setErrors({ ...errors, toTime: undefined });
       return;
     }
-    setToTime(e.target.value);
+    setToTime(time);
+  };
+
+  const addOneWeek = () => {
+    if (errors.date) {
+      setErrors({ ...errors, date: undefined });
+    }
+    const newDate = addDays(new Date(date || new Date()), 7);
+    setDate(newDate);
+  };
+
+  const minusOneWeek = () => {
+    if (errors.date) {
+      setErrors({ ...errors, date: undefined });
+    }
+    const newDate = addDays(new Date(date || new Date()), -7);
+    setDate(newDate);
   };
 
   const handleSubmit = () => {
-    const errors = validateForm({ date, fromTime, toTime });
+    const errors = validateForm({
+      date,
+      fromTime: fromTime?.value,
+      toTime: toTime?.value,
+    });
+
     if (Object.keys(errors).length > 0) {
       setErrors(errors);
       return;
     }
 
+    if (!date) {
+      return;
+    }
+
+    const dateString = format(date, "yyyy-MM-dd");
     const startTime = format(
-      new Date(`${date}T${fromTime}`),
+      new Date(`${dateString}T${fromTime?.value}`),
       "yyyy-MM-dd HH:mm"
     );
-    const endTime = format(new Date(`${date}T${toTime}`), "yyyy-MM-dd HH:mm");
+    const endTime = format(
+      new Date(`${dateString}T${toTime?.value}`),
+      "yyyy-MM-dd HH:mm"
+    );
+
+    const isDuplicated = periods.some((period) => {
+      return period.startTime === startTime && period.endTime === endTime;
+    });
+
+    if (isDuplicated) {
+      setErrors({ ...errors, date: "Period exists" });
+      return;
+    }
 
     onAddPeriod({
       startTime,
       endTime,
     });
-    setNewPeriodModalOpen(false);
-    setDate("");
-    const newDateStr = format(addDays(new Date(date), 7), "yyyy-MM-dd");
-    setDate(newDateStr);
   };
 
   return (
-    <>
-      <AddButton onClick={() => setNewPeriodModalOpen(true)}>
-        New Period
-      </AddButton>
-      {newPeriodModalOpen && (
-        <Drawer
-          open={newPeriodModalOpen}
-          onClose={() => setNewPeriodModalOpen(false)}
-          onSubmit={handleSubmit}
-          title="New Period"
-        >
-          <form className="mb-10">
-            <InputField
-              label="Date"
-              value={date}
-              type="date"
-              className="mb-4 pr-4"
-              placeholder="E.g. 2025/5/27"
-              onChange={handleDateChange}
-              error={errors.date}
-            />
-            <div className="flex gap-4">
-              <InputField
-                label="From"
-                type="time"
-                className="pr-4"
-                value={fromTime}
-                onChange={handleFromTimeChange}
-                error={errors.fromTime}
-              />
-              <InputField
-                label="To"
-                type="time"
-                className="pr-4"
-                value={toTime}
-                onChange={handleToTimeChange}
-                error={errors.toTime}
-              />
-            </div>
-          </form>
-        </Drawer>
-      )}
-    </>
+    <div className="border-b border-gray-200 py-1 flex flex-col gap-3">
+      <div className="flex gap-2 items-center justify-between">
+        <div className="flex flex-col gap-0.5">
+          <label className="text-sm text-gray-700">Date</label>
+          <DatePicker date={date} setDate={handleDateChange} />
+          {errors.date && <p className="text-sm text-red-500">{errors.date}</p>}
+        </div>
+        <div className="">
+          <label className="text-sm text-gray-700">From</label>
+          <TimePicker
+            selectedTime={fromTime}
+            setSelectedTime={handleFromTimeChange}
+          />
+          {errors.fromTime && (
+            <p className="mt-0.5 text-xs text-red-500">{errors.fromTime}</p>
+          )}
+        </div>
+        <span className="text-sm text-gray-500 mt-5">-</span>
+        <div className="">
+          <label className="text-sm text-gray-700">To</label>
+          <TimePicker
+            selectedTime={toTime}
+            setSelectedTime={handleToTimeChange}
+          />
+          {errors.toTime && (
+            <p className="mt-0.5 text-xs text-red-500">{errors.toTime}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex gap-2 items-center">
+        <div className="flex gap-2">
+          <div
+            className="text-sm border border-primary-500 rounded-md px-2 py-1 text-primary-700"
+            onClick={minusOneWeek}
+          >
+            -1 Week
+          </div>
+          <div
+            className="text-sm border border-primary-500 rounded-md px-2 py-1 text-primary-700"
+            onClick={addOneWeek}
+          >
+            +1 Week
+          </div>
+        </div>
+        <button
+      className="bg-primary-500 text-white text-sm px-4 py-1.5 rounded-sm flex items-center justify-center gap-2 ml-auto"
+      onClick={handleSubmit}
+    >
+      <Plus className="w-4 h-4" />
+      <span className="font-medium">Add Period</span>
+    </button>
+      </div>
+      <div></div>
+    </div>
   );
 };
 

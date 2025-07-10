@@ -4,7 +4,6 @@ import { Student, useGetStudentCardsQuery } from "@/store/slices/students";
 import InputField from "@/components/InputField";
 import RoundCheckbox from "@/components/RoundCheckbox";
 import { Card, useGetCardsQuery } from "@/store/slices/cards";
-import Button from "@/components/Button";
 import { Answer } from "@/store/slices/lessons";
 
 const validationErrors = {
@@ -14,7 +13,6 @@ const validationErrors = {
 
 const Questions = ({
   student,
-  firstStudent,
   defaultAnswers = {
     studentId: 0,
     createNewCard: true,
@@ -23,13 +21,10 @@ const Questions = ({
     cardPrice: "",
   },
   onSubmit = () => {},
-  onBack = () => {},
 }: {
   student: Student;
-  firstStudent: boolean;
   defaultAnswers?: Answer;
   onSubmit?: (answers: Answer) => void;
-  onBack?: () => void;
 }) => {
   const { data: cards } = useGetCardsQuery();
   const { data: studentCards } = useGetStudentCardsQuery({ id: student.id });
@@ -61,15 +56,18 @@ const Questions = ({
     const cardIds = JSON.parse(lessonDraft).cardIds || [];
 
     return cardIds.map((cardId: number) => {
-      return activeCards.find((card) => card.id === cardId)
-    }) as Card[]
-  }, [cards])
+      return activeCards.find((card) => card.id === cardId);
+    }) as Card[];
+  }, [cards]);
 
   const hasExistingCard = useMemo(() => {
-    const usableCards = studentCards?.filter((card) => card.remainingSessions > 0) || [];
-    const usableCardIds = usableCards.map((card) => card.cardId) || []
+    const usableCards =
+      studentCards?.filter((card) => card.remainingSessions > 0) || [];
+    const usableCardIds = usableCards.map((card) => card.cardId) || [];
 
-    const lessonDraft = JSON.parse(localStorage.getItem("lesson-draft") || "{}");
+    const lessonDraft = JSON.parse(
+      localStorage.getItem("lesson-draft") || "{}"
+    );
     const cardIds = lessonDraft.cardIds || [];
     return cardIds.some((cardId: number) => usableCardIds.includes(cardId));
   }, [studentCards]);
@@ -145,22 +143,24 @@ const Questions = ({
       <div className="mb-4">
         <div className="flex  flex-col gap-2 mb-4">
           <p>Assign new card?</p>
-          <div className="flex gap-2 items-center">
-            <RoundCheckbox
-              isChecked={!createNewCard}
-              onClick={() => setCreateNewCard(false)}
-              disabled={!hasExistingCard}
-            />
-            <p className={`${!hasExistingCard ? "text-gray-300" : ""}`}>
-              No, use existing card
-            </p>
-          </div>
-          <div className="flex gap-2 items-center">
-            <RoundCheckbox
-              isChecked={createNewCard}
-              onClick={() => setCreateNewCard(true)}
-            />
-            <p>Yes, assign a new one</p>
+          <div className="flex gap-6">
+            <div className="flex gap-2 items-center">
+              <RoundCheckbox
+                isChecked={createNewCard}
+                onClick={() => setCreateNewCard(true)}
+              />
+              <p>Yes</p>
+            </div>
+            <div className="flex gap-2 items-center">
+              <RoundCheckbox
+                isChecked={!createNewCard}
+                onClick={() => setCreateNewCard(false)}
+                disabled={!hasExistingCard}
+              />
+              <p className={`${!hasExistingCard ? "text-gray-300" : ""}`}>
+                No, use existing card
+              </p>
+            </div>
           </div>
         </div>
         {createNewCard && (
@@ -189,7 +189,15 @@ const Questions = ({
         )}
       </div>
       {selectedCardId && (
-        <>
+        <div className="flex gap-3">
+          <div className="mb-4">
+            <InputField
+              label="Card Price"
+              value={cardPrice}
+              onChange={handleCardPriceChange}
+              type="number"
+            />
+          </div>
           <div className="mb-4">
             <InputField
               label="Card sessions"
@@ -199,38 +207,45 @@ const Questions = ({
               error={errors.cardSessions}
             />
           </div>
-          <div className="mb-4">
-            <InputField
-              label="Card Price"
-              value={cardPrice}
-              onChange={handleCardPriceChange}
-              type="number"
-            />
-          </div>
-        </>
+        </div>
       )}
-      <div className="flex flex-col gap-3">
-        {!firstStudent && (
-          <Button outline onClick={onBack}>
-            Back to previous student
-          </Button>
-        )}
-        <Button onClick={handleSubmit}>Go to next student</Button>
+      <div className="flex items-center gap-4">
+        <Button onClick={handleSubmit}>Save & Next</Button>
       </div>
     </div>
   );
 };
 
+const Button = ({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+}) => {
+  return (
+    <button
+      className="w-full border font-semibold py-2 rounded-sm  bg-primary-500 text-white"
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+};
 const validateForm = (data: {
   createNewCard: boolean;
   selectedCardId: number | null;
   cardSessions: string;
   cardPrice: string;
 }) => {
-  const errors: { selectedCardId?: string; cardSessions?: string; cardPrice?: string } = {};
+  const errors: {
+    selectedCardId?: string;
+    cardSessions?: string;
+    cardPrice?: string;
+  } = {};
 
   if (!data.createNewCard) {
-    return errors
+    return errors;
   }
 
   if (!data.selectedCardId) {
@@ -242,5 +257,5 @@ const validateForm = (data: {
   }
 
   return errors;
-}
+};
 export default Questions;

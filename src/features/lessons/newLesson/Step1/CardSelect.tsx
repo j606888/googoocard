@@ -3,26 +3,7 @@ import Drawer from "@/components/Drawer";
 import { useCreateCardMutation, useGetCardsQuery } from "@/store/slices/cards";
 import InputField from "@/components/InputField";
 import MultiSelect from "@/components/MultiSelect";
-
-const validationErrors = {
-  cardName: "Must provide a name",
-  price: "Must be a number",
-  sessions: "Must be a number",
-};
-
-const validateForm = (data: { cardName: string; price: string; sessions: string }) => {
-  const errors: { cardName?: string; price?: string; sessions?: string } = {};
-  if (!data.cardName) {
-    errors.cardName = validationErrors.cardName;
-  }
-  if (!data.price) {
-    errors.price = validationErrors.price;
-  }
-  if (!data.sessions) {
-    errors.sessions = validationErrors.sessions;
-  }
-  return errors;
-};
+import { cardValidationForm } from "@/features/cards/CardList/NewCard";
 
 const NewCard = ({ selectedCardIds, onChange, error }: { selectedCardIds: number[], onChange: (value: number[]) => void, error?: string }) => {
   const { data: cards } = useGetCardsQuery();
@@ -35,7 +16,7 @@ const NewCard = ({ selectedCardIds, onChange, error }: { selectedCardIds: number
   const [createCard, { isLoading }] = useCreateCardMutation();
 
   const handleSubmit = async () => {
-    const errors = validateForm({ cardName, price, sessions });
+    const errors = cardValidationForm({ cardName, price, sessions });
     if (Object.keys(errors).length > 0) {
       setErrors(errors);
       return;

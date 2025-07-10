@@ -4,22 +4,30 @@ import Drawer from "@/components/Drawer";
 import { useCreateCardMutation } from "@/store/slices/cards";
 import InputField from "@/components/InputField";
 
-const validationErrors = {
+const CardValidationErrors = {
   cardName: "Must provide a name",
   price: "Must be a number",
+  priceTooHigh: "Price must be less than 30000",
   sessions: "Must be a number",
+  sessionsTooHigh: "Sessions must be less than 100",
 };
 
-const validateForm = (data: { cardName: string; price: string; sessions: string }) => {
+export const cardValidationForm = (data: { cardName: string; price: string; sessions: string }) => {
   const errors: { cardName?: string; price?: string; sessions?: string } = {};
   if (!data.cardName) {
-    errors.cardName = validationErrors.cardName;
+    errors.cardName = CardValidationErrors.cardName;
   }
   if (!data.price) {
-    errors.price = validationErrors.price;
+    errors.price = CardValidationErrors.price;
   }
   if (!data.sessions) {
-    errors.sessions = validationErrors.sessions;
+    errors.sessions = CardValidationErrors.sessions;
+  }
+  if (Number(data.price) > 30000) {
+    errors.price = CardValidationErrors.priceTooHigh;
+  }
+  if (Number(data.sessions) > 100) {
+    errors.sessions = CardValidationErrors.sessionsTooHigh;
   }
   return errors;
 };
@@ -34,7 +42,7 @@ const NewCard = () => {
   const [createCard, { isLoading }] = useCreateCardMutation();
 
   const handleSubmit = async () => {
-    const errors = validateForm({ cardName, price, sessions });
+    const errors = cardValidationForm({ cardName, price, sessions });
     if (Object.keys(errors).length > 0) {
       setErrors(errors);
       return;

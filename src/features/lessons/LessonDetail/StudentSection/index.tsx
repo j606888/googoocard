@@ -10,7 +10,7 @@ const StudentSection = ({ students }: { students: LessonStudent[] }) => {
         {students.map((student) => (
           <div
             key={student.id}
-            className="flex flex-col items-start gap-2 py-3 border-b border-gray-200"
+            className="flex flex-col items-start gap-2 py-3 border-b border-gray-200 last:border-b-0"
           >
             <div className="flex items-center gap-2">
               <Image
@@ -30,9 +30,6 @@ const StudentSection = ({ students }: { students: LessonStudent[] }) => {
           </div>
         ))}
       </div>
-      <button className="flex items-center justify-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md text-sm font-bold">
-        Invite Student
-      </button>
     </div>
   );
 };
@@ -54,7 +51,7 @@ const Round = ({
 
   return (
     <div
-      className={`flex gap-1 items-center justify-center rounded-full text-xs font-semibold px-3 py-2 w-17 ${
+      className={`flex gap-1 items-center justify-center rounded-2xl text-xs font-semibold px-3 py-2 w-20 ${
         BADGE_STYLES[attendance.attendanceStatus]
       }`}
     >
@@ -64,7 +61,7 @@ const Round = ({
       {attendance.attendanceStatus === "absent" && (
         <Frown className="w-4 h-4" />
       )}
-      {format(date, "M/dd")}
+      <span className="text-xs">{format(date, "MM/dd")}</span>
     </div>
   );
 };

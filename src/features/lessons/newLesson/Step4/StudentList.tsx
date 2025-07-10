@@ -21,7 +21,7 @@ const StudentList = ({
         {students.map((student) => (
           <div
             key={student.id}
-            className={`relative flex flex-col items-center gap-1 border-1 border-gray-200 rounded-sm px-1 py-2 w-16 ${
+            className={`relative flex flex-row items-center gap-1 border-1 border-gray-200 rounded-sm px-2 py-2 ${
               currentStudentId === student.id
                 ? "bg-primary-100 border-primary-500"
                 : ""
@@ -35,7 +35,7 @@ const StudentList = ({
               height={24}
               className="w-6 h-6 rounded-full"
             />
-            <p className="text-sm truncate w-14 text-center">{student.name}</p>
+            <p className="text-sm w-16 truncate">{student.name}</p>
             {doneStudentIds.includes(student.id) && (
               <RoundCheckbox
                 isChecked

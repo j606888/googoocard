@@ -1,4 +1,8 @@
-import { Lesson, Period, useResetAttendanceMutation } from "@/store/slices/lessons";
+import {
+  Lesson,
+  Period,
+  useResetAttendanceMutation,
+} from "@/store/slices/lessons";
 import AddPeriodForm from "./AddPeriodForm";
 import { format } from "date-fns";
 import Menu from "@/components/Menu";
@@ -35,10 +39,7 @@ const PeriodSection = ({
         <h3 className="text-base font-medium">
           Total {periods.length} periods
         </h3>
-        <AddPeriodForm
-          lessonId={lesson.id}
-          lastPeriod={periods[periods.length - 1]}
-        />
+        <AddPeriodForm lessonId={lesson.id} periods={periods} />
       </div>
       <div className="flex flex-col gap-3">
         {periods.map((period) => (
@@ -116,7 +117,7 @@ const PeriodCard = ({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 text-sm ">
             <span>{startHour}</span>
-            <span>~</span>
+            <span>-</span>
             <span>{endHour}</span>
           </div>
           <button onClick={() => setMenuOpen(!menuOpen)} ref={buttonRef}>

@@ -47,10 +47,10 @@ const Basic = ({
         />
         <Info label="Buy Card" value={student.overview.cardCount.toString()} />
       </div>
-      <div className="flex gap-3">
+      {/* <div className="flex gap-3">
         <Info label="Total Spend" value={`$${student.overview.totalSpend}`} />
         <Info label="Total Saved" value={`$${student.overview.totalSaved}`} />
-      </div>
+      </div> */}
       {!isPublic && (
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">

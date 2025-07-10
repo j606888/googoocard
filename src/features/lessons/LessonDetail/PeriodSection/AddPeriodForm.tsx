@@ -1,9 +1,13 @@
 import Drawer from "@/components/Drawer";
-import InputField from "@/components/InputField";
-import { addDays, format } from "date-fns";
+import { format } from "date-fns";
 import { Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Period, useCreatePeriodMutation } from "@/store/slices/lessons";
+import { DatePicker } from "@/components/DatePicker";
+import TimePicker, {
+  Option,
+  generateTimeOptions,
+} from "@/components/TimePicker";
 
 const validationErrors = {
   empty: "Can not be empty",
@@ -11,9 +15,9 @@ const validationErrors = {
 };
 
 const validateForm = (data: {
-  date: string;
-  fromTime: string;
-  toTime: string;
+  date: Date | undefined;
+  fromTime: string | undefined;
+  toTime: string | undefined;
 }) => {
   const errors: { date?: string; fromTime?: string; toTime?: string } = {};
   if (!data.date) {
@@ -26,7 +30,7 @@ const validateForm = (data: {
     errors.toTime = validationErrors.empty;
   }
   // fromTime: "16:00", toTime: "17:00"
-  if (data.fromTime >= data.toTime) {
+  if (data.fromTime && data.toTime && data.fromTime >= data.toTime) {
     errors.toTime = validationErrors.toTimeMustGreater;
   }
   return errors;
@@ -34,82 +38,109 @@ const validateForm = (data: {
 
 const AddPeriodForm = ({
   lessonId,
-  lastPeriod,
+  periods,
 }: {
   lessonId: number;
-  lastPeriod?: Period;
+  periods: Period[];
 }) => {
   const [newPeriodModalOpen, setNewPeriodModalOpen] = useState(false);
-  const [date, setDate] = useState("");
-  const [fromTime, setFromTime] = useState("");
-  const [toTime, setToTime] = useState("");
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [fromTime, setFromTime] = useState<Option | null>(null);
+  const [toTime, setToTime] = useState<Option | null>(null);
   const [errors, setErrors] = useState<{
     date?: string;
     fromTime?: string;
     toTime?: string;
   }>({});
-  const [createPeriod] = useCreatePeriodMutation();
+  const [createPeriod, { isLoading }] = useCreatePeriodMutation();
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  console.log({ periods });
+
+  const handleDateChange = (date: Date | undefined) => {
     if (errors.date) {
       setErrors({ ...errors, date: undefined });
     }
-    setDate(e.target.value);
+    setDate(date);
   };
 
-  const handleFromTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFromTimeChange = (time: Option | null) => {
     if (errors.fromTime) {
       setErrors({ ...errors, fromTime: undefined });
     }
-    const fromTime = e.target.value;
-    setFromTime(fromTime);
-    const [fromHour, fromMinute] = fromTime.split(":");
-    const toHour = parseInt(fromHour) + 1;
-    const toMinute = fromMinute;
-    setToTime(`${toHour}:${toMinute}`);
+    setFromTime(time);
+    if (time) {
+      const [hour, minute] = time.value.split(":");
+      const toHour = parseInt(hour) + 1;
+      const toMinute = minute;
+      const timeOptions = generateTimeOptions();
+      const toValue = `${toHour}:${toMinute}`;
+      const toTimeOption = timeOptions.find(
+        (option) => option.value === toValue
+      );
+      if (toTimeOption) {
+        setToTime(toTimeOption);
+      }
+    }
   };
 
-  const handleToTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (errors.toTime && e.target.value > fromTime) {
+  const handleToTimeChange = (time: Option | null) => {
+    if (errors.toTime) {
       setErrors({ ...errors, toTime: undefined });
       return;
     }
-    setToTime(e.target.value);
+    setToTime(time);
   };
 
-  const handleSubmit = () => {
-    const errors = validateForm({ date, fromTime, toTime });
+  const handleSubmit = async () => {
+    const errors = validateForm({
+      date,
+      fromTime: fromTime?.value,
+      toTime: toTime?.value,
+    });
     if (Object.keys(errors).length > 0) {
       setErrors(errors);
       return;
     }
 
+    if (!date) {
+      return;
+    }
+
+    const dateString = format(date, "yyyy-MM-dd");
     const startTime = format(
-      new Date(`${date}T${fromTime}`),
+      new Date(`${dateString}T${fromTime?.value}`),
       "yyyy-MM-dd HH:mm"
     );
-    const endTime = format(new Date(`${date}T${toTime}`), "yyyy-MM-dd HH:mm");
+    const endTime = format(
+      new Date(`${dateString}T${toTime?.value}`),
+      "yyyy-MM-dd HH:mm"
+    );
 
-    createPeriod({
+    const isDuplicated = periods.some((period) => {
+      const periodDate = format(period.startTime, "yyyy-MM-dd");
+      const periodStartTime = format(period.startTime, "HH:mm");
+      const periodEndTime = format(period.endTime, "HH:mm");
+
+      return (
+        periodDate === dateString &&
+        periodStartTime === fromTime?.value &&
+        periodEndTime === toTime?.value
+      );
+    });
+
+    if (isDuplicated) {
+      setErrors({ ...errors, date: "Period exists" });
+      return;
+    }
+
+    await createPeriod({
       id: lessonId,
       startTime,
       endTime,
     });
-    setNewPeriodModalOpen(false);
-    setDate("");
-    const newDateStr = format(addDays(new Date(date), 7), "yyyy-MM-dd");
-    setDate(newDateStr);
-  };
 
-  useEffect(() => {
-    if (lastPeriod) {
-      const newDate = format(addDays(lastPeriod.startTime, 7), "yyyy-MM-dd");
-      setDate(newDate);
-      setFromTime(format(lastPeriod.startTime, "HH:mm"));
-      setToTime(format(lastPeriod.endTime, "HH:mm"));
-      setNewPeriodModalOpen(false);
-    }
-  }, [lastPeriod]);
+    setNewPeriodModalOpen(false);
+  };
 
   return (
     <>
@@ -128,36 +159,38 @@ const AddPeriodForm = ({
           onClose={() => setNewPeriodModalOpen(false)}
           onSubmit={handleSubmit}
           title="New Period"
+          submitText="Add Period"
+          isLoading={isLoading}
         >
-          <form className="mb-10">
-            <InputField
-              label="Date"
-              value={date}
-              type="date"
-              className="mb-4 pr-4"
-              placeholder="E.g. 2025/5/27"
-              onChange={handleDateChange}
-              error={errors.date}
-            />
-            <div className="flex gap-4">
-              <InputField
-                label="From"
-                type="time"
-                className="pr-4"
-                value={fromTime}
-                onChange={handleFromTimeChange}
-                error={errors.fromTime}
+          <div className="flex flex-col gap-0.5 mb-4">
+            <label className="text-sm text-gray-700">Date</label>
+            <DatePicker date={date} setDate={handleDateChange} />
+            {errors.date && (
+              <p className="text-sm text-red-500">{errors.date}</p>
+            )}
+          </div>
+          <div className="flex gap-2 mb-6">
+            <div>
+              <label className="text-sm text-gray-700">From</label>
+              <TimePicker
+                selectedTime={fromTime}
+                setSelectedTime={handleFromTimeChange}
               />
-              <InputField
-                label="To"
-                type="time"
-                className="pr-4"
-                value={toTime}
-                onChange={handleToTimeChange}
-                error={errors.toTime}
-              />
+              {errors.fromTime && (
+                <p className="mt-0.5 text-xs text-red-500">{errors.fromTime}</p>
+              )}
             </div>
-          </form>
+            <div>
+              <label className="text-sm text-gray-700">To</label>
+              <TimePicker
+                selectedTime={toTime}
+                setSelectedTime={handleToTimeChange}
+              />
+              {errors.toTime && (
+                <p className="mt-0.5 text-xs text-red-500">{errors.toTime}</p>
+              )}
+            </div>
+          </div>
         </Drawer>
       )}
     </>

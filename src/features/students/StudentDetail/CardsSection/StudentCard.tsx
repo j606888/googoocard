@@ -10,7 +10,7 @@ import Menu from "@/components/Menu";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-const StudentCard = ({ studentCard }: { studentCard: StudentCardWithCard }) => {
+const StudentCard = ({ studentCard, isPublic }: { studentCard: StudentCardWithCard, isPublic?: boolean }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const hasDiscount = studentCard.basePrice !== studentCard.finalPrice;
   const disabled =
@@ -66,7 +66,7 @@ const StudentCard = ({ studentCard }: { studentCard: StudentCardWithCard }) => {
       )}
       <div className="flex justify-between">
         <h4 className="text-sm font-semibold">{studentCard.card.name}</h4>
-        {(!disabled || !studentCard.paid) && (
+        {(!disabled || !studentCard.paid) && !isPublic && (
           <button
             className="absolute top-4 right-4"
             ref={buttonRef}

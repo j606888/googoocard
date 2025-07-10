@@ -55,6 +55,10 @@ const CheckPeriod = () => {
     setSelectedStudentIds(selectedStudentIds.filter((id) => id !== studentId));
   };
 
+  const handleAddStudent = (studentId: number) => {
+    setSelectedStudentIds([...selectedStudentIds, studentId]);
+  };
+
   const filteredStudents =
     students?.filter(
       (student) =>
@@ -82,6 +86,7 @@ const CheckPeriod = () => {
             error={error}
             onSearch={handleSearch}
             selectedStudents={selectedStudents}
+            onCreateStudent={handleAddStudent}
           />
           <SelectedStudents
             selectedStudents={selectedStudents}
