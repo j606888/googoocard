@@ -91,8 +91,8 @@ const TimePicker = ({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger>
         <input
-          className="text-sm  bg-gray-100 rounded-md p-2 w-full"
-          value={selectedTime?.label || "選擇時間"}
+          className={`text-sm bg-gray-100 rounded-md p-2 w-full ${selectedTime?.label ? "" : "text-gray-400"}`}
+          value={selectedTime?.label || "Pick time"}
           readOnly
         />
       </PopoverTrigger>

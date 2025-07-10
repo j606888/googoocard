@@ -76,21 +76,20 @@ const Step4 = () => {
           <Questions
             key={currentStudentId}
             student={currentStudent}
-            firstStudent={selectedStudentIds.indexOf(currentStudent.id) === 0}
             defaultAnswers={
               answers.find((a) => a.studentId === currentStudent.id) ||
               undefined
             }
             onSubmit={handleSubmitAnswer}
-            onBack={() => {
-              if (selectedStudentIds.indexOf(currentStudent.id) > 0) {
-                setCurrentStudentId(
-                  selectedStudentIds[
-                    selectedStudentIds.indexOf(currentStudent.id) - 1
-                  ]
-                );
-              }
-            }}
+            // onBack={() => {
+            //   if (selectedStudentIds.indexOf(currentStudent.id) > 0) {
+            //     setCurrentStudentId(
+            //       selectedStudentIds[
+            //         selectedStudentIds.indexOf(currentStudent.id) - 1
+            //       ]
+            //     );
+            //   }
+            // }}
           />
         )}
       </div>

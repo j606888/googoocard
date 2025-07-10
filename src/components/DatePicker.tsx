@@ -1,8 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { ChevronDownIcon } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import {
@@ -21,10 +19,9 @@ export function DatePicker({ date, setDate }: { date: Date | undefined, setDate:
           <Button
             variant="secondary"
             id="date"
-            className="w-40 justify-between font-normal"
+            className="w-32 justify-between font-normal"
           >
             {date ? date.toLocaleDateString() : "Select date"}
-            <ChevronDownIcon />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto overflow-hidden p-0" align="start">
