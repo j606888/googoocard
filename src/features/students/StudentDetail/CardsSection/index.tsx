@@ -1,15 +1,30 @@
-import { StudentCardWithCard, StudentWithDetail } from "@/store/slices/students";
+import {
+  StudentCardWithCard,
+  StudentWithDetail,
+} from "@/store/slices/students";
 import StudentCard from "./StudentCard";
 import BuyCard from "./BuyCard";
 
-const CardsSection = ({ student, studentCards, isPublic }: { student: StudentWithDetail, studentCards: StudentCardWithCard[], isPublic?: boolean }) => {
+const CardsSection = ({
+  student,
+  studentCards,
+  isPublic,
+}: {
+  student: StudentWithDetail;
+  studentCards: StudentCardWithCard[];
+  isPublic?: boolean;
+}) => {
   return (
     <div className="flex flex-col gap-3">
       {!isPublic && <BuyCard student={student} />}
       {studentCards.length > 0 ? (
         <div className="flex flex-col gap-3">
           {studentCards.map((studentCard) => (
-            <StudentCard key={studentCard.id} studentCard={studentCard} />
+            <StudentCard
+              key={studentCard.id}
+              studentCard={studentCard}
+              isPublic={isPublic}
+            />
           ))}
         </div>
       ) : (
@@ -17,7 +32,6 @@ const CardsSection = ({ student, studentCards, isPublic }: { student: StudentWit
           No card yet Q_Q
         </div>
       )}
-
     </div>
   );
 };

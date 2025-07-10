@@ -57,7 +57,7 @@ const BuyCard = ({ student }: { student: Student }) => {
     setCardPrice(value);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     let hasError = false;
     const newErrors = { ...errors };
 
@@ -82,7 +82,7 @@ const BuyCard = ({ student }: { student: Student }) => {
     }
 
     if (selectedCardId && paid !== null) {
-      createStudentCard({
+      await createStudentCard({
         id: student.id,
         cardId: selectedCardId,
         sessions: parseInt(cardSessions),
@@ -165,7 +165,7 @@ const BuyCard = ({ student }: { student: Student }) => {
             </div>
             <div className="flex flex-col gap-2 mb-8">
               <p className="font-medium">Do student paid yet?</p>
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-4 items-center">
                 <div className="flex gap-2 items-center">
                   <RoundCheckbox
                     isChecked={paid === true}
