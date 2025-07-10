@@ -101,6 +101,7 @@ const lessonsApi = api.injectEndpoints({
         url: `lessons/${id}/periods/${periodId}/attendance`,
         method: "GET",
       }),
+      providesTags: ["Lesson"],
     }),
     resetAttendance: builder.mutation<void, { id: number; periodId: number }>({
       query: ({ id, periodId }) => ({

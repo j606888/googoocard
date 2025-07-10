@@ -15,13 +15,15 @@ const BuyCard = ({ student }: { student: Student }) => {
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
-  const [paid, setPaid] = useState(true);
+  const [paid, setPaid] = useState<boolean | null>(null);
   const [errors, setErrors] = useState<{
     selectedCardId?: string;
     cardSessions?: string;
+    paid?: string;
   }>({
     selectedCardId: "",
     cardSessions: "",
+    paid: "",
   });
   const [createStudentCard, { isLoading }] = useCreateStudentCardMutation();
 
@@ -56,7 +58,30 @@ const BuyCard = ({ student }: { student: Student }) => {
   };
 
   const handleSubmit = () => {
-    if (selectedCardId) {
+    let hasError = false;
+    const newErrors = { ...errors };
+
+    if (!selectedCardId) {
+      newErrors.selectedCardId = "Please select a card";
+      hasError = true;
+    }
+
+    if (!cardSessions) {
+      newErrors.cardSessions = "Please enter card sessions";
+      hasError = true;
+    }
+
+    if (paid === null) {
+      newErrors.paid = "Required";
+      hasError = true;
+    }
+
+    if (hasError) {
+      setErrors(newErrors);
+      return;
+    }
+
+    if (selectedCardId && paid !== null) {
       createStudentCard({
         id: student.id,
         cardId: selectedCardId,
@@ -65,14 +90,12 @@ const BuyCard = ({ student }: { student: Student }) => {
         paid,
       });
       setIsDrawerOpen(false);
-    } 
-  }
+    }
+  };
 
   useEffect(() => {
     if (selectedCardId) {
-      const card = cardOptions.find(
-        (card) => card.id === selectedCardId
-      );
+      const card = cardOptions.find((card) => card.id === selectedCardId);
       if (card) {
         setCardSessions(card.sessions.toString());
         setCardPrice(card.price.toString());
@@ -120,45 +143,60 @@ const BuyCard = ({ student }: { student: Student }) => {
           </div>
         </div>
         {selectedCardId && (
-        <>
-          <div className="mb-4">
-            <InputField
-              label="Card sessions"
-              value={cardSessions}
-              onChange={handleCardSessionsChange}
-              type="number"
-              error={errors.cardSessions}
-            />
-          </div>
-          <div className="mb-4">
-            <InputField
-              label="Card Price"
-              value={cardPrice}
-              onChange={handleCardPriceChange}
-              type="number"
-            />
-          </div>
-          <div className="flex flex-col gap-2 mb-8">
-            <p className="font-medium">Do student paid yet?</p>
-            <div className="flex gap-2 items-center">
-              <div className="flex gap-2 items-center">
-                <RoundCheckbox
-                  isChecked={paid}
-                  onClick={() => setPaid(true)}
+          <>
+            <div className="flex gap-3">
+              <div className="mb-4">
+                <InputField
+                  label="Card Price"
+                  value={cardPrice}
+                  onChange={handleCardPriceChange}
+                  type="number"
                 />
-                <p>Yes</p>
               </div>
-              <div className="flex gap-2 items-center">
-                <RoundCheckbox
-                  isChecked={!paid}
-                  onClick={() => setPaid(false)}
+              <div className="mb-4">
+                <InputField
+                  label="Card sessions"
+                  value={cardSessions}
+                  onChange={handleCardSessionsChange}
+                  type="number"
+                  error={errors.cardSessions}
                 />
-                <p>No</p>
               </div>
             </div>
-          </div>
-        </>
-      )}
+            <div className="flex flex-col gap-2 mb-8">
+              <p className="font-medium">Do student paid yet?</p>
+              <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-center">
+                  <RoundCheckbox
+                    isChecked={paid === true}
+                    onClick={() => {
+                      setPaid(true);
+                      if (errors.paid) {
+                        setErrors({ ...errors, paid: "" });
+                      }
+                    }}
+                  />
+                  <p>Yes</p>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <RoundCheckbox
+                    isChecked={paid === false}
+                    onClick={() => {
+                      setPaid(false);
+                      if (errors.paid) {
+                        setErrors({ ...errors, paid: "" });
+                      }
+                    }}
+                  />
+                  <p>No</p>
+                </div>
+              </div>
+              {errors.paid && (
+                <p className="text-red-500 text-sm">{errors.paid}</p>
+              )}
+            </div>
+          </>
+        )}
       </Drawer>
     </>
   );
