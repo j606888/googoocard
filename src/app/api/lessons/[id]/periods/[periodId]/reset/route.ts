@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { refreshLesson } from "@/service/lesson";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; periodId: string }> }) {
   const { id, periodId } = await params;
@@ -40,6 +41,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     });
   });
+
+  await refreshLesson(parseInt(id));
 
   return NextResponse.json({ success: true });
 }
