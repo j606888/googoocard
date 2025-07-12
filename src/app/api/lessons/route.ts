@@ -2,18 +2,26 @@ import { decodeAuthToken } from "@/lib/auth";
 import { DraftLesson } from "@/store/slices/lessons";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { refreshLesson } from "@/service/lesson";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
   const { classroomId } = await decodeAuthToken();
+  const tab = searchParams.get("tab") ?? "inProgress";
+  const sort = searchParams.get("sort") ?? "name";
 
   if (!classroomId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const orderBy = sort === "name" ? { name: "asc" as const } : { endAt: "desc" as const };
+
   const lessons = await prisma.lesson.findMany({
     where: {
       classroomId: classroomId,
+      status: tab,
     },
+    orderBy,
     include: {
       periods: true,
       students: {
@@ -24,23 +32,39 @@ export async function GET() {
     },
   });
 
+  const tabsCount = {
+    inProgress: await prisma.lesson.count({
+      where: {
+        classroomId: classroomId,
+        status: "inProgress",
+      },
+    }),
+    finished: await prisma.lesson.count({
+      where: {
+        classroomId: classroomId,
+        status: "finished",
+      },
+    }),
+  }
+
   const result = lessons.map((lesson) => ({
     ...lesson,
     students: lesson.students.map((student) => student.student)
   }));
 
-  return NextResponse.json(result);
+  return NextResponse.json({ lessons: result, tabsCount });
 }
 
 export async function POST(request: Request) {
   const { classroomId } = await decodeAuthToken();
   const draftLesson = await request.json() as DraftLesson;
 
-  await prisma.$transaction(async (tx) => {
+  const lesson = await prisma.$transaction(async (tx) => {
     const lesson = await tx.lesson.create({
       data: {
         name: draftLesson.lessonName,
         classroomId: classroomId!,
+        status: "inProgress",
       },
     });
 
@@ -98,7 +122,11 @@ export async function POST(request: Request) {
         });
       }
     }
+
+    return lesson
   });
+
+  await refreshLesson(lesson.id);
 
   return NextResponse.json({ message: "Lesson created" });
 }

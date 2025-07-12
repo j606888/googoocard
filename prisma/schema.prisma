@@ -112,6 +112,8 @@ model Lesson {
   name        String
   classroomId Int
   classroom   Classroom       @relation(fields: [classroomId], references: [id])
+  status      String          @default("inProgress")
+  endAt       DateTime?
   teachers    LessonTeacher[]
   cards       LessonCard[]
   periods     LessonPeriod[]

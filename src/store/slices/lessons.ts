@@ -64,8 +64,14 @@ export interface LessonStudent {
 
 const lessonsApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getLessons: builder.query<Lesson[], void>({
-      query: () => "lessons",
+    getLessons: builder.query<
+      {
+        lessons: Lesson[];
+        tabsCount: { inProgress: number; finished: number };
+      },
+      { tab: string; sort: string }
+    >({
+      query: ({ tab, sort }) => `lessons?tab=${tab}&sort=${sort}`,
       providesTags: ["Lesson"],
     }),
     getLesson: builder.query<Lesson, string | number>({
@@ -80,7 +86,10 @@ const lessonsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Lesson"],
     }),
-    checkStudentCards: builder.query<{ invalidStudentIds: number[] }, { id: number; studentIds: number[] }>({
+    checkStudentCards: builder.query<
+      { invalidStudentIds: number[] },
+      { id: number; studentIds: number[] }
+    >({
       query: ({ id, studentIds }) => ({
         url: `lessons/${id}/check-student-cards`,
         method: "POST",
@@ -88,7 +97,10 @@ const lessonsApi = api.injectEndpoints({
       }),
       providesTags: ["StudentCard"],
     }),
-    takeAttendance: builder.mutation<void, { id: number; periodId: number; studentIds: number[] }>({
+    takeAttendance: builder.mutation<
+      void,
+      { id: number; periodId: number; studentIds: number[] }
+    >({
       query: ({ id, periodId, studentIds }) => ({
         url: `lessons/${id}/periods/${periodId}/attendance`,
         method: "POST",
@@ -96,7 +108,10 @@ const lessonsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Lesson", "Student", "StudentCard", "Card"],
     }),
-    getAttendance: builder.query<AttendanceRecord[], { id: number; periodId: number }>({
+    getAttendance: builder.query<
+      AttendanceRecord[],
+      { id: number; periodId: number }
+    >({
       query: ({ id, periodId }) => ({
         url: `lessons/${id}/periods/${periodId}/attendance`,
         method: "GET",
@@ -117,7 +132,10 @@ const lessonsApi = api.injectEndpoints({
       }),
       providesTags: ["Lesson"],
     }),
-    createPeriod: builder.mutation<void, { id: number; startTime: string; endTime: string }>({
+    createPeriod: builder.mutation<
+      void,
+      { id: number; startTime: string; endTime: string }
+    >({
       query: ({ id, startTime, endTime }) => ({
         url: `lessons/${id}/periods`,
         method: "POST",

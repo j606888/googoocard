@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { refreshLesson } from "@/service/lesson";
 
 export async function GET(
   request: Request,
@@ -134,6 +135,8 @@ export async function POST(
       },
     });
   });
+
+  await refreshLesson(parseInt(id));
 
   return NextResponse.json({ success: true });
 }
