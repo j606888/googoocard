@@ -9,8 +9,22 @@ export async function GET() {
     where: {
       classroomId,
     },
+    include: {
+      lessons: {
+        include: {
+          lesson: true,
+        },
+      },
+    },
   });
-  return NextResponse.json(teachers);
+
+  const result = teachers.map((teacher) => ({
+    ...teacher,
+    lessonCount: teacher.lessons.length,
+    activeLessonCount: teacher.lessons.filter((lesson) => lesson.lesson.status === "inProgress").length,
+  }));
+
+  return NextResponse.json(result);
 }
 
 export async function POST(request: Request) {

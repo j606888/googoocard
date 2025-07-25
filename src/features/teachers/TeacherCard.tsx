@@ -21,20 +21,22 @@ const TeacherCard = ({
   return (
     <div
       key={teacher.id}
-      className="flex border-1 border-gray-200 rounded-sm px-3 py-2 items-center shadow-sm"
+      className="flex px-3 py-2 items-center border-b-1 border-gray-200"
     >
       <div className="flex flex-col mr-auto gap-1.5">
         <h4 className="text-xl font-semibold">{teacher.name}</h4>
         <div className="flex items-center gap-2">
           <BookOpenText className="w-4 h-4 text-gray-500" />
-          <span className="text-sm text-gray-500">0 Lessons</span>
+          <span className="text-sm text-gray-500">{teacher.activeLessonCount} active lessons</span>
         </div>
       </div>
-      <button onClick={() => setMenuOpen(!menuOpen)} ref={buttonRef}>
-        <EllipsisVertical
-          className="w-6 h-6 text-gray-500"
-      />
-      </button>
+      {teacher.lessonCount === 0 && (
+        <button onClick={() => setMenuOpen(!menuOpen)} ref={buttonRef}>
+          <EllipsisVertical
+            className="w-6 h-6 text-gray-500"
+        />
+        </button>
+      )}
       <Menu
         open={menuOpen}
         anchorEl={buttonRef.current}

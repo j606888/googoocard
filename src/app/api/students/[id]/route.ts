@@ -1,6 +1,34 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
+import { decodeAuthToken } from "@/lib/auth";
+
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { name } = await request.json();
+  const { classroomId } = await decodeAuthToken();
+
+  const existingStudent = await prisma.student.findFirst({
+    where: {
+      name,
+      classroomId,
+      NOT: {
+        id: parseInt(id),
+      },
+    },
+  });
+
+  if (existingStudent) {
+    return NextResponse.json({ error: "Student name already exists" }, { status: 400 });
+  }
+
+  const student = await prisma.student.update({
+    where: { id: parseInt(id) },
+    data: { name },
+  });
+
+  return NextResponse.json(student);
+}
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
