@@ -3,6 +3,8 @@ import { api } from '../api';
 export interface Teacher {
   id: number;
   name: string;
+  activeLessonCount: number;
+  lessonCount: number;
 }
 
 const teachersApi = api.injectEndpoints({
