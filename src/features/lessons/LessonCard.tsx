@@ -22,7 +22,7 @@ const LessonCard = ({ lesson }: { lesson: Lesson }) => {
         <Dot className="w-2 h-2" />
         <div className="flex items-center gap-1">
           <BookOpenText className="w-3 h-3" />
-          <span>{attendCount} or {lesson.periods.length}</span>
+          <span>{attendCount} of {lesson.periods.length}</span>
         </div>
         <Dot className="w-2 h-2" />
         <div className="flex items-center gap-1">
