@@ -89,6 +89,14 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Student"],
     }),
+    updateStudent: builder.mutation<Student, { id: number; name: string }>({
+      query: ({ id, name }) => ({
+        url: `students/${id}`,
+        method: "PATCH",
+        body: { name },
+      }),
+      invalidatesTags: ["Student"],
+    }),
     deleteStudent: builder.mutation<Student, { id: string }>({
       query: ({ id }) => ({
         url: `students/${id}`,
@@ -133,6 +141,7 @@ export const {
   useGetStudentsQuery,
   useGetPublicStudentQuery,
   useCreateStudentMutation,
+  useUpdateStudentMutation,
   useDeleteStudentMutation,
   useGetStudentCardsQuery,
   useCreateStudentCardMutation,

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Basic from "./Basic";
+import BasicSection from "./BasicSection";
 import CardsSection from "./CardsSection";
 import AttendSection from "./AttendSection";
 import { StudentWithDetail } from "@/store/slices/students";
@@ -49,7 +49,7 @@ const StudentDetail = ({ student, isPublic = false }: { student: StudentWithDeta
           </div>
         ))}
       </div>
-      {activeTab === "basic" && <Basic student={student} isPublic={isPublic} />}
+      {activeTab === "basic" && <BasicSection student={student} isPublic={isPublic} />}
       {activeTab === "cards" && <CardsSection student={student} studentCards={student.studentCards} isPublic={isPublic} />}
       {activeTab === "attend" && <AttendSection student={student} />}
     </div>
