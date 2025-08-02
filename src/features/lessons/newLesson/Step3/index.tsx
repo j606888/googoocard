@@ -21,10 +21,10 @@ const Step3 = () => {
     [];
 
   const handleSubmit = () => {
-    if (selectedStudents.length === 0) {
-      setError("Please select at least one student");
-      return;
-    }
+    // if (selectedStudents.length === 0) {
+    //   setError("Please select at least one student");
+    //   return;
+    // }
     updateLessonDraft({ studentIds: selectedStudentIds });
     router.push("/lessons/new/step-4");
   };
