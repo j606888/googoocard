@@ -118,14 +118,12 @@ const AddPeriodForm = ({
     }
 
     const dateString = format(date, "yyyy-MM-dd");
-    const startTime = format(
-      new Date(`${dateString}T${fromTime?.value}`),
-      "yyyy-MM-dd HH:mm"
-    );
-    const endTime = format(
-      new Date(`${dateString}T${toTime?.value}`),
-      "yyyy-MM-dd HH:mm"
-    );
+    
+    const fromDateTime = new Date(`${dateString}T${fromTime?.value}:00+08:00`)
+    const toDateTime = new Date(`${dateString}T${toTime?.value}:00+08:00`)
+
+    const startTime = fromDateTime.toISOString();
+    const endTime = toDateTime.toISOString();
 
     const isDuplicated = periods.some((period) => {
       return period.startTime === startTime && period.endTime === endTime;
