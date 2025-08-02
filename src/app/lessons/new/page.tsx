@@ -30,7 +30,7 @@ const NewLessonPage = () => {
         <Step step={4} description="Class card" />
         <Step step={5} description="Review & Submit" />
       </div>
-      <Button onClick={handleClick} className="mt-auto">START</Button>
+      <Button onClick={handleClick} className="mt-auto cursor-pointer hover:bg-primary-600">START</Button>
     </div>
   </div>
 };

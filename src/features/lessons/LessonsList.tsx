@@ -22,7 +22,7 @@ const LessonsList = () => {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">Lessons</h2>
         <button
-          className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2"
+          className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600"
           onClick={() => router.push("/lessons/new")}
         >
           <Plus className="w-4 h-4" />

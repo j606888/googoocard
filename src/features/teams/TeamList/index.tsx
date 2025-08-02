@@ -46,7 +46,7 @@ const TeamList = () => {
       <div className="px-5 py-3">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-2xl font-semibold">Teams</h2>
-          <button className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2">
+          <button className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600">
             <Plus className="w-4 h-4" />
             <span
               className="font-medium"
@@ -60,7 +60,7 @@ const TeamList = () => {
           {TABS.map((tab) => (
             <div
               key={tab}
-              className={`px-4 py-2 ${
+              className={`px-4 py-2 cursor-pointer ${
                 tab === activeTab
                   ? "border-b-2 border-primary-500 font-semibold text-primary-500"
                   : "text-gray-500"

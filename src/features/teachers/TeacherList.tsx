@@ -29,7 +29,7 @@ const TeacherList = () => {
       <div className="px-5 py-3">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-2xl font-semibold">Teachers</h2>
-          <button className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2">
+          <button className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600">
             <Plus className="w-4 h-4" />
             <span
               className="font-medium"

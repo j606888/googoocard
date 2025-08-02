@@ -140,7 +140,7 @@ const AddPeriodForm = ({
 
   return (
     <>
-      <button className="bg-primary-500 text-white px-3 py-1.5 rounded-full flex items-center gap-2">
+      <button className="bg-primary-500 text-white px-3 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600">
         <Plus className="w-4 h-4" />
         <span
           className="text-sm font-medium"

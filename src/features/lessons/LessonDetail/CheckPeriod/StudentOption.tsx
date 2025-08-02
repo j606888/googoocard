@@ -27,7 +27,7 @@ const StudentOption = ({
         noCard ? "bg-warning-100 border-l-4 border-warning-500" : isFirstTime ? "bg-primary-50 border-l-4 border-primary-700" : ""
       }`}
     >
-      <div className="flex items-center gap-3" onClick={() => onClick(student)}>
+      <div className="flex items-center gap-3 cursor-pointer" onClick={() => onClick(student)}>
         <Image
           className={`rounded-full ${isGray ? "opacity-50" : ""}`}
           width={36}

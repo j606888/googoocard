@@ -99,7 +99,7 @@ const CheckPeriodSuccess = () => {
         </div>
         <Link href={`/lessons/${id}`} className="w-full">
           <button
-            className={`bg-primary-500 text-white px-4 py-2 rounded-sm flex items-center justify-center gap-2 mb-4 w-full`}
+            className={`bg-primary-500 text-white px-4 py-2 rounded-sm flex items-center justify-center gap-2 mb-4 w-full cursor-pointer hover:bg-primary-600`}
           >
             <span className="font-medium">Back to Lessons</span>
           </button>

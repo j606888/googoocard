@@ -68,7 +68,7 @@ const NewStudent = () => {
 
   return (
     <>
-      <button className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2">
+      <button className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600">
         <Plus className="w-4 h-4" />
         <span className="font-medium" onClick={() => setOpen(true)}>
           New Student

@@ -79,7 +79,7 @@ const BuyCard = ({ student }: { student: Student }) => {
 
   return (
     <>
-      <button className="w-full p-3 bg-primary-500 text-white rounded-sm font-semibold" onClick={() => setIsDrawerOpen(true)}>
+      <button className="w-full p-3 bg-primary-500 text-white rounded-sm font-semibold cursor-pointer hover:bg-primary-600" onClick={() => setIsDrawerOpen(true)}>
         BUY NEW CARD
       </button>
       <Drawer

@@ -170,7 +170,7 @@ const Questions = ({
               {cardOptions?.map((card) => (
                 <div
                   key={card.id}
-                  className={`flex gap-2 items-center px-4 py-3 border-1 border-gray-200 rounded-sm ${
+                  className={`flex gap-2 items-center px-4 py-3 border-1 border-gray-200 rounded-sm cursor-pointer ${
                     selectedCardId === card.id
                       ? "bg-primary-100 border-primary-500"
                       : ""
@@ -225,7 +225,7 @@ const Button = ({
 }) => {
   return (
     <button
-      className="w-full border font-semibold py-2 rounded-sm  bg-primary-500 text-white"
+      className="w-full border font-semibold py-2 rounded-sm  bg-primary-500 text-white cursor-pointer hover:bg-primary-600"
       onClick={onClick}
     >
       {children}

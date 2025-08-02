@@ -63,7 +63,7 @@ const CreateStudent = ({ defaultName, onCreate }: { defaultName: string, onCreat
   return (
     <>
       <div
-        className="flex items-center gap-3"
+        className="flex items-center gap-3 cursor-pointer"
         onClick={() => setIsDrawerOpen(true)}
       >
         <div className="flex items-center justify-center w-9 h-9 bg-primary-500 rounded-full">

@@ -17,7 +17,7 @@ const Button = ({
 }) => {
   return (
     <button
-      className={`w-full ${outline ? "bg-white text-primary-500 border border-primary-500" : "bg-primary-500 text-white"} font-semibold py-2 rounded ${
+      className={`w-full ${outline ? "bg-white text-primary-500 border border-primary-500 hover:bg-primary-50" : "bg-primary-500 text-white hover:bg-primary-600"} font-semibold py-2 rounded cursor-pointer  ${
         isLoading ? "opacity-50 cursor-not-allowed" : ""
       } ${className} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       onClick={() => !isLoading && !disabled && onClick()}

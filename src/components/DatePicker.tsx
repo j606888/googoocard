@@ -19,7 +19,7 @@ export function DatePicker({ date, setDate }: { date: Date | undefined, setDate:
           <Button
             variant="secondary"
             id="date"
-            className="w-32 justify-between font-normal"
+            className="w-32 justify-between font-normal cursor-pointer"
           >
             {date ? date.toLocaleDateString() : "Select date"}
           </Button>

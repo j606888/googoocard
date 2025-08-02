@@ -7,7 +7,6 @@ async function main() {
   await prisma.lessonStudent.deleteMany();
   await prisma.lesson.deleteMany();
   await prisma.studentCard.deleteMany();
-  await prisma.teacher.deleteMany();
 }
 
 main()

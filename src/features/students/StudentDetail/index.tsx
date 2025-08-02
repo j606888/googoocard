@@ -38,7 +38,7 @@ const StudentDetail = ({ student, isPublic = false }: { student: StudentWithDeta
         {tabs.map((tab) => (
           <div
             key={tab.query}
-            className={`flex-1 text-center border-b-1 border-b-gray-300 p-2.5 text-sm ${
+            className={`flex-1 text-center border-b-1 border-b-gray-300 p-2.5 text-sm cursor-pointer ${
               activeTab === tab.query
                 ? "text-primary-500 font-bold border-b-primary-500 border-b-3"
                 : ""
