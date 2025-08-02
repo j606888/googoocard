@@ -14,7 +14,7 @@ const Step3 = () => {
   const { data: students, isLoading: isStudentsLoading } = useGetStudentsQuery();
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [filterKeyword, setFilterKeyword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const selectedStudents =
     students?.filter((student) => selectedStudentIds.includes(student.id)) ||
@@ -55,7 +55,8 @@ const Step3 = () => {
       <div className="px-5 py-5 flex flex-col gap-5">
         <div className="mb-10 flex flex-col gap-4">
           <Searchbar
-            error={error}
+            error={null}
+            // error={error}
             onSearch={handleSearch}
             selectedStudents={selectedStudents}
           />
