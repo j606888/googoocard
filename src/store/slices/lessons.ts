@@ -38,8 +38,6 @@ export interface DraftLesson {
     startTime: string;
     endTime: string;
   }[];
-  studentIds: number[];
-  answers: Answer[];
 }
 
 export interface AttendanceRecord {

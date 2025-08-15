@@ -48,7 +48,7 @@ const MultiSelect = ({
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger className="flex flex-col items-start cursor-pointer">
         <div className={`flex items-center justify-between p-3 border ${error ? "border-red-500" : "border-[#E4E8E8]"} rounded-md w-full`}>
-          {values.length === 0 ? (
+          {values?.length === 0 ? (
             <>
               <span className="text-sm text-[#A9AEB1]">{placeholder}</span>
               <ChevronDown className="w-4 h-4" />
