@@ -15,15 +15,12 @@ const BuyCard = ({ student }: { student: Student }) => {
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
-  const [paid, setPaid] = useState<boolean | null>(null);
   const [errors, setErrors] = useState<{
     selectedCardId?: string;
     cardSessions?: string;
-    paid?: string;
   }>({
     selectedCardId: "",
     cardSessions: "",
-    paid: "",
   });
   const [createStudentCard, { isLoading }] = useCreateStudentCardMutation();
 
@@ -71,23 +68,17 @@ const BuyCard = ({ student }: { student: Student }) => {
       hasError = true;
     }
 
-    if (paid === null) {
-      newErrors.paid = "Required";
-      hasError = true;
-    }
-
     if (hasError) {
       setErrors(newErrors);
       return;
     }
 
-    if (selectedCardId && paid !== null) {
+    if (selectedCardId) {
       await createStudentCard({
         id: student.id,
         cardId: selectedCardId,
         sessions: parseInt(cardSessions),
         price: parseInt(cardPrice),
-        paid,
       });
       setIsDrawerOpen(false);
     }
@@ -162,38 +153,6 @@ const BuyCard = ({ student }: { student: Student }) => {
                   error={errors.cardSessions}
                 />
               </div>
-            </div>
-            <div className="flex flex-col gap-2 mb-8">
-              <p className="font-medium">Do student paid yet?</p>
-              <div className="flex gap-4 items-center">
-                <div className="flex gap-2 items-center">
-                  <RoundCheckbox
-                    isChecked={paid === true}
-                    onClick={() => {
-                      setPaid(true);
-                      if (errors.paid) {
-                        setErrors({ ...errors, paid: "" });
-                      }
-                    }}
-                  />
-                  <p>Yes</p>
-                </div>
-                <div className="flex gap-2 items-center">
-                  <RoundCheckbox
-                    isChecked={paid === false}
-                    onClick={() => {
-                      setPaid(false);
-                      if (errors.paid) {
-                        setErrors({ ...errors, paid: "" });
-                      }
-                    }}
-                  />
-                  <p>No</p>
-                </div>
-              </div>
-              {errors.paid && (
-                <p className="text-red-500 text-sm">{errors.paid}</p>
-              )}
             </div>
           </>
         )}

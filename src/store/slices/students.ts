@@ -65,7 +65,6 @@ export interface StudentCard {
   createdAt: string;
   updatedAt: string;
   expiredAt: string | null;
-  paid: boolean;
 }
 
 const studentsApi = api.injectEndpoints({
@@ -108,11 +107,11 @@ const studentsApi = api.injectEndpoints({
       query: ({ id }) => `students/${id}/student-cards`,
       providesTags: ["StudentCard"],
     }),
-    createStudentCard: builder.mutation<StudentCard, { id: number; cardId: number; sessions: number; price: number; paid: boolean }>({
-      query: ({ id, cardId, sessions, price, paid }) => ({
+    createStudentCard: builder.mutation<StudentCard, { id: number; cardId: number; sessions: number; price: number }>({
+      query: ({ id, cardId, sessions, price }) => ({
         url: `students/${id}/student-cards`,
         method: "POST",
-        body: { cardId, sessions, price, paid },
+        body: { cardId, sessions, price },
       }),
       invalidatesTags: ["StudentCard", "Student"],
     }),
@@ -122,13 +121,6 @@ const studentsApi = api.injectEndpoints({
         method: "POST",
       }),
       invalidatesTags: ["StudentCard", "Student"],
-    }),
-    markStudentCardAsPaid: builder.mutation<StudentCard, { id: number; studentCardId: number }>({
-      query: ({ id, studentCardId }) => ({
-        url: `students/${id}/student-cards/${studentCardId}/mark-as-paid`,
-        method: "POST",
-      }),
-      invalidatesTags: ["StudentCard", "Student", "Card"],
     }),
     getStudent: builder.query<StudentWithDetail, { id: number }>({
       query: ({ id }) => `students/${id}`,
@@ -147,5 +139,4 @@ export const {
   useCreateStudentCardMutation,
   useGetStudentQuery,
   useExpireStudentCardMutation,
-  useMarkStudentCardAsPaidMutation,
 } = studentsApi;

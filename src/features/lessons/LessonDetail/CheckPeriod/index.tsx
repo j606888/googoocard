@@ -5,10 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import StudentSelectList from "./StudentSelectList";
 import Searchbar from "./Searchbar";
 import SelectedStudents from "./SelectedStudents";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   useGetLessonQuery,
-  useLazyCheckStudentCardsQuery,
   useTakeAttendanceMutation,
 } from "@/store/slices/lessons";
 import PeriodInfo from "./PeriodInfo";
@@ -18,7 +17,6 @@ const CheckPeriod = () => {
   const { data: students } = useGetStudentsQuery();
   const { data: lesson } = useGetLessonQuery(id as string);
   const [takeAttendance, { isLoading }] = useTakeAttendanceMutation();
-  const [trigger, { data: checkResult }] = useLazyCheckStudentCardsQuery();
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [filterKeyword, setFilterKeyword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +25,6 @@ const CheckPeriod = () => {
   const selectedStudents =
     students?.filter((student) => selectedStudentIds.includes(student.id)) ||
     [];
-  const invalidStudentIds = checkResult?.invalidStudentIds || [];
 
   const period = lesson?.periods.find(
     (period) => period.id === Number(periodId)
@@ -43,7 +40,7 @@ const CheckPeriod = () => {
       id: Number(id),
       periodId: Number(periodId),
       studentIds: selectedStudentIds,
-    })
+    });
     router.push(`/lessons/${id}/periods/${periodId}/check-success`);
   };
 
@@ -65,12 +62,6 @@ const CheckPeriod = () => {
         filterKeyword === "" ||
         student.name.toLowerCase().includes(filterKeyword.toLowerCase())
     ) || [];
-
-  useEffect(() => {
-    if (selectedStudentIds.length > 0) {
-      trigger({ id: Number(id), studentIds: selectedStudentIds });
-    }
-  }, [selectedStudentIds, trigger, id]);
 
   if (!period) return <div>Loading...</div>;
 
@@ -101,7 +92,6 @@ const CheckPeriod = () => {
                 setSelectedStudents={(students) => {
                   setSelectedStudentIds(students.map((student) => student.id));
                 }}
-                invalidStudentIds={invalidStudentIds}
               />
             )}
           </div>
@@ -109,9 +99,7 @@ const CheckPeriod = () => {
         <div className="fixed bottom-0 left-0 right-0 bg-white flex gap-4 px-5 py-4">
           <Button
             onClick={handleSubmit}
-            disabled={
-              selectedStudents.length === 0 || invalidStudentIds.length > 0
-            }
+            disabled={selectedStudents.length === 0}
             isLoading={isLoading}
           >
             Take Attendance

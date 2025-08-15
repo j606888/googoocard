@@ -15,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { cardId, sessions, price, paid } = await request.json();
+  const { cardId, sessions, price } = await request.json();
 
   const card = await prisma.card.findUnique({
     where: {
@@ -35,7 +35,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       finalPrice: price,
       totalSessions: card.sessions,
       remainingSessions: sessions,
-      paid,
     },
   });
 

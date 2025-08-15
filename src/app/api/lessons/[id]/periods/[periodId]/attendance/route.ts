@@ -13,6 +13,7 @@ export async function GET(
     include: {
       attendanceRecords: {
         include: {
+          student: true,
           studentCard: {
             include: {
               card: true,
@@ -24,15 +25,25 @@ export async function GET(
     },
   });
 
-  const attendanceRecords = lessonPeriod?.attendanceRecords.map((record) => ({
-    studentId: record.studentId,
-    studentAvatarUrl: record.studentCard.student.avatarUrl,
-    studentName: record.studentCard.student.name,
-    cardId: record.studentCard.cardId,
-    cardName: record.studentCard.card.name,
-    remainingSessions: record.studentCard.remainingSessions,
-    income: record.studentCard.finalPrice / record.studentCard.totalSessions,
-  }));
+  const attendanceRecords = lessonPeriod?.attendanceRecords.map((record) => {
+    const studentCard = record.studentCard;
+    let studentCardData = {}
+
+    if (studentCard) {
+      studentCardData = {
+        cardId: studentCard.cardId,
+        cardName: studentCard.card.name,
+        remainingSessions: studentCard.remainingSessions,
+        income: studentCard.finalPrice / studentCard.totalSessions,
+      }
+    }
+    return {
+      studentId: record.studentId,
+      studentAvatarUrl: record.student.avatarUrl,
+      studentName: record.student.name,
+      ...studentCardData,
+    }
+  });
 
   return NextResponse.json(attendanceRecords);
 }
@@ -91,11 +102,11 @@ export async function POST(
 
   await prisma.$transaction(async (tx) => {
     for (const student of students) {
-      const studentCard = student.studentCards[0];
-      if (!studentCard) {
-        throw new Error("Student card not found");
-      }
-
+      let studentCard = null;
+      if (student.studentCards.length === 1) {
+        studentCard = student.studentCards[0];
+      } 
+      
       await tx.lessonStudent.upsert({
         where: {
           lessonId_studentId: {
@@ -114,18 +125,20 @@ export async function POST(
         data: {
           lessonPeriodId: lessonPeriod.id,
           studentId: student.id,
-          studentCardId: studentCard.id,
+          studentCardId: studentCard?.id,
         },
       });
 
-      await tx.studentCard.update({
-        where: { id: studentCard.id },
-        data: {
-          remainingSessions: {
-            decrement: 1,
+      if (studentCard) {
+        await tx.studentCard.update({
+          where: { id: studentCard.id },
+          data: {
+            remainingSessions: {
+              decrement: 1,
+            },
           },
-        },
-      });
+        });
+      }
     }
 
     await tx.lessonPeriod.update({

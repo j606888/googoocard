@@ -6,13 +6,11 @@ const StudentSelectList = ({
   selectedStudents,
   setSelectedStudents,
   attendStudentIds,
-  invalidStudentIds,
 }: {
   students: Student[];
   selectedStudents: Student[];
   setSelectedStudents: (students: Student[]) => void;
   attendStudentIds: number[];
-  invalidStudentIds: number[];
 }) => {
   const handleCheckboxClick = (student: Student) => {
     if (selectedStudents.includes(student)) {
@@ -36,7 +34,6 @@ const StudentSelectList = ({
             isChecked={isChecked}
             onClick={handleCheckboxClick}
             isFirstTime={!isAttended && isChecked}
-            noCard={invalidStudentIds.includes(student.id)}
           />
         );
       })}

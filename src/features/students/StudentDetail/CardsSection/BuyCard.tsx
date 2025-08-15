@@ -12,7 +12,6 @@ const BuyCard = ({ student }: { student: Student }) => {
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
-  const [paid, setPaid] = useState(true);
   const [errors, setErrors] = useState<{
     selectedCardId?: string;
     cardSessions?: string;
@@ -59,11 +58,10 @@ const BuyCard = ({ student }: { student: Student }) => {
         cardId: selectedCardId,
         sessions: parseInt(cardSessions),
         price: parseInt(cardPrice),
-        paid,
       });
       setIsDrawerOpen(false);
-    } 
-  }
+    }
+  };
 
   useEffect(() => {
     if (selectedCardId) {
@@ -79,7 +77,10 @@ const BuyCard = ({ student }: { student: Student }) => {
 
   return (
     <>
-      <button className="w-full p-3 bg-primary-500 text-white rounded-sm font-semibold cursor-pointer hover:bg-primary-600" onClick={() => setIsDrawerOpen(true)}>
+      <button
+        className="w-full p-3 bg-primary-500 text-white rounded-sm font-semibold cursor-pointer hover:bg-primary-600"
+        onClick={() => setIsDrawerOpen(true)}
+      >
         BUY NEW CARD
       </button>
       <Drawer
@@ -113,45 +114,26 @@ const BuyCard = ({ student }: { student: Student }) => {
           </div>
         </div>
         {selectedCardId && (
-        <>
-          <div className="mb-4">
-            <InputField
-              label="Card sessions"
-              value={cardSessions}
-              onChange={handleCardSessionsChange}
-              type="number"
-              error={errors.cardSessions}
-            />
-          </div>
-          <div className="mb-4">
-            <InputField
-              label="Card Price"
-              value={cardPrice}
-              onChange={handleCardPriceChange}
-              type="number"
-            />
-          </div>
-          <div className="flex flex-col gap-2 mb-8">
-            <p className="font-medium">Do student paid yet?</p>
-            <div className="flex gap-2 items-center">
-              <div className="flex gap-2 items-center">
-                <RoundCheckbox
-                  isChecked={paid}
-                  onClick={() => setPaid(true)}
-                />
-                <p>Yes</p>
-              </div>
-              <div className="flex gap-2 items-center">
-                <RoundCheckbox
-                  isChecked={!paid}
-                  onClick={() => setPaid(false)}
-                />
-                <p>No</p>
-              </div>
+          <>
+            <div className="mb-4">
+              <InputField
+                label="Card sessions"
+                value={cardSessions}
+                onChange={handleCardSessionsChange}
+                type="number"
+                error={errors.cardSessions}
+              />
             </div>
-          </div>
-        </>
-      )}
+            <div className="mb-4">
+              <InputField
+                label="Card Price"
+                value={cardPrice}
+                onChange={handleCardPriceChange}
+                type="number"
+              />
+            </div>
+          </>
+        )}
       </Drawer>
     </>
   );
