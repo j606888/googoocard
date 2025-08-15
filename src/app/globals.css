@@ -5,7 +5,9 @@
     /* Primary Colors */
     --color-primary-900: #1B5E4A;
     --color-primary-700: #2B8E6E;
+    --color-primary-600: #4BB38B;
     --color-primary-500: #55BD95;
+    --color-primary-400: #7DDAB7;
     --color-primary-300: #A7E1CB;
     --color-primary-100: #E3F7F0;
     --color-primary-50:  #F1FAF6;
@@ -13,6 +15,7 @@
     /* Warning Colors */
     --color-warning-100: #FFF3E9;
     --color-warning-500: #F4A15E;
+    --color-warning-600: #EF9349;
     --color-warning-900: #BC5F15;
 
 }

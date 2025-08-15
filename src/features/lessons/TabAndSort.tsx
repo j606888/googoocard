@@ -56,7 +56,7 @@ const TabAndSort = ({
       {TABS.map((tab) => (
         <div
           key={tab.value}
-          className={`flex items-center justify-center px-3 py-2 gap-1  text-sm  border-primary-500 -mb-px  ${
+          className={`flex items-center justify-center px-3 py-2 gap-1  text-sm  border-primary-500 -mb-px cursor-pointer ${
             activeTab === tab.value
               ? "text-primary-700 border-primary-500 bg-primary-50 border-b-3 font-medium "
               : "text-gray-500 border-transparent"
@@ -86,7 +86,7 @@ const TabAndSort = ({
               {SORT_OPTIONS.map((option) => (
                 <div
                   key={option.value}
-                  className="flex items-center justify-between gap-2 text-sm"
+                  className="flex items-center justify-between gap-2 text-sm cursor-pointer"
                   onClick={() => handleSort(option.value)}
                 >
                   <span

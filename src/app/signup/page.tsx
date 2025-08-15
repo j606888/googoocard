@@ -122,7 +122,7 @@ function SignupForm() {
                   </p>
                 )}
               </div>
-              <button className="absolute right-0 top-0 bottom-0 p-3">
+              <button className="absolute right-0 top-0 bottom-0 p-3 cursor-pointer">
                 {showPassword ? (
                   <EyeOff className="w-6 h-6 text-gray-500" onClick={() => setShowPassword(false)} />
                 ) : (
@@ -134,7 +134,7 @@ function SignupForm() {
         </div>
         <div className="mt-auto w-full">
           <button
-            className={`bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg ${
+            className={`bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg cursor-pointer hover:bg-primary-600 ${
               loading ? "opacity-50 cursor-not-allowed" : ""
             }`}
             disabled={loading}

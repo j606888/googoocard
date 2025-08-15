@@ -46,7 +46,7 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
               For Sale
             </div>
             <button onClick={() => setMenuOpen(!menuOpen)} ref={buttonRef}>
-              <EllipsisVertical className="w-6 h-6" />
+              <EllipsisVertical className="w-6 h-6 cursor-pointer" />
             </button>
           </div>
         </div>
@@ -63,7 +63,7 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
       >
         {!card.expiredAt && (
           <button
-            className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm"
+            className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm cursor-pointer"
             onClick={handleEdit}
           >
             <Pencil className="w-4.5 h-4.5" />
@@ -72,7 +72,7 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
         )}
         {card.purchasedCount === 0 && (
           <button
-            className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm"
+            className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm cursor-pointer"
             onClick={handleDelete}
           >
             <Trash className="w-4.5 h-4.5" />
@@ -81,7 +81,7 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
         )}
         {card.expiredAt ? (
           <button
-            className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm"
+            className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm cursor-pointer"
             onClick={handleEnable}
           >
             <Lightbulb className="w-4.5 h-4.5" />
@@ -89,7 +89,7 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
           </button>
         ) : (
           <button
-            className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm"
+            className="flex gap-2 items-center p-3 hover:bg-gray-100 rounded-sm cursor-pointer"
             onClick={handleExpire}
           >
             <Ban className="w-4.5 h-4.5" />

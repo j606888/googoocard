@@ -64,7 +64,7 @@ const Basic = ({
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold">Shared URL</p>
               <p
-                className="text-sm bg-primary-500 text-white rounded-lg px-2 py-2 flex gap-1"
+                className="text-sm bg-primary-500 text-white rounded-lg px-2 py-2 flex gap-1 cursor-pointer hover:bg-primary-600"
                 onClick={handleCopy}
               >
                 <Copy className="w-4 h-4" />

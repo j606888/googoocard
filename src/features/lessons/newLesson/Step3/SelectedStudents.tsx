@@ -19,7 +19,7 @@ const SelectedStudents = ({
       {selectedStudents.map((student) => (
         <div
           key={student.id}
-          className="relative flex flex-col gap-1 items-center flex-shrink-0"
+          className="relative flex flex-col gap-1 items-center flex-shrink-0 cursor-pointer"
           onClick={() => onRemoveStudent(student.id)}
         >
           <img

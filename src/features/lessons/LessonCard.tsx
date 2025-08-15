@@ -10,7 +10,7 @@ const LessonCard = ({ lesson }: { lesson: Lesson }) => {
     return new Date(period.endTime) > new Date(latest.endTime) ? period : latest;
   })
   
-  return <div className="flex gap-3" onClick={() => router.push(`/lessons/${lesson.id}`)}>
+  return <div className="flex gap-3 cursor-pointer hover:bg-gray-50" onClick={() => router.push(`/lessons/${lesson.id}`)}>
     <div className="flex items-center justify-center w-12 h-12 bg-primary-500 text-white font-semibold text-2xl">{lesson.name.charAt(0)}</div>
     <div className="flex flex-col justify-center">
       <h4 className="font-medium text-sm">{lesson.name}</h4>

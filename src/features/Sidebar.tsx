@@ -87,7 +87,7 @@ const Sidebar = () => {
 
   return (
     <>
-      <button onClick={() => setOpen(true)}>
+      <button onClick={() => setOpen(true)} className="cursor-pointer">
         <Menu className="w-6 h-6 text-white" />
       </button>
       <AnimatePresence>
@@ -115,7 +115,7 @@ const Sidebar = () => {
                   {currentClassroom?.name}
                 </h2>
                 <button
-                  className="ml-auto"
+                  className="ml-auto cursor-pointer"
                   onClick={() => setSwitchClassroomOpen(!switchClassroomOpen)}
                 >
                   <ChevronDown
@@ -172,7 +172,7 @@ const Sidebar = () => {
               </div>
               <div className="flex flex-col items-start  rounded-sm mt-auto">
                 <div
-                  className="flex gap-4 items-center hover:bg-gray-100 w-full rounded-sm p-3"
+                  className="flex gap-4 items-center hover:bg-gray-100 w-full rounded-sm p-3 cursor-pointer"
                   onClick={handleLogout}
                 >
                   <LogOut className="w-6 h-6" />

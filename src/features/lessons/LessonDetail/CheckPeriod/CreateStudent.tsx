@@ -71,7 +71,7 @@ const CreateStudent = ({
   return (
     <>
       <button
-        className="bg-primary-500 text-white px-4 py-1.5 rounded-3xl flex items-center gap-2 text-sm"
+        className="bg-primary-500 text-white px-4 py-1.5 rounded-3xl flex items-center gap-2 text-sm cursor-pointer hover:bg-primary-600"
         onClick={() => setIsDrawerOpen(true)}
       >
         <Plus className="w-4 h-4" />
@@ -99,7 +99,7 @@ const CreateStudent = ({
             {avatarUrls.map((avatarUrl) => (
               <div
                 key={avatarUrl}
-                className={`relative w-16 h-16 rounded-full ${
+                className={`relative w-16 h-16 rounded-full cursor-pointer ${
                   selectedAvatarUrl === avatarUrl ? "" : "brightness-75"
                 }`}
                 onClick={() => setSelectedAvatarUrl(avatarUrl)}

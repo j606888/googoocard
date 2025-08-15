@@ -46,7 +46,7 @@ const Drawer = ({
             <div className="relative flex items-center justify-center mb-6 ">
               <h2 className="text-xl font-semibold">{title}</h2>
               <button
-                className="text-gray-500 absolute right-0 top-0 flex items-center gap-2"
+                className="text-gray-500 absolute right-0 top-0 flex items-center gap-2 cursor-pointer"
                 onClick={onClose}
               >
                 <X className="w-6 h-6" />
@@ -56,7 +56,7 @@ const Drawer = ({
             <div className="mt-auto w-full">
               <button
                 type="submit"
-                className={`mt-auto w-full bg-primary-500 text-white font-semibold py-2 rounded flex items-center justify-center gap-2 ${
+                className={`mt-auto w-full bg-primary-500 text-white font-semibold py-2 rounded flex items-center justify-center gap-2 cursor-pointer hover:bg-primary-600 ${
                   isLoading ? "opacity-50 cursor-not-allowed" : ""
                 }`}
                 onClick={() => !isLoading && onSubmit()}

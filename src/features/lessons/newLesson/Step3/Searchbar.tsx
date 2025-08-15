@@ -25,7 +25,7 @@ const Searchbar = ({ onSearch, selectedStudents, error }: { onSearch: (search: s
           onChange={handleSearch}
           value={search}
         />
-        {search && <X className="ml-auto w-5 h-5 text-[#808080]" onClick={() => {setSearch(""); onSearch("")}} />}
+        {search && <X className="ml-auto w-5 h-5 text-[#808080] cursor-pointer" onClick={() => {setSearch(""); onSearch("")}} />}
       </div>
     </div>
   );

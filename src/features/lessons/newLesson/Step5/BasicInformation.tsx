@@ -31,7 +31,7 @@ const BasicInformation = () => {
     <div className="mb-4">
       <div className="flex justify-between items-center border-b-1 border-gray-200 pb-2 mb-2">
         <h3 className="text-base font-bold">Basic Information</h3>
-        <div className="flex items-center gap-2 text-primary-700" onClick={() => router.push("/lessons/new/step-1")}>
+        <div className="flex items-center gap-2 text-primary-700 cursor-pointer" onClick={() => router.push("/lessons/new/step-1")}>
           <Pencil className="w-5 h-5" />
           <span className="text-sm font-medium">Edit</span>
         </div>

@@ -121,13 +121,13 @@ const PeriodCard = ({
             <span>{endHour}</span>
           </div>
           <button onClick={() => setMenuOpen(!menuOpen)} ref={buttonRef}>
-            <EllipsisVertical className="w-4 h-4" />
+            <EllipsisVertical className="w-4 h-4 cursor-pointer" />
           </button>
         </div>
       </div>
       {canCheck && (
         <button
-          className="flex items-center justify-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md text-sm cursor-pointer"
+          className="flex items-center justify-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md text-sm cursor-pointer hover:bg-primary-600"
           onClick={handleCheck}
         >
           <PenTool className="w-4 h-4" />

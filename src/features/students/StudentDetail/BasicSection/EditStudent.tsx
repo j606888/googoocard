@@ -24,7 +24,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
   return (
     <>
       <SquarePen
-        className="w-5 h-5 text-gray-500"
+        className="w-5 h-5 text-gray-500 cursor-pointer"
         onClick={() => setIsOpen(true)}
       />
       <Drawer

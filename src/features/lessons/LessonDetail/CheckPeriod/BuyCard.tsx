@@ -106,7 +106,7 @@ const BuyCard = ({ student }: { student: Student }) => {
   return (
     <>
       <div
-        className="ml-auto bg-[#F4A15E] rounded-full px-3 py-1 flex items-center gap-1"
+        className="ml-auto bg-warning-500 rounded-full px-3 py-1 flex items-center gap-1 cursor-pointer hover:bg-warning-600"
         onClick={() => setIsDrawerOpen(true)}
       >
         <MdAddCard className="w-4.5 h-4.5 text-white" />

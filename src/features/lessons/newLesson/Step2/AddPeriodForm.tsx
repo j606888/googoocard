@@ -118,9 +118,9 @@ const AddPeriodForm = ({
     }
 
     const dateString = format(date, "yyyy-MM-dd");
-    
-    const fromDateTime = new Date(`${dateString}T${fromTime?.value}:00+08:00`)
-    const toDateTime = new Date(`${dateString}T${toTime?.value}:00+08:00`)
+
+    const fromDateTime = new Date(`${dateString}T${fromTime?.value}:00+08:00`);
+    const toDateTime = new Date(`${dateString}T${toTime?.value}:00+08:00`);
 
     const startTime = fromDateTime.toISOString();
     const endTime = toDateTime.toISOString();
@@ -173,25 +173,25 @@ const AddPeriodForm = ({
       <div className="flex gap-2 items-center">
         <div className="flex gap-2">
           <div
-            className="text-sm border border-primary-500 rounded-md px-2 py-1 text-primary-700"
+            className="text-sm border border-primary-500 rounded-md px-2 py-1 text-primary-700 cursor-pointer hover:bg-primary-50"
             onClick={minusOneWeek}
           >
             -1 Week
           </div>
           <div
-            className="text-sm border border-primary-500 rounded-md px-2 py-1 text-primary-700"
+            className="text-sm border border-primary-500 rounded-md px-2 py-1 text-primary-700 cursor-pointer hover:bg-primary-50"
             onClick={addOneWeek}
           >
             +1 Week
           </div>
         </div>
         <button
-      className="bg-primary-500 text-white text-sm px-4 py-1.5 rounded-sm flex items-center justify-center gap-2 ml-auto"
-      onClick={handleSubmit}
-    >
-      <Plus className="w-4 h-4" />
-      <span className="font-medium">Add Period</span>
-    </button>
+          className="bg-primary-500 text-white text-sm px-4 py-1.5 rounded-sm flex items-center justify-center gap-2 ml-auto cursor-pointer hover:bg-primary-600"
+          onClick={handleSubmit}
+        >
+          <Plus className="w-4 h-4" />
+          <span className="font-medium">Add Period</span>
+        </button>
       </div>
       <div></div>
     </div>

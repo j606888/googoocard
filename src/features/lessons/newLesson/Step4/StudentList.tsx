@@ -21,7 +21,7 @@ const StudentList = ({
         {students.map((student) => (
           <div
             key={student.id}
-            className={`relative flex flex-row items-center gap-1 border-1 border-gray-200 rounded-sm px-2 py-2 ${
+            className={`relative flex flex-row items-center gap-1 border-1 border-gray-200 rounded-sm px-2 py-2 cursor-pointer ${
               currentStudentId === student.id
                 ? "bg-primary-100 border-primary-500"
                 : ""

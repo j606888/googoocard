@@ -21,7 +21,7 @@ const StudentSelectList = ({
   return (
     <div className="flex flex-col gap-4">
       {students?.map((student) => (
-        <div key={student.id} className="flex items-center gap-3"
+        <div key={student.id} className="flex items-center gap-3 cursor-pointer"
         onClick={() => handleCheckboxClick(student)}
         >
           <img
