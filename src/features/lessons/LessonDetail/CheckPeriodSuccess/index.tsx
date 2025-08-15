@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import StudentInfo from "@/components/StudentInfo";
 import Link from "next/link";
 import { useState } from "react";
+import PendingStudents from "./PendingStudents";
 
 const CheckPeriodSuccess = () => {
   const [showIncome, setShowIncome] = useState(false);
@@ -28,6 +29,13 @@ const CheckPeriodSuccess = () => {
     period?.attendanceTakenAt &&
     format(period?.attendanceTakenAt, "yyyy/MM/dd, hh:mm a");
 
+  const pendingRecords = attendanceRecords?.filter(
+    (record) => !record.income
+  ) || []
+  const paidRecords = attendanceRecords?.filter(
+    (record) => record.income
+  ) || []
+
   if (!attendanceRecords) {
     return <div>Loading...</div>;
   }
@@ -43,7 +51,7 @@ const CheckPeriodSuccess = () => {
           <h3 className="text-lg font-bold">Take Attendance Success</h3>
           <p className="text-sm text-[#777777]">{formattedNow}</p>
         </div>
-        <div className="flex flex-col w-full items-baseline gap-1 border-1 border-primary-900 bg-primary-50 px-4 py-3 rounded-sm">
+        <div className="flex flex-col w-full items-baseline gap-1 bg-primary-50 px-4 py-3 rounded-sm">
           <p className="font-medium">{date}</p>
           <div className="flex items-center gap-1 text-sm text-[#444444]">
             <Clock className="w-4 h-4" />
@@ -52,12 +60,13 @@ const CheckPeriodSuccess = () => {
             </span>
           </div>
         </div>
+        {pendingRecords.length > 0 && <PendingStudents records={pendingRecords} lesson={lesson} />}
         <div className="flex justify-between w-full">
           <p className="text-sm font-medium">Show income</p>
           <Switch checked={showIncome} onCheckedChange={setShowIncome} />
         </div>
         <div className="flex flex-col gap-2 w-full mb-4">
-          {attendanceRecords?.map((attendanceRecord) => (
+          {paidRecords?.map((attendanceRecord) => (
             <div
               className="flex gap-2 items-center"
               key={attendanceRecord.studentId}
@@ -88,7 +97,7 @@ const CheckPeriodSuccess = () => {
               <span className="text-sm font-medium">
                 $
                 {Math.round(
-                  attendanceRecords?.reduce(
+                  paidRecords?.reduce(
                     (acc, record) => acc + record.income,
                     0
                   )

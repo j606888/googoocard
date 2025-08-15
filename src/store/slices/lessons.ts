@@ -2,6 +2,7 @@ import { Student } from "./students";
 import { api } from "../api";
 import { Card } from "./cards";
 import { Teacher } from "./teachers";
+import { CardStatus } from "@prisma/client";
 
 export interface Lesson {
   id: number;
@@ -48,6 +49,7 @@ export interface AttendanceRecord {
   cardName: string;
   remainingSessions: number;
   income: number;
+  cardStatus: CardStatus;
 }
 
 export interface LessonStudent {

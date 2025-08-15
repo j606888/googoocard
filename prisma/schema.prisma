@@ -13,6 +13,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum CardStatus {
+  SUCCESS
+  MISSING_CARD
+  MULTIPLE_CARDS
+}
+
 model User {
   id          Int          @id @default(autoincrement())
   email       String       @unique
@@ -177,6 +183,7 @@ model AttendanceRecord {
   student   Student  @relation(fields: [studentId], references: [id])
   studentCardId Int?
   studentCard StudentCard? @relation(fields: [studentCardId], references: [id])
+  cardStatus    CardStatus?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
