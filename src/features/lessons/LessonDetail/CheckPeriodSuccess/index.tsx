@@ -36,7 +36,7 @@ const CheckPeriodSuccess = () => {
     (record) => record.income
   ) || []
 
-  if (!attendanceRecords) {
+  if (!attendanceRecords || !lesson) {
     return <div>Loading...</div>;
   }
 
