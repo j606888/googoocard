@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { refreshLesson } from "@/service/lesson";
-import { CardStatus } from "@prisma/client";
 
 export async function GET(
   request: Request,
@@ -42,7 +41,6 @@ export async function GET(
       studentId: record.studentId,
       studentAvatarUrl: record.student.avatarUrl,
       studentName: record.student.name,
-      cardStatus: record.cardStatus,
       ...studentCardData,
     }
   });
@@ -105,16 +103,9 @@ export async function POST(
   await prisma.$transaction(async (tx) => {
     for (const student of students) {
       let studentCard = null;
-      let cardStatus: CardStatus;
-      if (student.studentCards.length === 0) {
-        cardStatus = CardStatus.MISSING_CARD;
-      } else if (student.studentCards.length === 1) {
+      if (student.studentCards.length === 1) {
         studentCard = student.studentCards[0];
-        cardStatus = CardStatus.SUCCESS;
-      } else {
-        cardStatus = CardStatus.MULTIPLE_CARDS;
       }
-
       await tx.lessonStudent.upsert({
         where: {
           lessonId_studentId: {
@@ -134,7 +125,6 @@ export async function POST(
           lessonPeriodId: lessonPeriod.id,
           studentId: student.id,
           studentCardId: studentCard?.id,
-          cardStatus,
         },
       });
 

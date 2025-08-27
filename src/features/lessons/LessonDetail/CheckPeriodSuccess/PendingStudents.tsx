@@ -1,11 +1,8 @@
 import StudentInfo from "@/components/StudentInfo";
-import { AttendanceRecord, Lesson } from "@/store/slices/lessons";
+import { AttendanceRecord } from "@/store/slices/lessons";
 import { MdOutlineWarning } from "react-icons/md";
 
-import { CardStatus } from "@prisma/client";
-import BuyAndUseForm from "./BuyAndUse";
-
-const PendingStudents = ({ records, lesson }: { records: AttendanceRecord[], lesson: Lesson }) => {
+const PendingStudents = ({ records }: { records: AttendanceRecord[] }) => {
   return (
     <div className="flex flex-col gap-2 p-3 bg-[#FFF1E6] w-full">
       <div className="flex items-center gap-1">
@@ -24,7 +21,7 @@ const PendingStudents = ({ records, lesson }: { records: AttendanceRecord[], les
               size="small"
               className="mr-auto"
             />
-            {record.cardStatus === CardStatus.MISSING_CARD && <BuyAndUseForm record={record} lesson={lesson} />}
+            {/* {record.cardStatus === CardStatus.MISSING_CARD && <BuyAndUseForm record={record} lesson={lesson} />} */}
           </div>
         ))}
       </div>
