@@ -48,7 +48,7 @@ const CheckPeriodSuccess = () => {
           <Check className="w-14 h-14 text-primary-500" />
         </div>
         <div className="flex flex-col items-center gap-1">
-          <h3 className="text-lg font-bold">Take Attendance Success</h3>
+          <h3 className="text-lg font-bold">課程簽到成功</h3>
           <p className="text-sm text-[#777777]">{formattedNow}</p>
         </div>
         <div className="flex flex-col w-full items-baseline gap-1 bg-primary-50 px-4 py-3 rounded-sm">

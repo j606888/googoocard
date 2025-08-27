@@ -48,6 +48,7 @@ export interface AttendanceRecord {
   cardName: string;
   remainingSessions: number;
   income: number;
+  uncheckedType: "no_card" | "multiple_cards" | "not_checked";
 }
 
 export interface LessonStudent {
@@ -114,7 +115,7 @@ const lessonsApi = api.injectEndpoints({
         url: `lessons/${id}/periods/${periodId}/attendance`,
         method: "GET",
       }),
-      providesTags: ["Lesson"],
+      providesTags: ["Lesson", "Attendance"],
     }),
     resetAttendance: builder.mutation<void, { id: number; periodId: number }>({
       query: ({ id, periodId }) => ({
