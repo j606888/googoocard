@@ -11,6 +11,7 @@ interface BottomSheetDialogProps {
   onSubmit: () => void;
   isLoading?: boolean;
   submitText?: string;
+  disabled?: boolean;
 }
 
 const Drawer = ({
@@ -20,6 +21,7 @@ const Drawer = ({
   onSubmit,
   children,
   isLoading,
+  disabled = false,
   submitText = "CREATE",
 }: BottomSheetDialogProps) => {
   return (
@@ -37,7 +39,7 @@ const Drawer = ({
 
           {/* Dialog content */}
           <motion.div
-            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-white shadow-xl p-4 min-h-70 flex flex-col"
+            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-white shadow-xl p-4 min-h-70 flex flex-col "
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
@@ -52,11 +54,14 @@ const Drawer = ({
                 <X className="w-6 h-6" />
               </button>
             </div>
-            {children}
+            <div className="max-h-[60vh] overflow-y-auto">
+              {children}
+            </div>
             <div className="mt-auto w-full">
               <button
+                disabled={disabled}
                 type="submit"
-                className={`mt-auto w-full bg-primary-500 text-white font-semibold py-2 rounded flex items-center justify-center gap-2 cursor-pointer hover:bg-primary-600 ${
+                className={`mt-auto w-full bg-primary-500 text-white font-semibold py-2 rounded flex items-center justify-center gap-2 cursor-pointer hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed ${
                   isLoading ? "opacity-50 cursor-not-allowed" : ""
                 }`}
                 onClick={() => !isLoading && onSubmit()}

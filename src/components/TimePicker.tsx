@@ -7,7 +7,7 @@ import { useState, useRef, useEffect } from "react";
 
 // Generate time options from 00:00 to 23:45 in 15-minute intervals
 export const generateTimeOptions = () => {
-  const options = [];
+  const options: Option[] = [];
 
   for (let hour = 0; hour < 24; hour++) {
     for (let minute = 0; minute < 60; minute += 15) {
@@ -66,7 +66,6 @@ const TimePicker = ({
       // Add a small delay to ensure the DOM is ready
       setTimeout(() => {
         if (scrollContainerRef.current) {
-          console.log("Inside");
           const container = scrollContainerRef.current;
           const selectedIndex = timeOptions.findIndex(
             (option) => option.value === (selectedTime?.value || "12:00")

@@ -1,25 +1,32 @@
 import Drawer from "@/components/Drawer";
 import { AttendanceRecord, Lesson } from "@/store/slices/lessons";
 import { useEffect, useMemo, useState } from "react";
-import { CreditCard } from "lucide-react";
 import InputField from "@/components/InputField";
 import RoundCheckbox from "@/components/RoundCheckbox";
+import { useCreateStudentCardMutation } from "@/store/slices/students";
+import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
+import { useParams } from "next/navigation";
 
 const BuyAndUseForm = ({
   record,
   lesson,
+  studentId,
 }: {
   record: AttendanceRecord;
   lesson: Lesson;
+  studentId: number;
 }) => {
   const [open, setOpen] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
+  const { periodId } = useParams();
+
   const cardOptions = useMemo(() => {
     return lesson?.cards || [];
   }, [lesson]);
-
+  const [createStudentCard, { isLoading }] = useCreateStudentCardMutation();
+  const [consumeStudentCard] = useConsumeStudentCardMutation();
   const [errors, setErrors] = useState<{
     selectedCardId?: string;
     cardSessions?: string;
@@ -46,6 +53,26 @@ const BuyAndUseForm = ({
     setCardPrice(e.target.value);
   };
 
+  const handleSubmit = async () => {
+    if (selectedCardId) {
+      const studentCard = await createStudentCard({
+        id: record.studentId,
+        cardId: selectedCardId,
+        sessions: parseInt(cardSessions),
+        price: parseInt(cardPrice),
+      });
+      if (studentCard?.data) {
+        await consumeStudentCard({
+          id: lesson.id,
+          periodId: Number(periodId),
+          studentId: studentId,
+          studentCardId: studentCard.data.id,
+        });
+      }
+      setOpen(false);
+    }
+  };
+
   useEffect(() => {
     if (selectedCardId) {
       const card = cardOptions.find((card) => card.id === selectedCardId);
@@ -59,17 +86,19 @@ const BuyAndUseForm = ({
   return (
     <>
       <button
-        className="flex items-center gap-1 bg-warning-500 rounded-full px-3 py-1.5 cursor-pointer hover:bg-warning-600"
+        className="text-xs rounded-full text-white bg-[#F87666] w-25 px-3 py-2 cursor-pointer"
         onClick={() => setOpen(true)}
       >
-        <CreditCard className="w-4 h-4 text-white" />
-        <span className="text-xs text-white font-medium">Buy card & use</span>
+        買卡並使用
       </button>
       <Drawer
-        title={`Buy card for ${record.studentName}`}
+        title={`為 ${record.studentName} 買卡並使用`}
         open={open}
         onClose={() => setOpen(false)}
-        onSubmit={() => {}}
+        onSubmit={handleSubmit}
+        submitText="買卡並使用"
+        isLoading={isLoading}
+        disabled={!selectedCardId || !cardSessions || !cardPrice}
       >
         <div className="mb-4">
           <p>Choose card</p>

@@ -126,6 +126,10 @@ const studentsApi = api.injectEndpoints({
       query: ({ id }) => `students/${id}`,
       providesTags: ["Student"],
     }),
+    getStudentCardsByLesson: builder.query<StudentCardWithCard[], { studentId : number; lessonId: number }>({
+      query: ({ studentId, lessonId }) => `lessons/${lessonId}/students/${studentId}/student-cards`,
+      providesTags: ["StudentCard"],
+    }),
   }),
 });
 
@@ -139,4 +143,5 @@ export const {
   useCreateStudentCardMutation,
   useGetStudentQuery,
   useExpireStudentCardMutation,
+  useGetStudentCardsByLessonQuery,
 } = studentsApi;

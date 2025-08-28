@@ -124,6 +124,17 @@ const lessonsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Lesson"],
     }),
+    consumeStudentCard: builder.mutation<
+      void,
+      { id: number; periodId: number; studentId: number; studentCardId: number }
+    >({
+      query: ({ id, periodId, studentId, studentCardId }) => ({
+        url: `lessons/${id}/periods/${periodId}/attendance/${studentId}/consume`,
+        method: "POST",
+        body: { studentCardId },
+      }),
+      invalidatesTags: ["Lesson", "StudentCard", "Card", "Attendance"],
+    }),
     getLessonStudents: builder.query<LessonStudent[], { id: number }>({
       query: ({ id }) => ({
         url: `lessons/${id}/students`,
@@ -160,6 +171,7 @@ export const {
   useTakeAttendanceMutation,
   useGetAttendanceQuery,
   useResetAttendanceMutation,
+  useConsumeStudentCardMutation,
   useGetLessonStudentsQuery,
   useCreatePeriodMutation,
   useDeletePeriodMutation,

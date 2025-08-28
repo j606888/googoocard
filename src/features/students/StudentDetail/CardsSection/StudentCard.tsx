@@ -3,9 +3,7 @@ import {
   useExpireStudentCardMutation,
 } from "@/store/slices/students";
 import { formatDate } from "@/lib/utils";
-import { EllipsisVertical, Rat } from "lucide-react";
-import Menu from "@/components/Menu";
-import { useRef, useState } from "react";
+import { Edit, Rat } from "lucide-react";
 import { toast } from "sonner";
 
 const StudentCard = ({
@@ -15,11 +13,8 @@ const StudentCard = ({
   studentCard: StudentCardWithCard;
   isPublic?: boolean;
 }) => {
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const hasDiscount = studentCard.basePrice !== studentCard.finalPrice;
-  const disabled =
-    studentCard.remainingSessions === 0 || !!studentCard.expiredAt;
-  const [menuOpen, setMenuOpen] = useState(false);
+  // const disabled =
+  // studentCard.remainingSessions === 0 || !!studentCard.expiredAt;
   const [expireStudentCard] = useExpireStudentCardMutation();
 
   const handleExpire = async () => {
@@ -32,109 +27,65 @@ const StudentCard = ({
       id: studentCard.studentId,
       studentCardId: studentCard.id,
     });
-    setMenuOpen(false);
     toast.success("Card expired");
   };
 
   return (
     <div
       key={studentCard.id}
-      className={`relative flex flex-col gap-2 p-3 rounded-sm shadow-sm ${
-        disabled ? "bg-[#F4F4F4]" : "bg-primary-50"
-      }`}
+      className={`relative flex flex-col gap-2 p-3 rounded-sm border border-gray-200`}
     >
       <div className="flex justify-between">
-        <h4 className="text-sm font-semibold">{studentCard.card.name}</h4>
-        {!disabled && !isPublic && (
-          <button
-            className="absolute top-4 right-4"
-            ref={buttonRef}
-            onClick={() => setMenuOpen(true)}
-          >
-            <EllipsisVertical className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-      <div className="flex">
-        <LabelItem label="Price">
-          <div className="flex items-center gap-1">
-            <span
-              className={`text-sm text-gray-600 font-medium ${
-                hasDiscount ? "line-through" : ""
-              }`}
-            >
-              ${studentCard.basePrice}
-            </span>
-            {hasDiscount && (
-              <span className="text-sm text-primary-500 font-medium">
-                ${studentCard.finalPrice}
-              </span>
-            )}
+        <h4 className="text-base font-light">{studentCard.card.name}</h4>
+        <div className="flex flex-col w-32 gap-1 font-normal text-gray-700">
+          <div className="flex justify-between">
+            <span className="text-xs">價格：</span>
+            <span className="text-xs">${studentCard.finalPrice}</span>
           </div>
-        </LabelItem>
-        <LabelItem label="Sessions">
-          <span className="text-sm font-medium">
-            {studentCard.remainingSessions} / {studentCard.totalSessions}
-          </span>
-        </LabelItem>
+          <div className="flex justify-between">
+            <span className="text-xs">購買日：</span>
+            <span className="text-xs">{formatDate(studentCard.createdAt)}</span>
+          </div>
+        </div>
       </div>
-      <div className="flex">
-        <LabelItem label="Purchased at">
-          <span className="text-xs font-medium">
-            {formatDate(studentCard.createdAt)}
-          </span>
-        </LabelItem>
-        <LabelItem label="Purchased at">
-          <span className="text-xs font-medium">
-            {studentCard.expiredAt ? formatDate(studentCard.expiredAt) : "-"}
-          </span>
-        </LabelItem>
-      </div>
-      {studentCard.attendanceRecords.length > 0 && (
-        <div className="flex flex-col px-3 bg-white rounded-sm mt-2">
-          {studentCard.attendanceRecords.map((record, index) => (
+      <div className="grid grid-cols-3 gap-2">
+        {studentCard.attendanceRecords.map((record, index) => (
+          <div
+            key={index}
+            className="flex flex-col items-center justify-center gap-1 bg-[#F2F2F2] rounded-sm p-2 h-14"
+          >
+            <span className="text-xs text-gray-700">
+              {formatDate(record.periodStartTime)}
+            </span>
+            <span className="text-xs">{record.lessonName}</span>
+          </div>
+        ))}
+        {Array.from({ length: studentCard.remainingSessions }).map(
+          (_, index) => (
             <div
               key={index}
-              className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0"
+              className="flex flex-col items-center justify-center gap-1 bg-[#F2F2F2] rounded-sm p-2 h-14"
             >
-              <span className="text-xs font-medium">{record.lessonName}</span>
-              <span className="text-xs text-gray-700">
-                {formatDate(record.periodStartTime)}
-              </span>
+              <span className="text-xs text-gray-500">-</span>
             </div>
-          ))}
-        </div>
-      )}
-      <Menu
-        open={menuOpen}
-        anchorEl={buttonRef.current}
-        onClose={() => setMenuOpen(false)}
-      >
-        <div className="flex flex-col py-3 gap-2">
-          <button
-            className="flex gap-2 items-center px-4 py-1 hover:bg-gray-100 rounded-sm"
+          )
+        )}
+      </div>
+      {!isPublic && (
+        <div className="flex pt-2 mt-2 border-t border-gray-200 text-gray-700 text-sm">
+          <div className="flex items-center gap-1 flex-1 justify-center">
+            <Edit className="w-4 h-4" />
+            <span>Edit</span>
+          </div>
+          <div
+            className="flex items-center gap-1 flex-1 justify-center cursor-pointer"
             onClick={handleExpire}
           >
-            <Rat className="w-4.5 h-4.5" />
+            <Rat className="w-4 h-4" />
             <span>Expire</span>
-          </button>
+          </div>
         </div>
-      </Menu>
-    </div>
-  );
-};
-
-const LabelItem = ({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) => {
-  return (
-    <div className="flex flex-1 flex-col gap-1">
-      <span className="text-xs text-gray-500">{label}</span>
-      {children}
+      )}
     </div>
   );
 };
