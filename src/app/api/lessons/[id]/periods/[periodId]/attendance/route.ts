@@ -34,10 +34,22 @@ export async function GET(
         include: {
           student: {
             include: {
-              studentCards: true,
+              studentCards: {
+                where: {
+                  remainingSessions: {
+                    gt: 0,
+                  },
+                },
+              },
             },
           },
           studentCard: {
+            where: {
+              remainingSessions: {
+                gt: 0,
+              },
+              expiredAt: null,
+            },
             include: {
               card: true,
             },
@@ -158,6 +170,7 @@ export async function POST(
           remainingSessions: {
             gt: 0,
           },
+          expiredAt: null,
         },
         include: {
           card: true,

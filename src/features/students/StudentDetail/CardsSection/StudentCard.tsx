@@ -13,9 +13,8 @@ const StudentCard = ({
   studentCard: StudentCardWithCard;
   isPublic?: boolean;
 }) => {
-  // const disabled =
-  // studentCard.remainingSessions === 0 || !!studentCard.expiredAt;
   const [expireStudentCard] = useExpireStudentCardMutation();
+  const isFinished = studentCard.remainingSessions === 0 || !!studentCard.expiredAt;
 
   const handleExpire = async () => {
     const confirm = window.confirm(
@@ -84,6 +83,11 @@ const StudentCard = ({
             <Rat className="w-4 h-4" />
             <span>Expire</span>
           </div>
+        </div>
+      )}
+      {isFinished && (
+        <div className="absolute top-8 right-4 border-5 border-red-600/70 text-red-600/70 text-lg font-bold rounded-lg px-4 py-3 flex items-center justify-center rotate-32">
+          FINISHED
         </div>
       )}
     </div>

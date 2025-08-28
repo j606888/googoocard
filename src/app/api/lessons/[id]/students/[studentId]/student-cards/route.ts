@@ -31,6 +31,10 @@ export async function GET(
   const studentCards = await prisma.studentCard.findMany({
     where: {
       studentId: parseInt(studentId),
+      expiredAt: null,
+      remainingSessions: {
+        gt: 0,
+      },
     },
     include: {
       card: true,

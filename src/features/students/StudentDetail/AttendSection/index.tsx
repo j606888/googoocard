@@ -50,18 +50,18 @@ const AttendSection = ({ student }: { student: StudentWithDetail }) => {
             <div
               key={lesson.lessonId}
             >
-              <div className="font-medium mb-1">
+              <div className="font-medium mb-2">
                 {lesson.lessonName}
               </div>
               <div className="flex gap-2 flex-wrap border-b border-[#e2e2e2] pb-3">
                 {lesson.studentAttendances.map((attendance) => (
                   <div
                     key={attendance.periodStartTime}
-                    className={`flex items-center gap-1 justify-center px-3 py-2 w-19 rounded-full ${
+                    className={`flex items-center gap-1 justify-center px-3 py-2 w-19 rounded-md ${
                       attendance.periodAttendantCheck
                         ? attendance.studentAttend
-                          ? "bg-primary-500"
-                          : "bg-gray-400"
+                          ? "bg-[#F2A98A]"
+                          : "bg-[#9D9C9B]"
                         : "border border-[#cccccc]"
                     }`}
                   >
