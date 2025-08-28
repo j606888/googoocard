@@ -86,6 +86,7 @@ model Student {
   studentCards StudentCard[]
   lessons      LessonStudent[]
   attendanceRecords AttendanceRecord[]
+  events Event[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -100,7 +101,6 @@ model StudentCard {
   finalPrice        Int
   totalSessions     Int
   remainingSessions Int
-  paid              Boolean  @default(true)
   attendanceRecords AttendanceRecord[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -176,8 +176,8 @@ model AttendanceRecord {
   lessonPeriod LessonPeriod @relation(fields: [lessonPeriodId], references: [id])
   studentId Int
   student   Student  @relation(fields: [studentId], references: [id])
-  studentCardId Int
-  studentCard StudentCard @relation(fields: [studentCardId], references: [id])
+  studentCardId Int?
+  studentCard StudentCard? @relation(fields: [studentCardId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -189,6 +189,18 @@ model InviteToken {
   classroom Classroom @relation(fields: [classroomId], references: [id])
   maxUses Int
   uses    Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Event {
+  id        Int      @id @default(autoincrement())
+  title      String
+  description String
+  studentId Int
+  student Student @relation(fields: [studentId], references: [id])
+  resourceType String
+  resourceId Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

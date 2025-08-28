@@ -12,6 +12,13 @@ export interface Student {
   studentCards: StudentCardWithCard[];
 }
 
+export interface Event {
+  id: number;
+  title: string;
+  description: string;
+  createdAt: string;
+}
+
 export interface StudentWithDetail extends Student {
   overview: {
     lastAttendAt: string | null;
@@ -65,7 +72,6 @@ export interface StudentCard {
   createdAt: string;
   updatedAt: string;
   expiredAt: string | null;
-  paid: boolean;
 }
 
 const studentsApi = api.injectEndpoints({
@@ -108,11 +114,11 @@ const studentsApi = api.injectEndpoints({
       query: ({ id }) => `students/${id}/student-cards`,
       providesTags: ["StudentCard"],
     }),
-    createStudentCard: builder.mutation<StudentCard, { id: number; cardId: number; sessions: number; price: number; paid: boolean }>({
-      query: ({ id, cardId, sessions, price, paid }) => ({
+    createStudentCard: builder.mutation<StudentCard, { id: number; cardId: number; sessions: number; price: number }>({
+      query: ({ id, cardId, sessions, price }) => ({
         url: `students/${id}/student-cards`,
         method: "POST",
-        body: { cardId, sessions, price, paid },
+        body: { cardId, sessions, price },
       }),
       invalidatesTags: ["StudentCard", "Student"],
     }),
@@ -123,16 +129,16 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["StudentCard", "Student"],
     }),
-    markStudentCardAsPaid: builder.mutation<StudentCard, { id: number; studentCardId: number }>({
-      query: ({ id, studentCardId }) => ({
-        url: `students/${id}/student-cards/${studentCardId}/mark-as-paid`,
-        method: "POST",
-      }),
-      invalidatesTags: ["StudentCard", "Student", "Card"],
-    }),
     getStudent: builder.query<StudentWithDetail, { id: number }>({
       query: ({ id }) => `students/${id}`,
       providesTags: ["Student"],
+    }),
+    getStudentCardsByLesson: builder.query<StudentCardWithCard[], { studentId : number; lessonId: number }>({
+      query: ({ studentId, lessonId }) => `lessons/${lessonId}/students/${studentId}/student-cards`,
+      providesTags: ["StudentCard"],
+    }),
+    getStudentEvents: builder.query<Event[], { id: number }>({
+      query: ({ id }) => `students/${id}/events`,
     }),
   }),
 });
@@ -147,5 +153,6 @@ export const {
   useCreateStudentCardMutation,
   useGetStudentQuery,
   useExpireStudentCardMutation,
-  useMarkStudentCardAsPaidMutation,
+  useGetStudentCardsByLessonQuery,
+  useGetStudentEventsQuery,
 } = studentsApi;

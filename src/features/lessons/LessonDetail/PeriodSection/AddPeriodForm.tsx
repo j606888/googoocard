@@ -54,8 +54,6 @@ const AddPeriodForm = ({
   }>({});
   const [createPeriod, { isLoading }] = useCreatePeriodMutation();
 
-  console.log({ periods });
-
   const handleDateChange = (date: Date | undefined) => {
     if (errors.date) {
       setErrors({ ...errors, date: undefined });
@@ -75,7 +73,7 @@ const AddPeriodForm = ({
       const timeOptions = generateTimeOptions();
       const toValue = `${toHour}:${toMinute}`;
       const toTimeOption = timeOptions.find(
-        (option) => option.value === toValue
+        (option: Option) => option.value === toValue
       );
       if (toTimeOption) {
         setToTime(toTimeOption);

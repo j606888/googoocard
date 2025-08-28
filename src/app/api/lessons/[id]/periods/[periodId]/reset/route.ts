@@ -22,12 +22,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   await prisma.$transaction(async (tx) => {
     for (const attendanceRecord of attendanceRecords) {
-      await tx.studentCard.update({
-        where: { id: attendanceRecord.studentCardId },
-        data: {
-          remainingSessions: { increment: 1 },
-        },
-      });
+      if (attendanceRecord.studentCardId) {
+        await tx.studentCard.update({
+          where: { id: attendanceRecord.studentCardId },
+          data: {
+            remainingSessions: { increment: 1 },
+          },
+        });
+      }
 
       await tx.attendanceRecord.delete({
         where: { id: attendanceRecord.id },

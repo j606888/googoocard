@@ -1,5 +1,4 @@
 import { api } from "../api";
-import { Student } from "./students";
 
 export interface Card {
   id: number;
@@ -8,15 +7,6 @@ export interface Card {
   sessions: number;
   expiredAt: Date | null;
   purchasedCount: number;
-}
-
-export interface UnpaidStudentCard {
-  id: number;
-  studentId: number;
-  cardId: number;
-  paid: boolean;
-  student: Student;
-  card: Card;
 }
 
 const cardsApi = api.injectEndpoints({
@@ -31,28 +21,28 @@ const cardsApi = api.injectEndpoints({
         method: "POST",
         body: card,
       }),
-      invalidatesTags: ["Card"],
+      invalidatesTags: ["Card", "Attendance"],
     }),
     deleteCard: builder.mutation<Card, number>({
       query: (id) => ({
         url: `cards/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Card"],
+      invalidatesTags: ["Card", "Attendance"],
     }),
     expireCard: builder.mutation<Card, number>({
       query: (id) => ({
         url: `cards/${id}/expire`,
         method: "POST",
       }),
-      invalidatesTags: ["Card"],
+      invalidatesTags: ["Card", "Attendance"],
     }),
     enableCard: builder.mutation<Card, number>({
       query: (id) => ({
         url: `cards/${id}/enable`,
         method: "POST",
       }),
-      invalidatesTags: ["Card"],
+      invalidatesTags: ["Card", "Attendance"],
     }),
     updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number }>({
       query: ({ id, name, price, sessions }) => ({
@@ -60,11 +50,7 @@ const cardsApi = api.injectEndpoints({
         method: "PATCH",
         body: { name, price, sessions },
       }),
-      invalidatesTags: ["Card"],
-    }),
-    unpaidStudentCards: builder.query<UnpaidStudentCard[], void>({
-      query: () => "cards/unpaid",
-      providesTags: ["Card"],
+      invalidatesTags: ["Card", "Attendance"],
     }),
   }),
 });
@@ -75,5 +61,4 @@ export const {
   useExpireCardMutation,
   useEnableCardMutation,
   useUpdateCardMutation,
-  useUnpaidStudentCardsQuery,
 } = cardsApi;

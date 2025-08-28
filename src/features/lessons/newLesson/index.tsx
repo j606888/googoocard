@@ -3,27 +3,34 @@ import { useState } from "react";
 import CardSelect from "./CardSelect";
 import Button from "@/components/Button";
 import TeacherSelect from "./TeacherSelect";
+import SubNavbar from "@/features/SubNavbar";
+import PeriodList from "./PeriodList";
+import AddPeriodForm from "./AddPeriodForm";
+import { useCreateLessonMutation } from "@/store/slices/lessons";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { getLessonDraft, updateLessonDraft } from "@/lib/lessonDraftStorage";
-import ProgressHeader from "@/components/ProgressHeader";
 
 const validationErrors = {
   lessonName: "Must provide a name",
   teachers: "Must select at least one teacher",
   cards: "Must select at least one card",
+  periods: "Must add at least one period",
 };
 
-const Step1 = () => {
-  const router = useRouter();
+const NewLesson = () => {
   const [lessonName, setLessonName] = useState("");
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>([]);
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
+  const [periods, setPeriods] = useState<
+    { startTime: string; endTime: string }[]
+  >([]);
   const [errors, setErrors] = useState<{
     lessonName?: string;
     teachers?: string;
     cards?: string;
+    periods?: string;
   }>({});
+  const [createLesson, { isLoading }] = useCreateLessonMutation();
+  const router = useRouter();
 
   const handleLessonNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (errors.lessonName) {
@@ -46,39 +53,45 @@ const Step1 = () => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleAddPeriod = (period: { startTime: string; endTime: string }) => {
+    const newPeriods = [...periods, period];
+    const sortedPeriods = newPeriods.sort((a, b) => {
+      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+    });
+    setErrors({ ...errors, periods: undefined });
+    setPeriods(sortedPeriods);
+  };
+
+  const handleDeletePeriod = (index: number) => {
+    const newPeriods = periods.filter((_, i) => i !== index);
+    setPeriods(newPeriods);
+  };
+
+  const handleSubmit = async () => {
     const errors = validateForm({
       lessonName,
       teachers: selectedTeacherIds,
       cards: selectedCardIds,
+      periods,
     });
     setErrors(errors);
-
     if (Object.keys(errors).length === 0) {
-      updateLessonDraft({
+      await createLesson({
         lessonName,
         teacherIds: selectedTeacherIds,
         cardIds: selectedCardIds,
+        periods,
       });
 
-      router.push("/lessons/new/step-2");
+      router.push("/lessons");
     }
   };
 
-  useEffect(() => {
-    const draft = getLessonDraft();
-    if (draft) {
-      setLessonName(draft.lessonName);
-      setSelectedTeacherIds(draft.teacherIds);
-      setSelectedCardIds(draft.cardIds);
-    }
-  }, []);
-
   return (
     <>
-      <ProgressHeader currentStep={1} />
+      <SubNavbar title="New Lesson" backUrl="/lessons" />
       <div className="px-5 py-5 flex flex-col gap-5">
-        <div className="flex flex-col gap-4 mb-5">
+        <div className="flex flex-col gap-4">
           <InputField
             label="Lesson Name"
             placeholder="E.g. Bachata Lv1"
@@ -96,9 +109,17 @@ const Step1 = () => {
             onChange={handleCardChange}
             selectedCardIds={selectedCardIds}
           />
+          <AddPeriodForm
+            periods={periods}
+            onAddPeriod={handleAddPeriod}
+            error={errors.periods}
+          />
+          <PeriodList periods={periods} onDelete={handleDeletePeriod} />
         </div>
         <div className="fixed bottom-0 left-0 right-0 p-4 flex gap-4">
-          <Button onClick={handleSubmit}>Next</Button>
+          <Button onClick={handleSubmit} isLoading={isLoading}>
+            Create
+          </Button>
         </div>
       </div>
     </>
@@ -109,8 +130,14 @@ const validateForm = (data: {
   lessonName: string;
   teachers: number[];
   cards: number[];
+  periods: { startTime: string; endTime: string }[];
 }) => {
-  const errors: { lessonName?: string; teachers?: string; cards?: string } = {};
+  const errors: {
+    lessonName?: string;
+    teachers?: string;
+    cards?: string;
+    periods?: string;
+  } = {};
   if (!data.lessonName) {
     errors.lessonName = validationErrors.lessonName;
   }
@@ -120,7 +147,10 @@ const validateForm = (data: {
   if (data.cards.length === 0) {
     errors.cards = validationErrors.cards;
   }
+  if (data.periods.length === 0) {
+    errors.periods = validationErrors.periods;
+  }
   return errors;
 };
 
-export default Step1;
+export default NewLesson;

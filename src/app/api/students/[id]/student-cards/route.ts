@@ -15,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { cardId, sessions, price, paid } = await request.json();
+  const { cardId, sessions, price } = await request.json();
 
   const card = await prisma.card.findUnique({
     where: {
@@ -35,9 +35,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       finalPrice: price,
       totalSessions: card.sessions,
       remainingSessions: sessions,
-      paid,
     },
   });
+
+  await prisma.event.create({
+    data: {
+      title: "購買課卡",
+      description: `購買新課卡 ${card.name}`,
+      studentId: parseInt(id),
+      resourceType: "studentCard",
+      resourceId: studentCard.id,
+    }
+  })
 
   return NextResponse.json(studentCard);
 }

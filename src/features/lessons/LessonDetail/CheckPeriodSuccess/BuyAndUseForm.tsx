@@ -1,20 +1,32 @@
-import { useEffect, useMemo, useState } from "react";
 import Drawer from "@/components/Drawer";
-import { MdAddCard } from "react-icons/md";
-import { Student } from "@/store/slices/students";
-import RoundCheckbox from "@/components/RoundCheckbox";
+import { AttendanceRecord, Lesson } from "@/store/slices/lessons";
+import { useEffect, useMemo, useState } from "react";
 import InputField from "@/components/InputField";
-import { useParams } from "next/navigation";
-import { useGetLessonQuery } from "@/store/slices/lessons";
+import RoundCheckbox from "@/components/RoundCheckbox";
 import { useCreateStudentCardMutation } from "@/store/slices/students";
+import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
+import { useParams } from "next/navigation";
 
-const BuyCard = ({ student }: { student: Student }) => {
-  const { id: lessonId } = useParams();
-  const { data: lesson } = useGetLessonQuery(lessonId as string);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+const BuyAndUseForm = ({
+  record,
+  lesson,
+  studentId,
+}: {
+  record: AttendanceRecord;
+  lesson: Lesson;
+  studentId: number;
+}) => {
+  const [open, setOpen] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
+  const { periodId } = useParams();
+
+  const cardOptions = useMemo(() => {
+    return lesson?.cards || [];
+  }, [lesson]);
+  const [createStudentCard, { isLoading }] = useCreateStudentCardMutation();
+  const [consumeStudentCard] = useConsumeStudentCardMutation();
   const [errors, setErrors] = useState<{
     selectedCardId?: string;
     cardSessions?: string;
@@ -22,11 +34,6 @@ const BuyCard = ({ student }: { student: Student }) => {
     selectedCardId: "",
     cardSessions: "",
   });
-  const [createStudentCard, { isLoading }] = useCreateStudentCardMutation();
-
-  const cardOptions = useMemo(() => {
-    return lesson?.cards || [];
-  }, [lesson]);
 
   const handleSelectCard = (cardId: number) => {
     setSelectedCardId(cardId);
@@ -39,48 +46,30 @@ const BuyCard = ({ student }: { student: Student }) => {
   };
 
   const handleCardSessionsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === "" || parseInt(value) > 0) {
-      setCardSessions(value);
-      setErrors({
-        ...errors,
-        cardSessions: "",
-      });
-    }
+    setCardSessions(e.target.value);
   };
 
   const handleCardPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setCardPrice(value);
+    setCardPrice(e.target.value);
   };
 
   const handleSubmit = async () => {
-    let hasError = false;
-    const newErrors = { ...errors };
-
-    if (!selectedCardId) {
-      newErrors.selectedCardId = "Please select a card";
-      hasError = true;
-    }
-
-    if (!cardSessions) {
-      newErrors.cardSessions = "Please enter card sessions";
-      hasError = true;
-    }
-
-    if (hasError) {
-      setErrors(newErrors);
-      return;
-    }
-
     if (selectedCardId) {
-      await createStudentCard({
-        id: student.id,
+      const studentCard = await createStudentCard({
+        id: record.studentId,
         cardId: selectedCardId,
         sessions: parseInt(cardSessions),
         price: parseInt(cardPrice),
       });
-      setIsDrawerOpen(false);
+      if (studentCard?.data) {
+        await consumeStudentCard({
+          id: lesson.id,
+          periodId: Number(periodId),
+          studentId: studentId,
+          studentCardId: studentCard.data.id,
+        });
+      }
+      setOpen(false);
     }
   };
 
@@ -96,20 +85,20 @@ const BuyCard = ({ student }: { student: Student }) => {
 
   return (
     <>
-      <div
-        className="ml-auto bg-warning-500 rounded-full px-3 py-1 flex items-center gap-1 cursor-pointer hover:bg-warning-600"
-        onClick={() => setIsDrawerOpen(true)}
+      <button
+        className="text-xs rounded-full text-white bg-[#F87666] w-25 px-3 py-2 cursor-pointer"
+        onClick={() => setOpen(true)}
       >
-        <MdAddCard className="w-4.5 h-4.5 text-white" />
-        <span className="text-sm font-medium text-white">Buy Card</span>
-      </div>
+        買卡並使用
+      </button>
       <Drawer
-        title={`Buy Card for ${student.name}`}
-        open={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        title={`為 ${record.studentName} 買卡並使用`}
+        open={open}
+        onClose={() => setOpen(false)}
         onSubmit={handleSubmit}
-        submitText="Buy"
+        submitText="買卡並使用"
         isLoading={isLoading}
+        disabled={!selectedCardId || !cardSessions || !cardPrice}
       >
         <div className="mb-4">
           <p>Choose card</p>
@@ -117,7 +106,7 @@ const BuyCard = ({ student }: { student: Student }) => {
             {cardOptions?.map((card) => (
               <div
                 key={card.id}
-                className={`flex gap-2 items-center px-4 py-3 border-1 border-gray-200 rounded-sm ${
+                className={`flex gap-2 items-center px-4 py-3 border-1 border-gray-200 rounded-sm cursor-pointer ${
                   selectedCardId === card.id
                     ? "bg-primary-100 border-primary-500"
                     : ""
@@ -161,4 +150,4 @@ const BuyCard = ({ student }: { student: Student }) => {
   );
 };
 
-export default BuyCard;
+export default BuyAndUseForm;

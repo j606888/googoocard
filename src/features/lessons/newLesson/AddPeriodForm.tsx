@@ -37,9 +37,11 @@ const validateForm = (data: {
 const AddPeriodForm = ({
   periods,
   onAddPeriod,
+  error,
 }: {
   periods: { startTime: string; endTime: string }[];
   onAddPeriod: (period: { startTime: string; endTime: string }) => void;
+  error?: string;
 }) => {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [fromTime, setFromTime] = useState<Option | null>(null);
@@ -142,6 +144,7 @@ const AddPeriodForm = ({
 
   return (
     <div className="border-b border-gray-200 py-1 flex flex-col gap-3">
+      <label className="font-medium -mb-3">Periods</label>
       <div className="flex gap-2 items-center justify-between">
         <div className="flex flex-col gap-0.5">
           <label className="text-sm text-gray-700">Date</label>
@@ -193,6 +196,7 @@ const AddPeriodForm = ({
           <span className="font-medium">Add Period</span>
         </button>
       </div>
+      {error && <p className="text-sm text-red-500">{error}</p>}
       <div></div>
     </div>
   );

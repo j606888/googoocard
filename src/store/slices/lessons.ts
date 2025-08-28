@@ -38,8 +38,6 @@ export interface DraftLesson {
     startTime: string;
     endTime: string;
   }[];
-  studentIds: number[];
-  answers: Answer[];
 }
 
 export interface AttendanceRecord {
@@ -50,6 +48,7 @@ export interface AttendanceRecord {
   cardName: string;
   remainingSessions: number;
   income: number;
+  uncheckedType: "no_card" | "multiple_cards" | "not_checked";
 }
 
 export interface LessonStudent {
@@ -116,7 +115,7 @@ const lessonsApi = api.injectEndpoints({
         url: `lessons/${id}/periods/${periodId}/attendance`,
         method: "GET",
       }),
-      providesTags: ["Lesson"],
+      providesTags: ["Lesson", "Attendance"],
     }),
     resetAttendance: builder.mutation<void, { id: number; periodId: number }>({
       query: ({ id, periodId }) => ({
@@ -124,6 +123,17 @@ const lessonsApi = api.injectEndpoints({
         method: "POST",
       }),
       invalidatesTags: ["Lesson"],
+    }),
+    consumeStudentCard: builder.mutation<
+      void,
+      { id: number; periodId: number; studentId: number; studentCardId: number }
+    >({
+      query: ({ id, periodId, studentId, studentCardId }) => ({
+        url: `lessons/${id}/periods/${periodId}/attendance/${studentId}/consume`,
+        method: "POST",
+        body: { studentCardId },
+      }),
+      invalidatesTags: ["Lesson", "StudentCard", "Card", "Attendance"],
     }),
     getLessonStudents: builder.query<LessonStudent[], { id: number }>({
       query: ({ id }) => ({
@@ -161,6 +171,7 @@ export const {
   useTakeAttendanceMutation,
   useGetAttendanceQuery,
   useResetAttendanceMutation,
+  useConsumeStudentCardMutation,
   useGetLessonStudentsQuery,
   useCreatePeriodMutation,
   useDeletePeriodMutation,

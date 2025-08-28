@@ -90,38 +90,13 @@ export async function POST(request: Request) {
       })),
     });
 
-    const cards = await tx.card.findMany({
+    await tx.card.findMany({
       where: {
         id: {
           in: draftLesson.cardIds,
         },
       },
     });
-
-    for (const answer of draftLesson.answers) {
-      await tx.lessonStudent.create({
-        data: {
-          lessonId: lesson.id,
-          studentId: answer.studentId,
-        },
-      });
-  
-      if (answer.createNewCard) {
-        const card = cards.find((card) => card.id === answer.selectedCardId);
-        if (!card) throw new Error("Card not found");
-        
-        await tx.studentCard.create({
-          data: {
-            studentId: answer.studentId,
-            cardId: card.id,
-            basePrice: card.price,
-            finalPrice: parseInt(answer.cardPrice),
-            totalSessions: card.sessions,
-            remainingSessions: parseInt(answer.cardSessions),
-          },
-        });
-      }
-    }
 
     return lesson
   });

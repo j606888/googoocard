@@ -1,8 +1,8 @@
-import { StudentWithDetail } from "@/store/slices/students";
-import { formatDate } from "@/lib/utils";
+import { StudentWithDetail, useGetStudentEventsQuery } from "@/store/slices/students";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import EditStudent from "./EditStudent";
+import Event from "./Event";
 
 const Basic = ({
   student,
@@ -11,6 +11,8 @@ const Basic = ({
   student: StudentWithDetail;
   isPublic?: boolean;
 }) => {
+  const { data: events } = useGetStudentEventsQuery({ id: student.id });
+  console.log({ events });
   const handleCopy = () => {
     navigator.clipboard.writeText(
       `${window.location.origin}/public-students/${student.randomKey}`
@@ -28,18 +30,6 @@ const Basic = ({
               className={`w-10 h-10 rounded-full object-cover`}
             />
             <h2 className="text-xl font-semibold">{student.name}</h2>
-          </div>
-          <div className="flex items-center gap-3 text-[#777777]">
-            <div className="w-30">Last attend:</div>
-            <div className="text-sm font-semibold">
-              {formatDate(student.overview.lastAttendAt)}
-            </div>
-          </div>
-          <div className="flex items-center gap-3 text-[#777777]">
-            <div className="w-30">Joined at:</div>
-            <div className="text-sm font-semibold">
-              {formatDate(student.createdAt)}
-            </div>
           </div>
           <div className="absolute top-5 right-5">
             <EditStudent student={student} />
@@ -76,6 +66,15 @@ const Basic = ({
             </p>
           </div>
         )}
+        <div className="flex flex-col gap-2">
+          <h4 className="text-sm font-semibold">Events</h4>
+          <div className="flex flex-col gap-2">
+            {events?.map((event) => (
+              <Event key={event.id} event={event} />
+            ))}
+          </div>
+        </div>
+
       </div>
     </>
   );
