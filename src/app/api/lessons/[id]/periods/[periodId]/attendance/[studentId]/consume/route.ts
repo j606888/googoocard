@@ -19,14 +19,30 @@ export async function POST(
     );
 
     await prisma.$transaction(async (tx) => {
-      await tx.studentCard.update({
+      const updatedStudentCard = await tx.studentCard.update({
         where: { id: studentCard.id },
         data: {
           remainingSessions: {
             decrement: 1,
           },
         },
+        include: {
+          card: true,
+        },
       });
+
+      if (updatedStudentCard.remainingSessions === 0) {
+        await tx.event.create({
+          data: {
+            title: "課卡使用完畢",
+            description: `課卡 ${updatedStudentCard.card.name} 使用完畢`,
+            studentId: parseInt(studentId),
+            resourceType: "studentCard",
+            resourceId: updatedStudentCard.id,
+          },
+        });
+      }
+
       await tx.attendanceRecord.update({
         where: { id: attendanceRecord.id },
         data: {

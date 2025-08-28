@@ -38,5 +38,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     },
   });
 
+  await prisma.event.create({
+    data: {
+      title: "購買課卡",
+      description: `購買新課卡 ${card.name}`,
+      studentId: parseInt(id),
+      resourceType: "studentCard",
+      resourceId: studentCard.id,
+    }
+  })
+
   return NextResponse.json(studentCard);
 }

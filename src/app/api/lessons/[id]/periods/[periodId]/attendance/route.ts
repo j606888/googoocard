@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { refreshLesson } from "@/service/lesson";
-import { Prisma } from "@prisma/client";
+import { Prisma, StudentCard } from "@prisma/client";
 
 type LessonWithCards = Prisma.LessonGetPayload<{
   include: {
@@ -19,7 +19,7 @@ const UNCHECK_TYPE = {
   NO_CARD: "no_card",
   MULTIPLE_CARDS: "multiple_cards",
   NOT_CHECKED: "not_checked",
-}
+};
 
 export async function GET(
   request: Request,
@@ -40,16 +40,18 @@ export async function GET(
           studentCard: {
             include: {
               card: true,
-              student: true,
             },
-          }
+          },
         },
       },
     },
   });
 
   if (!lessonPeriod) {
-    return NextResponse.json({ error: "Lesson period not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Lesson period not found" },
+      { status: 404 }
+    );
   }
 
   const lesson = await prisma.lesson.findUnique({
@@ -65,7 +67,7 @@ export async function GET(
 
   const attendanceRecords = lessonPeriod?.attendanceRecords.map((record) => {
     const studentCard = record.studentCard;
-    let studentCardData = {}
+    let studentCardData = {};
 
     if (studentCard) {
       studentCardData = {
@@ -73,12 +75,12 @@ export async function GET(
         cardName: studentCard.card.name,
         remainingSessions: studentCard.remainingSessions,
         income: studentCard.finalPrice / studentCard.totalSessions,
-      }
+      };
     } else {
       const uncheckedType = findUncheckedType(lesson, record.student);
       studentCardData = {
-        uncheckedType
-      }
+        uncheckedType,
+      };
     }
 
     return {
@@ -86,17 +88,19 @@ export async function GET(
       studentAvatarUrl: record.student.avatarUrl,
       studentName: record.student.name,
       ...studentCardData,
-    }
+    };
   });
 
   return NextResponse.json(attendanceRecords);
 }
 
 function findUncheckedType(lesson: LessonWithCards, student: StudentWithCards) {
-  const lessonCards = lesson.cards
-  const studentCards = student.studentCards
+  const lessonCards = lesson.cards;
+  const studentCards = student.studentCards;
 
-  const matchedCards = studentCards.filter((studentCard) => lessonCards.some((lessonCard) => lessonCard.cardId === studentCard.cardId));
+  const matchedCards = studentCards.filter((studentCard) =>
+    lessonCards.some((lessonCard) => lessonCard.cardId === studentCard.cardId)
+  );
 
   if (matchedCards.length === 0) {
     return UNCHECK_TYPE.NO_CARD;
@@ -155,13 +159,16 @@ export async function POST(
             gt: 0,
           },
         },
+        include: {
+          card: true,
+        },
       },
     },
   });
 
   await prisma.$transaction(async (tx) => {
     for (const student of students) {
-      let studentCard = null;
+      let studentCard: StudentCard | null = null;
       if (student.studentCards.length === 1) {
         studentCard = student.studentCards[0];
       }
@@ -179,7 +186,7 @@ export async function POST(
         },
       });
 
-      await tx.attendanceRecord.create({
+      const attendanceRecord = await tx.attendanceRecord.create({
         data: {
           lessonPeriodId: lessonPeriod.id,
           studentId: student.id,
@@ -187,15 +194,40 @@ export async function POST(
         },
       });
 
+      await tx.event.create({
+        data: {
+          title: "簽到",
+          description: `${lesson.name} 簽到成功`,
+          studentId: student.id,
+          resourceType: "attendanceRecord",
+          resourceId: attendanceRecord.id,
+        },
+      });
+
       if (studentCard) {
-        await tx.studentCard.update({
+        const updatedStudentCard = await tx.studentCard.update({
           where: { id: studentCard.id },
           data: {
             remainingSessions: {
               decrement: 1,
             },
           },
+          include: {
+            card: true,
+          },
         });
+
+        if (updatedStudentCard.remainingSessions === 0) {
+          await tx.event.create({
+            data: {
+              title: "課卡使用完畢",
+              description: `課卡 ${updatedStudentCard.card.name} 使用完畢`,
+              studentId: student.id,
+              resourceType: "studentCard",
+              resourceId: updatedStudentCard.id,
+            },
+          });
+        }
       }
     }
 
