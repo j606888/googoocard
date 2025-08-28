@@ -12,6 +12,13 @@ export interface Student {
   studentCards: StudentCardWithCard[];
 }
 
+export interface Event {
+  id: number;
+  title: string;
+  description: string;
+  createdAt: string;
+}
+
 export interface StudentWithDetail extends Student {
   overview: {
     lastAttendAt: string | null;
@@ -130,6 +137,9 @@ const studentsApi = api.injectEndpoints({
       query: ({ studentId, lessonId }) => `lessons/${lessonId}/students/${studentId}/student-cards`,
       providesTags: ["StudentCard"],
     }),
+    getStudentEvents: builder.query<Event[], { id: number }>({
+      query: ({ id }) => `students/${id}/events`,
+    }),
   }),
 });
 
@@ -144,4 +154,5 @@ export const {
   useGetStudentQuery,
   useExpireStudentCardMutation,
   useGetStudentCardsByLessonQuery,
+  useGetStudentEventsQuery,
 } = studentsApi;
