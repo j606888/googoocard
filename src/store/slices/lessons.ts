@@ -51,6 +51,15 @@ export interface AttendanceRecord {
   uncheckedType: "no_card" | "multiple_cards" | "not_checked";
 }
 
+export interface UnbindAttendanceRecord {
+  studentId: number;
+  studentName: string;
+  studentAvatarUrl: string;
+  lessonName: string;
+  lessonId: number;
+  lessonPeriodId: number;
+}
+
 export interface LessonStudent {
   id: number;
   name: string;
@@ -160,6 +169,13 @@ const lessonsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Lesson"],
     }),
+    getUnbindAttendanceRecords: builder.query<UnbindAttendanceRecord[], void>({
+      query: () => ({
+        url: "attendance-records/unbind",
+        method: "GET",
+      }),
+      providesTags: ["AttendanceRecord"],
+    }),
   }),
 });
 
@@ -175,4 +191,5 @@ export const {
   useGetLessonStudentsQuery,
   useCreatePeriodMutation,
   useDeletePeriodMutation,
+  useGetUnbindAttendanceRecordsQuery,
 } = lessonsApi;
