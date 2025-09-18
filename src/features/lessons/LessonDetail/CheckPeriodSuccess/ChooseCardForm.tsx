@@ -5,6 +5,7 @@ import { useGetStudentCardsByLessonQuery } from "@/store/slices/students";
 import { formatDate } from "@/lib/utils";
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
 import { useParams } from "next/navigation";
+import { toast } from "sonner";
 
 const ChooseCardForm = ({
   record,
@@ -18,7 +19,7 @@ const ChooseCardForm = ({
   const [open, setOpen] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const { periodId } = useParams();
-  const [consumeStudentCard] = useConsumeStudentCardMutation();
+  const [consumeStudentCard, { isLoading }] = useConsumeStudentCardMutation();
   const { data: studentCards } = useGetStudentCardsByLessonQuery({
     studentId,
     lessonId: lesson.id,
@@ -42,6 +43,7 @@ const ChooseCardForm = ({
       studentId,
       studentCardId: selectedCardId,
     });
+    toast.success("成功使用課卡");
     handleClose();
   };
 
@@ -60,6 +62,7 @@ const ChooseCardForm = ({
         onSubmit={handleSubmit}
         submitText="使用這張"
         disabled={!selectedCardId}
+        isLoading={isLoading}
       >
         <div className="flex flex-col gap-4 mb-4">
           {studentCards?.map((studentCard) => (

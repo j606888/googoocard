@@ -44,12 +44,6 @@ export async function GET(
             },
           },
           studentCard: {
-            where: {
-              remainingSessions: {
-                gt: 0,
-              },
-              expiredAt: null,
-            },
             include: {
               card: true,
             },

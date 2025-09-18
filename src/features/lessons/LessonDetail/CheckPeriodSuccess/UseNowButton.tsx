@@ -2,6 +2,7 @@ import { Lesson } from "@/store/slices/lessons";
 import { useGetStudentCardsByLessonQuery } from "@/store/slices/students";
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
 import { useParams } from "next/navigation";
+import { toast } from "sonner";
 
 const UseNowButton = ({
   lesson,
@@ -26,6 +27,7 @@ const UseNowButton = ({
         studentId: studentId,
         studentCardId: studentCards[0].id,
       });
+      toast.success("成功使用課卡");
     }
   };
 

@@ -114,7 +114,7 @@ const lessonsApi = api.injectEndpoints({
         method: "POST",
         body: { studentIds },
       }),
-      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card"],
+      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "AttendanceRecord"],
     }),
     getAttendance: builder.query<
       AttendanceRecord[],
@@ -142,7 +142,7 @@ const lessonsApi = api.injectEndpoints({
         method: "POST",
         body: { studentCardId },
       }),
-      invalidatesTags: ["Lesson", "StudentCard", "Card", "Attendance"],
+      invalidatesTags: ["Lesson", "StudentCard", "Card", "Attendance", "AttendanceRecord"],
     }),
     getLessonStudents: builder.query<LessonStudent[], { id: number }>({
       query: ({ id }) => ({

@@ -10,6 +10,7 @@ export const TAG_TYPES = [
   "Membership",
   "InviteToken",
   "Attendance",
+  "AttendanceRecord",
 ]
 
 export const api = createApi({

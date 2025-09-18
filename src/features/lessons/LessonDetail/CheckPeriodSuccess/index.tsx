@@ -1,16 +1,17 @@
-import SubNavbar from "@/features/SubNavbar";
+import { useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
+import { Check, Clock } from "lucide-react";
+import SubNavbar from "@/features/SubNavbar";
+import { PulseLoader } from "react-spinners";
+import { format } from "date-fns";
 import {
   useGetAttendanceQuery,
   useGetLessonQuery,
 } from "@/store/slices/lessons";
-import { Check, Clock } from "lucide-react";
-import { format } from "date-fns";
 import { periodInfo } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import StudentInfo from "@/components/StudentInfo";
-import Link from "next/link";
-import { useState } from "react";
 import PendingStudents from "./PendingStudents";
 
 const CheckPeriodSuccess = () => {
@@ -29,20 +30,25 @@ const CheckPeriodSuccess = () => {
     period?.attendanceTakenAt &&
     format(period?.attendanceTakenAt, "yyyy/MM/dd, hh:mm a");
 
-  const pendingRecords = attendanceRecords?.filter(
-    (record) => !record.income
-  ) || []
-  const paidRecords = attendanceRecords?.filter(
-    (record) => record.income
-  ) || []
+  const pendingRecords =
+    attendanceRecords?.filter((record) => !record.income) || [];
+  const paidRecords =
+    attendanceRecords?.filter((record) => record.income) || [];
 
   if (!attendanceRecords || !lesson) {
-    return <div>Loading...</div>;
+    return (
+      <>
+        <SubNavbar title={lesson?.name || ""} backUrl={`/lessons/${id}`} />
+        <div className="h-[calc(100vh-64px)] flex items-center justify-center">
+          <PulseLoader color="#55BD95" size={20} />
+        </div>
+      </>
+    );
   }
 
   return (
     <>
-      <SubNavbar title={lesson?.name || ""} />
+      <SubNavbar title={lesson?.name || ""} backUrl={`/lessons/${id}`} />
       <div className="px-5 py-5 flex flex-col items-center gap-5">
         <div className="flex justify-center items-center rounded-full bg-primary-50 w-24 h-24">
           <Check className="w-14 h-14 text-primary-500" />
@@ -60,7 +66,9 @@ const CheckPeriodSuccess = () => {
             </span>
           </div>
         </div>
-        {pendingRecords.length > 0 && <PendingStudents records={pendingRecords} lesson={lesson} />}
+        {pendingRecords.length > 0 && (
+          <PendingStudents records={pendingRecords} lesson={lesson} />
+        )}
         <div className="flex justify-between w-full">
           <p className="text-sm font-medium">Show income</p>
           <Switch checked={showIncome} onCheckedChange={setShowIncome} />
@@ -97,10 +105,7 @@ const CheckPeriodSuccess = () => {
               <span className="text-sm font-medium">
                 $
                 {Math.round(
-                  paidRecords?.reduce(
-                    (acc, record) => acc + record.income,
-                    0
-                  )
+                  paidRecords?.reduce((acc, record) => acc + record.income, 0)
                 )}
               </span>
             </div>

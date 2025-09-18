@@ -97,8 +97,8 @@ const PeriodCard = ({
     const confirmed = confirm("Are you sure you want to reset this period?");
     if (confirmed) {
       resetAttendance({ id: period.lessonId, periodId: period.id });
+      toast.success("Reset attendance successfully");
     }
-    toast.success("Reset attendance successfully");
     setMenuOpen(false);
   };
 

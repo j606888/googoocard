@@ -6,6 +6,7 @@ import RoundCheckbox from "@/components/RoundCheckbox";
 import { useCreateStudentCardMutation } from "@/store/slices/students";
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
 import { useParams } from "next/navigation";
+import { toast } from "sonner";
 
 const BuyAndUseForm = ({
   record,
@@ -26,7 +27,7 @@ const BuyAndUseForm = ({
     return lesson?.cards || [];
   }, [lesson]);
   const [createStudentCard, { isLoading }] = useCreateStudentCardMutation();
-  const [consumeStudentCard] = useConsumeStudentCardMutation();
+  const [consumeStudentCard, { isLoading: isConsumeLoading }] = useConsumeStudentCardMutation();
   const [errors, setErrors] = useState<{
     selectedCardId?: string;
     cardSessions?: string;
@@ -69,6 +70,7 @@ const BuyAndUseForm = ({
           studentCardId: studentCard.data.id,
         });
       }
+      toast.success("成功買卡並使用");
       setOpen(false);
     }
   };
@@ -97,7 +99,7 @@ const BuyAndUseForm = ({
         onClose={() => setOpen(false)}
         onSubmit={handleSubmit}
         submitText="買卡並使用"
-        isLoading={isLoading}
+        isLoading={isLoading || isConsumeLoading}
         disabled={!selectedCardId || !cardSessions || !cardPrice}
       >
         <div className="mb-4">

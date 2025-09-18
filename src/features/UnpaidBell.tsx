@@ -12,7 +12,7 @@ const UnpaidBell = () => {
   const [open, setOpen] = useState(false);
   const { data: unbindRecords } = useGetUnbindAttendanceRecordsQuery();
 
-  if (unbindRecords?.length === 0) return null;
+  if (!unbindRecords || unbindRecords?.length === 0) return null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -25,11 +25,6 @@ const UnpaidBell = () => {
         </div>
       </PopoverTrigger>
       <PopoverContent className="mr-3 mt-2">
-        {/* <div className="flex items-center justify-between">
-        <h4 className="text-base font-medium w-full text-center mb-4  pb-2">
-          
-        </h4>
-      </div> */}
         <div className="flex flex-col gap-2">
           {unbindRecords?.map((record) => (
             <Link
