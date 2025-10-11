@@ -8,7 +8,7 @@ const StudentInfo = ({
   size = "normal",
   className,
 }: {
-  studentId: number;
+  studentId?: number;
   avatarUrl: string;
   name: string;
   size?: "normal" | "small";
@@ -17,7 +17,10 @@ const StudentInfo = ({
   const imageSize = size === "normal" ? 36 : 24;
   const router = useRouter();
   return (
-    <div className={`flex items-center gap-2 cursor-pointer ${className}`} onClick={() => router.push(`/students/${studentId}`)}>
+    <div
+      className={`flex items-center gap-2 cursor-pointer ${className}`}
+      onClick={() => studentId && router.push(`/students/${studentId}`)}
+    >
       <Image
         className={`rounded-full`}
         width={imageSize}
