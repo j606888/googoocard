@@ -58,6 +58,7 @@ export interface UnbindAttendanceRecord {
   lessonName: string;
   lessonId: number;
   lessonPeriodId: number;
+  lessonPeriodStartTime: string;
 }
 
 export interface LessonStudent {

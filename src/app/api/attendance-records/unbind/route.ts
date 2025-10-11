@@ -20,6 +20,11 @@ export async function GET() {
         },
       }
     },
+    orderBy: {
+      lessonPeriod: {
+        startTime: "asc",
+      },
+    }
   });
 
   const formattedRecords = unbindRecords.map((record) => {
@@ -30,6 +35,7 @@ export async function GET() {
       lessonName: record.lessonPeriod.lesson.name,
       lessonId: record.lessonPeriod.lessonId,
       lessonPeriodId: record.lessonPeriodId,
+      lessonPeriodStartTime: record.lessonPeriod.startTime,
     };
   });
 
