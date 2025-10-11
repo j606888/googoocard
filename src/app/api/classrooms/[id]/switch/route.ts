@@ -23,7 +23,10 @@ export async function POST(
   if (!membership) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
+  await prisma.user.update({
+    where: { id: userId },
+    data: { currentClassroomId: parseInt(id) },
+  });
   await createAuthSession(userId, parseInt(id));
 
   return NextResponse.json({ message: "Classroom switched successfully" });

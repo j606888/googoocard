@@ -20,6 +20,8 @@ model User {
   password    String
   classrooms  Classroom[]  @relation("OwnedClassrooms")
   memberships Membership[]
+  currentClassroomId Int?
+  currentClassroom Classroom? @relation(fields: [currentClassroomId], references: [id])
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -37,6 +39,7 @@ model Classroom {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   teachers    Teacher[]
+  User        User[]
 }
 
 model Membership {
