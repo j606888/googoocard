@@ -47,6 +47,10 @@ export async function POST(request: Request) {
     });
 
     await createAuthSession(userId!, classroom.id);
+    await prisma.user.update({
+      where: { id: userId! },
+      data: { currentClassroomId: classroom.id },
+    });
 
     return NextResponse.json({ success: true, classroom });
   } catch (err) {

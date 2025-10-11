@@ -52,12 +52,14 @@ export interface AttendanceRecord {
 }
 
 export interface UnbindAttendanceRecord {
+  id: number;
   studentId: number;
   studentName: string;
   studentAvatarUrl: string;
   lessonName: string;
   lessonId: number;
   lessonPeriodId: number;
+  lessonPeriodStartTime: string;
 }
 
 export interface LessonStudent {

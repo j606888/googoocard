@@ -20,16 +20,23 @@ export async function GET() {
         },
       }
     },
+    orderBy: {
+      lessonPeriod: {
+        startTime: "asc",
+      },
+    }
   });
 
   const formattedRecords = unbindRecords.map((record) => {
     return {
+      id: record.id,
       studentId: record.studentId,
       studentName: record.student.name,
       studentAvatarUrl: record.student.avatarUrl,
       lessonName: record.lessonPeriod.lesson.name,
       lessonId: record.lessonPeriod.lessonId,
       lessonPeriodId: record.lessonPeriodId,
+      lessonPeriodStartTime: record.lessonPeriod.startTime,
     };
   });
 

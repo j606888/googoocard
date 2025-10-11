@@ -8,7 +8,7 @@ const SingleStudent = ({ student }: { student: Student }) => {
 
   return (
     <div
-      className="flex flex-col gap-3 px-4 py-3 border-1 border-[#eeeeee] shadow-sm rounded-[16px] w-full cursor-pointer hover:bg-gray-50"
+      className="flex flex-col gap-3 px-4 py-3 border-1 border-[#eeeeee] shadow-sm rounded-[10px] w-full cursor-pointer hover:bg-gray-50"
       onClick={() => router.push(`/students/${student.id}`)}
     >
       <div className="flex items-center gap-3">

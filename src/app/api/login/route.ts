@@ -37,9 +37,9 @@ export async function POST(request: Request) {
       classroomId = await joinClassroom({ userId: user.id, token });
     }
 
-    const firstClassroomId = classroomId ?? user.memberships[0].classroomId;
+    const currentClassroomId = classroomId || user.currentClassroomId || user.memberships[0].classroomId;
 
-    await createAuthSession(user.id, firstClassroomId);
+    await createAuthSession(user.id, currentClassroomId);
 
     return NextResponse.json({
       message: "Login successful",

@@ -76,6 +76,13 @@ const PeriodCard = ({
   const [resetAttendance] = useResetAttendanceMutation();
 
   const handleCheck = () => {
+    // When current time is before endTime, add a confirm modal
+    if (new Date() < new Date(endTime)) {
+      const confirmed = confirm("Are you sure you want to check this period?");
+      if (!confirmed) {
+        return
+      }
+    }
     router.push(`/lessons/${period.lessonId}/periods/${period.id}/check`);
   };
 

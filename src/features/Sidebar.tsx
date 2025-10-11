@@ -134,10 +134,10 @@ const Sidebar = () => {
                     {otherClassrooms?.map((classroom) => (
                       <div
                         key={classroom.id}
-                        className="flex gap-3 items-center"
+                        className="flex gap-3 items-cente py-2"
                         onClick={() => handleSwitchClassroom(classroom.id)}
                       >
-                        <div className="w-7 h-7 font-bold text-sm flex items-center justify-center bg-primary-500 rounded-sm text-white">
+                        <div className="w-8 h-8 font-bold text-sm flex items-center justify-center bg-primary-500 rounded-sm text-white">
                           {classroom.name.slice(0, 1)}
                         </div>
                         <h2 className="text-lg font-semibold">

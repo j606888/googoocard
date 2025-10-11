@@ -20,9 +20,16 @@ const StudentSelectList = ({
     }
   };
 
+  const sortedStudents = students.sort((a) => {
+    if (attendStudentIds.includes(a.id)) {
+      return -1;
+    }
+    return 1;
+  });
+
   return (
     <div className="flex flex-col gap-1">
-      {students?.map((student) => {
+      {sortedStudents?.map((student) => {
         const isAttended = attendStudentIds.includes(student.id);
         const isChecked = selectedStudents.includes(student);
 
