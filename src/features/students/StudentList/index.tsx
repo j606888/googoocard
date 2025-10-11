@@ -32,7 +32,7 @@ const StudentList = () => {
           </div>
         </div>
       )}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         {students?.map((student) => (
           <SingleStudent key={student.id} student={student} />
         ))}
