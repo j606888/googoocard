@@ -30,7 +30,7 @@ const UnpaidBell = () => {
           {unbindRecords?.map((record) => (
             <Link
               href={`/lessons/${record.lessonId}/periods/${record.lessonPeriodId}/check-success`}
-              key={record.studentId}
+              key={record.id}
              className="flex gap-3 items-center border-b border-gray-200 pb-2 last:border-b-0 last:pb-0"
             >
                 <div className="w-8 h-8 bg-[#848484] rounded-full flex items-center justify-center">

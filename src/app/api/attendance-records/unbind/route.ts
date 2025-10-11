@@ -29,6 +29,7 @@ export async function GET() {
 
   const formattedRecords = unbindRecords.map((record) => {
     return {
+      id: record.id,
       studentId: record.studentId,
       studentName: record.student.name,
       studentAvatarUrl: record.student.avatarUrl,
