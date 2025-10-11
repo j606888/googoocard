@@ -29,6 +29,7 @@ const PendingStudents = ({
             className="flex items-center gap-2 bg-white rounded-sm py-2 "
           >
             <StudentInfo
+              studentId={record.studentId}
               avatarUrl={record.studentAvatarUrl}
               name={record.studentName}
               size="small"
