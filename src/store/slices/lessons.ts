@@ -118,6 +118,17 @@ const lessonsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "AttendanceRecord"],
     }),
+    updateAttendance: builder.mutation<
+      void,
+      { id: number; periodId: number; studentIds: number[] }
+    >({
+      query: ({ id, periodId, studentIds }) => ({
+        url: `lessons/${id}/periods/${periodId}/attendance`,
+        method: "PUT",
+        body: { studentIds },
+      }),
+      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "AttendanceRecord"],
+    }),
     getAttendance: builder.query<
       AttendanceRecord[],
       { id: number; periodId: number }
@@ -187,6 +198,7 @@ export const {
   useGetLessonQuery,
   useLazyCheckStudentCardsQuery,
   useTakeAttendanceMutation,
+  useUpdateAttendanceMutation,
   useGetAttendanceQuery,
   useResetAttendanceMutation,
   useConsumeStudentCardMutation,

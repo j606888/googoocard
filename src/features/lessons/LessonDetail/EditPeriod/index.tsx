@@ -1,11 +1,22 @@
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
-import { useTakeAttendanceMutation } from "@/store/slices/lessons";
+import { useMemo, useState } from "react";
+import {
+  useGetAttendanceQuery,
+  useUpdateAttendanceMutation,
+} from "@/store/slices/lessons";
 import PeriodAttendanceForm from "../PeriodAttendanceForm";
 
-const CheckPeriod = () => {
+const EditPeriod = () => {
   const { id, periodId } = useParams();
-  const [takeAttendance, { isLoading }] = useTakeAttendanceMutation();
+  const [updateAttendance, { isLoading }] = useUpdateAttendanceMutation();
+  const { data: attendanceRecords } = useGetAttendanceQuery({
+    id: Number(id),
+    periodId: Number(periodId),
+  });
+  const defaultSelectedIds = useMemo(
+    () => attendanceRecords?.map((record) => record.studentId) || [],
+    [attendanceRecords]
+  );
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -15,7 +26,7 @@ const CheckPeriod = () => {
       return;
     }
 
-    await takeAttendance({
+    await updateAttendance({
       id: Number(id),
       periodId: Number(periodId),
       studentIds,
@@ -26,8 +37,9 @@ const CheckPeriod = () => {
   return (
     <>
       <PeriodAttendanceForm
+        defaultSelectedIds={defaultSelectedIds}
         onSubmit={handleSubmit}
-        submitLabel="Take Attendance"
+        submitLabel="Update Period"
         error={error}
         isLoading={isLoading}
       />
@@ -35,4 +47,4 @@ const CheckPeriod = () => {
   );
 };
 
-export default CheckPeriod;
+export default EditPeriod;
