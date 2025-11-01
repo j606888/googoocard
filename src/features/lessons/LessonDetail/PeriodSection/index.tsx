@@ -13,6 +13,7 @@ import {
   NotepadText,
   Trash,
   Eraser,
+  PencilLine,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
@@ -76,10 +77,10 @@ const PeriodCard = ({
   const [resetAttendance] = useResetAttendanceMutation();
 
   const handleCheck = () => {
-    if (new Date() < new Date(endTime)) {
+    if (new Date() < new Date(startTime)) {
       const confirmed = confirm("Are you sure you want to check this period?");
       if (!confirmed) {
-        return
+        return;
       }
     }
     router.push(`/lessons/${period.lessonId}/periods/${period.id}/check`);
@@ -106,6 +107,10 @@ const PeriodCard = ({
       toast.success("Reset attendance successfully");
     }
     setMenuOpen(false);
+  };
+
+  const handleUpdate = () => {
+    router.push(`/lessons/${period.lessonId}/periods/${period.id}/check-edit`);
   };
 
   return (
@@ -164,13 +169,22 @@ const PeriodCard = ({
             </button>
           )}
           {isLastAttend && (
-            <button
-              className="flex gap-2 items-center hover:bg-gray-100 rounded-sm"
-              onClick={handleReset}
-            >
-              <Eraser className="w-4 h-4" />
-              Reset
-            </button>
+            <>
+              <button
+                className="flex gap-2 items-center hover:bg-gray-100 rounded-sm"
+                onClick={handleUpdate}
+              >
+                <PencilLine className="w-4 h-4" />
+                Update
+              </button>
+              <button
+                className="flex gap-2 items-center hover:bg-gray-100 rounded-sm"
+                onClick={handleReset}
+              >
+                <Eraser className="w-4 h-4" />
+                Reset
+              </button>
+            </>
           )}
         </div>
       </Menu>

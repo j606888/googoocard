@@ -250,3 +250,161 @@ export async function POST(
 
   return NextResponse.json({ success: true });
 }
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string; periodId: string }> }
+) {
+  const { id, periodId } = await params;
+  const { studentIds } = await request.json();
+
+  const lessonPeriod = await prisma.lessonPeriod.findUnique({
+    where: { id: parseInt(periodId), lessonId: parseInt(id) },
+  });
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: parseInt(id) },
+    include: {
+      cards: true,
+    },
+  });
+
+  if (!lesson) {
+    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+  }
+
+  if (!lessonPeriod) {
+    return NextResponse.json(
+      { error: "Lesson period not found" },
+      { status: 404 }
+    );
+  }
+
+  const validCardIds = lesson.cards.map((card) => card.cardId);
+
+  const existingRecords = await prisma.attendanceRecord.findMany({
+    where: { lessonPeriodId: lessonPeriod.id },
+    include: { studentCard: true },
+  });
+  const existingStudentIds = existingRecords.map((r) => r.studentId);
+  const newStudentIds = studentIds.filter((id: number) => !existingStudentIds.includes(id));
+  const removedStudentIds = existingStudentIds.filter(
+    (id) => !studentIds.includes(id)
+  );
+
+  const newStudents = await prisma.student.findMany({
+    where: {
+      id: { in: newStudentIds },
+    },
+    include: {
+      studentCards: {
+        where: {
+          cardId: { in: validCardIds },
+          remainingSessions: {
+            gt: 0,
+          },
+          expiredAt: null,
+        },
+        include: {
+          card: true,
+        },
+      },
+    },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    for (const student of newStudents) {
+      let studentCard: StudentCard | null = null;
+      if (student.studentCards.length === 1) {
+        studentCard = student.studentCards[0];
+      }
+      await tx.lessonStudent.upsert({
+        where: {
+          lessonId_studentId: {
+            lessonId: lesson.id,
+            studentId: student.id,
+          },
+        },
+        update: {},
+        create: {
+          lessonId: lesson.id,
+          studentId: student.id,
+        },
+      });
+
+      const attendanceRecord = await tx.attendanceRecord.create({
+        data: {
+          lessonPeriodId: lessonPeriod.id,
+          studentId: student.id,
+          studentCardId: studentCard?.id,
+        },
+      });
+
+      await tx.event.create({
+        data: {
+          title: "簽到",
+          description: `${lesson.name} 簽到成功`,
+          studentId: student.id,
+          resourceType: "attendanceRecord",
+          resourceId: attendanceRecord.id,
+        },
+      });
+
+      if (studentCard) {
+        const updatedStudentCard = await tx.studentCard.update({
+          where: { id: studentCard.id },
+          data: {
+            remainingSessions: {
+              decrement: 1,
+            },
+          },
+          include: {
+            card: true,
+          },
+        });
+
+        if (updatedStudentCard.remainingSessions === 0) {
+          await tx.event.create({
+            data: {
+              title: "課卡使用完畢",
+              description: `課卡 ${updatedStudentCard.card.name} 使用完畢`,
+              studentId: student.id,
+              resourceType: "studentCard",
+              resourceId: updatedStudentCard.id,
+            },
+          });
+        }
+      }
+    }
+
+    const removedAttendanceRecords = await prisma.attendanceRecord.findMany({
+      where: { lessonPeriodId: lessonPeriod.id, studentId: { in: removedStudentIds } },
+    });
+
+    for (const attendanceRecord of removedAttendanceRecords) {
+      if (attendanceRecord.studentCardId) {
+        await tx.studentCard.update({
+          where: { id: attendanceRecord.studentCardId },
+          data: {
+            remainingSessions: { increment: 1 },
+          },
+        });
+      }
+
+      await tx.attendanceRecord.delete({
+        where: { id: attendanceRecord.id },
+      });
+    }
+
+    await tx.lessonPeriod.update({
+      where: { id: lessonPeriod.id },
+      data: {
+        attendanceTakenAt: new Date(),
+      },
+    });
+  });
+
+  await refreshLesson(parseInt(id));
+
+  return NextResponse.json({ success: true });
+}
+
