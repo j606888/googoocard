@@ -30,9 +30,11 @@ const Basic = ({
             />
             <h2 className="text-xl font-semibold">{student.name}</h2>
           </div>
-          <div className="absolute top-5 right-5">
-            <EditStudent student={student} />
-          </div>
+          {!isPublic && (
+            <div className="absolute top-5 right-5">
+              <EditStudent student={student} />
+            </div>
+          )}
         </div>
         <div className="flex gap-3">
           <Info
