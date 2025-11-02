@@ -1,8 +1,7 @@
-import { formatDate } from "@/lib/utils";
 import { StudentWithDetail } from "@/store/slices/students";
 import { useState } from "react";
-import { MdFlag } from "react-icons/md";
-import { Frown, Smile } from "lucide-react";
+import AttendanceByLesson from "./AttendanceByLesson";
+import AttendanceByDate from "./AttendanceByDate";
 
 const TABS = [
   {
@@ -45,72 +44,9 @@ const AttendSection = ({ student }: { student: StudentWithDetail }) => {
         ))}
       </div>
       {activeTab === "group_by_lesson" ? (
-        <div className="flex flex-col gap-2">
-          {attendancesByLesson.map((lesson) => (
-            <div
-              key={lesson.lessonId}
-            >
-              <div className="font-medium mb-2">
-                {lesson.lessonName}
-              </div>
-              <div className="flex gap-2 flex-wrap border-b border-[#e2e2e2] pb-3">
-                {lesson.studentAttendances.map((attendance) => (
-                  <div
-                    key={attendance.periodStartTime}
-                    className={`flex items-center gap-1 justify-center px-3 py-2 w-19 rounded-md ${
-                      attendance.periodAttendantCheck
-                        ? attendance.studentAttend
-                          ? "bg-[#F2A98A]"
-                          : "bg-[#9D9C9B]"
-                        : "border border-[#cccccc]"
-                    }`}
-                  >
-                    {attendance.periodAttendantCheck &&
-                      (attendance.studentAttend ? (
-                        <Smile className="w-4 h-4 text-white" />
-                      ) : (
-                        <Frown className="w-4 h-4 text-white" />
-                      ))}
-                    <span className={`text-xs text-center ${attendance.periodAttendantCheck ? "text-white" : "text-gray-700"}`}>
-                      {formatDate(attendance.periodStartTime, "MM/dd")}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <AttendanceByLesson attendancesByLesson={attendancesByLesson} />
       ) : (
-        <div className="flex flex-col gap-3">
-          {attendancesByDate.map((attendances) => (
-            <div
-              key={attendances.date}
-              className="rounded-sm bg-white shadow-sm overflow-hidden"
-            >
-              <div className="px-3 py-2 bg-primary-500 text-white font-medium">
-                {formatDate(attendances.date)}
-              </div>
-              <div className="flex flex-col py-2">
-                {attendances.attendances.map((attendance) => (
-                  <div
-                    key={attendance.lessonName}
-                    className="flex items-center justify-between px-3 py-1"
-                  >
-                    <span className="text-sm">{attendance.lessonName}</span>
-                    <div className="bg-primary-100 text-primary-700 px-2 py-1 rounded-sm text-sm flex items-center gap-1">
-                      <span>
-                        {attendance.periodNumber}/{attendance.totalPeriods}
-                      </span>
-                      {attendance.periodNumber === attendance.totalPeriods && (
-                        <MdFlag className="w-4 h-4" />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <AttendanceByDate attendancesByDate={attendancesByDate} />        
       )}
     </div>
   );

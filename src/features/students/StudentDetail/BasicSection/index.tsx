@@ -12,7 +12,6 @@ const Basic = ({
   isPublic?: boolean;
 }) => {
   const { data: events } = useGetStudentEventsQuery({ id: student.id });
-  console.log({ events });
   const handleCopy = () => {
     navigator.clipboard.writeText(
       `${window.location.origin}/public-students/${student.randomKey}`
