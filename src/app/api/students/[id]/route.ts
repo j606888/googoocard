@@ -43,7 +43,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           card: true,
         },
         orderBy: {
-          createdAt: "asc",
+          createdAt: "desc",
         },
       },
       attendanceRecords: {
