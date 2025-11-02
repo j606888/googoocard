@@ -38,7 +38,7 @@ export interface StudentWithDetail extends Student {
     }[]
     studentAttendances: {
       periodId: number;
-      periodStartTime: number;
+      periodStartTime: string;
       periodAttendantCheck: boolean;
       studentAttend: boolean;
     }[]
