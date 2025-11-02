@@ -80,6 +80,7 @@ const CheckPeriodSuccess = () => {
               key={attendanceRecord.studentId}
             >
               <StudentInfo
+                studentId={attendanceRecord.studentId}
                 avatarUrl={attendanceRecord?.studentAvatarUrl}
                 name={attendanceRecord?.studentName}
                 size="small"

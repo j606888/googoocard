@@ -2,6 +2,7 @@ import { LessonStudent } from "@/store/slices/lessons";
 import Image from "next/image";
 import { format } from "date-fns";
 import { Frown, Smile } from "lucide-react";
+import Link from "next/link";
 
 const StudentSection = ({ students }: { students: LessonStudent[] }) => {
   return (
@@ -16,11 +17,13 @@ const StudentSection = ({ students }: { students: LessonStudent[] }) => {
               <Image
                 src={student.avatarUrl}
                 alt={student.name}
-                width={40}
-                height={40}
+                width={32}
+                height={32}
                 className="rounded-full"
               />
-              <p className="text-lg font-semibold">{student.name}</p>
+              <Link href={`/students/${student.id}`}>
+                <p className="text-lg font-medium">{student.name}</p>
+              </Link>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {student.attendances.map((attendance) => (
