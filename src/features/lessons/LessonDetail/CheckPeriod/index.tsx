@@ -26,6 +26,7 @@ const CheckPeriod = () => {
   return (
     <>
       <PeriodAttendanceForm
+        defaultSelectedIds={[]}
         onSubmit={handleSubmit}
         submitLabel="Take Attendance"
         error={error}

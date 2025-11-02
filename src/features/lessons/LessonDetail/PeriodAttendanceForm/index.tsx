@@ -33,7 +33,9 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], onSubmit, submitLabel =
   );
 
   useEffect(() => {
-    setSelectedStudentIds(defaultSelectedIds);
+    if (defaultSelectedIds && defaultSelectedIds.length > 0) {
+      setSelectedStudentIds(defaultSelectedIds);
+    }
   }, [defaultSelectedIds]);
 
   const handleSubmit = async () => {
