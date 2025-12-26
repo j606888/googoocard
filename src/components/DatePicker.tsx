@@ -11,6 +11,8 @@ import {
 
 export function DatePicker({ date, setDate }: { date: Date | undefined, setDate: (date: Date | undefined) => void }) {
   const [open, setOpen] = React.useState(false)
+  const today = new Date()
+  const nextYear = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
 
   return (
     <div className="flex flex-col gap-3">
@@ -29,6 +31,9 @@ export function DatePicker({ date, setDate }: { date: Date | undefined, setDate:
             mode="single"
             selected={date}
             captionLayout="dropdown"
+            fromYear={today.getFullYear() - 1}
+            toDate={nextYear}
+            toYear={today.getFullYear() + 1}
             onSelect={(date) => {
               setDate(date)
               setOpen(false)
