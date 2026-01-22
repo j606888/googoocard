@@ -39,7 +39,7 @@ const Drawer = ({
 
           {/* Dialog content */}
           <motion.div
-            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-white shadow-xl p-4 min-h-70 flex flex-col "
+            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-white shadow-xl p-4 min-h-70 flex flex-col max-w-[480px] mx-auto"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}

@@ -35,16 +35,17 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
   return (
     <>
       <div
-        className={`flex flex-col border border-gray-200 rounded-sm p-3 gap-3 shadow-sm ${
-          card.expiredAt ? "opacity-50" : ""
-        }`}
+        className={`flex flex-col border border-gray-200 rounded-sm p-3 gap-3 shadow-sm ${card.expiredAt ? "opacity-50" : ""
+          }`}
       >
         <div className="flex items-center justify-between">
           <h4 className="text-base font-medium">{card.name}</h4>
           <div className="flex items-center gap-2">
-            <div className="border border-primary-300 bg-primary-100 text-primary-900 rounded-full px-3 py-1 text-xs">
-              For Sale
-            </div>
+            {card.isPracticeCard && (
+              <div className="border border-primary-300 bg-primary-100 text-primary-900 rounded-full px-3 py-1 text-xs">
+                Practice Card
+              </div>
+            )}
             <button onClick={() => setMenuOpen(!menuOpen)} ref={buttonRef}>
               <EllipsisVertical className="w-6 h-6 cursor-pointer" />
             </button>

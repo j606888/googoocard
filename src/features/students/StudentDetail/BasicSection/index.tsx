@@ -3,6 +3,7 @@ import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import EditStudent from "./EditStudent";
 import Event from "./Event";
+import StarBadge from "./StarBadge";
 
 const Basic = ({
   student,
@@ -38,6 +39,12 @@ const Basic = ({
           {!isPublic && (
             <div className="absolute top-5 right-5">
               <EditStudent student={student} />
+            </div>
+          )}
+          {(student.hasCompletedBachataLv1 || student.hasCompletedSalsaLv1) && (
+            <div className="flex flex-col gap-2 mt-2 items-start">
+              {student.hasCompletedBachataLv1 && (<StarBadge type="bachata" />)}
+              {student.hasCompletedSalsaLv1 && (<StarBadge type="salsa" />)}
             </div>
           )}
         </div>
