@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Drawer from "@/components/Drawer";
 import { useGetCardsQuery, useUpdateCardMutation } from "@/store/slices/cards";
 import InputField from "@/components/InputField";
+import { Switch } from "@/components/ui/switch";
 
 const validationErrors = {
   cardName: "Must provide a name",
@@ -40,6 +41,7 @@ const EditCard = ({
   const [cardName, setCardName] = useState("");
   const [price, setPrice] = useState("");
   const [sessions, setSessions] = useState("");
+  const [isPracticeCard, setIsPracticeCard] = useState(false);
   const [errors, setErrors] = useState<{
     cardName?: string;
     price?: string;
@@ -58,7 +60,9 @@ const EditCard = ({
       name: cardName,
       price: Number(price),
       sessions: Number(sessions),
+      isPracticeCard,
     });
+    setIsPracticeCard(false);
     onClose();
   };
 
@@ -96,6 +100,7 @@ const EditCard = ({
       setCardName(card.name);
       setPrice(card.price.toString());
       setSessions(card.sessions.toString());
+      setIsPracticeCard(card.isPracticeCard);
     }
   }, [card]);
 
@@ -109,7 +114,7 @@ const EditCard = ({
         isLoading={isLoading}
         submitText="Update"
       >
-        <form className="mb-6">
+        <form className="mb-6 flex flex-col gap-4">
           <InputField
             label="Card Name"
             value={cardName}
@@ -132,6 +137,13 @@ const EditCard = ({
               error={errors.sessions}
               type="number"
             />
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch 
+              checked={isPracticeCard}
+              onCheckedChange={setIsPracticeCard}
+            />
+            <span>Is Practice Card</span>
           </div>
         </form>
       </Drawer>

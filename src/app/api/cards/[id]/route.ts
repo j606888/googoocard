@@ -15,7 +15,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { name, price, sessions } = await request.json();
+  const { name, price, sessions, isPracticeCard } = await request.json();
 
   const card = await prisma.card.update({
     where: { id: Number(id) },
@@ -23,6 +23,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       name,
       price,
       sessions,
+      isPracticeCard,
     },
   });
 

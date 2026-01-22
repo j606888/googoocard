@@ -45,11 +45,11 @@ const cardsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Card", "Attendance"],
     }),
-    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number }>({
-      query: ({ id, name, price, sessions }) => ({
+    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number; isPracticeCard: boolean }>({
+      query: ({ id, name, price, sessions, isPracticeCard }) => ({
         url: `cards/${id}`,
         method: "PATCH",
-        body: { name, price, sessions },
+        body: { name, price, sessions, isPracticeCard },
       }),
       invalidatesTags: ["Card", "Attendance"],
     }),
