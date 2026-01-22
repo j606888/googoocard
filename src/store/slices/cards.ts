@@ -4,6 +4,7 @@ export interface Card {
   id: number;
   name: string;
   price: number;
+  isPracticeCard: boolean;
   sessions: number;
   expiredAt: Date | null;
   purchasedCount: number;
@@ -15,7 +16,7 @@ const cardsApi = api.injectEndpoints({
       query: () => "cards",
       providesTags: ["Card"],
     }),
-    createCard: builder.mutation<Card, { name: string; price: number; sessions: number }>({
+    createCard: builder.mutation<Card, { name: string; price: number; sessions: number; isPracticeCard: boolean }>({
       query: (card) => ({
         url: "cards",
         method: "POST",
@@ -44,11 +45,11 @@ const cardsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Card", "Attendance"],
     }),
-    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number }>({
-      query: ({ id, name, price, sessions }) => ({
+    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number; isPracticeCard: boolean }>({
+      query: ({ id, name, price, sessions, isPracticeCard }) => ({
         url: `cards/${id}`,
         method: "PATCH",
-        body: { name, price, sessions },
+        body: { name, price, sessions, isPracticeCard },
       }),
       invalidatesTags: ["Card", "Attendance"],
     }),

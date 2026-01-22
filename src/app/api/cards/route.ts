@@ -50,11 +50,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { name, price, sessions } = await request.json();
+  const { name, price, sessions, isPracticeCard } = await request.json();
   const { classroomId } = await decodeAuthToken();
 
   const card = await prisma.card.create({
-    data: { name, price, sessions, classroomId: classroomId! },
+    data: { name, price, sessions, classroomId: classroomId!, isPracticeCard },
   });
 
   return NextResponse.json(card);

@@ -6,6 +6,3 @@
 */
 -- AlterTable
 ALTER TABLE "Student" ADD COLUMN     "note" TEXT;
-
--- AlterTable
-ALTER TABLE "User" DROP COLUMN "note";

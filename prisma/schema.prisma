@@ -74,6 +74,7 @@ model Card {
   classroomId  Int
   studentCards StudentCard[]
   lessons      LessonCard[]
+  isPracticeCard Boolean @default(false)
   classroom    Classroom     @relation(fields: [classroomId], references: [id])
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -91,6 +92,8 @@ model Student {
   lessons      LessonStudent[]
   attendanceRecords AttendanceRecord[]
   events Event[]
+  hasCompletedBachataLv1 Boolean @default(false)
+  hasCompletedSalsaLv1 Boolean @default(false)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }

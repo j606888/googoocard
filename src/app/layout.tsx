@@ -29,11 +29,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${poppins.variable} font-sans antialiased`}>
-        <Providers>
-          {children}
-          <Toaster richColors />
-        </Providers>
+      <body className={`${poppins.variable} font-sans antialiased max-w-[480px] mx-auto bg-gray-100`}>
+        <div className="bg-white min-h-screen">
+          <Providers>
+            {children}
+            <Toaster richColors />
+          </Providers>
+        </div>
       </body>
     </html>
   );
