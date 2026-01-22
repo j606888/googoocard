@@ -10,6 +10,7 @@ import { useUpdateStudentMutation } from "@/store/slices/students";
 const EditStudent = ({ student }: { student: StudentWithDetail }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState(student.name);
+  const [note, setNote] = useState(student.note);
   const [errors, setErrors] = useState<{ name?: string }>({});
   const [updateStudent, { isLoading }] = useUpdateStudentMutation();
 
@@ -17,7 +18,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
     if (!name) {
       setErrors({ name: "Name is required" });
     }
-    await updateStudent({ id: student.id, name });
+    await updateStudent({ id: student.id, name, note });
     setIsOpen(false);
   };
 
@@ -35,12 +36,17 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
         isLoading={isLoading}
         submitText="Update"
       >
-        <form className="mb-6">
+        <form className="mb-6 flex flex-col gap-3">
           <InputField
             label="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             error={errors.name}
+          />
+          <InputField
+            label="Note(Student doesn't see this)"
+            value={note || ""}
+            onChange={(e) => setNote(e.target.value)}
           />
         </form>
       </Drawer>

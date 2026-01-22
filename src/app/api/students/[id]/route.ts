@@ -5,7 +5,7 @@ import { decodeAuthToken } from "@/lib/auth";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { name } = await request.json();
+  const { name, note } = await request.json();
   const { classroomId } = await decodeAuthToken();
 
   const existingStudent = await prisma.student.findFirst({
@@ -24,7 +24,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const student = await prisma.student.update({
     where: { id: parseInt(id) },
-    data: { name },
+    data: { name, note },
   });
 
   return NextResponse.json(student);

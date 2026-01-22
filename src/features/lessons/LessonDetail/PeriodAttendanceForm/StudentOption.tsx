@@ -32,11 +32,16 @@ const StudentOption = ({
           src={student.avatarUrl}
           alt={student.name}
         />
-        <span
-          className={`text-lg font-medium ${isGray ? "text-gray-300" : ""}`}
-        >
-          {student.name}
-        </span>
+        <div className="flex items-center gap-1">
+          <span
+            className={`text-lg font-medium ${isGray ? "text-gray-300" : ""}`}
+          >
+            {student.name}
+          </span>
+          {student.note && (
+            <p className={`text-sm ${isGray ? "text-gray-300" : "text-gray-500"} font-medium`}>({student.note})</p>
+          )}
+        </div>
         <RoundCheckbox isChecked={isChecked} className="ml-auto" />
       </div>
       {isFirstTime && (

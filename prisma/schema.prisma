@@ -83,6 +83,7 @@ model Student {
   id           Int           @id @default(autoincrement())
   name         String
   avatarUrl    String
+  note         String?
   randomKey    String? @unique
   classroomId  Int
   classroom    Classroom     @relation(fields: [classroomId], references: [id])

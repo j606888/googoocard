@@ -17,7 +17,12 @@ const SingleStudent = ({ student }: { student: Student }) => {
           className={`w-10 h-10 rounded-full object-cover`}
         />
         <div className="border-b border-gray-200 w-full py-2">
-          <h2 className="font-medium">{student.name}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-medium">{student.name}</h2>
+            {student.note && (
+              <p className="text-sm text-gray-500">({student.note})</p>
+            )}
+          </div>
           <div>
             <p className="flex gap-1 items-center text-sm text-gray-400">
               <CreditCard className="w-4 h-4" />
