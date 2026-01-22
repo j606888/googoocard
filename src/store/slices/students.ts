@@ -11,6 +11,8 @@ export interface Student {
   createdAt: string;
   classroom: Classroom;
   studentCards: StudentCardWithCard[];
+  hasCompletedBachataLv1: boolean;
+  hasCompletedSalsaLv1: boolean;
 }
 
 export interface Event {
@@ -96,11 +98,11 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Student"],
     }),
-    updateStudent: builder.mutation<Student, { id: number; name: string; note?: string }>({
-      query: ({ id, name, note }) => ({
+    updateStudent: builder.mutation<Student, { id: number; name: string; note?: string; hasCompletedBachataLv1: boolean; hasCompletedSalsaLv1: boolean }>({
+      query: ({ id, name, note, hasCompletedBachataLv1, hasCompletedSalsaLv1 }) => ({
         url: `students/${id}`,
         method: "PATCH",
-        body: { name, note },
+        body: { name, note, hasCompletedBachataLv1, hasCompletedSalsaLv1 },
       }),
       invalidatesTags: ["Student"],
     }),
@@ -134,7 +136,7 @@ const studentsApi = api.injectEndpoints({
       query: ({ id }) => `students/${id}`,
       providesTags: ["Student"],
     }),
-    getStudentCardsByLesson: builder.query<StudentCardWithCard[], { studentId : number; lessonId: number }>({
+    getStudentCardsByLesson: builder.query<StudentCardWithCard[], { studentId: number; lessonId: number }>({
       query: ({ studentId, lessonId }) => `lessons/${lessonId}/students/${studentId}/student-cards`,
       providesTags: ["StudentCard"],
     }),

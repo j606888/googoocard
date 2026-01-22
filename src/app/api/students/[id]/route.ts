@@ -5,7 +5,7 @@ import { decodeAuthToken } from "@/lib/auth";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { name, note } = await request.json();
+  const { name, note, hasCompletedBachataLv1, hasCompletedSalsaLv1 } = await request.json();
   const { classroomId } = await decodeAuthToken();
 
   const existingStudent = await prisma.student.findFirst({
@@ -24,7 +24,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const student = await prisma.student.update({
     where: { id: parseInt(id) },
-    data: { name, note },
+    data: { name, note, hasCompletedBachataLv1, hasCompletedSalsaLv1 },
   });
 
   return NextResponse.json(student);
@@ -85,7 +85,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     totalSaved: studentCards.reduce((acc, card) => acc + (card.basePrice - card.finalPrice), 0),
   }
 
-  
+
 
   const attendLessonIds = [...new Set(attendanceRecords.map((record) => record.lessonPeriod.lessonId))]
   const lessons = await prisma.lesson.findMany({
@@ -159,7 +159,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (studentAttendance) {
       studentAttendance.studentAttend = true
     }
-    
+
     // Group attendance records by student card
     if (record.studentCardId) {
       const cardAttendances = studentCardAttendances.get(record.studentCardId) || [];
