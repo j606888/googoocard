@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { name, avatarUrl } = await request.json();
+  const { name, avatarUrl, note } = await request.json();
   const { classroomId } = await decodeAuthToken();
 
   const existingStudent = await prisma.student.findFirst({
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   }
 
   const student = await prisma.student.create({
-    data: { name, avatarUrl, classroomId: classroomId!, randomKey: nanoid(8) },
+    data: { name, avatarUrl, note, classroomId: classroomId!, randomKey: nanoid(8) },
   });
 
   return NextResponse.json(student);

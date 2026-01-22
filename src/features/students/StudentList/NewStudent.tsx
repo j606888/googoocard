@@ -31,6 +31,7 @@ const NewStudent = () => {
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(avatarUrls[0]);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [note, setNote] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ name?: string }>({});
 
@@ -44,8 +45,10 @@ const NewStudent = () => {
       return;
     }
     try {
-      await createStudent({ name, avatarUrl: selectedAvatarUrl }).unwrap();
+      await createStudent({ name, avatarUrl: selectedAvatarUrl, note }).unwrap();
       setName("");
+      setNote("");
+      setSelectedAvatarUrl(avatarUrls[0]);
       setOpen(false);
       setIsLoading(false);
     } catch (error) {
@@ -59,6 +62,10 @@ const NewStudent = () => {
     if (errors.name) {
       setErrors((prev) => ({ ...prev, name: undefined }));
     }
+  };
+
+  const handleNoteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNote(e.target.value);
   };
 
   const handleClose = () => {
@@ -81,7 +88,7 @@ const NewStudent = () => {
         onSubmit={handleSubmit}
         isLoading={isLoading || isCreatingStudent}
       >
-        <form className="mb-6">
+        <form className="mb-6 flex flex-col gap-3">
           <InputField
             label="Student Name"
             value={name}
@@ -89,7 +96,14 @@ const NewStudent = () => {
             onChange={handleCardNameChange}
             error={errors.name}
           />
-          <div className="flex px-3 gap-3 items-center justify-center flex-wrap mt-4">
+          <InputField
+            label="Note(Student doesn't see this)"
+            value={note}
+            placeholder="E.g. 紅色頭髮那個"
+            onChange={handleNoteChange}
+            error={errors.name}
+          />
+          <div className="flex px-3 gap-3 items-center justify-center flex-wrap">
             {avatarUrls.map((avatarUrl) => (
               <div
                 key={avatarUrl}

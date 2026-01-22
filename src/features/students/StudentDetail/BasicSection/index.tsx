@@ -28,7 +28,12 @@ const Basic = ({
               src={student.avatarUrl}
               className={`w-10 h-10 rounded-full object-cover`}
             />
-            <h2 className="text-xl font-semibold">{student.name}</h2>
+            <div>
+              <h2 className="text-xl font-semibold">{student.name}</h2>
+              {student.note && !isPublic && (
+                <p className="text-sm text-gray-500">{student.note}</p>
+              )}
+            </div>
           </div>
           {!isPublic && (
             <div className="absolute top-5 right-5">
@@ -46,7 +51,7 @@ const Basic = ({
             value={student.overview.cardCount.toString()}
           />
         </div>
-          {/* <div className="flex gap-3">
+        {/* <div className="flex gap-3">
           <Info label="Total Spend" value={`$${student.overview.totalSpend}`} />
           <Info label="Total Saved" value={`$${student.overview.totalSaved}`} />
           </div> */}

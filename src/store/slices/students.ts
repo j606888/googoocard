@@ -5,6 +5,7 @@ import { Classroom } from "./classrooms";
 export interface Student {
   id: number;
   name: string;
+  note?: string;
   randomKey: string;
   avatarUrl: string;
   createdAt: string;
@@ -86,20 +87,20 @@ const studentsApi = api.injectEndpoints({
     }),
     createStudent: builder.mutation<
       Student,
-      { name: string; avatarUrl: string }
+      { name: string; avatarUrl: string; note?: string }
     >({
-      query: ({ name, avatarUrl }) => ({
+      query: ({ name, avatarUrl, note }) => ({
         url: "students",
         method: "POST",
-        body: { name, avatarUrl },
+        body: { name, avatarUrl, note },
       }),
       invalidatesTags: ["Student"],
     }),
-    updateStudent: builder.mutation<Student, { id: number; name: string }>({
-      query: ({ id, name }) => ({
+    updateStudent: builder.mutation<Student, { id: number; name: string; note?: string }>({
+      query: ({ id, name, note }) => ({
         url: `students/${id}`,
         method: "PATCH",
-        body: { name },
+        body: { name, note },
       }),
       invalidatesTags: ["Student"],
     }),
