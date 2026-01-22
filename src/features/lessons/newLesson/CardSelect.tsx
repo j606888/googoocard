@@ -21,7 +21,7 @@ const NewCard = ({ selectedCardIds, onChange, error }: { selectedCardIds: number
       setErrors(errors);
       return;
     }
-    const card = await createCard({ name: cardName, price: Number(price), sessions: Number(sessions) });
+    const card = await createCard({ name: cardName, price: Number(price), sessions: Number(sessions), isPracticeCard: false });
     if (card.data) {
       onChange([...selectedCardIds, card.data.id]);
     }
