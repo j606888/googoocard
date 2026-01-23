@@ -1,5 +1,5 @@
 import Drawer from "@/components/Drawer";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Period, useCreatePeriodMutation } from "@/store/slices/lessons";
@@ -8,6 +8,7 @@ import TimePicker, {
   Option,
   generateTimeOptions,
 } from "@/components/TimePicker";
+import { useEffect } from "react";
 
 const validationErrors = {
   empty: "Can not be empty",
@@ -53,6 +54,32 @@ const AddPeriodForm = ({
     toTime?: string;
   }>({});
   const [createPeriod, { isLoading }] = useCreatePeriodMutation();
+  const lastPeriod = periods.reduce((latest, period) => {
+    return new Date(period.endTime) > new Date(latest.endTime) ? period : latest;
+  })
+
+  useEffect(() => {
+    if (lastPeriod) {
+      setDate(addDays(new Date(lastPeriod.endTime), 7));
+      const timeOptions = generateTimeOptions();
+      const lastFromTime = format(lastPeriod.startTime, "HH:mm");
+      const lastToTime = format(lastPeriod.endTime, "HH:mm");
+
+      const lastFromTimeOption = timeOptions.find(
+        (option: Option) => option.value === lastFromTime
+      );
+      if (lastFromTimeOption) {
+        setFromTime(lastFromTimeOption);
+      }
+      const lastToTimeOption = timeOptions.find(
+        (option: Option) => option.value === lastToTime
+      );
+      
+      if (lastToTimeOption) {
+        setToTime(lastToTimeOption);
+      }
+    }
+  }, [lastPeriod]);
 
   const handleDateChange = (date: Date | undefined) => {
     if (errors.date) {

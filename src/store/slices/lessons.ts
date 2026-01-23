@@ -12,6 +12,7 @@ export interface Lesson {
   students: Student[];
   periods: Period[];
   teachers: Teacher[];
+  danceType: DanceType;
   cards: Card[];
 }
 
@@ -36,7 +37,7 @@ export interface DraftLesson {
   teacherIds: number[];
   cardIds: number[];
   danceType: DanceType;
-  periods: {
+  periods?: {
     startTime: string;
     endTime: string;
   }[];
@@ -94,6 +95,14 @@ const lessonsApi = api.injectEndpoints({
       query: (draftLesson) => ({
         url: "lessons",
         method: "POST",
+        body: draftLesson,
+      }),
+      invalidatesTags: ["Lesson"],
+    }),
+    updateLesson: builder.mutation<void, { id: number; draftLesson: DraftLesson }>({
+      query: ({ id, draftLesson }) => ({
+        url: `lessons/${id}`,
+        method: "PUT",
         body: draftLesson,
       }),
       invalidatesTags: ["Lesson"],
@@ -196,6 +205,7 @@ const lessonsApi = api.injectEndpoints({
 
 export const {
   useCreateLessonMutation,
+  useUpdateLessonMutation,
   useGetLessonsQuery,
   useGetLessonQuery,
   useLazyCheckStudentCardsQuery,
