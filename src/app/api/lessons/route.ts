@@ -65,6 +65,7 @@ export async function POST(request: Request) {
         name: draftLesson.lessonName,
         classroomId: classroomId!,
         status: "inProgress",
+        danceType: draftLesson.danceType,
       },
     });
 

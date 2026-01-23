@@ -8,6 +8,8 @@ import PeriodList from "./PeriodList";
 import AddPeriodForm from "./AddPeriodForm";
 import { useCreateLessonMutation } from "@/store/slices/lessons";
 import { useRouter } from "next/navigation";
+import DanceTypeSelect from "./DanceTypeSelect";
+import { DanceType } from "@prisma/client";
 
 const validationErrors = {
   lessonName: "Must provide a name",
@@ -18,6 +20,7 @@ const validationErrors = {
 
 const NewLesson = () => {
   const [lessonName, setLessonName] = useState("");
+  const [danceType, setDanceType] = useState<DanceType>(DanceType.BACHATA);
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>([]);
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
   const [periods, setPeriods] = useState<
@@ -37,6 +40,10 @@ const NewLesson = () => {
       setErrors((prev) => ({ ...prev, lessonName: undefined }));
     }
     setLessonName(e.target.value);
+  };
+
+  const handleDanceTypeChange = (value: DanceType) => {
+    setDanceType(value);
   };
 
   const handleTeacherChange = (value: number[]) => {
@@ -80,6 +87,7 @@ const NewLesson = () => {
         lessonName,
         teacherIds: selectedTeacherIds,
         cardIds: selectedCardIds,
+        danceType,
         periods,
       });
 
@@ -99,6 +107,10 @@ const NewLesson = () => {
             onChange={handleLessonNameChange}
             error={errors.lessonName}
           />
+          <DanceTypeSelect
+            danceType={danceType}
+            onChange={handleDanceTypeChange}
+          />
           <TeacherSelect
             error={errors.teachers}
             onChange={handleTeacherChange}
@@ -115,8 +127,6 @@ const NewLesson = () => {
             error={errors.periods}
           />
           <PeriodList periods={periods} onDelete={handleDeletePeriod} />
-        </div>
-        <div className="fixed bottom-0 left-0 right-0 p-4 flex gap-4">
           <Button onClick={handleSubmit} isLoading={isLoading}>
             Create
           </Button>
