@@ -3,10 +3,35 @@ import { AttendanceRecord, Lesson } from "@/store/slices/lessons";
 import { useEffect, useMemo, useState } from "react";
 import InputField from "@/components/InputField";
 import RoundCheckbox from "@/components/RoundCheckbox";
-import { useCreateStudentCardMutation } from "@/store/slices/students";
+import { useCreateStudentCardMutation, useGetStudentQuery } from "@/store/slices/students";
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { DanceType } from "@prisma/client";
+import { Card } from "@/store/slices/cards";
+import { Student } from "@/store/slices/students";
+
+function isCardDisabled(
+  card: Card,
+  lesson: Lesson & { danceType?: DanceType },
+  student: Student | undefined
+): boolean {
+  if (!card.isPracticeCard) {
+    return false;
+  }
+
+  if (!student || !lesson.danceType) {
+    return true;
+  }
+
+  if (lesson.danceType === DanceType.BACHATA) {
+    return !student.hasCompletedBachataLv1;
+  } else if (lesson.danceType === DanceType.SALSA) {
+    return !student.hasCompletedSalsaLv1;
+  }
+
+  return false;
+}
 
 const BuyAndUseForm = ({
   record,
@@ -17,6 +42,7 @@ const BuyAndUseForm = ({
   lesson: Lesson;
   studentId: number;
 }) => {
+  const { data: student } = useGetStudentQuery({ id: studentId });
   const [open, setOpen] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [cardSessions, setCardSessions] = useState<string>("");
@@ -37,6 +63,13 @@ const BuyAndUseForm = ({
   });
 
   const handleSelectCard = (cardId: number) => {
+    const card = cardOptions.find((c) => c.id === cardId);
+    if (!card) return;
+
+    if (isCardDisabled(card, lesson, student)) {
+      return;
+    }
+
     setSelectedCardId(cardId);
     if (errors.selectedCardId) {
       setErrors({
@@ -79,11 +112,17 @@ const BuyAndUseForm = ({
     if (selectedCardId) {
       const card = cardOptions.find((card) => card.id === selectedCardId);
       if (card) {
+        if (isCardDisabled(card, lesson, student)) {
+          setSelectedCardId(null);
+          setCardSessions("");
+          setCardPrice("");
+          return;
+        }
         setCardSessions(card.sessions.toString());
         setCardPrice(card.price.toString());
       }
     }
-  }, [selectedCardId, cardOptions]);
+  }, [selectedCardId, cardOptions, lesson, student]);
 
   return (
     <>
@@ -105,20 +144,29 @@ const BuyAndUseForm = ({
         <div className="mb-4">
           <p>Choose card</p>
           <div className="flex flex-wrap gap-2 pt-2">
-            {cardOptions?.map((card) => (
-              <div
-                key={card.id}
-                className={`flex gap-2 items-center px-4 py-3 border-1 border-gray-200 rounded-sm cursor-pointer ${
-                  selectedCardId === card.id
-                    ? "bg-primary-100 border-primary-500"
-                    : ""
-                }`}
-                onClick={() => handleSelectCard(card.id)}
-              >
-                <RoundCheckbox isChecked={selectedCardId === card.id} />
-                <p>{card.name}</p>
-              </div>
-            ))}
+            {cardOptions?.map((card) => {
+              const disabled = isCardDisabled(card, lesson, student);
+              const isSelected = selectedCardId === card.id && !disabled;
+              
+              return (
+                <div
+                  key={card.id}
+                  className={`flex gap-2 items-center px-4 py-3 border-1 border-gray-200 rounded-sm ${
+                    disabled
+                      ? "opacity-50 cursor-not-allowed bg-gray-50"
+                      : "cursor-pointer"
+                  } ${
+                    isSelected
+                      ? "bg-primary-100 border-primary-500"
+                      : ""
+                  }`}
+                  onClick={() => handleSelectCard(card.id)}
+                >
+                  <RoundCheckbox isChecked={isSelected} />
+                  <p>{card.name}</p>
+                </div>
+              );
+            })}
             {errors.selectedCardId && (
               <p className="text-red-500 text-sm">{errors.selectedCardId}</p>
             )}

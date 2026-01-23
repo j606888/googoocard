@@ -9,6 +9,7 @@ const UNCHECK_DESCRIPTION_MAP = {
   no_card: "無課卡",
   multiple_cards: "多張課卡",
   not_checked: "課卡未消耗",
+  not_qualified: "學生未完成初級課程",
 };
 const PendingStudents = ({
   records,
@@ -40,7 +41,7 @@ const PendingStudents = ({
                 {UNCHECK_DESCRIPTION_MAP[record.uncheckedType]}
               </p>
             </div>
-            {record.uncheckedType === "no_card" ? (
+            {["no_card", "not_qualified"].includes(record.uncheckedType) ? (
               <BuyAndUseForm
                 record={record}
                 lesson={lesson}

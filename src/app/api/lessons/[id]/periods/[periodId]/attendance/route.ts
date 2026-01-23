@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { refreshLesson } from "@/service/lesson";
-import { Prisma, StudentCard } from "@prisma/client";
+import { DanceType, Prisma, StudentCard } from "@prisma/client";
+import {
+  takeAttendance,
+  updateAttendance,
+} from "@/domains/attendance/attendance.service";
 
 type LessonWithCards = Prisma.LessonGetPayload<{
   include: {
-    cards: true;
+    cards: {
+      include: {
+        card: true,
+      },
+    };
   };
 }>;
 
@@ -19,6 +26,7 @@ const UNCHECK_TYPE = {
   NO_CARD: "no_card",
   MULTIPLE_CARDS: "multiple_cards",
   NOT_CHECKED: "not_checked",
+  NOT_QUALIFIED: "not_qualified",
 };
 
 export async function GET(
@@ -63,7 +71,11 @@ export async function GET(
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonPeriod.lessonId },
     include: {
-      cards: true,
+      cards: {
+        include: {
+          card: true,
+        },
+      }
     },
   });
 
@@ -111,6 +123,11 @@ function findUncheckedType(lesson: LessonWithCards, student: StudentWithCards) {
   if (matchedCards.length === 0) {
     return UNCHECK_TYPE.NO_CARD;
   } else if (matchedCards.length === 1) {
+    const studentCard = matchedCards[0];
+    const card = lessonCards.find((lessonCard) => lessonCard.cardId === studentCard.cardId)?.card;
+    if (card?.isPracticeCard && studentNotQualified(lesson, student)) {
+      return UNCHECK_TYPE.NOT_QUALIFIED;
+    }
     return UNCHECK_TYPE.NOT_CHECKED;
   } else {
     return UNCHECK_TYPE.MULTIPLE_CARDS;
@@ -121,290 +138,72 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string; periodId: string }> }
 ) {
-  const { id, periodId } = await params;
-  const { studentIds } = await request.json();
+  try {
+    const { id, periodId } = await params;
+    const { studentIds } = await request.json();
 
-  const lessonPeriod = await prisma.lessonPeriod.findUnique({
-    where: { id: parseInt(periodId) },
-  });
-  const lesson = await prisma.lesson.findUnique({
-    where: { id: parseInt(id) },
-    include: {
-      cards: true,
-    },
-  });
+    await takeAttendance({
+      lessonId: parseInt(id),
+      lessonPeriodId: parseInt(periodId),
+      studentIds,
+    });
 
-  if (!lesson) {
-    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
-  }
-
-  if (!lessonPeriod) {
-    return NextResponse.json(
-      { error: "Lesson period not found" },
-      { status: 404 }
-    );
-  }
-
-  if (lessonPeriod.attendanceTakenAt) {
-    return NextResponse.json(
-      { error: "Attendance already taken" },
-      { status: 400 }
-    );
-  }
-
-  const validCardIds = lesson.cards.map((card) => card.cardId);
-  const students = await prisma.student.findMany({
-    where: {
-      id: { in: studentIds },
-    },
-    include: {
-      studentCards: {
-        where: {
-          cardId: { in: validCardIds },
-          remainingSessions: {
-            gt: 0,
-          },
-          expiredAt: null,
-        },
-        include: {
-          card: true,
-        },
-      },
-    },
-  });
-
-  await prisma.$transaction(async (tx) => {
-    for (const student of students) {
-      let studentCard: StudentCard | null = null;
-      if (student.studentCards.length === 1) {
-        studentCard = student.studentCards[0];
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Lesson not found") {
+        return NextResponse.json({ error: error.message }, { status: 404 });
       }
-      await tx.lessonStudent.upsert({
-        where: {
-          lessonId_studentId: {
-            lessonId: lesson.id,
-            studentId: student.id,
-          },
-        },
-        update: {},
-        create: {
-          lessonId: lesson.id,
-          studentId: student.id,
-        },
-      });
-
-      const attendanceRecord = await tx.attendanceRecord.create({
-        data: {
-          lessonPeriodId: lessonPeriod.id,
-          studentId: student.id,
-          studentCardId: studentCard?.id,
-        },
-      });
-
-      await tx.event.create({
-        data: {
-          title: "簽到",
-          description: `${lesson.name} 簽到成功`,
-          studentId: student.id,
-          resourceType: "attendanceRecord",
-          resourceId: attendanceRecord.id,
-        },
-      });
-
-      if (studentCard) {
-        const updatedStudentCard = await tx.studentCard.update({
-          where: { id: studentCard.id },
-          data: {
-            remainingSessions: {
-              decrement: 1,
-            },
-          },
-          include: {
-            card: true,
-          },
-        });
-
-        if (updatedStudentCard.remainingSessions === 0) {
-          await tx.event.create({
-            data: {
-              title: "課卡使用完畢",
-              description: `課卡 ${updatedStudentCard.card.name} 使用完畢`,
-              studentId: student.id,
-              resourceType: "studentCard",
-              resourceId: updatedStudentCard.id,
-            },
-          });
-        }
+      if (error.message === "Lesson period not found") {
+        return NextResponse.json({ error: error.message }, { status: 404 });
+      }
+      if (error.message === "Attendance already taken") {
+        return NextResponse.json({ error: error.message }, { status: 400 });
       }
     }
-
-    await tx.lessonPeriod.update({
-      where: { id: lessonPeriod.id },
-      data: {
-        attendanceTakenAt: new Date(),
-      },
-    });
-  });
-
-  await refreshLesson(parseInt(id));
-
-  return NextResponse.json({ success: true });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string; periodId: string }> }
 ) {
-  const { id, periodId } = await params;
-  const { studentIds } = await request.json();
+  try {
+    const { id, periodId } = await params;
+    const { studentIds } = await request.json();
 
-  const lessonPeriod = await prisma.lessonPeriod.findUnique({
-    where: { id: parseInt(periodId), lessonId: parseInt(id) },
-  });
-  const lesson = await prisma.lesson.findUnique({
-    where: { id: parseInt(id) },
-    include: {
-      cards: true,
-    },
-  });
+    await updateAttendance({
+      lessonId: parseInt(id),
+      lessonPeriodId: parseInt(periodId),
+      studentIds,
+    });
 
-  if (!lesson) {
-    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
-  }
-
-  if (!lessonPeriod) {
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Lesson not found") {
+        return NextResponse.json({ error: error.message }, { status: 404 });
+      }
+      if (error.message === "Lesson period not found") {
+        return NextResponse.json({ error: error.message }, { status: 404 });
+      }
+    }
     return NextResponse.json(
-      { error: "Lesson period not found" },
-      { status: 404 }
+      { error: "Internal server error" },
+      { status: 500 }
     );
   }
-
-  const validCardIds = lesson.cards.map((card) => card.cardId);
-
-  const existingRecords = await prisma.attendanceRecord.findMany({
-    where: { lessonPeriodId: lessonPeriod.id },
-    include: { studentCard: true },
-  });
-  const existingStudentIds = existingRecords.map((r) => r.studentId);
-  const newStudentIds = studentIds.filter((id: number) => !existingStudentIds.includes(id));
-  const removedStudentIds = existingStudentIds.filter(
-    (id) => !studentIds.includes(id)
-  );
-
-  const newStudents = await prisma.student.findMany({
-    where: {
-      id: { in: newStudentIds },
-    },
-    include: {
-      studentCards: {
-        where: {
-          cardId: { in: validCardIds },
-          remainingSessions: {
-            gt: 0,
-          },
-          expiredAt: null,
-        },
-        include: {
-          card: true,
-        },
-      },
-    },
-  });
-
-  await prisma.$transaction(async (tx) => {
-    for (const student of newStudents) {
-      let studentCard: StudentCard | null = null;
-      if (student.studentCards.length === 1) {
-        studentCard = student.studentCards[0];
-      }
-      await tx.lessonStudent.upsert({
-        where: {
-          lessonId_studentId: {
-            lessonId: lesson.id,
-            studentId: student.id,
-          },
-        },
-        update: {},
-        create: {
-          lessonId: lesson.id,
-          studentId: student.id,
-        },
-      });
-
-      const attendanceRecord = await tx.attendanceRecord.create({
-        data: {
-          lessonPeriodId: lessonPeriod.id,
-          studentId: student.id,
-          studentCardId: studentCard?.id,
-        },
-      });
-
-      await tx.event.create({
-        data: {
-          title: "簽到",
-          description: `${lesson.name} 簽到成功`,
-          studentId: student.id,
-          resourceType: "attendanceRecord",
-          resourceId: attendanceRecord.id,
-        },
-      });
-
-      if (studentCard) {
-        const updatedStudentCard = await tx.studentCard.update({
-          where: { id: studentCard.id },
-          data: {
-            remainingSessions: {
-              decrement: 1,
-            },
-          },
-          include: {
-            card: true,
-          },
-        });
-
-        if (updatedStudentCard.remainingSessions === 0) {
-          await tx.event.create({
-            data: {
-              title: "課卡使用完畢",
-              description: `課卡 ${updatedStudentCard.card.name} 使用完畢`,
-              studentId: student.id,
-              resourceType: "studentCard",
-              resourceId: updatedStudentCard.id,
-            },
-          });
-        }
-      }
-    }
-
-    const removedAttendanceRecords = await prisma.attendanceRecord.findMany({
-      where: { lessonPeriodId: lessonPeriod.id, studentId: { in: removedStudentIds } },
-    });
-
-    for (const attendanceRecord of removedAttendanceRecords) {
-      if (attendanceRecord.studentCardId) {
-        await tx.studentCard.update({
-          where: { id: attendanceRecord.studentCardId },
-          data: {
-            remainingSessions: { increment: 1 },
-          },
-        });
-      }
-
-      await tx.attendanceRecord.delete({
-        where: { id: attendanceRecord.id },
-      });
-    }
-
-    await tx.lessonPeriod.update({
-      where: { id: lessonPeriod.id },
-      data: {
-        attendanceTakenAt: new Date(),
-      },
-    });
-  });
-
-  await refreshLesson(parseInt(id));
-
-  return NextResponse.json({ success: true });
 }
 
+function studentNotQualified(lesson: LessonWithCards, student: StudentWithCards) {
+  if (lesson.danceType === DanceType.BACHATA && !student.hasCompletedBachataLv1) {
+    return true;
+  } else if (lesson.danceType === DanceType.SALSA && !student.hasCompletedSalsaLv1) {
+    return true;
+  }
+  return false;
+}
