@@ -13,6 +13,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum DanceType {
+  BACHATA
+  SALSA
+}
+
 model User {
   id          Int          @id @default(autoincrement())
   email       String       @unique
@@ -121,6 +126,7 @@ model Lesson {
   classroom   Classroom       @relation(fields: [classroomId], references: [id])
   status      String          @default("inProgress")
   endAt       DateTime?
+  danceType   DanceType         @default(BACHATA)
   teachers    LessonTeacher[]
   cards       LessonCard[]
   periods     LessonPeriod[]
