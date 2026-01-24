@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DanceType, Prisma, StudentCard } from "@prisma/client";
+import { DanceType, Prisma } from "@prisma/client";
 import {
   takeAttendance,
   updateAttendance,

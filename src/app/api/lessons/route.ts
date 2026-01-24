@@ -83,13 +83,15 @@ export async function POST(request: Request) {
       })),
     });
 
+    if (draftLesson.periods) {
     await tx.lessonPeriod.createMany({
       data: draftLesson.periods.map((period) => ({
         lessonId: lesson.id,
-        startTime: new Date(period.startTime),
-        endTime: new Date(period.endTime),
-      })),
-    });
+          startTime: new Date(period.startTime),
+          endTime: new Date(period.endTime),
+        })),
+      });
+    }
 
     await tx.card.findMany({
       where: {
