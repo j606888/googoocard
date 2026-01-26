@@ -20,6 +20,7 @@ const meApi = api.injectEndpoints({
         method: "POST",
         body: { email, password, token },
       }),
+      invalidatesTags: TAG_TYPES,
     }),
     signup: builder.mutation<
       void,
@@ -30,6 +31,7 @@ const meApi = api.injectEndpoints({
         method: "POST",
         body: { name, email, password, token },
       }),
+      invalidatesTags: TAG_TYPES,
     }),
     logout: builder.mutation<void, void>({
       query: () => ({
