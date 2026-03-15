@@ -5,6 +5,8 @@ import { DanceType } from "@prisma/client";
 const danceTypeOptions = [
   { label: "Bachata", value: DanceType.BACHATA.toString() },
   { label: "Salsa", value: DanceType.SALSA.toString() },
+  { label: "Zouk", value: DanceType.ZOUK.toString() },
+  { label: "Hustle", value: DanceType.HUSTLE.toString() },
 ];
 
 const DanceTypeSelect = ({ danceType, onChange }: { danceType: DanceType, onChange: (value: DanceType) => void }) => {

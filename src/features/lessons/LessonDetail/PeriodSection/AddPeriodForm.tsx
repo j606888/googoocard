@@ -54,9 +54,9 @@ const AddPeriodForm = ({
     toTime?: string;
   }>({});
   const [createPeriod, { isLoading }] = useCreatePeriodMutation();
-  const lastPeriod = periods.reduce((latest, period) => {
+  const lastPeriod = periods?.reduce((latest, period) => {
     return new Date(period.endTime) > new Date(latest.endTime) ? period : latest;
-  })
+  }, periods[0])
 
   useEffect(() => {
     if (lastPeriod) {
