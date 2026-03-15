@@ -16,6 +16,8 @@ datasource db {
 enum DanceType {
   BACHATA
   SALSA
+  ZOUK
+  HUSTLE
 }
 
 model User {
