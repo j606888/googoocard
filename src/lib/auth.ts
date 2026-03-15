@@ -41,7 +41,6 @@ export const decodeAuthToken = async () => {
     const { userId, classroomId, exp } = decoded;
 
     const nowSeconds = Math.floor(Date.now() / 1000);
-    console.log({ userId, classroomId, exp, nowSeconds, TWO_WEEKS_SECONDS });
     if (exp - nowSeconds < TWO_WEEKS_SECONDS) {
       await createAuthSession(userId, classroomId);
     }
