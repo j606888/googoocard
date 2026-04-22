@@ -4,7 +4,11 @@ import { refreshLesson } from "@/service/lesson";
 
 type LessonWithCards = Prisma.LessonGetPayload<{
   include: {
-    cards: true;
+    cards: {
+      include: {
+        card: true;
+      };
+    };
   };
 }>;
 
@@ -25,7 +29,13 @@ async function validateAttendanceRequest(
   const [lesson, lessonPeriod] = await Promise.all([
     prisma.lesson.findUnique({
       where: { id: lessonId },
-      include: { cards: true },
+      include: {
+        cards: {
+          include: {
+            card: true,
+          },
+        },
+      },
     }),
     prisma.lessonPeriod.findUnique({
       where: { id: lessonPeriodId },
@@ -54,7 +64,13 @@ async function validateUpdateAttendanceRequest(
   const [lesson, lessonPeriod] = await Promise.all([
     prisma.lesson.findUnique({
       where: { id: lessonId },
-      include: { cards: true },
+      include: {
+        cards: {
+          include: {
+            card: true,
+          },
+        },
+      },
     }),
     prisma.lessonPeriod.findUnique({
       where: { id: lessonPeriodId, lessonId },
@@ -96,23 +112,81 @@ async function fetchStudentsWithValidCards(
   });
 }
 
-function selectStudentCard(student: StudentWithCards, danceType: DanceType): StudentCard | null {
+function selectStudentCard(
+  student: StudentWithCards,
+  lesson: LessonWithCards
+): StudentCard | null {
+  const shouldForcePracticeCard = shouldUsePracticePriority(lesson, student);
+
+  if (shouldForcePracticeCard) {
+    const practiceCards = student.studentCards.filter(
+      (studentCard) => studentCard.card.isPracticeCard
+    );
+    return getRecommendedStudentCard(practiceCards);
+  }
+
   const usableCards = student.studentCards.filter((studentCard) => {
-    if (studentCard.card.isPracticeCard) {
-      if (danceType === DanceType.BACHATA) {
-        return student.hasCompletedBachataLv1;
-      } else if (danceType === DanceType.SALSA) {
-        return student.hasCompletedSalsaLv1;
-      }
-      return false;
+    if (!studentCard.card.isPracticeCard) {
+      return true;
     }
-    return true;
+    return isPracticeQualified(student, lesson.danceType);
   });
 
   if (usableCards.length === 1) {
     return usableCards[0];
   }
   return null;
+}
+
+function shouldUsePracticePriority(
+  lesson: LessonWithCards,
+  student: StudentWithCards
+) {
+  const lessonHasPracticeCard = lesson.cards.some(
+    (lessonCard) => lessonCard.card.isPracticeCard
+  );
+
+  if (!lessonHasPracticeCard) {
+    return false;
+  }
+
+  return isPracticeQualified(student, lesson.danceType);
+}
+
+function isPracticeQualified(student: StudentWithCards, danceType: DanceType) {
+  if (danceType === DanceType.BACHATA) {
+    return student.hasCompletedBachataLv1;
+  }
+  if (danceType === DanceType.SALSA) {
+    return student.hasCompletedSalsaLv1;
+  }
+  return false;
+}
+
+function getRecommendedStudentCard(cards: StudentWithCards["studentCards"]) {
+  if (cards.length === 0) {
+    return null;
+  }
+
+  return [...cards].sort((a, b) => {
+    if (a.remainingSessions !== b.remainingSessions) {
+      return a.remainingSessions - b.remainingSessions;
+    }
+
+    if (a.expiredAt && b.expiredAt) {
+      return new Date(a.expiredAt).getTime() - new Date(b.expiredAt).getTime();
+    }
+
+    if (a.expiredAt) {
+      return -1;
+    }
+
+    if (b.expiredAt) {
+      return 1;
+    }
+
+    return a.id - b.id;
+  })[0];
 }
 
 async function createAttendanceRecord(
@@ -201,7 +275,7 @@ async function processStudentAttendance(
   lessonPeriodId: number,
   student: StudentWithCards
 ) {
-  const studentCard = selectStudentCard(student, lesson.danceType);
+  const studentCard = selectStudentCard(student, lesson);
 
   const attendanceRecord = await createAttendanceRecord(
     tx,

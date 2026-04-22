@@ -1,6 +1,6 @@
 import Drawer from "@/components/Drawer";
 import { AttendanceRecord, Lesson } from "@/store/slices/lessons";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGetStudentCardsByLessonQuery } from "@/store/slices/students";
 import { formatDate } from "@/lib/utils";
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
@@ -18,6 +18,7 @@ const ChooseCardForm = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
+  const [allowManualOverride, setAllowManualOverride] = useState(false);
   const { periodId } = useParams();
   const [consumeStudentCard, { isLoading }] = useConsumeStudentCardMutation();
   const { data: studentCards } = useGetStudentCardsByLessonQuery({
@@ -25,13 +26,39 @@ const ChooseCardForm = ({
     lessonId: lesson.id,
   });
 
+  const isPracticePriority = record.reason === "PRACTICE_PRIORITY";
+  const recommendedPracticeCard = useMemo(
+    () =>
+      studentCards?.find(
+        (card) =>
+          card.id === record.recommendedStudentCardId && card.card.isPracticeCard
+      ),
+    [record.recommendedStudentCardId, studentCards]
+  );
+  const shouldLockGeneralCards = isPracticePriority && !!recommendedPracticeCard && !allowManualOverride;
+
+  useEffect(() => {
+    if (recommendedPracticeCard?.id) {
+      setSelectedCardId(recommendedPracticeCard.id);
+    }
+  }, [recommendedPracticeCard?.id]);
+
   const handleSelectCard = (cardId: number) => {
+    const clickedCard = studentCards?.find((studentCard) => studentCard.id === cardId);
+    if (
+      shouldLockGeneralCards &&
+      clickedCard &&
+      !clickedCard.card.isPracticeCard
+    ) {
+      return;
+    }
     setSelectedCardId(cardId);
   };
 
   const handleClose = () => {
     setOpen(false);
     setSelectedCardId(null);
+    setAllowManualOverride(false);
   };
 
   const handleSubmit = async () => {
@@ -65,10 +92,28 @@ const ChooseCardForm = ({
         isLoading={isLoading}
       >
         <div className="flex flex-col gap-4 mb-4">
+          {shouldLockGeneralCards && (
+            <div className="flex flex-col gap-2 p-3 rounded-sm bg-primary-50 border border-primary-200">
+              <p className="text-xs text-primary-700">
+                已自動選擇複習課卡，保護學生一般課卡點數
+              </p>
+              <button
+                type="button"
+                className="text-xs text-primary-700 underline text-left cursor-pointer"
+                onClick={() => setAllowManualOverride(true)}
+              >
+                老師手動切換覆蓋
+              </button>
+            </div>
+          )}
           {studentCards?.map((studentCard) => (
             <div
               key={studentCard.id}
-              className={`relative flex flex-col gap-2 p-3 rounded-sm border border-gray-200 cursor-pointer ${
+              className={`relative flex flex-col gap-2 p-3 rounded-sm border border-gray-200 ${
+                shouldLockGeneralCards && !studentCard.card.isPracticeCard
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer"
+              } ${
                 selectedCardId === studentCard.id
                   ? "border-primary-500 bg-[#F1FAF6]"
                   : ""

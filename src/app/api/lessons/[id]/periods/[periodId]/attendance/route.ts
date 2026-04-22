@@ -18,16 +18,25 @@ type LessonWithCards = Prisma.LessonGetPayload<{
 
 type StudentWithCards = Prisma.StudentGetPayload<{
   include: {
-    studentCards: true;
+    studentCards: {
+      include: {
+        card: true;
+      };
+    };
   };
 }>;
 
 const UNCHECK_TYPE = {
   NO_CARD: "no_card",
+  NO_PRACTICE_CARD: "no_practice_card",
   MULTIPLE_CARDS: "multiple_cards",
   NOT_CHECKED: "not_checked",
   NOT_QUALIFIED: "not_qualified",
 };
+
+const ATTENDANCE_REASON = {
+  PRACTICE_PRIORITY: "PRACTICE_PRIORITY",
+} as const;
 
 export async function GET(
   request: Request,
@@ -47,6 +56,9 @@ export async function GET(
                   remainingSessions: {
                     gt: 0,
                   },
+                },
+                include: {
+                  card: true,
                 },
               },
             },
@@ -95,9 +107,12 @@ export async function GET(
         income: studentCard.finalPrice / studentCard.totalSessions,
       };
     } else {
-      const uncheckedType = findUncheckedType(lesson, record.student);
+      const { uncheckedType, recommendedStudentCardId, reason } =
+        findUncheckedType(lesson, record.student);
       studentCardData = {
         uncheckedType,
+        recommendedStudentCardId,
+        reason,
       };
     }
 
@@ -113,25 +128,118 @@ export async function GET(
 }
 
 function findUncheckedType(lesson: LessonWithCards, student: StudentWithCards) {
-  const lessonCards = lesson.cards;
-  const studentCards = student.studentCards;
+  const matchedCards = getMatchedCards(lesson, student);
+  const shouldForcePracticePriority = shouldUsePracticePriority(lesson, student);
+  const practicePriorityCard = getPracticePriorityCard(lesson, student, matchedCards);
 
-  const matchedCards = studentCards.filter((studentCard) =>
-    lessonCards.some((lessonCard) => lessonCard.cardId === studentCard.cardId)
-  );
+  if (practicePriorityCard) {
+    return {
+      uncheckedType: UNCHECK_TYPE.MULTIPLE_CARDS,
+      recommendedStudentCardId: practicePriorityCard.id,
+      reason: ATTENDANCE_REASON.PRACTICE_PRIORITY,
+    };
+  }
 
   if (matchedCards.length === 0) {
-    return UNCHECK_TYPE.NO_CARD;
+    return {
+      uncheckedType: UNCHECK_TYPE.NO_CARD,
+      recommendedStudentCardId: null,
+      reason: null,
+    };
+  } else if (shouldForcePracticePriority) {
+    return {
+      uncheckedType: UNCHECK_TYPE.NO_PRACTICE_CARD,
+      recommendedStudentCardId: null,
+      reason: null,
+    };
   } else if (matchedCards.length === 1) {
     const studentCard = matchedCards[0];
-    const card = lessonCards.find((lessonCard) => lessonCard.cardId === studentCard.cardId)?.card;
+    const card = lesson.cards.find(
+      (lessonCard) => lessonCard.cardId === studentCard.cardId
+    )?.card;
     if (card?.isPracticeCard && studentNotQualified(lesson, student)) {
-      return UNCHECK_TYPE.NOT_QUALIFIED;
+      return {
+        uncheckedType: UNCHECK_TYPE.NOT_QUALIFIED,
+        recommendedStudentCardId: null,
+        reason: null,
+      };
     }
-    return UNCHECK_TYPE.NOT_CHECKED;
+    return {
+      uncheckedType: UNCHECK_TYPE.NOT_CHECKED,
+      recommendedStudentCardId: studentCard.id,
+      reason: null,
+    };
   } else {
-    return UNCHECK_TYPE.MULTIPLE_CARDS;
+    const recommendedCard = getRecommendedStudentCard(matchedCards);
+    return {
+      uncheckedType: UNCHECK_TYPE.MULTIPLE_CARDS,
+      recommendedStudentCardId: recommendedCard?.id ?? null,
+      reason: null,
+    };
   }
+}
+
+function shouldUsePracticePriority(lesson: LessonWithCards, student: StudentWithCards) {
+  const lessonHasPracticeCard = lesson.cards.some((lessonCard) => lessonCard.card.isPracticeCard);
+  if (!lessonHasPracticeCard) {
+    return false;
+  }
+  return !studentNotQualified(lesson, student);
+}
+
+function getMatchedCards(lesson: LessonWithCards, student: StudentWithCards) {
+  return student.studentCards.filter(
+    (studentCard) =>
+      studentCard.remainingSessions > 0 &&
+      !studentCard.expiredAt &&
+      lesson.cards.some((lessonCard) => lessonCard.cardId === studentCard.cardId)
+  );
+}
+
+function getPracticePriorityCard(
+  lesson: LessonWithCards,
+  student: StudentWithCards,
+  matchedCards: StudentWithCards["studentCards"]
+) {
+  if (
+    lesson.danceType !== DanceType.BACHATA &&
+    lesson.danceType !== DanceType.SALSA
+  ) {
+    return null;
+  }
+
+  if (studentNotQualified(lesson, student)) {
+    return null;
+  }
+
+  const practiceCards = matchedCards.filter((studentCard) => studentCard.card.isPracticeCard);
+  return getRecommendedStudentCard(practiceCards) ?? null;
+}
+
+function getRecommendedStudentCard(cards: StudentWithCards["studentCards"]) {
+  if (cards.length === 0) {
+    return null;
+  }
+
+  return [...cards].sort((a, b) => {
+    if (a.remainingSessions !== b.remainingSessions) {
+      return a.remainingSessions - b.remainingSessions;
+    }
+
+    if (a.expiredAt && b.expiredAt) {
+      return new Date(a.expiredAt).getTime() - new Date(b.expiredAt).getTime();
+    }
+
+    if (a.expiredAt) {
+      return -1;
+    }
+
+    if (b.expiredAt) {
+      return 1;
+    }
+
+    return a.id - b.id;
+  })[0];
 }
 
 export async function POST(

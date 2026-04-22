@@ -16,6 +16,12 @@ function isCardDisabled(
   lesson: Lesson & { danceType?: DanceType },
   student: Student | undefined
 ): boolean {
+  const shouldPracticeOnly = shouldForcePracticeOnly(lesson, student);
+
+  if (shouldPracticeOnly && !card.isPracticeCard) {
+    return true;
+  }
+
   if (!card.isPracticeCard) {
     return false;
   }
@@ -28,6 +34,30 @@ function isCardDisabled(
     return !student.hasCompletedBachataLv1;
   } else if (lesson.danceType === DanceType.SALSA) {
     return !student.hasCompletedSalsaLv1;
+  }
+
+  return false;
+}
+
+function shouldForcePracticeOnly(
+  lesson: Lesson & { danceType?: DanceType },
+  student: Student | undefined
+) {
+  if (!student || !lesson.danceType) {
+    return false;
+  }
+
+  const lessonHasPracticeCard = lesson.cards?.some((card) => card.isPracticeCard);
+  if (!lessonHasPracticeCard) {
+    return false;
+  }
+
+  if (lesson.danceType === DanceType.BACHATA) {
+    return student.hasCompletedBachataLv1;
+  }
+
+  if (lesson.danceType === DanceType.SALSA) {
+    return student.hasCompletedSalsaLv1;
   }
 
   return false;
