@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { DollarSign, ChevronDown, ChevronUp } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { DollarSign } from "lucide-react";
 import Navbar from "@/features/Navbar";
 import Button from "@/components/Button";
-import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 interface IncomeRecord {
   id: number;
@@ -23,22 +23,24 @@ interface IncomeResponse {
   hasMore: boolean;
 }
 
-interface DailyIncomeLesson {
+interface DailySummaryPeriod {
   lessonId: number;
+  periodId: number;
   lessonName: string;
-  income: number;
+  attendanceCount: number;
+  revenue: number;
   pendingStudents: string[];
 }
 
-interface DailyIncomeReport {
-  date: string;
-  availableDates: string[];
-  totalIncome: number;
-  lessons: DailyIncomeLesson[];
+interface DailySummaryResponse {
+  selectedDate: string;
+  totalRevenue: number;
+  periods: DailySummaryPeriod[];
 }
 
-interface DailyDateResponse {
-  availableDates: string[];
+interface DailySummaryOptionsResponse {
+  years: number[];
+  dates: string[];
 }
 
 const formatDate = (value: string) => {
@@ -49,17 +51,18 @@ const formatDate = (value: string) => {
   return `${year}-${month}-${day}`;
 };
 
-const todayDateKey = formatDate(new Date().toISOString());
+const formatDateLabel = (dateKey: string) => dateKey;
 
 const IncomePage = () => {
-  const searchParams = useSearchParams();
   const [records, setRecords] = useState<IncomeRecord[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [years, setYears] = useState<number[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [allDates, setAllDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>("");
-  const [dailyReport, setDailyReport] = useState<DailyIncomeReport | null>(null);
+  const [dailyReport, setDailyReport] = useState<DailySummaryResponse | null>(null);
   const [isDailyLoading, setIsDailyLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"daily" | "records">("daily");
 
@@ -71,20 +74,26 @@ const IncomePage = () => {
     return (await response.json()) as IncomeResponse;
   };
 
-  const fetchDailyDates = async () => {
-    const response = await fetch("/api/income/daily");
-    if (!response.ok) {
-      throw new Error("Failed to fetch daily income dates");
+  const fetchDailySummary = async (params: {
+    date?: string;
+  }) => {
+    const search = new URLSearchParams();
+    if (params.date) {
+      search.set("date", params.date);
     }
-    return (await response.json()) as DailyDateResponse;
+    const response = await fetch(`/api/income/daily-summary?${search.toString()}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch daily summary");
+    }
+    return (await response.json()) as DailySummaryResponse;
   };
 
-  const fetchDailyReport = async (date: string) => {
-    const response = await fetch(`/api/income/daily?date=${date}`);
+  const fetchDailySummaryOptions = async () => {
+    const response = await fetch("/api/income/daily-summary/options");
     if (!response.ok) {
-      throw new Error("Failed to fetch daily income report");
+      throw new Error("Failed to fetch daily summary options");
     }
-    return (await response.json()) as DailyIncomeReport;
+    return (await response.json()) as DailySummaryOptionsResponse;
   };
 
   const loadInitial = useCallback(async () => {
@@ -114,41 +123,65 @@ const IncomePage = () => {
   }, [loadInitial]);
 
   useEffect(() => {
-    const bootDaily = async () => {
+    const bootDailySummary = async () => {
       try {
         setIsDailyLoading(true);
-        const dateResponse = await fetchDailyDates();
-        setAvailableDates(dateResponse.availableDates);
+        const [options, report] = await Promise.all([
+          fetchDailySummaryOptions(),
+          fetchDailySummary({}),
+        ]);
 
-        const queryDate = searchParams.get("date");
-        const initialDate =
-          queryDate ||
-          (dateResponse.availableDates.includes(todayDateKey)
-            ? todayDateKey
-            : dateResponse.availableDates[0]);
-
-        if (!initialDate) {
-          setSelectedDate("");
-          setDailyReport(null);
-          return;
-        }
-
-        setSelectedDate(initialDate);
-        const report = await fetchDailyReport(initialDate);
+        setYears(options.years);
+        setAllDates(options.dates);
+        setSelectedDate(report.selectedDate ?? "");
+        setSelectedYear(
+          report.selectedDate ? Number(report.selectedDate.slice(0, 4)) : options.years[0] ?? null
+        );
         setDailyReport(report);
       } finally {
         setIsDailyLoading(false);
       }
     };
 
-    bootDaily();
-  }, [searchParams]);
+    bootDailySummary();
+  }, []);
+
+  const availableDates = useMemo(() => {
+    if (!selectedYear) {
+      return [];
+    }
+    return allDates.filter((date) => Number(date.slice(0, 4)) === selectedYear);
+  }, [allDates, selectedYear]);
+
+  const handleYearChange = async (year: number) => {
+    setSelectedYear(year);
+    const yearDates = allDates.filter((date) => Number(date.slice(0, 4)) === year);
+    const nextDate = yearDates[0] ?? "";
+    setSelectedDate(nextDate);
+
+    if (!nextDate) {
+      setDailyReport({
+        selectedDate: "",
+        totalRevenue: 0,
+        periods: [],
+      });
+      return;
+    }
+
+    setIsDailyLoading(true);
+    try {
+      const report = await fetchDailySummary({ date: nextDate });
+      setDailyReport(report);
+    } finally {
+      setIsDailyLoading(false);
+    }
+  };
 
   const handleDateChange = async (date: string) => {
     setSelectedDate(date);
     setIsDailyLoading(true);
     try {
-      const report = await fetchDailyReport(date);
+      const report = await fetchDailySummary({ date });
       setDailyReport(report);
     } finally {
       setIsDailyLoading(false);
@@ -193,16 +226,28 @@ const IncomePage = () => {
               <h3 className="text-base font-semibold">單日營收報告</h3>
             </div>
 
-            {!isDailyLoading && availableDates.length > 0 && (
-              <div className="mb-3">
+            {!isDailyLoading && years.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <select
+                  className="w-full border border-gray-200 rounded-sm p-2 text-sm"
+                  value={selectedYear ?? ""}
+                  onChange={(e) => handleYearChange(Number(e.target.value))}
+                >
+                  {years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
                 <select
                   className="w-full border border-gray-200 rounded-sm p-2 text-sm"
                   value={selectedDate}
                   onChange={(e) => handleDateChange(e.target.value)}
+                  disabled={availableDates.length === 0}
                 >
                   {availableDates.map((date) => (
                     <option key={date} value={date}>
-                      {date}
+                      {formatDateLabel(date)}
                     </option>
                   ))}
                 </select>
@@ -219,34 +264,41 @@ const IncomePage = () => {
 
             {!isDailyLoading && dailyReport && (
               <div className="flex flex-col gap-3">
-                <div className="rounded-sm bg-primary-50 p-3">
-                  <p className="text-xs text-gray-600">{dailyReport.date}</p>
+                <div className="rounded-sm bg-primary-50 p-3 border border-primary-100">
+                  <p className="text-xs text-gray-600">{dailyReport.selectedDate}</p>
                   <p className="text-2xl font-bold text-primary-700">
-                    ${Math.round(dailyReport.totalIncome)}
+                    ${Math.round(dailyReport.totalRevenue)}
                   </p>
                   <p className="text-xs text-gray-600">當日總營收</p>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  {dailyReport.lessons.map((lesson) => {
+                  {dailyReport.periods.map((period) => {
                     return (
                       <div
-                        key={lesson.lessonId}
-                        className="border border-gray-200 rounded-sm overflow-hidden"
+                        key={period.periodId}
+                        className="border border-gray-200 rounded-sm bg-white p-3"
                       >
-                        <div
-                          className="w-full px-3 py-2 flex items-center gap-2 bg-white"
-                        >
-                          <span className="font-medium text-left">{lesson.lessonName}</span>
-                          <span className="ml-auto font-semibold text-green-600">
-                            ${Math.round(lesson.income)}
-                          </span>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{period.lessonName}</p>
+                          <p className="text-xs text-gray-500">
+                            出席 {period.attendanceCount} 人
+                          </p>
+                          <p className="ml-auto font-semibold text-green-600">
+                            ${Math.round(period.revenue)}
+                          </p>
                         </div>
-                        {lesson.pendingStudents.length > 0 && (
-                          <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
-                            <p className="text-xs font-semibold text-red-600">
-                              {lesson.pendingStudents.length} 位學生尚未付款
+                        {period.pendingStudents.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-gray-100">
+                            <p className="text-xs font-semibold text-red-600 mb-1">
+                              尚未扣卡：{period.pendingStudents.join("、")}
                             </p>
+                            <Link
+                              href={`/lessons/${period.lessonId}/periods/${period.periodId}/check-success`}
+                              className="text-xs text-primary-700 underline"
+                            >
+                              回到該堂點名頁
+                            </Link>
                           </div>
                         )}
                       </div>
