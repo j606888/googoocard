@@ -62,6 +62,7 @@ export interface StudentCardWithCard extends StudentCard {
   attendanceRecords: {
     lessonName: string;
     periodStartTime: number;
+    teacherName: string;
   }[]
 }
 
