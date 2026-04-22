@@ -11,6 +11,7 @@ export interface Student {
   createdAt: string;
   classroom: Classroom;
   studentCards: StudentCardWithCard[];
+  needsRenewal?: boolean;
   hasCompletedBachataLv1: boolean;
   hasCompletedSalsaLv1: boolean;
 }
@@ -79,8 +80,18 @@ export interface StudentCard {
 
 const studentsApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getStudents: builder.query<Student[], { query?: string } | void>({
-      query: ({ query } = {}) => `students${query ? `?query=${query}` : ""}`,
+    getStudents: builder.query<Student[], { query?: string; needsRenewal?: boolean } | void>({
+      query: ({ query, needsRenewal } = {}) => {
+        const searchParams = new URLSearchParams();
+        if (query) {
+          searchParams.set("query", query);
+        }
+        if (needsRenewal) {
+          searchParams.set("needsRenewal", "true");
+        }
+        const queryString = searchParams.toString();
+        return `students${queryString ? `?${queryString}` : ""}`;
+      },
       providesTags: ["Student"],
     }),
     getPublicStudent: builder.query<StudentWithDetail, { randomKey: string }>({

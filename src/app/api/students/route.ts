@@ -8,6 +8,8 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("query");
+  const needsRenewalParam = searchParams.get("needsRenewal");
+  const filterNeedsRenewal = needsRenewalParam === "true";
 
   const students = await prisma.student.findMany({
     where: {
@@ -25,24 +27,48 @@ export async function GET(request: Request) {
       studentCards: {
         where: {
           expiredAt: null,
-          remainingSessions: {
-            gt: 0,
-          },
         },
         include: {
           card: true,
+        },
+        orderBy: {
+          createdAt: "desc",
         },
       },
     },
   });
 
-  const results = students.map((student) => ({
-    ...student,
-    studentCards: student.studentCards.map((studentCard) => ({
-      ...studentCard,
-      card: studentCard.card,
-    })),
-  }));
+  const results = students
+    .map((student) => {
+      const renewableCards = student.studentCards.filter(
+        (studentCard) => studentCard.totalSessions > 1
+      );
+      const activeStudentCards = student.studentCards.filter(
+        (studentCard) => studentCard.remainingSessions > 0
+      );
+
+      const latestCardByType = new Map<number, (typeof renewableCards)[number]>();
+      for (const studentCard of renewableCards) {
+        if (!latestCardByType.has(studentCard.cardId)) {
+          // studentCards already sorted by createdAt desc, first one is latest
+          latestCardByType.set(studentCard.cardId, studentCard);
+        }
+      }
+
+      const needsRenewal = [...latestCardByType.values()].some(
+        (studentCard) => studentCard.remainingSessions === 0
+      );
+
+      return {
+        ...student,
+        needsRenewal,
+        studentCards: activeStudentCards.map((studentCard) => ({
+          ...studentCard,
+          card: studentCard.card,
+        })),
+      };
+    })
+    .filter((student) => (filterNeedsRenewal ? student.needsRenewal : true));
 
   return NextResponse.json(results);
 }
