@@ -51,7 +51,14 @@ export interface AttendanceRecord {
   cardName: string;
   remainingSessions: number;
   income: number;
-  uncheckedType: "no_card" | "multiple_cards" | "not_checked";
+  uncheckedType:
+    | "no_card"
+    | "no_practice_card"
+    | "multiple_cards"
+    | "not_checked"
+    | "not_qualified";
+  recommendedStudentCardId?: number | null;
+  reason?: "PRACTICE_PRIORITY" | null;
 }
 
 export interface UnbindAttendanceRecord {
