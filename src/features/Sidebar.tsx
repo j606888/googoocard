@@ -51,7 +51,6 @@ const LINKS = [
     name: "Income",
     icon: DollarSign,
     href: "/income",
-    disabled: true,
   },
 ];
 
@@ -157,13 +156,13 @@ const Sidebar = () => {
               <div className="flex flex-col gap-2 mt-3">
                 {LINKS.map((link) => (
                   <Link
-                    href={link.disabled ? "#" : link.href}
+                    href={link.href}
                     key={link.name}
                     className={`flex gap-4 items-center p-3 hover:bg-gray-100 rounded-sm ${
                       pathname === link.href
                         ? "bg-primary-100 text-primary-900 font-semibold"
                         : "text-gray-700"
-                    } ${link.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                    }`}
                   >
                     <link.icon className="w-6 h-6" />
                     <span>{link.name}</span>
