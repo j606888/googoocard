@@ -24,6 +24,11 @@ const SingleStudent = ({ student }: { student: Student }) => {
               {student.note && (
                 <p className="text-sm text-gray-500">({student.note})</p>
               )}
+              {student.needsRenewal && (
+                <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
+                  餘額 0
+                </span>
+              )}
             </div>
             <div>
               <p className="flex gap-1 items-center text-sm text-gray-400">

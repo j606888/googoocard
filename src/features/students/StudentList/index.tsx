@@ -5,10 +5,15 @@ import Searchbar from "./Searchbar";
 import { useState } from "react";
 import { Users } from "lucide-react";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { Switch } from "@/components/ui/switch";
 
 const StudentList = () => {
   const [query, setQuery] = useState("");
-  const { data: students, isLoading } = useGetStudentsQuery({ query });
+  const [needsRenewalOnly, setNeedsRenewalOnly] = useState(false);
+  const { data: students, isLoading } = useGetStudentsQuery({
+    query,
+    needsRenewal: needsRenewalOnly,
+  });
 
   if (isLoading) return <ListSkeleton />;
 
@@ -17,6 +22,13 @@ const StudentList = () => {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">Students</h2>
         <NewStudent />
+      </div>
+      <div className="flex items-center justify-between mb-4 px-1">
+        <p className="text-sm font-medium">待續約 (Needs Renewal)</p>
+        <Switch
+          checked={needsRenewalOnly}
+          onCheckedChange={setNeedsRenewalOnly}
+        />
       </div>
       <Searchbar onSearch={setQuery} />
       {students?.length === 0 && (

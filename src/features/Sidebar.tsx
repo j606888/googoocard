@@ -20,6 +20,7 @@ import {
   useSwitchClassroomMutation,
 } from "@/store/slices/classrooms";
 import { useLogoutMutation } from "@/store/slices/me";
+import { useGetStudentsQuery } from "@/store/slices/students";
 
 const LINKS = [
   {
@@ -61,6 +62,8 @@ const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const [logout] = useLogoutMutation();
+  const { data: renewalStudents } = useGetStudentsQuery({ needsRenewal: true });
+  const renewalCount = renewalStudents?.length ?? 0;
 
   const { data } = useGetClassroomsQuery();
   const otherClassrooms = data?.classrooms.filter(
@@ -166,6 +169,11 @@ const Sidebar = () => {
                   >
                     <link.icon className="w-6 h-6" />
                     <span>{link.name}</span>
+                    {link.name === "Students" && renewalCount > 0 && (
+                      <span className="ml-auto min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                        {renewalCount}
+                      </span>
+                    )}
                   </Link>
                 ))}
               </div>
