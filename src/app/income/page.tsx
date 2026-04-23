@@ -53,6 +53,9 @@ const formatDate = (value: string) => {
 
 const formatDateLabel = (dateKey: string) => dateKey;
 
+const latestDateKey = (dates: string[]) =>
+  [...dates].sort((a, b) => b.localeCompare(a))[0] ?? "";
+
 const IncomePage = () => {
   const [records, setRecords] = useState<IncomeRecord[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -126,17 +129,27 @@ const IncomePage = () => {
     const bootDailySummary = async () => {
       try {
         setIsDailyLoading(true);
-        const [options, report] = await Promise.all([
-          fetchDailySummaryOptions(),
-          fetchDailySummary({}),
-        ]);
+        const options = await fetchDailySummaryOptions();
 
         setYears(options.years);
         setAllDates(options.dates);
-        setSelectedDate(report.selectedDate ?? "");
-        setSelectedYear(
-          report.selectedDate ? Number(report.selectedDate.slice(0, 4)) : options.years[0] ?? null
-        );
+
+        if (options.dates.length === 0) {
+          setSelectedDate("");
+          setSelectedYear(options.years[0] ?? null);
+          setDailyReport({
+            selectedDate: "",
+            totalRevenue: 0,
+            periods: [],
+          });
+          return;
+        }
+
+        const initialDate = latestDateKey(options.dates);
+        setSelectedDate(initialDate);
+        setSelectedYear(Number(initialDate.slice(0, 4)));
+
+        const report = await fetchDailySummary({ date: initialDate });
         setDailyReport(report);
       } finally {
         setIsDailyLoading(false);
