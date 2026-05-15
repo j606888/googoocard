@@ -5,12 +5,12 @@ import AttendanceByDate from "./AttendanceByDate";
 
 const TABS = [
   {
-    label: "Group by Date",
-    value: "group_by_date",
-  },
-  {
     label: "Group by Lesson",
     value: "group_by_lesson",
+  },
+  {
+    label: "Group by Date",
+    value: "group_by_date",
   },
 ];
 
