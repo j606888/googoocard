@@ -5,45 +5,36 @@ import { decodeAuthToken } from "@/lib/auth";
 export async function GET() {
   const { classroomId } = await decodeAuthToken();
 
+  const cardInclude = {
+    _count: { select: { studentCards: true } },
+    studentCards: {
+      select: { finalPrice: true, remainingSessions: true, expiredAt: true as true },
+    },
+  };
+
   const activeCards = await prisma.card.findMany({
-    where: {
-      classroomId,
-      expiredAt: null,
-    },
-    include: {
-      _count: {
-        select: {
-          studentCards: true
-        }
-      }
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
+    where: { classroomId, expiredAt: null },
+    include: cardInclude,
+    orderBy: { createdAt: "desc" },
   });
 
   const expiredCards = await prisma.card.findMany({
-    where: {
-      classroomId,
-      expiredAt: {
-        not: null,
-      },
-    },
-    include: {
-      _count: {
-        select: {
-          studentCards: true
-        }
-      }
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
+    where: { classroomId, expiredAt: { not: null } },
+    include: cardInclude,
+    orderBy: { createdAt: "desc" },
+  });
+
+  const mapCard = (card: typeof activeCards[0]) => ({
+    ...card,
+    studentCards: undefined,
+    purchasedCount: card._count.studentCards,
+    activeHolders: card.studentCards.filter((sc) => sc.remainingSessions > 0 && !sc.expiredAt).length,
+    totalRevenue: card.studentCards.reduce((sum, sc) => sum + sc.finalPrice, 0),
   });
 
   const result = {
-    activeCards: activeCards.map((card) => ({ ...card, purchasedCount: card._count.studentCards })),
-    expiredCards: expiredCards.map((card) => ({ ...card, purchasedCount: card._count.studentCards })),
+    activeCards: activeCards.map(mapCard),
+    expiredCards: expiredCards.map(mapCard),
   };
 
   return NextResponse.json(result);

@@ -207,12 +207,20 @@ const lessonsApi = api.injectEndpoints({
       }),
       providesTags: ["AttendanceRecord"],
     }),
+    deleteLesson: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `lessons/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Lesson"],
+    }),
   }),
 });
 
 export const {
   useCreateLessonMutation,
   useUpdateLessonMutation,
+  useDeleteLessonMutation,
   useGetLessonsQuery,
   useGetLessonQuery,
   useLazyCheckStudentCardsQuery,

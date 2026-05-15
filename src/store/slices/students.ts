@@ -110,11 +110,11 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Student"],
     }),
-    updateStudent: builder.mutation<Student, { id: number; name: string; note?: string; hasCompletedBachataLv1: boolean; hasCompletedSalsaLv1: boolean }>({
-      query: ({ id, name, note, hasCompletedBachataLv1, hasCompletedSalsaLv1 }) => ({
+    updateStudent: builder.mutation<Student, { id: number; name: string; note?: string; avatarUrl: string; hasCompletedBachataLv1: boolean; hasCompletedSalsaLv1: boolean }>({
+      query: ({ id, name, note, avatarUrl, hasCompletedBachataLv1, hasCompletedSalsaLv1 }) => ({
         url: `students/${id}`,
         method: "PATCH",
-        body: { name, note, hasCompletedBachataLv1, hasCompletedSalsaLv1 },
+        body: { name, note, avatarUrl, hasCompletedBachataLv1, hasCompletedSalsaLv1 },
       }),
       invalidatesTags: ["Student"],
     }),

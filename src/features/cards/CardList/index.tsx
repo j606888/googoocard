@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useGetCardsQuery } from "@/store/slices/cards";
-import { CreditCard, EyeClosed, Eye } from "lucide-react";
+import { CreditCard, ChevronDown } from "lucide-react";
 import NewCard from "./NewCard";
 import SingleCard from "./SingleCard";
 import CardListSkeleton from "./CardListSkeleton";
@@ -52,18 +52,20 @@ const CardList = () => {
       )}
       {expiredCards?.length > 0 && (
         <>
-          <hr className="border-gray-200 my-6" />
-          <div
-            className="text-gray-600 text-sm mb-3 flex items-center gap-2 cursor-pointer"
+          <hr className="border-gray-100 my-6" />
+          <button
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors mb-3 cursor-pointer"
             onClick={() => setShowExpiredCards(!showExpiredCards)}
           >
-            {showExpiredCards ? (
-              <Eye className="w-6 h-6" />
-            ) : (
-              <EyeClosed className="w-6 h-6" />
-            )}
-            <span>Disabled Cards ({expiredCards?.length})</span>
-          </div>
+            <span className="text-sm font-medium text-gray-600">
+              Disabled Cards ({expiredCards?.length})
+            </span>
+            <ChevronDown
+              className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+                showExpiredCards ? "rotate-180" : ""
+              }`}
+            />
+          </button>
           {showExpiredCards && (
             <div className="flex flex-col gap-4">
               {expiredCards?.map((card) => (

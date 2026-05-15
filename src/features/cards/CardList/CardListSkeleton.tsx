@@ -2,13 +2,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const CardListSkeleton = () => {
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <Skeleton className="h-10 w-24" />
-        <Skeleton className="h-10 w-32 rounded-full" />
+    <div className="px-5 py-3">
+      <div className="flex items-center justify-between mb-3">
+        <Skeleton className="h-8 w-20" />
+        <Skeleton className="h-9 w-28 rounded-full" />
       </div>
-      <Skeleton className="h-6 w-40 mb-6" />
-      <div className="space-y-4">
+      <Skeleton className="h-5 w-36 mb-3" />
+      <div className="flex flex-col gap-4">
+        <CardSkeleton />
         <CardSkeleton />
         <CardSkeleton />
       </div>
@@ -18,29 +19,35 @@ const CardListSkeleton = () => {
 
 const CardSkeleton = () => {
   return (
-    <div className="bg-white rounded-lg border-1 border-gray-100 p-4 shadow-xs">
-      <div className="flex items-start justify-between mb-6">
-        <Skeleton className="h-6 w-32" />
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-8 w-20 rounded-full" />
-          <Skeleton className="h-6 w-6 rounded" />
+    <div className="border border-gray-200 border-l-4 border-l-gray-200 rounded-lg p-4 shadow-sm">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex flex-col gap-1.5">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-4 w-20 rounded-full" />
+        </div>
+        <Skeleton className="h-7 w-7 rounded-md" />
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="flex flex-col items-center gap-1">
+          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-3 w-10" />
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <Skeleton className="h-7 w-8" />
+          <Skeleton className="h-3 w-14" />
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <Skeleton className="h-7 w-14" />
+          <Skeleton className="h-3 w-18" />
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-8">
-        <div className="text-center">
-          <Skeleton className="h-8 w-8 mx-auto mb-2" />
-          <Skeleton className="h-4 w-12 mx-auto" />
-        </div>
-        <div className="text-center">
-          <Skeleton className="h-8 w-8 mx-auto mb-2" />
-          <Skeleton className="h-4 w-16 mx-auto" />
-        </div>
-        <div className="text-center">
-          <Skeleton className="h-8 w-8 mx-auto mb-2" />
-          <Skeleton className="h-4 w-20 mx-auto" />
-        </div>
+      <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
+        <Skeleton className="h-3.5 w-16" />
+        <Skeleton className="h-3.5 w-20" />
+        <Skeleton className="h-3.5 w-24" />
       </div>
     </div>
   );
 };
+
 export default CardListSkeleton;

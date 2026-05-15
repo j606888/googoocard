@@ -70,3 +70,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   });
   return NextResponse.json(lesson);
 }
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const lessonId = parseInt(id);
+
+  await prisma.lessonTeacher.deleteMany({ where: { lessonId } });
+  await prisma.lessonCard.deleteMany({ where: { lessonId } });
+  await prisma.lessonStudent.deleteMany({ where: { lessonId } });
+  await prisma.lesson.delete({ where: { id: lessonId } });
+
+  return NextResponse.json({});
+}
