@@ -6,7 +6,8 @@ import DanceTypeSelect from "@/features/lessons/newLesson/DanceTypeSelect";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
 import Button from "@/components/Button";
-import { useUpdateLessonMutation } from "@/store/slices/lessons";
+import { useUpdateLessonMutation, useDeleteLessonMutation } from "@/store/slices/lessons";
+import { useRouter } from "next/navigation";
 
 const validationErrors = {
   lessonName: "Must provide a name",
@@ -26,6 +27,16 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
     cards?: string;
   }>({});
   const [updateLesson, { isLoading }] = useUpdateLessonMutation();
+  const [deleteLesson, { isLoading: isDeleting }] = useDeleteLessonMutation();
+  const router = useRouter();
+  const hasNoPeriods = lesson.periods.length === 0;
+
+  const handleDelete = () => {
+    const confirmed = confirm("Are you sure you want to delete this lesson?");
+    if (!confirmed) return;
+    router.push("/lessons");
+    deleteLesson(lesson.id);
+  };
   const handleLessonNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (errors.lessonName) {
       setErrors((prev) => ({ ...prev, lessonName: undefined }));
@@ -90,6 +101,22 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
           <Button onClick={handleSubmit} isLoading={isLoading}>
             Update
           </Button>
+          <div className="pt-4 border-t border-gray-200">
+            <button
+              onClick={handleDelete}
+              disabled={!hasNoPeriods || isDeleting}
+              className={`w-full py-2 rounded font-semibold text-white bg-red-500 hover:bg-red-600 ${
+                !hasNoPeriods || isDeleting ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+              }`}
+            >
+              Delete Lesson
+            </button>
+            {!hasNoPeriods && (
+              <p className="text-xs text-gray-400 mt-1 text-center">
+                Remove all periods before deleting this lesson
+              </p>
+            )}
+          </div>
         </div>
       </div>
   );
