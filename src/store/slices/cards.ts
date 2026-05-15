@@ -8,6 +8,8 @@ export interface Card {
   sessions: number;
   expiredAt: Date | null;
   purchasedCount: number;
+  activeHolders: number;
+  totalRevenue: number;
 }
 
 const cardsApi = api.injectEndpoints({
