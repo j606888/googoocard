@@ -8,7 +8,7 @@ export async function GET() {
   const cardInclude = {
     _count: { select: { studentCards: true } },
     studentCards: {
-      select: { finalPrice: true, remainingSessions: true, expiredAt: true as true },
+      select: { finalPrice: true, remainingSessions: true, expiredAt: true as const },
     },
   };
 
