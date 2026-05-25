@@ -10,6 +10,10 @@ import { useCreateLessonMutation } from "@/store/slices/lessons";
 import { useRouter } from "next/navigation";
 import DanceTypeSelect from "./DanceTypeSelect";
 import { DanceType } from "@prisma/client";
+import {
+  getLessonCloneSource,
+  clearLessonCloneSource,
+} from "@/lib/lessonDraftStorage";
 
 const validationErrors = {
   lessonName: "Must provide a name",
@@ -19,10 +23,25 @@ const validationErrors = {
 };
 
 const NewLesson = () => {
-  const [lessonName, setLessonName] = useState("");
-  const [danceType, setDanceType] = useState<DanceType>(DanceType.BACHATA);
-  const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>([]);
-  const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
+  const [initialClone] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const source = getLessonCloneSource();
+    if (source) clearLessonCloneSource();
+    return source;
+  });
+
+  const [lessonName, setLessonName] = useState(initialClone?.lessonName ?? "");
+  const [danceType, setDanceType] = useState<DanceType>(
+    initialClone?.danceType ?? DanceType.BACHATA
+  );
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(
+    initialClone?.teacherIds ?? []
+  );
+  const [selectedCardIds, setSelectedCardIds] = useState<number[]>(
+    initialClone?.cardIds ?? []
+  );
+
+  const cloneInitialPeriod = initialClone?.initialPeriod;
   const [periods, setPeriods] = useState<
     { startTime: string; endTime: string }[]
   >([]);
@@ -125,6 +144,7 @@ const NewLesson = () => {
             periods={periods}
             onAddPeriod={handleAddPeriod}
             error={errors.periods}
+            initialPeriod={cloneInitialPeriod}
           />
           <PeriodList periods={periods} onDelete={handleDeletePeriod} />
           <Button onClick={handleSubmit} isLoading={isLoading}>

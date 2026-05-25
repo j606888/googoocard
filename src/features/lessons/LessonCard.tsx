@@ -1,7 +1,8 @@
-import { Users, BookOpenText, Flag, Dot } from "lucide-react";
+import { Users, BookOpenText, Flag, Dot, Copy } from "lucide-react";
 import { Lesson } from "@/store/slices/lessons";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { useRouter } from "next/navigation";
+import { setLessonCloneSource } from "@/lib/lessonDraftStorage";
 
 const LessonCard = ({ lesson }: { lesson: Lesson }) => {
   const router = useRouter();
@@ -10,10 +11,28 @@ const LessonCard = ({ lesson }: { lesson: Lesson }) => {
   const lastPeriod = periods.reduce((latest, period) => {
     return new Date(period.endTime) > new Date(latest.endTime) ? period : latest;
   }, periods[0])
-  
-  return <div className="flex gap-3 cursor-pointer hover:bg-gray-50" onClick={() => router.push(`/lessons/${lesson.id}`)}>
-    <div className="flex items-center justify-center w-12 h-12 bg-primary-500 text-white font-semibold text-2xl">{lesson.name.charAt(0)}</div>
-    <div className="flex flex-col justify-center">
+
+  const handleClone = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const initialPeriod = lastPeriod
+      ? {
+          startTime: addDays(new Date(lastPeriod.startTime), 7).toISOString(),
+          endTime: addDays(new Date(lastPeriod.endTime), 7).toISOString(),
+        }
+      : undefined;
+    setLessonCloneSource({
+      lessonName: lesson.name,
+      teacherIds: lesson.teachers.map((t) => t.id),
+      cardIds: lesson.cards.map((c) => c.id),
+      danceType: lesson.danceType,
+      initialPeriod,
+    });
+    router.push("/lessons/new");
+  };
+
+  return <div className="flex gap-3 cursor-pointer hover:bg-gray-50 items-center" onClick={() => router.push(`/lessons/${lesson.id}`)}>
+    <div className="flex items-center justify-center w-12 h-12 bg-primary-500 text-white font-semibold text-2xl shrink-0">{lesson.name.charAt(0)}</div>
+    <div className="flex flex-col justify-center flex-1 min-w-0">
       <h4 className="font-medium text-sm">{lesson.name}</h4>
       <div className="flex items-center gap-1.5 text-gray-600 text-xs">
         <div className="flex items-center gap-1">
@@ -34,6 +53,12 @@ const LessonCard = ({ lesson }: { lesson: Lesson }) => {
         </div>
       </div>
     </div>
+    <button
+      onClick={handleClone}
+      className="p-2 text-gray-400 hover:text-primary-500 shrink-0"
+    >
+      <Copy className="w-4 h-4" />
+    </button>
   </div>;
 };
 
