@@ -16,7 +16,6 @@ const CardsSection = ({
   isPublic?: boolean;
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>("all");
-  const [showHistory, setShowHistory] = useState(false);
 
   const filterOptions = useMemo(() => {
     const cardNames = [...new Set(studentCards.map((card) => card.card.name))];
@@ -99,15 +98,7 @@ const CardsSection = ({
           目前沒有符合條件的有效課卡
         </div>
       )}
-      {!showHistory && filteredHistoricalCards.length > 0 && (
-        <button
-          className="text-sm text-gray-600 underline text-left cursor-pointer"
-          onClick={() => setShowHistory(true)}
-        >
-          查看已結束/已過期課卡
-        </button>
-      )}
-      {showHistory && filteredHistoricalCards.length > 0 && (
+      {filteredHistoricalCards.length > 0 && (
         <div className="flex flex-col gap-3 pt-2 border-t border-gray-200">
           <p className="text-sm font-medium text-gray-600">已結束/已過期課卡</p>
           {filteredHistoricalCards.map((studentCard) => (

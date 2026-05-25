@@ -142,7 +142,7 @@ export default function DailyTab() {
                   <p className="text-xs text-gray-500">
                     出席 {period.attendanceCount} 人
                   </p>
-                  <p className="ml-auto font-semibold text-green-600">
+                  <p className="ml-auto font-semibold text-primary-700">
                     ${Math.round(period.revenue)}
                   </p>
                 </div>

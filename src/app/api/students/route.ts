@@ -35,6 +35,11 @@ export async function GET(request: Request) {
           createdAt: "desc",
         },
       },
+      lessons: {
+        include: {
+          lesson: { select: { id: true, status: true } },
+        },
+      },
     },
   });
 
@@ -59,9 +64,19 @@ export async function GET(request: Request) {
         (studentCard) => studentCard.remainingSessions === 0
       );
 
+      const isInActiveLesson = student.lessons.some(
+        (ls) => ls.lesson.status === "inProgress"
+      );
+      const activeLessonIds = student.lessons
+        .filter((ls) => ls.lesson.status === "inProgress")
+        .map((ls) => ls.lesson.id);
+
       return {
         ...student,
         needsRenewal,
+        isInActiveLesson,
+        activeLessonIds,
+        lessons: undefined,
         studentCards: activeStudentCards.map((studentCard) => ({
           ...studentCard,
           card: studentCard.card,

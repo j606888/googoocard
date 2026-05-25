@@ -1,6 +1,8 @@
+"use client";
+
 import { useState } from "react";
 import { useGetCardsQuery } from "@/store/slices/cards";
-import { CreditCard, ChevronDown } from "lucide-react";
+import { CreditCard, ChevronDown, Users, TrendingUp, Ban } from "lucide-react";
 import NewCard from "./NewCard";
 import SingleCard from "./SingleCard";
 import CardListSkeleton from "./CardListSkeleton";
@@ -15,18 +17,50 @@ const CardList = () => {
   const [showExpiredCards, setShowExpiredCards] = useState(false);
   const [editCardId, setEditCardId] = useState<number | null>(null);
 
-  if (isLoading) {
-    return <CardListSkeleton />;
-  }
+  if (isLoading) return <CardListSkeleton />;
+
+  const totalRevenue = activeCards.reduce((sum, c) => sum + c.totalRevenue, 0);
+  const totalActiveHolders = activeCards.reduce((sum, c) => sum + c.activeHolders, 0);
 
   return (
-    <div className="px-5 py-3">
+    <div className="px-5 py-3 lg:px-8 lg:py-6">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-2xl font-semibold">Cards</h2>
         <NewCard />
       </div>
+
+      {/* Stats bar — desktop only */}
+      {(activeCards.length > 0 || expiredCards.length > 0) && (
+        <div className="hidden lg:grid lg:grid-cols-4 lg:gap-4 lg:mb-6">
+          <StatCard
+            icon={<CreditCard className="w-5 h-5 text-primary-500" />}
+            label="Active Cards"
+            value={activeCards.length}
+            bg="bg-primary-50"
+          />
+          <StatCard
+            icon={<Users className="w-5 h-5 text-primary-500" />}
+            label="Active Holders"
+            value={totalActiveHolders}
+            bg="bg-primary-50"
+          />
+          <StatCard
+            icon={<TrendingUp className="w-5 h-5 text-warning-600" />}
+            label="Total Revenue"
+            display={`$${totalRevenue.toLocaleString()}`}
+            bg="bg-warning-100"
+          />
+          <StatCard
+            icon={<Ban className="w-5 h-5 text-gray-400" />}
+            label="Disabled Cards"
+            value={expiredCards.length}
+            bg="bg-gray-50"
+          />
+        </div>
+      )}
+
       {activeCards?.length === 0 && expiredCards?.length === 0 && (
-        <div className="flex flex-col items-center justify-center p-6 gap-3 bg-primary-50 rounded-sm ">
+        <div className="flex flex-col items-center justify-center p-6 gap-3 bg-primary-50 rounded-sm">
           <div className="flex items-center justify-center w-12 h-12 bg-primary-500 rounded-full">
             <CreditCard className="w-6 h-6 text-white" />
           </div>
@@ -38,18 +72,20 @@ const CardList = () => {
           </div>
         </div>
       )}
+
       {activeCards?.length > 0 && (
         <>
           <div className="text-gray-600 text-sm mb-3">
             Enabled Cards ({activeCards?.length})
           </div>
-          <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col gap-4 mb-6 lg:grid lg:grid-cols-2 lg:gap-4 xl:grid-cols-3">
             {activeCards?.map((card) => (
               <SingleCard key={card.id} card={card} onEdit={() => setEditCardId(card.id)} />
             ))}
           </div>
         </>
       )}
+
       {expiredCards?.length > 0 && (
         <>
           <hr className="border-gray-100 my-6" />
@@ -67,7 +103,7 @@ const CardList = () => {
             />
           </button>
           {showExpiredCards && (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-4 xl:grid-cols-3">
               {expiredCards?.map((card) => (
                 <SingleCard key={card.id} card={card} />
               ))}
@@ -75,9 +111,32 @@ const CardList = () => {
           )}
         </>
       )}
+
       {editCardId && <EditCard cardId={editCardId} onClose={() => setEditCardId(null)} />}
     </div>
   );
 };
+
+const StatCard = ({
+  icon,
+  label,
+  value,
+  display,
+  bg,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value?: number;
+  display?: string;
+  bg: string;
+}) => (
+  <div className={`${bg} border border-gray-100 rounded-xl p-4 flex items-center gap-3 shadow-sm`}>
+    <div className="shrink-0">{icon}</div>
+    <div>
+      <p className="text-2xl font-bold text-gray-900">{display ?? value}</p>
+      <p className="text-xs text-gray-500">{label}</p>
+    </div>
+  </div>
+);
 
 export default CardList;
