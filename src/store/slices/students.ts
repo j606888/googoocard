@@ -12,6 +12,8 @@ export interface Student {
   classroom: Classroom;
   studentCards: StudentCardWithCard[];
   needsRenewal?: boolean;
+  isInActiveLesson: boolean;
+  activeLessonIds: number[];
   hasCompletedBachataLv1: boolean;
   hasCompletedSalsaLv1: boolean;
 }

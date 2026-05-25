@@ -1,3 +1,5 @@
+"use client";
+
 import { BookOpenText, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useGetLessonsQuery } from "@/store/slices/lessons";
@@ -18,7 +20,7 @@ const LessonsList = () => {
   if (isLoading) return <ListSkeleton />;
 
   return (
-    <div className="px-5 py-3">
+    <div className="px-5 py-3 lg:px-8 lg:py-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">Lessons</h2>
         <button
@@ -29,6 +31,7 @@ const LessonsList = () => {
           <span className="font-medium">New Lesson</span>
         </button>
       </div>
+
       <TabAndSort
         tabsCount={lessons?.tabsCount}
         activeTab={activeTab}
@@ -37,7 +40,7 @@ const LessonsList = () => {
         setSort={setSort}
       />
       {lessons?.lessons.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-6 gap-3 bg-primary-50 rounded-sm ">
+        <div className="flex flex-col items-center justify-center p-6 gap-3 bg-primary-50 rounded-sm">
           <div className="flex items-center justify-center w-12 h-12 bg-primary-500 rounded-full">
             <BookOpenText className="w-6 h-6 text-white" />
           </div>
@@ -49,7 +52,7 @@ const LessonsList = () => {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4 xl:grid-cols-3">
           {lessons?.lessons.map((lesson) => (
             <LessonCard key={lesson.id} lesson={lesson} />
           ))}

@@ -6,13 +6,15 @@ const SubNavbar = ({
   title,
   backUrl,
   withUnpaidBell,
+  className,
 }: {
   title: string;
   backUrl?: string;
   withUnpaidBell?: boolean;
+  className?: string;
 }) => {
   return (
-    <div className="sticky h-16 bg-primary-500 w-full flex items-center justify-center top-0 z-10">
+    <div className={`sticky h-16 bg-primary-500 w-full flex items-center justify-center top-0 z-10 ${className ?? ""}`}>
       <div className="absolute left-5 top-1/2 -translate-y-1/2">
         {backUrl && (
           <Link href={backUrl}>

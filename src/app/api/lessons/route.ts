@@ -29,6 +29,16 @@ export async function GET(request: Request) {
           student: true,
         },
       },
+      teachers: {
+        include: {
+          teacher: true,
+        },
+      },
+      cards: {
+        include: {
+          card: true,
+        },
+      },
     },
   });
 
@@ -49,7 +59,9 @@ export async function GET(request: Request) {
 
   const result = lessons.map((lesson) => ({
     ...lesson,
-    students: lesson.students.map((student) => student.student)
+    students: lesson.students.map((student) => student.student),
+    teachers: lesson.teachers.map((teacher) => teacher.teacher),
+    cards: lesson.cards.map((card) => card.card),
   }));
 
   return NextResponse.json({ lessons: result, tabsCount });

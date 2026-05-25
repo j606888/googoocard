@@ -7,6 +7,11 @@ import TimePicker, {
 import { format, addDays } from "date-fns";
 import { Plus } from "lucide-react";
 
+const getInitialTimeOption = (isoString: string): Option | null => {
+  const timeValue = format(new Date(isoString), "H:mm");
+  return generateTimeOptions().find((o) => o.value === timeValue) ?? null;
+};
+
 const validationErrors = {
   empty: "Can not be empty",
   toTimeMustGreater: "Must greater than From",
@@ -38,14 +43,22 @@ const AddPeriodForm = ({
   periods,
   onAddPeriod,
   error,
+  initialPeriod,
 }: {
   periods: { startTime: string; endTime: string }[];
   onAddPeriod: (period: { startTime: string; endTime: string }) => void;
   error?: string;
+  initialPeriod?: { startTime: string; endTime: string };
 }) => {
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [fromTime, setFromTime] = useState<Option | null>(null);
-  const [toTime, setToTime] = useState<Option | null>(null);
+  const [date, setDate] = useState<Date | undefined>(
+    initialPeriod ? new Date(initialPeriod.startTime) : new Date()
+  );
+  const [fromTime, setFromTime] = useState<Option | null>(
+    initialPeriod ? getInitialTimeOption(initialPeriod.startTime) : null
+  );
+  const [toTime, setToTime] = useState<Option | null>(
+    initialPeriod ? getInitialTimeOption(initialPeriod.endTime) : null
+  );
   const [errors, setErrors] = useState<{
     date?: string;
     fromTime?: string;

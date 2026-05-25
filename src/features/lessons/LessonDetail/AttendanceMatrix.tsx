@@ -1,0 +1,136 @@
+"use client";
+
+import Link from "next/link";
+import { format } from "date-fns";
+import { Period, LessonStudent } from "@/store/slices/lessons";
+
+const STATUS_DOT: Record<string, string> = {
+  attended: "bg-primary-500",
+  absent: "bg-red-400",
+  not_started: "bg-gray-200",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  attended: "Attended",
+  absent: "Absent",
+  not_started: "Not taken yet",
+};
+
+const AttendanceMatrix = ({
+  periods,
+  students,
+}: {
+  periods: Period[];
+  students: LessonStudent[];
+}) => {
+  const sortedPeriods = [...periods].sort(
+    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  );
+
+  const totalAttended = students.reduce(
+    (sum, s) => sum + s.attendances.filter((a) => a.attendanceStatus === "attended").length,
+    0
+  );
+  const totalCells = students.length * sortedPeriods.length;
+  const rate = totalCells > 0 ? Math.round((totalAttended / totalCells) * 100) : 0;
+
+  if (students.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-48 text-gray-400 gap-2">
+        <span className="text-4xl">📋</span>
+        <p className="text-sm">No students enrolled yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-semibold text-gray-800">Attendance Overview</h3>
+        <span className="text-sm text-gray-500">{sortedPeriods.length} period{sortedPeriods.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="text-sm border-collapse w-full">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="sticky left-0 bg-gray-50 z-10 text-left px-4 py-3 font-medium text-gray-600 border-b border-r border-gray-200 w-44 min-w-44">
+                Student
+              </th>
+              {sortedPeriods.map((p) => (
+                <th
+                  key={p.id}
+                  className="px-2 py-3 text-center font-medium text-gray-500 border-b border-gray-200 min-w-12"
+                >
+                  <div className="text-xs">{format(new Date(p.startTime), "M/d")}</div>
+                  <div className="text-xs text-gray-400">{format(new Date(p.startTime), "EEE")}</div>
+                  {p.attendanceTakenAt && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary-500 mx-auto mt-1" />
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {students.map((student, i) => {
+              const attendedForStudent = student.attendances.filter((a) => a.attendanceStatus === "attended").length;
+              return (
+                <tr key={student.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
+                  <td className="sticky left-0 z-10 px-4 py-3 border-r border-gray-200 font-medium" style={{ backgroundColor: i % 2 === 0 ? "white" : "rgb(249 250 251 / 0.5)" }}>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/students/${student.id}`}
+                        className="text-gray-800 hover:text-primary-600 truncate max-w-32 block"
+                      >
+                        {student.name}
+                      </Link>
+                      <span className="text-xs text-gray-400 shrink-0">{attendedForStudent}/{sortedPeriods.length}</span>
+                    </div>
+                  </td>
+                  {sortedPeriods.map((p) => {
+                    const attendance = student.attendances.find(
+                      (a) => a.startTime === p.startTime
+                    );
+                    const status = attendance?.attendanceStatus ?? "not_started";
+                    const label = STATUS_LABEL[status];
+                    return (
+                      <td key={p.id} className="px-2 py-3 text-center">
+                        <div
+                          className={`w-5 h-5 rounded-full mx-auto ${STATUS_DOT[status]}`}
+                          title={`${student.name} — ${format(new Date(p.startTime), "MMM d")}: ${label}`}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between mt-3 px-1">
+        <div className="flex items-center gap-4 text-xs text-gray-500">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-primary-500" />
+            <span>Attended</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-red-400" />
+            <span>Absent</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-gray-200 border border-gray-300" />
+            <span>Not taken</span>
+          </div>
+        </div>
+        <div className="text-xs text-gray-500">
+          {totalAttended} / {totalCells} total &mdash; <span className="font-semibold text-gray-700">{rate}% rate</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AttendanceMatrix;

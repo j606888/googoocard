@@ -19,7 +19,7 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
 
   const isDisabled = !!card.expiredAt;
   const perSession = card.sessions > 0 ? Math.round(card.price / card.sessions) : 0;
-  const accentClass = card.isPracticeCard ? "border-l-violet-500" : "border-l-primary-500";
+  const accentClass = card.isPracticeCard ? "border-l-warning-500" : "border-l-primary-500";
 
   const handleDelete = async () => {
     await deleteCard(card.id);
@@ -50,7 +50,7 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
           <div className="flex flex-col gap-1.5">
             <h4 className="text-base font-semibold leading-none">{card.name}</h4>
             {card.isPracticeCard && (
-              <span className="text-xs text-violet-700 bg-violet-100 border border-violet-300 rounded-full px-2.5 py-0.5 w-fit">
+              <span className="text-xs text-warning-900 bg-warning-100 border border-warning-300 rounded-full px-2.5 py-0.5 w-fit">
                 Practice Card
               </span>
             )}

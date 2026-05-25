@@ -89,7 +89,7 @@ export default function RecordsTab() {
                   {record.card.name}
                 </p>
               </div>
-              <div className="shrink-0 text-right text-base font-bold text-green-600">
+              <div className="shrink-0 text-right text-base font-bold text-primary-700">
                 ${record.finalPrice}
               </div>
             </div>
