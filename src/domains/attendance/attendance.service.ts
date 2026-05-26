@@ -1,6 +1,7 @@
 import { DanceType, Prisma, StudentCard } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { refreshLesson } from "@/service/lesson";
+import { refreshNeedsRenewalTags } from "@/service/studentTag";
 
 type LessonWithCards = Prisma.LessonGetPayload<{
   include: {
@@ -380,6 +381,9 @@ export async function takeAttendance({
 
   // Refresh lesson status
   await refreshLesson(lessonId);
+
+  // Refresh Needs Renewal tags for all affected students
+  await refreshNeedsRenewalTags(studentIds, lesson.classroomId);
 }
 
 export async function updateAttendance({
@@ -439,4 +443,10 @@ export async function updateAttendance({
 
   // Refresh lesson status
   await refreshLesson(lessonId);
+
+  // Refresh Needs Renewal tags for all affected students
+  const affectedStudentIds = [...new Set([...newStudentIds, ...removedStudentIds])];
+  if (affectedStudentIds.length > 0) {
+    await refreshNeedsRenewalTags(affectedStudentIds, lesson.classroomId);
+  }
 }

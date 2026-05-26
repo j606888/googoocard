@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { refreshNeedsRenewalTag } from "@/service/studentTag";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -46,7 +47,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       resourceType: "studentCard",
       resourceId: studentCard.id,
     }
-  })
+  });
+
+  await refreshNeedsRenewalTag(parseInt(id), card.classroomId);
 
   return NextResponse.json(studentCard);
 }

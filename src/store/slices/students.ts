@@ -2,6 +2,11 @@ import { api } from "../api";
 import { Card } from "./cards";
 import { Classroom } from "./classrooms";
 
+export interface StudentTag {
+  id: number;
+  name: string;
+}
+
 export interface Student {
   id: number;
   name: string;
@@ -11,7 +16,7 @@ export interface Student {
   createdAt: string;
   classroom: Classroom;
   studentCards: StudentCardWithCard[];
-  needsRenewal?: boolean;
+  tags: StudentTag[];
   isInActiveLesson: boolean;
   activeLessonIds: number[];
   hasCompletedBachataLv1: boolean;
@@ -157,6 +162,25 @@ const studentsApi = api.injectEndpoints({
     getStudentEvents: builder.query<Event[], { id: number }>({
       query: ({ id }) => `students/${id}/events`,
     }),
+    getTags: builder.query<StudentTag[], void>({
+      query: () => "tags",
+      providesTags: ["Tag"],
+    }),
+    addStudentTag: builder.mutation<{ id: number; studentId: number; tagId: number; tag: StudentTag }, { studentId: number; tagName: string }>({
+      query: ({ studentId, tagName }) => ({
+        url: `students/${studentId}/tags`,
+        method: "POST",
+        body: { tagName },
+      }),
+      invalidatesTags: ["Student", "Tag"],
+    }),
+    removeStudentTag: builder.mutation<{ success: boolean }, { studentId: number; tagId: number }>({
+      query: ({ studentId, tagId }) => ({
+        url: `students/${studentId}/tags/${tagId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Student"],
+    }),
   }),
 });
 
@@ -172,4 +196,7 @@ export const {
   useExpireStudentCardMutation,
   useGetStudentCardsByLessonQuery,
   useGetStudentEventsQuery,
+  useGetTagsQuery,
+  useAddStudentTagMutation,
+  useRemoveStudentTagMutation,
 } = studentsApi;

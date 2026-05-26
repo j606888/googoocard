@@ -22,6 +22,13 @@ export async function GET(request: Request) {
             },
           }
         : {}),
+      ...(filterNeedsRenewal
+        ? {
+            studentTags: {
+              some: { tag: { name: "Needs Renewal", classroomId } },
+            },
+          }
+        : {}),
     },
     include: {
       studentCards: {
@@ -35,6 +42,10 @@ export async function GET(request: Request) {
           createdAt: "desc",
         },
       },
+      studentTags: {
+        include: { tag: true },
+        orderBy: { createdAt: "asc" },
+      },
       lessons: {
         include: {
           lesson: { select: { id: true, status: true } },
@@ -43,47 +54,31 @@ export async function GET(request: Request) {
     },
   });
 
-  const results = students
-    .map((student) => {
-      const renewableCards = student.studentCards.filter(
-        (studentCard) => studentCard.totalSessions > 1
-      );
-      const activeStudentCards = student.studentCards.filter(
-        (studentCard) => studentCard.remainingSessions > 0
-      );
+  const results = students.map((student) => {
+    const activeStudentCards = student.studentCards.filter(
+      (studentCard) => studentCard.remainingSessions > 0
+    );
 
-      const latestCardByType = new Map<number, (typeof renewableCards)[number]>();
-      for (const studentCard of renewableCards) {
-        if (!latestCardByType.has(studentCard.cardId)) {
-          // studentCards already sorted by createdAt desc, first one is latest
-          latestCardByType.set(studentCard.cardId, studentCard);
-        }
-      }
+    const isInActiveLesson = student.lessons.some(
+      (ls) => ls.lesson.status === "inProgress"
+    );
+    const activeLessonIds = student.lessons
+      .filter((ls) => ls.lesson.status === "inProgress")
+      .map((ls) => ls.lesson.id);
 
-      const needsRenewal = [...latestCardByType.values()].some(
-        (studentCard) => studentCard.remainingSessions === 0
-      );
-
-      const isInActiveLesson = student.lessons.some(
-        (ls) => ls.lesson.status === "inProgress"
-      );
-      const activeLessonIds = student.lessons
-        .filter((ls) => ls.lesson.status === "inProgress")
-        .map((ls) => ls.lesson.id);
-
-      return {
-        ...student,
-        needsRenewal,
-        isInActiveLesson,
-        activeLessonIds,
-        lessons: undefined,
-        studentCards: activeStudentCards.map((studentCard) => ({
-          ...studentCard,
-          card: studentCard.card,
-        })),
-      };
-    })
-    .filter((student) => (filterNeedsRenewal ? student.needsRenewal : true));
+    return {
+      ...student,
+      tags: student.studentTags.map((st) => ({ id: st.tag.id, name: st.tag.name })),
+      isInActiveLesson,
+      activeLessonIds,
+      lessons: undefined,
+      studentTags: undefined,
+      studentCards: activeStudentCards.map((studentCard) => ({
+        ...studentCard,
+        card: studentCard.card,
+      })),
+    };
+  });
 
   return NextResponse.json(results);
 }

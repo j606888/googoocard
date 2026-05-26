@@ -38,6 +38,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     include: {
       lessons: true,
       classroom: true,
+      studentTags: {
+        include: { tag: true },
+        orderBy: { createdAt: "asc" },
+      },
       studentCards: {
         include: {
           card: true,
@@ -75,7 +79,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   });
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { lessons: _unusedLessons, attendanceRecords, studentCards, ...studentData } = student;
+  const { lessons: _unusedLessons, attendanceRecords, studentCards, studentTags, ...studentData } = student;
+  const tags = studentTags.map((st) => ({ id: st.tag.id, name: st.tag.name }));
 
   const overview = {
     lastAttendAt: lastAttendance?.lessonPeriod.attendanceTakenAt,
@@ -218,6 +223,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     attendancesByDate: sortedAttendancesByDate,
     attendancesByLesson,
     studentCards: studentCardsWithAttendances,
+    tags,
     ...studentData,
   });
 }
