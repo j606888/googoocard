@@ -11,6 +11,7 @@ export const TAG_TYPES = [
   "InviteToken",
   "Attendance",
   "AttendanceRecord",
+  "Tag",
 ]
 
 export const api = createApi({

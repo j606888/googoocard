@@ -2,13 +2,19 @@
 
 import { Student } from "@/store/slices/students";
 import { useRouter } from "next/navigation";
-import { CreditCard, AlertCircle } from "lucide-react";
+import { CreditCard, AlertCircle, Tag } from "lucide-react";
 import DanceBadge from "./DanceBadge";
+
+const tagStyle = (name: string) =>
+  name === "Needs Renewal"
+    ? "text-red-700 bg-red-100"
+    : "text-gray-600 bg-gray-100";
 
 const SingleStudent = ({ student }: { student: Student }) => {
   const router = useRouter();
   const studentCards = student.studentCards;
   const activeCards = studentCards.filter((c) => c.remainingSessions > 0);
+  const firstTag = student.tags?.[0];
 
   return (
     <div
@@ -28,9 +34,9 @@ const SingleStudent = ({ student }: { student: Student }) => {
               {student.note && (
                 <p className="text-sm text-gray-500">({student.note})</p>
               )}
-              {student.needsRenewal && (
-                <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
-                  餘額 0
+              {firstTag && (
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${tagStyle(firstTag.name)}`}>
+                  {firstTag.name}
                 </span>
               )}
             </div>
@@ -59,10 +65,14 @@ const SingleStudent = ({ student }: { student: Student }) => {
               {student.note && (
                 <p className="text-sm text-gray-500 truncate max-w-40">({student.note})</p>
               )}
-              {student.needsRenewal && (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
-                  <AlertCircle className="w-3 h-3" />
-                  Needs Renewal
+              {firstTag && (
+                <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${tagStyle(firstTag.name)}`}>
+                  {firstTag.name === "Needs Renewal" ? (
+                    <AlertCircle className="w-3 h-3" />
+                  ) : (
+                    <Tag className="w-3 h-3" />
+                  )}
+                  {firstTag.name}
                 </span>
               )}
             </div>

@@ -6,7 +6,7 @@ import { useGetLessonsQuery } from "@/store/slices/lessons";
 import SingleStudent from "./SingleStudent";
 import Searchbar from "./Searchbar";
 import { useState, useMemo } from "react";
-import { Users, AlertCircle, CreditCard, UserCheck } from "lucide-react";
+import { Users } from "lucide-react";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 
 type FilterChip = "all" | "needsRenewal" | "bachateLv1" | "inActiveLesson" | "byLesson";
@@ -21,7 +21,7 @@ const StudentList = () => {
   const inProgressLessons = lessonsData?.lessons ?? [];
 
   const students = useMemo(() => {
-    if (activeFilter === "needsRenewal") return allStudents.filter((s) => s.needsRenewal);
+    if (activeFilter === "needsRenewal") return allStudents.filter((s) => s.tags?.some((t) => t.name === "Needs Renewal"));
     if (activeFilter === "bachateLv1") return allStudents.filter((s) => s.hasCompletedBachataLv1);
     if (activeFilter === "inActiveLesson") return allStudents.filter((s) => s.isInActiveLesson);
     if (activeFilter === "byLesson" && selectedLessonId)
@@ -30,12 +30,6 @@ const StudentList = () => {
   }, [allStudents, activeFilter, selectedLessonId]);
 
   if (isLoading) return <ListSkeleton />;
-
-  const renewalCount = allStudents.filter((s) => s.needsRenewal).length;
-  const totalCards = allStudents.reduce((sum, s) => sum + s.studentCards.length, 0);
-  const withDanceBadge = allStudents.filter(
-    (s) => s.hasCompletedBachataLv1 || s.hasCompletedSalsaLv1
-  ).length;
 
   const handleChipClick = (chip: FilterChip) => {
     setActiveFilter(chip);
@@ -55,34 +49,6 @@ const StudentList = () => {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">Students</h2>
         <NewStudent />
-      </div>
-
-      {/* Stats bar — desktop only */}
-      <div className="hidden lg:grid lg:grid-cols-4 lg:gap-4 lg:mb-6">
-        <StatCard
-          icon={<Users className="w-5 h-5 text-primary-500" />}
-          label="Total Students"
-          value={allStudents.length}
-          bg="bg-primary-50"
-        />
-        <StatCard
-          icon={<AlertCircle className="w-5 h-5 text-red-500" />}
-          label="Needs Renewal"
-          value={renewalCount}
-          bg="bg-red-50"
-        />
-        <StatCard
-          icon={<CreditCard className="w-5 h-5 text-primary-500" />}
-          label="Total Cards Owned"
-          value={totalCards}
-          bg="bg-primary-50"
-        />
-        <StatCard
-          icon={<UserCheck className="w-5 h-5 text-warning-600" />}
-          label="Certified Dancers"
-          value={withDanceBadge}
-          bg="bg-warning-100"
-        />
       </div>
 
       {/* Filter chips */}
@@ -148,25 +114,5 @@ const StudentList = () => {
     </div>
   );
 };
-
-const StatCard = ({
-  icon,
-  label,
-  value,
-  bg,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  bg: string;
-}) => (
-  <div className={`${bg} border border-gray-100 rounded-xl p-4 flex items-center gap-3 shadow-sm`}>
-    <div className="shrink-0">{icon}</div>
-    <div>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-500">{label}</p>
-    </div>
-  </div>
-);
 
 export default StudentList;

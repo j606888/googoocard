@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, CreditCard, BookOpenText, Star } from "lucide-react";
+import { ArrowLeft, CreditCard, BookOpenText, Star, AlertCircle, Tag } from "lucide-react";
 import { StudentWithDetail } from "@/store/slices/students";
 import { format } from "date-fns";
 import EditStudent from "./BasicSection/EditStudent";
@@ -40,11 +40,23 @@ const StudentDetailHeader = ({
             {student.note && (
               <span className="text-sm text-gray-500">({student.note})</span>
             )}
-            {student.needsRenewal && (
-              <span className="text-xs font-semibold text-red-700 bg-red-100 px-2.5 py-1 rounded-full">
-                Needs Renewal
+            {student.tags?.map((tag) => (
+              <span
+                key={tag.id}
+                className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                  tag.name === "Needs Renewal"
+                    ? "text-red-700 bg-red-100"
+                    : "text-gray-600 bg-gray-100"
+                }`}
+              >
+                {tag.name === "Needs Renewal" ? (
+                  <AlertCircle className="w-3 h-3" />
+                ) : (
+                  <Tag className="w-3 h-3" />
+                )}
+                {tag.name}
               </span>
-            )}
+            ))}
           </div>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             {student.hasCompletedBachataLv1 && (
