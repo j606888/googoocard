@@ -161,6 +161,9 @@ function isPracticeQualified(student: StudentWithCards, danceType: DanceType) {
   if (danceType === DanceType.SALSA) {
     return student.hasCompletedSalsaLv1;
   }
+  if (danceType === DanceType.KIZOMBA) {
+    return false;
+  }
   return false;
 }
 

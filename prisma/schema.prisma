@@ -18,6 +18,7 @@ enum DanceType {
   SALSA
   ZOUK
   HUSTLE
+  KIZOMBA
 }
 
 model User {

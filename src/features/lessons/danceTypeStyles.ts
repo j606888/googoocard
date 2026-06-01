@@ -33,4 +33,12 @@ export const DANCE_TYPE_STYLES = {
     badge: "bg-stone-100 text-stone-700",
     dot: "bg-stone-400",
   },
+  KIZOMBA: {
+    bg: "bg-purple-500",
+    light: "bg-purple-50",
+    text: "text-purple-700",
+    border: "border-purple-400",
+    badge: "bg-purple-100 text-purple-700",
+    dot: "bg-purple-500",
+  },
 } as const;

@@ -7,6 +7,7 @@ const danceTypeOptions = [
   { label: "Salsa", value: DanceType.SALSA.toString() },
   { label: "Zouk", value: DanceType.ZOUK.toString() },
   { label: "Hustle", value: DanceType.HUSTLE.toString() },
+  { label: "Kizomba", value: DanceType.KIZOMBA.toString() },
 ];
 
 const DANCE_LABELS: Record<string, string> = {
@@ -14,6 +15,7 @@ const DANCE_LABELS: Record<string, string> = {
   SALSA: "Salsa",
   ZOUK: "Zouk",
   HUSTLE: "Hustle",
+  KIZOMBA: "Kizomba",
 };
 
 const DanceTypeSelect = ({
