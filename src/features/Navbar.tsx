@@ -2,16 +2,12 @@ import { useEffect } from "react";
 import { RiseLoader } from "react-spinners";
 import { useRouter } from "next/navigation";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
-import Sidebar from "./Sidebar";
+import ClassroomSwitcher from "./nav/ClassroomSwitcher";
 import UnpaidBell from "./UnpaidBell";
 
 const Navbar = () => {
   const { data, isLoading, error } = useGetClassroomsQuery();
   const router = useRouter();
-
-  const currentClassroom = data?.classrooms.find(
-    (classroom) => classroom.id === data.currentClassroomId
-  );
 
   useEffect(() => {
     if (isLoading) return;
@@ -35,12 +31,7 @@ const Navbar = () => {
 
   return (
     <div className="w-full h-15 bg-primary-500 flex items-center px-5 gap-3 sticky top-0 z-10">
-      <span className="md:hidden">
-        <Sidebar />
-      </span>
-      <span className="text-white text-xl font-bold">
-        {currentClassroom?.name}
-      </span>
+      <ClassroomSwitcher />
       <UnpaidBell />
     </div>
   );

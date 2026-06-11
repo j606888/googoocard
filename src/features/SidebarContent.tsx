@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  BookOpenText,
-  CreditCard,
-  GraduationCap,
-  Users,
-  Boxes,
-  DollarSign,
-  LogOut,
-  ChevronDown,
-} from "lucide-react";
+import { LogOut, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -19,15 +10,7 @@ import {
 } from "@/store/slices/classrooms";
 import { useLogoutMutation } from "@/store/slices/me";
 import { useGetStudentsQuery } from "@/store/slices/students";
-
-export const LINKS = [
-  { name: "Lessons", icon: BookOpenText, href: "/lessons" },
-  { name: "Cards", icon: CreditCard, href: "/cards" },
-  { name: "Teachers", icon: GraduationCap, href: "/teachers" },
-  { name: "Students", icon: Users, href: "/students" },
-  { name: "Teams", icon: Boxes, href: "/teams" },
-  { name: "Income", icon: DollarSign, href: "/income" },
-];
+import { LINKS } from "./nav/navConfig";
 
 interface SidebarContentProps {
   onClose?: () => void;
@@ -109,27 +92,36 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           </Link>
         </div>
       )}
-      <div className="flex flex-col gap-2 mt-3">
-        {LINKS.map((link) => (
-          <Link
-            href={link.href}
-            key={link.name}
-            onClick={onClose}
-            className={`flex gap-4 items-center p-3 hover:bg-gray-100 rounded-sm ${
-              pathname === link.href
-                ? "bg-primary-100 text-primary-900 font-semibold"
-                : "text-gray-700"
-            }`}
-          >
-            <link.icon className="w-6 h-6" />
-            <span>{link.name}</span>
-            {link.name === "Students" && renewalCount > 0 && (
-              <span className="ml-auto min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                {renewalCount}
-              </span>
-            )}
-          </Link>
-        ))}
+      <div className="flex flex-col gap-1.5 mt-3">
+        {LINKS.map((link) => {
+          const active = pathname.startsWith(link.href);
+          return (
+            <Link
+              href={link.href}
+              key={link.name}
+              onClick={onClose}
+              className={`group relative flex gap-4 items-center rounded-xl p-3 transition-colors ${
+                active
+                  ? "bg-primary-500 text-white font-semibold shadow-[0_6px_18px_-6px_rgba(43,142,110,0.7)]"
+                  : "text-gray-600 hover:bg-primary-50 hover:text-primary-900"
+              }`}
+            >
+              <link.icon className="w-6 h-6" />
+              <span>{link.name}</span>
+              {link.name === "Students" && renewalCount > 0 && (
+                <span
+                  className={`ml-auto min-w-5 h-5 px-1 rounded-full text-xs font-semibold flex items-center justify-center ${
+                    active
+                      ? "bg-white text-primary-700"
+                      : "bg-red-500 text-white"
+                  }`}
+                >
+                  {renewalCount}
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </div>
       <div className="flex flex-col items-start rounded-sm mt-auto">
         <div
