@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DanceType, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import {
   takeAttendance,
   updateAttendance,
 } from "@/domains/attendance/attendance.service";
+import {
+  canUseCard,
+  cardMatchesLesson,
+  isQualified,
+  requiredDanceTypeFor,
+} from "@/domains/qualification";
 
 type LessonWithCards = Prisma.LessonGetPayload<{
   include: {
@@ -23,6 +29,7 @@ type StudentWithCards = Prisma.StudentGetPayload<{
         card: true;
       };
     };
+    danceQualifications: true;
   };
 }>;
 
@@ -61,6 +68,7 @@ export async function GET(
                   card: true,
                 },
               },
+              danceQualifications: true,
             },
           },
           studentCard: {
@@ -157,7 +165,10 @@ function findUncheckedType(lesson: LessonWithCards, student: StudentWithCards) {
     const card = lesson.cards.find(
       (lessonCard) => lessonCard.cardId === studentCard.cardId
     )?.card;
-    if (card?.isPracticeCard && studentNotQualified(lesson, student)) {
+    if (
+      card?.isPracticeCard &&
+      !canUseCard(card, getQualifications(student), lesson.danceType)
+    ) {
       return {
         uncheckedType: UNCHECK_TYPE.NOT_QUALIFIED,
         recommendedStudentCardId: null,
@@ -179,12 +190,22 @@ function findUncheckedType(lesson: LessonWithCards, student: StudentWithCards) {
   }
 }
 
+function getQualifications(student: StudentWithCards) {
+  return student.danceQualifications.map((q) => q.danceType);
+}
+
 function shouldUsePracticePriority(lesson: LessonWithCards, student: StudentWithCards) {
-  const lessonHasPracticeCard = lesson.cards.some((lessonCard) => lessonCard.card.isPracticeCard);
-  if (!lessonHasPracticeCard) {
-    return false;
-  }
-  return !studentNotQualified(lesson, student);
+  const qualifications = getQualifications(student);
+
+  // Practice priority applies when the lesson accepts a practice card the
+  // student is qualified to use.
+  return lesson.cards.some(({ card }) => {
+    if (!card.isPracticeCard || !cardMatchesLesson(card, lesson.danceType)) {
+      return false;
+    }
+    const required = requiredDanceTypeFor(card, lesson.danceType);
+    return required !== null && isQualified(qualifications, required);
+  });
 }
 
 function getMatchedCards(lesson: LessonWithCards, student: StudentWithCards) {
@@ -201,18 +222,12 @@ function getPracticePriorityCard(
   student: StudentWithCards,
   matchedCards: StudentWithCards["studentCards"]
 ) {
-  if (
-    lesson.danceType !== DanceType.BACHATA &&
-    lesson.danceType !== DanceType.SALSA
-  ) {
-    return null;
-  }
-
-  if (studentNotQualified(lesson, student)) {
-    return null;
-  }
-
-  const practiceCards = matchedCards.filter((studentCard) => studentCard.card.isPracticeCard);
+  const qualifications = getQualifications(student);
+  const practiceCards = matchedCards.filter(
+    (studentCard) =>
+      studentCard.card.isPracticeCard &&
+      canUseCard(studentCard.card, qualifications, lesson.danceType)
+  );
   return getRecommendedStudentCard(practiceCards) ?? null;
 }
 
@@ -305,13 +320,4 @@ export async function PUT(
       { status: 500 }
     );
   }
-}
-
-function studentNotQualified(lesson: LessonWithCards, student: StudentWithCards) {
-  if (lesson.danceType === DanceType.BACHATA && !student.hasCompletedBachataLv1) {
-    return true;
-  } else if (lesson.danceType === DanceType.SALSA && !student.hasCompletedSalsaLv1) {
-    return true;
-  }
-  return false;
 }

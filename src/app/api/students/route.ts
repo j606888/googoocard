@@ -46,6 +46,7 @@ export async function GET(request: Request) {
         include: { tag: true },
         orderBy: { createdAt: "asc" },
       },
+      danceQualifications: true,
       lessons: {
         include: {
           lesson: { select: { id: true, status: true } },
@@ -69,6 +70,7 @@ export async function GET(request: Request) {
     return {
       ...student,
       tags: student.studentTags.map((st) => ({ id: st.tag.id, name: st.tag.name })),
+      danceQualifications: student.danceQualifications.map((q) => q.danceType),
       isInActiveLesson,
       activeLessonIds,
       lessons: undefined,

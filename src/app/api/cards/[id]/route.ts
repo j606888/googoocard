@@ -15,7 +15,11 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { name, price, sessions, isPracticeCard } = await request.json();
+  const { name, price, sessions, isPracticeCard, danceType } = await request.json();
+
+  if (isPracticeCard && !danceType) {
+    return NextResponse.json({ error: "PRACTICE_CARD_REQUIRES_DANCE_TYPE" }, { status: 400 });
+  }
 
   const card = await prisma.card.update({
     where: { id: Number(id) },
@@ -24,6 +28,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       price,
       sessions,
       isPracticeCard,
+      danceType: isPracticeCard ? danceType : null,
     },
   });
 

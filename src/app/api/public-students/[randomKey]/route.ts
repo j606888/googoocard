@@ -10,6 +10,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ rand
     include: {
       lessons: true,
       classroom: true,
+      danceQualifications: true,
       studentCards: {
         include: {
           card: true,
@@ -47,7 +48,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ rand
   });
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { lessons: _unusedLessons, attendanceRecords, studentCards, ...studentData } = student;
+  const { lessons: _unusedLessons, attendanceRecords, studentCards, danceQualifications, ...studentData } = student;
 
   const overview = {
     lastAttendAt: lastAttendance?.lessonPeriod.attendanceTakenAt,
@@ -180,6 +181,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ rand
     attendancesByDate: sortedAttendancesByDate,
     attendancesByLesson,
     studentCards: studentCardsWithAttendances,
+    danceQualifications: danceQualifications.map((q) => q.danceType),
     ...studentData,
   });
 }

@@ -41,11 +41,22 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { name, price, sessions, isPracticeCard } = await request.json();
+  const { name, price, sessions, isPracticeCard, danceType } = await request.json();
   const { classroomId } = await decodeAuthToken();
 
+  if (isPracticeCard && !danceType) {
+    return NextResponse.json({ error: "PRACTICE_CARD_REQUIRES_DANCE_TYPE" }, { status: 400 });
+  }
+
   const card = await prisma.card.create({
-    data: { name, price, sessions, classroomId: classroomId!, isPracticeCard },
+    data: {
+      name,
+      price,
+      sessions,
+      classroomId: classroomId!,
+      isPracticeCard,
+      danceType: isPracticeCard ? danceType : null,
+    },
   });
 
   return NextResponse.json(card);
