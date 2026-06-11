@@ -1,22 +1,11 @@
 import Select from "react-select";
 import { DanceType } from "@prisma/client";
-import { DANCE_TYPE_STYLES } from "../danceTypeStyles";
+import { ALL_DANCE_TYPES, DANCE_TYPE_META } from "@/lib/danceTypes";
 
-const danceTypeOptions = [
-  { label: "Bachata", value: DanceType.BACHATA.toString() },
-  { label: "Salsa", value: DanceType.SALSA.toString() },
-  { label: "Zouk", value: DanceType.ZOUK.toString() },
-  { label: "Hustle", value: DanceType.HUSTLE.toString() },
-  { label: "Kizomba", value: DanceType.KIZOMBA.toString() },
-];
-
-const DANCE_LABELS: Record<string, string> = {
-  BACHATA: "Bachata",
-  SALSA: "Salsa",
-  ZOUK: "Zouk",
-  HUSTLE: "Hustle",
-  KIZOMBA: "Kizomba",
-};
+const danceTypeOptions = ALL_DANCE_TYPES.map((type) => ({
+  label: DANCE_TYPE_META[type].label,
+  value: type.toString(),
+}));
 
 const DanceTypeSelect = ({
   danceType,
@@ -38,10 +27,10 @@ const DanceTypeSelect = ({
         />
       </div>
 
-      {/* Desktop: 4-button radio group */}
+      {/* Desktop: button radio group */}
       <div className="hidden lg:grid lg:grid-cols-2 lg:gap-2">
-        {(Object.keys(DANCE_TYPE_STYLES) as DanceType[]).map((type) => {
-          const style = DANCE_TYPE_STYLES[type];
+        {ALL_DANCE_TYPES.map((type) => {
+          const style = DANCE_TYPE_META[type];
           const selected = danceType === type;
           return (
             <button
@@ -55,7 +44,7 @@ const DanceTypeSelect = ({
                 }`}
             >
               <span className={`w-3 h-3 rounded-full shrink-0 ${style.bg}`} />
-              {DANCE_LABELS[type]}
+              {style.label}
             </button>
           );
         })}
