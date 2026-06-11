@@ -10,7 +10,7 @@ const UNCHECK_DESCRIPTION_MAP = {
   no_practice_card: "無複習課卡",
   multiple_cards: "多張課卡",
   not_checked: "課卡未消耗",
-  not_qualified: "學生未完成初級課程",
+  not_qualified: "未具備複習卡資格",
 };
 const PendingStudents = ({
   records,

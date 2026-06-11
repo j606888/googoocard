@@ -7,61 +7,9 @@ import { useCreateStudentCardMutation, useGetStudentQuery } from "@/store/slices
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import { DanceType } from "@prisma/client";
+import { canBuyCard, requiredDanceTypeFor } from "@/domains/qualification";
+import { danceTypeLabel } from "@/lib/danceTypes";
 import { Card } from "@/store/slices/cards";
-import { Student } from "@/store/slices/students";
-
-function isCardDisabled(
-  card: Card,
-  lesson: Lesson & { danceType?: DanceType },
-  student: Student | undefined
-): boolean {
-  const shouldPracticeOnly = shouldForcePracticeOnly(lesson, student);
-
-  if (shouldPracticeOnly && !card.isPracticeCard) {
-    return true;
-  }
-
-  if (!card.isPracticeCard) {
-    return false;
-  }
-
-  if (!student || !lesson.danceType) {
-    return true;
-  }
-
-  if (lesson.danceType === DanceType.BACHATA) {
-    return !student.hasCompletedBachataLv1;
-  } else if (lesson.danceType === DanceType.SALSA) {
-    return !student.hasCompletedSalsaLv1;
-  }
-
-  return false;
-}
-
-function shouldForcePracticeOnly(
-  lesson: Lesson & { danceType?: DanceType },
-  student: Student | undefined
-) {
-  if (!student || !lesson.danceType) {
-    return false;
-  }
-
-  const lessonHasPracticeCard = lesson.cards?.some((card) => card.isPracticeCard);
-  if (!lessonHasPracticeCard) {
-    return false;
-  }
-
-  if (lesson.danceType === DanceType.BACHATA) {
-    return student.hasCompletedBachataLv1;
-  }
-
-  if (lesson.danceType === DanceType.SALSA) {
-    return student.hasCompletedSalsaLv1;
-  }
-
-  return false;
-}
 
 const BuyAndUseForm = ({
   record,
@@ -75,6 +23,7 @@ const BuyAndUseForm = ({
   const { data: student } = useGetStudentQuery({ id: studentId });
   const [open, setOpen] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
+  const [allowManualOverride, setAllowManualOverride] = useState(false);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
   const { periodId } = useParams();
@@ -92,11 +41,45 @@ const BuyAndUseForm = ({
     cardSessions: "",
   });
 
+  const qualifications = useMemo(
+    () => student?.danceQualifications ?? [],
+    [student]
+  );
+
+  // Practice card the student is not qualified for — hard block.
+  const isCardForbidden = (card: Card) =>
+    !canBuyCard(card, qualifications, lesson.danceType).allowed;
+
+  // The lesson offers a practice card this student can buy — lock general
+  // cards by default so the student's benefit isn't wasted on a pricier card.
+  const shouldLockGeneralCards = useMemo(
+    () =>
+      cardOptions.some(
+        (card) =>
+          card.isPracticeCard &&
+          canBuyCard(card, qualifications, lesson.danceType).allowed
+      ) && !allowManualOverride,
+    [cardOptions, qualifications, lesson.danceType, allowManualOverride]
+  );
+
+  const isCardDisabled = (card: Card) => {
+    if (isCardForbidden(card)) return true;
+    return shouldLockGeneralCards && !card.isPracticeCard;
+  };
+
+  const forbiddenHint = (card: Card) => {
+    if (!isCardForbidden(card)) return null;
+    const required = requiredDanceTypeFor(card, lesson.danceType);
+    return required
+      ? `未具備 ${danceTypeLabel(required)} 複習資格`
+      : "複習卡未設定舞種";
+  };
+
   const handleSelectCard = (cardId: number) => {
     const card = cardOptions.find((c) => c.id === cardId);
     if (!card) return;
 
-    if (isCardDisabled(card, lesson, student)) {
+    if (isCardDisabled(card)) {
       return;
     }
 
@@ -117,6 +100,11 @@ const BuyAndUseForm = ({
     setCardPrice(e.target.value);
   };
 
+  const handleClose = () => {
+    setOpen(false);
+    setAllowManualOverride(false);
+  };
+
   const handleSubmit = async () => {
     if (selectedCardId) {
       const studentCard = await createStudentCard({
@@ -124,6 +112,7 @@ const BuyAndUseForm = ({
         cardId: selectedCardId,
         sessions: parseInt(cardSessions),
         price: parseInt(cardPrice),
+        lessonId: lesson.id,
       });
       if (studentCard?.data) {
         await consumeStudentCard({
@@ -134,7 +123,7 @@ const BuyAndUseForm = ({
         });
       }
       toast.success("成功買卡並使用");
-      setOpen(false);
+      handleClose();
     }
   };
 
@@ -142,7 +131,7 @@ const BuyAndUseForm = ({
     if (selectedCardId) {
       const card = cardOptions.find((card) => card.id === selectedCardId);
       if (card) {
-        if (isCardDisabled(card, lesson, student)) {
+        if (isCardDisabled(card)) {
           setSelectedCardId(null);
           setCardSessions("");
           setCardPrice("");
@@ -152,7 +141,8 @@ const BuyAndUseForm = ({
         setCardPrice(card.price.toString());
       }
     }
-  }, [selectedCardId, cardOptions, lesson, student]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCardId, cardOptions, lesson, student, shouldLockGeneralCards]);
 
   return (
     <>
@@ -165,7 +155,7 @@ const BuyAndUseForm = ({
       <Drawer
         title={`為 ${record.studentName} 買卡並使用`}
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={handleClose}
         onSubmit={handleSubmit}
         submitText="買卡並使用"
         isLoading={isLoading || isConsumeLoading}
@@ -173,15 +163,30 @@ const BuyAndUseForm = ({
       >
         <div className="mb-4">
           <p>Choose card</p>
+          {shouldLockGeneralCards && (
+            <div className="flex flex-col gap-2 p-3 mt-2 rounded-sm bg-primary-50 border border-primary-200">
+              <p className="text-xs text-primary-700">
+                學生符合複習卡資格，已優先鎖定複習卡，保護學生權益
+              </p>
+              <button
+                type="button"
+                className="text-xs text-primary-700 underline text-left cursor-pointer"
+                onClick={() => setAllowManualOverride(true)}
+              >
+                老師手動切換覆蓋
+              </button>
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 pt-2">
             {cardOptions?.map((card) => {
-              const disabled = isCardDisabled(card, lesson, student);
+              const disabled = isCardDisabled(card);
               const isSelected = selectedCardId === card.id && !disabled;
-              
+              const hint = forbiddenHint(card);
+
               return (
                 <div
                   key={card.id}
-                  className={`flex gap-2 items-center px-4 py-3 border-1 border-gray-200 rounded-sm ${
+                  className={`flex flex-col gap-1 px-4 py-3 border-1 border-gray-200 rounded-sm ${
                     disabled
                       ? "opacity-50 cursor-not-allowed bg-gray-50"
                       : "cursor-pointer"
@@ -192,8 +197,13 @@ const BuyAndUseForm = ({
                   }`}
                   onClick={() => handleSelectCard(card.id)}
                 >
-                  <RoundCheckbox isChecked={isSelected} />
-                  <p>{card.name}</p>
+                  <div className="flex gap-2 items-center">
+                    <RoundCheckbox isChecked={isSelected} />
+                    <p>{card.name}</p>
+                  </div>
+                  {hint && (
+                    <p className="text-xs text-red-500">{hint}</p>
+                  )}
                 </div>
               );
             })}

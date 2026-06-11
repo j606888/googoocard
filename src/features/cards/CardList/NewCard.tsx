@@ -4,6 +4,8 @@ import Drawer from "@/components/Drawer";
 import { useCreateCardMutation } from "@/store/slices/cards";
 import InputField from "@/components/InputField";
 import { Switch } from "@/components/ui/switch";
+import { DanceType } from "@prisma/client";
+import CardDanceTypeSelect from "./CardDanceTypeSelect";
 
 const CardValidationErrors = {
   cardName: "Must provide a name",
@@ -39,21 +41,33 @@ const NewCard = () => {
   const [price, setPrice] = useState("");
   const [sessions, setSessions] = useState("");
   const [isPracticeCard, setIsPracticeCard] = useState(false);
-  const [errors, setErrors] = useState<{ cardName?: string; price?: string; sessions?: string }>({});
+  const [danceType, setDanceType] = useState<DanceType | null>(null);
+  const [errors, setErrors] = useState<{ cardName?: string; price?: string; sessions?: string; danceType?: string }>({});
 
   const [createCard, { isLoading }] = useCreateCardMutation();
 
   const handleSubmit = async () => {
-    const errors = cardValidationForm({ cardName, price, sessions });
+    const errors: { cardName?: string; price?: string; sessions?: string; danceType?: string } =
+      cardValidationForm({ cardName, price, sessions });
+    if (isPracticeCard && !danceType) {
+      errors.danceType = "Practice card must have a dance type";
+    }
     if (Object.keys(errors).length > 0) {
       setErrors(errors);
       return;
     }
-    await createCard({ name: cardName, price: Number(price), sessions: Number(sessions), isPracticeCard });
+    await createCard({
+      name: cardName,
+      price: Number(price),
+      sessions: Number(sessions),
+      isPracticeCard,
+      danceType: isPracticeCard ? danceType : null,
+    });
     setCardName("");
     setPrice("");
     setSessions("");
     setIsPracticeCard(false);
+    setDanceType(null);
     setOpen(false);
   };
 
@@ -126,12 +140,24 @@ const NewCard = () => {
             />
           </div>
           <div className="flex items-center gap-2">
-            <Switch 
+            <Switch
               checked={isPracticeCard}
               onCheckedChange={setIsPracticeCard}
             />
             <span>Is Practice Card</span>
           </div>
+          {isPracticeCard && (
+            <CardDanceTypeSelect
+              value={danceType}
+              onChange={(type) => {
+                setDanceType(type);
+                if (errors.danceType) {
+                  setErrors((prev) => ({ ...prev, danceType: undefined }));
+                }
+              }}
+              error={errors.danceType}
+            />
+          )}
         </form>
       </Drawer>
     </>

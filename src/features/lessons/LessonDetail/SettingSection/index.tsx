@@ -97,6 +97,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
             error={errors.cards}
             onChange={handleCardChange}
             selectedCardIds={selectedCardIds}
+            danceType={danceType}
           />
           <Button onClick={handleSubmit} isLoading={isLoading}>
             Update

@@ -5,6 +5,7 @@ import { ArrowLeft, CreditCard, BookOpenText, Star, AlertCircle, Tag } from "luc
 import { StudentWithDetail } from "@/store/slices/students";
 import { format } from "date-fns";
 import EditStudent from "./BasicSection/EditStudent";
+import { danceTypeLabel } from "@/lib/danceTypes";
 
 const StudentDetailHeader = ({
   student,
@@ -59,18 +60,15 @@ const StudentDetailHeader = ({
             ))}
           </div>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {student.hasCompletedBachataLv1 && (
-              <span className="inline-flex items-center gap-1 text-xs font-medium bg-warning-100 text-warning-900 px-2.5 py-1 rounded-full">
+            {student.danceQualifications?.map((type) => (
+              <span
+                key={type}
+                className="inline-flex items-center gap-1 text-xs font-medium bg-warning-100 text-warning-900 px-2.5 py-1 rounded-full"
+              >
                 <Star className="w-3 h-3" />
-                Bachata Lv1
+                {danceTypeLabel(type)} Lv1
               </span>
-            )}
-            {student.hasCompletedSalsaLv1 && (
-              <span className="inline-flex items-center gap-1 text-xs font-medium bg-warning-100 text-warning-900 px-2.5 py-1 rounded-full">
-                <Star className="w-3 h-3" />
-                Salsa Lv1
-              </span>
-            )}
+            ))}
           </div>
         </div>
         <div className="shrink-0">

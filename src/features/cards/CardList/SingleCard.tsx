@@ -1,5 +1,6 @@
 import { Card } from "@/store/slices/cards";
-import { EllipsisVertical, Trash, Ban, Lightbulb, Pencil, Users } from "lucide-react";
+import { EllipsisVertical, Trash, Ban, Lightbulb, Pencil, Users, TriangleAlert } from "lucide-react";
+import { DANCE_TYPE_META, danceTypeLabel } from "@/lib/danceTypes";
 import { useState, useRef } from "react";
 import Menu from "@/components/Menu";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -50,9 +51,21 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
           <div className="flex flex-col gap-1.5">
             <h4 className="text-base font-semibold leading-none">{card.name}</h4>
             {card.isPracticeCard && (
-              <span className="text-xs text-warning-900 bg-warning-100 border border-warning-300 rounded-full px-2.5 py-0.5 w-fit">
-                Practice Card
-              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-warning-900 bg-warning-100 border border-warning-300 rounded-full px-2.5 py-0.5 w-fit">
+                  Practice Card
+                </span>
+                {card.danceType ? (
+                  <span className={`text-xs rounded-full px-2.5 py-0.5 w-fit ${DANCE_TYPE_META[card.danceType].badge}`}>
+                    {danceTypeLabel(card.danceType)}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs text-amber-700 bg-amber-100 border border-amber-300 rounded-full px-2.5 py-0.5 w-fit">
+                    <TriangleAlert className="w-3 h-3" />
+                    缺少舞種
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <button

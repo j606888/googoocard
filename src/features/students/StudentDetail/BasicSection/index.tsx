@@ -41,10 +41,11 @@ const Basic = ({
               <EditStudent student={student} />
             </div>
           )}
-          {(student.hasCompletedBachataLv1 || student.hasCompletedSalsaLv1) && (
+          {student.danceQualifications?.length > 0 && (
             <div className="flex flex-col gap-2 mt-2 items-start">
-              {student.hasCompletedBachataLv1 && (<StarBadge type="bachata" />)}
-              {student.hasCompletedSalsaLv1 && (<StarBadge type="salsa" />)}
+              {student.danceQualifications.map((type) => (
+                <StarBadge key={type} type={type} />
+              ))}
             </div>
           )}
         </div>

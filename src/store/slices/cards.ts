@@ -1,3 +1,4 @@
+import { DanceType } from "@prisma/client";
 import { api } from "../api";
 
 export interface Card {
@@ -5,6 +6,7 @@ export interface Card {
   name: string;
   price: number;
   isPracticeCard: boolean;
+  danceType: DanceType | null;
   sessions: number;
   expiredAt: Date | null;
   purchasedCount: number;
@@ -18,7 +20,7 @@ const cardsApi = api.injectEndpoints({
       query: () => "cards",
       providesTags: ["Card"],
     }),
-    createCard: builder.mutation<Card, { name: string; price: number; sessions: number; isPracticeCard: boolean }>({
+    createCard: builder.mutation<Card, { name: string; price: number; sessions: number; isPracticeCard: boolean; danceType: DanceType | null }>({
       query: (card) => ({
         url: "cards",
         method: "POST",
@@ -47,11 +49,11 @@ const cardsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Card", "Attendance"],
     }),
-    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number; isPracticeCard: boolean }>({
-      query: ({ id, name, price, sessions, isPracticeCard }) => ({
+    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number; isPracticeCard: boolean; danceType: DanceType | null }>({
+      query: ({ id, name, price, sessions, isPracticeCard, danceType }) => ({
         url: `cards/${id}`,
         method: "PATCH",
-        body: { name, price, sessions, isPracticeCard },
+        body: { name, price, sessions, isPracticeCard, danceType },
       }),
       invalidatesTags: ["Card", "Attendance"],
     }),

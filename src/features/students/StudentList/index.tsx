@@ -8,8 +8,10 @@ import Searchbar from "./Searchbar";
 import { useState, useMemo } from "react";
 import { Users } from "lucide-react";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { DanceType } from "@prisma/client";
+import { ALL_DANCE_TYPES, danceTypeLabel } from "@/lib/danceTypes";
 
-type FilterChip = "all" | "needsRenewal" | "bachateLv1" | "inActiveLesson" | "byLesson";
+type FilterChip = "all" | "needsRenewal" | "inActiveLesson" | "byLesson" | `qual:${DanceType}`;
 
 const StudentList = () => {
   const [query, setQuery] = useState("");
@@ -22,7 +24,10 @@ const StudentList = () => {
 
   const students = useMemo(() => {
     if (activeFilter === "needsRenewal") return allStudents.filter((s) => s.tags?.some((t) => t.name === "Needs Renewal"));
-    if (activeFilter === "bachateLv1") return allStudents.filter((s) => s.hasCompletedBachataLv1);
+    if (activeFilter.startsWith("qual:")) {
+      const danceType = activeFilter.slice("qual:".length) as DanceType;
+      return allStudents.filter((s) => s.danceQualifications?.includes(danceType));
+    }
     if (activeFilter === "inActiveLesson") return allStudents.filter((s) => s.isInActiveLesson);
     if (activeFilter === "byLesson" && selectedLessonId)
       return allStudents.filter((s) => s.activeLessonIds.includes(selectedLessonId));
@@ -36,10 +41,17 @@ const StudentList = () => {
     if (chip !== "byLesson") setSelectedLessonId(null);
   };
 
+  const qualificationChips = ALL_DANCE_TYPES.filter((type) =>
+    allStudents.some((s) => s.danceQualifications?.includes(type))
+  ).map((type) => ({
+    key: `qual:${type}` as FilterChip,
+    label: `${danceTypeLabel(type)} Lv1`,
+  }));
+
   const chips: { key: FilterChip; label: string; disabled?: boolean }[] = [
     { key: "all", label: "全部" },
     { key: "needsRenewal", label: "需續約" },
-    { key: "bachateLv1", label: "Bachata Lv1" },
+    ...qualificationChips,
     { key: "inActiveLesson", label: "上課中" },
     { key: "byLesson", label: "依課程", disabled: inProgressLessons.length === 0 },
   ];
