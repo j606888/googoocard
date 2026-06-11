@@ -7,7 +7,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "postinstall": "prisma generate",
+    "db:migrate": "node scripts/require-local-db.mjs && prisma migrate dev",
+    "db:deploy": "node scripts/deploy-migrations.mjs",
+    "db:status": "prisma migrate status",
+    "db:studio": "prisma studio",
+    "//": [
+      "⚠️  不要直接用 prisma db push — 不產生 migration 檔，會造成 schema drift",
+      "⚠️  不要直接用 prisma migrate reset — 會清空所有資料"
+    ]
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.12",
@@ -49,6 +59,7 @@
     "prisma": "^6.9.0",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.8"
   }
 }

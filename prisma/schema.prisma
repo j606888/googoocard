@@ -84,6 +84,7 @@ model Card {
   studentCards StudentCard[]
   lessons      LessonCard[]
   isPracticeCard Boolean @default(false)
+  danceType    DanceType?
   classroom    Classroom     @relation(fields: [classroomId], references: [id])
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -102,10 +103,19 @@ model Student {
   lessons      LessonStudent[]
   attendanceRecords AttendanceRecord[]
   events Event[]
-  hasCompletedBachataLv1 Boolean @default(false)
-  hasCompletedSalsaLv1 Boolean @default(false)
+  danceQualifications StudentDanceQualification[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+}
+
+model StudentDanceQualification {
+  id        Int       @id @default(autoincrement())
+  studentId Int
+  student   Student   @relation(fields: [studentId], references: [id])
+  danceType DanceType
+  createdAt DateTime  @default(now())
+
+  @@unique([studentId, danceType])
 }
 
 model StudentCard {

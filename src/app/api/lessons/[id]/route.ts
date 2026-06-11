@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DraftLesson } from "@/store/slices/lessons";
+import { cardMatchesLesson } from "@/domains/qualification";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -47,6 +48,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const draftLesson = await request.json() as DraftLesson;
+
+  const cards = await prisma.card.findMany({
+    where: { id: { in: draftLesson.cardIds } },
+  });
+  const mismatchedCards = cards.filter(
+    (card) => !cardMatchesLesson(card, draftLesson.danceType)
+  );
+  if (mismatchedCards.length > 0) {
+    return NextResponse.json(
+      {
+        error: "PRACTICE_CARD_DANCE_TYPE_MISMATCH",
+        cardNames: mismatchedCards.map((card) => card.name),
+      },
+      { status: 400 }
+    );
+  }
+
   const lesson = await prisma.lesson.update({
     where: { id: parseInt(id) },
     data: {

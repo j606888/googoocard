@@ -5,7 +5,7 @@ import { Lesson } from "@/store/slices/lessons";
 import { format, addDays } from "date-fns";
 import { useRouter } from "next/navigation";
 import { setLessonCloneSource } from "@/lib/lessonDraftStorage";
-import { DANCE_TYPE_STYLES } from "./danceTypeStyles";
+import { DANCE_TYPE_META } from "@/lib/danceTypes";
 
 const LessonCard = ({ lesson }: { lesson: Lesson }) => {
   const router = useRouter();
@@ -20,7 +20,7 @@ const LessonCard = ({ lesson }: { lesson: Lesson }) => {
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
     .find((p) => !p.attendanceTakenAt);
 
-  const style = DANCE_TYPE_STYLES[lesson.danceType];
+  const style = DANCE_TYPE_META[lesson.danceType];
   const isFinished = periods.length > 0 && attendCount === periods.length;
 
   const handleClone = (e: React.MouseEvent) => {

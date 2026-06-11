@@ -6,7 +6,8 @@ import Drawer from "@/components/Drawer";
 import { StudentWithDetail } from "@/store/slices/students";
 import InputField from "@/components/InputField";
 import { useUpdateStudentMutation, useGetTagsQuery, useAddStudentTagMutation, useRemoveStudentTagMutation } from "@/store/slices/students";
-import { Switch } from "@/components/ui/switch";
+import { DanceType } from "@prisma/client";
+import { ALL_DANCE_TYPES, DANCE_TYPE_META } from "@/lib/danceTypes";
 
 const avatarUrls = [
   "/images/avatar_1.png",
@@ -24,8 +25,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
   const [name, setName] = useState(student.name);
   const [note, setNote] = useState(student.note);
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(student.avatarUrl);
-  const [hasCompletedBachataLv1, setHasCompletedBachataLv1] = useState(student.hasCompletedBachataLv1);
-  const [hasCompletedSalsaLv1, setHasCompletedSalsaLv1] = useState(student.hasCompletedSalsaLv1);
+  const [danceQualifications, setDanceQualifications] = useState<DanceType[]>(student.danceQualifications ?? []);
   const [errors, setErrors] = useState<{ name?: string }>({});
   const [tagInput, setTagInput] = useState("");
   const [updateStudent, { isLoading }] = useUpdateStudentMutation();
@@ -37,8 +37,14 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
     if (!name) {
       setErrors({ name: "Name is required" });
     }
-    await updateStudent({ id: student.id, name, note, avatarUrl: selectedAvatarUrl, hasCompletedBachataLv1, hasCompletedSalsaLv1 });
+    await updateStudent({ id: student.id, name, note, avatarUrl: selectedAvatarUrl, danceQualifications });
     setIsOpen(false);
+  };
+
+  const toggleQualification = (type: DanceType) => {
+    setDanceQualifications((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
   };
 
   const handleAddTag = async (tagName: string) => {
@@ -95,13 +101,31 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
               </div>
             ))}
           </div>
-          <div className="flex items-center gap-3">
-            <Switch checked={hasCompletedBachataLv1} onCheckedChange={setHasCompletedBachataLv1} />
-            <span>Has completed Bachata LV1</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Switch checked={hasCompletedSalsaLv1} onCheckedChange={setHasCompletedSalsaLv1} />
-            <span>Has completed Salsa LV1</span>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700">
+              Completed LV1 (可購買複習卡)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {ALL_DANCE_TYPES.map((type) => {
+                const style = DANCE_TYPE_META[type];
+                const selected = danceQualifications.includes(type);
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => toggleQualification(type)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all cursor-pointer ${
+                      selected
+                        ? `${style.light} ${style.border} ${style.text}`
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${style.dot}`} />
+                    {style.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">

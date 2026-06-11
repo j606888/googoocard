@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, Users, BookOpenText, GraduationCap, Settings } from "lucide-react";
 import { Lesson, LessonStudent } from "@/store/slices/lessons";
-import { DANCE_TYPE_STYLES } from "../danceTypeStyles";
+import { DANCE_TYPE_META } from "@/lib/danceTypes";
 import UnpaidBell from "@/features/UnpaidBell";
 
 const LessonDetailHeader = ({
@@ -17,7 +17,7 @@ const LessonDetailHeader = ({
   showSettings: boolean;
   onToggleSettings: () => void;
 }) => {
-  const style = DANCE_TYPE_STYLES[lesson.danceType];
+  const style = DANCE_TYPE_META[lesson.danceType];
   const periods = lesson.periods || [];
   const attendedCount = periods.filter((p) => p.attendanceTakenAt).length;
   const totalAttendances = students.reduce(

@@ -155,6 +155,7 @@ const NewLesson = () => {
             error={errors.cards}
             onChange={handleCardChange}
             selectedCardIds={selectedCardIds}
+            danceType={danceType}
           />
           {/* Create button — desktop only, inside left col */}
           <Button className="hidden lg:block" onClick={handleSubmit} isLoading={isLoading}>

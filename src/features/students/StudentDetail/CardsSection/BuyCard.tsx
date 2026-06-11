@@ -4,7 +4,9 @@ import { Student } from "@/store/slices/students";
 import RoundCheckbox from "@/components/RoundCheckbox";
 import InputField from "@/components/InputField";
 import { useCreateStudentCardMutation } from "@/store/slices/students";
-import { useGetCardsQuery } from "@/store/slices/cards";
+import { Card, useGetCardsQuery } from "@/store/slices/cards";
+import { canBuyCard } from "@/domains/qualification";
+import { DANCE_TYPE_META, danceTypeLabel } from "@/lib/danceTypes";
 
 const BuyCard = ({ student }: { student: Student }) => {
   const { data: cards } = useGetCardsQuery();
@@ -25,7 +27,22 @@ const BuyCard = ({ student }: { student: Student }) => {
     return cards?.activeCards || [];
   }, [cards]);
 
+  // No lesson context here — a practice card is only buyable when the student
+  // is qualified for the card's own dance type.
+  const buyBlockedReason = (card: Card): string | null => {
+    const decision = canBuyCard(card, student.danceQualifications ?? []);
+    if (decision.allowed) return null;
+    if (decision.reason === "NOT_QUALIFIED" && card.danceType) {
+      return `未具備 ${danceTypeLabel(card.danceType)} 複習資格`;
+    }
+    return "複習卡未設定舞種，請先至課卡頁設定";
+  };
+
   const handleSelectCard = (cardId: number) => {
+    const card = cardOptions.find((c) => c.id === cardId);
+    if (!card || buyBlockedReason(card)) {
+      return;
+    }
     setSelectedCardId(cardId);
     if (errors.selectedCardId) {
       setErrors({
@@ -94,20 +111,39 @@ const BuyCard = ({ student }: { student: Student }) => {
         <div className="mb-4">
           <p>Choose card</p>
           <div className="flex flex-wrap gap-2 pt-2">
-            {cardOptions?.map((card) => (
-              <div
-                key={card.id}
-                className={`flex gap-2 items-center px-4 py-3 border-1 border-gray-200 rounded-sm ${
-                  selectedCardId === card.id
-                    ? "bg-primary-100 border-primary-500"
-                    : ""
-                }`}
-                onClick={() => handleSelectCard(card.id)}
-              >
-                <RoundCheckbox isChecked={selectedCardId === card.id} />
-                <p>{card.name}</p>
-              </div>
-            ))}
+            {cardOptions?.map((card) => {
+              const blockedReason = buyBlockedReason(card);
+              return (
+                <div
+                  key={card.id}
+                  className={`flex flex-col gap-1 px-4 py-3 border-1 border-gray-200 rounded-sm ${
+                    blockedReason
+                      ? "opacity-50 cursor-not-allowed bg-gray-50"
+                      : "cursor-pointer"
+                  } ${
+                    selectedCardId === card.id
+                      ? "bg-primary-100 border-primary-500"
+                      : ""
+                  }`}
+                  onClick={() => handleSelectCard(card.id)}
+                >
+                  <div className="flex gap-2 items-center">
+                    <RoundCheckbox isChecked={selectedCardId === card.id} />
+                    <p>{card.name}</p>
+                    {card.isPracticeCard && card.danceType && (
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${DANCE_TYPE_META[card.danceType].badge}`}
+                      >
+                        {danceTypeLabel(card.danceType)}
+                      </span>
+                    )}
+                  </div>
+                  {blockedReason && (
+                    <p className="text-xs text-red-500">{blockedReason}</p>
+                  )}
+                </div>
+              );
+            })}
             {errors.selectedCardId && (
               <p className="text-red-500 text-sm">{errors.selectedCardId}</p>
             )}

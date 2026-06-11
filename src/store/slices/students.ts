@@ -1,3 +1,4 @@
+import { DanceType } from "@prisma/client";
 import { api } from "../api";
 import { Card } from "./cards";
 import { Classroom } from "./classrooms";
@@ -19,8 +20,7 @@ export interface Student {
   tags: StudentTag[];
   isInActiveLesson: boolean;
   activeLessonIds: number[];
-  hasCompletedBachataLv1: boolean;
-  hasCompletedSalsaLv1: boolean;
+  danceQualifications: DanceType[];
 }
 
 export interface Event {
@@ -117,11 +117,11 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Student"],
     }),
-    updateStudent: builder.mutation<Student, { id: number; name: string; note?: string; avatarUrl: string; hasCompletedBachataLv1: boolean; hasCompletedSalsaLv1: boolean }>({
-      query: ({ id, name, note, avatarUrl, hasCompletedBachataLv1, hasCompletedSalsaLv1 }) => ({
+    updateStudent: builder.mutation<Student, { id: number; name: string; note?: string; avatarUrl: string; danceQualifications: DanceType[] }>({
+      query: ({ id, name, note, avatarUrl, danceQualifications }) => ({
         url: `students/${id}`,
         method: "PATCH",
-        body: { name, note, avatarUrl, hasCompletedBachataLv1, hasCompletedSalsaLv1 },
+        body: { name, note, avatarUrl, danceQualifications },
       }),
       invalidatesTags: ["Student"],
     }),
@@ -136,11 +136,11 @@ const studentsApi = api.injectEndpoints({
       query: ({ id }) => `students/${id}/student-cards`,
       providesTags: ["StudentCard"],
     }),
-    createStudentCard: builder.mutation<StudentCard, { id: number; cardId: number; sessions: number; price: number }>({
-      query: ({ id, cardId, sessions, price }) => ({
+    createStudentCard: builder.mutation<StudentCard, { id: number; cardId: number; sessions: number; price: number; lessonId?: number }>({
+      query: ({ id, cardId, sessions, price, lessonId }) => ({
         url: `students/${id}/student-cards`,
         method: "POST",
-        body: { cardId, sessions, price },
+        body: { cardId, sessions, price, lessonId },
       }),
       invalidatesTags: ["StudentCard", "Student"],
     }),

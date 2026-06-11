@@ -2,11 +2,22 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { decodeAuthToken } from "@/lib/auth";
+import { DanceType } from "@prisma/client";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { name, note, avatarUrl, hasCompletedBachataLv1, hasCompletedSalsaLv1 } = await request.json();
+  const { name, note, avatarUrl, danceQualifications } = await request.json();
   const { classroomId } = await decodeAuthToken();
+
+  if (danceQualifications !== undefined) {
+    const validTypes = Object.values(DanceType);
+    if (
+      !Array.isArray(danceQualifications) ||
+      danceQualifications.some((type) => !validTypes.includes(type))
+    ) {
+      return NextResponse.json({ error: "Invalid dance qualifications" }, { status: 400 });
+    }
+  }
 
   const existingStudent = await prisma.student.findFirst({
     where: {
@@ -22,9 +33,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Student name already exists" }, { status: 400 });
   }
 
-  const student = await prisma.student.update({
-    where: { id: parseInt(id) },
-    data: { name, note, avatarUrl, hasCompletedBachataLv1, hasCompletedSalsaLv1 },
+  const student = await prisma.$transaction(async (tx) => {
+    const student = await tx.student.update({
+      where: { id: parseInt(id) },
+      data: { name, note, avatarUrl },
+    });
+
+    if (danceQualifications !== undefined) {
+      await tx.studentDanceQualification.deleteMany({
+        where: { studentId: student.id, danceType: { notIn: danceQualifications } },
+      });
+      await tx.studentDanceQualification.createMany({
+        data: (danceQualifications as DanceType[]).map((danceType) => ({
+          studentId: student.id,
+          danceType,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return student;
   });
 
   return NextResponse.json(student);
@@ -42,6 +70,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         include: { tag: true },
         orderBy: { createdAt: "asc" },
       },
+      danceQualifications: true,
       studentCards: {
         include: {
           card: true,
@@ -79,7 +108,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   });
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { lessons: _unusedLessons, attendanceRecords, studentCards, studentTags, ...studentData } = student;
+  const { lessons: _unusedLessons, attendanceRecords, studentCards, studentTags, danceQualifications, ...studentData } = student;
   const tags = studentTags.map((st) => ({ id: st.tag.id, name: st.tag.name }));
 
   const overview = {
@@ -224,6 +253,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     attendancesByLesson,
     studentCards: studentCardsWithAttendances,
     tags,
+    danceQualifications: danceQualifications.map((q) => q.danceType),
     ...studentData,
   });
 }

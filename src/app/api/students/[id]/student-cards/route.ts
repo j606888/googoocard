@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
+import { canBuyCard } from "@/domains/qualification";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,7 +17,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { cardId, sessions, price } = await request.json();
+  const { cardId, sessions, price, lessonId } = await request.json();
 
   const card = await prisma.card.findUnique({
     where: {
@@ -26,6 +27,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   if (!card) {
     return NextResponse.json({ error: "Card not found" }, { status: 404 });
+  }
+
+  if (card.isPracticeCard) {
+    const qualifications = await prisma.studentDanceQualification.findMany({
+      where: { studentId: parseInt(id) },
+    });
+    const lesson = lessonId
+      ? await prisma.lesson.findUnique({ where: { id: lessonId } })
+      : null;
+
+    const decision = canBuyCard(
+      card,
+      qualifications.map((q) => q.danceType),
+      lesson?.danceType
+    );
+    if (!decision.allowed) {
+      if (decision.reason === "NOT_QUALIFIED") {
+        return NextResponse.json({ error: "STUDENT_NOT_QUALIFIED" }, { status: 403 });
+      }
+      return NextResponse.json({ error: "CARD_MISSING_DANCE_TYPE" }, { status: 422 });
+    }
   }
 
   const studentCard = await prisma.studentCard.create({

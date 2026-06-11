@@ -46,8 +46,9 @@ const SingleStudent = ({ student }: { student: Student }) => {
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0 mr-1">
-            {student.hasCompletedBachataLv1 && <DanceBadge type="bachata" />}
-            {student.hasCompletedSalsaLv1 && <DanceBadge type="salsa" />}
+            {student.danceQualifications?.map((type) => (
+              <DanceBadge key={type} type={type} />
+            ))}
           </div>
         </div>
       </div>
@@ -89,8 +90,9 @@ const SingleStudent = ({ student }: { student: Student }) => {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {student.hasCompletedBachataLv1 && <DanceBadge type="bachata" />}
-            {student.hasCompletedSalsaLv1 && <DanceBadge type="salsa" />}
+            {student.danceQualifications?.map((type) => (
+              <DanceBadge key={type} type={type} />
+            ))}
           </div>
         </div>
       </div>
