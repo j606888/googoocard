@@ -23,8 +23,11 @@ docker-compose up -d  # Starts Postgres on port 54330 (user/password: postgres/p
 
 Required env vars: `DATABASE_URL`, `JWT_SECRET`.
 
-**⚠️ `.env`'s `DATABASE_URL` points directly at the production AWS RDS.** Any prisma command without an explicit override hits production. For local work override with:
-`DATABASE_URL="postgresql://postgres:password@localhost:54330/googoocard?schema=public"`
+**Env layout is fail-safe — local is the default, production is opt-in:**
+- `.env` — local only (docker Postgres on `:54330`). Never put production credentials here.
+- `.env.production` — production RDS `DATABASE_URL` (gitignored); used **only** by `npm run db:deploy`.
+- `npm run db:migrate` runs `scripts/require-local-db.mjs` first, which **hard-refuses** to run `prisma migrate dev` against any non-localhost URL (it can reset data). So even if `DATABASE_URL` is accidentally pointed at production, migrate dev is blocked.
+- `npm run db:deploy` runs `scripts/deploy-migrations.mjs`: resolves the prod URL from `.env.production` (or a real env var in CI), prints the masked target host, then runs `prisma migrate deploy`.
 
 Tests are safe by construction: they run against a separate `googoocard_test` database (auto-created/migrated by `tests/global-setup.ts`) and `tests/test-db-url.ts` refuses any non-localhost URL.
 
