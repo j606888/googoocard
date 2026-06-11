@@ -79,6 +79,28 @@ describe("GET attendance — uncheckedType 分類", () => {
     expect(record.recommendedStudentCardId).toBe(null);
   });
 
+  it("不符資格 + 持有多張複習卡 → not_qualified（不會誤判成 multiple_cards）", async () => {
+    const { practice, lesson, period } =
+      await setupBachataLessonWithBothCards();
+    const extraPractice = await createCard(classroomId, {
+      name: "Bachata 複習卡 2",
+      isPracticeCard: true,
+      danceType: DanceType.BACHATA,
+    });
+    await prisma.lessonCard.create({
+      data: { lessonId: lesson.id, cardId: extraPractice.id },
+    });
+    const student = await createStudent(classroomId); // 無資格
+    await createStudentCard(student.id, practice.id);
+    await createStudentCard(student.id, extraPractice.id);
+    await createPendingAttendance(period.id, student.id);
+
+    const [record] = await getAttendance(lesson.id, period.id);
+
+    expect(record.uncheckedType).toBe("not_qualified");
+    expect(record.recommendedStudentCardId).toBe(null);
+  });
+
   it("不符資格 + 只持有一般卡 → not_checked（單卡推薦）", async () => {
     const { general, lesson, period } =
       await setupBachataLessonWithBothCards();

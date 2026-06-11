@@ -159,3 +159,33 @@ npm run test:watch  # watch 模式
 - 含 DROP COLUMN 的 migration 部署前先做 RDS snapshot；程式碼與 migration 同次部署。
 - Migration 含資料 backfill 時，手寫 SQL 並確保 backfill 在 DROP 之前
   （範例：`prisma/migrations/20260611000000_replace_qualification_booleans_with_join_table/`）。
+
+### ⚠️ 首次部署前必做：baseline 已用 db push 套用過的 migration
+
+Production 過去是用 `prisma db push` 套 schema 的，所以 `Tag` / `StudentTag` 兩張表與
+`DanceType` 的 `KIZOMBA` 值**早就存在於 RDS**，但 `_prisma_migrations` 表裡**沒有**對應紀錄。
+直接跑 `prisma migrate deploy` 會從頭執行這些「待套用」的 migration，跑到
+`CREATE TABLE "Tag"` / `ALTER TYPE ... ADD VALUE 'KIZOMBA'` 時報
+`already exists` 而中斷——而且會**停在 `20260611...` 之前**，導致資格 backfill 根本沒跑，
+但新程式碼已經預期 `StudentDanceQualification` / `Card.danceType` 存在。
+
+**部署前，先在 production 把這些「已存在但沒紀錄」的 migration 標記為已套用（baseline）：**
+
+```bash
+# 1. 先確認目前 production 的 migration 狀態（哪些被視為 pending）
+npm run db:status            # = prisma migrate status
+
+# 2. 把所有「物件已存在、但只是缺紀錄」的 migration 逐一 resolve 成 applied
+#    （依 db:status 的輸出為準；至少包含下列兩個 catch-up migration）
+npx prisma migrate resolve --applied 20260315160000_add_tag_and_student_tag
+npx prisma migrate resolve --applied 20260315161000_add_dance_type_kizomba
+#    若 db:status 顯示更早的 migration 也未紀錄（db push 時期遺留），一併 resolve。
+
+# 3. 再跑 deploy——此時只剩真正要套用的 20260611 會執行
+npm run db:deploy            # = prisma migrate deploy
+npm run db:status            # 確認全部 applied、無 pending
+```
+
+> `migrate resolve --applied` 只寫 `_prisma_migrations` 紀錄、**不執行** SQL，因此對既有
+> 資料零影響；這是 Prisma 官方把「db push 過的庫」接回 migration 流程的標準做法。
+> 之後的部署就回到單純 `npm run db:deploy` 即可，不需再 baseline。

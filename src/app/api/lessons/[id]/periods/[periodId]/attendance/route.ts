@@ -154,40 +154,47 @@ function findUncheckedType(lesson: LessonWithCards, student: StudentWithCards) {
       recommendedStudentCardId: null,
       reason: null,
     };
-  } else if (shouldForcePracticePriority) {
+  }
+
+  if (shouldForcePracticePriority) {
     return {
       uncheckedType: UNCHECK_TYPE.NO_PRACTICE_CARD,
       recommendedStudentCardId: null,
       reason: null,
     };
-  } else if (matchedCards.length === 1) {
-    const studentCard = matchedCards[0];
-    const card = lesson.cards.find(
-      (lessonCard) => lessonCard.cardId === studentCard.cardId
-    )?.card;
-    if (
-      card?.isPracticeCard &&
-      !canUseCard(card, getQualifications(student), lesson.danceType)
-    ) {
-      return {
-        uncheckedType: UNCHECK_TYPE.NOT_QUALIFIED,
-        recommendedStudentCardId: null,
-        reason: null,
-      };
-    }
+  }
+
+  // Exclude practice cards the student can't use (not qualified, or wrong
+  // dance type) so the classification matches what selectStudentCard would
+  // actually pick — see attendance.service.ts.
+  const qualifications = getQualifications(student);
+  const usableCards = matchedCards.filter((studentCard) =>
+    canUseCard(studentCard.card, qualifications, lesson.danceType)
+  );
+
+  if (usableCards.length === 0) {
+    // Every matched card is an unusable practice card.
     return {
-      uncheckedType: UNCHECK_TYPE.NOT_CHECKED,
-      recommendedStudentCardId: studentCard.id,
-      reason: null,
-    };
-  } else {
-    const recommendedCard = getRecommendedStudentCard(matchedCards);
-    return {
-      uncheckedType: UNCHECK_TYPE.MULTIPLE_CARDS,
-      recommendedStudentCardId: recommendedCard?.id ?? null,
+      uncheckedType: UNCHECK_TYPE.NOT_QUALIFIED,
+      recommendedStudentCardId: null,
       reason: null,
     };
   }
+
+  if (usableCards.length === 1) {
+    return {
+      uncheckedType: UNCHECK_TYPE.NOT_CHECKED,
+      recommendedStudentCardId: usableCards[0].id,
+      reason: null,
+    };
+  }
+
+  const recommendedCard = getRecommendedStudentCard(usableCards);
+  return {
+    uncheckedType: UNCHECK_TYPE.MULTIPLE_CARDS,
+    recommendedStudentCardId: recommendedCard?.id ?? null,
+    reason: null,
+  };
 }
 
 function getQualifications(student: StudentWithCards) {
