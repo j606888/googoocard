@@ -15,8 +15,8 @@ const Searchbar = ({ onSearch, selectedStudents, error, onCreateStudent }: { onS
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <p>Selected ({selectedStudents.length})</p>
-          {error && <p className="text-red-500">{error}</p>}
+          <p className="text-sm font-medium text-gray-700">Selected ({selectedStudents.length})</p>
+          {error && <p className="text-sm text-red-500">{error}</p>}
         </div>
         <CreateStudent
           defaultName={search}
@@ -25,16 +25,16 @@ const Searchbar = ({ onSearch, selectedStudents, error, onCreateStudent }: { onS
           }}
         />
       </div>
-      <div className="flex items-center gap-3 p-3 rounded-sm border-1 border-[#e2e2e2]">
-        <Search className="w-5 h-5 text-[#808080] flex-shrink-0" />
+      <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus-within:border-primary-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary-100 transition-colors">
+        <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
         <input
           type="text"
-          placeholder="Search"
-          className="w-full outline-none"
+          placeholder="Search students"
+          className="w-full bg-transparent outline-none placeholder:text-gray-400"
           onChange={handleSearch}
           value={search}
         />
-        {search && <X className="ml-auto w-5 h-5 text-[#808080]" onClick={() => {setSearch(""); onSearch("")}} />}
+        {search && <X className="ml-auto w-5 h-5 text-gray-400 cursor-pointer" onClick={() => {setSearch(""); onSearch("")}} />}
       </div>
     </div>
   );

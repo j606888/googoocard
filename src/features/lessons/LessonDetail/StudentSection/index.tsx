@@ -39,8 +39,8 @@ const StudentSection = ({ students }: { students: LessonStudent[] }) => {
 
 const BADGE_STYLES = {
   attended: "bg-primary-500 text-white",
-  absent: "bg-gray-400 text-white",
-  not_started: "border border-gray-200 text-[#777777]",
+  absent: "bg-red-400 text-white",
+  not_started: "border border-gray-200 text-gray-500",
 };
 const Round = ({
   attendance,

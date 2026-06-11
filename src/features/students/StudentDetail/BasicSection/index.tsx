@@ -22,34 +22,34 @@ const Basic = ({
 
   return (
     <>
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2 p-3 rounded-sm border-1 border-gray-200 relative">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 p-4 rounded-2xl border border-gray-200 bg-white shadow-sm relative">
           <div className="flex items-center gap-3">
             <img
               src={student.avatarUrl}
-              className={`w-10 h-10 rounded-full object-cover`}
+              className="w-12 h-12 rounded-full object-cover ring-2 ring-primary-100"
             />
             <div>
-              <h2 className="text-xl font-semibold">{student.name}</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{student.name}</h2>
               {student.note && !isPublic && (
                 <p className="text-sm text-gray-500">{student.note}</p>
               )}
             </div>
           </div>
           {!isPublic && (
-            <div className="absolute top-5 right-5">
+            <div className="absolute top-4 right-4">
               <EditStudent student={student} />
             </div>
           )}
           {student.danceQualifications?.length > 0 && (
-            <div className="flex flex-col gap-2 mt-2 items-start">
+            <div className="flex flex-wrap gap-2 items-start">
               {student.danceQualifications.map((type) => (
                 <StarBadge key={type} type={type} />
               ))}
             </div>
           )}
         </div>
-        <div className="flex gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Info
             label="Class Attend"
             value={student.overview.attendLessonCount.toString()}
@@ -59,36 +59,31 @@ const Basic = ({
             value={student.overview.cardCount.toString()}
           />
         </div>
-        {/* <div className="flex gap-3">
-          <Info label="Total Spend" value={`$${student.overview.totalSpend}`} />
-          <Info label="Total Saved" value={`$${student.overview.totalSaved}`} />
-          </div> */}
         {!isPublic && (
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold">Shared URL</p>
-              <p
-                className="text-sm bg-primary-500 text-white rounded-lg px-2 py-2 flex gap-1 cursor-pointer hover:bg-primary-600"
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-gray-700">Shared URL</p>
+              <button
+                className="inline-flex items-center gap-1.5 text-xs font-medium bg-primary-500 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-primary-600 transition-colors"
                 onClick={handleCopy}
               >
-                <Copy className="w-4 h-4" />
-                <span className="text-xs">Copy</span>
-              </p>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy link</span>
+              </button>
             </div>
-            <p className="text-sm p-2 bg-gray-100 rounded-sm">
+            <p className="text-xs text-gray-500 break-all p-2.5 bg-gray-50 border border-gray-200 rounded-xl">
               {window.location.origin}/public-students/{student.randomKey}
             </p>
           </div>
         )}
         <div className="flex flex-col gap-2">
-          <h4 className="text-sm font-semibold">Events</h4>
+          <h4 className="text-sm font-semibold text-gray-700">Events</h4>
           <div className="flex flex-col gap-2">
             {events?.map((event) => (
               <Event key={event.id} event={event} />
             ))}
           </div>
         </div>
-
       </div>
     </>
   );
@@ -96,9 +91,9 @@ const Basic = ({
 
 const Info = ({ label, value }: { label: string; value: string }) => {
   return (
-    <div className="flex flex-col items-center justify-center p-3 w-full h-20 border-1 border-gray-200 rounded-sm">
-      <div className="text-lg font-bold">{value}</div>
-      <div className="text-sm text-[#666666]">{label}</div>
+    <div className="flex flex-col items-center justify-center gap-0.5 py-4 border border-gray-200 rounded-2xl bg-white">
+      <div className="text-2xl font-bold text-gray-900">{value}</div>
+      <div className="text-sm text-gray-500">{label}</div>
     </div>
   );
 };

@@ -19,7 +19,7 @@ const StudentCard = ({
   const usedSessions = studentCard.attendanceRecords.length;
   const progress = Math.min(100, Math.round((usedSessions / studentCard.totalSessions) * 100));
   const isPractice = studentCard.card.isPracticeCard;
-  const remainingTone = isFinished ? "text-gray-400" : "text-emerald-600";
+  const remainingTone = isFinished ? "text-gray-400" : "text-primary-600";
   const sessionRows = useMemo(
     () =>
       Array.from({ length: studentCard.totalSessions }, (_, index) => {
@@ -48,7 +48,7 @@ const StudentCard = ({
   return (
     <div
       key={studentCard.id}
-      className="relative flex flex-col gap-3 p-3 rounded-xl border border-gray-200 bg-white shadow-sm"
+      className="relative flex flex-col gap-3 p-4 rounded-2xl border border-gray-200 bg-white shadow-sm"
     >
       <div className="w-full flex items-center gap-3">
         <div className="flex-1 text-left">
@@ -57,14 +57,14 @@ const StudentCard = ({
               {studentCard.card.name}
             </h4>
             {isPractice && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-primary-50 text-primary-600">
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-warning-100 text-warning-900">
                 複習卡
               </span>
             )}
           </div>
           <div className="mt-2 w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className={`h-full ${isFinished ? "bg-gray-400" : "bg-emerald-500"}`}
+              className={`h-full ${isFinished ? "bg-gray-300" : "bg-primary-500"}`}
               style={{ width: `${progress}%` }}
             />
           </div>

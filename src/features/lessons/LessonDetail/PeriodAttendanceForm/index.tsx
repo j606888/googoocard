@@ -105,13 +105,15 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], onSubmit, submitLabel =
             )}
           </div>
         </div>
-        <div className="fixed bottom-0 left-0 right-0 bg-white flex gap-4 px-5 py-4">
+        <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-100 flex gap-4 px-5 py-4 z-10">
           <Button
             onClick={handleSubmit}
             disabled={selectedStudents.length === 0}
             isLoading={isLoading}
+            className="rounded-xl shadow-[0_6px_18px_-6px_rgba(43,142,110,0.7)]"
           >
             {submitLabel}
+            {selectedStudents.length > 0 && ` (${selectedStudents.length})`}
           </Button>
         </div>
       </div>

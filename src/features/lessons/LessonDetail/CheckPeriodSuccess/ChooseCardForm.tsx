@@ -77,7 +77,7 @@ const ChooseCardForm = ({
   return (
     <>
       <button
-        className="text-xs rounded-full text-white bg-[#F87666] w-25 px-3 py-2 cursor-pointer"
+        className="text-xs font-medium rounded-full text-white bg-primary-500 hover:bg-primary-600 w-24 px-3 py-2 cursor-pointer transition-colors"
         onClick={() => setOpen(true)}
       >
         選擇一張使用
@@ -93,7 +93,7 @@ const ChooseCardForm = ({
       >
         <div className="flex flex-col gap-4 mb-4">
           {shouldLockGeneralCards && (
-            <div className="flex flex-col gap-2 p-3 rounded-sm bg-primary-50 border border-primary-200">
+            <div className="flex flex-col gap-2 p-3 rounded-xl bg-primary-50 border border-primary-200">
               <p className="text-xs text-primary-700">
                 已自動選擇複習課卡，保護學生一般課卡點數
               </p>
@@ -109,13 +109,13 @@ const ChooseCardForm = ({
           {studentCards?.map((studentCard) => (
             <div
               key={studentCard.id}
-              className={`relative flex flex-col gap-2 p-3 rounded-sm border border-gray-200 ${
+              className={`relative flex flex-col gap-2 p-3 rounded-xl border border-gray-200 ${
                 shouldLockGeneralCards && !studentCard.card.isPracticeCard
                   ? "opacity-50 cursor-not-allowed"
                   : "cursor-pointer"
               } ${
                 selectedCardId === studentCard.id
-                  ? "border-primary-500 bg-[#F1FAF6]"
+                  ? "border-primary-500 bg-primary-50"
                   : ""
               }`}
               onClick={() => handleSelectCard(studentCard.id)}
@@ -141,7 +141,7 @@ const ChooseCardForm = ({
                 {studentCard.attendanceRecords.map((record, index) => (
                   <div
                     key={index}
-                    className="flex flex-col items-center justify-center gap-1 bg-[#F2F2F2] rounded-sm p-2 h-14"
+                    className="flex flex-col items-center justify-center gap-1 bg-gray-100 rounded-lg p-2 h-14"
                   >
                     <span className="text-xs text-gray-700">
                       {formatDate(
@@ -157,10 +157,10 @@ const ChooseCardForm = ({
                   (_, index) => (
                     <div
                       key={index}
-                      className={`flex flex-col items-center justify-center gap-1  rounded-sm p-2 h-14 ${
+                      className={`flex flex-col items-center justify-center gap-1 rounded-lg p-2 h-14 ${
                         selectedCardId === studentCard.id
-                          ? "bg-[#DBECE6]"
-                          : "bg-[#F2F2F2]"
+                          ? "bg-primary-100"
+                          : "bg-gray-100"
                       }`}
                     >
                       <span className="text-xs text-gray-500">-</span>

@@ -15,16 +15,16 @@ const AttendanceByLesson = ({
             <div className="text-base font-medium">{lesson.lessonName}</div>
             <div className="text-xs text-gray-400">{lessonPeriod(lesson.studentAttendances)}</div>
           </div>
-          <div className="flex gap-2 flex-wrap border-b border-[#e2e2e2] pb-3">
+          <div className="flex gap-2 flex-wrap border-b border-gray-200 pb-3">
             {lesson.studentAttendances.map((attendance) => (
               <div
                 key={attendance.periodStartTime}
-                className={`flex items-center gap-1 justify-center px-3 py-2 w-19 rounded-md ${
+                className={`flex items-center gap-1 justify-center px-3 py-2 w-19 rounded-lg ${
                   attendance.periodAttendantCheck
                     ? attendance.studentAttend
-                      ? "bg-[#F2A98A]"
-                      : "bg-[#9D9C9B]"
-                    : "border border-[#cccccc]"
+                      ? "bg-primary-500"
+                      : "bg-red-400"
+                    : "border border-gray-200"
                 }`}
               >
                 {attendance.periodAttendantCheck &&

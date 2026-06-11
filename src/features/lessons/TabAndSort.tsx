@@ -52,27 +52,29 @@ const TabAndSort = ({
   };
 
   return (
-    <div className="flex items-center border-b border-gray-300 mb-4">
-      {TABS.map((tab) => (
-        <div
-          key={tab.value}
-          className={`flex items-center justify-center px-3 py-2 gap-1  text-sm  border-primary-500 -mb-px cursor-pointer ${
-            activeTab === tab.value
-              ? "text-primary-700 border-primary-500 bg-primary-50 border-b-3 font-medium "
-              : "text-gray-500 border-transparent"
-          }`}
-          onClick={() => setActiveTab(tab.value)}
-        >
-          <span>{tab.label}</span>
-          <span>
-            ({tabsCount?.[tab.value as keyof typeof tabsCount] ?? 0})
-          </span>
-        </div>
-      ))}
+    <div className="flex items-center justify-between gap-2 mb-4">
+      <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
+        {TABS.map((tab) => (
+          <button
+            key={tab.value}
+            className={`flex items-center justify-center px-3.5 py-1.5 gap-1 text-sm rounded-full cursor-pointer transition-colors ${
+              activeTab === tab.value
+                ? "bg-white text-primary-700 font-semibold shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+            onClick={() => setActiveTab(tab.value)}
+          >
+            <span>{tab.label}</span>
+            <span className={activeTab === tab.value ? "text-primary-400" : "text-gray-400"}>
+              {tabsCount?.[tab.value as keyof typeof tabsCount] ?? 0}
+            </span>
+          </button>
+        ))}
+      </div>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger className="ml-auto">
+        <PopoverTrigger>
           <div
-            className="flex items-center gap-1 text-gray-700 cursor-pointer"
+            className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 cursor-pointer px-2 py-1.5"
             onClick={() => setOpen(!open)}
           >
             <ArrowDownUp className="w-4 h-4" />

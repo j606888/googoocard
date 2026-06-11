@@ -20,15 +20,16 @@ const PendingStudents = ({
   lesson: Lesson;
 }) => {
   return (
-    <div className="flex flex-col gap-2 py-3 w-full">
-      <div className="flex items-center gap-1">
-        <p className="text-sm font-medium">未綁定課卡學生</p>
+    <div className="flex flex-col gap-2 w-full rounded-2xl border border-red-200 bg-red-50/60 p-3">
+      <div className="flex items-center gap-1.5 text-red-600">
+        <MdOutlineWarning className="w-4 h-4" />
+        <p className="text-sm font-semibold">未綁定課卡學生</p>
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         {records.map((record) => (
           <div
             key={record.studentId}
-            className="flex items-center gap-2 bg-white rounded-sm py-2 "
+            className="flex items-center gap-2 bg-white rounded-xl px-2.5 py-2 border border-red-100"
           >
             <StudentInfo
               studentId={record.studentId}
@@ -36,9 +37,8 @@ const PendingStudents = ({
               name={record.studentName}
               size="small"
             />
-            <div className="flex flex-1 items-center gap-1 text-[#F87666]">
-              <MdOutlineWarning className="w-4.5 h-4.5 " />
-              <p className="text-sm font-medium">
+            <div className="flex flex-1 items-center gap-1 text-red-500">
+              <p className="text-xs font-medium">
                 {UNCHECK_DESCRIPTION_MAP[record.uncheckedType]}
               </p>
             </div>

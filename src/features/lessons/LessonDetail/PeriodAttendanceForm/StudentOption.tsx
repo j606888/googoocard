@@ -20,34 +20,39 @@ const StudentOption = ({
 
   return (
     <div
-      className={`flex flex-col gap-2 px-3 py-2 ${
-        isFirstTime ? "bg-primary-50 border-l-4 border-primary-700" : ""
+      className={`flex flex-col gap-2 px-3 py-2.5 rounded-xl border transition-colors cursor-pointer ${
+        isChecked
+          ? "bg-primary-50 border-primary-300"
+          : "bg-white border-transparent hover:bg-gray-50"
       }`}
+      onClick={() => onClick(student)}
     >
-      <div className="flex items-center gap-3 cursor-pointer" onClick={() => onClick(student)}>
+      <div className="flex items-center gap-3">
         <Image
-          className={`rounded-full ${isGray ? "opacity-50" : ""}`}
+          className={`rounded-full object-cover ${isGray ? "opacity-50 grayscale" : ""}`}
           width={36}
           height={36}
           src={student.avatarUrl}
           alt={student.name}
         />
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5 min-w-0">
           <span
-            className={`text-lg font-medium ${isGray ? "text-gray-300" : ""}`}
+            className={`text-base font-medium ${isGray ? "text-gray-400" : "text-gray-900"}`}
           >
             {student.name}
           </span>
           {student.note && (
-            <p className={`text-sm ${isGray ? "text-gray-300" : "text-gray-500"} font-medium`}>({student.note})</p>
+            <p className={`text-sm truncate ${isGray ? "text-gray-300" : "text-gray-500"}`}>
+              ({student.note})
+            </p>
           )}
         </div>
-        <RoundCheckbox isChecked={isChecked} className="ml-auto" />
+        <RoundCheckbox isChecked={isChecked} className="ml-auto shrink-0" />
       </div>
       {isFirstTime && (
-        <div className="flex items-center gap-1">
-          <MdInfo className="w-4.5 h-4.5 text-primary-700" />
-          <span className="text-sm font-medium text-primary-900">
+        <div className="flex items-center gap-1 pl-12">
+          <MdInfo className="w-4 h-4 text-primary-600" />
+          <span className="text-xs font-medium text-primary-700">
             First time joined class
           </span>
         </div>

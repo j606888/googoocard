@@ -35,19 +35,19 @@ const StudentDetail = ({
     <>
       {/* Mobile: tab-based layout */}
       <div className="lg:hidden px-5 py-3">
-        <div className="flex w-full mb-3">
+        <div className="flex w-full gap-1 mb-4 bg-gray-100 rounded-full p-1">
           {tabs.map((tab) => (
-            <div
+            <button
               key={tab.query}
-              className={`flex-1 text-center border-b-1 border-b-gray-300 p-2.5 text-sm cursor-pointer ${
+              className={`flex-1 text-center py-2 text-sm rounded-full cursor-pointer transition-colors ${
                 activeTab === tab.query
-                  ? "text-primary-500 font-bold border-b-primary-500 border-b-3"
-                  : ""
+                  ? "bg-white text-primary-700 font-semibold shadow-sm"
+                  : "text-gray-500"
               }`}
               onClick={() => handleTabClick(tab.query)}
             >
               {tab.label}
-            </div>
+            </button>
           ))}
         </div>
         {activeTab === "basic" && (

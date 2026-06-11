@@ -54,10 +54,10 @@ const SingleStudent = ({ student }: { student: Student }) => {
       </div>
 
       {/* Desktop layout */}
-      <div className="hidden lg:flex lg:items-center lg:gap-4 lg:border lg:border-gray-200 lg:rounded-xl lg:p-4 lg:hover:shadow-md lg:hover:border-gray-300 lg:transition-all lg:duration-200 lg:bg-white lg:hover:bg-gray-50">
+      <div className="hidden lg:flex lg:items-center lg:gap-4 lg:border lg:border-gray-200 lg:rounded-2xl lg:p-4 lg:hover:shadow-md lg:hover:border-gray-300 lg:transition-all lg:duration-200 lg:bg-white">
         <img
           src={student.avatarUrl}
-          className="w-10 h-10 rounded-full object-cover shrink-0"
+          className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100 shrink-0"
         />
         <div className="flex flex-1 items-center justify-between min-w-0">
           <div className="flex flex-col min-w-0">

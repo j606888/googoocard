@@ -58,7 +58,7 @@ const CardsSection = ({
     return (
       <div className="flex flex-col gap-3">
         {!isPublic && <BuyCard student={student} />}
-        <div className="w-full p-5 bg-primary-50 text-center rounded-sm font-light">
+        <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
           你尚未購買卡片
         </div>
       </div>
@@ -94,7 +94,7 @@ const CardsSection = ({
           ))}
         </div>
       ) : (
-        <div className="w-full p-5 bg-primary-50 text-center rounded-sm font-light">
+        <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
           目前沒有符合條件的有效課卡
         </div>
       )}

@@ -105,7 +105,7 @@ const StudentList = () => {
       <Searchbar onSearch={setQuery} />
 
       {students.length === 0 && (
-        <div className="flex flex-col items-center justify-center p-6 gap-3 bg-primary-50 rounded-sm">
+        <div className="flex flex-col items-center justify-center p-8 gap-3 bg-primary-50 rounded-2xl">
           <div className="flex items-center justify-center w-12 h-12 bg-primary-500 rounded-full">
             <Users className="w-6 h-6 text-white" />
           </div>
