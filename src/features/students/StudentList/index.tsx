@@ -1,59 +1,94 @@
 "use client";
 
 import NewStudent from "./NewStudent";
-import { useGetStudentsQuery } from "@/store/slices/students";
+import { useGetStudentsQuery, useGetTagsQuery } from "@/store/slices/students";
 import { useGetLessonsQuery } from "@/store/slices/lessons";
+import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import SingleStudent from "./SingleStudent";
 import Searchbar from "./Searchbar";
-import { useState, useMemo } from "react";
-import { Users } from "lucide-react";
+import FilterDrawer from "./FilterDrawer";
+import { useState, useMemo, useEffect } from "react";
+import { Users, SlidersHorizontal, X } from "lucide-react";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 import { DanceType } from "@prisma/client";
 import { ALL_DANCE_TYPES, danceTypeLabel } from "@/lib/danceTypes";
-
-type FilterChip = "all" | "needsRenewal" | "inActiveLesson" | "byLesson" | `qual:${DanceType}`;
+import {
+  StudentFilters,
+  EMPTY_FILTERS,
+  applyStudentFilters,
+  countActiveFilters,
+  loadStudentFilters,
+  saveStudentFilters,
+  tagLabel,
+} from "./studentFilters";
 
 const StudentList = () => {
   const [query, setQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<FilterChip>("all");
-  const [selectedLessonId, setSelectedLessonId] = useState<number | null>(null);
+  const [filters, setFilters] = useState<StudentFilters>(EMPTY_FILTERS);
+  const [hydratedClassroomId, setHydratedClassroomId] = useState<number | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const { data: allStudents = [], isLoading } = useGetStudentsQuery({ query });
   const { data: lessonsData } = useGetLessonsQuery({ tab: "inProgress", sort: "createdAt" });
+  const { data: tags = [] } = useGetTagsQuery();
+  const { data: classroomData } = useGetClassroomsQuery();
+  const classroomId = classroomData?.currentClassroomId;
+
   const inProgressLessons = lessonsData?.lessons ?? [];
 
-  const students = useMemo(() => {
-    if (activeFilter === "needsRenewal") return allStudents.filter((s) => s.tags?.some((t) => t.name === "Needs Renewal"));
-    if (activeFilter.startsWith("qual:")) {
-      const danceType = activeFilter.slice("qual:".length) as DanceType;
-      return allStudents.filter((s) => s.danceQualifications?.includes(danceType));
-    }
-    if (activeFilter === "inActiveLesson") return allStudents.filter((s) => s.isInActiveLesson);
-    if (activeFilter === "byLesson" && selectedLessonId)
-      return allStudents.filter((s) => s.activeLessonIds.includes(selectedLessonId));
-    return allStudents;
-  }, [allStudents, activeFilter, selectedLessonId]);
+  // 學生資格中實際存在的舞種，動態決定「過課」可選項
+  const availableQualifications = useMemo(
+    () => ALL_DANCE_TYPES.filter((type) => allStudents.some((s) => s.danceQualifications?.includes(type))),
+    [allStudents]
+  );
+
+  // 載入：教室就緒（或切換）後從 localStorage 還原（mount 先 EMPTY，避免 hydration mismatch）
+  useEffect(() => {
+    if (classroomId == null) return;
+    setFilters(loadStudentFilters(classroomId));
+    setHydratedClassroomId(classroomId);
+  }, [classroomId]);
+
+  // 儲存：僅在「已還原當前教室」後才持久化，避免還原/切換當下用舊值覆寫
+  useEffect(() => {
+    if (classroomId == null || hydratedClassroomId !== classroomId) return;
+    saveStudentFilters(classroomId, filters);
+  }, [classroomId, hydratedClassroomId, filters]);
+
+  const students = useMemo(
+    () => applyStudentFilters(allStudents, filters),
+    [allStudents, filters]
+  );
 
   if (isLoading) return <ListSkeleton />;
 
-  const handleChipClick = (chip: FilterChip) => {
-    setActiveFilter(chip);
-    if (chip !== "byLesson") setSelectedLessonId(null);
-  };
+  const activeCount = countActiveFilters(filters);
 
-  const qualificationChips = ALL_DANCE_TYPES.filter((type) =>
-    allStudents.some((s) => s.danceQualifications?.includes(type))
-  ).map((type) => ({
-    key: `qual:${type}` as FilterChip,
-    label: `${danceTypeLabel(type)} Lv1`,
-  }));
+  const lessonName = (id: number) => inProgressLessons.find((l) => l.id === id)?.name;
 
-  const chips: { key: FilterChip; label: string; disabled?: boolean }[] = [
-    { key: "all", label: "全部" },
-    { key: "needsRenewal", label: "需續約" },
-    ...qualificationChips,
-    { key: "inActiveLesson", label: "上課中" },
-    { key: "byLesson", label: "依課程", disabled: inProgressLessons.length === 0 },
+  // 已選條件 pill（可單獨移除）
+  const activePills: { key: string; label: string; onRemove: () => void }[] = [
+    ...(filters.inActiveLesson
+      ? [{ key: "status", label: "上課中", onRemove: () => setFilters((f) => ({ ...f, inActiveLesson: false })) }]
+      : []),
+    ...filters.tags.map((name) => ({
+      key: `tag:${name}`,
+      label: tagLabel(name),
+      onRemove: () => setFilters((f) => ({ ...f, tags: f.tags.filter((t) => t !== name) })),
+    })),
+    ...filters.qualifications.map((type) => ({
+      key: `qual:${type}`,
+      label: `${danceTypeLabel(type as DanceType)} Lv1`,
+      onRemove: () =>
+        setFilters((f) => ({ ...f, qualifications: f.qualifications.filter((q) => q !== type) })),
+    })),
+    ...filters.lessonIds
+      .filter((id) => lessonName(id))
+      .map((id) => ({
+        key: `lesson:${id}`,
+        label: lessonName(id) as string,
+        onRemove: () => setFilters((f) => ({ ...f, lessonIds: f.lessonIds.filter((l) => l !== id) })),
+      })),
   ];
 
   return (
@@ -63,46 +98,45 @@ const StudentList = () => {
         <NewStudent />
       </div>
 
-      {/* Filter chips */}
-      <div className="flex flex-wrap gap-2 mb-3">
-        {chips.map(({ key, label, disabled }) => (
-          <button
-            key={key}
-            disabled={disabled}
-            className={`px-3.5 py-1.5 rounded-full text-sm border transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-              activeFilter === key
-                ? "bg-primary-500 border-primary-500 text-white shadow-sm"
-                : "bg-white border-gray-300 text-gray-700 hover:border-primary-300"
-            }`}
-            onClick={() => handleChipClick(key)}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="flex items-start gap-2 mb-3">
+        <div className="flex-1">
+          <Searchbar onSearch={setQuery} />
+        </div>
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className={`relative flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border text-sm transition-colors cursor-pointer ${
+            activeCount > 0
+              ? "bg-primary-50 border-primary-400 text-primary-700"
+              : "bg-white border-gray-200 text-gray-700 hover:border-primary-300"
+          }`}
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+          篩選
+          {activeCount > 0 && (
+            <span className="ml-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-primary-500 text-white text-xs font-semibold">
+              {activeCount}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Lesson sub-chips */}
-      {activeFilter === "byLesson" && inProgressLessons.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3 pl-1">
-          {inProgressLessons.map((lesson) => (
+      {/* 已選條件 pills */}
+      {activePills.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {activePills.map((pill) => (
             <button
-              key={lesson.id}
-              className={`px-3 py-1 rounded-full text-xs border transition-colors cursor-pointer ${
-                selectedLessonId === lesson.id
-                  ? "bg-primary-100 border-primary-400 text-primary-700"
-                  : "bg-white border-gray-200 text-gray-600 hover:border-primary-300"
-              }`}
-              onClick={() =>
-                setSelectedLessonId(selectedLessonId === lesson.id ? null : lesson.id)
-              }
+              key={pill.key}
+              type="button"
+              onClick={pill.onRemove}
+              className="flex items-center gap-1 pl-3 pr-2 py-1 rounded-full text-sm bg-primary-100 text-primary-700 hover:bg-primary-200 transition-colors cursor-pointer"
             >
-              {lesson.name}
+              {pill.label}
+              <X className="w-3.5 h-3.5" />
             </button>
           ))}
         </div>
       )}
-
-      <Searchbar onSearch={setQuery} />
 
       {students.length === 0 && (
         <div className="flex flex-col items-center justify-center p-8 gap-3 bg-primary-50 rounded-2xl">
@@ -123,6 +157,17 @@ const StudentList = () => {
           <SingleStudent key={student.id} student={student} />
         ))}
       </div>
+
+      <FilterDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        tags={tags}
+        lessons={inProgressLessons}
+        availableQualifications={availableQualifications}
+        resultCount={students.length}
+      />
     </div>
   );
 };
