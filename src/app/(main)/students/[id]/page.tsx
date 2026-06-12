@@ -7,10 +7,17 @@ import { ArrowLeftIcon } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { useEffect } from "react";
 
 const StudentPage = () => {
   const { id } = useParams();
   const { data: student, isLoading } = useGetStudentQuery({ id: Number(id) });
+
+  // Start at the top when opening a student (otherwise the scroll position
+  // from the student list carries over while the detail content loads).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
 
   return (
     <>
