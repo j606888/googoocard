@@ -106,6 +106,13 @@ const studentsApi = api.injectEndpoints({
       query: ({ randomKey }) => `public-students/${randomKey}`,
       providesTags: ["Student"],
     }),
+    getStudentLineBindLink: builder.query<
+      { bound: boolean; key?: string; deepLink?: string | null },
+      { id: number }
+    >({
+      query: ({ id }) => `students/${id}/line-bind-link`,
+      providesTags: ["Student"],
+    }),
     createStudent: builder.mutation<
       Student,
       { name: string; avatarUrl: string; note?: string }
@@ -187,6 +194,7 @@ const studentsApi = api.injectEndpoints({
 export const {
   useGetStudentsQuery,
   useGetPublicStudentQuery,
+  useGetStudentLineBindLinkQuery,
   useCreateStudentMutation,
   useUpdateStudentMutation,
   useDeleteStudentMutation,

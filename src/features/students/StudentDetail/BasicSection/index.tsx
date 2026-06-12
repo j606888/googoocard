@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import EditStudent from "./EditStudent";
 import Event from "./Event";
 import StarBadge from "./StarBadge";
+import StudentLineBind from "./StudentLineBind";
 
 const Basic = ({
   student,
@@ -76,6 +77,7 @@ const Basic = ({
             </p>
           </div>
         )}
+        {!isPublic && <StudentLineBind studentId={student.id} />}
         <div className="flex flex-col gap-2">
           <h4 className="text-sm font-semibold text-gray-700">Events</h4>
           <div className="flex flex-col gap-2">

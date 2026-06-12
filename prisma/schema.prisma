@@ -26,6 +26,8 @@ model User {
   email       String       @unique
   name        String
   password    String
+  randomKey   String?      @unique // one-time key shown on the website; sent to the LINE bot to bind
+  lineUserId  String?      @unique // bound LINE userId; used for LIFF auto-login
   classrooms  Classroom[]  @relation("OwnedClassrooms")
   memberships Membership[]
   currentClassroomId Int?
@@ -95,7 +97,9 @@ model Student {
   name         String
   avatarUrl    String
   note         String?
-  randomKey    String? @unique
+  randomKey    String? @unique // public-students share link token (NOT for LINE)
+  lineBindKey  String? @unique // one-time key for the LINE binding deep link
+  lineUserId   String? @unique // bound LINE userId
   classroomId  Int
   classroom    Classroom     @relation(fields: [classroomId], references: [id])
   studentCards StudentCard[]

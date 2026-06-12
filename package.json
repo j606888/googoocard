@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.12",
+    "@line/liff": "^2.29.0",
     "@prisma/client": "^6.9.0",
     "@radix-ui/react-popover": "^1.1.14",
     "@radix-ui/react-select": "^2.2.5",
