@@ -20,6 +20,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
   });
 
+  const refundedCardIds = attendanceRecords
+    .map((record) => record.studentCardId)
+    .filter((cardId): cardId is number => cardId !== null);
+
   await prisma.$transaction(async (tx) => {
     for (const attendanceRecord of attendanceRecords) {
       if (attendanceRecord.studentCardId) {
@@ -33,6 +37,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
       await tx.attendanceRecord.delete({
         where: { id: attendanceRecord.id },
+      });
+    }
+
+    // Clean up audit events whose source we just removed: the "簽到" events for
+    // the deleted attendance records, and "課卡使用完畢" events for refunded cards.
+    await tx.event.deleteMany({
+      where: {
+        resourceType: "attendanceRecord",
+        resourceId: { in: attendanceRecords.map((r) => r.id) },
+      },
+    });
+    if (refundedCardIds.length > 0) {
+      await tx.event.deleteMany({
+        where: {
+          resourceType: "studentCard",
+          title: "課卡使用完畢",
+          resourceId: { in: refundedCardIds },
+        },
       });
     }
 

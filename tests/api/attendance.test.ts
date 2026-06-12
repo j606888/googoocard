@@ -14,6 +14,7 @@ import {
 
 // 點名 GET 不經過 decodeAuthToken，不需 mock auth
 import { GET } from "@/app/api/lessons/[id]/periods/[periodId]/attendance/route";
+import { POST as resetAttendance } from "@/app/api/lessons/[id]/periods/[periodId]/reset/route";
 import { takeAttendance } from "@/domains/attendance/attendance.service";
 
 async function getAttendance(lessonId: number, periodId: number) {
@@ -295,5 +296,112 @@ describe("takeAttendance — 自動選卡與扣堂", () => {
       where: { id: practiceSC.id },
     });
     expect(updatedPractice.remainingSessions).toBe(6); // 卡片完好，未被扣
+  });
+});
+
+describe("resetAttendance — 清除事件 (audit events)", () => {
+  let classroomId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    const classroom = await createClassroom();
+    classroomId = classroom.id;
+  });
+
+  async function reset(lessonId: number, periodId: number) {
+    const res = await resetAttendance(
+      new Request("http://test.local", { method: "POST" }),
+      routeParams({ id: String(lessonId), periodId: String(periodId) })
+    );
+    expect(res.status).toBe(200);
+    return res.json();
+  }
+
+  it("reset 後移除「簽到」事件並退還課卡堂數", async () => {
+    const card = await createCard(classroomId, { name: "一般卡" });
+    const { lesson, period } = await createLesson(classroomId, {
+      cardIds: [card.id],
+      withPeriod: true,
+    });
+    const student = await createStudent(classroomId);
+    const sc = await createStudentCard(student.id, card.id);
+
+    await takeAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period!.id,
+      studentIds: [student.id],
+    });
+
+    // 簽到事件已建立、課卡扣 1 堂
+    expect(
+      await prisma.event.count({
+        where: { studentId: student.id, title: "簽到" },
+      })
+    ).toBe(1);
+    expect(
+      (await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } }))
+        .remainingSessions
+    ).toBe(5);
+
+    await reset(lesson.id, period!.id);
+
+    // 簽到事件被清除、課卡退還、出席紀錄刪除
+    expect(
+      await prisma.event.count({
+        where: { studentId: student.id, title: "簽到" },
+      })
+    ).toBe(0);
+    expect(
+      (await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } }))
+        .remainingSessions
+    ).toBe(6);
+    expect(
+      await prisma.attendanceRecord.count({
+        where: { lessonPeriodId: period!.id },
+      })
+    ).toBe(0);
+  });
+
+  it("reset 後移除已退還課卡的「課卡使用完畢」事件", async () => {
+    const card = await createCard(classroomId, { name: "單堂卡", sessions: 1 });
+    const { lesson, period } = await createLesson(classroomId, {
+      cardIds: [card.id],
+      withPeriod: true,
+    });
+    const student = await createStudent(classroomId);
+    const sc = await createStudentCard(student.id, card.id, {
+      remainingSessions: 1,
+      totalSessions: 1,
+    });
+
+    await takeAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period!.id,
+      studentIds: [student.id],
+    });
+
+    // 課卡用罄 → 產生使用完畢事件
+    expect(
+      (await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } }))
+        .remainingSessions
+    ).toBe(0);
+    expect(
+      await prisma.event.count({
+        where: { studentId: student.id, title: "課卡使用完畢" },
+      })
+    ).toBe(1);
+
+    await reset(lesson.id, period!.id);
+
+    // 課卡退還 → 使用完畢事件被清除
+    expect(
+      (await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } }))
+        .remainingSessions
+    ).toBe(1);
+    expect(
+      await prisma.event.count({
+        where: { studentId: student.id, title: "課卡使用完畢" },
+      })
+    ).toBe(0);
   });
 });

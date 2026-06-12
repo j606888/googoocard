@@ -334,9 +334,24 @@ async function removeAttendanceRecord(
         remainingSessions: { increment: 1 },
       },
     });
+
+    // The card is no longer exhausted — drop its stale "課卡使用完畢" event.
+    await tx.event.deleteMany({
+      where: {
+        resourceType: "studentCard",
+        title: "課卡使用完畢",
+        resourceId: attendanceRecord.studentCardId,
+      },
+    });
   }
 
-  // Delete the attendance record
+  // Delete the attendance record + its "簽到" audit event
+  await tx.event.deleteMany({
+    where: {
+      resourceType: "attendanceRecord",
+      resourceId: attendanceRecord.id,
+    },
+  });
   await tx.attendanceRecord.delete({
     where: { id: attendanceRecord.id },
   });

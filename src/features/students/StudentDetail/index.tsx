@@ -22,7 +22,7 @@ const StudentDetail = ({
 }) => {
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState(tab || tabs[0].query);
+  const [activeTab, setActiveTab] = useState(tab || "cards");
 
   const handleTabClick = (tab: string) => {
     setActiveTab(tab);
