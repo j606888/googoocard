@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
 import { toTaipeiDateKey, parseTaipeiDateRange } from "@/lib/taipei-date";
+import { periodRevenue } from "@/lib/income";
 
 export async function GET(request: Request) {
   const { classroomId } = await decodeAuthToken();
@@ -48,10 +49,7 @@ export async function GET(request: Request) {
   });
 
   const periods = lessonPeriods.map((period) => {
-    const revenue = period.attendanceRecords.reduce((sum, record) => {
-      if (!record.studentCard) return sum;
-      return sum + record.studentCard.finalPrice / record.studentCard.totalSessions;
-    }, 0);
+    const revenue = periodRevenue(period.attendanceRecords);
 
     const pendingStudents = [
       ...new Set(

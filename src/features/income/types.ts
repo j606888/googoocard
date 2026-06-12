@@ -30,3 +30,13 @@ export interface DailySummaryOptionsResponse {
   years: number[];
   dates: string[];
 }
+
+export interface DailyTotal {
+  date: string;
+  totalRevenue: number;
+}
+
+export interface DailySummaryListResponse {
+  years: number[];
+  days: DailyTotal[];
+}

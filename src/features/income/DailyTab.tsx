@@ -1,15 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import type {
-  DailySummaryOptionsResponse,
+  DailySummaryListResponse,
   DailySummaryResponse,
+  DailyTotal,
 } from "./types";
 
-async function fetchDailySummaryOptions(): Promise<DailySummaryOptionsResponse> {
-  const res = await fetch("/api/income/daily-summary/options");
-  if (!res.ok) throw new Error("Failed to fetch options");
+async function fetchDailySummaryList(): Promise<DailySummaryListResponse> {
+  const res = await fetch("/api/income/daily-summary/list");
+  if (!res.ok) throw new Error("Failed to fetch list");
   return res.json();
 }
 
@@ -19,46 +21,64 @@ async function fetchDailySummary(date: string): Promise<DailySummaryResponse> {
   return res.json();
 }
 
+const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+
+function formatDayLabel(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const weekday = WEEKDAYS[new Date(y, m - 1, d).getDay()];
+  return `${m}/${d} 週${weekday}`;
+}
+
+function monthLabel(date: string): string {
+  const [y, m] = date.split("-").map(Number);
+  return `${y} 年 ${m} 月`;
+}
+
 export default function DailyTab() {
+  const [days, setDays] = useState<DailyTotal[]>([]);
   const [years, setYears] = useState<number[]>([]);
-  const [allDates, setAllDates] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>("");
-  const [report, setReport] = useState<DailySummaryResponse | null>(null);
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [detailCache, setDetailCache] = useState<Record<string, DailySummaryResponse>>({});
+  const [loadingDetail, setLoadingDetail] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const availableDates = useMemo(
-    () => allDates.filter((d) => Number(d.slice(0, 4)) === selectedYear),
-    [allDates, selectedYear]
-  );
-
-  const loadReport = useCallback(async (date: string) => {
-    setIsLoading(true);
+  const loadDetail = async (date: string) => {
+    if (detailCache[date]) return;
+    setLoadingDetail(date);
     try {
-      setReport(await fetchDailySummary(date));
+      const detail = await fetchDailySummary(date);
+      setDetailCache((prev) => ({ ...prev, [date]: detail }));
     } finally {
-      setIsLoading(false);
+      setLoadingDetail(null);
     }
-  }, []);
+  };
+
+  const toggleDate = (date: string) => {
+    if (expandedDate === date) {
+      setExpandedDate(null);
+      return;
+    }
+    setExpandedDate(date);
+    loadDetail(date);
+  };
 
   useEffect(() => {
     const init = async () => {
       setIsLoading(true);
       try {
-        const options = await fetchDailySummaryOptions();
-        setYears(options.years);
-        setAllDates(options.dates);
+        const { years, days } = await fetchDailySummaryList();
+        setYears(years);
+        setDays(days);
+        setSelectedYear(years[0] ?? null);
 
-        if (options.dates.length === 0) {
-          setSelectedYear(options.years[0] ?? null);
-          setReport({ selectedDate: "", totalRevenue: 0, periods: [] });
-          return;
+        // 預設展開最新一天並載入其細節
+        const latest = days[0];
+        if (latest) {
+          setExpandedDate(latest.date);
+          const detail = await fetchDailySummary(latest.date);
+          setDetailCache({ [latest.date]: detail });
         }
-
-        const initialDate = options.dates[0];
-        setSelectedDate(initialDate);
-        setSelectedYear(Number(initialDate.slice(0, 4)));
-        setReport(await fetchDailySummary(initialDate));
       } finally {
         setIsLoading(false);
       }
@@ -66,103 +86,132 @@ export default function DailyTab() {
     init();
   }, []);
 
-  const handleYearChange = async (year: number) => {
-    setSelectedYear(year);
-    const datesForYear = allDates.filter((d) => Number(d.slice(0, 4)) === year);
-    const nextDate = datesForYear[0] ?? "";
-    setSelectedDate(nextDate);
-    if (!nextDate) {
-      setReport({ selectedDate: "", totalRevenue: 0, periods: [] });
-      return;
-    }
-    await loadReport(nextDate);
-  };
+  const visibleDays = useMemo(
+    () => days.filter((d) => Number(d.date.slice(0, 4)) === selectedYear),
+    [days, selectedYear]
+  );
 
-  const handleDateChange = async (date: string) => {
-    setSelectedDate(date);
-    await loadReport(date);
-  };
+  // 依月份分段(保持新→舊)
+  const monthGroups = useMemo(() => {
+    const groups: { month: string; days: DailyTotal[] }[] = [];
+    for (const day of visibleDays) {
+      const month = monthLabel(day.date);
+      const last = groups[groups.length - 1];
+      if (last && last.month === month) last.days.push(day);
+      else groups.push({ month, days: [day] });
+    }
+    return groups;
+  }, [visibleDays]);
 
   return (
     <div className="border border-gray-200 rounded-sm bg-white p-3 mb-4">
-      <h3 className="text-base font-semibold mb-3">單日營收報告</h3>
+      <h3 className="text-base font-semibold mb-3">每日營收</h3>
 
-      {!isLoading && years.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <select
-            className="w-full border border-gray-200 rounded-sm p-2 text-sm"
-            value={selectedYear ?? ""}
-            onChange={(e) => handleYearChange(Number(e.target.value))}
-          >
-            {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-          <select
-            className="w-full border border-gray-200 rounded-sm p-2 text-sm"
-            value={selectedDate}
-            onChange={(e) => handleDateChange(e.target.value)}
-            disabled={availableDates.length === 0}
-          >
-            {availableDates.map((date) => (
-              <option key={date} value={date}>
-                {date}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      {isLoading && <p className="text-sm text-gray-500">載入中...</p>}
 
-      {isLoading && <p className="text-sm text-gray-500">載入單日報告中...</p>}
-
-      {!isLoading && !report && (
+      {!isLoading && days.length === 0 && (
         <p className="text-sm text-gray-500">目前沒有可顯示的上課營收資料。</p>
       )}
 
-      {!isLoading && report && (
-        <div className="flex flex-col gap-3">
-          <div className="rounded-sm bg-primary-50 p-3 border border-primary-100">
-            <p className="text-xs text-gray-600">{report.selectedDate}</p>
-            <p className="text-2xl font-bold text-primary-700">
-              ${Math.round(report.totalRevenue)}
-            </p>
-            <p className="text-xs text-gray-600">當日總營收</p>
-          </div>
+      {!isLoading && days.length > 0 && (
+        <>
+          {years.length > 1 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {years.map((year) => (
+                <button
+                  key={year}
+                  onClick={() => setSelectedYear(year)}
+                  className={`px-3 py-1 rounded-full text-sm border transition-colors cursor-pointer ${
+                    selectedYear === year
+                      ? "bg-primary-500 border-primary-500 text-white"
+                      : "bg-white border-gray-300 text-gray-700 hover:border-primary-300"
+                  }`}
+                >
+                  {year}
+                </button>
+              ))}
+            </div>
+          )}
 
-          <div className="flex flex-col gap-2">
-            {report.periods.map((period) => (
-              <div
-                key={period.periodId}
-                className="border border-gray-200 rounded-sm bg-white p-3"
-              >
-                <div className="flex items-center gap-2">
-                  <p className="font-medium">{period.lessonName}</p>
-                  <p className="text-xs text-gray-500">
-                    出席 {period.attendanceCount} 人
-                  </p>
-                  <p className="ml-auto font-semibold text-primary-700">
-                    ${Math.round(period.revenue)}
-                  </p>
+          <div className="flex flex-col gap-3">
+            {monthGroups.map((group) => (
+              <div key={group.month}>
+                <p className="text-xs text-gray-400 mb-1.5">{group.month}</p>
+                <div className="flex flex-col gap-2">
+                  {group.days.map((day) => {
+                    const expanded = expandedDate === day.date;
+                    const detail = detailCache[day.date];
+                    return (
+                      <div
+                        key={day.date}
+                        className="border border-gray-200 rounded-sm bg-white overflow-hidden"
+                      >
+                        <button
+                          onClick={() => toggleDate(day.date)}
+                          className="w-full flex items-center gap-2 p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                        >
+                          <ChevronDown
+                            className={`w-4 h-4 text-gray-400 transition-transform ${
+                              expanded ? "rotate-180" : ""
+                            }`}
+                          />
+                          <span className="font-medium">{formatDayLabel(day.date)}</span>
+                          <span className="ml-auto font-semibold text-primary-700">
+                            ${Math.round(day.totalRevenue)}
+                          </span>
+                        </button>
+
+                        {expanded && (
+                          <div className="px-3 pb-3 border-t border-gray-100 pt-2">
+                            {loadingDetail === day.date && !detail && (
+                              <p className="text-sm text-gray-500">載入細節中...</p>
+                            )}
+                            {detail && detail.periods.length === 0 && (
+                              <p className="text-sm text-gray-500">當日無課堂明細。</p>
+                            )}
+                            {detail && detail.periods.length > 0 && (
+                              <div className="flex flex-col gap-2">
+                                {detail.periods.map((period) => (
+                                  <div
+                                    key={period.periodId}
+                                    className="border border-gray-200 rounded-sm bg-white p-3"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-medium">{period.lessonName}</p>
+                                      <p className="text-xs text-gray-500">
+                                        出席 {period.attendanceCount} 人
+                                      </p>
+                                      <p className="ml-auto font-semibold text-primary-700">
+                                        ${Math.round(period.revenue)}
+                                      </p>
+                                    </div>
+                                    {period.pendingStudents.length > 0 && (
+                                      <div className="mt-2 pt-2 border-t border-gray-100">
+                                        <p className="text-xs font-semibold text-red-600 mb-1">
+                                          尚未扣卡：{period.pendingStudents.join("、")}
+                                        </p>
+                                        <Link
+                                          href={`/lessons/${period.lessonId}/periods/${period.periodId}/check-success`}
+                                          className="text-xs text-primary-700 underline"
+                                        >
+                                          回到該堂點名頁
+                                        </Link>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                {period.pendingStudents.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-gray-100">
-                    <p className="text-xs font-semibold text-red-600 mb-1">
-                      尚未扣卡：{period.pendingStudents.join("、")}
-                    </p>
-                    <Link
-                      href={`/lessons/${period.lessonId}/periods/${period.periodId}/check-success`}
-                      className="text-xs text-primary-700 underline"
-                    >
-                      回到該堂點名頁
-                    </Link>
-                  </div>
-                )}
               </div>
             ))}
           </div>
-        </div>
+        </>
       )}
     </div>
   );
