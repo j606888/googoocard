@@ -1,5 +1,6 @@
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { studentDetailHref } from "@/lib/studentNav";
 
 const StudentInfo = ({
   studentId,
@@ -16,10 +17,11 @@ const StudentInfo = ({
 }) => {
   const imageSize = size === "normal" ? 36 : 24;
   const router = useRouter();
+  const pathname = usePathname();
   return (
     <div
       className={`flex items-center gap-2 cursor-pointer ${className}`}
-      onClick={() => studentId && router.push(`/students/${studentId}`)}
+      onClick={() => studentId && router.push(studentDetailHref(studentId, pathname))}
     >
       <Image
         className={`rounded-full`}

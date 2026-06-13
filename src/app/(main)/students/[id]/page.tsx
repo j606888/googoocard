@@ -4,13 +4,16 @@ import StudentDetail from "@/features/students/StudentDetail";
 import StudentDetailHeader from "@/features/students/StudentDetail/StudentDetailHeader";
 import { useGetStudentQuery } from "@/store/slices/students";
 import { ArrowLeftIcon } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 import { useEffect } from "react";
+import { resolveBackHref } from "@/lib/studentNav";
 
 const StudentPage = () => {
   const { id } = useParams();
+  const searchParams = useSearchParams();
+  const backHref = resolveBackHref(searchParams.get("from"));
   const { data: student, isLoading } = useGetStudentQuery({ id: Number(id) });
 
   // Start at the top when opening a student (otherwise the scroll position
@@ -24,7 +27,7 @@ const StudentPage = () => {
       {/* Mobile header */}
       <div className="lg:hidden relative h-16 bg-primary-500 w-full flex items-center justify-center">
         <div className="absolute left-5 top-1/2 -translate-y-1/2">
-          <Link href="/students">
+          <Link href={backHref}>
             <ArrowLeftIcon className="w-6 h-6 text-white" />
           </Link>
         </div>
@@ -36,7 +39,7 @@ const StudentPage = () => {
       ) : (
         <>
           {/* Desktop header */}
-          <StudentDetailHeader student={student} />
+          <StudentDetailHeader student={student} backHref={backHref} />
           <StudentDetail student={student} />
         </>
       )}

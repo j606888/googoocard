@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { format } from "date-fns";
 import { Period, LessonStudent } from "@/store/slices/lessons";
+import { studentDetailHref } from "@/lib/studentNav";
 
 const STATUS_DOT: Record<string, string> = {
   attended: "bg-primary-500",
@@ -23,6 +25,7 @@ const AttendanceMatrix = ({
   periods: Period[];
   students: LessonStudent[];
 }) => {
+  const pathname = usePathname();
   const sortedPeriods = [...periods].sort(
     (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
   );
@@ -79,7 +82,7 @@ const AttendanceMatrix = ({
                   <td className="sticky left-0 z-10 px-4 py-3 border-r border-gray-200 font-medium" style={{ backgroundColor: i % 2 === 0 ? "white" : "rgb(249 250 251 / 0.5)" }}>
                     <div className="flex items-center gap-2">
                       <Link
-                        href={`/students/${student.id}`}
+                        href={studentDetailHref(student.id, pathname)}
                         className="text-gray-800 hover:text-primary-600 truncate max-w-32 block"
                       >
                         {student.name}

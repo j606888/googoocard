@@ -1,10 +1,15 @@
+"use client";
+
 import { LessonStudent } from "@/store/slices/lessons";
 import Image from "next/image";
 import { format } from "date-fns";
 import { Frown, Smile } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { studentDetailHref } from "@/lib/studentNav";
 
 const StudentSection = ({ students }: { students: LessonStudent[] }) => {
+  const pathname = usePathname();
   return (
     <div className="flex flex-col gap-3 px-5">
       <div className="flex flex-col ">
@@ -21,7 +26,7 @@ const StudentSection = ({ students }: { students: LessonStudent[] }) => {
                 height={32}
                 className="rounded-full"
               />
-              <Link href={`/students/${student.id}`}>
+              <Link href={studentDetailHref(student.id, pathname)}>
                 <p className="text-lg font-medium">{student.name}</p>
               </Link>
             </div>
