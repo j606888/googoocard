@@ -21,7 +21,7 @@ npm run db:studio  # Browse database
 docker-compose up -d  # Starts Postgres on port 54330 (user/password: postgres/password)
 ```
 
-Required env vars: `DATABASE_URL`, `JWT_SECRET`.
+Required env vars: `DATABASE_URL`, `JWT_SECRET`. For custom student avatar upload, also set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (see "Student Avatars" in `docs/architecture.md`); the preset avatars still work without them.
 
 **Env layout is fail-safe — local is the default, production is opt-in:**
 - `.env` — local only (docker Postgres on `:54330`). Never put production credentials here.

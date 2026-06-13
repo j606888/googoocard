@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, SquarePen, X, Plus } from "lucide-react";
+import { SquarePen, X, Plus } from "lucide-react";
 import { useState } from "react";
 import Drawer from "@/components/Drawer";
 import { StudentWithDetail } from "@/store/slices/students";
@@ -8,23 +8,14 @@ import InputField from "@/components/InputField";
 import { useUpdateStudentMutation, useGetTagsQuery, useAddStudentTagMutation, useRemoveStudentTagMutation } from "@/store/slices/students";
 import { DanceType } from "@prisma/client";
 import { ALL_DANCE_TYPES, DANCE_TYPE_META } from "@/lib/danceTypes";
-
-const avatarUrls = [
-  "/images/avatar_1.png",
-  "/images/avatar_2.png",
-  "/images/avatar_3.png",
-  "/images/avatar_4.png",
-  "/images/avatar_5.png",
-  "/images/avatar_6.png",
-  "/images/avatar_7.png",
-  "/images/avatar_8.png",
-];
+import AvatarPicker from "@/features/students/AvatarPicker";
 
 const EditStudent = ({ student }: { student: StudentWithDetail }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState(student.name);
   const [note, setNote] = useState(student.note);
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(student.avatarUrl);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [danceQualifications, setDanceQualifications] = useState<DanceType[]>(student.danceQualifications ?? []);
   const [errors, setErrors] = useState<{ name?: string }>({});
   const [tagInput, setTagInput] = useState("");
@@ -69,6 +60,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
         onSubmit={handleSubmit}
         title={`Edit ${student.name}`}
         isLoading={isLoading}
+        disabled={avatarUploading}
         submitText="Update"
       >
         <form className="mb-6 flex flex-col gap-4">
@@ -83,24 +75,11 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
             value={note || ""}
             onChange={(e) => setNote(e.target.value)}
           />
-          <div className="flex px-3 gap-3 items-center justify-center flex-wrap">
-            {avatarUrls.map((avatarUrl) => (
-              <div
-                key={avatarUrl}
-                className={`relative w-16 h-16 rounded-full ${
-                  selectedAvatarUrl === avatarUrl ? "" : "brightness-75"
-                }`}
-                onClick={() => setSelectedAvatarUrl(avatarUrl)}
-              >
-                <img src={avatarUrl} className="w-full h-full object-cover" />
-                {selectedAvatarUrl === avatarUrl && (
-                  <div className="absolute bg-primary-500 flex items-center justify-center w-6 h-6 right-0 top-0 rounded-full">
-                    <Check className="w-3 h-3 text-white" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <AvatarPicker
+            value={selectedAvatarUrl}
+            onChange={setSelectedAvatarUrl}
+            onUploadingChange={setAvatarUploading}
+          />
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-gray-700">
               Completed LV1 (可購買複習卡)

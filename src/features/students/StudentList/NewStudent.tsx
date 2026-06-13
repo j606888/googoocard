@@ -1,8 +1,9 @@
-import { Check, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import Drawer from "@/components/Drawer";
 import { useCreateStudentMutation } from "@/store/slices/students";
 import InputField from "@/components/InputField";
+import AvatarPicker, { PRESET_AVATARS } from "@/features/students/AvatarPicker";
 
 const validationErrors = {
   name: "Must provide a name",
@@ -16,23 +17,13 @@ const validateForm = (data: { name: string }) => {
   return errors;
 };
 
-const avatarUrls = [
-  "/images/avatar_1.png",
-  "/images/avatar_2.png",
-  "/images/avatar_3.png",
-  "/images/avatar_4.png",
-  "/images/avatar_5.png",
-  "/images/avatar_6.png",
-  "/images/avatar_7.png",
-  "/images/avatar_8.png",
-];
-
 const NewStudent = () => {
-  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(avatarUrls[0]);
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(PRESET_AVATARS[0]);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [errors, setErrors] = useState<{ name?: string }>({});
 
   const [createStudent, { isLoading: isCreatingStudent }] = useCreateStudentMutation();
@@ -48,7 +39,7 @@ const NewStudent = () => {
       await createStudent({ name, avatarUrl: selectedAvatarUrl, note }).unwrap();
       setName("");
       setNote("");
-      setSelectedAvatarUrl(avatarUrls[0]);
+      setSelectedAvatarUrl(PRESET_AVATARS[0]);
       setOpen(false);
       setIsLoading(false);
     } catch (error) {
@@ -87,6 +78,7 @@ const NewStudent = () => {
         onClose={handleClose}
         onSubmit={handleSubmit}
         isLoading={isLoading || isCreatingStudent}
+        disabled={avatarUploading}
       >
         <form className="mb-6 flex flex-col gap-3">
           <InputField
@@ -103,24 +95,11 @@ const NewStudent = () => {
             onChange={handleNoteChange}
             error={errors.name}
           />
-          <div className="flex px-3 gap-3 items-center justify-center flex-wrap">
-            {avatarUrls.map((avatarUrl) => (
-              <div
-                key={avatarUrl}
-                className={`relative w-16 h-16 rounded-full ${
-                  selectedAvatarUrl === avatarUrl ? "" : "brightness-75"
-                }`}
-                onClick={() => setSelectedAvatarUrl(avatarUrl)}
-              >
-                <img src={avatarUrl} className={`w-full h-full object-cover`} />
-                {selectedAvatarUrl === avatarUrl && (
-                  <div className="absolute bg-primary-500 flex items-center justify-center w-6 h-6 right-0 top-0 rounded-full">
-                    <Check className="w-3 h-3 text-white" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <AvatarPicker
+            value={selectedAvatarUrl}
+            onChange={setSelectedAvatarUrl}
+            onUploadingChange={setAvatarUploading}
+          />
         </form>
       </Drawer>
     </>

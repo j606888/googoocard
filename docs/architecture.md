@@ -130,6 +130,21 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - PATCH student 時 `danceQualifications` 為 `undefined` → 不動資格（保護舊 client）；
   給陣列 → 整組同步（transaction 內 delete notIn + createMany skipDuplicates）。
 
+## 學生頭像（Student Avatars）
+
+`Student.avatarUrl` 只是一個字串，可以是內建預設圖（`/images/avatar_*.png`），也可以是上傳到 Cloudinary 後的 URL——DB schema 不區分兩者。
+
+- **選圖 UI**：`src/features/students/AvatarPicker.tsx`（可重用），由 NewStudent 與 EditStudent 共用。內含 8 張預設 + 一個「上傳」格子，預設清單在同檔的 `PRESET_AVATARS`。
+- **上傳流程**：signed direct upload。前端先 `POST /api/upload-signature`（`decodeAuthToken` 把關，登入才給簽章），拿到簽章後把檔案**直接** POST 到 Cloudinary，避開 Vercel serverless 4.5MB body 限制、也讓 Cloudinary 處理 HEIC。回傳的 `secure_url` 存回 `avatarUrl`。
+- **裁切設定**寫死在 `src/app/api/upload-signature/route.ts`（`c_fill,g_auto,256×256,q_auto`），且**必須與前端送出的 `transformation` 完全一致**，否則簽章驗證失敗。
+- **環境變數**：`CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET`（cloud name 與 api key 會回給前端，api secret 只留伺服器端）。沒設定時上傳會回 500，但預設頭像照常運作。不需要在 Cloudinary 後台建 upload preset。
+- 上傳期間 `AvatarPicker` 透過 `onUploadingChange` 通知父層，Drawer 的 submit 以 `disabled` 鎖住，避免在拿到 URL 前送出。
+- `next.config.ts` 的 `images.remotePatterns` 已允許 `res.cloudinary.com`（給 `next/image` 用）。
+
+## 返回來源（StudentDetail back navigation）
+
+進入 `/students/[id]` 的連結可帶 `?from=<encodedPath>`，返回鍵讀它決定回哪：有就回該頁、沒有（或非站內路徑）fallback 回 `/students`。helper 在 `src/lib/studentNav.ts`（`studentDetailHref` / `resolveBackHref`）。目前 check-success（`StudentInfo`）與課程詳情（`AttendanceMatrix`、`StudentSection`）的入口會帶來源；學生列表不帶、維持回 `/students`。未來其他頁面要此行為，連結改用 `studentDetailHref(id, pathname)` 即可。
+
 ## 測試
 
 ```bash
@@ -151,9 +166,11 @@ npm run test:watch  # watch 模式
 
 ## 環境與部署注意 ⚠️
 
-- **`.env` 的 `DATABASE_URL` 直接指向 production RDS。**
-  任何 prisma 指令若不明確覆寫 DATABASE_URL 就會打到正式環境。
-  本地 DB：`postgresql://postgres:password@localhost:54330/googoocard?schema=public`
+- **環境變數採 fail-safe：本地是預設，production 需明確 opt-in。**
+  - `.env` 只放本地（docker Postgres on `:54330`），**絕不放 production 憑證**：
+    `postgresql://postgres:password@localhost:54330/googoocard?schema=public`
+  - `.env.production`（gitignored）放 production RDS 的 `DATABASE_URL`，**只**被 `npm run db:deploy` 使用。
+  - `npm run db:migrate` 會先跑 `scripts/require-local-db.mjs`，對任何非 localhost 的 URL **硬性拒絕**——即使 `DATABASE_URL` 不小心指向 production，`migrate dev` 也會被擋下。
 - Migration 用 `npm run db:migrate`（dev）/ `npm run db:deploy`（prod）。
   **禁止 `prisma db push`**（schema drift）與 **`prisma migrate reset`**（清空資料）。
 - 含 DROP COLUMN 的 migration 部署前先做 RDS snapshot；程式碼與 migration 同次部署。
