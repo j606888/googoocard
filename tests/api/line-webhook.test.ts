@@ -43,13 +43,14 @@ function lastAltText(): string | undefined {
   const msgs = sent.at(-1);
   return msgs?.find((m) => typeof m.altText === "string")?.altText as string | undefined;
 }
-// The menu bubble's subtitle is "{name} 的學生選單" / "老師選單".
+// The menu bubble's subtitle is "{name} 的學生選單" / "老師選單" — it lives in the
+// bubble header alongside the "googoocard" brand line (header.contents[1]).
 function lastSubtitle(): string | undefined {
   const msgs = sent.at(-1);
   const flex = msgs?.find((m) => m.type === "flex") as
-    | { contents?: { body?: { contents?: { text?: string }[] } } }
+    | { contents?: { header?: { contents?: { text?: string }[] } } }
     | undefined;
-  return flex?.contents?.body?.contents?.[1]?.text;
+  return flex?.contents?.header?.contents?.[1]?.text;
 }
 
 const STUDENT_MENU = "googoocard 學生選單";

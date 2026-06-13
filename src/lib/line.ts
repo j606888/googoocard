@@ -62,12 +62,25 @@ export function textMessage(text: string): LineMessage {
 export const SWITCH_TO_STUDENT = "switch=student";
 export const SWITCH_TO_TEACHER = "switch=teacher";
 
-/** The shared "進入網站" button used by the teacher menu. */
-function websiteButton(): LineMessage {
+// Brand palette for the flex menus.
+const BRAND = "#7c3aed"; // primary purple (header background)
+const BRAND_SUBTLE = "#e9d5ff"; // light purple for header subtitle on dark bg
+const TEXT_MAIN = "#333333";
+const TEXT_MUTED = "#9ca3af";
+const ROW_DIVIDER = "#f0f0f0";
+
+/**
+ * A single tappable menu entry. Rendered as an icon-row (emoji + label + ›) with
+ * the action bound to the whole row, instead of a filled LINE button — cleaner
+ * and lets us show a leading icon, which LINE's native `button` can't.
+ */
+type MenuItem = { icon: string; label: string; action: LineMessage; muted?: boolean };
+
+/** The shared "進入網站" entry used by the teacher menu. */
+function websiteItem(): MenuItem {
   return {
-    type: "button",
-    style: "primary",
-    color: "#7c3aed",
+    icon: "🖥️",
+    label: "進入網站",
     action: { type: "uri", label: "進入網站", uri: websiteEntryUrl() },
   };
 }
@@ -82,42 +95,84 @@ export function liffPath(path: string): string {
   return base ? `${base}/liff/${path}` : `/liff/${path}`;
 }
 
-/** A button that opens a student LIFF sub-page. */
-function liffButton(
-  label: string,
-  path: string,
-  style: "primary" | "secondary" = "primary",
-): LineMessage {
+/** A menu entry that opens a student LIFF sub-page. */
+function liffItem(icon: string, label: string, path: string, muted = false): MenuItem {
+  return { icon, label, muted, action: { type: "uri", label, uri: liffPath(path) } };
+}
+
+/** A muted entry that switches between teacher/student menus via postback. */
+function switchItem(label: string, data: string): MenuItem {
+  return { icon: "🔄", label, muted: true, action: { type: "postback", label, data } };
+}
+
+/** Render one menu entry as a tappable horizontal row: icon · label · chevron. */
+function itemRow(item: MenuItem): LineMessage {
   return {
-    type: "button",
-    style,
-    ...(style === "primary" ? { color: "#7c3aed" } : {}),
-    action: { type: "uri", label, uri: liffPath(path) },
+    type: "box",
+    layout: "horizontal",
+    action: item.action,
+    paddingAll: "md",
+    spacing: "md",
+    contents: [
+      { type: "text", text: item.icon, flex: 0, size: "lg", gravity: "center" },
+      {
+        type: "text",
+        text: item.label,
+        flex: 1,
+        size: "md",
+        weight: "bold",
+        gravity: "center",
+        color: item.muted ? TEXT_MUTED : TEXT_MAIN,
+      },
+      { type: "text", text: "›", flex: 0, size: "lg", gravity: "center", color: "#cccccc" },
+    ],
   };
 }
 
-/** A secondary postback button used to switch between teacher/student menus. */
-function switchButton(label: string, data: string): LineMessage {
-  return {
-    type: "button",
-    style: "secondary",
-    action: { type: "postback", label, data },
-  };
-}
-
-function menuBubble(subtitle: string, buttons: LineMessage[]): LineMessage {
+/**
+ * A branded menu bubble: a purple header with the brand + a subtitle, a body of
+ * icon-rows (separated by hairlines), and a small footer hint.
+ */
+function menuBubble(subtitle: string, items: MenuItem[]): LineMessage {
+  const rows: LineMessage[] = [];
+  items.forEach((item, i) => {
+    if (i > 0) rows.push({ type: "separator", color: ROW_DIVIDER });
+    rows.push(itemRow(item));
+  });
   return {
     type: "bubble",
+    header: {
+      type: "box",
+      layout: "vertical",
+      backgroundColor: BRAND,
+      paddingAll: "lg",
+      spacing: "xs",
+      contents: [
+        { type: "text", text: "googoocard", weight: "bold", size: "xl", color: "#ffffff" },
+        { type: "text", text: subtitle, size: "sm", color: BRAND_SUBTLE },
+      ],
+    },
     body: {
       type: "box",
       layout: "vertical",
-      spacing: "md",
+      paddingAll: "none",
+      contents: rows,
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "md",
       contents: [
-        { type: "text", text: "googoocard", weight: "bold", size: "xl" },
-        { type: "text", text: subtitle, size: "sm", color: "#888888" },
-        ...buttons,
+        {
+          type: "text",
+          text: "有問題隨時聯繫老師 💬",
+          size: "xs",
+          align: "center",
+          color: TEXT_MUTED,
+        },
       ],
     },
+    styles: { footer: { separator: true } },
   };
 }
 
@@ -126,12 +181,12 @@ function menuBubble(subtitle: string, buttons: LineMessage[]): LineMessage {
  * student, to expose a "切換到學生" button.
  */
 export function buildMenuFlex(opts: { showSwitch?: boolean } = {}): LineMessage {
-  const buttons = [websiteButton()];
-  if (opts.showSwitch) buttons.push(switchButton("切換到學生", SWITCH_TO_STUDENT));
+  const items = [websiteItem()];
+  if (opts.showSwitch) items.push(switchItem("切換到學生", SWITCH_TO_STUDENT));
   return {
     type: "flex",
     altText: "googoocard 老師選單",
-    contents: menuBubble("老師選單", buttons),
+    contents: menuBubble("老師選單", items),
   };
 }
 
@@ -144,18 +199,18 @@ export function buildMenuFlex(opts: { showSwitch?: boolean } = {}): LineMessage 
 export function buildStudentMenuFlex(
   opts: { showSwitch?: boolean; showStudentSwitch?: boolean; name?: string } = {},
 ): LineMessage {
-  const buttons = [
-    liffButton("上課簽到", "checkin"),
-    liffButton("瀏覽我的課卡", "cards"),
-    liffButton("購買課卡", "buy"),
+  const items = [
+    liffItem("📝", "上課簽到", "checkin"),
+    liffItem("🎫", "瀏覽我的課卡", "cards"),
+    liffItem("🛒", "購買課卡", "buy"),
   ];
   if (opts.showStudentSwitch)
-    buttons.push(liffButton("切換學生", "cards?switch=1", "secondary"));
-  if (opts.showSwitch) buttons.push(switchButton("切換到老師", SWITCH_TO_TEACHER));
+    items.push(liffItem("🔁", "切換學生", "cards?switch=1", true));
+  if (opts.showSwitch) items.push(switchItem("切換到老師", SWITCH_TO_TEACHER));
   return {
     type: "flex",
     altText: "googoocard 學生選單",
-    contents: menuBubble(opts.name ? `${opts.name} 的學生選單` : "學生選單", buttons),
+    contents: menuBubble(opts.name ? `${opts.name} 的學生選單` : "學生選單", items),
   };
 }
 
