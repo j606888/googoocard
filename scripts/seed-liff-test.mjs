@@ -1,13 +1,15 @@
-// Seed test data for the LIFF student self check-in flow.
+// Seed TODAY's lessons for an already-bound LIFF student, so you can re-test the
+// check-in / 點名 flow on a fresh day without re-binding.
 //
-//   node scripts/seed-liff-test.mjs
+//   node scripts/seed-liff-test.mjs              # target the first bound student
+//   STUDENT_ID=1 node scripts/seed-liff-test.mjs # target a specific student
 //
-// Creates a classroom + teacher + cards + a student (with a one-time LINE bind
-// key printed at the end) + 3 lessons scheduled for TODAY (Taipei) so you can
-// exercise the whole flow: check in → card deducted / exhausted / missing →
-// guided to 購買課卡. Local-database only — refuses any non-localhost URL.
+// It does NOT create a new classroom or a new bind key — it reuses the bound
+// student's existing classroom, teacher and cards, and just adds 3 lessons
+// scheduled for TODAY (Taipei): a Bachata lesson (general + practice card), a
+// Bachata 複習 lesson (practice card only), and a Salsa lesson (general card).
+// Local-database only — refuses any non-localhost URL.
 
-import crypto from "crypto";
 import { PrismaClient } from "@prisma/client";
 
 const LOCAL_URL =
@@ -36,106 +38,87 @@ function taipeiTime(dateKey, hour, minute = 0) {
 async function main() {
   const todayKey = taipeiTodayKey();
 
-  // Owner + classroom + membership.
-  const owner = await prisma.user.upsert({
-    where: { email: "liff-test-owner@googoocard.local" },
-    update: {},
-    create: {
-      email: "liff-test-owner@googoocard.local",
-      name: "LIFF 測試老闆",
-      password: "x", // backoffice login isn't the point of this seed
-    },
-  });
-  const classroom = await prisma.classroom.create({
-    data: { ownerId: owner.id, name: `LIFF 測試教室 ${todayKey}` },
-  });
-  await prisma.membership.upsert({
-    where: { userId_classroomId: { userId: owner.id, classroomId: classroom.id } },
-    update: {},
-    create: { userId: owner.id, classroomId: classroom.id, role: "owner" },
-  });
-  await prisma.user.update({
-    where: { id: owner.id },
-    data: { currentClassroomId: classroom.id },
-  });
+  // Resolve the target bound student (STUDENT_ID override, else the first one).
+  const wantedId = process.env.STUDENT_ID ? Number(process.env.STUDENT_ID) : null;
+  const student = wantedId
+    ? await prisma.student.findUnique({ where: { id: wantedId } })
+    : await prisma.student.findFirst({
+        where: { lineUserId: { not: null } },
+        orderBy: { id: "asc" },
+      });
 
-  // Also let your own login (test@test.com) select this classroom in the backoffice.
-  const dev = await prisma.user.findUnique({ where: { email: "test@test.com" } });
-  if (dev) {
-    await prisma.membership.upsert({
-      where: { userId_classroomId: { userId: dev.id, classroomId: classroom.id } },
-      update: {},
-      create: { userId: dev.id, classroomId: classroom.id, role: "owner" },
-    });
+  if (!student) {
+    console.error(
+      "找不到已綁定 LINE 的學生。請先在 LINE 聊天室用綁定碼把學生綁到你的帳號，再跑這支。",
+    );
+    process.exit(1);
+  }
+  if (!student.lineUserId) {
+    console.error(`學生 #${student.id} ${student.name} 尚未綁定 LINE（lineUserId 為空）。`);
+    process.exit(1);
   }
 
-  const teacher = await prisma.teacher.create({
-    data: { name: "示範老師", classroomId: classroom.id },
-  });
+  const classroomId = student.classroomId;
+  const classroom = await prisma.classroom.findUnique({ where: { id: classroomId } });
 
-  // Cards: a general card the student will hold (with only 1 session left, to
-  // exercise "last session used"), a general card the student does NOT hold (to
-  // exercise "no card"), and a Bachata practice card (to exercise self-purchase).
-  const cardHeld = await prisma.card.create({
-    data: { name: "10 堂卡", price: 5000, sessions: 10, classroomId: classroom.id },
-  });
-  const cardMissing = await prisma.card.create({
-    data: { name: "8 堂卡", price: 4200, sessions: 8, classroomId: classroom.id },
-  });
-  const practiceCard = await prisma.card.create({
-    data: {
-      name: "Bachata 複習卡",
-      price: 2000,
-      sessions: 5,
-      classroomId: classroom.id,
-      isPracticeCard: true,
-      danceType: "BACHATA",
-    },
-  });
+  // Reuse an existing teacher in the classroom, or create one.
+  const teacher =
+    (await prisma.teacher.findFirst({ where: { classroomId } })) ??
+    (await prisma.teacher.create({ data: { name: "示範老師", classroomId } }));
 
-  // Student bound by a one-time key, qualified for Bachata (can buy 複習卡).
-  const lineBindKey = crypto.randomBytes(16).toString("hex");
-  const student = await prisma.student.create({
-    data: {
-      name: "測試學生",
-      avatarUrl: "/images/avatar_1.png",
-      classroomId: classroom.id,
-      lineBindKey,
-    },
-  });
-  await prisma.studentDanceQualification.create({
-    data: { studentId: student.id, danceType: "BACHATA" },
-  });
+  // Reuse existing cards: a general card and a Bachata practice card.
+  const generalCard =
+    (await prisma.card.findFirst({
+      where: { classroomId, isPracticeCard: false },
+      orderBy: { id: "asc" },
+    })) ??
+    (await prisma.card.create({
+      data: { name: "初階6堂", price: 3000, sessions: 6, classroomId },
+    }));
+  const practiceCard =
+    (await prisma.card.findFirst({
+      where: { classroomId, isPracticeCard: true, danceType: "BACHATA" },
+      orderBy: { id: "asc" },
+    })) ??
+    (await prisma.card.create({
+      data: {
+        name: "Bachata 複習卡",
+        price: 2000,
+        sessions: 6,
+        classroomId,
+        isPracticeCard: true,
+        danceType: "BACHATA",
+      },
+    }));
 
-  // Student holds the general "10 堂卡" but with only 1 session remaining.
-  await prisma.studentCard.create({
-    data: {
-      studentId: student.id,
-      cardId: cardHeld.id,
-      basePrice: cardHeld.price,
-      finalPrice: cardHeld.price,
-      totalSessions: 10,
-      remainingSessions: 1,
-    },
-  });
-
-  // 3 lessons today, each one period. Walk-in: student is NOT pre-enrolled.
+  // 3 lessons today, each one period (10:00 / 13:00 / 19:00 Taipei).
   const lessonSpecs = [
-    { name: "早上 Bachata", danceType: "BACHATA", hour: 10, cardIds: [cardHeld.id] },
-    { name: "下午 Salsa", danceType: "SALSA", hour: 13, cardIds: [cardMissing.id] },
     {
-      name: "晚上 Bachata",
+      name: `早上 Bachata ${todayKey}`,
       danceType: "BACHATA",
+      hour: 10,
+      cardIds: [generalCard.id, practiceCard.id],
+    },
+    {
+      name: `下午 Bachata 複習 ${todayKey}`,
+      danceType: "BACHATA",
+      hour: 13,
+      cardIds: [practiceCard.id],
+    },
+    {
+      name: `晚上 Salsa ${todayKey}`,
+      danceType: "SALSA",
       hour: 19,
-      cardIds: [cardHeld.id, practiceCard.id],
+      cardIds: [generalCard.id],
     },
   ];
+
   const lessons = [];
   for (const spec of lessonSpecs) {
     const lesson = await prisma.lesson.create({
       data: {
         name: spec.name,
-        classroomId: classroom.id,
+        classroomId,
         danceType: spec.danceType,
         status: "inProgress",
       },
@@ -156,21 +139,19 @@ async function main() {
     lessons.push({ ...spec, id: lesson.id });
   }
 
-  console.log("\n✅ LIFF 測試資料建立完成");
+  console.log("\n✅ 今日課程已生成");
   console.log("──────────────────────────────────────");
-  console.log(`教室：${classroom.name} (id ${classroom.id})`);
-  if (dev) console.log(`已將 test@test.com 加入此教室，可在後台切換選擇`);
+  console.log(`教室：${classroom.name} (id ${classroomId})`);
+  console.log(`學生：${student.name} (id ${student.id})，已綁定 LINE`);
   console.log(`老師：${teacher.name}`);
-  console.log(`學生：${student.name} (id ${student.id})，已具 BACHATA 複習卡資格`);
-  console.log(`持有課卡：10 堂卡（剩 1 堂）`);
+  console.log(`卡別：一般卡「${generalCard.name}」#${generalCard.id}、複習卡「${practiceCard.name}」#${practiceCard.id}`);
   console.log(`今日 (${todayKey}) 課程：`);
   for (const l of lessons) {
     console.log(`  • ${l.hour}:00 ${l.name} [${l.danceType}] — 接受卡：${l.cardIds.join(",")}`);
   }
   console.log("──────────────────────────────────────");
-  console.log("👉 綁定方式：在 LINE 官方帳號的聊天室輸入下列綁定碼，即可把這位學生綁到你的 LINE：");
-  console.log(`\n    ${lineBindKey}\n`);
-  console.log("綁定後開啟圖文選單的「上課簽到」即可測試。");
+  console.log("👉 已綁定，直接開圖文選單的「上課簽到」即可測試；後台也可對這些課程點名。");
+  console.log("（再次執行會「再」新增一批今日課程，不會清掉舊的。）");
 }
 
 main()
