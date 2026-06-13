@@ -21,7 +21,7 @@ npm run db:studio  # Browse database
 docker-compose up -d  # Starts Postgres on port 54330 (user/password: postgres/password)
 ```
 
-Required env vars: `DATABASE_URL`, `JWT_SECRET`.
+Required env vars: `DATABASE_URL`, `JWT_SECRET`. For custom student avatar upload, also set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (see "Student Avatars" in `docs/architecture.md`); the preset avatars still work without them.
 
 **Env layout is fail-safe — local is the default, production is opt-in:**
 - `.env` — local only (docker Postgres on `:54330`). Never put production credentials here.
@@ -118,6 +118,12 @@ When taking attendance (`src/domains/attendance/attendance.service.ts`), a stude
 3. The card with fewest remaining sessions (then earliest expiry) is preferred.
 
 Unresolved attendance cases surface as `uncheckedType` on the `AttendanceRecord` response (`no_card` / `no_practice_card` / `multiple_cards` / `not_checked` / `not_qualified`) and must be manually resolved in the UI (`PendingStudents.tsx`).
+
+### 學生自助簽到與老師定案的整合
+
+學生可在 LIFF 自助簽到（`selfCheckIn` 建 `AttendanceRecord` 且 `source = STUDENT`，**不設** `attendanceTakenAt`，留給老師定案並即時扣卡）。老師後台點名（`CheckPeriod` / `PeriodAttendanceForm`）載入時會以 `GET .../attendance` 帶出該時段已存在的紀錄，**預設勾選**，並對 `source = STUDENT` 者標上「自助簽到」徽章。
+
+`takeAttendance` 與 `updateAttendance` 共用 `reconcileAndFinalize`：送出的 `studentIds` 為準（authoritative）—新學生建紀錄並扣卡、已存在者保留不動（**不重複扣卡**）、被取消勾選者移除紀錄並退還課卡。
 
 ### Testing
 

@@ -21,13 +21,32 @@ enum DanceType {
   KIZOMBA
 }
 
+enum CardPurchaseSource {
+  STAFF   // bought by 老闆/助教 (a User) on the backend
+  STUDENT // self-purchased by the student (future flow; purchasedByUserId is null)
+}
+
+enum AttendanceSource {
+  TEACHER // recorded by a teacher/助教 on the backend
+  STUDENT // self check-in by the student via LIFF
+}
+
+enum LineMenuMode {
+  TEACHER
+  STUDENT
+}
+
 model User {
   id          Int          @id @default(autoincrement())
   email       String       @unique
   name        String
   password    String
+  randomKey   String?      @unique // one-time key shown on the website; sent to the LINE bot to bind
+  lineUserId  String?      @unique // bound LINE userId; used for LIFF auto-login
   classrooms  Classroom[]  @relation("OwnedClassrooms")
   memberships Membership[]
+  purchasedStudentCards StudentCard[] @relation("PurchasedStudentCards")
+  confirmedStudentCards StudentCard[] @relation("ConfirmedStudentCards")
   currentClassroomId Int?
   currentClassroom Classroom? @relation(fields: [currentClassroomId], references: [id])
   createdAt   DateTime     @default(now())
@@ -95,7 +114,9 @@ model Student {
   name         String
   avatarUrl    String
   note         String?
-  randomKey    String? @unique
+  randomKey    String? @unique // public-students share link token (NOT for LINE)
+  lineBindKey  String? @unique // one-time key for the LINE binding deep link
+  lineUserId   String? // bound LINE userId — NOT unique: one LINE account can bind multiple students across classrooms
   classroomId  Int
   classroom    Classroom     @relation(fields: [classroomId], references: [id])
   studentCards StudentCard[]
@@ -106,6 +127,8 @@ model Student {
   danceQualifications StudentDanceQualification[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+
+  @@index([lineUserId])
 }
 
 model StudentDanceQualification {
@@ -128,6 +151,13 @@ model StudentCard {
   finalPrice        Int
   totalSessions     Int
   remainingSessions Int
+  purchaseSource    CardPurchaseSource @default(STAFF)
+  purchasedByUserId Int?
+  purchasedBy       User?    @relation("PurchasedStudentCards", fields: [purchasedByUserId], references: [id])
+  isPaid            Boolean  @default(true) // existing rows treated as paid
+  paidAt            DateTime?
+  paidByUserId      Int?
+  paidBy            User?    @relation("ConfirmedStudentCards", fields: [paidByUserId], references: [id])
   attendanceRecords AttendanceRecord[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -206,6 +236,7 @@ model AttendanceRecord {
   student   Student  @relation(fields: [studentId], references: [id])
   studentCardId Int?
   studentCard StudentCard? @relation(fields: [studentCardId], references: [id])
+  source    AttendanceSource @default(TEACHER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -254,4 +285,17 @@ model StudentTag {
   createdAt DateTime @default(now())
 
   @@unique([studentId, tagId])
+}
+
+// Per-LINE-account UI state. A LINE userId can be both a teacher (User) and a
+// student (Student) — this remembers which menu to show by default so switching
+// to the student menu sticks across messages.
+model LineAccount {
+  lineUserId String       @id
+  menuMode   LineMenuMode @default(TEACHER)
+  // The student the account last selected in LIFF, so the LINE bot's menu shows
+  // the same one. Plain id (no FK) — webhook re-validates ownership before use.
+  selectedStudentId Int?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 }

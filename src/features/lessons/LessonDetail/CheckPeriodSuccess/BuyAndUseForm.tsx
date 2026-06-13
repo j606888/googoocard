@@ -3,6 +3,7 @@ import { AttendanceRecord, Lesson } from "@/store/slices/lessons";
 import { useEffect, useMemo, useState } from "react";
 import InputField from "@/components/InputField";
 import RoundCheckbox from "@/components/RoundCheckbox";
+import { Switch } from "@/components/ui/switch";
 import { useCreateStudentCardMutation, useGetStudentQuery } from "@/store/slices/students";
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
 import { useParams } from "next/navigation";
@@ -26,6 +27,7 @@ const BuyAndUseForm = ({
   const [allowManualOverride, setAllowManualOverride] = useState(false);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
+  const [isPaid, setIsPaid] = useState(true);
   const { periodId } = useParams();
 
   const cardOptions = useMemo(() => {
@@ -103,6 +105,7 @@ const BuyAndUseForm = ({
   const handleClose = () => {
     setOpen(false);
     setAllowManualOverride(false);
+    setIsPaid(true);
   };
 
   const handleSubmit = async () => {
@@ -113,6 +116,7 @@ const BuyAndUseForm = ({
         sessions: parseInt(cardSessions),
         price: parseInt(cardPrice),
         lessonId: lesson.id,
+        isPaid,
       });
       if (studentCard?.data) {
         await consumeStudentCard({
@@ -232,6 +236,15 @@ const BuyAndUseForm = ({
                   error={errors.cardSessions}
                 />
               </div>
+            </div>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-700">已付款</span>
+                <span className="text-xs text-gray-400">
+                  {isPaid ? "已收到款項" : "尚未付款，卡片仍可使用"}
+                </span>
+              </div>
+              <Switch checked={isPaid} onCheckedChange={setIsPaid} />
             </div>
           </>
         )}

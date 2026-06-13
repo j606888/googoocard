@@ -11,6 +11,12 @@ const meApi = api.injectEndpoints({
     getMe: builder.query<Me, void>({
       query: () => "me",
     }),
+    getLineBindLink: builder.query<
+      { bound: boolean; key?: string; deepLink?: string | null },
+      void
+    >({
+      query: () => "line/bind-link",
+    }),
     login: builder.mutation<
       void,
       { email: string; password: string; token?: string }
@@ -45,6 +51,7 @@ const meApi = api.injectEndpoints({
 
 export const {
   useGetMeQuery,
+  useGetLineBindLinkQuery,
   useLoginMutation,
   useSignupMutation,
   useLogoutMutation,

@@ -69,7 +69,6 @@ export interface StudentCardWithCard extends StudentCard {
   attendanceRecords: {
     lessonName: string;
     periodStartTime: number;
-    teacherName: string;
   }[]
 }
 
@@ -81,9 +80,24 @@ export interface StudentCard {
   finalPrice: number;
   totalSessions: number;
   remainingSessions: number;
+  purchaseSource: "STAFF" | "STUDENT";
+  isPaid: boolean;
+  paidAt: string | null;
+  purchasedBy?: { name: string } | null;
+  paidBy?: { name: string } | null;
   createdAt: string;
   updatedAt: string;
   expiredAt: string | null;
+}
+
+export interface UnpaidStudentCard {
+  id: number;
+  studentId: number;
+  finalPrice: number;
+  createdAt: string;
+  student: { id: number; name: string; avatarUrl: string };
+  card: { name: string };
+  purchasedBy?: { name: string } | null;
 }
 
 const studentsApi = api.injectEndpoints({
@@ -104,6 +118,13 @@ const studentsApi = api.injectEndpoints({
     }),
     getPublicStudent: builder.query<StudentWithDetail, { randomKey: string }>({
       query: ({ randomKey }) => `public-students/${randomKey}`,
+      providesTags: ["Student"],
+    }),
+    getStudentLineBindLink: builder.query<
+      { bound: boolean; key?: string; deepLink?: string | null },
+      { id: number }
+    >({
+      query: ({ id }) => `students/${id}/line-bind-link`,
       providesTags: ["Student"],
     }),
     createStudent: builder.mutation<
@@ -136,18 +157,36 @@ const studentsApi = api.injectEndpoints({
       query: ({ id }) => `students/${id}/student-cards`,
       providesTags: ["StudentCard"],
     }),
-    createStudentCard: builder.mutation<StudentCard, { id: number; cardId: number; sessions: number; price: number; lessonId?: number }>({
-      query: ({ id, cardId, sessions, price, lessonId }) => ({
+    createStudentCard: builder.mutation<StudentCard, { id: number; cardId: number; sessions: number; price: number; lessonId?: number; isPaid?: boolean }>({
+      query: ({ id, cardId, sessions, price, lessonId, isPaid }) => ({
         url: `students/${id}/student-cards`,
         method: "POST",
-        body: { cardId, sessions, price, lessonId },
+        body: { cardId, sessions, price, lessonId, isPaid },
       }),
       invalidatesTags: ["StudentCard", "Student"],
+    }),
+    confirmStudentCardPayment: builder.mutation<StudentCard, { id: number; studentCardId: number }>({
+      query: ({ id, studentCardId }) => ({
+        url: `students/${id}/student-cards/${studentCardId}/confirm-payment`,
+        method: "POST",
+      }),
+      invalidatesTags: ["StudentCard", "Student"],
+    }),
+    getUnpaidStudentCards: builder.query<UnpaidStudentCard[], void>({
+      query: () => "student-cards/unpaid",
+      providesTags: ["StudentCard"],
     }),
     expireStudentCard: builder.mutation<StudentCard, { id: number; studentCardId: number }>({
       query: ({ id, studentCardId }) => ({
         url: `students/${id}/student-cards/${studentCardId}/expire`,
         method: "POST",
+      }),
+      invalidatesTags: ["StudentCard", "Student"],
+    }),
+    deleteStudentCard: builder.mutation<{ success: boolean }, { id: number; studentCardId: number }>({
+      query: ({ id, studentCardId }) => ({
+        url: `students/${id}/student-cards/${studentCardId}`,
+        method: "DELETE",
       }),
       invalidatesTags: ["StudentCard", "Student"],
     }),
@@ -187,13 +226,17 @@ const studentsApi = api.injectEndpoints({
 export const {
   useGetStudentsQuery,
   useGetPublicStudentQuery,
+  useGetStudentLineBindLinkQuery,
   useCreateStudentMutation,
   useUpdateStudentMutation,
   useDeleteStudentMutation,
   useGetStudentCardsQuery,
   useCreateStudentCardMutation,
+  useConfirmStudentCardPaymentMutation,
+  useGetUnpaidStudentCardsQuery,
   useGetStudentQuery,
   useExpireStudentCardMutation,
+  useDeleteStudentCardMutation,
   useGetStudentCardsByLessonQuery,
   useGetStudentEventsQuery,
   useGetTagsQuery,

@@ -9,8 +9,10 @@ import { danceTypeLabel } from "@/lib/danceTypes";
 
 const StudentDetailHeader = ({
   student,
+  backHref = "/students",
 }: {
   student: StudentWithDetail;
+  backHref?: string;
 }) => {
   const activeCards = student.studentCards.filter((c) => c.remainingSessions > 0);
   const lastAttend = student.overview.lastAttendAt
@@ -21,7 +23,7 @@ const StudentDetailHeader = ({
     <div className="hidden lg:block border-b border-gray-200 px-8 py-5 bg-white">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
-        <Link href="/students" className="flex items-center gap-1 hover:text-gray-700">
+        <Link href={backHref} className="flex items-center gap-1 hover:text-gray-700">
           <ArrowLeft className="w-4 h-4" />
           <span>Students</span>
         </Link>

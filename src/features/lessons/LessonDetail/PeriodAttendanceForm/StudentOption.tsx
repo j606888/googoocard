@@ -9,11 +9,13 @@ const StudentOption = ({
   onClick,
   isAttended,
   isFirstTime = false,
+  isSelfCheckIn = false,
 }: {
   student: Student;
   isAttended: boolean;
   isChecked: boolean;
   isFirstTime?: boolean;
+  isSelfCheckIn?: boolean;
   onClick: (student: Student) => void;
 }) => {
   const isGray = !isAttended && !isChecked;
@@ -41,6 +43,11 @@ const StudentOption = ({
           >
             {student.name}
           </span>
+          {isSelfCheckIn && (
+            <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+              自助簽到
+            </span>
+          )}
           {student.note && (
             <p className={`text-sm truncate ${isGray ? "text-gray-300" : "text-gray-500"}`}>
               ({student.note})

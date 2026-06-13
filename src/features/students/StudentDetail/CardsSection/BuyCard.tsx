@@ -3,6 +3,7 @@ import Drawer from "@/components/Drawer";
 import { Student } from "@/store/slices/students";
 import RoundCheckbox from "@/components/RoundCheckbox";
 import InputField from "@/components/InputField";
+import { Switch } from "@/components/ui/switch";
 import { useCreateStudentCardMutation } from "@/store/slices/students";
 import { Card, useGetCardsQuery } from "@/store/slices/cards";
 import { canBuyCard } from "@/domains/qualification";
@@ -14,6 +15,7 @@ const BuyCard = ({ student }: { student: Student }) => {
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
+  const [isPaid, setIsPaid] = useState(true);
   const [errors, setErrors] = useState<{
     selectedCardId?: string;
     cardSessions?: string;
@@ -75,6 +77,7 @@ const BuyCard = ({ student }: { student: Student }) => {
         cardId: selectedCardId,
         sessions: parseInt(cardSessions),
         price: parseInt(cardPrice),
+        isPaid,
       });
       setIsDrawerOpen(false);
     }
@@ -96,7 +99,10 @@ const BuyCard = ({ student }: { student: Student }) => {
     <>
       <button
         className="w-full p-3 bg-primary-500 text-white rounded-sm font-semibold cursor-pointer hover:bg-primary-600"
-        onClick={() => setIsDrawerOpen(true)}
+        onClick={() => {
+          setIsPaid(true);
+          setIsDrawerOpen(true);
+        }}
       >
         BUY NEW CARD
       </button>
@@ -167,6 +173,15 @@ const BuyCard = ({ student }: { student: Student }) => {
                 onChange={handleCardPriceChange}
                 type="number"
               />
+            </div>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-700">已付款</span>
+                <span className="text-xs text-gray-400">
+                  {isPaid ? "已收到款項" : "尚未付款，卡片仍可使用"}
+                </span>
+              </div>
+              <Switch checked={isPaid} onCheckedChange={setIsPaid} />
             </div>
           </>
         )}

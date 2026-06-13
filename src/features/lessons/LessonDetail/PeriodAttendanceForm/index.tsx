@@ -11,12 +11,13 @@ import PeriodInfo from "./PeriodInfo";
 
 type PeriodAttendanceFormProps = {
   defaultSelectedIds?: number[];
+  selfCheckInStudentIds?: number[];
   onSubmit: (studentIds: number[]) => Promise<void>;
   submitLabel?: string;
   error?: string | null;
   isLoading?: boolean;
 };
-const PeriodAttendanceForm = ({ defaultSelectedIds = [], onSubmit, submitLabel = "Take Attendance", error, isLoading }: PeriodAttendanceFormProps) => {
+const PeriodAttendanceForm = ({ defaultSelectedIds = [], selfCheckInStudentIds = [], onSubmit, submitLabel = "Take Attendance", error, isLoading }: PeriodAttendanceFormProps) => {
   const { id, periodId } = useParams();
   const { data: students } = useGetStudentsQuery();
   const { data: lesson } = useGetLessonQuery(id as string);
@@ -77,11 +78,11 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], onSubmit, submitLabel =
   return (
     <>
       <SubNavbar title={"Check Period"} backUrl={`/lessons/${id}`} />
-      <div className="px-5 py-5 flex flex-col gap-5">
+      <div className="px-5 pt-5 pb-40 md:pb-28 flex flex-col gap-5">
         <div>
           <PeriodInfo period={period} />
         </div>
-        <div className="mb-10 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <Searchbar
             error={error || null}
             onSearch={handleSearch}
@@ -91,6 +92,7 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], onSubmit, submitLabel =
           <SelectedStudents
             selectedStudents={selectedStudents}
             onRemoveStudent={handleRemoveStudent}
+            selfCheckInStudentIds={selfCheckInStudentIds}
           />
           <div className="flex flex-col gap-4 pb-4 ">
             {filteredStudents && (
@@ -98,6 +100,7 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], onSubmit, submitLabel =
                 students={filteredStudents}
                 attendStudentIds={attendStudentIds}
                 selectedStudents={selectedStudents}
+                selfCheckInStudentIds={selfCheckInStudentIds}
                 setSelectedStudents={(students) => {
                   setSelectedStudentIds(students.map((student) => student.id));
                 }}
@@ -105,7 +108,10 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], onSubmit, submitLabel =
             )}
           </div>
         </div>
-        <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-100 flex gap-4 px-5 py-4 z-10">
+        {/* Lifted above the mobile BottomNav (floating pill, fixed bottom-0
+            z-40) so the button stays tappable; flush to bottom on desktop where
+            the nav is md:hidden. */}
+        <div className="fixed left-0 right-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-0 bg-white/90 backdrop-blur-md border-t border-gray-100 flex gap-4 px-5 py-4 z-30">
           <Button
             onClick={handleSubmit}
             disabled={selectedStudents.length === 0}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { decodeAuthToken } from "@/lib/auth";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { canBuyCard } from "@/domains/qualification";
 
@@ -17,7 +18,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { cardId, sessions, price, lessonId } = await request.json();
+  const { userId } = await decodeAuthToken();
+  const { cardId, sessions, price, lessonId, isPaid = true } = await request.json();
 
   const card = await prisma.card.findUnique({
     where: {
@@ -50,14 +52,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
   }
 
+  const paid = isPaid !== false;
   const studentCard = await prisma.studentCard.create({
     data: {
       studentId: parseInt(id),
       cardId,
       basePrice: card.price,
       finalPrice: price,
-      totalSessions: card.sessions,
+      // total and remaining must match at creation; both follow the (editable)
+      // session count chosen at purchase, defaulting to the card's own sessions.
+      totalSessions: sessions,
       remainingSessions: sessions,
+      purchaseSource: "STAFF",
+      purchasedByUserId: userId ?? null,
+      isPaid: paid,
+      // When paid at point of sale, the seller is also the payment confirmer.
+      paidAt: paid ? new Date() : null,
+      paidByUserId: paid ? userId ?? null : null,
     },
   });
 

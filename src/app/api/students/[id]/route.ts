@@ -74,6 +74,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       studentCards: {
         include: {
           card: true,
+          purchasedBy: { select: { name: true } },
+          paidBy: { select: { name: true } },
         },
         orderBy: {
           createdAt: "desc",
@@ -129,11 +131,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       },
     },
     include: {
-      teachers: {
-        include: {
-          teacher: true,
-        },
-      },
       periods: {
         orderBy: {
           startTime: "asc",
@@ -178,7 +175,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // Create a map to group attendance records by student card
   const studentCardAttendances = new Map<
     number,
-    Array<{ lessonName: string; periodStartTime: Date; teacherName: string }>
+    Array<{ lessonName: string; periodStartTime: Date }>
   >()
 
   attendanceRecords.forEach((record) => {
@@ -204,12 +201,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     // Group attendance records by student card
     if (record.studentCardId) {
-      const teacherName = lesson.teachers.map((item) => item.teacher.name).join(", ");
       const cardAttendances = studentCardAttendances.get(record.studentCardId) || [];
       cardAttendances.push({
         lessonName: lesson.name,
         periodStartTime,
-        teacherName,
       });
       studentCardAttendances.set(record.studentCardId, cardAttendances);
     }

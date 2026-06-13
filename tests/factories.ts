@@ -7,7 +7,7 @@ export async function resetDb() {
     `TRUNCATE "AttendanceRecord", "LessonStudent", "LessonPeriod", "LessonTeacher",
       "LessonCard", "StudentDanceQualification", "StudentTag", "Tag", "Event",
       "StudentCard", "Lesson", "Card", "Student", "Teacher", "InviteToken",
-      "Membership", "Classroom", "User" RESTART IDENTITY CASCADE`
+      "Membership", "Classroom", "User", "LineAccount" RESTART IDENTITY CASCADE`
   );
 }
 
