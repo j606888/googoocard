@@ -119,6 +119,12 @@ When taking attendance (`src/domains/attendance/attendance.service.ts`), a stude
 
 Unresolved attendance cases surface as `uncheckedType` on the `AttendanceRecord` response (`no_card` / `no_practice_card` / `multiple_cards` / `not_checked` / `not_qualified`) and must be manually resolved in the UI (`PendingStudents.tsx`).
 
+### TODO: 學生自助簽到 — 老師/助教點名 UI 需整合（待優化）
+
+學生可在 LIFF 自助簽到（`selfCheckIn` 建 `AttendanceRecord` 且 `source = STUDENT`，**不設** `attendanceTakenAt`，留給老師定案）。問題：用助教/老師帳號在後台點名時，**已自助簽到的學生不會被預設勾選**，所以看不出某人已經自己點過名，容易重複處理或漏看。
+
+待修：更新點名 UI（`PendingStudents.tsx` / `PeriodAttendanceForm`），載入時把該時段「已存在的 `AttendanceRecord`」預設為已勾選，並對 `source = STUDENT` 的紀錄加上「學生自助簽到」標示；finalize（`takeAttendance`/`updateAttendance`）需避免重複建立已自助簽到的紀錄。
+
 ### Testing
 
 - Unit tests for qualification rules: `src/domains/qualification/index.test.ts` (no DB).

@@ -1,4 +1,4 @@
-import { Prisma, StudentCard } from "@prisma/client";
+import { AttendanceSource, Prisma, StudentCard } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { refreshLesson } from "@/service/lesson";
 import { refreshNeedsRenewalTags } from "@/service/studentTag";
@@ -119,7 +119,7 @@ async function fetchStudentsWithValidCards(
 function selectStudentCard(
   student: StudentWithCards,
   lesson: LessonWithCards
-): StudentCard | null {
+): StudentWithCards["studentCards"][number] | null {
   const qualifications = student.danceQualifications.map((q) => q.danceType);
   const shouldForcePracticeCard = shouldUsePracticePriority(lesson, student);
 
@@ -190,7 +190,8 @@ async function createAttendanceRecord(
   lessonId: number,
   lessonPeriodId: number,
   studentId: number,
-  studentCardId: number | null
+  studentCardId: number | null,
+  source: AttendanceSource = AttendanceSource.TEACHER
 ) {
   // Ensure lesson-student relationship exists
   await tx.lessonStudent.upsert({
@@ -213,6 +214,7 @@ async function createAttendanceRecord(
       lessonPeriodId,
       studentId,
       studentCardId,
+      source,
     },
   });
 
@@ -459,4 +461,110 @@ export async function updateAttendance({
   if (affectedStudentIds.length > 0) {
     await refreshNeedsRenewalTags(affectedStudentIds, lesson.classroomId);
   }
+}
+
+export type SelfCheckInResult = {
+  periodId: number;
+  status: "checked" | "already_checked" | "no_card";
+  cardName?: string;
+  remainingSessions?: number;
+  exhausted?: boolean;
+};
+
+/**
+ * Student self check-in (LIFF). Records attendance for one student across the
+ * given periods of a lesson and deducts a card per period, reusing the same card
+ * auto-selection as the teacher flow (`selectStudentCard`). Unlike `takeAttendance`
+ * it:
+ *   - marks each record `source: STUDENT`,
+ *   - does NOT set `attendanceTakenAt` (the teacher still finalizes later),
+ *   - is idempotent per (student, period) — an existing record is left untouched
+ *     and reported as `already_checked` (no double-charge),
+ *   - reports per-period card status so the UI can upsell when a card is missing
+ *     or was just exhausted.
+ */
+export async function selfCheckIn({
+  studentId,
+  lessonId,
+  lessonPeriodIds,
+}: {
+  studentId: number;
+  lessonId: number;
+  lessonPeriodIds: number[];
+}): Promise<SelfCheckInResult[]> {
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    include: { cards: { include: { card: true } } },
+  });
+  if (!lesson) {
+    throw new Error("Lesson not found");
+  }
+
+  const validCardIds = lesson.cards.map((card) => card.cardId);
+  const [student] = await fetchStudentsWithValidCards([studentId], validCardIds);
+  if (!student) {
+    throw new Error("Student not found");
+  }
+
+  // Only the requested periods that actually belong to this lesson, in order.
+  const periods = await prisma.lessonPeriod.findMany({
+    where: { id: { in: lessonPeriodIds }, lessonId },
+    orderBy: { startTime: "asc" },
+  });
+
+  const existing = await prisma.attendanceRecord.findMany({
+    where: { studentId, lessonPeriodId: { in: periods.map((p) => p.id) } },
+    select: { lessonPeriodId: true },
+  });
+  const alreadyCheckedIds = new Set(existing.map((r) => r.lessonPeriodId));
+
+  const results: SelfCheckInResult[] = [];
+
+  await prisma.$transaction(async (tx) => {
+    for (const period of periods) {
+      if (alreadyCheckedIds.has(period.id)) {
+        results.push({ periodId: period.id, status: "already_checked" });
+        continue;
+      }
+
+      const studentCard = selectStudentCard(student, lesson);
+      const attendanceRecord = await createAttendanceRecord(
+        tx,
+        lesson.id,
+        period.id,
+        student.id,
+        studentCard?.id ?? null,
+        AttendanceSource.STUDENT
+      );
+      await createAttendanceEvent(tx, lesson.name, student.id, attendanceRecord.id);
+
+      if (!studentCard) {
+        results.push({ periodId: period.id, status: "no_card" });
+        continue;
+      }
+
+      await processStudentCardUsage(tx, studentCard, student.id);
+
+      // Keep the in-memory card list in sync so multi-period check-ins don't
+      // re-pick an exhausted card or double-count its remaining sessions.
+      const remainingSessions = studentCard.remainingSessions - 1;
+      const memCard = student.studentCards.find((c) => c.id === studentCard.id);
+      if (memCard) memCard.remainingSessions = remainingSessions;
+      if (remainingSessions <= 0) {
+        student.studentCards = student.studentCards.filter((c) => c.id !== studentCard.id);
+      }
+
+      results.push({
+        periodId: period.id,
+        status: "checked",
+        cardName: studentCard.card.name,
+        remainingSessions,
+        exhausted: remainingSessions === 0,
+      });
+    }
+  });
+
+  await refreshNeedsRenewalTags([studentId], lesson.classroomId);
+
+  return results;
 }

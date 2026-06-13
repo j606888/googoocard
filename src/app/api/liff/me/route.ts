@@ -61,5 +61,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  return NextResponse.json(payload);
+  // Include the full bound-students list so the LIFF gate can offer「切換學生」
+  // without an extra request.
+  return NextResponse.json({ ...payload, boundStudents: students });
 }

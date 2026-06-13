@@ -137,16 +137,20 @@ export function buildMenuFlex(opts: { showSwitch?: boolean } = {}): LineMessage 
 
 /**
  * The student menu. Pass `showSwitch` when this LINE account is also a teacher,
- * to expose a "切換到老師" button.
+ * to expose a "切換到老師" button; pass `showStudentSwitch` when the account is
+ * bound to more than one student, to expose a "切換學生" button that opens the
+ * LIFF identity picker.
  */
 export function buildStudentMenuFlex(
-  opts: { showSwitch?: boolean; name?: string } = {},
+  opts: { showSwitch?: boolean; showStudentSwitch?: boolean; name?: string } = {},
 ): LineMessage {
   const buttons = [
     liffButton("上課簽到", "checkin"),
     liffButton("瀏覽我的課卡", "cards"),
     liffButton("購買課卡", "buy"),
   ];
+  if (opts.showStudentSwitch)
+    buttons.push(liffButton("切換學生", "cards?switch=1", "secondary"));
   if (opts.showSwitch) buttons.push(switchButton("切換到老師", SWITCH_TO_TEACHER));
   return {
     type: "flex",

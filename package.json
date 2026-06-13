@@ -14,6 +14,7 @@
     "db:deploy": "node scripts/deploy-migrations.mjs",
     "db:status": "prisma migrate status",
     "db:studio": "prisma studio",
+    "seed:liff": "node scripts/seed-liff-test.mjs",
     "//": [
       "⚠️  不要直接用 prisma db push — 不產生 migration 檔，會造成 schema drift",
       "⚠️  不要直接用 prisma migrate reset — 會清空所有資料"

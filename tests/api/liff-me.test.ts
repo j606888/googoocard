@@ -98,4 +98,19 @@ describe("GET /api/liff/me", () => {
     expect(res.status).toBe(403);
     expect((await res.json()).error).toBe("forbidden");
   });
+
+  it("回應帶 boundStudents（含跨教室清單，供 LIFF 切換學生用）", async () => {
+    const s1 = await createStudent(classroomId, { name: "Amy" });
+    const s2 = await createStudent(classroomId, { name: "Bob" });
+    await bindStudent(s1.id, "lineMulti");
+    await bindStudent(s2.id, "lineMulti");
+
+    const res = await GET(liffRequest("lineMulti", s1.id));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.id).toBe(s1.id);
+    expect(body.boundStudents.map((s: { id: number }) => s.id).sort()).toEqual(
+      [s1.id, s2.id].sort()
+    );
+  });
 });
