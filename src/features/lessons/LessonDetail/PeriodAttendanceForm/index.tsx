@@ -78,11 +78,11 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], selfCheckInStudentIds =
   return (
     <>
       <SubNavbar title={"Check Period"} backUrl={`/lessons/${id}`} />
-      <div className="px-5 py-5 flex flex-col gap-5">
+      <div className="px-5 pt-5 pb-40 md:pb-28 flex flex-col gap-5">
         <div>
           <PeriodInfo period={period} />
         </div>
-        <div className="mb-10 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <Searchbar
             error={error || null}
             onSearch={handleSearch}
@@ -108,7 +108,10 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], selfCheckInStudentIds =
             )}
           </div>
         </div>
-        <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-100 flex gap-4 px-5 py-4 z-10">
+        {/* Lifted above the mobile BottomNav (floating pill, fixed bottom-0
+            z-40) so the button stays tappable; flush to bottom on desktop where
+            the nav is md:hidden. */}
+        <div className="fixed left-0 right-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-0 bg-white/90 backdrop-blur-md border-t border-gray-100 flex gap-4 px-5 py-4 z-30">
           <Button
             onClick={handleSubmit}
             disabled={selectedStudents.length === 0}
