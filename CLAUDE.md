@@ -119,11 +119,11 @@ When taking attendance (`src/domains/attendance/attendance.service.ts`), a stude
 
 Unresolved attendance cases surface as `uncheckedType` on the `AttendanceRecord` response (`no_card` / `no_practice_card` / `multiple_cards` / `not_checked` / `not_qualified`) and must be manually resolved in the UI (`PendingStudents.tsx`).
 
-### TODO: 學生自助簽到 — 老師/助教點名 UI 需整合（待優化）
+### 學生自助簽到與老師定案的整合
 
-學生可在 LIFF 自助簽到（`selfCheckIn` 建 `AttendanceRecord` 且 `source = STUDENT`，**不設** `attendanceTakenAt`，留給老師定案）。問題：用助教/老師帳號在後台點名時，**已自助簽到的學生不會被預設勾選**，所以看不出某人已經自己點過名，容易重複處理或漏看。
+學生可在 LIFF 自助簽到（`selfCheckIn` 建 `AttendanceRecord` 且 `source = STUDENT`，**不設** `attendanceTakenAt`，留給老師定案並即時扣卡）。老師後台點名（`CheckPeriod` / `PeriodAttendanceForm`）載入時會以 `GET .../attendance` 帶出該時段已存在的紀錄，**預設勾選**，並對 `source = STUDENT` 者標上「自助簽到」徽章。
 
-待修：更新點名 UI（`PendingStudents.tsx` / `PeriodAttendanceForm`），載入時把該時段「已存在的 `AttendanceRecord`」預設為已勾選，並對 `source = STUDENT` 的紀錄加上「學生自助簽到」標示；finalize（`takeAttendance`/`updateAttendance`）需避免重複建立已自助簽到的紀錄。
+`takeAttendance` 與 `updateAttendance` 共用 `reconcileAndFinalize`：送出的 `studentIds` 為準（authoritative）—新學生建紀錄並扣卡、已存在者保留不動（**不重複扣卡**）、被取消勾選者移除紀錄並退還課卡。
 
 ### Testing
 

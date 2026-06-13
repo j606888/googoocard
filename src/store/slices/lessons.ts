@@ -59,6 +59,7 @@ export interface AttendanceRecord {
     | "not_qualified";
   recommendedStudentCardId?: number | null;
   reason?: "PRACTICE_PRIORITY" | null;
+  source?: "TEACHER" | "STUDENT";
 }
 
 export interface UnbindAttendanceRecord {

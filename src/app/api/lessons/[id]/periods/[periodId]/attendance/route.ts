@@ -128,6 +128,7 @@ export async function GET(
       studentId: record.studentId,
       studentAvatarUrl: record.student.avatarUrl,
       studentName: record.student.name,
+      source: record.source,
       ...studentCardData,
     };
   });

@@ -6,11 +6,13 @@ const StudentSelectList = ({
   selectedStudents,
   setSelectedStudents,
   attendStudentIds,
+  selfCheckInStudentIds = [],
 }: {
   students: Student[];
   selectedStudents: Student[];
   setSelectedStudents: (students: Student[]) => void;
   attendStudentIds: number[];
+  selfCheckInStudentIds?: number[];
 }) => {
   const handleCheckboxClick = (student: Student) => {
     if (selectedStudents.includes(student)) {
@@ -32,6 +34,7 @@ const StudentSelectList = ({
       {sortedStudents?.map((student) => {
         const isAttended = attendStudentIds.includes(student.id);
         const isChecked = selectedStudents.includes(student);
+        const isSelfCheckIn = selfCheckInStudentIds.includes(student.id);
 
         return (
           <StudentOption
@@ -41,6 +44,7 @@ const StudentSelectList = ({
             isChecked={isChecked}
             onClick={handleCheckboxClick}
             isFirstTime={!isAttended && isChecked}
+            isSelfCheckIn={isSelfCheckIn}
           />
         );
       })}

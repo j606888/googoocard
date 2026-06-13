@@ -15,7 +15,12 @@ import {
 // 點名 GET 不經過 decodeAuthToken，不需 mock auth
 import { GET } from "@/app/api/lessons/[id]/periods/[periodId]/attendance/route";
 import { POST as resetAttendance } from "@/app/api/lessons/[id]/periods/[periodId]/reset/route";
-import { takeAttendance } from "@/domains/attendance/attendance.service";
+import {
+  takeAttendance,
+  updateAttendance,
+  selfCheckIn,
+} from "@/domains/attendance/attendance.service";
+import { AttendanceSource } from "@prisma/client";
 
 async function getAttendance(lessonId: number, periodId: number) {
   const res = await GET(
@@ -296,6 +301,343 @@ describe("takeAttendance — 自動選卡與扣堂", () => {
       where: { id: practiceSC.id },
     });
     expect(updatedPractice.remainingSessions).toBe(6); // 卡片完好，未被扣
+  });
+
+  it("已定案的時段再次 takeAttendance → 擋下（避免重複定案）", async () => {
+    const general = await createCard(classroomId, { name: "一般卡" });
+    const { lesson, period } = await createLesson(classroomId, {
+      cardIds: [general.id],
+      withPeriod: true,
+    });
+    const student = await createStudent(classroomId);
+    const sc = await createStudentCard(student.id, general.id);
+
+    // 第一次定案：扣 1 堂、attendanceTakenAt 被設定
+    await takeAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period!.id,
+      studentIds: [student.id],
+    });
+
+    // 第二次對同一時段 takeAttendance → 應被 validateAttendanceRequest 擋下
+    await expect(
+      takeAttendance({
+        lessonId: lesson.id,
+        lessonPeriodId: period!.id,
+        studentIds: [student.id],
+      })
+    ).rejects.toThrow("Attendance already taken");
+
+    // 卡只扣了第一次那一堂（沒有因第二次呼叫又被扣）
+    const after = await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } });
+    expect(after.remainingSessions).toBe(5);
+    const count = await prisma.attendanceRecord.count({
+      where: { lessonPeriodId: period!.id, studentId: student.id },
+    });
+    expect(count).toBe(1);
+  });
+});
+
+describe("updateAttendance — 定案後修改點名", () => {
+  let classroomId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    const classroom = await createClassroom();
+    classroomId = classroom.id;
+  });
+
+  it("已定案時段可再編輯：移除原學生退卡 + 新增學生扣卡，且時段維持定案", async () => {
+    const general = await createCard(classroomId, { name: "一般卡" });
+    const { lesson, period } = await createLesson(classroomId, {
+      cardIds: [general.id],
+      withPeriod: true,
+    });
+    const studentA = await createStudent(classroomId, { name: "A" });
+    const scA = await createStudentCard(studentA.id, general.id);
+    const studentB = await createStudent(classroomId, { name: "B" });
+    const scB = await createStudentCard(studentB.id, general.id);
+
+    // 先用 takeAttendance 定案 A（takeAttendance 之後就無法再被它修改）
+    await takeAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period!.id,
+      studentIds: [studentA.id],
+    });
+    expect(
+      (await prisma.studentCard.findUniqueOrThrow({ where: { id: scA.id } }))
+        .remainingSessions
+    ).toBe(5);
+
+    // updateAttendance 把名單改成只有 B（不受「已定案」阻擋）
+    await updateAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period!.id,
+      studentIds: [studentB.id],
+    });
+
+    // A 的紀錄移除、課卡退回
+    const aRecords = await prisma.attendanceRecord.findMany({
+      where: { lessonPeriodId: period!.id, studentId: studentA.id },
+    });
+    expect(aRecords).toHaveLength(0);
+    expect(
+      (await prisma.studentCard.findUniqueOrThrow({ where: { id: scA.id } }))
+        .remainingSessions
+    ).toBe(6);
+
+    // B 的紀錄建立（TEACHER）、課卡扣 1 堂
+    const bRecord = await prisma.attendanceRecord.findFirstOrThrow({
+      where: { lessonPeriodId: period!.id, studentId: studentB.id },
+    });
+    expect(bRecord.source).toBe(AttendanceSource.TEACHER);
+    expect(
+      (await prisma.studentCard.findUniqueOrThrow({ where: { id: scB.id } }))
+        .remainingSessions
+    ).toBe(5);
+
+    // 時段仍為已定案
+    const updatedPeriod = await prisma.lessonPeriod.findUniqueOrThrow({
+      where: { id: period!.id },
+    });
+    expect(updatedPeriod.attendanceTakenAt).not.toBeNull();
+  });
+
+  it("已定案名單中的學生再次 updateAttendance（仍在名單）→ 不重複扣卡、不重建紀錄", async () => {
+    const general = await createCard(classroomId, { name: "一般卡" });
+    const { lesson, period } = await createLesson(classroomId, {
+      cardIds: [general.id],
+      withPeriod: true,
+    });
+    const student = await createStudent(classroomId);
+    const sc = await createStudentCard(student.id, general.id);
+
+    await takeAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period!.id,
+      studentIds: [student.id],
+    });
+    // 用 updateAttendance 重送一樣的名單（例如只是改了別人）
+    await updateAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period!.id,
+      studentIds: [student.id],
+    });
+
+    const records = await prisma.attendanceRecord.findMany({
+      where: { lessonPeriodId: period!.id, studentId: student.id },
+    });
+    expect(records).toHaveLength(1); // 未重建
+    expect(
+      (await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } }))
+        .remainingSessions
+    ).toBe(5); // 只扣一次
+  });
+});
+
+describe("selfCheckIn + takeAttendance — 學生自助簽到後老師定案", () => {
+  let classroomId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    const classroom = await createClassroom();
+    classroomId = classroom.id;
+  });
+
+  it("學生自助簽到後老師再點名同一人 → 不重複建紀錄、不重複扣卡", async () => {
+    const general = await createCard(classroomId, { name: "一般卡" });
+    const { lesson, period } = await createLesson(classroomId, {
+      danceType: DanceType.BACHATA,
+      cardIds: [general.id],
+      withPeriod: true,
+    });
+    const student = await createStudent(classroomId);
+    const sc = await createStudentCard(student.id, general.id);
+
+    // 學生先自助簽到（source = STUDENT，不定案），扣 1 堂
+    await selfCheckIn({
+      studentId: student.id,
+      lessonId: lesson.id,
+      lessonPeriodIds: [period!.id],
+    });
+
+    const afterSelf = await prisma.studentCard.findUniqueOrThrow({
+      where: { id: sc.id },
+    });
+    expect(afterSelf.remainingSessions).toBe(5); // -1
+
+    // 老師把同一人也納入點名定案
+    await takeAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period!.id,
+      studentIds: [student.id],
+    });
+
+    // 仍然只有一筆紀錄，且維持原本的 STUDENT source（未被覆蓋/重建）
+    const records = await prisma.attendanceRecord.findMany({
+      where: { lessonPeriodId: period!.id, studentId: student.id },
+    });
+    expect(records).toHaveLength(1);
+    expect(records[0].source).toBe(AttendanceSource.STUDENT);
+
+    // 課卡只被扣 1 堂（沒有 double-charge）
+    const afterTake = await prisma.studentCard.findUniqueOrThrow({
+      where: { id: sc.id },
+    });
+    expect(afterTake.remainingSessions).toBe(5);
+
+    // 時段已定案
+    const updatedPeriod = await prisma.lessonPeriod.findUniqueOrThrow({
+      where: { id: period!.id },
+    });
+    expect(updatedPeriod.attendanceTakenAt).not.toBeNull();
+  });
+
+  it("老師定案時取消勾選已自助簽到者 → 移除紀錄並退還課卡，同時新增 walk-in", async () => {
+    const general = await createCard(classroomId, { name: "一般卡" });
+    const { lesson, period } = await createLesson(classroomId, {
+      danceType: DanceType.BACHATA,
+      cardIds: [general.id],
+      withPeriod: true,
+    });
+    const selfStudent = await createStudent(classroomId);
+    const selfSC = await createStudentCard(selfStudent.id, general.id);
+    const walkIn = await createStudent(classroomId);
+    const walkInSC = await createStudentCard(walkIn.id, general.id);
+
+    // selfStudent 自助簽到，扣 1 堂
+    await selfCheckIn({
+      studentId: selfStudent.id,
+      lessonId: lesson.id,
+      lessonPeriodIds: [period!.id],
+    });
+
+    // 老師定案：取消 selfStudent、改點 walk-in
+    await takeAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period!.id,
+      studentIds: [walkIn.id],
+    });
+
+    // selfStudent 的紀錄被移除、課卡退回
+    const selfRecords = await prisma.attendanceRecord.findMany({
+      where: { lessonPeriodId: period!.id, studentId: selfStudent.id },
+    });
+    expect(selfRecords).toHaveLength(0);
+    const refundedSelf = await prisma.studentCard.findUniqueOrThrow({
+      where: { id: selfSC.id },
+    });
+    expect(refundedSelf.remainingSessions).toBe(6); // 退還
+
+    // walk-in 紀錄建立、課卡扣 1 堂
+    const walkInRecord = await prisma.attendanceRecord.findFirstOrThrow({
+      where: { lessonPeriodId: period!.id, studentId: walkIn.id },
+    });
+    expect(walkInRecord.source).toBe(AttendanceSource.TEACHER);
+    const usedWalkIn = await prisma.studentCard.findUniqueOrThrow({
+      where: { id: walkInSC.id },
+    });
+    expect(usedWalkIn.remainingSessions).toBe(5);
+  });
+});
+
+describe("selfCheckIn — 一次多時段的扣卡同步", () => {
+  let classroomId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    const classroom = await createClassroom();
+    classroomId = classroom.id;
+  });
+
+  // Two periods on one lesson, ordered by startTime.
+  async function lessonWithTwoPeriods(cardId: number) {
+    const { lesson } = await createLesson(classroomId, {
+      danceType: DanceType.BACHATA,
+      cardIds: [cardId],
+    });
+    const p1 = await prisma.lessonPeriod.create({
+      data: {
+        lessonId: lesson.id,
+        startTime: new Date("2026-06-01T10:00:00Z"),
+        endTime: new Date("2026-06-01T11:00:00Z"),
+      },
+    });
+    const p2 = await prisma.lessonPeriod.create({
+      data: {
+        lessonId: lesson.id,
+        startTime: new Date("2026-06-01T13:00:00Z"),
+        endTime: new Date("2026-06-01T14:00:00Z"),
+      },
+    });
+    return { lesson, p1, p2 };
+  }
+
+  it("卡在第一個時段用罄 → 第二時段回 no_card，課卡只扣到 0 不會變負", async () => {
+    const general = await createCard(classroomId, { name: "一般卡" });
+    const { lesson, p1, p2 } = await lessonWithTwoPeriods(general.id);
+    const student = await createStudent(classroomId);
+    const sc = await createStudentCard(student.id, general.id, {
+      remainingSessions: 1,
+      totalSessions: 10,
+    });
+
+    const results = await selfCheckIn({
+      studentId: student.id,
+      lessonId: lesson.id,
+      lessonPeriodIds: [p1.id, p2.id],
+    });
+
+    const byPeriod = Object.fromEntries(results.map((r) => [r.periodId, r]));
+    expect(byPeriod[p1.id]).toMatchObject({
+      status: "checked",
+      remainingSessions: 0,
+      exhausted: true,
+    });
+    expect(byPeriod[p2.id]).toMatchObject({ status: "no_card" });
+
+    // 課卡只扣 1 堂（用罄後不再被第二時段重選 / 不會扣成 -1）
+    expect(
+      (await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } }))
+        .remainingSessions
+    ).toBe(0);
+
+    // 兩筆紀錄都建立：第一筆綁卡、第二筆無卡
+    const r1 = await prisma.attendanceRecord.findFirstOrThrow({
+      where: { lessonPeriodId: p1.id, studentId: student.id },
+    });
+    const r2 = await prisma.attendanceRecord.findFirstOrThrow({
+      where: { lessonPeriodId: p2.id, studentId: student.id },
+    });
+    expect(r1.studentCardId).not.toBeNull();
+    expect(r2.studentCardId).toBeNull();
+  });
+
+  it("堂數足夠 → 兩個時段各扣 1 堂，回報的 remainingSessions 逐次遞減", async () => {
+    const general = await createCard(classroomId, { name: "一般卡" });
+    const { lesson, p1, p2 } = await lessonWithTwoPeriods(general.id);
+    const student = await createStudent(classroomId);
+    const sc = await createStudentCard(student.id, general.id, {
+      remainingSessions: 5,
+      totalSessions: 5,
+    });
+
+    const results = await selfCheckIn({
+      studentId: student.id,
+      lessonId: lesson.id,
+      lessonPeriodIds: [p1.id, p2.id],
+    });
+
+    const byPeriod = Object.fromEntries(results.map((r) => [r.periodId, r]));
+    // 遞減而非各自回報 4（記憶體未同步會兩筆都報 4）
+    expect(byPeriod[p1.id]).toMatchObject({ status: "checked", remainingSessions: 4 });
+    expect(byPeriod[p2.id]).toMatchObject({ status: "checked", remainingSessions: 3 });
+
+    // DB 實扣 2 堂
+    expect(
+      (await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } }))
+        .remainingSessions
+    ).toBe(3);
   });
 });
 

@@ -359,6 +359,73 @@ async function removeAttendanceRecord(
   });
 }
 
+/**
+ * Reconcile a period's attendance to the given student set, then finalize it.
+ *
+ * `studentIds` is authoritative: students not yet recorded are added (card
+ * deducted), students whose existing record is no longer selected are removed
+ * (card refunded), and students that already have a record are left untouched.
+ *
+ * Leaving existing records untouched is what makes this safe to run on a period
+ * that students already self-checked-in to (`source = STUDENT`): re-finalizing
+ * with that student still selected neither duplicates the record nor
+ * double-charges the card.
+ */
+async function reconcileAndFinalize(
+  lesson: LessonWithCards,
+  lessonPeriodId: number,
+  studentIds: number[]
+) {
+  // Get valid card IDs for this lesson
+  const validCardIds = lesson.cards.map((card) => card.cardId);
+
+  // Calculate which students to add and remove
+  const { newStudentIds, removedStudentIds } = await getAttendanceDifferences(
+    lessonPeriodId,
+    studentIds
+  );
+
+  // Fetch new students with their valid cards
+  const newStudents =
+    newStudentIds.length > 0
+      ? await fetchStudentsWithValidCards(newStudentIds, validCardIds)
+      : [];
+
+  // Process updates in a transaction
+  await prisma.$transaction(async (tx) => {
+    // Add new attendance records
+    for (const student of newStudents) {
+      await processStudentAttendance(tx, lesson, lessonPeriodId, student);
+    }
+
+    // Remove attendance records and refund cards
+    if (removedStudentIds.length > 0) {
+      const removedAttendanceRecords = await tx.attendanceRecord.findMany({
+        where: {
+          lessonPeriodId,
+          studentId: { in: removedStudentIds },
+        },
+      });
+
+      for (const attendanceRecord of removedAttendanceRecords) {
+        await removeAttendanceRecord(tx, attendanceRecord);
+      }
+    }
+
+    // Mark attendance as taken
+    await markAttendanceTaken(tx, lessonPeriodId);
+  });
+
+  // Refresh lesson status
+  await refreshLesson(lesson.id);
+
+  // Refresh Needs Renewal tags for all affected students
+  const affectedStudentIds = [...new Set([...newStudentIds, ...removedStudentIds])];
+  if (affectedStudentIds.length > 0) {
+    await refreshNeedsRenewalTags(affectedStudentIds, lesson.classroomId);
+  }
+}
+
 export async function takeAttendance({
   lessonId,
   lessonPeriodId,
@@ -368,34 +435,13 @@ export async function takeAttendance({
   lessonPeriodId: number;
   studentIds: number[];
 }) {
-  // Validate request
+  // Validate request (blocks re-finalizing an already-taken period)
   const { lesson, lessonPeriod } = await validateAttendanceRequest(
     lessonId,
     lessonPeriodId
   );
 
-  // Get valid card IDs for this lesson
-  const validCardIds = lesson.cards.map((card) => card.cardId);
-
-  // Fetch students with their valid cards
-  const students = await fetchStudentsWithValidCards(studentIds, validCardIds);
-
-  // Process attendance in a transaction
-  await prisma.$transaction(async (tx) => {
-    // Process each student's attendance
-    for (const student of students) {
-      await processStudentAttendance(tx, lesson, lessonPeriod.id, student);
-    }
-
-    // Mark attendance as taken
-    await markAttendanceTaken(tx, lessonPeriod.id);
-  });
-
-  // Refresh lesson status
-  await refreshLesson(lessonId);
-
-  // Refresh Needs Renewal tags for all affected students
-  await refreshNeedsRenewalTags(studentIds, lesson.classroomId);
+  await reconcileAndFinalize(lesson, lessonPeriod.id, studentIds);
 }
 
 export async function updateAttendance({
@@ -413,54 +459,7 @@ export async function updateAttendance({
     lessonPeriodId
   );
 
-  // Get valid card IDs for this lesson
-  const validCardIds = lesson.cards.map((card) => card.cardId);
-
-  // Calculate which students to add and remove
-  const { newStudentIds, removedStudentIds } = await getAttendanceDifferences(
-    lessonPeriod.id,
-    studentIds
-  );
-
-  // Fetch new students with their valid cards
-  const newStudents =
-    newStudentIds.length > 0
-      ? await fetchStudentsWithValidCards(newStudentIds, validCardIds)
-      : [];
-
-  // Process updates in a transaction
-  await prisma.$transaction(async (tx) => {
-    // Add new attendance records
-    for (const student of newStudents) {
-      await processStudentAttendance(tx, lesson, lessonPeriod.id, student);
-    }
-
-    // Remove attendance records and refund cards
-    if (removedStudentIds.length > 0) {
-      const removedAttendanceRecords = await tx.attendanceRecord.findMany({
-        where: {
-          lessonPeriodId: lessonPeriod.id,
-          studentId: { in: removedStudentIds },
-        },
-      });
-
-      for (const attendanceRecord of removedAttendanceRecords) {
-        await removeAttendanceRecord(tx, attendanceRecord);
-      }
-    }
-
-    // Mark attendance as taken
-    await markAttendanceTaken(tx, lessonPeriod.id);
-  });
-
-  // Refresh lesson status
-  await refreshLesson(lessonId);
-
-  // Refresh Needs Renewal tags for all affected students
-  const affectedStudentIds = [...new Set([...newStudentIds, ...removedStudentIds])];
-  if (affectedStudentIds.length > 0) {
-    await refreshNeedsRenewalTags(affectedStudentIds, lesson.classroomId);
-  }
+  await reconcileAndFinalize(lesson, lessonPeriod.id, studentIds);
 }
 
 export type SelfCheckInResult = {

@@ -11,12 +11,13 @@ import PeriodInfo from "./PeriodInfo";
 
 type PeriodAttendanceFormProps = {
   defaultSelectedIds?: number[];
+  selfCheckInStudentIds?: number[];
   onSubmit: (studentIds: number[]) => Promise<void>;
   submitLabel?: string;
   error?: string | null;
   isLoading?: boolean;
 };
-const PeriodAttendanceForm = ({ defaultSelectedIds = [], onSubmit, submitLabel = "Take Attendance", error, isLoading }: PeriodAttendanceFormProps) => {
+const PeriodAttendanceForm = ({ defaultSelectedIds = [], selfCheckInStudentIds = [], onSubmit, submitLabel = "Take Attendance", error, isLoading }: PeriodAttendanceFormProps) => {
   const { id, periodId } = useParams();
   const { data: students } = useGetStudentsQuery();
   const { data: lesson } = useGetLessonQuery(id as string);
@@ -91,6 +92,7 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], onSubmit, submitLabel =
           <SelectedStudents
             selectedStudents={selectedStudents}
             onRemoveStudent={handleRemoveStudent}
+            selfCheckInStudentIds={selfCheckInStudentIds}
           />
           <div className="flex flex-col gap-4 pb-4 ">
             {filteredStudents && (
@@ -98,6 +100,7 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], onSubmit, submitLabel =
                 students={filteredStudents}
                 attendStudentIds={attendStudentIds}
                 selectedStudents={selectedStudents}
+                selfCheckInStudentIds={selfCheckInStudentIds}
                 setSelectedStudents={(students) => {
                   setSelectedStudentIds(students.map((student) => student.id));
                 }}
