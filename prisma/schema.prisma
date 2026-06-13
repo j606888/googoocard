@@ -106,7 +106,7 @@ model Student {
   note         String?
   randomKey    String? @unique // public-students share link token (NOT for LINE)
   lineBindKey  String? @unique // one-time key for the LINE binding deep link
-  lineUserId   String? @unique // bound LINE userId
+  lineUserId   String? // bound LINE userId — NOT unique: one LINE account can bind multiple students across classrooms
   classroomId  Int
   classroom    Classroom     @relation(fields: [classroomId], references: [id])
   studentCards StudentCard[]
@@ -117,6 +117,8 @@ model Student {
   danceQualifications StudentDanceQualification[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+
+  @@index([lineUserId])
 }
 
 model StudentDanceQualification {

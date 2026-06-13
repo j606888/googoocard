@@ -58,32 +58,100 @@ export function textMessage(text: string): LineMessage {
   return { type: "text", text };
 }
 
+// Postback `data` values for the menu identity-switch buttons.
+export const SWITCH_TO_STUDENT = "switch=student";
+export const SWITCH_TO_TEACHER = "switch=teacher";
+
+/** The shared "進入網站" button used by the teacher menu. */
+function websiteButton(): LineMessage {
+  return {
+    type: "button",
+    style: "primary",
+    color: "#7c3aed",
+    action: { type: "uri", label: "進入網站", uri: websiteEntryUrl() },
+  };
+}
+
 /**
- * The bound-user menu: a single Flex bubble with one "進入網站" button.
- * More buttons can be added to the `contents` array later.
+ * URL for a student LIFF sub-page (`/liff/<path>`): a LIFF deep link when the
+ * LIFF id is configured (opens in-app, auto ID-token auth), else a plain URL.
  */
-export function buildMenuFlex(): LineMessage {
+export function liffPath(path: string): string {
+  if (LIFF_ID) return `https://liff.line.me/${LIFF_ID}/${path}`;
+  const base = PUBLIC_WEB_URL || HOST_URL;
+  return base ? `${base}/liff/${path}` : `/liff/${path}`;
+}
+
+/** A button that opens a student LIFF sub-page. */
+function liffButton(
+  label: string,
+  path: string,
+  style: "primary" | "secondary" = "primary",
+): LineMessage {
+  return {
+    type: "button",
+    style,
+    ...(style === "primary" ? { color: "#7c3aed" } : {}),
+    action: { type: "uri", label, uri: liffPath(path) },
+  };
+}
+
+/** A secondary postback button used to switch between teacher/student menus. */
+function switchButton(label: string, data: string): LineMessage {
+  return {
+    type: "button",
+    style: "secondary",
+    action: { type: "postback", label, data },
+  };
+}
+
+function menuBubble(subtitle: string, buttons: LineMessage[]): LineMessage {
+  return {
+    type: "bubble",
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "md",
+      contents: [
+        { type: "text", text: "googoocard", weight: "bold", size: "xl" },
+        { type: "text", text: subtitle, size: "sm", color: "#888888" },
+        ...buttons,
+      ],
+    },
+  };
+}
+
+/**
+ * The teacher menu. Pass `showSwitch` when this LINE account is also bound to a
+ * student, to expose a "切換到學生" button.
+ */
+export function buildMenuFlex(opts: { showSwitch?: boolean } = {}): LineMessage {
+  const buttons = [websiteButton()];
+  if (opts.showSwitch) buttons.push(switchButton("切換到學生", SWITCH_TO_STUDENT));
   return {
     type: "flex",
-    altText: "googoocard 選單",
-    contents: {
-      type: "bubble",
-      body: {
-        type: "box",
-        layout: "vertical",
-        spacing: "md",
-        contents: [
-          { type: "text", text: "googoocard", weight: "bold", size: "xl" },
-          { type: "text", text: "選擇要做的事", size: "sm", color: "#888888" },
-          {
-            type: "button",
-            style: "primary",
-            color: "#7c3aed",
-            action: { type: "uri", label: "進入網站", uri: websiteEntryUrl() },
-          },
-        ],
-      },
-    },
+    altText: "googoocard 老師選單",
+    contents: menuBubble("老師選單", buttons),
+  };
+}
+
+/**
+ * The student menu. Pass `showSwitch` when this LINE account is also a teacher,
+ * to expose a "切換到老師" button.
+ */
+export function buildStudentMenuFlex(
+  opts: { showSwitch?: boolean; name?: string } = {},
+): LineMessage {
+  const buttons = [
+    liffButton("上課簽到", "checkin"),
+    liffButton("瀏覽我的課卡", "cards"),
+    liffButton("購買課卡", "buy"),
+  ];
+  if (opts.showSwitch) buttons.push(switchButton("切換到老師", SWITCH_TO_TEACHER));
+  return {
+    type: "flex",
+    altText: "googoocard 學生選單",
+    contents: menuBubble(opts.name ? `${opts.name} 的學生選單` : "學生選單", buttons),
   };
 }
 
@@ -138,4 +206,5 @@ export interface LineWebhookEvent {
   replyToken?: string;
   source?: { type: string; userId?: string; groupId?: string; roomId?: string };
   message?: { type: string; id: string; text?: string };
+  postback?: { data: string };
 }

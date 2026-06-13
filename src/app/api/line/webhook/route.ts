@@ -4,7 +4,10 @@ import {
   verifyLineSignature,
   replyMessage,
   buildMenuFlex,
+  buildStudentMenuFlex,
   textMessage,
+  SWITCH_TO_STUDENT,
+  SWITCH_TO_TEACHER,
   type LineWebhookEvent,
 } from "@/lib/line";
 
@@ -33,28 +36,22 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleEvent(event: LineWebhookEvent): Promise<void> {
-  if (event.type !== "message" || event.message?.type !== "text") return;
   const replyToken = event.replyToken;
   const lineUserId = event.source?.userId;
   if (!replyToken || !lineUserId) return;
 
-  // Already a bound teacher? Any message brings up the teacher menu.
-  const teacher = await prisma.user.findUnique({ where: { lineUserId } });
-  if (teacher) {
-    await replyMessage(replyToken, [buildMenuFlex()]);
+  // Menu identity-switch buttons send a postback instead of a chat message.
+  if (event.type === "postback") {
+    await sendMenu(replyToken, lineUserId, event.postback?.data ?? null);
     return;
   }
 
-  // Already a bound student? Acknowledge for now (student menu TBD).
-  const boundStudent = await prisma.student.findUnique({ where: { lineUserId } });
-  if (boundStudent) {
-    await replyMessage(replyToken, [
-      textMessage(`Hi ${boundStudent.name}，你已綁定 googoocard 🎉`),
-    ]);
-    return;
-  }
+  if (event.type !== "message" || event.message?.type !== "text") return;
 
-  // Not bound — treat the message text as a one-time binding key.
+  // A binding key always takes priority, even if this LINE account is already
+  // bound to something else. Teacher and student bindings live on separate
+  // tables (User.lineUserId / Student.lineUserId), so one LINE account can be
+  // both — e.g. a teacher binding their own student profile via the link.
   const key = event.message.text?.trim() ?? "";
   if (key) {
     const user = await prisma.user.findUnique({ where: { randomKey: key } });
@@ -65,22 +62,83 @@ async function handleEvent(event: LineWebhookEvent): Promise<void> {
       });
       await replyMessage(replyToken, [
         textMessage(`綁定成功，${user.name}！傳任何訊息即可叫出選單。`),
-        buildMenuFlex(),
+        buildMenuFlex({ showSwitch: await isStudent(lineUserId) }),
       ]);
       return;
     }
 
     const student = await prisma.student.findUnique({ where: { lineBindKey: key } });
     if (student) {
+      // One LINE account can bind multiple students (different classrooms), so
+      // binding another one is allowed. Consuming the one-time lineBindKey makes
+      // re-sending the same key idempotent.
       await prisma.student.update({
         where: { id: student.id },
         data: { lineUserId, lineBindKey: null },
       });
       await replyMessage(replyToken, [
         textMessage(`綁定成功，${student.name}！🎉`),
+        buildStudentMenuFlex({
+          name: student.name,
+          showSwitch: await isTeacher(lineUserId),
+        }),
       ]);
       return;
     }
+  }
+
+  // Not a binding key — show the menu for whatever this account is bound to.
+  await sendMenu(replyToken, lineUserId, null);
+}
+
+async function isTeacher(lineUserId: string): Promise<boolean> {
+  return (await prisma.user.findUnique({ where: { lineUserId } })) !== null;
+}
+
+async function isStudent(lineUserId: string): Promise<boolean> {
+  return (await prisma.student.findFirst({ where: { lineUserId } })) !== null;
+}
+
+/**
+ * Reply with the appropriate menu. `requested` is a switch postback value, or
+ * null to pick the default (teacher menu wins when an account is both). Each
+ * menu exposes a switch button only when the account holds the other identity.
+ */
+async function sendMenu(
+  replyToken: string,
+  lineUserId: string,
+  requested: string | null,
+): Promise<void> {
+  // A LINE account may be bound to multiple students (across classrooms). The
+  // flex menu is a stopgap before the Rich Menu + LIFF identity picker, so it
+  // just reflects the first student; LIFF handles real multi-student switching.
+  const [teacher, student] = await Promise.all([
+    prisma.user.findUnique({ where: { lineUserId } }),
+    prisma.student.findFirst({ where: { lineUserId } }),
+  ]);
+  const isBoth = !!teacher && !!student;
+
+  if (requested === SWITCH_TO_STUDENT && student) {
+    await replyMessage(replyToken, [
+      buildStudentMenuFlex({ name: student.name, showSwitch: isBoth }),
+    ]);
+    return;
+  }
+  if (requested === SWITCH_TO_TEACHER && teacher) {
+    await replyMessage(replyToken, [buildMenuFlex({ showSwitch: isBoth })]);
+    return;
+  }
+
+  // Default: teacher menu wins, student menu otherwise.
+  if (teacher) {
+    await replyMessage(replyToken, [buildMenuFlex({ showSwitch: isBoth })]);
+    return;
+  }
+  if (student) {
+    await replyMessage(replyToken, [
+      buildStudentMenuFlex({ name: student.name, showSwitch: false }),
+    ]);
+    return;
   }
 
   await replyMessage(replyToken, [
