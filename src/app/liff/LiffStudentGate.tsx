@@ -22,17 +22,23 @@ interface StudentOption {
 
 type MeResponse =
   | { needsSelection: true; students: StudentOption[] }
-  | StudentWithDetail;
+  | (StudentWithDetail & { boundStudents?: StudentOption[] });
+
+export interface LiffAuthContext {
+  idToken: string;
+  studentId: number;
+}
 
 export default function LiffStudentGate({
   children,
 }: {
-  children: (student: StudentWithDetail) => ReactNode;
+  children: (student: StudentWithDetail, auth: LiffAuthContext) => ReactNode;
 }) {
   const [status, setStatus] = useState("登入中…");
   const [idToken, setIdToken] = useState<string | null>(null);
   const [options, setOptions] = useState<StudentOption[] | null>(null);
   const [student, setStudent] = useState<StudentWithDetail | null>(null);
+  const [boundStudents, setBoundStudents] = useState<StudentOption[]>([]);
 
   // Fetch /api/liff/me with the ID token, optionally for a specific student.
   const loadMe = useCallback(async (token: string, studentId?: number) => {
@@ -64,7 +70,16 @@ export default function LiffStudentGate({
       setOptions(data.students);
       return;
     }
+    setBoundStudents(data.boundStudents ?? []);
     setStudent(data);
+
+    // Mirror the LIFF selection server-side so the LINE bot's menu shows the same
+    // student (the webhook reads LineAccount.selectedStudentId). Fire-and-forget.
+    fetch("/api/liff/select-student", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ studentId: data.id }),
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -91,7 +106,13 @@ export default function LiffStudentGate({
         if (cancelled) return;
         setIdToken(token);
 
-        const remembered = Number(localStorage.getItem(LAST_STUDENT_KEY)) || undefined;
+        // ?switch=1 (from the「切換學生」menu button) forces the picker by
+        // ignoring the remembered choice.
+        const forcePick = new URLSearchParams(window.location.search).has("switch");
+        if (forcePick) localStorage.removeItem(LAST_STUDENT_KEY);
+        const remembered = forcePick
+          ? undefined
+          : Number(localStorage.getItem(LAST_STUDENT_KEY)) || undefined;
         await loadMe(token, remembered);
       } catch (err) {
         console.error("[liff] init error", err);
@@ -108,6 +129,14 @@ export default function LiffStudentGate({
     if (!idToken) return;
     localStorage.setItem(LAST_STUDENT_KEY, String(id));
     loadMe(idToken, id);
+  };
+
+  // Drop the remembered choice and re-show the picker (cross-classroom switch).
+  const switchStudent = () => {
+    if (!idToken) return;
+    localStorage.removeItem(LAST_STUDENT_KEY);
+    setStudent(null);
+    loadMe(idToken);
   };
 
   // Multi-student picker.
@@ -139,9 +168,28 @@ export default function LiffStudentGate({
     );
   }
 
-  // Resolved a single student → hand it to the caller.
-  if (student) {
-    return <>{children(student)}</>;
+  // Resolved a single student → hand it to the caller, along with the auth
+  // context (ID token + resolved studentId) needed for student-scoped LIFF APIs.
+  // When the account is bound to more than one student, show a switch bar.
+  if (student && idToken) {
+    return (
+      <>
+        {boundStudents.length > 1 && (
+          <div className="flex items-center justify-between gap-2 bg-gray-50 px-4 py-2 text-sm">
+            <span className="truncate text-gray-600">
+              目前：{student.name}（{student.classroom.name}）
+            </span>
+            <button
+              onClick={switchStudent}
+              className="shrink-0 rounded-full border border-gray-300 px-3 py-1 text-xs font-medium active:bg-gray-100"
+            >
+              切換學生
+            </button>
+          </div>
+        )}
+        {children(student, { idToken, studentId: student.id })}
+      </>
+    );
   }
 
   // Loading / error.

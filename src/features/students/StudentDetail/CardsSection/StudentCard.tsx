@@ -171,7 +171,6 @@ const StudentCard = ({
                   <span className="w-12 text-gray-400">堂次</span>
                   <span className="w-24 text-gray-500">日期</span>
                   <span className="flex-1 text-gray-400">課程</span>
-                  <span className="w-20 text-right text-gray-300">老師</span>
                 </div>
                 <div className="flex flex-col">
                   {sessionRows.map(({ slot, record }) => (
@@ -184,9 +183,6 @@ const StudentCard = ({
                         {record ? formatDate(record.periodStartTime) : "未使用"}
                       </span>
                       <span className="flex-1 text-gray-700">{record?.lessonName || "未使用"}</span>
-                      <span className="w-20 text-right text-xs text-gray-400">
-                        {record?.teacherName || ""}
-                      </span>
                     </div>
                   ))}
                 </div>

@@ -1,22 +1,23 @@
 import { Event as EventType } from "@/store/slices/students";
 import { formatDate } from "@/lib/utils";
-import { SquareDashed, Bird, Database } from "lucide-react";
+import { SquareDashed, Bird, Database, CircleDot } from "lucide-react";
 
-const IconMap = {
+const IconMap: Record<string, typeof CircleDot> = {
   購買課卡: Database,
   簽到: Bird,
   課卡使用完畢: SquareDashed,
 };
 
-const colorMap = {
+const colorMap: Record<string, string> = {
   購買課卡: "bg-primary-500",
   簽到: "bg-warning-500",
   課卡使用完畢: "bg-gray-400",
 }
 
 const Event = ({ event }: { event: EventType }) => {
-  const Icon = IconMap[event.title];
-  const color = colorMap[event.title];
+  // Fall back to a neutral icon/color so an unmapped title never crashes render.
+  const Icon = IconMap[event.title] ?? CircleDot;
+  const color = colorMap[event.title] ?? "bg-gray-400";
   return (
     <div className="flex gap-3 w-full bg-gray-50 border border-gray-100 rounded-xl p-3">
       <div>
