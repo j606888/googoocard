@@ -205,7 +205,7 @@ export default function CheckinList({
               你的課卡不足或已用完，要不要現在購買課卡？
             </p>
             <Link
-              href="/liff/buy"
+              href="/liff/buy?from=checkin"
               className="rounded-lg bg-primary-500 py-3 text-center font-medium text-white active:bg-primary-600"
             >
               立即購買課卡
