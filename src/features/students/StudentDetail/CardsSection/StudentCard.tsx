@@ -1,12 +1,22 @@
 import {
   StudentCardWithCard,
   useExpireStudentCardMutation,
+  useDeleteStudentCardMutation,
+  useConfirmStudentCardPaymentMutation,
 } from "@/store/slices/students";
 import { formatDate } from "@/lib/utils";
-import { Rat, ChevronDown } from "lucide-react";
+import {
+  ChevronDown,
+  CircleDollarSign,
+  EllipsisVertical,
+  Hourglass,
+  Trash2,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import Menu from "@/components/Menu";
 
 const StudentCard = ({
   studentCard,
@@ -16,9 +26,23 @@ const StudentCard = ({
   isPublic?: boolean;
 }) => {
   const [expireStudentCard] = useExpireStudentCardMutation();
+  const [deleteStudentCard, { isLoading: isDeleting }] =
+    useDeleteStudentCardMutation();
+  const [confirmPayment, { isLoading: isConfirming }] =
+    useConfirmStudentCardPaymentMutation();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [cardAction, setCardAction] = useState<"expire" | "delete" | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [expanded, setExpanded] = useState(false);
+  const isUnpaid = studentCard.isPaid === false;
   const isFinished = studentCard.remainingSessions === 0 || !!studentCard.expiredAt;
   const usedSessions = studentCard.attendanceRecords.length;
+  // Expire keeps the (used) card but locks its remaining sessions; delete is a
+  // hard remove for buy-mistakes, only safe while nothing has been consumed.
+  const canExpire = !isFinished;
+  const canDelete = usedSessions === 0;
+  const hasActions = !isPublic && (canExpire || canDelete);
   const progress = Math.min(100, Math.round((usedSessions / studentCard.totalSessions) * 100));
   const isPractice = studentCard.card.isPracticeCard;
   const remainingTone = isFinished ? "text-gray-400" : "text-primary-600";
@@ -35,16 +59,45 @@ const StudentCard = ({
   );
 
   const handleExpire = async () => {
-    const confirm = window.confirm(
-      "Are you sure you want to expire this card?"
-    );
-    if (!confirm) return;
+    try {
+      await expireStudentCard({
+        id: studentCard.studentId,
+        studentCardId: studentCard.id,
+      }).unwrap();
+      toast.success("已停用卡片");
+    } catch {
+      toast.error("停用失敗");
+    } finally {
+      setCardAction(null);
+    }
+  };
 
-    await expireStudentCard({
-      id: studentCard.studentId,
-      studentCardId: studentCard.id,
-    });
-    toast.success("Card expired");
+  const handleDelete = async () => {
+    try {
+      await deleteStudentCard({
+        id: studentCard.studentId,
+        studentCardId: studentCard.id,
+      }).unwrap();
+      toast.success("已刪除卡片");
+    } catch {
+      toast.error("刪除失敗");
+    } finally {
+      setCardAction(null);
+    }
+  };
+
+  const handleConfirmPayment = async () => {
+    try {
+      await confirmPayment({
+        id: studentCard.studentId,
+        studentCardId: studentCard.id,
+      }).unwrap();
+      toast.success("已確認付款");
+    } catch {
+      toast.error("確認付款失敗");
+    } finally {
+      setConfirmOpen(false);
+    }
   };
 
   return (
@@ -66,6 +119,11 @@ const StudentCard = ({
             {isPractice && (
               <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-warning-100 text-warning-900">
                 複習卡
+              </span>
+            )}
+            {isUnpaid && (
+              <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                未付款
               </span>
             )}
           </div>
@@ -134,19 +192,114 @@ const StudentCard = ({
                 </div>
               </div>
 
-              {!isPublic && !isFinished && (
-                <button
-                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-400 cursor-pointer transition-colors"
-                  onClick={handleExpire}
-                >
-                  <Rat className="w-3.5 h-3.5" />
-                  <span>Expire card</span>
-                </button>
+              {!isPublic && (
+                <div className="flex items-center justify-between gap-2 border-t border-gray-100 pt-3">
+                  <div className="flex flex-col gap-0.5 text-xs text-gray-500">
+                    <span>
+                      {studentCard.purchaseSource === "STUDENT"
+                        ? "學生自購"
+                        : `由 ${studentCard.purchasedBy?.name ?? "後台"} 購買`}
+                    </span>
+                    {isUnpaid ? (
+                      <span className="text-red-600 font-medium">尚未付款</span>
+                    ) : (
+                      <span className="text-green-600">
+                        已收款
+                        {studentCard.paidBy?.name ? ` · ${studentCard.paidBy.name}` : ""}
+                        {studentCard.paidAt ? ` · ${formatDate(studentCard.paidAt)}` : ""}
+                      </span>
+                    )}
+                  </div>
+                  {isUnpaid && (
+                    <button
+                      className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-green-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-green-700 transition-colors"
+                      onClick={() => setConfirmOpen(true)}
+                    >
+                      <CircleDollarSign className="w-3.5 h-3.5" />
+                      <span>確認付款</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {hasActions && (
+                <div className="flex justify-end border-t border-gray-100 pt-3">
+                  <button
+                    type="button"
+                    ref={menuButtonRef}
+                    onClick={() => setMenuOpen((v) => !v)}
+                    className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
+                  >
+                    <EllipsisVertical className="w-4 h-4" />
+                    <span>更多</span>
+                  </button>
+                  <Menu
+                    open={menuOpen}
+                    anchorEl={menuButtonRef.current}
+                    onClose={() => setMenuOpen(false)}
+                  >
+                    {canExpire && (
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 rounded-sm cursor-pointer whitespace-nowrap"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setCardAction("expire");
+                        }}
+                      >
+                        <Hourglass className="w-4 h-4" />
+                        <span>停用卡片</span>
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-sm cursor-pointer whitespace-nowrap"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setCardAction("delete");
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>刪除卡片</span>
+                      </button>
+                    )}
+                  </Menu>
+                </div>
               )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="確認付款"
+        message={`確認已收到「${studentCard.card.name}」的款項 $${studentCard.finalPrice}？`}
+        confirmLabel="確認付款"
+        onConfirm={handleConfirmPayment}
+        onCancel={() => setConfirmOpen(false)}
+        isLoading={isConfirming}
+      />
+
+      <ConfirmDialog
+        open={cardAction === "expire"}
+        title="停用卡片"
+        message={`確定要停用「${studentCard.card.name}」嗎？停用後剩餘的 ${studentCard.remainingSessions} 堂將無法再使用。`}
+        confirmLabel="停用"
+        onConfirm={handleExpire}
+        onCancel={() => setCardAction(null)}
+      />
+
+      <ConfirmDialog
+        open={cardAction === "delete"}
+        title="刪除卡片"
+        message={`確定要刪除「${studentCard.card.name}」嗎？此操作無法復原，通常用於買錯卡片的情況。`}
+        confirmLabel="刪除"
+        onConfirm={handleDelete}
+        onCancel={() => setCardAction(null)}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { MdAddCard } from "react-icons/md";
 import { Student } from "@/store/slices/students";
 import RoundCheckbox from "@/components/RoundCheckbox";
 import InputField from "@/components/InputField";
+import { Switch } from "@/components/ui/switch";
 import { useParams } from "next/navigation";
 import { useGetLessonQuery } from "@/store/slices/lessons";
 import { useCreateStudentCardMutation } from "@/store/slices/students";
@@ -15,6 +16,7 @@ const BuyCard = ({ student }: { student: Student }) => {
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
+  const [isPaid, setIsPaid] = useState(true);
   const [errors, setErrors] = useState<{
     selectedCardId?: string;
     cardSessions?: string;
@@ -79,6 +81,7 @@ const BuyCard = ({ student }: { student: Student }) => {
         cardId: selectedCardId,
         sessions: parseInt(cardSessions),
         price: parseInt(cardPrice),
+        isPaid,
       });
       setIsDrawerOpen(false);
     }
@@ -98,7 +101,10 @@ const BuyCard = ({ student }: { student: Student }) => {
     <>
       <div
         className="ml-auto bg-warning-500 rounded-full px-3 py-1 flex items-center gap-1 cursor-pointer hover:bg-warning-600"
-        onClick={() => setIsDrawerOpen(true)}
+        onClick={() => {
+          setIsPaid(true);
+          setIsDrawerOpen(true);
+        }}
       >
         <MdAddCard className="w-4.5 h-4.5 text-white" />
         <span className="text-sm font-medium text-white">Buy Card</span>
@@ -153,6 +159,15 @@ const BuyCard = ({ student }: { student: Student }) => {
                   error={errors.cardSessions}
                 />
               </div>
+            </div>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-700">已付款</span>
+                <span className="text-xs text-gray-400">
+                  {isPaid ? "已收到款項" : "尚未付款，卡片仍可使用"}
+                </span>
+              </div>
+              <Switch checked={isPaid} onCheckedChange={setIsPaid} />
             </div>
           </>
         )}

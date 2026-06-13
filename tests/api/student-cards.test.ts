@@ -17,6 +17,7 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 import { POST } from "@/app/api/students/[id]/student-cards/route";
+import { POST as CONFIRM_PAYMENT } from "@/app/api/students/[id]/student-cards/[studentCardId]/confirm-payment/route";
 
 describe("POST /api/students/[id]/student-cards (購買驗證)", () => {
   let classroomId: number;
@@ -165,5 +166,111 @@ describe("POST /api/students/[id]/student-cards (購買驗證)", () => {
       routeParams({ id: String(student.id) })
     );
     expect(res.status).toBe(404);
+  });
+
+  it("預設購買 → 已付款，記錄購買者與確認者", async () => {
+    const student = await createStudent(classroomId);
+    const card = await createCard(classroomId, { name: "一般卡" });
+
+    await POST(
+      jsonRequest("POST", { cardId: card.id, sessions: 6, price: 3000 }),
+      routeParams({ id: String(student.id) })
+    );
+
+    const sc = await prisma.studentCard.findFirstOrThrow({
+      where: { studentId: student.id },
+    });
+    expect(sc.isPaid).toBe(true);
+    expect(sc.purchaseSource).toBe("STAFF");
+    expect(sc.purchasedByUserId).toBe(auth.userId);
+    expect(sc.paidByUserId).toBe(auth.userId);
+    expect(sc.paidAt).not.toBeNull();
+  });
+
+  it("購買時標記 isPaid:false → 未付款且付款欄位留空，但卡片可用", async () => {
+    const student = await createStudent(classroomId);
+    const card = await createCard(classroomId, { name: "一般卡" });
+
+    await POST(
+      jsonRequest("POST", { cardId: card.id, sessions: 6, price: 3000, isPaid: false }),
+      routeParams({ id: String(student.id) })
+    );
+
+    const sc = await prisma.studentCard.findFirstOrThrow({
+      where: { studentId: student.id },
+    });
+    expect(sc.isPaid).toBe(false);
+    expect(sc.paidAt).toBeNull();
+    expect(sc.paidByUserId).toBeNull();
+    expect(sc.remainingSessions).toBe(6); // 仍可使用
+  });
+});
+
+describe("POST .../confirm-payment", () => {
+  let classroomId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    const classroom = await createClassroom();
+    classroomId = classroom.id;
+    auth.classroomId = classroomId;
+    auth.userId = 1;
+  });
+
+  it("確認付款 → isPaid 變 true，記錄確認者（可不同於購買者）並寫 Event", async () => {
+    const student = await createStudent(classroomId);
+    const card = await createCard(classroomId, { name: "一般卡" });
+
+    // 助教（user 1）開未付款卡
+    await POST(
+      jsonRequest("POST", { cardId: card.id, sessions: 6, price: 3000, isPaid: false }),
+      routeParams({ id: String(student.id) })
+    );
+    const sc = await prisma.studentCard.findFirstOrThrow({
+      where: { studentId: student.id },
+    });
+
+    // 老闆（user 2）確認收款
+    const owner = await prisma.user.create({
+      data: { email: "boss@test.local", name: "Boss", password: "x" },
+    });
+    auth.userId = owner.id;
+
+    const res = await CONFIRM_PAYMENT(
+      jsonRequest("POST"),
+      routeParams({ id: String(student.id), studentCardId: String(sc.id) })
+    );
+    expect(res.status).toBe(200);
+
+    const updated = await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } });
+    expect(updated.isPaid).toBe(true);
+    expect(updated.paidByUserId).toBe(owner.id);
+    expect(updated.purchasedByUserId).toBe(1); // 開卡者不變
+    expect(updated.paidAt).not.toBeNull();
+
+    const event = await prisma.event.findFirst({
+      where: { studentId: student.id, title: "確認付款", resourceId: sc.id },
+    });
+    expect(event).not.toBeNull();
+  });
+
+  it("重複確認已付款的卡 → 400 ALREADY_PAID", async () => {
+    const student = await createStudent(classroomId);
+    const card = await createCard(classroomId, { name: "一般卡" });
+
+    await POST(
+      jsonRequest("POST", { cardId: card.id, sessions: 6, price: 3000 }), // 預設已付款
+      routeParams({ id: String(student.id) })
+    );
+    const sc = await prisma.studentCard.findFirstOrThrow({
+      where: { studentId: student.id },
+    });
+
+    const res = await CONFIRM_PAYMENT(
+      jsonRequest("POST"),
+      routeParams({ id: String(student.id), studentCardId: String(sc.id) })
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("ALREADY_PAID");
   });
 });

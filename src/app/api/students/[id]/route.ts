@@ -74,6 +74,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       studentCards: {
         include: {
           card: true,
+          purchasedBy: { select: { name: true } },
+          paidBy: { select: { name: true } },
         },
         orderBy: {
           createdAt: "desc",

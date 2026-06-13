@@ -21,6 +21,11 @@ enum DanceType {
   KIZOMBA
 }
 
+enum CardPurchaseSource {
+  STAFF   // bought by 老闆/助教 (a User) on the backend
+  STUDENT // self-purchased by the student (future flow; purchasedByUserId is null)
+}
+
 model User {
   id          Int          @id @default(autoincrement())
   email       String       @unique
@@ -30,6 +35,8 @@ model User {
   lineUserId  String?      @unique // bound LINE userId; used for LIFF auto-login
   classrooms  Classroom[]  @relation("OwnedClassrooms")
   memberships Membership[]
+  purchasedStudentCards StudentCard[] @relation("PurchasedStudentCards")
+  confirmedStudentCards StudentCard[] @relation("ConfirmedStudentCards")
   currentClassroomId Int?
   currentClassroom Classroom? @relation(fields: [currentClassroomId], references: [id])
   createdAt   DateTime     @default(now())
@@ -132,6 +139,13 @@ model StudentCard {
   finalPrice        Int
   totalSessions     Int
   remainingSessions Int
+  purchaseSource    CardPurchaseSource @default(STAFF)
+  purchasedByUserId Int?
+  purchasedBy       User?    @relation("PurchasedStudentCards", fields: [purchasedByUserId], references: [id])
+  isPaid            Boolean  @default(true) // existing rows treated as paid
+  paidAt            DateTime?
+  paidByUserId      Int?
+  paidBy            User?    @relation("ConfirmedStudentCards", fields: [paidByUserId], references: [id])
   attendanceRecords AttendanceRecord[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

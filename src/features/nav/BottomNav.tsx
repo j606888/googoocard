@@ -6,7 +6,10 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { MoreHorizontal } from "lucide-react";
 import { PRIMARY_LINKS, SECONDARY_LINKS } from "./navConfig";
-import { useGetStudentsQuery } from "@/store/slices/students";
+import {
+  useGetStudentsQuery,
+  useGetUnpaidStudentCardsQuery,
+} from "@/store/slices/students";
 import MoreSheet from "./MoreSheet";
 
 const BottomNav = () => {
@@ -15,6 +18,8 @@ const BottomNav = () => {
 
   const { data: renewalStudents } = useGetStudentsQuery({ needsRenewal: true });
   const renewalCount = renewalStudents?.length ?? 0;
+  const { data: unpaidCards } = useGetUnpaidStudentCardsQuery();
+  const unpaidCount = unpaidCards?.length ?? 0;
 
   // "More" counts as active when on a secondary page.
   const moreActive = SECONDARY_LINKS.some((l) => pathname.startsWith(l.href));
@@ -28,7 +33,9 @@ const BottomNav = () => {
         <div className="pointer-events-auto mx-3 mb-3 flex items-center justify-around gap-1 rounded-[26px] border border-black/5 bg-white/80 px-2 py-2 shadow-[0_10px_30px_-8px_rgba(27,94,74,0.35)] backdrop-blur-xl">
           {PRIMARY_LINKS.map((link) => {
             const active = pathname.startsWith(link.href);
-            const showBadge = link.name === "Students" && renewalCount > 0;
+            let badge: number | undefined;
+            if (link.name === "Students" && renewalCount > 0) badge = renewalCount;
+            if (link.name === "Income" && unpaidCount > 0) badge = unpaidCount;
             return (
               <NavTab
                 key={link.name}
@@ -36,7 +43,7 @@ const BottomNav = () => {
                 label={link.name}
                 Icon={link.icon}
                 active={active}
-                badge={showBadge ? renewalCount : undefined}
+                badge={badge}
               />
             );
           })}
