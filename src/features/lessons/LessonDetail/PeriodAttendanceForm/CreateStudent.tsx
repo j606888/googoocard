@@ -1,19 +1,14 @@
-import { Check, Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import Drawer from "@/components/Drawer";
-import { Student, useCreateStudentMutation } from "@/store/slices/students";
+import {
+  Student,
+  useCreateStudentMutation,
+  useGetTagsQuery,
+  useAddStudentTagMutation,
+} from "@/store/slices/students";
 import InputField from "@/components/InputField";
-
-const avatarUrls = [
-  "/images/avatar_1.png",
-  "/images/avatar_2.png",
-  "/images/avatar_3.png",
-  "/images/avatar_4.png",
-  "/images/avatar_5.png",
-  "/images/avatar_6.png",
-  "/images/avatar_7.png",
-  "/images/avatar_8.png",
-];
+import AvatarPicker, { PRESET_AVATARS } from "@/features/students/AvatarPicker";
 
 const validationErrors = {
   name: "Must provide a name",
@@ -34,13 +29,30 @@ const CreateStudent = ({
   defaultName: string;
   onCreate: (student: Student) => void;
 }) => {
-  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(avatarUrls[0]);
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(PRESET_AVATARS[0]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState("");
+  const [note, setNote] = useState("");
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [pendingTags, setPendingTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [errors, setErrors] = useState<{ name?: string }>({});
 
   const [createStudent, { isLoading: isCreatingStudent }] =
     useCreateStudentMutation();
+  const { data: allTags = [] } = useGetTagsQuery();
+  const [addStudentTag] = useAddStudentTagMutation();
+
+  const addPendingTag = (tagName: string) => {
+    const name = tagName.trim();
+    if (!name || pendingTags.includes(name)) return;
+    setPendingTags((prev) => [...prev, name]);
+    setTagInput("");
+  };
+
+  const removePendingTag = (tagName: string) => {
+    setPendingTags((prev) => prev.filter((t) => t !== tagName));
+  };
 
   const handleSubmit = async () => {
     const errors = validateForm({ name: newStudentName });
@@ -52,11 +64,19 @@ const CreateStudent = ({
       const student = await createStudent({
         name: newStudentName,
         avatarUrl: selectedAvatarUrl,
+        note,
       }).unwrap();
       if (student) {
+        for (const tagName of pendingTags) {
+          await addStudentTag({ studentId: student.id, tagName });
+        }
         onCreate(student);
       }
       setNewStudentName("");
+      setNote("");
+      setPendingTags([]);
+      setTagInput("");
+      setSelectedAvatarUrl(PRESET_AVATARS[0]);
       setIsDrawerOpen(false);
     } catch (error) {
       setErrors({ name: "Student already exists" });
@@ -67,6 +87,10 @@ const CreateStudent = ({
   useEffect(() => {
     setNewStudentName(defaultName);
   }, [defaultName]);
+
+  const selectableTags = allTags.filter(
+    (t) => t.name !== "Needs Renewal" && !pendingTags.includes(t.name)
+  );
 
   return (
     <>
@@ -83,8 +107,9 @@ const CreateStudent = ({
         onClose={() => setIsDrawerOpen(false)}
         onSubmit={handleSubmit}
         isLoading={isCreatingStudent}
+        disabled={avatarUploading}
       >
-        <form className="mb-6">
+        <form className="mb-6 flex flex-col gap-4">
           <InputField
             label="Student Name"
             value={newStudentName}
@@ -95,23 +120,77 @@ const CreateStudent = ({
             }}
             error={errors.name}
           />
-          <div className="flex px-3 gap-3 items-center justify-center flex-wrap mt-4">
-            {avatarUrls.map((avatarUrl) => (
-              <div
-                key={avatarUrl}
-                className={`relative w-16 h-16 rounded-full cursor-pointer ${
-                  selectedAvatarUrl === avatarUrl ? "" : "brightness-75"
-                }`}
-                onClick={() => setSelectedAvatarUrl(avatarUrl)}
-              >
-                <img src={avatarUrl} className={`w-full h-full object-cover`} />
-                {selectedAvatarUrl === avatarUrl && (
-                  <div className="absolute bg-primary-500 flex items-center justify-center w-6 h-6 right-0 top-0 rounded-full">
-                    <Check className="w-3 h-3 text-white" />
-                  </div>
-                )}
+          <InputField
+            label="Note(Student doesn't see this)"
+            value={note}
+            placeholder="E.g. 紅色頭髮那個"
+            onChange={(e) => setNote(e.target.value)}
+          />
+          <AvatarPicker
+            value={selectedAvatarUrl}
+            onChange={setSelectedAvatarUrl}
+            onUploadingChange={setAvatarUploading}
+          />
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700">Tags</label>
+            {pendingTags.length > 0 && (
+              <div className="flex flex-wrap gap-2 min-h-8">
+                {pendingTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full text-gray-600 bg-gray-100"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => removePendingTag(tag)}
+                      className="ml-0.5 hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
               </div>
-            ))}
+            )}
+            {selectableTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {selectableTags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => addPendingTag(tag.name)}
+                    className="inline-flex items-center gap-1 text-xs text-gray-500 border border-dashed border-gray-300 px-2 py-0.5 rounded-full hover:border-primary-400 hover:text-primary-600 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addPendingTag(tagInput);
+                  }
+                }}
+                placeholder="New tag name..."
+                className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
+              />
+              <button
+                type="button"
+                onClick={() => addPendingTag(tagInput)}
+                disabled={!tagInput.trim()}
+                className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white disabled:opacity-40 hover:bg-primary-600 transition-colors"
+              >
+                Add
+              </button>
+            </div>
           </div>
         </form>
       </Drawer>
