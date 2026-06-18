@@ -2,6 +2,7 @@
 
 import { SquarePen, X, Plus } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import { StudentWithDetail } from "@/store/slices/students";
 import InputField from "@/components/InputField";
@@ -26,10 +27,24 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
 
   const handleSubmit = async () => {
     if (!name) {
-      setErrors({ name: "Name is required" });
+      setErrors({ name: "請輸入姓名" });
+      return;
     }
-    await updateStudent({ id: student.id, name, note, avatarUrl: selectedAvatarUrl, danceQualifications });
-    setIsOpen(false);
+    try {
+      await updateStudent({ id: student.id, name, note, avatarUrl: selectedAvatarUrl, danceQualifications }).unwrap();
+      setIsOpen(false);
+    } catch (err) {
+      const message = (err as { data?: { error?: string } })?.data?.error ?? "更新失敗，請稍後再試";
+      setErrors({ name: message });
+      toast.error(message);
+    }
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+    if (errors.name) {
+      setErrors((prev) => ({ ...prev, name: undefined }));
+    }
   };
 
   const toggleQualification = (type: DanceType) => {
@@ -67,7 +82,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
           <InputField
             label="Name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={handleNameChange}
             error={errors.name}
           />
           <InputField

@@ -30,32 +30,37 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   });
 
   if (existingStudent) {
-    return NextResponse.json({ error: "Student name already exists" }, { status: 400 });
+    return NextResponse.json({ error: "學生姓名已存在，請換一個名字" }, { status: 400 });
   }
 
-  const student = await prisma.$transaction(async (tx) => {
-    const student = await tx.student.update({
-      where: { id: parseInt(id) },
-      data: { name, note, avatarUrl },
+  try {
+    const student = await prisma.$transaction(async (tx) => {
+      const student = await tx.student.update({
+        where: { id: parseInt(id) },
+        data: { name, note, avatarUrl },
+      });
+
+      if (danceQualifications !== undefined) {
+        await tx.studentDanceQualification.deleteMany({
+          where: { studentId: student.id, danceType: { notIn: danceQualifications } },
+        });
+        await tx.studentDanceQualification.createMany({
+          data: (danceQualifications as DanceType[]).map((danceType) => ({
+            studentId: student.id,
+            danceType,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      return student;
     });
 
-    if (danceQualifications !== undefined) {
-      await tx.studentDanceQualification.deleteMany({
-        where: { studentId: student.id, danceType: { notIn: danceQualifications } },
-      });
-      await tx.studentDanceQualification.createMany({
-        data: (danceQualifications as DanceType[]).map((danceType) => ({
-          studentId: student.id,
-          danceType,
-        })),
-        skipDuplicates: true,
-      });
-    }
-
-    return student;
-  });
-
-  return NextResponse.json(student);
+    return NextResponse.json(student);
+  } catch (error) {
+    console.error("Failed to update student", error);
+    return NextResponse.json({ error: "更新失敗，請稍後再試" }, { status: 500 });
+  }
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
