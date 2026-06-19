@@ -12,7 +12,7 @@ const CardDanceTypeSelect = ({
 }) => {
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-sm font-medium text-gray-700">Dance Type</label>
+      <label className="text-sm font-medium text-neutral-700">Dance Type</label>
       <div className="flex flex-wrap gap-2">
         {ALL_DANCE_TYPES.map((type) => {
           const style = DANCE_TYPE_META[type];
@@ -25,7 +25,7 @@ const CardDanceTypeSelect = ({
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all cursor-pointer ${
                 selected
                   ? `${style.light} ${style.border} ${style.text}`
-                  : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                  : "bg-white border-neutral-200 text-neutral-500 hover:border-neutral-300"
               }`}
             >
               <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${style.dot}`} />
@@ -34,7 +34,7 @@ const CardDanceTypeSelect = ({
           );
         })}
       </div>
-      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {error && <p className="text-danger-500 text-sm">{error}</p>}
     </div>
   );
 };

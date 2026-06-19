@@ -46,7 +46,7 @@ const LessonsList = () => {
           </div>
           <div className="flex flex-col items-center justify-center">
             <p className="text-lg font-bold">No lessons yet</p>
-            <p className="text-sm text-gray-500 text-center">
+            <p className="text-sm text-neutral-500 text-center">
               Create lesson to start teaching!
             </p>
           </div>

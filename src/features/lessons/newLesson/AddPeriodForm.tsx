@@ -156,33 +156,33 @@ const AddPeriodForm = ({
   };
 
   return (
-    <div className="border-b border-gray-200 py-1 flex flex-col gap-3">
+    <div className="border-b border-neutral-200 py-1 flex flex-col gap-3">
       <label className="font-medium -mb-3">Periods</label>
       <div className="flex gap-2 items-center justify-between">
         <div className="flex flex-col gap-0.5">
-          <label className="text-sm text-gray-700">Date</label>
+          <label className="text-sm text-neutral-700">Date</label>
           <DatePicker date={date} setDate={handleDateChange} />
-          {errors.date && <p className="text-sm text-red-500">{errors.date}</p>}
+          {errors.date && <p className="text-sm text-danger-500">{errors.date}</p>}
         </div>
         <div className="">
-          <label className="text-sm text-gray-700">From</label>
+          <label className="text-sm text-neutral-700">From</label>
           <TimePicker
             selectedTime={fromTime}
             setSelectedTime={handleFromTimeChange}
           />
           {errors.fromTime && (
-            <p className="mt-0.5 text-xs text-red-500">{errors.fromTime}</p>
+            <p className="mt-0.5 text-xs text-danger-500">{errors.fromTime}</p>
           )}
         </div>
-        <span className="text-sm text-gray-500 mt-5">-</span>
+        <span className="text-sm text-neutral-500 mt-5">-</span>
         <div className="">
-          <label className="text-sm text-gray-700">To</label>
+          <label className="text-sm text-neutral-700">To</label>
           <TimePicker
             selectedTime={toTime}
             setSelectedTime={handleToTimeChange}
           />
           {errors.toTime && (
-            <p className="mt-0.5 text-xs text-red-500">{errors.toTime}</p>
+            <p className="mt-0.5 text-xs text-danger-500">{errors.toTime}</p>
           )}
         </div>
       </div>
@@ -209,7 +209,7 @@ const AddPeriodForm = ({
           <span className="font-medium">Add Period</span>
         </button>
       </div>
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-danger-500">{error}</p>}
       <div></div>
     </div>
   );

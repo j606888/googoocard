@@ -75,7 +75,7 @@ const CardsSection = ({
             className={`px-3.5 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${
               activeFilter === filter
                 ? "bg-primary-500 border-primary-500 text-white shadow-sm"
-                : "bg-white border-gray-300 text-gray-700 hover:border-primary-300"
+                : "bg-white border-neutral-300 text-neutral-700 hover:border-primary-300"
             }`}
             onClick={() => setActiveFilter(filter)}
           >
@@ -99,8 +99,8 @@ const CardsSection = ({
         </div>
       )}
       {filteredHistoricalCards.length > 0 && (
-        <div className="flex flex-col gap-3 pt-2 border-t border-gray-200">
-          <p className="text-sm font-medium text-gray-600">已結束/已過期課卡</p>
+        <div className="flex flex-col gap-3 pt-2 border-t border-neutral-200">
+          <p className="text-sm font-medium text-neutral-600">已結束/已過期課卡</p>
           {filteredHistoricalCards.map((studentCard) => (
             <StudentCard
               key={studentCard.id}

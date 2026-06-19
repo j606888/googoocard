@@ -49,7 +49,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
 
   return (
     <>
-      <div className="flex gap-4 items-center pb-4 border-b border-gray-200">
+      <div className="flex gap-4 items-center pb-4 border-b border-neutral-200">
         <div className="w-9 h-9 font-bold flex items-center justify-center bg-primary-500 rounded-lg text-white">
           {currentClassroom?.name.slice(0, 1)}
         </div>
@@ -66,7 +66,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
         </button>
       </div>
       {switchClassroomOpen && (
-        <div className="flex flex-col gap-2 mb-2 py-3 px-2 border-b border-gray-200">
+        <div className="flex flex-col gap-2 mb-2 py-3 px-2 border-b border-neutral-200">
           <p className="text-xs text-[#999999] font-medium">
             Switch to other classroom
           </p>
@@ -103,7 +103,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
               className={`group relative flex gap-4 items-center rounded-xl p-3 transition-colors ${
                 active
                   ? "bg-primary-500 text-white font-semibold shadow-[0_6px_18px_-6px_rgba(43,142,110,0.7)]"
-                  : "text-gray-600 hover:bg-primary-50 hover:text-primary-900"
+                  : "text-neutral-600 hover:bg-primary-50 hover:text-primary-900"
               }`}
             >
               <link.icon className="w-6 h-6" />
@@ -113,7 +113,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
                   className={`ml-auto min-w-5 h-5 px-1 rounded-full text-xs font-semibold flex items-center justify-center ${
                     active
                       ? "bg-white text-primary-700"
-                      : "bg-red-500 text-white"
+                      : "bg-danger-500 text-white"
                   }`}
                 >
                   {renewalCount}
@@ -125,13 +125,13 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
       </div>
       <div className="flex flex-col items-start rounded-sm mt-auto">
         <div
-          className="flex gap-4 items-center hover:bg-gray-100 w-full rounded-sm p-3 cursor-pointer"
+          className="flex gap-4 items-center hover:bg-neutral-100 w-full rounded-sm p-3 cursor-pointer"
           onClick={handleLogout}
         >
           <LogOut className="w-6 h-6" />
           <span>Logout</span>
         </div>
-        <div className="text-gray-700 p-3">
+        <div className="text-neutral-700 p-3">
           <span>@GOOGOOCARD</span>
         </div>
       </div>

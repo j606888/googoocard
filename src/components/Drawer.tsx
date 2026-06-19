@@ -50,7 +50,7 @@ const Drawer = ({
       <div className="relative flex items-center justify-center mb-6 ">
         <h2 className="text-xl font-semibold">{title}</h2>
         <button
-          className="text-gray-500 absolute right-0 top-0 flex items-center gap-2 cursor-pointer"
+          className="text-neutral-500 absolute right-0 top-0 flex items-center gap-2 cursor-pointer"
           onClick={onClose}
         >
           <X className="w-6 h-6" />

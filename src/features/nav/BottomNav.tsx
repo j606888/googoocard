@@ -84,7 +84,7 @@ const NavTab = ({
   const inner = (
     <span
       className={`relative flex items-center gap-2 rounded-full px-3.5 py-2.5 transition-colors ${
-        active ? "text-white" : "text-gray-400"
+        active ? "text-white" : "text-neutral-400"
       }`}
     >
       {active && (
@@ -98,7 +98,7 @@ const NavTab = ({
         <span className="relative">
           <Icon className="h-6 w-6 shrink-0" />
           {badge !== undefined && (
-            <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white ring-2 ring-white">
+            <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-500 px-1 text-[10px] font-semibold text-white ring-2 ring-white">
               {badge}
             </span>
           )}

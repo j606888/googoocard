@@ -43,7 +43,7 @@ const LessonCard = ({ lesson }: { lesson: Lesson }) => {
 
   return (
     <div
-      className="group cursor-pointer flex items-stretch gap-0 rounded-2xl border border-gray-200 bg-white overflow-hidden hover:shadow-md hover:border-gray-300 transition-all duration-200"
+      className="group cursor-pointer flex items-stretch gap-0 rounded-2xl border border-neutral-200 bg-white overflow-hidden hover:shadow-md hover:border-neutral-300 transition-all duration-200"
       onClick={() => router.push(`/lessons/${lesson.id}`)}
     >
       {/* Dance-color accent stripe */}
@@ -56,14 +56,14 @@ const LessonCard = ({ lesson }: { lesson: Lesson }) => {
             {lesson.name.charAt(0)}
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="font-semibold text-gray-900 leading-tight truncate">{lesson.name}</h4>
+            <h4 className="font-semibold text-neutral-900 leading-tight truncate">{lesson.name}</h4>
             <span className={`inline-flex mt-1 text-xs font-medium px-2 py-0.5 rounded-full ${style.badge}`}>
               {style.label}
             </span>
           </div>
           <button
             onClick={handleClone}
-            className="p-1.5 text-gray-300 hover:text-primary-500 hover:bg-primary-50 rounded-lg shrink-0 transition-colors"
+            className="p-1.5 text-neutral-300 hover:text-primary-500 hover:bg-primary-50 rounded-lg shrink-0 transition-colors"
             aria-label="Clone lesson"
           >
             <Copy className="w-4 h-4" />
@@ -72,14 +72,14 @@ const LessonCard = ({ lesson }: { lesson: Lesson }) => {
 
         {/* Teacher row */}
         {lesson.teachers.length > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+          <div className="flex items-center gap-1.5 text-xs text-neutral-500">
             <GraduationCap className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{lesson.teachers.map((t) => t.name).join(", ")}</span>
           </div>
         )}
 
         {/* Stats row */}
-        <div className="flex items-center gap-3 text-xs text-gray-500">
+        <div className="flex items-center gap-3 text-xs text-neutral-500">
           <div className="flex items-center gap-1">
             <Users className="w-3.5 h-3.5" />
             <span>{lesson.students.length}</span>
@@ -95,7 +95,7 @@ const LessonCard = ({ lesson }: { lesson: Lesson }) => {
             </div>
           )}
           {isFinished && lastPeriod && (
-            <div className="flex items-center gap-1 ml-auto text-gray-400">
+            <div className="flex items-center gap-1 ml-auto text-neutral-400">
               <CalendarDays className="w-3 h-3" />
               <span>Ended {format(new Date(lastPeriod.endTime), "M/d")}</span>
             </div>

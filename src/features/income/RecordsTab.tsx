@@ -52,7 +52,7 @@ export default function RecordsTab() {
   };
 
   if (isLoading) {
-    return <p className="text-sm text-gray-500 py-4">載入課卡紀錄中...</p>;
+    return <p className="text-sm text-neutral-500 py-4">載入課卡紀錄中...</p>;
   }
 
   if (records.length === 0) {
@@ -63,7 +63,7 @@ export default function RecordsTab() {
         </div>
         <div className="flex flex-col items-center justify-center">
           <p className="text-lg font-bold">尚無課卡紀錄</p>
-          <p className="text-sm text-gray-500 text-center">購買的課卡將顯示於此。</p>
+          <p className="text-sm text-neutral-500 text-center">購買的課卡將顯示於此。</p>
         </div>
       </div>
     );
@@ -71,21 +71,21 @@ export default function RecordsTab() {
 
   return (
     <>
-      <div className="border border-gray-200 rounded-sm bg-white overflow-hidden">
-        <div className="divide-y divide-gray-200">
+      <div className="border border-neutral-200 rounded-sm bg-white overflow-hidden">
+        <div className="divide-y divide-neutral-200">
           {records.map((record) => (
             <div
               key={record.id}
               className="flex items-center gap-3 px-3 py-2.5"
             >
-              <div className="w-24 shrink-0 text-xs text-gray-500">
+              <div className="w-24 shrink-0 text-xs text-neutral-500">
                 {formatDate(record.createdAt)}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-gray-900 truncate">
+                <p className="text-sm font-semibold text-neutral-900 truncate">
                   {record.student.name}
                 </p>
-                <p className="text-xs text-gray-500 truncate">
+                <p className="text-xs text-neutral-500 truncate">
                   {record.card.name}
                 </p>
               </div>

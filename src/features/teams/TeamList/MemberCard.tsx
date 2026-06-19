@@ -11,7 +11,7 @@ const MemberCard = ({ membership, isMe }: { membership: Membership, isMe: boolea
             <span className='text-xs text-primary-900 font-medium px-2 rounded-full bg-primary-100'>You</span>
           )}
         </div>
-        <p className='text-sm text-gray-500'>{membership.user.email}</p>
+        <p className='text-sm text-neutral-500'>{membership.user.email}</p>
       </div>
       {membership.role === 'owner' && (
         <div className="flex items-center gap-1 px-2 py-1 bg-warning-100 rounded-full">

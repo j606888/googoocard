@@ -46,7 +46,7 @@ const TeacherList = () => {
             </div>
             <div className="flex flex-col items-center justify-center">
               <p className="text-lg font-bold">No teachers found</p>
-              <p className="text-sm text-gray-500 text-center">
+              <p className="text-sm text-neutral-500 text-center">
                 We can&apos;t have a lesson without teacher, right?
               </p>
             </div>
@@ -67,7 +67,7 @@ const TeacherList = () => {
         <form>
           <label className="block mb-2 font-medium">Name</label>
           <input
-            className="w-full mb-4 p-2 rounded bg-gray-100"
+            className="w-full mb-4 p-2 rounded bg-neutral-100"
             placeholder="Enter name"
             value={newTeacherName}
             onChange={(e) => setNewTeacherName(e.target.value)}

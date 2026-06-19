@@ -63,11 +63,11 @@ const LessonDetail = () => {
             />
             <div className="flex flex-1 overflow-hidden">
               {/* Left: Periods */}
-              <div className="w-96 flex-shrink-0 border-r border-gray-200 overflow-y-auto py-4">
+              <div className="w-96 flex-shrink-0 border-r border-neutral-200 overflow-y-auto py-4">
                 <PeriodSection lesson={lesson} periods={lesson?.periods || []} />
               </div>
               {/* Center: Attendance matrix */}
-              <div className="flex-1 overflow-auto p-6 bg-gray-50/30">
+              <div className="flex-1 overflow-auto p-6 bg-neutral-50/30">
                 <AttendanceMatrix
                   periods={lesson?.periods || []}
                   students={students || []}
@@ -75,7 +75,7 @@ const LessonDetail = () => {
               </div>
               {/* Right: Settings (toggleable) */}
               {showSettings && (
-                <div className="w-72 flex-shrink-0 border-l border-gray-200 overflow-y-auto py-4">
+                <div className="w-72 flex-shrink-0 border-l border-neutral-200 overflow-y-auto py-4">
                   <SettingSection lesson={lesson} />
                 </div>
               )}

@@ -122,9 +122,9 @@ const BuyCard = ({ student }: { student: Student }) => {
               return (
                 <div
                   key={card.id}
-                  className={`flex flex-col gap-1 px-4 py-3 border-1 border-gray-200 rounded-sm ${
+                  className={`flex flex-col gap-1 px-4 py-3 border-1 border-neutral-200 rounded-sm ${
                     blockedReason
-                      ? "opacity-50 cursor-not-allowed bg-gray-50"
+                      ? "opacity-50 cursor-not-allowed bg-neutral-50"
                       : "cursor-pointer"
                   } ${
                     selectedCardId === card.id
@@ -145,13 +145,13 @@ const BuyCard = ({ student }: { student: Student }) => {
                     )}
                   </div>
                   {blockedReason && (
-                    <p className="text-xs text-red-500">{blockedReason}</p>
+                    <p className="text-xs text-danger-500">{blockedReason}</p>
                   )}
                 </div>
               );
             })}
             {errors.selectedCardId && (
-              <p className="text-red-500 text-sm">{errors.selectedCardId}</p>
+              <p className="text-danger-500 text-sm">{errors.selectedCardId}</p>
             )}
           </div>
         </div>
@@ -176,8 +176,8 @@ const BuyCard = ({ student }: { student: Student }) => {
             </div>
             <div className="mb-4 flex items-center justify-between">
               <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-700">已付款</span>
-                <span className="text-xs text-gray-400">
+                <span className="text-sm font-medium text-neutral-700">已付款</span>
+                <span className="text-xs text-neutral-400">
                   {isPaid ? "已收到款項" : "尚未付款，卡片仍可使用"}
                 </span>
               </div>

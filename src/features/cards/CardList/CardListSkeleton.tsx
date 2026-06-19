@@ -19,7 +19,7 @@ const CardListSkeleton = () => {
 
 const CardSkeleton = () => {
   return (
-    <div className="border border-gray-200 border-l-4 border-l-gray-200 rounded-lg p-4 shadow-sm">
+    <div className="border border-neutral-200 border-l-4 border-l-neutral-200 rounded-lg p-4 shadow-sm">
       <div className="flex items-start justify-between mb-3">
         <div className="flex flex-col gap-1.5">
           <Skeleton className="h-5 w-32" />
@@ -41,7 +41,7 @@ const CardSkeleton = () => {
           <Skeleton className="h-3 w-18" />
         </div>
       </div>
-      <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
+      <div className="border-t border-neutral-100 pt-3 flex items-center justify-between">
         <Skeleton className="h-3.5 w-16" />
         <Skeleton className="h-3.5 w-20" />
         <Skeleton className="h-3.5 w-24" />

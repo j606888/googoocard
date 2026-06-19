@@ -50,13 +50,13 @@ export default function OnboardingPage() {
           </h2>
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3">
-              <Store className="w-6 h-6 text-gray-500" />
+              <Store className="w-6 h-6 text-neutral-500" />
               <div className="relative w-full">
                 <input
                   type="text"
                   placeholder="Your classroom name"
                   className={`w-full border-b-2 ${
-                    error ? "border-red-500" : "border-gray-300"
+                    error ? "border-danger-500" : "border-neutral-300"
                   } px-1.5 py-3 text-base focus:outline-none`}
                   value={classroomName}
                   onChange={(e) => setClassroomName(e.target.value)}
@@ -67,7 +67,7 @@ export default function OnboardingPage() {
                   }}
                 />
                 {error && (
-                  <p className="text-red-500 text-sm mt-1 absolute -bottom-5 left-0">
+                  <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
                     {error}
                   </p>
                 )}

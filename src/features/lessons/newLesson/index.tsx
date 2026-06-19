@@ -122,17 +122,17 @@ const NewLesson = () => {
 
       {/* Desktop: inline page header */}
       <div className="hidden lg:flex items-center gap-3 px-8 pt-6 pb-2">
-        <Link href="/lessons" className="text-gray-400 hover:text-gray-600 transition-colors">
+        <Link href="/lessons" className="text-neutral-400 hover:text-neutral-600 transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-xl font-bold text-gray-900">New Lesson</h1>
+        <h1 className="text-xl font-bold text-neutral-900">New Lesson</h1>
       </div>
 
       {/* Form — single column mobile, two-column desktop */}
       <div className="px-5 py-5 flex flex-col gap-5 lg:px-8 lg:pb-8 lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8 lg:items-start">
         {/* Left column: basic info */}
-        <div className="flex flex-col gap-4 lg:bg-white lg:border lg:border-gray-100 lg:rounded-xl lg:p-6 lg:shadow-sm">
-          <div className="hidden lg:block text-base font-semibold text-gray-800 -mb-1">
+        <div className="flex flex-col gap-4 lg:bg-white lg:border lg:border-neutral-100 lg:rounded-xl lg:p-6 lg:shadow-sm">
+          <div className="hidden lg:block text-base font-semibold text-neutral-800 -mb-1">
             Lesson Info
           </div>
           <InputField
@@ -164,10 +164,10 @@ const NewLesson = () => {
         </div>
 
         {/* Right column: schedule */}
-        <div className="flex flex-col gap-4 lg:bg-white lg:border lg:border-gray-100 lg:rounded-xl lg:p-6 lg:shadow-sm">
+        <div className="flex flex-col gap-4 lg:bg-white lg:border lg:border-neutral-100 lg:rounded-xl lg:p-6 lg:shadow-sm">
           <div className="hidden lg:flex items-center justify-between -mb-1">
-            <span className="text-base font-semibold text-gray-800">Schedule</span>
-            <span className="text-sm text-gray-400">
+            <span className="text-base font-semibold text-neutral-800">Schedule</span>
+            <span className="text-sm text-neutral-400">
               {periods.length} period{periods.length !== 1 ? "s" : ""} added
             </span>
           </div>

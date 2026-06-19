@@ -62,51 +62,51 @@ function SignupForm() {
           </h2>
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3">
-              <User className="w-6 h-6 text-gray-500" />
+              <User className="w-6 h-6 text-neutral-500" />
               <div className="relative w-full">
                 <input
                   type="text"
                   placeholder="Name"
                   className={`w-full border-b-2 ${
-                    errors.name ? "border-red-500" : "border-gray-300"
+                    errors.name ? "border-danger-500" : "border-neutral-300"
                   } px-1.5 py-3 text-base focus:outline-none`}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
                 {errors.name && (
-                  <p className="text-red-500 text-sm mt-1 absolute -bottom-5 left-0">
+                  <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
                     {errors.name}
                   </p>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Mail className="w-6 h-6 text-gray-500" />
+              <Mail className="w-6 h-6 text-neutral-500" />
               <div className="relative w-full">
                 <input
                   type="email"
                   placeholder="Email"
                   className={`w-full border-b-2 ${
-                    errors.email ? "border-red-500" : "border-gray-300"
+                    errors.email ? "border-danger-500" : "border-neutral-300"
                   } px-1.5 py-3 text-base focus:outline-none`}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
                 {errors.email && (
-                  <p className="text-red-500 text-sm mt-1 absolute -bottom-5 left-0">
+                  <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
                     {errors.email}
                   </p>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-3 relative">
-              <Lock className="w-6 h-6 text-gray-500" />
+              <Lock className="w-6 h-6 text-neutral-500" />
               <div className="relative w-full">
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
                   className={`w-full border-b-2 ${
-                    errors.password ? "border-red-500" : "border-gray-300"
+                    errors.password ? "border-danger-500" : "border-neutral-300"
                   } px-1.5 py-3 text-base focus:outline-none`}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -117,16 +117,16 @@ function SignupForm() {
                   }}
                 />
                 {errors.password && (
-                  <p className="text-red-500 text-sm mt-1 absolute -bottom-5 left-0">
+                  <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
                     {errors.password}
                   </p>
                 )}
               </div>
               <button className="absolute right-0 top-0 bottom-0 p-3 cursor-pointer">
                 {showPassword ? (
-                  <EyeOff className="w-6 h-6 text-gray-500" onClick={() => setShowPassword(false)} />
+                  <EyeOff className="w-6 h-6 text-neutral-500" onClick={() => setShowPassword(false)} />
                 ) : (
-                  <Eye className="w-6 h-6 text-gray-500" onClick={() => setShowPassword(true)} />
+                  <Eye className="w-6 h-6 text-neutral-500" onClick={() => setShowPassword(true)} />
                 )}
               </button>
             </div>
@@ -142,7 +142,7 @@ function SignupForm() {
           >
             Sign Up
           </button>
-          <p className="text-sm text-gray-500 text-center mt-3">
+          <p className="text-sm text-neutral-500 text-center mt-3">
             Already have an account?{" "}
             <Link href="/login" className="text-primary-500 underline">
               Login

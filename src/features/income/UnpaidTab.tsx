@@ -23,7 +23,7 @@ export default function UnpaidTab() {
   };
 
   if (isLoading) {
-    return <p className="text-sm text-gray-500 py-4">載入未付款清單中...</p>;
+    return <p className="text-sm text-neutral-500 py-4">載入未付款清單中...</p>;
   }
 
   if (!cards || cards.length === 0) {
@@ -34,30 +34,30 @@ export default function UnpaidTab() {
         </div>
         <div className="flex flex-col items-center justify-center">
           <p className="text-lg font-bold">沒有未付款的課卡</p>
-          <p className="text-sm text-gray-500 text-center">所有課卡都已收款。</p>
+          <p className="text-sm text-neutral-500 text-center">所有課卡都已收款。</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="border border-gray-200 rounded-sm bg-white overflow-hidden">
-      <div className="divide-y divide-gray-200">
+    <div className="border border-neutral-200 rounded-sm bg-white overflow-hidden">
+      <div className="divide-y divide-neutral-200">
         {cards.map((card) => (
           <div key={card.id} className="flex items-center gap-3 px-3 py-2.5">
-            <div className="w-20 shrink-0 text-xs text-gray-500">
+            <div className="w-20 shrink-0 text-xs text-neutral-500">
               {formatDate(card.createdAt)}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-gray-900 truncate">
+              <p className="text-sm font-semibold text-neutral-900 truncate">
                 {card.student.name}
               </p>
-              <p className="text-xs text-gray-500 truncate">
+              <p className="text-xs text-neutral-500 truncate">
                 {card.card.name}
                 {card.purchasedBy?.name ? ` · ${card.purchasedBy.name}` : ""}
               </p>
             </div>
-            <div className="shrink-0 text-right text-base font-bold text-red-600">
+            <div className="shrink-0 text-right text-base font-bold text-danger-600">
               ${card.finalPrice}
             </div>
             <button

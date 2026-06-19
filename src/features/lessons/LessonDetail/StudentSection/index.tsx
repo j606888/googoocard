@@ -16,7 +16,7 @@ const StudentSection = ({ students }: { students: LessonStudent[] }) => {
         {students.map((student) => (
           <div
             key={student.id}
-            className="flex flex-col items-start gap-2 py-3 border-b border-gray-200 last:border-b-0"
+            className="flex flex-col items-start gap-2 py-3 border-b border-neutral-200 last:border-b-0"
           >
             <div className="flex items-center gap-2">
               <Image
@@ -44,8 +44,8 @@ const StudentSection = ({ students }: { students: LessonStudent[] }) => {
 
 const BADGE_STYLES = {
   attended: "bg-primary-500 text-white",
-  absent: "bg-red-400 text-white",
-  not_started: "border border-gray-200 text-gray-500",
+  absent: "bg-danger-400 text-white",
+  not_started: "border border-neutral-200 text-neutral-500",
 };
 const Round = ({
   attendance,

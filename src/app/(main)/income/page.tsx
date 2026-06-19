@@ -39,13 +39,13 @@ const IncomePage = () => {
                 className={`relative px-3 py-1.5 rounded-sm text-sm cursor-pointer ${
                   activeTab === tab.id
                     ? "bg-primary-500 text-white"
-                    : "bg-gray-100 text-gray-700"
+                    : "bg-neutral-100 text-neutral-700"
                 }`}
                 onClick={() => setActiveTab(tab.id)}
               >
                 {tab.label}
                 {tab.id === "unpaid" && unpaidCount > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold align-middle">
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-danger-500 text-white text-[10px] font-semibold align-middle">
                     {unpaidCount}
                   </span>
                 )}
@@ -67,7 +67,7 @@ const IncomePage = () => {
             <h3 className="text-lg font-semibold mb-3">
               未付款
               {unpaidCount > 0 && (
-                <span className="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-semibold align-middle">
+                <span className="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-danger-500 text-white text-xs font-semibold align-middle">
                   {unpaidCount}
                 </span>
               )}

@@ -28,7 +28,7 @@ const ProgressBall = ({ currentStep = 1 }: { currentStep?: 1 | 2 | 3 | 4 | 5 }) 
 
 const Ball = ({ status }: BallProps) => {
   const bgColor = {
-    pending: 'bg-gray-300',
+    pending: 'bg-neutral-300',
     inProgress: 'bg-primary-500',
     done: 'bg-primary-300',
   }[status];
@@ -38,7 +38,7 @@ const Ball = ({ status }: BallProps) => {
 
 const Line = ({ status }: { status: Status }) => {
   const bgColor = {
-    pending: 'bg-gray-300',
+    pending: 'bg-neutral-300',
     inProgress: 'bg-primary-500',
     done: 'bg-primary-300',
   }[status];

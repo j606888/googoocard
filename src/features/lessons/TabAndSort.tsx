@@ -53,19 +53,19 @@ const TabAndSort = ({
 
   return (
     <div className="flex items-center justify-between gap-2 mb-4">
-      <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
+      <div className="flex items-center gap-1 bg-neutral-100 rounded-full p-1">
         {TABS.map((tab) => (
           <button
             key={tab.value}
             className={`flex items-center justify-center px-3.5 py-1.5 gap-1 text-sm rounded-full cursor-pointer transition-colors ${
               activeTab === tab.value
                 ? "bg-white text-primary-700 font-semibold shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                : "text-neutral-500 hover:text-neutral-700"
             }`}
             onClick={() => setActiveTab(tab.value)}
           >
             <span>{tab.label}</span>
-            <span className={activeTab === tab.value ? "text-primary-400" : "text-gray-400"}>
+            <span className={activeTab === tab.value ? "text-primary-400" : "text-neutral-400"}>
               {tabsCount?.[tab.value as keyof typeof tabsCount] ?? 0}
             </span>
           </button>
@@ -74,7 +74,7 @@ const TabAndSort = ({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger>
           <div
-            className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 cursor-pointer px-2 py-1.5"
+            className="flex items-center gap-1.5 text-neutral-600 hover:text-neutral-900 cursor-pointer px-2 py-1.5"
             onClick={() => setOpen(!open)}
           >
             <ArrowDownUp className="w-4 h-4" />
@@ -83,7 +83,7 @@ const TabAndSort = ({
         </PopoverTrigger>
         <PopoverContent className="w-40">
           <div className="flex flex-col gap-3">
-            <div className="text-xs text-gray-500 font-medium">Sort by</div>
+            <div className="text-xs text-neutral-500 font-medium">Sort by</div>
             <div className="flex flex-col gap-1">
               {SORT_OPTIONS.map((option) => (
                 <div
@@ -95,7 +95,7 @@ const TabAndSort = ({
                     className={`${
                       sort === option.value
                         ? "text-primary-500"
-                        : "text-gray-500"
+                        : "text-neutral-500"
                     }`}
                   >
                     {option.label}

@@ -51,10 +51,10 @@ const CardList = () => {
             bg="bg-warning-100"
           />
           <StatCard
-            icon={<Ban className="w-5 h-5 text-gray-400" />}
+            icon={<Ban className="w-5 h-5 text-neutral-400" />}
             label="Disabled Cards"
             value={expiredCards.length}
-            bg="bg-gray-50"
+            bg="bg-neutral-50"
           />
         </div>
       )}
@@ -66,7 +66,7 @@ const CardList = () => {
           </div>
           <div className="flex flex-col items-center justify-center">
             <p className="text-lg font-bold">No cards yet</p>
-            <p className="text-sm text-gray-500 text-center">
+            <p className="text-sm text-neutral-500 text-center">
               Create your first card to get started.
             </p>
           </div>
@@ -75,7 +75,7 @@ const CardList = () => {
 
       {activeCards?.length > 0 && (
         <>
-          <div className="text-gray-600 text-sm mb-3">
+          <div className="text-neutral-600 text-sm mb-3">
             Enabled Cards ({activeCards?.length})
           </div>
           <div className="flex flex-col gap-4 mb-6 lg:grid lg:grid-cols-2 lg:gap-4 xl:grid-cols-3">
@@ -88,16 +88,16 @@ const CardList = () => {
 
       {expiredCards?.length > 0 && (
         <>
-          <hr className="border-gray-100 my-6" />
+          <hr className="border-neutral-100 my-6" />
           <button
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors mb-3 cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-neutral-50 hover:bg-neutral-100 transition-colors mb-3 cursor-pointer"
             onClick={() => setShowExpiredCards(!showExpiredCards)}
           >
-            <span className="text-sm font-medium text-gray-600">
+            <span className="text-sm font-medium text-neutral-600">
               Disabled Cards ({expiredCards?.length})
             </span>
             <ChevronDown
-              className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+              className={`w-4 h-4 text-neutral-400 transition-transform duration-200 ${
                 showExpiredCards ? "rotate-180" : ""
               }`}
             />
@@ -130,11 +130,11 @@ const StatCard = ({
   display?: string;
   bg: string;
 }) => (
-  <div className={`${bg} border border-gray-100 rounded-xl p-4 flex items-center gap-3 shadow-sm`}>
+  <div className={`${bg} border border-neutral-100 rounded-xl p-4 flex items-center gap-3 shadow-sm`}>
     <div className="shrink-0">{icon}</div>
     <div>
-      <p className="text-2xl font-bold text-gray-900">{display ?? value}</p>
-      <p className="text-xs text-gray-500">{label}</p>
+      <p className="text-2xl font-bold text-neutral-900">{display ?? value}</p>
+      <p className="text-xs text-neutral-500">{label}</p>
     </div>
   </div>
 );

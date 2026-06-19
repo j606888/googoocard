@@ -36,7 +36,7 @@ const Chip = ({
     className={`px-3.5 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${
       active
         ? "bg-primary-500 border-primary-500 text-white shadow-sm"
-        : "bg-white border-gray-300 text-gray-700 hover:border-primary-300"
+        : "bg-white border-neutral-300 text-neutral-700 hover:border-primary-300"
     }`}
   >
     {label}
@@ -45,7 +45,7 @@ const Chip = ({
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="mb-5">
-    <h3 className="text-sm font-semibold text-gray-500 mb-2">{title}</h3>
+    <h3 className="text-sm font-semibold text-neutral-500 mb-2">{title}</h3>
     <div className="flex flex-wrap gap-2">{children}</div>
   </div>
 );
@@ -75,7 +75,7 @@ const FilterDrawer = ({
         <button
           type="button"
           onClick={() => onChange(EMPTY_FILTERS)}
-          className="text-sm text-gray-500 hover:text-primary-600 cursor-pointer"
+          className="text-sm text-neutral-500 hover:text-primary-600 cursor-pointer"
         >
           清除
         </button>
@@ -133,7 +133,7 @@ const FilterDrawer = ({
       )}
 
       {!hasAny && (
-        <p className="text-sm text-gray-400 text-center py-4">尚無可用的篩選條件</p>
+        <p className="text-sm text-neutral-400 text-center py-4">尚無可用的篩選條件</p>
       )}
     </Drawer>
   );

@@ -66,7 +66,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
   return (
     <>
       <SquarePen
-        className="w-5 h-5 text-gray-500 cursor-pointer"
+        className="w-5 h-5 text-neutral-500 cursor-pointer"
         onClick={() => setIsOpen(true)}
       />
       <Drawer
@@ -96,7 +96,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
             onUploadingChange={setAvatarUploading}
           />
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-neutral-700">
               Completed LV1 (可購買複習卡)
             </label>
             <div className="flex flex-wrap gap-2">
@@ -111,7 +111,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all cursor-pointer ${
                       selected
                         ? `${style.light} ${style.border} ${style.text}`
-                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                        : "bg-white border-neutral-200 text-neutral-500 hover:border-neutral-300"
                     }`}
                   >
                     <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${style.dot}`} />
@@ -123,22 +123,22 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-700">Tags</label>
+            <label className="text-sm font-medium text-neutral-700">Tags</label>
             <div className="flex flex-wrap gap-2 min-h-8">
               {student.tags?.map((tag) => (
                 <span
                   key={tag.id}
                   className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
                     tag.name === "Needs Renewal"
-                      ? "text-red-700 bg-red-100"
-                      : "text-gray-600 bg-gray-100"
+                      ? "text-danger-700 bg-danger-100"
+                      : "text-neutral-600 bg-neutral-100"
                   }`}
                 >
                   {tag.name}
                   <button
                     type="button"
                     onClick={() => handleRemoveTag(tag.id)}
-                    className="ml-0.5 hover:text-red-500 transition-colors"
+                    className="ml-0.5 hover:text-danger-500 transition-colors"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -154,7 +154,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
                       key={tag.id}
                       type="button"
                       onClick={() => handleAddTag(tag.name)}
-                      className="inline-flex items-center gap-1 text-xs text-gray-500 border border-dashed border-gray-300 px-2 py-0.5 rounded-full hover:border-primary-400 hover:text-primary-600 transition-colors"
+                      className="inline-flex items-center gap-1 text-xs text-neutral-500 border border-dashed border-neutral-300 px-2 py-0.5 rounded-full hover:border-primary-400 hover:text-primary-600 transition-colors"
                     >
                       <Plus className="w-3 h-3" />
                       {tag.name}
@@ -169,7 +169,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag(tagInput); } }}
                 placeholder="New tag name..."
-                className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
+                className="flex-1 text-sm border border-neutral-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
               />
               <button
                 type="button"

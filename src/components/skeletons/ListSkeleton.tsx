@@ -18,7 +18,7 @@ const ListSkeleton = () => {
 
 const CardSkeleton = () => {
   return (
-    <div className="bg-white rounded-lg border-1 border-gray-100 p-4 shadow-xs">
+    <div className="bg-white rounded-lg border-1 border-neutral-100 p-4 shadow-xs">
       <div className="flex items-start justify-between mb-6">
         <Skeleton className="h-6 w-32" />
         <div className="flex items-center gap-2">

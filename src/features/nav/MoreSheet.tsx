@@ -42,7 +42,7 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 420, damping: 40 }}
           >
-            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-gray-200" />
+            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-neutral-200" />
 
             <div className="grid grid-cols-3 gap-3">
               {SECONDARY_LINKS.map((link) => {
@@ -55,7 +55,7 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
                     className={`flex flex-col items-center gap-2 rounded-2xl border px-2 py-4 transition-colors ${
                       active
                         ? "border-primary-500 bg-primary-50 text-primary-900"
-                        : "border-gray-100 bg-gray-50 text-gray-600 active:bg-gray-100"
+                        : "border-neutral-100 bg-neutral-50 text-neutral-600 active:bg-neutral-100"
                     }`}
                   >
                     <link.icon className="h-6 w-6" />
@@ -67,13 +67,13 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
 
             <button
               onClick={handleLogout}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-100 bg-gray-50 py-3.5 text-gray-600 active:bg-gray-100"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 py-3.5 text-neutral-600 active:bg-neutral-100"
             >
               <LogOut className="h-5 w-5" />
               <span className="text-sm font-medium">Logout</span>
             </button>
 
-            <p className="mt-5 text-center text-xs font-medium tracking-wide text-gray-300">
+            <p className="mt-5 text-center text-xs font-medium tracking-wide text-neutral-300">
               @GOOGOOCARD
             </p>
           </motion.div>

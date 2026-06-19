@@ -20,7 +20,7 @@ const UnpaidBell = () => {
       <PopoverTrigger className="ml-auto">
         <div className="mr-1 flex items-center gap-2 ml-auto relative">
           <Bell className="w-6 h-6 text-white" />
-          <span className="absolute -right-1 -top-1 bg-red-500 text-white text-xs font-medium rounded-full w-4 h-4 flex items-center justify-center">
+          <span className="absolute -right-1 -top-1 bg-danger-500 text-white text-xs font-medium rounded-full w-4 h-4 flex items-center justify-center">
             {unbindRecords?.length}
           </span>
         </div>
@@ -31,7 +31,7 @@ const UnpaidBell = () => {
             <Link
               href={`/lessons/${record.lessonId}/periods/${record.lessonPeriodId}/check-success`}
               key={record.id}
-             className="flex gap-3 items-center border-b border-gray-200 pb-2 last:border-b-0 last:pb-0"
+             className="flex gap-3 items-center border-b border-neutral-200 pb-2 last:border-b-0 last:pb-0"
             >
                 <div className="w-8 h-8 bg-[#848484] rounded-full flex items-center justify-center">
                   <FileQuestion className="w-[16px] h-[16px] text-white" />

@@ -25,7 +25,7 @@ const PeriodList = ({
             </div>
             <div className="text-center">
               <h4 className="text-lg font-semibold">No periods yet</h4>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-neutral-500">
                 Add at least one period to continue
               </p>
             </div>
