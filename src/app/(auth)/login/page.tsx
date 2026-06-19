@@ -5,6 +5,15 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useLoginMutation } from "@/store/slices/me";
+import AuthScaffold from "../AuthScaffold";
+
+const HERO_TITLE = (
+  <>
+    Still using the Lesson Card?
+    <br />
+    Throw it right away!
+  </>
+);
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -54,139 +63,117 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center left-0 right-0 top-0 bottom-0 absolute bg-primary-500 overflow-hidden">
-      <div className="relative w-full flex items-center justify-center h-[40vh]">
-        <h2 className="text-white text-center text-2xl font-semibold">
-          Still using the Lesson Card?
-          <br />
-          Throw it right away!
-        </h2>
-        <div className="w-30 h-30 rounded-full bg-primary-50 absolute -bottom-15 -left-15"></div>
-        <div className="w-30 h-30 rounded-full bg-primary-50 absolute -top-15 -right-15"></div>
-      </div>
-      <div className="h-[60vh] bg-white rounded-t-3xl w-full p-6 flex flex-col items-center z-1 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-        <div className="w-full">
-          <h2 className="text-[28px] font-semibold mb-4 text-center">Login</h2>
-          <div className="flex flex-col gap-6">
-            <div className="flex items-center gap-3">
-              <Mail className="w-6 h-6 text-neutral-500" />
-              <div className="relative w-full">
-                <input
-                  type="email"
-                  placeholder="Email"
-                  className={`w-full border-b-2 ${
-                    error && errorField === "email"
-                      ? "border-danger-500"
-                      : "border-neutral-300"
-                  } px-1.5 py-3 text-base focus:outline-none`}
-                  value={email}
-                  onChange={handleEmailChange}
-                />
-                {error && errorField === "email" && (
-                  <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
-                    {error}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="relative flex items-center gap-3">
-              <Lock className="w-6 h-6 text-neutral-500" />
-              <div className="relative w-full">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  className={`w-full border-b-2 ${
-                    error && errorField === "password"
-                      ? "border-danger-500"
-                      : "border-neutral-300"
-                  } px-1.5 py-3 text-base focus:outline-none`}
-                  value={password}
-                  onChange={handlePasswordChange}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSubmit(e);
-                    }
-                  }}
-                />
-                {error && errorField === "password" && (
-                  <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
-                    {error}
-                  </p>
-                )}
-              </div>
-              <button className="absolute right-0 top-0 bottom-0 p-3 cursor-pointer">
-                {showPassword ? (
-                  <EyeOff
-                    className="w-6 h-6 text-neutral-500"
-                    onClick={() => setShowPassword(false)}
-                  />
-                ) : (
-                  <Eye
-                    className="w-6 h-6 text-neutral-500"
-                    onClick={() => setShowPassword(true)}
-                  />
-                )}
-              </button>
+    <AuthScaffold heroTitle={HERO_TITLE}>
+      <div className="w-full">
+        <h2 className="text-[28px] font-semibold mb-4 text-center">Login</h2>
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center gap-3">
+            <Mail className="w-6 h-6 text-neutral-500" />
+            <div className="relative w-full">
+              <input
+                type="email"
+                placeholder="Email"
+                className={`w-full border-b-2 ${
+                  error && errorField === "email"
+                    ? "border-danger-500"
+                    : "border-neutral-300"
+                } px-1.5 py-3 text-base focus:outline-none focus:border-primary-500`}
+                value={email}
+                onChange={handleEmailChange}
+              />
+              {error && errorField === "email" && (
+                <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
+                  {error}
+                </p>
+              )}
             </div>
           </div>
-        </div>
-        <div className="mt-auto w-full">
-          <button
-            className={`bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg cursor-pointer hover:bg-primary-600 ${
-              loading ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            disabled={loading}
-            onClick={handleSubmit}
-          >
-            Login
-          </button>
-          <p className="text-sm text-neutral-500 text-center mt-3">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-primary-500 underline">
-              Sign up
-            </Link>
-          </p>
+          <div className="relative flex items-center gap-3">
+            <Lock className="w-6 h-6 text-neutral-500" />
+            <div className="relative w-full">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                className={`w-full border-b-2 ${
+                  error && errorField === "password"
+                    ? "border-danger-500"
+                    : "border-neutral-300"
+                } px-1.5 py-3 text-base focus:outline-none focus:border-primary-500`}
+                value={password}
+                onChange={handlePasswordChange}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSubmit(e);
+                  }
+                }}
+              />
+              {error && errorField === "password" && (
+                <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
+                  {error}
+                </p>
+              )}
+            </div>
+            <button className="absolute right-0 top-0 bottom-0 p-3 cursor-pointer">
+              {showPassword ? (
+                <EyeOff
+                  className="w-6 h-6 text-neutral-500"
+                  onClick={() => setShowPassword(false)}
+                />
+              ) : (
+                <Eye
+                  className="w-6 h-6 text-neutral-500"
+                  onClick={() => setShowPassword(true)}
+                />
+              )}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+      <div className="mt-auto lg:mt-10 w-full">
+        <button
+          className={`bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg cursor-pointer hover:bg-primary-600 ${
+            loading ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          disabled={loading}
+          onClick={handleSubmit}
+        >
+          Login
+        </button>
+        <p className="text-sm text-neutral-500 text-center mt-3">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="text-primary-500 underline">
+            Sign up
+          </Link>
+        </p>
+      </div>
+    </AuthScaffold>
   );
 }
 
 function LoginPageFallback() {
   return (
-    <div className="flex flex-col items-center justify-center left-0 right-0 top-0 bottom-0 absolute bg-primary-500 overflow-hidden">
-      <div className="relative w-full flex items-center justify-center h-[40vh]">
-        <h2 className="text-white text-center text-2xl font-semibold">
-          Still using the Lesson Card?
-          <br />
-          Throw it right away!
-        </h2>
-        <div className="w-30 h-30 rounded-full bg-primary-50 absolute -bottom-15 -left-15"></div>
-        <div className="w-30 h-30 rounded-full bg-primary-50 absolute -top-15 -right-15"></div>
-      </div>
-      <div className="h-[60vh] bg-white rounded-t-3xl w-full p-6 flex flex-col items-center z-1 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-        <div className="w-full">
-          <h2 className="text-[28px] font-semibold mb-4 text-center">Login</h2>
-          <div className="flex flex-col gap-6">
-            <div className="flex items-center gap-3">
-              <Mail className="w-6 h-6 text-neutral-500" />
-              <div className="relative w-full">
-                <div className="w-full border-b-2 border-neutral-300 px-1.5 py-3 text-base bg-neutral-50 animate-pulse h-6"></div>
-              </div>
+    <AuthScaffold heroTitle={HERO_TITLE}>
+      <div className="w-full">
+        <h2 className="text-[28px] font-semibold mb-4 text-center">Login</h2>
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center gap-3">
+            <Mail className="w-6 h-6 text-neutral-500" />
+            <div className="relative w-full">
+              <div className="w-full border-b-2 border-neutral-300 px-1.5 py-3 text-base bg-neutral-50 animate-pulse h-6"></div>
             </div>
-            <div className="flex items-center gap-3 relative">
-              <Lock className="w-6 h-6 text-neutral-500" />
-              <div className="relative w-full">
-                <div className="w-full border-b-2 border-neutral-300 px-1.5 py-3 text-base bg-neutral-50 animate-pulse h-6"></div>
-              </div>
+          </div>
+          <div className="flex items-center gap-3 relative">
+            <Lock className="w-6 h-6 text-neutral-500" />
+            <div className="relative w-full">
+              <div className="w-full border-b-2 border-neutral-300 px-1.5 py-3 text-base bg-neutral-50 animate-pulse h-6"></div>
             </div>
           </div>
         </div>
-        <div className="mt-auto w-full">
-          <div className="bg-neutral-200 w-full px-4 py-3 rounded-md animate-pulse h-12"></div>
-        </div>
       </div>
-    </div>
+      <div className="mt-auto lg:mt-10 w-full">
+        <div className="bg-neutral-200 w-full px-4 py-3 rounded-md animate-pulse h-12"></div>
+      </div>
+    </AuthScaffold>
   );
 }
 
