@@ -80,9 +80,21 @@
 - 驗證：`npm run build` 成功，CSS 確認 `neutral-*`/`danger-*` token 已 emit 且 utility 正常產生。
 - 待第 5 項處理的殘留：`MultiSelect.tsx` 仍有 hex `border-[#E4E8E8]`、`text-[#A9AEB1]`（不在現有色階內，刻意保留待統一處理）。`DatePicker.tsx` 本來就無硬編色。
 
-### [ ] 5. 收斂硬編色與 hex
-盤點 81 個檔案的 tailwind 預設色與 11 處 hex，逐步替換為 token。
-- 依賴：待辦 2 完成後才有對應 token 可換。
+### [~] 5. 收斂硬編色與 hex（大宗已完成，剩判斷項待確認）
+
+**已完成（2026-06-20，視覺零變動）**：全專案 75 個 tsx 檔，`-gray-<n>`→`-neutral-<n>`、`-red-<n>`→`-danger-<n>`（共 ~465 處）。`npm run build` 通過。
+
+**待設計決定的剩餘項**（不在現有色階／屬品牌例外，刻意未動）：
+
+1. `green-*`（28 處）— 語意上是「成功」狀態色，但 Tailwind green ≠ 品牌綠（`primary`）。
+   選項：新增 `success-*` token 並替換 / 直接併入 `primary-*`（會變色）/ 維持現狀。
+2. `amber-*`（20 處）— 語意上是「警示」，與現有 `warning-*`（僅 100/500/600/900）部分對應但色階不足、色相也不完全一致。
+   選項：擴充 `warning-*` 色階並替換 / 維持現狀。
+3. Hex：
+   - `#06C755`（×2，`StudentLineBind`/`LineBindButton`）— **LINE 官方品牌綠，建議保留**（可抽成具名常數）。
+   - `#55BD95`（`CheckPeriodSuccess` 的 `<PulseLoader color>`）— 其實就是 `primary-500`，但用在 JS prop 非 className；可改引 CSS 變數或常數。
+   - 色階外雜灰：`#999999`、`#444444`、`#848484`（SidebarContent/UnpaidBell）、`#E4E8E8`、`#A9AEB1`（MultiSelect）、`#D4EDE4`（淺綠裝飾圓 app/page）。
+     選項：就近 snap 到最接近的 `neutral-*`/`primary-*`（會有微小色差）/ 維持現狀。
 
 ---
 
