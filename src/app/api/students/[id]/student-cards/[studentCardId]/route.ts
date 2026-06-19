@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { decodeAuthToken } from "@/lib/auth";
 
 // Delete a StudentCard outright — used for buy-mistake cleanup. Only allowed
 // while the card has never been consumed (no AttendanceRecords). Once a session
@@ -9,13 +10,19 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; studentCardId: string }> }
 ) {
   const { id, studentCardId } = await params;
+  const { classroomId } = await decodeAuthToken();
 
   const studentCard = await prisma.studentCard.findUnique({
     where: { id: parseInt(studentCardId) },
-    include: { _count: { select: { attendanceRecords: true } } },
+    include: {
+      _count: { select: { attendanceRecords: true } },
+      student: { select: { classroomId: true } },
+    },
   });
 
-  if (!studentCard) {
+  // Scope to the caller's classroom — a (studentId, studentCardId) pair from
+  // another classroom must not be operable. 404 to avoid leaking existence.
+  if (!studentCard || studentCard.student.classroomId !== classroomId) {
     return NextResponse.json(
       { error: "Student card not found" },
       { status: 404 }
