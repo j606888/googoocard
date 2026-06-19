@@ -67,7 +67,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
       </div>
       {switchClassroomOpen && (
         <div className="flex flex-col gap-2 mb-2 py-3 px-2 border-b border-neutral-200">
-          <p className="text-xs text-[#999999] font-medium">
+          <p className="text-xs text-neutral-400 font-medium">
             Switch to other classroom
           </p>
           <div className="flex flex-col gap-2">
@@ -86,7 +86,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           </div>
           <Link
             href="/onboarding"
-            className="text-[#444444] font-medium text-sm underline"
+            className="text-neutral-700 font-medium text-sm underline"
           >
             <span>Create another classroom</span>
           </Link>

@@ -33,7 +33,7 @@ const UnpaidBell = () => {
               key={record.id}
              className="flex gap-3 items-center border-b border-neutral-200 pb-2 last:border-b-0 last:pb-0"
             >
-                <div className="w-8 h-8 bg-[#848484] rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-neutral-500 rounded-full flex items-center justify-center">
                   <FileQuestion className="w-[16px] h-[16px] text-white" />
                 </div>
                 <div className="flex flex-col w-full">
@@ -41,11 +41,11 @@ const UnpaidBell = () => {
                     <span className="text-sm font-semibold">
                       {record.studentName}
                     </span>
-                    <span className="text-xs text-[#848484]">
+                    <span className="text-xs text-neutral-500">
                       {formatDate(record.lessonPeriodStartTime)}
                     </span>
                   </div>
-                  <span className="text-sm text-[#848484]">
+                  <span className="text-sm text-neutral-500">
                     {record.lessonName} 未綁定課卡
                   </span>
                 </div>

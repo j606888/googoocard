@@ -46,7 +46,7 @@ export default function Home() {
         <div className="flex flex-col gap-4 items-start mb-8">
           {FEATURES.map((feature) => (
             <div key={feature.title} className="flex items-center justify-center gap-3">
-              <div className="flex items-center justify-center w-12 h-12 bg-[#D4EDE4] rounded-full">
+              <div className="flex items-center justify-center w-12 h-12 bg-primary-100 rounded-full">
                 <feature.icon className="w-6 h-6" color="var(--color-primary-500)" />
               </div>
               <div className="flex flex-col ">

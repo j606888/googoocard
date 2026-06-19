@@ -60,7 +60,7 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
                     {danceTypeLabel(card.danceType)}
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-xs text-amber-700 bg-amber-100 border border-amber-300 rounded-full px-2.5 py-0.5 w-fit">
+                  <span className="flex items-center gap-1 text-xs text-warning-700 bg-warning-100 border border-warning-300 rounded-full px-2.5 py-0.5 w-fit">
                     <TriangleAlert className="w-3 h-3" />
                     缺少舞種
                   </span>

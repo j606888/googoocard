@@ -12,11 +12,33 @@
     --color-primary-100: #E3F7F0;
     --color-primary-50:  #F1FAF6;
 
-    /* Warning Colors */
+    /* Warning Colors — brand orange ramp. 100/500/600/900 are the original
+       brand anchors; the rest are interpolated to fill the scale so amber-*
+       usages can migrate to warning-* (note: brand orange, not Tailwind amber
+       yellow — a small intentional hue shift). */
+    --color-warning-50:  #FFF9F3;
     --color-warning-100: #FFF3E9;
+    --color-warning-200: #FCE0C8;
+    --color-warning-300: #F9C9A0;
+    --color-warning-400: #F6B377;
     --color-warning-500: #F4A15E;
     --color-warning-600: #EF9349;
+    --color-warning-700: #D87A2C;
+    --color-warning-800: #C96C1E;
     --color-warning-900: #BC5F15;
+
+    /* Success Colors — values mirror Tailwind green-* so migrating existing
+       `*-green-*` utilities to `*-success-*` is a visual no-op. */
+    --color-success-50:  #F0FDF4;
+    --color-success-100: #DCFCE7;
+    --color-success-200: #BBF7D0;
+    --color-success-300: #86EFAC;
+    --color-success-400: #4ADE80;
+    --color-success-500: #22C55E;
+    --color-success-600: #16A34A;
+    --color-success-700: #15803D;
+    --color-success-800: #166534;
+    --color-success-900: #14532D;
 
     /* Danger / Error Colors — values mirror Tailwind red-* so migrating
        existing `*-red-*` utilities to `*-danger-*` is a visual no-op. */

@@ -183,10 +183,10 @@ export default function CheckinList({
                     <span className="text-neutral-500">先前已簽到</span>
                   )}
                   {r.status === "no_card" && (
-                    <span className="text-amber-600">報到成功，但沒有可用課卡</span>
+                    <span className="text-warning-600">報到成功，但沒有可用課卡</span>
                   )}
                   {r.status === "checked" && (
-                    <span className="text-green-600">
+                    <span className="text-success-600">
                       報到成功 · 已扣 {r.cardName}
                       {typeof r.remainingSessions === "number" &&
                         `（剩 ${r.remainingSessions} 堂）`}
@@ -200,8 +200,8 @@ export default function CheckinList({
         </div>
 
         {needsCard && (
-          <div className="flex flex-col gap-3 rounded-xl bg-amber-50 p-4">
-            <p className="text-sm leading-relaxed text-amber-800">
+          <div className="flex flex-col gap-3 rounded-xl bg-warning-50 p-4">
+            <p className="text-sm leading-relaxed text-warning-800">
               你的課卡不足或已用完，要不要現在購買課卡？
             </p>
             <Link

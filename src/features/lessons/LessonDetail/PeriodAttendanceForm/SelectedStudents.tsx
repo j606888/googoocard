@@ -31,7 +31,7 @@ const SelectedStudents = ({
           />
           <span className="text-sm font-medium">{student.name}</span>
           {selfCheckInStudentIds.includes(student.id) && (
-            <span className="rounded-full bg-green-100 px-1.5 text-[10px] font-medium text-green-700">
+            <span className="rounded-full bg-success-100 px-1.5 text-[10px] font-medium text-success-700">
               自助簽到
             </span>
           )}

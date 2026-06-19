@@ -153,7 +153,7 @@ export default function BuyCardList({
           </div>
         </div>
 
-        <p className="rounded-xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-800">
+        <p className="rounded-xl bg-warning-50 p-4 text-sm leading-relaxed text-warning-800">
           待老師確認付款後，此課卡也會標記為已付款。卡片在確認付款前仍可正常使用，現在去上課吧！
         </p>
 
@@ -230,7 +230,7 @@ export default function BuyCardList({
                 </span>
               </div>
             </div>
-            <p className="rounded-xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-800">
+            <p className="rounded-xl bg-warning-50 p-4 text-sm leading-relaxed text-warning-800">
               請直接轉帳或拿現金給老師，我們會再幫你把這張卡標記為已付款。卡片在確認付款前仍可正常使用。
             </p>
           </div>

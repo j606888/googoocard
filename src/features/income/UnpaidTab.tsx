@@ -28,8 +28,8 @@ export default function UnpaidTab() {
 
   if (!cards || cards.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-6 gap-3 bg-green-50 rounded-sm">
-        <div className="flex items-center justify-center w-12 h-12 bg-green-500 rounded-full">
+      <div className="flex flex-col items-center justify-center p-6 gap-3 bg-success-50 rounded-sm">
+        <div className="flex items-center justify-center w-12 h-12 bg-success-500 rounded-full">
           <CircleDollarSign className="w-6 h-6 text-white" />
         </div>
         <div className="flex flex-col items-center justify-center">
@@ -61,7 +61,7 @@ export default function UnpaidTab() {
               ${card.finalPrice}
             </div>
             <button
-              className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-green-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-green-700 transition-colors disabled:opacity-50"
+              className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-success-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-success-700 transition-colors disabled:opacity-50"
               disabled={isConfirming}
               onClick={() => handleConfirm(card.studentId, card.id)}
             >

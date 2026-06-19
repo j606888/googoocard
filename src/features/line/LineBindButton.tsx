@@ -12,7 +12,7 @@ export default function LineBindButton() {
 
   if (data?.bound) {
     return (
-      <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+      <div className="rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700">
         ✓ 已綁定 LINE
       </div>
     );
@@ -20,7 +20,7 @@ export default function LineBindButton() {
 
   if (!data?.deepLink) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+      <div className="rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-700">
         LINE 綁定尚未設定完成（缺少官方帳號 ID）。
       </div>
     );

@@ -44,7 +44,7 @@ const StudentOption = ({
             {student.name}
           </span>
           {isSelfCheckIn && (
-            <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+            <span className="shrink-0 rounded-full bg-success-100 px-2 py-0.5 text-xs font-medium text-success-700">
               自助簽到
             </span>
           )}

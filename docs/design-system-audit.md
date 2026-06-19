@@ -80,21 +80,26 @@
 - 驗證：`npm run build` 成功，CSS 確認 `neutral-*`/`danger-*` token 已 emit 且 utility 正常產生。
 - 待第 5 項處理的殘留：`MultiSelect.tsx` 仍有 hex `border-[#E4E8E8]`、`text-[#A9AEB1]`（不在現有色階內，刻意保留待統一處理）。`DatePicker.tsx` 本來就無硬編色。
 
-### [~] 5. 收斂硬編色與 hex（大宗已完成，剩判斷項待確認）
+### [x] 5. 收斂硬編色與 hex ✅ 2026-06-20
 
-**已完成（2026-06-20，視覺零變動）**：全專案 75 個 tsx 檔，`-gray-<n>`→`-neutral-<n>`、`-red-<n>`→`-danger-<n>`（共 ~465 處）。`npm run build` 通過。
+**A. gray/red 大宗替換（視覺零變動）**：全專案 75 個 tsx，`-gray-<n>`→`-neutral-<n>`、`-red-<n>`→`-danger-<n>`（~465 處）。
 
-**待設計決定的剩餘項**（不在現有色階／屬品牌例外，刻意未動）：
+**B. green → success（視覺零變動）**：新增 `--color-success-50..900`（對齊 Tailwind green），全專案 `green-*`→`success-*`（28 處 / 涵蓋 50,100,200,500,600,700）。
 
-1. `green-*`（28 處）— 語意上是「成功」狀態色，但 Tailwind green ≠ 品牌綠（`primary`）。
-   選項：新增 `success-*` token 並替換 / 直接併入 `primary-*`（會變色）/ 維持現狀。
-2. `amber-*`（20 處）— 語意上是「警示」，與現有 `warning-*`（僅 100/500/600/900）部分對應但色階不足、色相也不完全一致。
-   選項：擴充 `warning-*` 色階並替換 / 維持現狀。
-3. Hex：
-   - `#06C755`（×2，`StudentLineBind`/`LineBindButton`）— **LINE 官方品牌綠，建議保留**（可抽成具名常數）。
-   - `#55BD95`（`CheckPeriodSuccess` 的 `<PulseLoader color>`）— 其實就是 `primary-500`，但用在 JS prop 非 className；可改引 CSS 變數或常數。
-   - 色階外雜灰：`#999999`、`#444444`、`#848484`（SidebarContent/UnpaidBell）、`#E4E8E8`、`#A9AEB1`（MultiSelect）、`#D4EDE4`（淺綠裝飾圓 app/page）。
-     選項：就近 snap 到最接近的 `neutral-*`/`primary-*`（會有微小色差）/ 維持現狀。
+**C. amber → warning（刻意微色差）**：把 `--color-warning-*` 從 4 個錨點（100/500/600/900）補成完整橘色色階（50,200,300,400,700,800 為插值），全專案 `amber-*`→`warning-*`（20 處）。
+> 注意：採品牌橘而非 Tailwind amber 黃，屬刻意的小幅色相位移（已確認）。
+
+**D. 雜色 hex 就近 snap**：
+- `bg-[#D4EDE4]`→`bg-primary-100`（app/page 裝飾圓）
+- `text-[#999999]`→`text-neutral-400`、`text-[#444444]`→`text-neutral-700`（SidebarContent）
+- `bg-/text-[#848484]`→`bg-/text-neutral-500`（UnpaidBell）
+- `border-[#E4E8E8]`→`border-neutral-200`、`text-[#A9AEB1]`→`text-neutral-400`（MultiSelect）
+
+**刻意保留的品牌例外 hex**：
+- `#06C755`（×2，`StudentLineBind`/`LineBindButton`）— LINE 官方品牌綠。
+- `#55BD95`（`CheckPeriodSuccess` 的 `<PulseLoader color>`）— 等同 `primary-500`，但為 react-spinners 的 JS color prop（非 className），改 CSS 變數有 runtime 風險，故保留字面值。
+
+**驗證**：`npm run build` 通過；CSS 確認 success/warning token 已 emit 且 utility 正常產生。
 
 ---
 

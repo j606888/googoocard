@@ -199,7 +199,7 @@ const StudentCard = ({
                     {isUnpaid ? (
                       <span className="text-danger-600 font-medium">尚未付款</span>
                     ) : (
-                      <span className="text-green-600">
+                      <span className="text-success-600">
                         已收款
                         {studentCard.paidBy?.name ? ` · ${studentCard.paidBy.name}` : ""}
                         {studentCard.paidAt ? ` · ${formatDate(studentCard.paidAt)}` : ""}
@@ -208,7 +208,7 @@ const StudentCard = ({
                   </div>
                   {isUnpaid && (
                     <button
-                      className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-green-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-green-700 transition-colors"
+                      className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-success-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-success-700 transition-colors"
                       onClick={() => setConfirmOpen(true)}
                     >
                       <CircleDollarSign className="w-3.5 h-3.5" />
