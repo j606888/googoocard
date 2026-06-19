@@ -12,6 +12,7 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [errorField, setErrorField] = useState<"email" | "password">("password");
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect");
@@ -36,7 +37,17 @@ function LoginForm() {
       router.push(redirect || "/redirect");
     } catch (error) {
       console.error("Login error:", error);
-      setError("email or password incorrect")
+      const code = (error as { data?: { code?: string } })?.data?.code;
+      if (code === "EMAIL_NOT_FOUND") {
+        setError("This email is not registered");
+        setErrorField("email");
+      } else if (code === "INVALID_PASSWORD") {
+        setError("Incorrect password");
+        setErrorField("password");
+      } else {
+        setError("Something went wrong. Please try again");
+        setErrorField("password");
+      }
     } finally {
       setLoading(false);
     }
@@ -58,25 +69,36 @@ function LoginForm() {
           <h2 className="text-[28px] font-semibold mb-4 text-center">Login</h2>
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3">
-              <Mail className="w-6 h-6 text-gray-500" />
+              <Mail className="w-6 h-6 text-neutral-500" />
               <div className="relative w-full">
                 <input
                   type="email"
                   placeholder="Email"
-                  className="w-full border-b-2 border-gray-300 px-1.5 py-3 text-base focus:outline-none"
+                  className={`w-full border-b-2 ${
+                    error && errorField === "email"
+                      ? "border-danger-500"
+                      : "border-neutral-300"
+                  } px-1.5 py-3 text-base focus:outline-none`}
                   value={email}
                   onChange={handleEmailChange}
                 />
+                {error && errorField === "email" && (
+                  <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
+                    {error}
+                  </p>
+                )}
               </div>
             </div>
             <div className="relative flex items-center gap-3">
-              <Lock className="w-6 h-6 text-gray-500" />
+              <Lock className="w-6 h-6 text-neutral-500" />
               <div className="relative w-full">
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
                   className={`w-full border-b-2 ${
-                    error ? "border-red-500" : "border-gray-300"
+                    error && errorField === "password"
+                      ? "border-danger-500"
+                      : "border-neutral-300"
                   } px-1.5 py-3 text-base focus:outline-none`}
                   value={password}
                   onChange={handlePasswordChange}
@@ -86,8 +108,8 @@ function LoginForm() {
                     }
                   }}
                 />
-                {error && (
-                  <p className="text-red-500 text-sm mt-1 absolute -bottom-5 left-0">
+                {error && errorField === "password" && (
+                  <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
                     {error}
                   </p>
                 )}
@@ -95,12 +117,12 @@ function LoginForm() {
               <button className="absolute right-0 top-0 bottom-0 p-3 cursor-pointer">
                 {showPassword ? (
                   <EyeOff
-                    className="w-6 h-6 text-gray-500"
+                    className="w-6 h-6 text-neutral-500"
                     onClick={() => setShowPassword(false)}
                   />
                 ) : (
                   <Eye
-                    className="w-6 h-6 text-gray-500"
+                    className="w-6 h-6 text-neutral-500"
                     onClick={() => setShowPassword(true)}
                   />
                 )}
@@ -118,7 +140,7 @@ function LoginForm() {
           >
             Login
           </button>
-          <p className="text-sm text-gray-500 text-center mt-3">
+          <p className="text-sm text-neutral-500 text-center mt-3">
             Don&apos;t have an account?{" "}
             <Link href="/signup" className="text-primary-500 underline">
               Sign up
@@ -147,21 +169,21 @@ function LoginPageFallback() {
           <h2 className="text-[28px] font-semibold mb-4 text-center">Login</h2>
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3">
-              <Mail className="w-6 h-6 text-gray-500" />
+              <Mail className="w-6 h-6 text-neutral-500" />
               <div className="relative w-full">
-                <div className="w-full border-b-2 border-gray-300 px-1.5 py-3 text-base bg-gray-50 animate-pulse h-6"></div>
+                <div className="w-full border-b-2 border-neutral-300 px-1.5 py-3 text-base bg-neutral-50 animate-pulse h-6"></div>
               </div>
             </div>
             <div className="flex items-center gap-3 relative">
-              <Lock className="w-6 h-6 text-gray-500" />
+              <Lock className="w-6 h-6 text-neutral-500" />
               <div className="relative w-full">
-                <div className="w-full border-b-2 border-gray-300 px-1.5 py-3 text-base bg-gray-50 animate-pulse h-6"></div>
+                <div className="w-full border-b-2 border-neutral-300 px-1.5 py-3 text-base bg-neutral-50 animate-pulse h-6"></div>
               </div>
             </div>
           </div>
         </div>
         <div className="mt-auto w-full">
-          <div className="bg-gray-200 w-full px-4 py-3 rounded-md animate-pulse h-12"></div>
+          <div className="bg-neutral-200 w-full px-4 py-3 rounded-md animate-pulse h-12"></div>
         </div>
       </div>
     </div>
