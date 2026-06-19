@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { decodeAuthToken } from "@/lib/auth";
+import { findLessonInClassroom } from "@/lib/authz";
 import { DraftLesson } from "@/store/slices/lessons";
 import { cardMatchesLesson } from "@/domains/qualification";
 
@@ -47,6 +49,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { classroomId } = await decodeAuthToken();
+  if (!(await findLessonInClassroom(parseInt(id), classroomId))) {
+    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+  }
   const draftLesson = await request.json() as DraftLesson;
 
   const cards = await prisma.card.findMany({
@@ -91,7 +97,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { classroomId } = await decodeAuthToken();
   const lessonId = parseInt(id);
+  if (!(await findLessonInClassroom(lessonId, classroomId))) {
+    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+  }
 
   await prisma.lessonTeacher.deleteMany({ where: { lessonId } });
   await prisma.lessonCard.deleteMany({ where: { lessonId } });
