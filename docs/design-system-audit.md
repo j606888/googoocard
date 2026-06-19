@@ -1,0 +1,91 @@
+# Design System 調查與待辦
+
+> 調查日期：2026-06-20。本文記錄目前色彩 token 與共用元件的現況、問題，以及可逐項處理的待辦清單。
+
+## 現況摘要
+
+專案有設計系統的基礎，但分裂成**兩套互相衝突的色彩系統**，且大量畫面直接寫死顏色未走 token。元件也分成「手刻」與「shadcn」兩派並存。
+
+### 兩套色彩 token
+
+**(A) 品牌層** — `src/app/globals.css` 的 `@theme`，真正的品牌 DS：
+- 綠色 `--color-primary-50 → --color-primary-900` 完整色階
+- `--color-warning-100 → --color-warning-900`
+- 使用廣泛：`bg-primary-500` 87 次、`bg-primary-50` 37 次、`bg-primary-600` 26 次…
+- 手刻元件（`src/components/*`）都吃這套。
+
+**(B) shadcn 層** — `@theme inline` + `:root` 的 oklch 變數 + `src/components/ui/*`：
+- `--primary`、`--secondary`、`--muted`、`--accent`… 是 shadcn 預設的**灰階**中性色
+  （`--primary` ≈ oklch 0.205，接近黑，**不是**品牌綠）
+- 對應 `src/components/ui/button.tsx`、`calendar.tsx`、`popover.tsx` 等
+- 幾乎沒在用：語意版 `bg-primary` 僅 5 次、`bg-secondary` 2 次。
+
+⚠️ **核心衝突**：兩套都叫 `primary`，但 (A) 是綠、(B) 是灰黑。`tailwind.config.ts` 幾乎空白（只設字體），token 全靠 CSS 變數，兩套來源未對齊。
+
+### 元件分裂成兩派
+
+| 來源 | 例子 | 風格 |
+|---|---|---|
+| 手刻 `src/components/*` | `Button.tsx`、`InputField.tsx`、`Drawer`、`Menu`、`MultiSelect`… | 字串拼 className、吃品牌 `primary-*` |
+| shadcn `src/components/ui/*` | `button.tsx`、`calendar.tsx`、`popover.tsx`、`switch.tsx`、`sonner.tsx`、`skeleton.tsx` | `cva` 變體、吃 oklch 語意 token |
+
+光 Button 就有兩個：`components/Button.tsx`（自製，`outline` boolean）vs `components/ui/button.tsx`（shadcn，`variant`/`size`），API 與外觀皆不同。
+
+### 硬編色現況
+
+- `gray-*` 工具類用了 **451 次**
+- **81 個 `.tsx`** 直接用 tailwind 預設色（gray/green/red/blue…）
+- **11 處**直接寫 hex
+- 主因：品牌 `@theme` **只有 primary/warning，沒有中性灰階與錯誤色 token**，所以大家回頭用 `gray-100`、`text-red-500` 這類預設值（如 `InputField` 的 `bg-gray-100`、錯誤字 `text-red-500`）。
+
+---
+
+## 待辦清單（逐項處理）
+
+### [x] 1. 統一 primary 定義 ✅ 2026-06-20
+把 shadcn 的 `--primary` / `--primary-foreground` 指到品牌綠，消除「兩個 primary」的衝突。
+- 檔案：`src/app/globals.css`
+- 已做：
+  - `:root` → `--primary: var(--color-primary-500)`、`--primary-foreground: #ffffff`
+  - `.dark` → `--primary: var(--color-primary-400)`、`--primary-foreground: var(--color-primary-900)`
+  - `--destructive` 一併指向 danger token（light: `--color-danger-500`、dark: `--color-danger-400`）
+- 影響範圍：語意 `bg-primary`/`text-primary` 只在 `ui/button.tsx`（default & link 變體）、`ui/calendar.tsx`（選取日）使用 → 現在皆為品牌綠。
+- 驗證：`npm run build` 通過；產出 CSS 中 `--primary` 正確解析為 `var(--color-primary-500/400)`。
+
+### [x] 2. 補齊中性 / 語意 token ✅ 2026-06-20
+新增中性灰階（neutral-*）與錯誤色（danger-*）token，讓 451 次 `gray-*` 與 `red-*` 有官方替代。
+- 檔案：`src/app/globals.css` 的 `@theme`
+- 已做：新增 `--color-danger-50..700`（值對齊 Tailwind `red-*`）與 `--color-neutral-50..900`（值對齊 Tailwind `gray-*`）。
+  → 第 5 項把 `*-red-*` / `*-gray-*` 換成 `*-danger-*` / `*-neutral-*` 時為**視覺零變動**。
+- 備註：Tailwind v4 為按需輸出，尚未被任何 utility 使用的 token 不會預先 emit 到 `:root`，待第 5 項實際使用時才產生，屬正常行為。
+
+### [ ] 3. 統一 Button
+二選一收斂兩個 Button（建議保留 shadcn `cva` 模式，較易擴充），把自製版的品牌色搬進變體。
+- 檔案：`src/components/Button.tsx`、`src/components/ui/button.tsx`
+- 需盤點兩者所有呼叫點後再遷移。
+
+### [ ] 4. 統一 InputField / 表單元件
+讓 `InputField` 等手刻表單元件走 token（背景、錯誤色），與 shadcn 風格對齊。
+- 檔案：`src/components/InputField.tsx` 等
+
+### [ ] 5. 收斂硬編色與 hex
+盤點 81 個檔案的 tailwind 預設色與 11 處 hex，逐步替換為 token。
+- 依賴：待辦 2 完成後才有對應 token 可換。
+
+---
+
+## 調查指令備忘
+
+```bash
+# 品牌 primary-* token 使用次數
+grep -rEho "(bg|text|border)-primary-[0-9]+" src --include="*.tsx" | sort | uniq -c | sort -rn
+
+# 硬編灰階次數
+grep -rEho "(bg|text|border)-gray-[0-9]+" src --include="*.tsx" | wc -l
+
+# 用 tailwind 預設色的檔案數
+grep -rlE "(bg|text|border)-(gray|green|red|blue|orange|slate|zinc)-[0-9]" src --include="*.tsx" | wc -l
+
+# 直接 hex 色
+grep -rEho "#[0-9a-fA-F]{6}" src --include="*.tsx" | wc -l
+```
