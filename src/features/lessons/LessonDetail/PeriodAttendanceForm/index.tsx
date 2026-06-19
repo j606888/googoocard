@@ -1,4 +1,4 @@
-import Button from "@/components/Button";
+import { Button } from "@/components/ui/button";
 import SubNavbar from "@/features/SubNavbar";
 import { useGetStudentsQuery } from "@/store/slices/students";
 import { useParams } from "next/navigation";
@@ -116,7 +116,7 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], selfCheckInStudentIds =
             onClick={handleSubmit}
             disabled={selectedStudents.length === 0}
             isLoading={isLoading}
-            className="rounded-xl shadow-[0_6px_18px_-6px_rgba(43,142,110,0.7)]"
+            className="w-full rounded-xl shadow-[0_6px_18px_-6px_rgba(43,142,110,0.7)]"
           >
             {submitLabel}
             {selectedStudents.length > 0 && ` (${selectedStudents.length})`}

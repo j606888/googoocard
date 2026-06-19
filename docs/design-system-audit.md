@@ -59,10 +59,16 @@
   → 第 5 項把 `*-red-*` / `*-gray-*` 換成 `*-danger-*` / `*-neutral-*` 時為**視覺零變動**。
 - 備註：Tailwind v4 為按需輸出，尚未被任何 utility 使用的 token 不會預先 emit 到 `:root`，待第 5 項實際使用時才產生，屬正常行為。
 
-### [ ] 3. 統一 Button
-二選一收斂兩個 Button（建議保留 shadcn `cva` 模式，較易擴充），把自製版的品牌色搬進變體。
-- 檔案：`src/components/Button.tsx`、`src/components/ui/button.tsx`
-- 需盤點兩者所有呼叫點後再遷移。
+### [x] 3. 統一 Button ✅ 2026-06-20
+收斂成單一 Button，保留 shadcn `cva` 版（API 較完整、default 變體已是品牌綠）。
+- 已做：
+  - `src/components/ui/button.tsx` 補上自製版獨有的 `isLoading` prop（loading 時自動 `disabled`，沿用 shadcn 既有 `disabled:opacity-50` 視覺）。
+  - 4 個呼叫點全部改 import `{ Button } from "@/components/ui/button"`，並補 `w-full` 還原原本全寬：
+    `features/income/RecordsTab.tsx`、`features/lessons/newLesson/index.tsx`（2 處）、
+    `features/lessons/LessonDetail/PeriodAttendanceForm/index.tsx`、`.../SettingSection/index.tsx`。
+  - 刪除 `src/components/Button.tsx`（自製版的 `outline` prop 全專案未使用，安全移除）。
+- 視覺差異（刻意收斂到 DS 按鈕）：字重 semibold→medium、高度 auto(py-2)→`h-9`、圓角 `rounded`→`rounded-md`。
+- 驗證：`npm run build` 編譯成功，無殘留 `@/components/Button` 引用。
 
 ### [ ] 4. 統一 InputField / 表單元件
 讓 `InputField` 等手刻表單元件走 token（背景、錯誤色），與 shadcn 風格對齊。

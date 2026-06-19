@@ -1,7 +1,7 @@
 import InputField from "@/components/InputField";
 import { useState } from "react";
 import CardSelect from "./CardSelect";
-import Button from "@/components/Button";
+import { Button } from "@/components/ui/button";
 import TeacherSelect from "./TeacherSelect";
 import SubNavbar from "@/features/SubNavbar";
 import PeriodList from "./PeriodList";
@@ -158,7 +158,7 @@ const NewLesson = () => {
             danceType={danceType}
           />
           {/* Create button — desktop only, inside left col */}
-          <Button className="hidden lg:block" onClick={handleSubmit} isLoading={isLoading}>
+          <Button className="w-full hidden lg:block" onClick={handleSubmit} isLoading={isLoading}>
             Create Lesson
           </Button>
         </div>
@@ -181,7 +181,7 @@ const NewLesson = () => {
         </div>
 
         {/* Create button — mobile only, below both cols */}
-        <Button className="lg:hidden" onClick={handleSubmit} isLoading={isLoading}>
+        <Button className="w-full lg:hidden" onClick={handleSubmit} isLoading={isLoading}>
           Create
         </Button>
       </div>

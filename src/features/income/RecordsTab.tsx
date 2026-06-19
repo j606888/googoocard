@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { DollarSign } from "lucide-react";
-import Button from "@/components/Button";
+import { Button } from "@/components/ui/button";
 import type { IncomeRecord, IncomeResponse } from "./types";
 
 function formatDate(value: string) {
@@ -100,7 +100,7 @@ export default function RecordsTab() {
       {hasMore && (
         <div className="mt-4">
           <Button
-            className="max-w-[180px]"
+            className="w-full max-w-[180px]"
             onClick={handleLoadMore}
             isLoading={isLoadingMore}
             disabled={isLoadingMore}

@@ -5,7 +5,7 @@ import InputField from "@/components/InputField";
 import DanceTypeSelect from "@/features/lessons/newLesson/DanceTypeSelect";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
-import Button from "@/components/Button";
+import { Button } from "@/components/ui/button";
 import { useUpdateLessonMutation, useDeleteLessonMutation } from "@/store/slices/lessons";
 import { useRouter } from "next/navigation";
 
@@ -99,7 +99,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
             selectedCardIds={selectedCardIds}
             danceType={danceType}
           />
-          <Button onClick={handleSubmit} isLoading={isLoading}>
+          <Button className="w-full" onClick={handleSubmit} isLoading={isLoading}>
             Update
           </Button>
           <div className="pt-4 border-t border-gray-200">
