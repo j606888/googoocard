@@ -47,7 +47,7 @@ const MultiSelect = ({
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger className="flex flex-col items-start cursor-pointer">
-        <div className={`flex items-center justify-between p-3 border ${error ? "border-red-500" : "border-[#E4E8E8]"} rounded-md w-full`}>
+        <div className={`flex items-center justify-between p-3 border ${error ? "border-danger-500" : "border-[#E4E8E8]"} rounded-md w-full`}>
           {values?.length === 0 ? (
             <>
               <span className="text-sm text-[#A9AEB1]">{placeholder}</span>
@@ -63,7 +63,7 @@ const MultiSelect = ({
                     onClick={(e) => handleOptionClick(e, option.value)}
                   >
                     <span>{option.label}</span>
-                    <X className="w-4 h-4 text-gray-500" />
+                    <X className="w-4 h-4 text-neutral-500" />
                   </div>
                 ))}
               </div>
@@ -71,7 +71,7 @@ const MultiSelect = ({
             </>
           )}
         </div>
-        {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+        {error && <p className="text-danger-500 text-xs mt-1">{error}</p>}
       </PopoverTrigger>
       <PopoverContent
         align="end"
@@ -89,7 +89,7 @@ const MultiSelect = ({
           ))}
           {newOptionLabel && (
             <div
-              className="flex items-center py-1 px-2 hover:bg-primary-100 rounded-md hover:cursor-pointer bg-gray-100 mt-2"
+              className="flex items-center py-1 px-2 hover:bg-primary-100 rounded-md hover:cursor-pointer bg-neutral-100 mt-2"
               onClick={handleNewOptionClick}
             >
               <Plus className="w-4 h-4" />

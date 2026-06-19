@@ -90,7 +90,7 @@ const TimePicker = ({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger>
         <input
-          className={`text-sm bg-gray-100 rounded-md p-2 w-full cursor-pointer ${selectedTime?.label ? "" : "text-gray-400"}`}
+          className={`text-sm bg-neutral-100 rounded-md p-2 w-full cursor-pointer ${selectedTime?.label ? "" : "text-neutral-400"}`}
           value={selectedTime?.label || "Pick time"}
           readOnly
         />
@@ -100,8 +100,8 @@ const TimePicker = ({
           {timeOptions.map((option) => (
             <div
               key={option.value}
-              className={`px-4 py-2 hover:bg-gray-200 cursor-pointer text-sm text-gray-700 ${
-                selectedTime?.value === option.value ? "bg-gray-100" : ""
+              className={`px-4 py-2 hover:bg-neutral-200 cursor-pointer text-sm text-neutral-700 ${
+                selectedTime?.value === option.value ? "bg-neutral-100" : ""
               }`}
               onClick={() => handleTimeSelect(option)}
             >

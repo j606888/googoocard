@@ -70,9 +70,15 @@
 - 視覺差異（刻意收斂到 DS 按鈕）：字重 semibold→medium、高度 auto(py-2)→`h-9`、圓角 `rounded`→`rounded-md`。
 - 驗證：`npm run build` 編譯成功，無殘留 `@/components/Button` 引用。
 
-### [ ] 4. 統一 InputField / 表單元件
-讓 `InputField` 等手刻表單元件走 token（背景、錯誤色），與 shadcn 風格對齊。
-- 檔案：`src/components/InputField.tsx` 等
+### [x] 4. 統一 InputField / 表單元件 ✅ 2026-06-20
+讓手刻**表單輸入**元件走 token（背景灰、錯誤色），不再硬編 `gray-*` / `red-*`。
+- 已做（`gray-*`→`neutral-*`、`red-*`→`danger-*`，值對齊故視覺零變動）：
+  - `InputField.tsx`：`bg-gray-100`→`bg-neutral-100`、錯誤 `border/text-red-500`→`-danger-500`
+  - `TimePicker.tsx`：trigger 與選項的 `gray-100/200/400/700` → `neutral-*`
+  - `MultiSelect.tsx`：錯誤 `border/text-red-500`→`-danger-500`、`text-gray-500`/`bg-gray-100`→`neutral-*`
+  - `RoundCheckbox.tsx`：`border-gray-300`/`bg-gray-100`→`neutral-*`
+- 驗證：`npm run build` 成功，CSS 確認 `neutral-*`/`danger-*` token 已 emit 且 utility 正常產生。
+- 待第 5 項處理的殘留：`MultiSelect.tsx` 仍有 hex `border-[#E4E8E8]`、`text-[#A9AEB1]`（不在現有色階內，刻意保留待統一處理）。`DatePicker.tsx` 本來就無硬編色。
 
 ### [ ] 5. 收斂硬編色與 hex
 盤點 81 個檔案的 tailwind 預設色與 11 處 hex，逐步替換為 token。
