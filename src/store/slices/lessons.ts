@@ -41,6 +41,7 @@ export interface LessonSummary {
   /** Periods already due but not yet checked — drives the 點名 CTA / warning. */
   dueForAttendanceCount: number;
   dueForAttendancePeriodId: number | null;
+  dueForAttendanceDate: string | null;
   lastPeriodStart: string | null;
   lastPeriodEnd: string | null;
 }

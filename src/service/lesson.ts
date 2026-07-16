@@ -18,6 +18,8 @@ export interface LessonPeriodSummary {
   /** Periods already due (start <= end of today) but not yet checked — drives the 點名 CTA / ⚠️. */
   dueForAttendanceCount: number;
   dueForAttendancePeriodId: number | null;
+  /** Start of the earliest due period — the date shown on the 點名 CTA. */
+  dueForAttendanceDate: Date | null;
   lastPeriodStart: Date | null;
   lastPeriodEnd: Date | null;
 }
@@ -65,6 +67,7 @@ export const summarizeLessonPeriods = (
     nextSessionPeriodId: nextSession?.id ?? null,
     dueForAttendanceCount: due.length,
     dueForAttendancePeriodId: due[0]?.id ?? null,
+    dueForAttendanceDate: due[0]?.startTime ?? null,
     lastPeriodStart: lastPeriod?.startTime ?? null,
     lastPeriodEnd: lastPeriod?.endTime ?? null,
   };
