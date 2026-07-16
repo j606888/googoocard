@@ -28,7 +28,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       price,
       sessions,
       isPracticeCard,
-      danceType: isPracticeCard ? danceType : null,
+      // General cards may carry a danceType as a category label (does not
+      // restrict usage). Practice cards require it (guarded above).
+      danceType: danceType ?? null,
     },
   });
 

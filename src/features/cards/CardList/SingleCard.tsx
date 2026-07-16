@@ -50,20 +50,24 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
         <div className="flex items-start justify-between mb-3">
           <div className="flex flex-col gap-1.5">
             <h4 className="text-base font-semibold leading-none">{card.name}</h4>
-            {card.isPracticeCard && (
+            {(card.isPracticeCard || card.danceType) && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-warning-900 bg-warning-100 border border-warning-300 rounded-full px-2.5 py-0.5 w-fit">
-                  Practice Card
-                </span>
+                {card.isPracticeCard && (
+                  <span className="text-xs text-warning-900 bg-warning-100 border border-warning-300 rounded-full px-2.5 py-0.5 w-fit">
+                    Practice Card
+                  </span>
+                )}
                 {card.danceType ? (
                   <span className={`text-xs rounded-full px-2.5 py-0.5 w-fit ${DANCE_TYPE_META[card.danceType].badge}`}>
                     {danceTypeLabel(card.danceType)}
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-xs text-warning-700 bg-warning-100 border border-warning-300 rounded-full px-2.5 py-0.5 w-fit">
-                    <TriangleAlert className="w-3 h-3" />
-                    缺少舞種
-                  </span>
+                  card.isPracticeCard && (
+                    <span className="flex items-center gap-1 text-xs text-warning-700 bg-warning-100 border border-warning-300 rounded-full px-2.5 py-0.5 w-fit">
+                      <TriangleAlert className="w-3 h-3" />
+                      缺少舞種
+                    </span>
+                  )
                 )}
               </div>
             )}

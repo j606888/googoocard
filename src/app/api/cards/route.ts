@@ -55,7 +55,9 @@ export async function POST(request: Request) {
       sessions,
       classroomId: classroomId!,
       isPracticeCard,
-      danceType: isPracticeCard ? danceType : null,
+      // General cards may carry a danceType purely as a category label (it does
+      // not restrict usage — see cardMatchesLesson). Practice cards require it.
+      danceType: danceType ?? null,
     },
   });
 

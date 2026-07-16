@@ -61,7 +61,7 @@ const NewCard = () => {
       price: Number(price),
       sessions: Number(sessions),
       isPracticeCard,
-      danceType: isPracticeCard ? danceType : null,
+      danceType,
     });
     setCardName("");
     setPrice("");
@@ -146,18 +146,17 @@ const NewCard = () => {
             />
             <span>Is Practice Card</span>
           </div>
-          {isPracticeCard && (
-            <CardDanceTypeSelect
-              value={danceType}
-              onChange={(type) => {
-                setDanceType(type);
-                if (errors.danceType) {
-                  setErrors((prev) => ({ ...prev, danceType: undefined }));
-                }
-              }}
-              error={errors.danceType}
-            />
-          )}
+          <CardDanceTypeSelect
+            value={danceType}
+            optional={!isPracticeCard}
+            onChange={(type) => {
+              setDanceType(type);
+              if (errors.danceType) {
+                setErrors((prev) => ({ ...prev, danceType: undefined }));
+              }
+            }}
+            error={errors.danceType}
+          />
         </form>
       </Drawer>
     </>
