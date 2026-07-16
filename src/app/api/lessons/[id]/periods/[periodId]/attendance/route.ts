@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { decodeAuthToken } from "@/lib/auth";
+import { findLessonInClassroom } from "@/lib/authz";
 import {
   takeAttendance,
   updateAttendance,
@@ -271,6 +273,10 @@ export async function POST(
 ) {
   try {
     const { id, periodId } = await params;
+    const { classroomId } = await decodeAuthToken();
+    if (!(await findLessonInClassroom(parseInt(id), classroomId))) {
+      return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+    }
     const { studentIds } = await request.json();
 
     await takeAttendance({
@@ -305,6 +311,10 @@ export async function PUT(
 ) {
   try {
     const { id, periodId } = await params;
+    const { classroomId } = await decodeAuthToken();
+    if (!(await findLessonInClassroom(parseInt(id), classroomId))) {
+      return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+    }
     const { studentIds } = await request.json();
 
     await updateAttendance({

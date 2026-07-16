@@ -184,31 +184,31 @@ const AddPeriodForm = ({
           isLoading={isLoading}
         >
           <div className="flex flex-col gap-0.5 mb-4">
-            <label className="text-sm text-gray-700">Date</label>
+            <label className="text-sm text-neutral-700">Date</label>
             <DatePicker date={date} setDate={handleDateChange} />
             {errors.date && (
-              <p className="text-sm text-red-500">{errors.date}</p>
+              <p className="text-sm text-danger-500">{errors.date}</p>
             )}
           </div>
           <div className="flex gap-2 mb-6">
             <div>
-              <label className="text-sm text-gray-700">From</label>
+              <label className="text-sm text-neutral-700">From</label>
               <TimePicker
                 selectedTime={fromTime}
                 setSelectedTime={handleFromTimeChange}
               />
               {errors.fromTime && (
-                <p className="mt-0.5 text-xs text-red-500">{errors.fromTime}</p>
+                <p className="mt-0.5 text-xs text-danger-500">{errors.fromTime}</p>
               )}
             </div>
             <div>
-              <label className="text-sm text-gray-700">To</label>
+              <label className="text-sm text-neutral-700">To</label>
               <TimePicker
                 selectedTime={toTime}
                 setSelectedTime={handleToTimeChange}
               />
               {errors.toTime && (
-                <p className="mt-0.5 text-xs text-red-500">{errors.toTime}</p>
+                <p className="mt-0.5 text-xs text-danger-500">{errors.toTime}</p>
               )}
             </div>
           </div>

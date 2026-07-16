@@ -20,15 +20,15 @@ const StudentDetailHeader = ({
     : "No attendance yet";
 
   return (
-    <div className="hidden lg:block border-b border-gray-200 px-8 py-5 bg-white">
+    <div className="hidden lg:block border-b border-neutral-200 px-8 py-5 bg-white">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
-        <Link href={backHref} className="flex items-center gap-1 hover:text-gray-700">
+      <div className="flex items-center gap-2 text-sm text-neutral-500 mb-3">
+        <Link href={backHref} className="flex items-center gap-1 hover:text-neutral-700">
           <ArrowLeft className="w-4 h-4" />
           <span>Students</span>
         </Link>
         <span>/</span>
-        <span className="text-gray-700 font-medium">{student.name}</span>
+        <span className="text-neutral-700 font-medium">{student.name}</span>
       </div>
 
       {/* Title row */}
@@ -39,17 +39,17 @@ const StudentDetailHeader = ({
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-gray-900">{student.name}</h1>
+            <h1 className="text-2xl font-bold text-neutral-900">{student.name}</h1>
             {student.note && (
-              <span className="text-sm text-gray-500">({student.note})</span>
+              <span className="text-sm text-neutral-500">({student.note})</span>
             )}
             {student.tags?.map((tag) => (
               <span
                 key={tag.id}
                 className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
                   tag.name === "Needs Renewal"
-                    ? "text-red-700 bg-red-100"
-                    : "text-gray-600 bg-gray-100"
+                    ? "text-danger-700 bg-danger-100"
+                    : "text-neutral-600 bg-neutral-100"
                 }`}
               >
                 {tag.name === "Needs Renewal" ? (
@@ -80,19 +80,19 @@ const StudentDetailHeader = ({
 
       {/* Stats pills */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full text-sm text-gray-600 border border-gray-200">
+        <div className="flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
           <BookOpenText className="w-4 h-4" />
           <span>{student.overview.attendLessonCount} lessons attended</span>
         </div>
-        <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full text-sm text-gray-600 border border-gray-200">
+        <div className="flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
           <CreditCard className="w-4 h-4" />
           <span>{student.overview.cardCount} cards total</span>
           {activeCards.length > 0 && (
             <span className="text-primary-600 font-semibold">({activeCards.length} active)</span>
           )}
         </div>
-        <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full text-sm text-gray-600 border border-gray-200">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${student.overview.lastAttendAt ? "bg-primary-500" : "bg-gray-300"}`} />
+        <div className="flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
+          <span className={`w-2 h-2 rounded-full shrink-0 ${student.overview.lastAttendAt ? "bg-primary-500" : "bg-neutral-300"}`} />
           <span>Last seen: {lastAttend}</span>
         </div>
       </div>

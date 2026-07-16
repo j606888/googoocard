@@ -239,6 +239,10 @@ model AttendanceRecord {
   source    AttendanceSource @default(TEACHER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // One attendance record per student per period — guards against duplicate
+  // self check-ins (LIFF double-tap / concurrent submit) double-charging a card.
+  @@unique([lessonPeriodId, studentId])
 }
 
 model InviteToken {

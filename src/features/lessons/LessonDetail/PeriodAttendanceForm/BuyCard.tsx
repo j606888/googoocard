@@ -123,7 +123,7 @@ const BuyCard = ({ student }: { student: Student }) => {
             {cardOptions?.map((card) => (
               <div
                 key={card.id}
-                className={`flex gap-2 items-center px-4 py-3 border-1 border-gray-200 rounded-sm ${
+                className={`flex gap-2 items-center px-4 py-3 border-1 border-neutral-200 rounded-sm ${
                   selectedCardId === card.id
                     ? "bg-primary-100 border-primary-500"
                     : ""
@@ -135,7 +135,7 @@ const BuyCard = ({ student }: { student: Student }) => {
               </div>
             ))}
             {errors.selectedCardId && (
-              <p className="text-red-500 text-sm">{errors.selectedCardId}</p>
+              <p className="text-danger-500 text-sm">{errors.selectedCardId}</p>
             )}
           </div>
         </div>
@@ -162,8 +162,8 @@ const BuyCard = ({ student }: { student: Student }) => {
             </div>
             <div className="mb-4 flex items-center justify-between">
               <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-700">已付款</span>
-                <span className="text-xs text-gray-400">
+                <span className="text-sm font-medium text-neutral-700">已付款</span>
+                <span className="text-xs text-neutral-400">
                   {isPaid ? "已收到款項" : "尚未付款，卡片仍可使用"}
                 </span>
               </div>

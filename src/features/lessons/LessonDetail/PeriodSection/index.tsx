@@ -116,7 +116,7 @@ const PeriodCard = ({
   return (
     <div
       key={period.id}
-      className="flex flex-col gap-3 p-3 border border-gray-200 rounded-md"
+      className="flex flex-col gap-3 p-3 border border-neutral-200 rounded-md"
     >
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold flex items-center gap-2">
@@ -153,7 +153,7 @@ const PeriodCard = ({
         <div className="flex flex-col gap-3 p-3">
           {period.attendanceTakenAt ? (
             <button
-              className="flex gap-2 items-center hover:bg-gray-100 rounded-sm"
+              className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
               onClick={handleViewAttendance}
             >
               <NotepadText className="w-4 h-4" />
@@ -161,7 +161,7 @@ const PeriodCard = ({
             </button>
           ) : (
             <button
-              className="flex gap-2 items-center hover:bg-gray-100 rounded-sm"
+              className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
               onClick={handleDelete}
             >
               <Trash className="w-4 h-4" />
@@ -171,14 +171,14 @@ const PeriodCard = ({
           {isLastAttend && (
             <>
               <button
-                className="flex gap-2 items-center hover:bg-gray-100 rounded-sm"
+                className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
                 onClick={handleUpdate}
               >
                 <PencilLine className="w-4 h-4" />
                 Update
               </button>
               <button
-                className="flex gap-2 items-center hover:bg-gray-100 rounded-sm"
+                className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
                 onClick={handleReset}
               >
                 <Eraser className="w-4 h-4" />

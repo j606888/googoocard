@@ -41,7 +41,7 @@ async function validateAttendanceRequest(
       },
     }),
     prisma.lessonPeriod.findUnique({
-      where: { id: lessonPeriodId },
+      where: { id: lessonPeriodId, lessonId },
     }),
   ]);
 
@@ -243,18 +243,28 @@ async function processStudentCardUsage(
   studentCard: StudentCard,
   studentId: number
 ) {
-  const updatedStudentCard = await tx.studentCard.update({
-    where: { id: studentCard.id },
+  // Guarded decrement: only deduct while sessions remain, so a card can never
+  // be driven negative by a concurrent deduction (race between self check-in and
+  // teacher finalize, or two requests on the same card).
+  const { count } = await tx.studentCard.updateMany({
+    where: { id: studentCard.id, remainingSessions: { gt: 0 } },
     data: {
       remainingSessions: { decrement: 1 },
     },
-    include: {
-      card: true,
-    },
+  });
+
+  // The card was already exhausted by a concurrent op — nothing deducted.
+  if (count === 0) {
+    return;
+  }
+
+  const updatedStudentCard = await tx.studentCard.findUnique({
+    where: { id: studentCard.id },
+    include: { card: true },
   });
 
   // Create event if card is exhausted
-  if (updatedStudentCard.remainingSessions === 0) {
+  if (updatedStudentCard && updatedStudentCard.remainingSessions === 0) {
     await tx.event.create({
       data: {
         title: "課卡使用完畢",
@@ -462,6 +472,14 @@ export async function updateAttendance({
   await reconcileAndFinalize(lesson, lessonPeriod.id, studentIds);
 }
 
+// A P2002 from the @@unique([lessonPeriodId, studentId]) constraint means a
+// concurrent check-in already recorded this (student, period).
+function isDuplicateAttendance(e: unknown): boolean {
+  return (
+    e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002"
+  );
+}
+
 export type SelfCheckInResult = {
   periodId: number;
   status: "checked" | "already_checked" | "no_card";
@@ -519,49 +537,66 @@ export async function selfCheckIn({
 
   const results: SelfCheckInResult[] = [];
 
-  await prisma.$transaction(async (tx) => {
-    for (const period of periods) {
-      if (alreadyCheckedIds.has(period.id)) {
+  // One transaction per period so they're independent: a duplicate-rejection on
+  // one period (unique constraint) doesn't abort the others, and each record +
+  // its card deduction commit atomically together.
+  for (const period of periods) {
+    if (alreadyCheckedIds.has(period.id)) {
+      results.push({ periodId: period.id, status: "already_checked" });
+      continue;
+    }
+
+    const studentCard = selectStudentCard(student, lesson);
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const attendanceRecord = await createAttendanceRecord(
+          tx,
+          lesson.id,
+          period.id,
+          student.id,
+          studentCard?.id ?? null,
+          AttendanceSource.STUDENT
+        );
+        await createAttendanceEvent(tx, lesson.name, student.id, attendanceRecord.id);
+
+        if (studentCard) {
+          await processStudentCardUsage(tx, studentCard, student.id);
+        }
+      });
+    } catch (e) {
+      // A concurrent check-in beat us to this (student, period): the unique
+      // constraint rejected our insert and rolled back our deduction. Report it
+      // idempotently rather than double-charging.
+      if (isDuplicateAttendance(e)) {
         results.push({ periodId: period.id, status: "already_checked" });
         continue;
       }
-
-      const studentCard = selectStudentCard(student, lesson);
-      const attendanceRecord = await createAttendanceRecord(
-        tx,
-        lesson.id,
-        period.id,
-        student.id,
-        studentCard?.id ?? null,
-        AttendanceSource.STUDENT
-      );
-      await createAttendanceEvent(tx, lesson.name, student.id, attendanceRecord.id);
-
-      if (!studentCard) {
-        results.push({ periodId: period.id, status: "no_card" });
-        continue;
-      }
-
-      await processStudentCardUsage(tx, studentCard, student.id);
-
-      // Keep the in-memory card list in sync so multi-period check-ins don't
-      // re-pick an exhausted card or double-count its remaining sessions.
-      const remainingSessions = studentCard.remainingSessions - 1;
-      const memCard = student.studentCards.find((c) => c.id === studentCard.id);
-      if (memCard) memCard.remainingSessions = remainingSessions;
-      if (remainingSessions <= 0) {
-        student.studentCards = student.studentCards.filter((c) => c.id !== studentCard.id);
-      }
-
-      results.push({
-        periodId: period.id,
-        status: "checked",
-        cardName: studentCard.card.name,
-        remainingSessions,
-        exhausted: remainingSessions === 0,
-      });
+      throw e;
     }
-  });
+
+    if (!studentCard) {
+      results.push({ periodId: period.id, status: "no_card" });
+      continue;
+    }
+
+    // Keep the in-memory card list in sync so multi-period check-ins don't
+    // re-pick an exhausted card or double-count its remaining sessions.
+    const remainingSessions = studentCard.remainingSessions - 1;
+    const memCard = student.studentCards.find((c) => c.id === studentCard.id);
+    if (memCard) memCard.remainingSessions = remainingSessions;
+    if (remainingSessions <= 0) {
+      student.studentCards = student.studentCards.filter((c) => c.id !== studentCard.id);
+    }
+
+    results.push({
+      periodId: period.id,
+      status: "checked",
+      cardName: studentCard.card.name,
+      remainingSessions,
+      exhausted: remainingSessions === 0,
+    });
+  }
 
   await refreshNeedsRenewalTags([studentId], lesson.classroomId);
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { DanceType } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
@@ -12,7 +12,13 @@ import {
   routeParams,
 } from "../factories";
 
-// 點名 GET 不經過 decodeAuthToken，不需 mock auth
+// reset route 經過 decodeAuthToken 做 classroom 授權，需 mock auth；
+// 每個 beforeEach 把 auth.classroomId 設成當前測試教室。
+const auth = vi.hoisted(() => ({ userId: 1, classroomId: 0 }));
+vi.mock("@/lib/auth", () => ({
+  decodeAuthToken: async () => auth,
+}));
+
 import { GET } from "@/app/api/lessons/[id]/periods/[periodId]/attendance/route";
 import { POST as resetAttendance } from "@/app/api/lessons/[id]/periods/[periodId]/reset/route";
 import {
@@ -38,6 +44,7 @@ describe("GET attendance — uncheckedType 分類", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    auth.classroomId = classroomId;
   });
 
   async function setupBachataLessonWithBothCards() {
@@ -201,6 +208,7 @@ describe("takeAttendance — 自動選卡與扣堂", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    auth.classroomId = classroomId;
   });
 
   it("符合資格者自動優先扣複習卡", async () => {
@@ -345,6 +353,7 @@ describe("updateAttendance — 定案後修改點名", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    auth.classroomId = classroomId;
   });
 
   it("已定案時段可再編輯：移除原學生退卡 + 新增學生扣卡，且時段維持定案", async () => {
@@ -442,6 +451,7 @@ describe("selfCheckIn + takeAttendance — 學生自助簽到後老師定案", (
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    auth.classroomId = classroomId;
   });
 
   it("學生自助簽到後老師再點名同一人 → 不重複建紀錄、不重複扣卡", async () => {
@@ -548,6 +558,7 @@ describe("selfCheckIn — 一次多時段的扣卡同步", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    auth.classroomId = classroomId;
   });
 
   // Two periods on one lesson, ordered by startTime.
@@ -648,6 +659,7 @@ describe("resetAttendance — 清除事件 (audit events)", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    auth.classroomId = classroomId;
   });
 
   async function reset(lessonId: number, periodId: number) {

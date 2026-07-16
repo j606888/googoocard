@@ -69,7 +69,7 @@ const EditCard = ({
       price: Number(price),
       sessions: Number(sessions),
       isPracticeCard,
-      danceType: isPracticeCard ? danceType : null,
+      danceType,
     });
     setIsPracticeCard(false);
     onClose();
@@ -155,18 +155,17 @@ const EditCard = ({
             />
             <span>Is Practice Card</span>
           </div>
-          {isPracticeCard && (
-            <CardDanceTypeSelect
-              value={danceType}
-              onChange={(type) => {
-                setDanceType(type);
-                if (errors.danceType) {
-                  setErrors((prev) => ({ ...prev, danceType: undefined }));
-                }
-              }}
-              error={errors.danceType}
-            />
-          )}
+          <CardDanceTypeSelect
+            value={danceType}
+            optional={!isPracticeCard}
+            onChange={(type) => {
+              setDanceType(type);
+              if (errors.danceType) {
+                setErrors((prev) => ({ ...prev, danceType: undefined }));
+              }
+            }}
+            error={errors.danceType}
+          />
         </form>
       </Drawer>
     </>

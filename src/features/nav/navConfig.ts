@@ -1,5 +1,6 @@
 import {
   BookOpenText,
+  CalendarDays,
   CreditCard,
   GraduationCap,
   Users,
@@ -23,6 +24,7 @@ export const PRIMARY_LINKS: NavLink[] = [
 
 /** Secondary destinations (mobile "More" sheet). */
 export const SECONDARY_LINKS: NavLink[] = [
+  { name: "Calendar", icon: CalendarDays, href: "/calendar" },
   { name: "Cards", icon: CreditCard, href: "/cards" },
   { name: "Teachers", icon: GraduationCap, href: "/teachers" },
   { name: "Teams", icon: Boxes, href: "/teams" },

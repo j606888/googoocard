@@ -116,7 +116,7 @@ const AvatarPicker = ({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="w-16 h-16 rounded-full border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-primary-400 hover:text-primary-500 transition-colors disabled:opacity-60"
+          className="w-16 h-16 rounded-full border-2 border-dashed border-neutral-300 flex flex-col items-center justify-center text-neutral-400 hover:border-primary-400 hover:text-primary-500 transition-colors disabled:opacity-60"
         >
           {uploading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -136,7 +136,7 @@ const AvatarPicker = ({
           onChange={handleFile}
         />
       </div>
-      {error && <p className="text-xs text-red-500 text-center">{error}</p>}
+      {error && <p className="text-xs text-danger-500 text-center">{error}</p>}
     </div>
   );
 };

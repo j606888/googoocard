@@ -109,7 +109,7 @@ const ChooseCardForm = ({
           {studentCards?.map((studentCard) => (
             <div
               key={studentCard.id}
-              className={`relative flex flex-col gap-2 p-3 rounded-xl border border-gray-200 ${
+              className={`relative flex flex-col gap-2 p-3 rounded-xl border border-neutral-200 ${
                 shouldLockGeneralCards && !studentCard.card.isPracticeCard
                   ? "opacity-50 cursor-not-allowed"
                   : "cursor-pointer"
@@ -124,7 +124,7 @@ const ChooseCardForm = ({
                 <h4 className="text-base font-light">
                   {studentCard.card.name}
                 </h4>
-                <div className="flex flex-col w-32 gap-1 font-normal text-gray-700">
+                <div className="flex flex-col w-32 gap-1 font-normal text-neutral-700">
                   <div className="flex justify-between">
                     <span className="text-xs">價格：</span>
                     <span className="text-xs">${studentCard.finalPrice}</span>
@@ -141,9 +141,9 @@ const ChooseCardForm = ({
                 {studentCard.attendanceRecords.map((record, index) => (
                   <div
                     key={index}
-                    className="flex flex-col items-center justify-center gap-1 bg-gray-100 rounded-lg p-2 h-14"
+                    className="flex flex-col items-center justify-center gap-1 bg-neutral-100 rounded-lg p-2 h-14"
                   >
-                    <span className="text-xs text-gray-700">
+                    <span className="text-xs text-neutral-700">
                       {formatDate(
                         (record as any).lessonPeriod.attendanceTakenAt
                       )}
@@ -160,10 +160,10 @@ const ChooseCardForm = ({
                       className={`flex flex-col items-center justify-center gap-1 rounded-lg p-2 h-14 ${
                         selectedCardId === studentCard.id
                           ? "bg-primary-100"
-                          : "bg-gray-100"
+                          : "bg-neutral-100"
                       }`}
                     >
-                      <span className="text-xs text-gray-500">-</span>
+                      <span className="text-xs text-neutral-500">-</span>
                     </div>
                   )
                 )}

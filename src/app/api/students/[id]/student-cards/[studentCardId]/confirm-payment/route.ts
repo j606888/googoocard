@@ -10,14 +10,16 @@ export async function POST(
   { params }: { params: Promise<{ id: string; studentCardId: string }> }
 ) {
   const { id, studentCardId } = await params;
-  const { userId } = await decodeAuthToken();
+  const { userId, classroomId } = await decodeAuthToken();
 
   const studentCard = await prisma.studentCard.findUnique({
     where: { id: parseInt(studentCardId) },
-    include: { card: true },
+    include: { card: true, student: { select: { classroomId: true } } },
   });
 
-  if (!studentCard) {
+  // Scope to the caller's classroom — a (studentId, studentCardId) pair from
+  // another classroom must not be operable. 404 to avoid leaking existence.
+  if (!studentCard || studentCard.student.classroomId !== classroomId) {
     return NextResponse.json({ error: "Student card not found" }, { status: 404 });
   }
 

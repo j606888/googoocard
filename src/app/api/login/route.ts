@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Email or password incorrect" },
+        { error: "Email not found", code: "EMAIL_NOT_FOUND" },
         { status: 401 }
       );
     }
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
     if (!isValidPassword) {
       return NextResponse.json(
-        { error: "Email or password incorrect" },
+        { error: "Password incorrect", code: "INVALID_PASSWORD" },
         { status: 401 }
       );
     }

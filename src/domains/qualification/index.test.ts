@@ -137,6 +137,12 @@ describe("cardMatchesLesson", () => {
     expect(cardMatchesLesson(generalCard, DanceType.KIZOMBA)).toBe(true);
   });
 
+  it("a general card carrying a danceType (category label) still matches any lesson", () => {
+    const labelledGeneralCard = { isPracticeCard: false, danceType: DanceType.ZOUK };
+    expect(cardMatchesLesson(labelledGeneralCard, DanceType.BACHATA)).toBe(true);
+    expect(cardMatchesLesson(labelledGeneralCard, DanceType.ZOUK)).toBe(true);
+  });
+
   it("practice cards must match the lesson dance type", () => {
     expect(cardMatchesLesson(bachataPracticeCard, DanceType.BACHATA)).toBe(true);
     expect(cardMatchesLesson(bachataPracticeCard, DanceType.SALSA)).toBe(false);

@@ -149,7 +149,7 @@ export default function LiffStudentGate({
             <button
               key={opt.id}
               onClick={() => pickStudent(opt.id)}
-              className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 text-left active:bg-gray-50"
+              className="flex items-center gap-3 rounded-xl border border-neutral-200 p-3 text-left active:bg-neutral-50"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -159,7 +159,7 @@ export default function LiffStudentGate({
               />
               <div>
                 <div className="font-medium">{opt.name}</div>
-                <div className="text-sm text-gray-500">{opt.classroom.name}</div>
+                <div className="text-sm text-neutral-500">{opt.classroom.name}</div>
               </div>
             </button>
           ))}
@@ -175,13 +175,13 @@ export default function LiffStudentGate({
     return (
       <>
         {boundStudents.length > 1 && (
-          <div className="flex items-center justify-between gap-2 bg-gray-50 px-4 py-2 text-sm">
-            <span className="truncate text-gray-600">
+          <div className="flex items-center justify-between gap-2 bg-neutral-50 px-4 py-2 text-sm">
+            <span className="truncate text-neutral-600">
               目前：{student.name}（{student.classroom.name}）
             </span>
             <button
               onClick={switchStudent}
-              className="shrink-0 rounded-full border border-gray-300 px-3 py-1 text-xs font-medium active:bg-gray-100"
+              className="shrink-0 rounded-full border border-neutral-300 px-3 py-1 text-xs font-medium active:bg-neutral-100"
             >
               切換學生
             </button>

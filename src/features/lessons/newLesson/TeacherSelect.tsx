@@ -51,7 +51,7 @@ const TeacherSelect = ({ selectedTeacherIds, onChange, error }: { selectedTeache
         <form>
           <label className="block mb-2 font-medium">Name</label>
           <input
-            className="w-full mb-4 p-2 rounded bg-gray-100 focus:outline-primary-500"
+            className="w-full mb-4 p-2 rounded bg-neutral-100 focus:outline-primary-500"
             placeholder="Enter name"
             value={newTeacherName}
             onChange={(e) => setNewTeacherName(e.target.value)}

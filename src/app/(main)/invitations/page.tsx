@@ -78,7 +78,7 @@ function InvitationsContent() {
               ))}
             </span>
           </h4>
-          <p className="text-sm text-gray-700">Hold on, should be real quick</p>
+          <p className="text-sm text-neutral-700">Hold on, should be real quick</p>
         </div>
       </Container>
     );
@@ -91,7 +91,7 @@ function InvitationsContent() {
           <h4 className="text-base font-bold flex items-center gap-1">
             Invitation from `{inviteToken?.classroom?.name}`
           </h4>
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-neutral-700">
             Welcome to GoogooCard <br />
             Only one step left to join{" "}
             <span className="font-bold">{inviteToken?.classroom?.name}</span>
@@ -122,7 +122,7 @@ function InvitationsContent() {
           <h4 className="text-base font-bold flex items-center gap-1">
             Invite Link invalid
           </h4>
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-neutral-700">
             I’m sorry to tell you the link was invalid, please ask the owner to
             regenerate the link.
             <br />
@@ -154,7 +154,7 @@ function InvitationsContent() {
           <h4 className="text-base font-bold flex items-center gap-1">
             Already join {inviteToken?.classroom?.name}
           </h4>
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-neutral-700">
             Did you click the link again?
             <br />
             Why? Baby why?
@@ -179,7 +179,7 @@ function InvitationsContent() {
           <h4 className="text-base font-bold flex items-center gap-1">
             Invite Link invalid
           </h4>
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-neutral-700">
             I’m sorry to tell you the link was invalid, please ask the owner to
             regenerate the link.
           </p>
@@ -203,7 +203,7 @@ function InvitationsContent() {
           <h4 className="text-base font-bold flex items-center gap-1">
             Join `{inviteToken?.classroom?.name}` success
           </h4>
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-neutral-700">
             Congratulations!
             <br />
             Now you can go back to lesson and see what’s inside

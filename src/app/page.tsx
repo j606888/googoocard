@@ -40,18 +40,18 @@ export default function Home() {
           <Snail className="w-12 h-12" color="#fff" />
         </div>
         <h1 className="text-3xl font-bold text-black">Googoo Card</h1>
-        <p className="text-base text-gray-500 mb-8">
+        <p className="text-base text-neutral-500 mb-8">
           Make your lesson easier
         </p>
         <div className="flex flex-col gap-4 items-start mb-8">
           {FEATURES.map((feature) => (
             <div key={feature.title} className="flex items-center justify-center gap-3">
-              <div className="flex items-center justify-center w-12 h-12 bg-[#D4EDE4] rounded-full">
+              <div className="flex items-center justify-center w-12 h-12 bg-primary-100 rounded-full">
                 <feature.icon className="w-6 h-6" color="var(--color-primary-500)" />
               </div>
               <div className="flex flex-col ">
                 <h2 className="text-lg font-bold text-black">{feature.title}</h2>
-                <p className="text-sm text-gray-500 text-center">{feature.description}</p>
+                <p className="text-sm text-neutral-500 text-center">{feature.description}</p>
               </div>
             </div>
           ))}

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma, { ApiError } from "@/lib/prisma";
+import { decodeAuthToken } from "@/lib/auth";
+import { findLessonInClassroom } from "@/lib/authz";
 
 export async function POST(
   request: Request,
@@ -7,10 +9,15 @@ export async function POST(
     params,
   }: { params: Promise<{ id: string; periodId: string; studentId: string }> }
 ) {
-  const { periodId, studentId } = await params;
+  const { id, periodId, studentId } = await params;
   const { studentCardId } = await request.json();
 
   try {
+    const { classroomId } = await decodeAuthToken();
+    if (!(await findLessonInClassroom(parseInt(id), classroomId))) {
+      return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+    }
+
     const lessonPeriod = await getLessonPeriod(periodId);
     const studentCard = await getStudentCard(studentCardId);
     const attendanceRecord = await getAttendanceRecord(

@@ -13,9 +13,9 @@ const AttendanceByLesson = ({
         <div key={lesson.lessonId}>
           <div className="flex justify-between items-center mb-2">
             <div className="text-base font-medium">{lesson.lessonName}</div>
-            <div className="text-xs text-gray-400">{lessonPeriod(lesson.studentAttendances)}</div>
+            <div className="text-xs text-neutral-400">{lessonPeriod(lesson.studentAttendances)}</div>
           </div>
-          <div className="flex gap-2 flex-wrap border-b border-gray-200 pb-3">
+          <div className="flex gap-2 flex-wrap border-b border-neutral-200 pb-3">
             {lesson.studentAttendances.map((attendance) => (
               <div
                 key={attendance.periodStartTime}
@@ -23,8 +23,8 @@ const AttendanceByLesson = ({
                   attendance.periodAttendantCheck
                     ? attendance.studentAttend
                       ? "bg-primary-500"
-                      : "bg-red-400"
-                    : "border border-gray-200"
+                      : "bg-danger-400"
+                    : "border border-neutral-200"
                 }`}
               >
                 {attendance.periodAttendantCheck &&
@@ -37,7 +37,7 @@ const AttendanceByLesson = ({
                   className={`text-xs text-center ${
                     attendance.periodAttendantCheck
                       ? "text-white"
-                      : "text-gray-700"
+                      : "text-neutral-700"
                   }`}
                 >
                   {formatDate(attendance.periodStartTime, "MM/dd")}

@@ -24,6 +24,49 @@ export interface Period {
   attendanceTakenAt: string | null;
 }
 
+/** Lightweight per-lesson shape returned by the list endpoint (GET /lessons). */
+export interface LessonSummary {
+  id: number;
+  name: string;
+  danceType: DanceType;
+  status: string;
+  studentCount: number;
+  teachers: { id: number; name: string }[];
+  cardIds: number[];
+  totalPeriods: number;
+  attendedCount: number;
+  /** Earliest upcoming session start (ISO), or null — informational "next class". */
+  nextSessionDate: string | null;
+  nextSessionPeriodId: number | null;
+  /** Periods already due but not yet checked — drives the 點名 CTA / warning. */
+  dueForAttendanceCount: number;
+  dueForAttendancePeriodId: number | null;
+  dueForAttendanceDate: string | null;
+  lastPeriodStart: string | null;
+  lastPeriodEnd: string | null;
+}
+
+/** One session (LessonPeriod) as returned by GET /lessons/calendar. */
+export interface CalendarPeriod {
+  periodId: number;
+  lessonId: number;
+  lessonName: string;
+  danceType: DanceType;
+  lessonStatus: string;
+  startTime: string;
+  endTime: string;
+  attendanceTaken: boolean;
+  attendeeCount: number;
+}
+
+export interface GetLessonsArgs {
+  tab: string;
+  sort: string;
+  search?: string;
+  danceType?: DanceType | null;
+  page?: number;
+}
+
 export interface Answer {
   studentId: number;
   createNewCard: boolean;
@@ -87,16 +130,31 @@ const lessonsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getLessons: builder.query<
       {
-        lessons: Lesson[];
+        lessons: LessonSummary[];
         tabsCount: { inProgress: number; finished: number };
+        hasNextPage: boolean;
+        availableDanceTypes: DanceType[];
       },
-      { tab: string; sort: string }
+      GetLessonsArgs
     >({
-      query: ({ tab, sort }) => `lessons?tab=${tab}&sort=${sort}`,
+      query: ({ tab, sort, search, danceType, page }) => {
+        const params = new URLSearchParams({ tab, sort });
+        if (search) params.set("search", search);
+        if (danceType) params.set("danceType", danceType);
+        if (page !== undefined) params.set("page", String(page));
+        return `lessons?${params.toString()}`;
+      },
       providesTags: ["Lesson"],
     }),
     getLesson: builder.query<Lesson, string | number>({
       query: (id) => `lessons/${id}`,
+      providesTags: ["Lesson"],
+    }),
+    getCalendarPeriods: builder.query<
+      CalendarPeriod[],
+      { from: string; to: string }
+    >({
+      query: ({ from, to }) => `lessons/calendar?from=${from}&to=${to}`,
       providesTags: ["Lesson"],
     }),
     createLesson: builder.mutation<void, DraftLesson>({
@@ -224,6 +282,7 @@ export const {
   useDeleteLessonMutation,
   useGetLessonsQuery,
   useGetLessonQuery,
+  useGetCalendarPeriodsQuery,
   useLazyCheckStudentCardsQuery,
   useTakeAttendanceMutation,
   useUpdateAttendanceMutation,

@@ -7,8 +7,8 @@ import DanceBadge from "./DanceBadge";
 
 const tagStyle = (name: string) =>
   name === "Needs Renewal"
-    ? "text-red-700 bg-red-100"
-    : "text-gray-600 bg-gray-100";
+    ? "text-danger-700 bg-danger-100"
+    : "text-neutral-600 bg-neutral-100";
 
 const SingleStudent = ({ student }: { student: Student }) => {
   const router = useRouter();
@@ -22,7 +22,7 @@ const SingleStudent = ({ student }: { student: Student }) => {
       onClick={() => router.push(`/students/${student.id}`)}
     >
       {/* Mobile layout */}
-      <div className="lg:hidden flex items-center gap-3 py-2 px-1 border-b border-gray-100 hover:bg-gray-50">
+      <div className="lg:hidden flex items-center gap-3 py-2 px-1 border-b border-neutral-100 hover:bg-neutral-50">
         <img
           src={student.avatarUrl}
           className="w-10 h-10 rounded-full object-cover shrink-0"
@@ -32,7 +32,7 @@ const SingleStudent = ({ student }: { student: Student }) => {
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="font-medium">{student.name}</h2>
               {student.note && (
-                <p className="text-sm text-gray-500">({student.note})</p>
+                <p className="text-sm text-neutral-500">({student.note})</p>
               )}
               {firstTag && (
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${tagStyle(firstTag.name)}`}>
@@ -40,7 +40,7 @@ const SingleStudent = ({ student }: { student: Student }) => {
                 </span>
               )}
             </div>
-            <p className="flex gap-1 items-center text-sm text-gray-400">
+            <p className="flex gap-1 items-center text-sm text-neutral-400">
               <CreditCard className="w-4 h-4" />
               {studentCards.length}
             </p>
@@ -54,17 +54,17 @@ const SingleStudent = ({ student }: { student: Student }) => {
       </div>
 
       {/* Desktop layout */}
-      <div className="hidden lg:flex lg:items-center lg:gap-4 lg:border lg:border-gray-200 lg:rounded-2xl lg:p-4 lg:hover:shadow-md lg:hover:border-gray-300 lg:transition-all lg:duration-200 lg:bg-white">
+      <div className="hidden lg:flex lg:items-center lg:gap-4 lg:border lg:border-neutral-200 lg:rounded-2xl lg:p-4 lg:hover:shadow-md lg:hover:border-neutral-300 lg:transition-all lg:duration-200 lg:bg-white">
         <img
           src={student.avatarUrl}
-          className="w-11 h-11 rounded-full object-cover ring-2 ring-gray-100 shrink-0"
+          className="w-11 h-11 rounded-full object-cover ring-2 ring-neutral-100 shrink-0"
         />
         <div className="flex flex-1 items-center justify-between min-w-0">
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="font-semibold text-gray-900">{student.name}</h2>
+              <h2 className="font-semibold text-neutral-900">{student.name}</h2>
               {student.note && (
-                <p className="text-sm text-gray-500 truncate max-w-40">({student.note})</p>
+                <p className="text-sm text-neutral-500 truncate max-w-40">({student.note})</p>
               )}
               {firstTag && (
                 <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${tagStyle(firstTag.name)}`}>
@@ -77,7 +77,7 @@ const SingleStudent = ({ student }: { student: Student }) => {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+            <div className="flex items-center gap-3 mt-1 text-xs text-neutral-400">
               <span className="flex items-center gap-1">
                 <CreditCard className="w-3.5 h-3.5" />
                 {studentCards.length} cards

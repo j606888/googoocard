@@ -45,7 +45,7 @@ const StudentCard = ({
   const hasActions = !isPublic && (canExpire || canDelete);
   const progress = Math.min(100, Math.round((usedSessions / studentCard.totalSessions) * 100));
   const isPractice = studentCard.card.isPracticeCard;
-  const remainingTone = isFinished ? "text-gray-400" : "text-primary-600";
+  const remainingTone = isFinished ? "text-neutral-400" : "text-primary-600";
   const sessionRows = useMemo(
     () =>
       Array.from({ length: studentCard.totalSessions }, (_, index) => {
@@ -103,7 +103,7 @@ const StudentCard = ({
   return (
     <div
       key={studentCard.id}
-      className="relative flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm"
+      className="relative flex flex-col rounded-2xl border border-neutral-200 bg-white shadow-sm"
     >
       {/* Compact summary — click to expand */}
       <button
@@ -113,7 +113,7 @@ const StudentCard = ({
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h4 className="text-base font-semibold text-gray-900 truncate">
+            <h4 className="text-base font-semibold text-neutral-900 truncate">
               {studentCard.card.name}
             </h4>
             {isPractice && (
@@ -122,18 +122,18 @@ const StudentCard = ({
               </span>
             )}
             {isUnpaid && (
-              <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+              <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-danger-100 text-danger-700">
                 未付款
               </span>
             )}
           </div>
-          <div className="mt-2 w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div className="mt-2 w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
             <div
-              className={`h-full ${isFinished ? "bg-gray-300" : "bg-primary-500"}`}
+              className={`h-full ${isFinished ? "bg-neutral-300" : "bg-primary-500"}`}
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-neutral-500 mt-1">
             購買日 {formatDate(studentCard.createdAt)}
           </p>
         </div>
@@ -145,12 +145,12 @@ const StudentCard = ({
               <span className={`text-2xl font-bold ${remainingTone}`}>
                 {studentCard.remainingSessions}
               </span>
-              <span className="text-sm text-gray-400">/{studentCard.totalSessions}</span>
+              <span className="text-sm text-neutral-400">/{studentCard.totalSessions}</span>
             </div>
-            <div className="text-[11px] text-gray-400 mt-1">剩餘堂數</div>
+            <div className="text-[11px] text-neutral-400 mt-1">剩餘堂數</div>
           </div>
           <ChevronDown
-            className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`}
+            className={`w-5 h-5 text-neutral-400 transition-transform ${expanded ? "rotate-180" : ""}`}
           />
         </div>
       </button>
@@ -166,40 +166,40 @@ const StudentCard = ({
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 flex flex-col gap-3">
-              <div className="border-t border-gray-100 pt-3">
+              <div className="border-t border-neutral-100 pt-3">
                 <div className="flex items-center px-2 py-1 text-xs font-medium">
-                  <span className="w-12 text-gray-400">堂次</span>
-                  <span className="w-24 text-gray-500">日期</span>
-                  <span className="flex-1 text-gray-400">課程</span>
+                  <span className="w-12 text-neutral-400">堂次</span>
+                  <span className="w-24 text-neutral-500">日期</span>
+                  <span className="flex-1 text-neutral-400">課程</span>
                 </div>
                 <div className="flex flex-col">
                   {sessionRows.map(({ slot, record }) => (
                     <div
                       key={slot}
-                      className="flex items-center px-2 py-2 text-xs border-b border-gray-100"
+                      className="flex items-center px-2 py-2 text-xs border-b border-neutral-100"
                     >
-                      <span className="w-12 text-gray-400">#{slot}</span>
-                      <span className="w-24 font-medium text-gray-900">
+                      <span className="w-12 text-neutral-400">#{slot}</span>
+                      <span className="w-24 font-medium text-neutral-900">
                         {record ? formatDate(record.periodStartTime) : "未使用"}
                       </span>
-                      <span className="flex-1 text-gray-700">{record?.lessonName || "未使用"}</span>
+                      <span className="flex-1 text-neutral-700">{record?.lessonName || "未使用"}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               {!isPublic && (
-                <div className="flex items-center justify-between gap-2 border-t border-gray-100 pt-3">
-                  <div className="flex flex-col gap-0.5 text-xs text-gray-500">
+                <div className="flex items-center justify-between gap-2 border-t border-neutral-100 pt-3">
+                  <div className="flex flex-col gap-0.5 text-xs text-neutral-500">
                     <span>
                       {studentCard.purchaseSource === "STUDENT"
                         ? "學生自購"
                         : `由 ${studentCard.purchasedBy?.name ?? "後台"} 購買`}
                     </span>
                     {isUnpaid ? (
-                      <span className="text-red-600 font-medium">尚未付款</span>
+                      <span className="text-danger-600 font-medium">尚未付款</span>
                     ) : (
-                      <span className="text-green-600">
+                      <span className="text-success-600">
                         已收款
                         {studentCard.paidBy?.name ? ` · ${studentCard.paidBy.name}` : ""}
                         {studentCard.paidAt ? ` · ${formatDate(studentCard.paidAt)}` : ""}
@@ -208,7 +208,7 @@ const StudentCard = ({
                   </div>
                   {isUnpaid && (
                     <button
-                      className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-green-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-green-700 transition-colors"
+                      className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-success-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-success-700 transition-colors"
                       onClick={() => setConfirmOpen(true)}
                     >
                       <CircleDollarSign className="w-3.5 h-3.5" />
@@ -219,12 +219,12 @@ const StudentCard = ({
               )}
 
               {hasActions && (
-                <div className="flex justify-end border-t border-gray-100 pt-3">
+                <div className="flex justify-end border-t border-neutral-100 pt-3">
                   <button
                     type="button"
                     ref={menuButtonRef}
                     onClick={() => setMenuOpen((v) => !v)}
-                    className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
+                    className="inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-600 cursor-pointer transition-colors"
                   >
                     <EllipsisVertical className="w-4 h-4" />
                     <span>更多</span>
@@ -237,7 +237,7 @@ const StudentCard = ({
                     {canExpire && (
                       <button
                         type="button"
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 rounded-sm cursor-pointer whitespace-nowrap"
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100 rounded-sm cursor-pointer whitespace-nowrap"
                         onClick={() => {
                           setMenuOpen(false);
                           setCardAction("expire");
@@ -250,7 +250,7 @@ const StudentCard = ({
                     {canDelete && (
                       <button
                         type="button"
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-sm cursor-pointer whitespace-nowrap"
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-danger-600 hover:bg-danger-50 rounded-sm cursor-pointer whitespace-nowrap"
                         onClick={() => {
                           setMenuOpen(false);
                           setCardAction("delete");

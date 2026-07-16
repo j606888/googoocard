@@ -5,7 +5,7 @@ import InputField from "@/components/InputField";
 import DanceTypeSelect from "@/features/lessons/newLesson/DanceTypeSelect";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
-import Button from "@/components/Button";
+import { Button } from "@/components/ui/button";
 import { useUpdateLessonMutation, useDeleteLessonMutation } from "@/store/slices/lessons";
 import { useRouter } from "next/navigation";
 
@@ -99,21 +99,21 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
             selectedCardIds={selectedCardIds}
             danceType={danceType}
           />
-          <Button onClick={handleSubmit} isLoading={isLoading}>
+          <Button className="w-full" onClick={handleSubmit} isLoading={isLoading}>
             Update
           </Button>
-          <div className="pt-4 border-t border-gray-200">
+          <div className="pt-4 border-t border-neutral-200">
             <button
               onClick={handleDelete}
               disabled={!hasNoPeriods || isDeleting}
-              className={`w-full py-2 rounded font-semibold text-white bg-red-500 hover:bg-red-600 ${
+              className={`w-full py-2 rounded font-semibold text-white bg-danger-500 hover:bg-danger-600 ${
                 !hasNoPeriods || isDeleting ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
               }`}
             >
               Delete Lesson
             </button>
             {!hasNoPeriods && (
-              <p className="text-xs text-gray-400 mt-1 text-center">
+              <p className="text-xs text-neutral-400 mt-1 text-center">
                 Remove all periods before deleting this lesson
               </p>
             )}

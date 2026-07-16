@@ -23,45 +23,45 @@ export default function UnpaidTab() {
   };
 
   if (isLoading) {
-    return <p className="text-sm text-gray-500 py-4">載入未付款清單中...</p>;
+    return <p className="text-sm text-neutral-500 py-4">載入未付款清單中...</p>;
   }
 
   if (!cards || cards.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-6 gap-3 bg-green-50 rounded-sm">
-        <div className="flex items-center justify-center w-12 h-12 bg-green-500 rounded-full">
+      <div className="flex flex-col items-center justify-center p-6 gap-3 bg-success-50 rounded-sm">
+        <div className="flex items-center justify-center w-12 h-12 bg-success-500 rounded-full">
           <CircleDollarSign className="w-6 h-6 text-white" />
         </div>
         <div className="flex flex-col items-center justify-center">
           <p className="text-lg font-bold">沒有未付款的課卡</p>
-          <p className="text-sm text-gray-500 text-center">所有課卡都已收款。</p>
+          <p className="text-sm text-neutral-500 text-center">所有課卡都已收款。</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="border border-gray-200 rounded-sm bg-white overflow-hidden">
-      <div className="divide-y divide-gray-200">
+    <div className="border border-neutral-200 rounded-sm bg-white overflow-hidden">
+      <div className="divide-y divide-neutral-200">
         {cards.map((card) => (
           <div key={card.id} className="flex items-center gap-3 px-3 py-2.5">
-            <div className="w-20 shrink-0 text-xs text-gray-500">
+            <div className="w-20 shrink-0 text-xs text-neutral-500">
               {formatDate(card.createdAt)}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-gray-900 truncate">
+              <p className="text-sm font-semibold text-neutral-900 truncate">
                 {card.student.name}
               </p>
-              <p className="text-xs text-gray-500 truncate">
+              <p className="text-xs text-neutral-500 truncate">
                 {card.card.name}
                 {card.purchasedBy?.name ? ` · ${card.purchasedBy.name}` : ""}
               </p>
             </div>
-            <div className="shrink-0 text-right text-base font-bold text-red-600">
+            <div className="shrink-0 text-right text-base font-bold text-danger-600">
               ${card.finalPrice}
             </div>
             <button
-              className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-green-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-green-700 transition-colors disabled:opacity-50"
+              className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-success-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-success-700 transition-colors disabled:opacity-50"
               disabled={isConfirming}
               onClick={() => handleConfirm(card.studentId, card.id)}
             >

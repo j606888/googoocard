@@ -13,8 +13,8 @@ const StudentLineBind = ({ studentId }: { studentId: number }) => {
   if (data.bound) {
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-semibold text-gray-700">LINE</p>
-        <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2.5 text-sm text-green-700">
+        <p className="text-sm font-semibold text-neutral-700">LINE</p>
+        <div className="rounded-xl border border-success-200 bg-success-50 px-3 py-2.5 text-sm text-success-700">
           ✓ 已綁定 LINE
         </div>
       </div>
@@ -24,8 +24,8 @@ const StudentLineBind = ({ studentId }: { studentId: number }) => {
   if (!data.deepLink) {
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-semibold text-gray-700">LINE</p>
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-700">
+        <p className="text-sm font-semibold text-neutral-700">LINE</p>
+        <div className="rounded-xl border border-warning-200 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
           LINE 綁定尚未設定完成（缺少官方帳號 ID）。
         </div>
       </div>
@@ -40,7 +40,7 @@ const StudentLineBind = ({ studentId }: { studentId: number }) => {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-gray-700">LINE 綁定連結</p>
+        <p className="text-sm font-semibold text-neutral-700">LINE 綁定連結</p>
         <button
           className="inline-flex items-center gap-1.5 text-xs font-medium bg-[#06C755] text-white rounded-full px-3 py-1.5 cursor-pointer hover:opacity-90 transition-opacity"
           onClick={handleCopy}
@@ -49,7 +49,7 @@ const StudentLineBind = ({ studentId }: { studentId: number }) => {
           <span>複製連結</span>
         </button>
       </div>
-      <p className="text-xs text-gray-500 break-all p-2.5 bg-gray-50 border border-gray-200 rounded-xl">
+      <p className="text-xs text-neutral-500 break-all p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl">
         {data.deepLink}
       </p>
     </div>

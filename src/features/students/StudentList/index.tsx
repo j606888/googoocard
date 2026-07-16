@@ -108,7 +108,7 @@ const StudentList = () => {
           className={`relative flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border text-sm transition-colors cursor-pointer ${
             activeCount > 0
               ? "bg-primary-50 border-primary-400 text-primary-700"
-              : "bg-white border-gray-200 text-gray-700 hover:border-primary-300"
+              : "bg-white border-neutral-200 text-neutral-700 hover:border-primary-300"
           }`}
         >
           <SlidersHorizontal className="w-4 h-4" />
@@ -145,7 +145,7 @@ const StudentList = () => {
           </div>
           <div className="flex flex-col items-center justify-center">
             <p className="text-lg font-bold">No students yet</p>
-            <p className="text-sm text-gray-500 text-center">
+            <p className="text-sm text-neutral-500 text-center">
               Create student so they can start lesson
             </p>
           </div>

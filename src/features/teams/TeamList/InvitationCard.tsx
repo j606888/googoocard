@@ -5,13 +5,13 @@ import { toast } from "sonner";
 const NEXT_PUBLIC_HOST_URL = process.env.NEXT_PUBLIC_HOST_URL;
 
 const InvitationCard = ({ inviteToken, onDelete }: { inviteToken: InviteToken, onDelete: (id: number) => void }) => {
-  return <div className='border border-gray-200 rounded-sm p-3 flex flex-col gap-2'>
+  return <div className='border border-neutral-200 rounded-sm p-3 flex flex-col gap-2'>
     <div className='flex items-center justify-between'>
       <div className='flex items-center gap-2'>
         <span className='text-sm'>usage:</span>
         <span className='text-sm font-medium'>{inviteToken.uses} / {inviteToken.maxUses}</span>
       </div>
-      <Trash className='w-4 h-4 text-gray-500 cursor-pointer' onClick={() => onDelete(inviteToken.id)} />
+      <Trash className='w-4 h-4 text-neutral-500 cursor-pointer' onClick={() => onDelete(inviteToken.id)} />
     </div>
     <div className='bg-primary-50 px-3 py-2 rounded-sm text-primary-900 text-sm truncate'>
       {NEXT_PUBLIC_HOST_URL}/invitations?token={inviteToken.token}

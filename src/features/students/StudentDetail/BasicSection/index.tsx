@@ -24,16 +24,16 @@ const Basic = ({
   return (
     <>
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 p-4 rounded-2xl border border-gray-200 bg-white shadow-sm relative">
+        <div className="flex flex-col gap-3 p-4 rounded-2xl border border-neutral-200 bg-white shadow-sm relative">
           <div className="flex items-center gap-3">
             <img
               src={student.avatarUrl}
               className="w-12 h-12 rounded-full object-cover ring-2 ring-primary-100"
             />
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">{student.name}</h2>
+              <h2 className="text-xl font-semibold text-neutral-900">{student.name}</h2>
               {student.note && !isPublic && (
-                <p className="text-sm text-gray-500">{student.note}</p>
+                <p className="text-sm text-neutral-500">{student.note}</p>
               )}
             </div>
           </div>
@@ -63,7 +63,7 @@ const Basic = ({
         {!isPublic && (
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-700">Shared URL</p>
+              <p className="text-sm font-semibold text-neutral-700">Shared URL</p>
               <button
                 className="inline-flex items-center gap-1.5 text-xs font-medium bg-primary-500 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-primary-600 transition-colors"
                 onClick={handleCopy}
@@ -72,14 +72,14 @@ const Basic = ({
                 <span>Copy link</span>
               </button>
             </div>
-            <p className="text-xs text-gray-500 break-all p-2.5 bg-gray-50 border border-gray-200 rounded-xl">
+            <p className="text-xs text-neutral-500 break-all p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl">
               {window.location.origin}/public-students/{student.randomKey}
             </p>
           </div>
         )}
         {!isPublic && <StudentLineBind studentId={student.id} />}
         <div className="flex flex-col gap-2">
-          <h4 className="text-sm font-semibold text-gray-700">Events</h4>
+          <h4 className="text-sm font-semibold text-neutral-700">Events</h4>
           <div className="flex flex-col gap-2">
             {events?.map((event) => (
               <Event key={event.id} event={event} />
@@ -93,9 +93,9 @@ const Basic = ({
 
 const Info = ({ label, value }: { label: string; value: string }) => {
   return (
-    <div className="flex flex-col items-center justify-center gap-0.5 py-4 border border-gray-200 rounded-2xl bg-white">
-      <div className="text-2xl font-bold text-gray-900">{value}</div>
-      <div className="text-sm text-gray-500">{label}</div>
+    <div className="flex flex-col items-center justify-center gap-0.5 py-4 border border-neutral-200 rounded-2xl bg-white">
+      <div className="text-2xl font-bold text-neutral-900">{value}</div>
+      <div className="text-sm text-neutral-500">{label}</div>
     </div>
   );
 };

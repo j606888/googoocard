@@ -254,6 +254,43 @@ describe("POST .../confirm-payment", () => {
     expect(event).not.toBeNull();
   });
 
+  it("跨教室：確認他人教室課卡的付款 → 404（不洩漏存在性、不改動）", async () => {
+    const otherUser = await prisma.user.create({
+      data: { email: "other@test.local", name: "Other", password: "x" },
+    });
+    const otherClassroom = await prisma.classroom.create({
+      data: { ownerId: otherUser.id, name: "Other Classroom" },
+    });
+    const otherStudent = await createStudent(otherClassroom.id, { name: "別人" });
+    const otherCard = await createCard(otherClassroom.id);
+    const otherSc = await prisma.studentCard.create({
+      data: {
+        studentId: otherStudent.id,
+        cardId: otherCard.id,
+        basePrice: 3000,
+        finalPrice: 3000,
+        totalSessions: 6,
+        remainingSessions: 6,
+        isPaid: false,
+      },
+    });
+
+    // auth.classroomId 仍是自己的教室
+    const res = await CONFIRM_PAYMENT(
+      jsonRequest("POST"),
+      routeParams({
+        id: String(otherStudent.id),
+        studentCardId: String(otherSc.id),
+      })
+    );
+    expect(res.status).toBe(404);
+
+    const untouched = await prisma.studentCard.findUniqueOrThrow({
+      where: { id: otherSc.id },
+    });
+    expect(untouched.isPaid).toBe(false);
+  });
+
   it("重複確認已付款的卡 → 400 ALREADY_PAID", async () => {
     const student = await createStudent(classroomId);
     const card = await createCard(classroomId, { name: "一般卡" });

@@ -59,33 +59,33 @@ const ClassroomSwitcher = () => {
             >
               {otherClassrooms && otherClassrooms.length > 0 ? (
                 <>
-                  <p className="px-2 pb-1 pt-1.5 text-xs font-medium text-gray-400">
+                  <p className="px-2 pb-1 pt-1.5 text-xs font-medium text-neutral-400">
                     Switch classroom
                   </p>
                   {otherClassrooms.map((classroom) => (
                     <button
                       key={classroom.id}
                       onClick={() => handleSwitch(classroom.id)}
-                      className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-gray-50"
+                      className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-neutral-50"
                     >
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-500 text-sm font-bold text-white">
                         {classroom.name.slice(0, 1)}
                       </div>
-                      <span className="font-medium text-gray-800">
+                      <span className="font-medium text-neutral-800">
                         {classroom.name}
                       </span>
                     </button>
                   ))}
                 </>
               ) : (
-                <p className="px-2 py-2 text-sm text-gray-400">
+                <p className="px-2 py-2 text-sm text-neutral-400">
                   No other classrooms
                 </p>
               )}
               <Link
                 href="/onboarding"
                 onClick={() => setOpen(false)}
-                className="mt-1 flex items-center gap-2 rounded-xl border-t border-gray-100 px-2 py-2.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
+                className="mt-1 flex items-center gap-2 rounded-xl border-t border-neutral-100 px-2 py-2.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
               >
                 <Plus className="h-4 w-4" />
                 Create another classroom

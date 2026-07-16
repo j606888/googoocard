@@ -25,7 +25,7 @@ const StudentOption = ({
       className={`flex flex-col gap-2 px-3 py-2.5 rounded-xl border transition-colors cursor-pointer ${
         isChecked
           ? "bg-primary-50 border-primary-300"
-          : "bg-white border-transparent hover:bg-gray-50"
+          : "bg-white border-transparent hover:bg-neutral-50"
       }`}
       onClick={() => onClick(student)}
     >
@@ -39,17 +39,17 @@ const StudentOption = ({
         />
         <div className="flex items-center gap-1.5 min-w-0">
           <span
-            className={`text-base font-medium ${isGray ? "text-gray-400" : "text-gray-900"}`}
+            className={`text-base font-medium ${isGray ? "text-neutral-400" : "text-neutral-900"}`}
           >
             {student.name}
           </span>
           {isSelfCheckIn && (
-            <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+            <span className="shrink-0 rounded-full bg-success-100 px-2 py-0.5 text-xs font-medium text-success-700">
               自助簽到
             </span>
           )}
           {student.note && (
-            <p className={`text-sm truncate ${isGray ? "text-gray-300" : "text-gray-500"}`}>
+            <p className={`text-sm truncate ${isGray ? "text-neutral-300" : "text-neutral-500"}`}>
               ({student.note})
             </p>
           )}

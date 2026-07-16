@@ -56,14 +56,14 @@ const TeamList = () => {
             </span>
           </button>
         </div>
-        <div className="flex border-b border-gray-200 mb-3">
+        <div className="flex border-b border-neutral-200 mb-3">
           {TABS.map((tab) => (
             <div
               key={tab}
               className={`px-4 py-2 cursor-pointer ${
                 tab === activeTab
                   ? "border-b-2 border-primary-500 font-semibold text-primary-500"
-                  : "text-gray-500"
+                  : "text-neutral-500"
               }`}
               onClick={() => setActiveTab(tab)}
             >
@@ -101,12 +101,12 @@ const TeamList = () => {
         onSubmit={handleCreateInviteToken}
       >
         <form>
-          <p className="text-sm text-gray-500 mb-2">
+          <p className="text-sm text-neutral-500 mb-2">
             Anymoe with invite link can join the classroom
           </p>
           <label className="block mb-2 font-medium">Max usage</label>
           <input
-            className="w-full mb-4 p-2 rounded bg-gray-100"
+            className="w-full mb-4 p-2 rounded bg-neutral-100"
             placeholder="Max uses"
             value={maxUses}
             onChange={(e) => setMaxUses(Number(e.target.value))}

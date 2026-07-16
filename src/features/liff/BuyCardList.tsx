@@ -113,7 +113,7 @@ export default function BuyCardList({
 
   if (loadError) {
     return (
-      <p className="px-5 py-8 text-center text-sm text-gray-500">
+      <p className="px-5 py-8 text-center text-sm text-neutral-500">
         載入失敗，請稍後再試。
       </p>
     );
@@ -134,7 +134,7 @@ export default function BuyCardList({
           </h2>
         </div>
 
-        <div className="rounded-xl border border-gray-200 p-4">
+        <div className="rounded-xl border border-neutral-200 p-4">
           <div className="flex items-center gap-2">
             <span className="text-lg font-semibold">{purchased.name}</span>
             {purchased.isPracticeCard && purchased.danceType && (
@@ -145,7 +145,7 @@ export default function BuyCardList({
               </span>
             )}
           </div>
-          <div className="mt-2 flex items-center justify-between text-sm text-gray-600">
+          <div className="mt-2 flex items-center justify-between text-sm text-neutral-600">
             <span>{purchased.sessions} 堂</span>
             <span className="text-lg font-bold text-primary-600">
               ${purchased.price}
@@ -153,7 +153,7 @@ export default function BuyCardList({
           </div>
         </div>
 
-        <p className="rounded-xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-800">
+        <p className="rounded-xl bg-warning-50 p-4 text-sm leading-relaxed text-warning-800">
           待老師確認付款後，此課卡也會標記為已付款。卡片在確認付款前仍可正常使用，現在去上課吧！
         </p>
 
@@ -170,7 +170,7 @@ export default function BuyCardList({
   return (
     <div className="px-5 py-5">
       {visibleCards.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-500">
+        <p className="py-8 text-center text-sm text-neutral-500">
           目前沒有可購買的課卡。
         </p>
       ) : (
@@ -179,7 +179,7 @@ export default function BuyCardList({
             <button
               key={card.id}
               onClick={() => setSelected(card)}
-              className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 p-4 text-left active:bg-gray-50"
+              className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 p-4 text-left active:bg-neutral-50"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -192,7 +192,7 @@ export default function BuyCardList({
                     </span>
                   )}
                 </div>
-                <div className="mt-1 text-sm text-gray-500">{card.sessions} 堂</div>
+                <div className="mt-1 text-sm text-neutral-500">{card.sessions} 堂</div>
               </div>
               <div className="shrink-0 text-lg font-bold text-primary-600">
                 ${card.price}
@@ -212,7 +212,7 @@ export default function BuyCardList({
       >
         {selected && (
           <div className="flex flex-col gap-4">
-            <div className="rounded-xl border border-gray-200 p-4">
+            <div className="rounded-xl border border-neutral-200 p-4">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold">{selected.name}</span>
                 {selected.isPracticeCard && selected.danceType && (
@@ -223,14 +223,14 @@ export default function BuyCardList({
                   </span>
                 )}
               </div>
-              <div className="mt-2 flex items-center justify-between text-sm text-gray-600">
+              <div className="mt-2 flex items-center justify-between text-sm text-neutral-600">
                 <span>{selected.sessions} 堂</span>
                 <span className="text-lg font-bold text-primary-600">
                   ${selected.price}
                 </span>
               </div>
             </div>
-            <p className="rounded-xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-800">
+            <p className="rounded-xl bg-warning-50 p-4 text-sm leading-relaxed text-warning-800">
               請直接轉帳或拿現金給老師，我們會再幫你把這張卡標記為已付款。卡片在確認付款前仍可正常使用。
             </p>
           </div>

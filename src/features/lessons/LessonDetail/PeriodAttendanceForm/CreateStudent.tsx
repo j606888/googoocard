@@ -133,19 +133,19 @@ const CreateStudent = ({
           />
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-700">Tags</label>
+            <label className="text-sm font-medium text-neutral-700">Tags</label>
             {pendingTags.length > 0 && (
               <div className="flex flex-wrap gap-2 min-h-8">
                 {pendingTags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full text-gray-600 bg-gray-100"
+                    className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full text-neutral-600 bg-neutral-100"
                   >
                     {tag}
                     <button
                       type="button"
                       onClick={() => removePendingTag(tag)}
-                      className="ml-0.5 hover:text-red-500 transition-colors"
+                      className="ml-0.5 hover:text-danger-500 transition-colors"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -160,7 +160,7 @@ const CreateStudent = ({
                     key={tag.id}
                     type="button"
                     onClick={() => addPendingTag(tag.name)}
-                    className="inline-flex items-center gap-1 text-xs text-gray-500 border border-dashed border-gray-300 px-2 py-0.5 rounded-full hover:border-primary-400 hover:text-primary-600 transition-colors"
+                    className="inline-flex items-center gap-1 text-xs text-neutral-500 border border-dashed border-neutral-300 px-2 py-0.5 rounded-full hover:border-primary-400 hover:text-primary-600 transition-colors"
                   >
                     <Plus className="w-3 h-3" />
                     {tag.name}
@@ -180,7 +180,7 @@ const CreateStudent = ({
                   }
                 }}
                 placeholder="New tag name..."
-                className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
+                className="flex-1 text-sm border border-neutral-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
               />
               <button
                 type="button"
