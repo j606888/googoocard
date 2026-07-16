@@ -1,7 +1,7 @@
 "use client";
 
-import { LogOut, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { LogOut, ChevronDown, Plus } from "lucide-react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/store/slices/classrooms";
 import { useLogoutMutation } from "@/store/slices/me";
 import { useGetStudentsQuery } from "@/store/slices/students";
+import Menu from "@/components/Menu";
 import { LINKS } from "./nav/navConfig";
 
 interface SidebarContentProps {
@@ -18,6 +19,7 @@ interface SidebarContentProps {
 
 const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const [switchClassroomOpen, setSwitchClassroomOpen] = useState(false);
+  const anchorRef = useRef<HTMLDivElement>(null);
   const [switchClassroom] = useSwitchClassroomMutation();
   const pathname = usePathname();
   const router = useRouter();
@@ -49,49 +51,67 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
 
   return (
     <>
-      <div className="flex gap-4 items-center pb-4 border-b border-neutral-200">
-        <div className="w-9 h-9 font-bold flex items-center justify-center bg-primary-500 rounded-lg text-white">
+      <div
+        ref={anchorRef}
+        className="flex gap-3 items-center pb-4 border-b border-neutral-200"
+      >
+        <div className="w-9 h-9 shrink-0 font-bold flex items-center justify-center bg-primary-500 rounded-lg text-white">
           {currentClassroom?.name.slice(0, 1)}
         </div>
-        <h2 className="text-xl font-semibold">{currentClassroom?.name}</h2>
+        <h2 className="min-w-0 flex-1 truncate text-base font-medium">
+          {currentClassroom?.name}
+        </h2>
         <button
-          className="ml-auto cursor-pointer"
+          className="shrink-0 cursor-pointer"
           onClick={() => setSwitchClassroomOpen(!switchClassroomOpen)}
         >
           <ChevronDown
-            className={`w-6 h-6 transition-transform ${
+            className={`w-5 h-5 text-neutral-500 transition-transform ${
               switchClassroomOpen ? "rotate-180" : ""
             }`}
           />
         </button>
       </div>
-      {switchClassroomOpen && (
-        <div className="flex flex-col gap-2 mb-2 py-3 px-2 border-b border-neutral-200">
-          <p className="text-xs text-neutral-400 font-medium">
-            Switch to other classroom
-          </p>
-          <div className="flex flex-col gap-2">
-            {otherClassrooms?.map((classroom) => (
-              <div
+      <Menu
+        open={switchClassroomOpen}
+        anchorEl={anchorRef.current}
+        onClose={() => setSwitchClassroomOpen(false)}
+        className="w-60 rounded-2xl border border-black/5 bg-white p-2 shadow-[0_12px_40px_-12px_rgba(27,94,74,0.45)] z-50 flex flex-col"
+      >
+        {otherClassrooms && otherClassrooms.length > 0 ? (
+          <>
+            <p className="px-2 pb-1 pt-1.5 text-xs font-medium text-neutral-400">
+              Switch classroom
+            </p>
+            {otherClassrooms.map((classroom) => (
+              <button
                 key={classroom.id}
-                className="flex gap-3 items-center py-2 cursor-pointer"
                 onClick={() => handleSwitchClassroom(classroom.id)}
+                className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-neutral-50"
               >
-                <div className="w-8 h-8 font-bold text-sm flex items-center justify-center bg-primary-500 rounded-sm text-white">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-500 text-sm font-bold text-white">
                   {classroom.name.slice(0, 1)}
                 </div>
-                <h2 className="text-lg font-semibold">{classroom.name}</h2>
-              </div>
+                <span className="font-medium text-neutral-800">
+                  {classroom.name}
+                </span>
+              </button>
             ))}
-          </div>
-          <Link
-            href="/onboarding"
-            className="text-neutral-700 font-medium text-sm underline"
-          >
-            <span>Create another classroom</span>
-          </Link>
-        </div>
-      )}
+          </>
+        ) : (
+          <p className="px-2 py-2 text-sm text-neutral-400">
+            No other classrooms
+          </p>
+        )}
+        <Link
+          href="/onboarding"
+          onClick={() => setSwitchClassroomOpen(false)}
+          className="mt-1 flex items-center gap-2 rounded-xl border-t border-neutral-100 px-2 py-2.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
+        >
+          <Plus className="h-4 w-4" />
+          Create another classroom
+        </Link>
+      </Menu>
       <div className="flex flex-col gap-1.5 mt-3">
         {LINKS.map((link) => {
           const active = pathname.startsWith(link.href);

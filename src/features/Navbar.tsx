@@ -31,7 +31,9 @@ const Navbar = () => {
 
   return (
     <div className="w-full h-15 bg-primary-500 flex items-center px-5 gap-3 sticky top-0 z-10">
-      <ClassroomSwitcher />
+      <div className="md:hidden">
+        <ClassroomSwitcher />
+      </div>
       <UnpaidBell />
     </div>
   );

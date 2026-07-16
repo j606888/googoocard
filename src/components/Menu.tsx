@@ -15,9 +15,10 @@ interface MenuProps {
   anchorEl: HTMLElement | null;
   onClose: () => void;
   children: React.ReactNode;
+  className?: string;
 }
 
-const Menu = ({ open, anchorEl, onClose, children }: MenuProps) => {
+const Menu = ({ open, anchorEl, onClose, children, className }: MenuProps) => {
   const { refs, floatingStyles } = useFloating({
     elements: {
       reference: anchorEl || undefined,
@@ -56,7 +57,10 @@ const Menu = ({ open, anchorEl, onClose, children }: MenuProps) => {
           menuRef.current = node;
         }}
         style={floatingStyles}
-        className="bg-white rounded-md shadow-[0_8px_32px_rgba(0,0,0,0.24)] z-50 flex flex-col"
+        className={
+          className ??
+          "bg-white rounded-md shadow-[0_8px_32px_rgba(0,0,0,0.24)] z-50 flex flex-col"
+        }
       >
         {children}
       </div>
