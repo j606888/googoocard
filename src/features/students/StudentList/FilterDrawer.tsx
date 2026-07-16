@@ -4,7 +4,7 @@ import Drawer from "@/components/Drawer";
 import { DanceType } from "@prisma/client";
 import { danceTypeLabel } from "@/lib/danceTypes";
 import { StudentTag } from "@/store/slices/students";
-import { Lesson } from "@/store/slices/lessons";
+import { LessonSummary } from "@/store/slices/lessons";
 import { EMPTY_FILTERS, StudentFilters, tagLabel } from "./studentFilters";
 
 interface FilterDrawerProps {
@@ -13,7 +13,7 @@ interface FilterDrawerProps {
   filters: StudentFilters;
   onChange: (next: StudentFilters) => void;
   tags: StudentTag[];
-  lessons: Lesson[];
+  lessons: Pick<LessonSummary, "id" | "name">[];
   availableQualifications: DanceType[];
   resultCount: number;
 }

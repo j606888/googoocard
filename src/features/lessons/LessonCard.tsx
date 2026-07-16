@@ -1,49 +1,49 @@
 "use client";
 
-import { Users, BookOpenText, Flag, CalendarDays, Copy, GraduationCap } from "lucide-react";
-import { Lesson } from "@/store/slices/lessons";
+import { Users, BookOpenText, Flag, CalendarDays, Copy, GraduationCap, AlarmClock } from "lucide-react";
+import { LessonSummary } from "@/store/slices/lessons";
 import { format, addDays } from "date-fns";
 import { useRouter } from "next/navigation";
 import { setLessonCloneSource } from "@/lib/lessonDraftStorage";
 import { DANCE_TYPE_META } from "@/lib/danceTypes";
 
-const LessonCard = ({ lesson }: { lesson: Lesson }) => {
+const LessonCard = ({ lesson }: { lesson: LessonSummary }) => {
   const router = useRouter();
-  const periods = lesson.periods || [];
-  const attendCount = periods.filter((period) => period.attendanceTakenAt).length;
-  const lastPeriod = periods.reduce(
-    (latest, period) =>
-      new Date(period.endTime) > new Date(latest.endTime) ? period : latest,
-    periods[0]
-  );
-  const nextPendingPeriod = [...periods]
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-    .find((p) => !p.attendanceTakenAt);
-
   const style = DANCE_TYPE_META[lesson.danceType];
-  const isFinished = periods.length > 0 && attendCount === periods.length;
+  const isFinished = lesson.status === "finished";
+  const hasDue = lesson.dueForAttendanceCount > 0 && lesson.dueForAttendancePeriodId !== null;
 
   const handleClone = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const initialPeriod = lastPeriod
-      ? {
-          startTime: addDays(new Date(lastPeriod.startTime), 7).toISOString(),
-          endTime: addDays(new Date(lastPeriod.endTime), 7).toISOString(),
-        }
-      : undefined;
+    const initialPeriod =
+      lesson.lastPeriodStart && lesson.lastPeriodEnd
+        ? {
+            startTime: addDays(new Date(lesson.lastPeriodStart), 7).toISOString(),
+            endTime: addDays(new Date(lesson.lastPeriodEnd), 7).toISOString(),
+          }
+        : undefined;
     setLessonCloneSource({
       lessonName: lesson.name,
       teacherIds: lesson.teachers.map((t) => t.id),
-      cardIds: lesson.cards.map((c) => c.id),
+      cardIds: lesson.cardIds,
       danceType: lesson.danceType,
       initialPeriod,
     });
     router.push("/lessons/new");
   };
 
+  const handleTakeAttendance = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push(`/lessons/${lesson.id}/periods/${lesson.dueForAttendancePeriodId}/check`);
+  };
+
   return (
     <div
-      className="group cursor-pointer flex items-stretch gap-0 rounded-2xl border border-neutral-200 bg-white overflow-hidden hover:shadow-md hover:border-neutral-300 transition-all duration-200"
+      className={`group cursor-pointer flex items-stretch gap-0 rounded-2xl border bg-white overflow-hidden hover:shadow-md transition-all duration-200 ${
+        hasDue
+          ? "border-warning-400 ring-1 ring-warning-200"
+          : "border-neutral-200 hover:border-neutral-300"
+      }`}
       onClick={() => router.push(`/lessons/${lesson.id}`)}
     >
       {/* Dance-color accent stripe */}
@@ -82,25 +82,39 @@ const LessonCard = ({ lesson }: { lesson: Lesson }) => {
         <div className="flex items-center gap-3 text-xs text-neutral-500">
           <div className="flex items-center gap-1">
             <Users className="w-3.5 h-3.5" />
-            <span>{lesson.students.length}</span>
+            <span>{lesson.studentCount}</span>
           </div>
           <div className="flex items-center gap-1">
             <BookOpenText className="w-3.5 h-3.5" />
-            <span>{attendCount}/{periods.length}</span>
+            <span>{lesson.attendedCount}/{lesson.totalPeriods}</span>
           </div>
-          {nextPendingPeriod && (
+          {!isFinished && lesson.nextSessionDate && (
             <div className="flex items-center gap-1 ml-auto font-medium text-primary-600">
               <Flag className="w-3 h-3" />
-              <span>Next {format(new Date(nextPendingPeriod.startTime), "M/d")}</span>
+              <span>Next {format(new Date(lesson.nextSessionDate), "M/d")}</span>
             </div>
           )}
-          {isFinished && lastPeriod && (
+          {isFinished && lesson.lastPeriodEnd && (
             <div className="flex items-center gap-1 ml-auto text-neutral-400">
               <CalendarDays className="w-3 h-3" />
-              <span>Ended {format(new Date(lastPeriod.endTime), "M/d")}</span>
+              <span>Ended {format(new Date(lesson.lastPeriodEnd), "M/d")}</span>
             </div>
           )}
         </div>
+
+        {/* Due-for-attendance CTA */}
+        {hasDue && (
+          <button
+            onClick={handleTakeAttendance}
+            className="flex items-center justify-center gap-1.5 mt-0.5 w-full py-2 rounded-lg bg-warning-500 text-white text-sm font-semibold hover:bg-warning-600 transition-colors"
+          >
+            <AlarmClock className="w-4 h-4" />
+            <span>
+              點名
+              {lesson.dueForAttendanceCount > 1 ? ` · ${lesson.dueForAttendanceCount} 堂待點名` : ""}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );
