@@ -1,7 +1,8 @@
 import { Card } from "@/store/slices/cards";
-import { EllipsisVertical, Trash, Ban, Lightbulb, Pencil, Users, TriangleAlert } from "lucide-react";
+import { EllipsisVertical, Trash, Ban, Lightbulb, Pencil, Users, TriangleAlert, Eye } from "lucide-react";
 import { DANCE_TYPE_META, danceTypeLabel } from "@/lib/danceTypes";
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Menu from "@/components/Menu";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/store/slices/cards";
 
 const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDisable, setConfirmDisable] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -104,6 +106,16 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
         anchorEl={buttonRef.current}
         onClose={() => setMenuOpen(false)}
       >
+        <button
+          className="flex gap-2 items-center p-3 hover:bg-neutral-100 rounded-sm cursor-pointer"
+          onClick={() => {
+            setMenuOpen(false);
+            router.push(`/cards/${card.id}`);
+          }}
+        >
+          <Eye className="w-4.5 h-4.5" />
+          <span>查看詳細資料</span>
+        </button>
         {!isDisabled && (
           <button
             className="flex gap-2 items-center p-3 hover:bg-neutral-100 rounded-sm cursor-pointer"

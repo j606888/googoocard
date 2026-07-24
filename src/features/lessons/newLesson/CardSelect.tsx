@@ -63,20 +63,31 @@ const NewCard = ({ selectedCardIds, onChange, danceType, error }: { selectedCard
     setErrors({});
   };
 
+  // Candidate cards: all active cards, plus disabled cards that students still
+  // hold unused (activeHolders > 0) so those cards can be attached to a lesson
+  // and consumed at attendance — and any already-selected card so its chip keeps
+  // its label when editing a lesson.
+  const candidateCards = [
+    ...(cards?.activeCards ?? []),
+    ...(cards?.expiredCards ?? []).filter(
+      (card) => card.activeHolders > 0 || selectedCardIds.includes(card.id)
+    ),
+  ];
+
   // Practice cards of another dance type can't be attached to this lesson.
-  const matchingCards = cards?.activeCards?.filter((card) =>
+  const matchingCards = candidateCards.filter((card) =>
     cardMatchesLesson(card, danceType)
-  ) || [];
+  );
 
   const cardOptions = matchingCards.map((card) => ({
-    label: card.name,
+    label: card.expiredAt ? `${card.name}（已停用）` : card.name,
     value: card.id,
   }));
 
   useEffect(() => {
-    if (!cards?.activeCards) return;
+    if (!cards) return;
     const validIds = selectedCardIds.filter((id) => {
-      const card = cards.activeCards.find((c) => c.id === id);
+      const card = candidateCards.find((c) => c.id === id);
       return !card || cardMatchesLesson(card, danceType);
     });
     if (validIds.length !== selectedCardIds.length) {

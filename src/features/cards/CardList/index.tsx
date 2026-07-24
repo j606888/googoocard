@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { DanceType } from "@prisma/client";
 import { useGetCardsQuery, Card } from "@/store/slices/cards";
-import { CreditCard, ChevronDown, Users, TrendingUp, Ban } from "lucide-react";
+import { CreditCard, ChevronDown } from "lucide-react";
 import { DANCE_TYPE_META } from "@/lib/danceTypes";
 import NewCard from "./NewCard";
 import SingleCard from "./SingleCard";
@@ -25,10 +25,6 @@ const CardList = () => {
   const [danceFilter, setDanceFilter] = useState<DanceType | null>(null);
 
   if (isLoading) return <CardListSkeleton />;
-
-  // Stat tiles summarise the whole classroom — computed on the full set, never filtered.
-  const totalRevenue = activeCards.reduce((sum, c) => sum + c.totalRevenue, 0);
-  const totalActiveHolders = activeCards.reduce((sum, c) => sum + c.activeHolders, 0);
 
   // Dance types with at least one card (active or disabled), in canonical order.
   const availableDanceTypes = DANCE_TYPE_ORDER.filter((t) =>
@@ -54,36 +50,6 @@ const CardList = () => {
         <h2 className="text-2xl font-semibold">Cards</h2>
         <NewCard />
       </div>
-
-      {/* Stats bar — desktop only */}
-      {(activeCards.length > 0 || expiredCards.length > 0) && (
-        <div className="hidden lg:grid lg:grid-cols-4 lg:gap-4 lg:mb-6">
-          <StatCard
-            icon={<CreditCard className="w-5 h-5 text-primary-500" />}
-            label="Active Cards"
-            value={activeCards.length}
-            bg="bg-primary-50"
-          />
-          <StatCard
-            icon={<Users className="w-5 h-5 text-primary-500" />}
-            label="Active Holders"
-            value={totalActiveHolders}
-            bg="bg-primary-50"
-          />
-          <StatCard
-            icon={<TrendingUp className="w-5 h-5 text-warning-600" />}
-            label="Total Revenue"
-            display={`$${totalRevenue.toLocaleString()}`}
-            bg="bg-warning-100"
-          />
-          <StatCard
-            icon={<Ban className="w-5 h-5 text-neutral-400" />}
-            label="Disabled Cards"
-            value={expiredCards.length}
-            bg="bg-neutral-50"
-          />
-        </div>
-      )}
 
       {hasAnyCard && (
         <CardFilters
@@ -161,27 +127,5 @@ const CardList = () => {
     </div>
   );
 };
-
-const StatCard = ({
-  icon,
-  label,
-  value,
-  display,
-  bg,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value?: number;
-  display?: string;
-  bg: string;
-}) => (
-  <div className={`${bg} border border-neutral-100 rounded-xl p-4 flex items-center gap-3 shadow-sm`}>
-    <div className="shrink-0">{icon}</div>
-    <div>
-      <p className="text-2xl font-bold text-neutral-900">{display ?? value}</p>
-      <p className="text-xs text-neutral-500">{label}</p>
-    </div>
-  </div>
-);
 
 export default CardList;
