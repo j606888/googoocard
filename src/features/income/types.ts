@@ -40,3 +40,32 @@ export interface DailySummaryListResponse {
   years: number[];
   days: DailyTotal[];
 }
+
+export interface CardMonthlyTotal {
+  month: string; // YYYY-MM
+  totalRevenue: number;
+  unpaidTotal: number;
+  count: number;
+}
+
+export interface CardMonthlyListResponse {
+  years: number[];
+  months: CardMonthlyTotal[];
+}
+
+export interface CardPurchase {
+  id: number;
+  date: string; // YYYY-MM-DD
+  studentId: number;
+  studentName: string;
+  cardName: string;
+  finalPrice: number;
+  isPaid: boolean;
+}
+
+export interface CardMonthlyDetailResponse {
+  month: string;
+  totalRevenue: number;
+  unpaidTotal: number;
+  purchases: CardPurchase[];
+}

@@ -4,14 +4,16 @@ import { useState } from "react";
 import { DollarSign } from "lucide-react";
 import Navbar from "@/features/Navbar";
 import DailyTab from "@/features/income/DailyTab";
+import CardMonthlyTab from "@/features/income/CardMonthlyTab";
 import RecordsTab from "@/features/income/RecordsTab";
 import UnpaidTab from "@/features/income/UnpaidTab";
 import { useGetUnpaidStudentCardsQuery } from "@/store/slices/students";
 
-type Tab = "daily" | "records" | "unpaid";
+type Tab = "daily" | "cardMonthly" | "records" | "unpaid";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "daily", label: "課程營收" },
+  { id: "cardMonthly", label: "課卡營收" },
   { id: "records", label: "課卡紀錄" },
   { id: "unpaid", label: "未付款" },
 ];
@@ -32,7 +34,7 @@ const IncomePage = () => {
 
         {/* Mobile: tab switcher */}
         <div className="lg:hidden">
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
@@ -53,12 +55,14 @@ const IncomePage = () => {
             ))}
           </div>
           {activeTab === "daily" && <DailyTab />}
+          {activeTab === "cardMonthly" && <CardMonthlyTab />}
           {activeTab === "records" && <RecordsTab />}
           {activeTab === "unpaid" && <UnpaidTab />}
         </div>
 
-        {/* Desktop: side by side, with unpaid below */}
+        {/* Desktop: card revenue chart full-width on top, then side by side, unpaid below */}
         <div className="hidden lg:flex lg:flex-col lg:gap-8">
+          <CardMonthlyTab />
           <div className="grid grid-cols-[3fr_2fr] gap-8 items-start">
             <DailyTab />
             <RecordsTab />

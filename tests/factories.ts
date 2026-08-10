@@ -100,7 +100,19 @@ export async function createLesson(
 export async function createStudentCard(
   studentId: number,
   cardId: number,
-  { remainingSessions = 6, totalSessions = 6, finalPrice = 3000 } = {}
+  {
+    remainingSessions = 6,
+    totalSessions = 6,
+    finalPrice = 3000,
+    isPaid,
+    createdAt,
+  }: {
+    remainingSessions?: number;
+    totalSessions?: number;
+    finalPrice?: number;
+    isPaid?: boolean;
+    createdAt?: Date; // 課卡營收依購買時間分月,測試需要指定
+  } = {}
 ) {
   return prisma.studentCard.create({
     data: {
@@ -110,6 +122,8 @@ export async function createStudentCard(
       finalPrice,
       totalSessions,
       remainingSessions,
+      ...(isPaid === undefined ? {} : { isPaid }),
+      ...(createdAt === undefined ? {} : { createdAt }),
     },
   });
 }
