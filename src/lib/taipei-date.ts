@@ -15,3 +15,14 @@ export function parseTaipeiDateRange(dateKey: string): { start: Date; end: Date 
   const end = new Date(Date.UTC(year, month - 1, day + 1, 0, -TAIPEI_OFFSET_MINUTES, 0, 0));
   return { start, end };
 }
+
+export function toTaipeiMonthKey(date: Date): string {
+  return toTaipeiDateKey(date).slice(0, 7);
+}
+
+export function parseTaipeiMonthRange(monthKey: string): { start: Date; end: Date } {
+  const [year, month] = monthKey.split("-").map(Number);
+  const start = new Date(Date.UTC(year, month - 1, 1, 0, -TAIPEI_OFFSET_MINUTES, 0, 0));
+  const end = new Date(Date.UTC(year, month, 1, 0, -TAIPEI_OFFSET_MINUTES, 0, 0));
+  return { start, end };
+}

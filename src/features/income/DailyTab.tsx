@@ -8,6 +8,7 @@ import type {
   DailySummaryResponse,
   DailyTotal,
 } from "./types";
+import { formatMoney, monthLabel } from "./format";
 
 async function fetchDailySummaryList(): Promise<DailySummaryListResponse> {
   const res = await fetch("/api/income/daily-summary/list");
@@ -27,15 +28,6 @@ function formatDayLabel(date: string): string {
   const [y, m, d] = date.split("-").map(Number);
   const weekday = WEEKDAYS[new Date(y, m - 1, d).getDay()];
   return `${m}/${d} 週${weekday}`;
-}
-
-function monthLabel(date: string): string {
-  const [y, m] = date.split("-").map(Number);
-  return `${y} 年 ${m} 月`;
-}
-
-function formatMoney(amount: number): string {
-  return Math.round(amount).toLocaleString();
 }
 
 export default function DailyTab() {
