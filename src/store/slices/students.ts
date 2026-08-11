@@ -81,6 +81,9 @@ export interface StudentCard {
   totalSessions: number;
   remainingSessions: number;
   purchaseSource: "STAFF" | "STUDENT";
+  note: string | null;
+  origin: "PURCHASE" | "CONVERSION";
+  convertedToId: number | null;
   isPaid: boolean;
   paidAt: string | null;
   purchasedBy?: { name: string } | null;
@@ -183,6 +186,25 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["StudentCard", "Student"],
     }),
+    updateStudentCardNote: builder.mutation<StudentCard, { id: number; studentCardId: number; note: string | null }>({
+      query: ({ id, studentCardId, note }) => ({
+        url: `students/${id}/student-cards/${studentCardId}`,
+        method: "PATCH",
+        body: { note },
+      }),
+      invalidatesTags: ["StudentCard", "Student"],
+    }),
+    convertStudentCard: builder.mutation<
+      StudentCard,
+      { id: number; studentCardId: number; targetCardId: number; sessions?: number; note?: string }
+    >({
+      query: ({ id, studentCardId, targetCardId, sessions, note }) => ({
+        url: `students/${id}/student-cards/${studentCardId}/convert`,
+        method: "POST",
+        body: { targetCardId, sessions, note },
+      }),
+      invalidatesTags: ["StudentCard", "Student"],
+    }),
     deleteStudentCard: builder.mutation<{ success: boolean }, { id: number; studentCardId: number }>({
       query: ({ id, studentCardId }) => ({
         url: `students/${id}/student-cards/${studentCardId}`,
@@ -236,6 +258,8 @@ export const {
   useGetUnpaidStudentCardsQuery,
   useGetStudentQuery,
   useExpireStudentCardMutation,
+  useUpdateStudentCardNoteMutation,
+  useConvertStudentCardMutation,
   useDeleteStudentCardMutation,
   useGetStudentCardsByLessonQuery,
   useGetStudentEventsQuery,

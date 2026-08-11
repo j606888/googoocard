@@ -3,6 +3,7 @@ import {
   useExpireStudentCardMutation,
   useDeleteStudentCardMutation,
   useConfirmStudentCardPaymentMutation,
+  useUpdateStudentCardNoteMutation,
 } from "@/store/slices/students";
 import { formatDate } from "@/lib/utils";
 import {
@@ -10,6 +11,8 @@ import {
   CircleDollarSign,
   EllipsisVertical,
   Hourglass,
+  NotebookPen,
+  Repeat2,
   Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,12 +20,17 @@ import { toast } from "sonner";
 import { useMemo, useRef, useState } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Menu from "@/components/Menu";
+import Drawer from "@/components/Drawer";
+import ConvertCard from "./ConvertCard";
+import { DanceType } from "@prisma/client";
 
 const StudentCard = ({
   studentCard,
+  danceQualifications = [],
   isPublic,
 }: {
   studentCard: StudentCardWithCard;
+  danceQualifications?: DanceType[];
   isPublic?: boolean;
 }) => {
   const [expireStudentCard] = useExpireStudentCardMutation();
@@ -30,8 +38,13 @@ const StudentCard = ({
     useDeleteStudentCardMutation();
   const [confirmPayment, { isLoading: isConfirming }] =
     useConfirmStudentCardPaymentMutation();
+  const [updateNote, { isLoading: isSavingNote }] =
+    useUpdateStudentCardNoteMutation();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cardAction, setCardAction] = useState<"expire" | "delete" | null>(null);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -42,7 +55,11 @@ const StudentCard = ({
   // hard remove for buy-mistakes, only safe while nothing has been consumed.
   const canExpire = !isFinished;
   const canDelete = usedSessions === 0;
-  const hasActions = !isPublic && (canExpire || canDelete);
+  // 轉換只對「還有剩餘堂數、還沒轉換過」的卡開放 — 用完的卡沒有價值可以帶走。
+  const canConvert = !isFinished && !studentCard.convertedToId;
+  const isConverted = studentCard.origin === "CONVERSION";
+  // 備註在任何狀態都能編輯（含已停用的卡），所以後台一律顯示選單。
+  const hasActions = !isPublic;
   const progress = Math.min(100, Math.round((usedSessions / studentCard.totalSessions) * 100));
   const isPractice = studentCard.card.isPracticeCard;
   const remainingTone = isFinished ? "text-neutral-400" : "text-primary-600";
@@ -86,6 +103,20 @@ const StudentCard = ({
     }
   };
 
+  const handleSaveNote = async () => {
+    try {
+      await updateNote({
+        id: studentCard.studentId,
+        studentCardId: studentCard.id,
+        note: noteDraft.trim() || null,
+      }).unwrap();
+      toast.success("已更新備註");
+      setNoteOpen(false);
+    } catch {
+      toast.error("更新備註失敗");
+    }
+  };
+
   const handleConfirmPayment = async () => {
     try {
       await confirmPayment({
@@ -121,6 +152,11 @@ const StudentCard = ({
                 複習卡
               </span>
             )}
+            {isConverted && (
+              <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-primary-100 text-primary-700">
+                轉換卡
+              </span>
+            )}
             {isUnpaid && (
               <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-danger-100 text-danger-700">
                 未付款
@@ -136,6 +172,11 @@ const StudentCard = ({
           <p className="text-xs text-neutral-500 mt-1">
             購買日 {formatDate(studentCard.createdAt)}
           </p>
+          {studentCard.note && (
+            <p className="text-xs text-neutral-600 mt-1 whitespace-pre-line line-clamp-3 bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1">
+              {studentCard.note}
+            </p>
+          )}
         </div>
 
         {/* Remaining sessions, emphasized */}
@@ -234,6 +275,31 @@ const StudentCard = ({
                     anchorEl={menuButtonRef.current}
                     onClose={() => setMenuOpen(false)}
                   >
+                    <button
+                      type="button"
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100 rounded-sm cursor-pointer whitespace-nowrap"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setNoteDraft(studentCard.note ?? "");
+                        setNoteOpen(true);
+                      }}
+                    >
+                      <NotebookPen className="w-4 h-4" />
+                      <span>{studentCard.note ? "編輯備註" : "新增備註"}</span>
+                    </button>
+                    {canConvert && (
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100 rounded-sm cursor-pointer whitespace-nowrap"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setConvertOpen(true);
+                        }}
+                      >
+                        <Repeat2 className="w-4 h-4" />
+                        <span>轉換卡片</span>
+                      </button>
+                    )}
                     {canExpire && (
                       <button
                         type="button"
@@ -286,6 +352,32 @@ const StudentCard = ({
         onConfirm={handleExpire}
         onCancel={() => setCardAction(null)}
       />
+
+      <ConvertCard
+        studentCard={studentCard}
+        danceQualifications={danceQualifications}
+        open={convertOpen}
+        onClose={() => setConvertOpen(false)}
+      />
+
+      <Drawer
+        title="卡片備註"
+        open={noteOpen}
+        onClose={() => setNoteOpen(false)}
+        onSubmit={handleSaveNote}
+        submitText="儲存"
+        isLoading={isSavingNote}
+      >
+        <textarea
+          className="w-full p-2 rounded bg-neutral-100 focus:outline-primary-500 text-sm"
+          rows={4}
+          maxLength={500}
+          value={noteDraft}
+          placeholder="例：已轉換為 Level 2 卡，故停用"
+          onChange={(e) => setNoteDraft(e.target.value)}
+        />
+        <p className="text-xs text-neutral-500 mt-1">留白即清除備註。</p>
+      </Drawer>
 
       <ConfirmDialog
         open={cardAction === "delete"}

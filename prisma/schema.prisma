@@ -26,6 +26,11 @@ enum CardPurchaseSource {
   STUDENT // self-purchased by the student (future flow; purchasedByUserId is null)
 }
 
+enum StudentCardOrigin {
+  PURCHASE   // 正常購買 — 有真的金流，計入課卡營收
+  CONVERSION // 由舊卡轉換而來（例：Level 1 升級 Level 2、複習卡折抵）— 不重複計入課卡營收
+}
+
 enum AttendanceSource {
   TEACHER // recorded by a teacher/助教 on the backend
   STUDENT // self check-in by the student via LIFF
@@ -159,9 +164,18 @@ model StudentCard {
   paidByUserId      Int?
   paidBy            User?    @relation("ConfirmedStudentCards", fields: [paidByUserId], references: [id])
   attendanceRecords AttendanceRecord[]
+  note              String?
+  origin            StudentCardOrigin @default(PURCHASE)
+  // 轉換鏈：欄位放在「舊卡」上指向新卡，所以多張舊卡可以合併成一張新卡
+  // （複習卡 3 堂折 1 堂 Level 2 就是這個形狀）。
+  convertedToId     Int?
+  convertedTo       StudentCard?  @relation("StudentCardConversion", fields: [convertedToId], references: [id])
+  convertedFrom     StudentCard[] @relation("StudentCardConversion")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   expiredAt         DateTime?
+
+  @@index([convertedToId])
 }
 
 model Lesson {

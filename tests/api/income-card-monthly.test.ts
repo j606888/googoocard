@@ -25,12 +25,14 @@ async function buyCard(
     finalPrice = 3000,
     createdAt,
     isPaid = true,
+    origin,
   }: {
     studentName?: string;
     cardName?: string;
     finalPrice?: number;
     createdAt: string;
     isPaid?: boolean;
+    origin?: "PURCHASE" | "CONVERSION";
   }
 ) {
   const student = await createStudent(classroomId, { name: studentName });
@@ -38,6 +40,7 @@ async function buyCard(
   return createStudentCard(student.id, card.id, {
     finalPrice,
     isPaid,
+    origin,
     createdAt: new Date(createdAt),
   });
 }
@@ -126,6 +129,20 @@ describe("GET /api/income/card-monthly", () => {
       finalPrice: 9999,
     });
     await buyCard(classroomId, { createdAt: "2026-08-05T03:00:00Z", finalPrice: 3000 });
+
+    const body = await (await listGET()).json();
+    expect(body.months).toEqual([
+      { month: "2026-08", totalRevenue: 3000, unpaidTotal: 0, count: 1 },
+    ]);
+  });
+
+  it("轉換而來的卡不計入營收也不計入張數(錢在原始購買時已認列)", async () => {
+    await buyCard(classroomId, { createdAt: "2026-08-05T03:00:00Z", finalPrice: 3000 });
+    await buyCard(classroomId, {
+      createdAt: "2026-08-06T03:00:00Z",
+      finalPrice: 1500,
+      origin: "CONVERSION",
+    });
 
     const body = await (await listGET()).json();
     expect(body.months).toEqual([
@@ -224,6 +241,25 @@ describe("GET /api/income/card-monthly/[month]", () => {
 
     const body = await (await callDetail("2026-08")).json();
     expect(body.purchases).toHaveLength(0);
+  });
+
+  it("轉換而來的卡不出現在購買明細", async () => {
+    await buyCard(classroomId, {
+      studentName: "買的",
+      createdAt: "2026-08-05T03:00:00Z",
+      finalPrice: 3000,
+    });
+    await buyCard(classroomId, {
+      studentName: "轉換的",
+      createdAt: "2026-08-06T03:00:00Z",
+      finalPrice: 1500,
+      origin: "CONVERSION",
+    });
+
+    const body = await (await callDetail("2026-08")).json();
+    expect(body.purchases).toHaveLength(1);
+    expect(body.purchases[0].studentName).toBe("買的");
+    expect(body.totalRevenue).toBe(3000);
   });
 
   it("非法月份格式 → 400", async () => {
