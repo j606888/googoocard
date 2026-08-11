@@ -6,6 +6,7 @@ import { parseTaipeiMonthRange, toTaipeiDateKey } from "@/lib/taipei-date";
 const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 // 單月課卡購買明細 — 展開某個月時才載入，回答「這個月的營收是誰買了什麼卡湊出來的」。
+// 與月營收列表一致：排除 origin = CONVERSION（轉換卡沒有新金流）。
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ month: string }> }
@@ -25,6 +26,7 @@ export async function GET(
   const studentCards = await prisma.studentCard.findMany({
     where: {
       student: { classroomId },
+      origin: "PURCHASE",
       createdAt: { gte: start, lt: end },
     },
     include: {

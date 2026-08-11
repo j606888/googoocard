@@ -89,6 +89,7 @@ const CardsSection = ({
             <StudentCard
               key={studentCard.id}
               studentCard={studentCard}
+              danceQualifications={student.danceQualifications}
               isPublic={isPublic}
             />
           ))}
@@ -105,6 +106,7 @@ const CardsSection = ({
             <StudentCard
               key={studentCard.id}
               studentCard={studentCard}
+              danceQualifications={student.danceQualifications}
               isPublic={isPublic}
             />
           ))}

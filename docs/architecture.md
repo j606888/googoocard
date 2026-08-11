@@ -18,7 +18,8 @@ Mobile-first（UI 最大寬度 480px），桌面版另有 `lg:` breakpoint 佈�
 
 ```
 Classroom（頂層容器，所有實體都屬於一間教室）
-├── Student ──┬── StudentCard（學生持有的課卡實例：remainingSessions / expiredAt）
+├── Student ──┬── StudentCard（學生持有的課卡實例：remainingSessions / expiredAt /
+│             │                note / origin / convertedToId → 見「課卡轉換」）
 │             ├── StudentDanceQualification（學生 × 舞種的 Lv1 資格，可買/用複習卡）
 │             ├── StudentTag ── Tag（自由標籤；"Needs Renewal" 為系統自動維護）
 │             └── Event（學生事件日誌：簽到、買卡、課卡用完）
@@ -112,6 +113,40 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 2. **點名頁「買卡並使用」** `BuyAndUseForm.tsx` — 帶 `lessonId`，legacy 卡 fallback 用課程舞種；買完立即 consume
 
 買卡會建立 `Event`（購買課卡）並刷新 Needs Renewal tag。
+
+## 課卡轉換（StudentCard 轉換 / 淘汰舊卡種）
+
+`POST /api/students/[id]/student-cards/[studentCardId]/convert`
+（body：`targetCardId`、可選 `sessions`、可選 `note`）
+
+用途：淘汰舊卡種時把學生手上還沒用完的卡換成新卡種。
+例：Level 1 卡等堂升級成 Level 2 卡；複習卡剩 3 堂（含以內）折抵成 1 堂 Level 2 卡。
+
+行為：
+
+- 新卡 `origin = CONVERSION`、`isPaid = true`（無金流，避免落入未付款催收清單）
+- 新卡 `finalPrice` = **舊卡剩餘價值** = `舊卡單堂價 × 舊卡剩餘堂數`
+- 新卡 `totalSessions` = `sessions`，未指定時預設等於舊卡剩餘堂數
+- 舊卡設 `expiredAt`、`convertedToId` 指向新卡，`note` **附加**轉換說明（不覆蓋既有備註）
+- `remainingSessions` 刻意不歸零，與一般停用一致
+- 轉成複習卡時照樣走 `canBuyCard` 資格檢查，不能靠轉換繞過
+- 寫 `Event`（課卡轉換）並刷新 Needs Renewal tag
+
+**營收語意（改動這裡前務必看懂）**：
+
+- **課卡月營收**（`income/card-monthly`，依購買日認列全額）必須 `where: { origin: "PURCHASE" }`，
+  否則同一筆錢會在原始購買月與轉換月各算一次。
+- **每日營收**（`periodRevenue` = `finalPrice / totalSessions`）照常攤提。因為新卡帶走的是
+  剩餘價值，全期間總營收守恆；複習卡 3 堂折 1 堂時，那 1 堂會認列原本 3 堂的金額，這是刻意的。
+- 學生 overview 的 `cardCount` / `totalSpend` / `totalSaved` 同樣只算 `origin = PURCHASE`。
+
+轉換鏈的 FK（`convertedToId`）放在**舊卡**上指向新卡，所以支援多張舊卡合併成一張新卡。
+
+## 課卡備註（StudentCard.note）
+
+`PATCH /api/students/[id]/student-cards/[studentCardId]`（body：`note`，上限 500 字，
+空字串或 `null` 皆清除）。任何狀態的卡都能編輯，包含已停用的卡。
+轉換流程會自動寫入這個欄位，手動編輯會覆蓋系統文字 — 這是刻意的，老師有最終決定權。
 
 ## Tag 系統
 

@@ -6,6 +6,8 @@ import { toTaipeiMonthKey } from "@/lib/taipei-date";
 // 課卡營收：以「購買日期」(StudentCard.createdAt) 歸月、金額用 finalPrice 全額計入。
 // 與每日營收 (依上課時段攤提單堂價) 是兩種不同視角，刻意分開。
 // 只有已付款 (isPaid) 才算營收；未付款另計 unpaidTotal 供提醒用。
+// 轉換而來的卡 (origin = CONVERSION) 沒有新金流，錢在原始購買那個月已經認列過，
+// 這裡必須排除，否則同一筆錢會被計兩次。
 export async function GET() {
   const { classroomId } = await decodeAuthToken();
   if (!classroomId) {
@@ -13,7 +15,7 @@ export async function GET() {
   }
 
   const studentCards = await prisma.studentCard.findMany({
-    where: { student: { classroomId } },
+    where: { student: { classroomId }, origin: "PURCHASE" },
     select: { createdAt: true, finalPrice: true, isPaid: true },
   });
 

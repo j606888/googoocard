@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { DanceType, LessonPeriod } from "@prisma/client";
+import { DanceType, LessonPeriod, StudentCardOrigin } from "@prisma/client";
 
 // Wipe all tables between tests (FK-safe via CASCADE).
 export async function resetDb() {
@@ -106,12 +106,16 @@ export async function createStudentCard(
     finalPrice = 3000,
     isPaid,
     createdAt,
+    origin,
+    note,
   }: {
     remainingSessions?: number;
     totalSessions?: number;
     finalPrice?: number;
     isPaid?: boolean;
     createdAt?: Date; // 課卡營收依購買時間分月,測試需要指定
+    origin?: StudentCardOrigin; // CONVERSION 的卡不計入課卡營收
+    note?: string;
   } = {}
 ) {
   return prisma.studentCard.create({
@@ -124,6 +128,8 @@ export async function createStudentCard(
       remainingSessions,
       ...(isPaid === undefined ? {} : { isPaid }),
       ...(createdAt === undefined ? {} : { createdAt }),
+      ...(origin === undefined ? {} : { origin }),
+      ...(note === undefined ? {} : { note }),
     },
   });
 }

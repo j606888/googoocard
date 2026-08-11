@@ -118,12 +118,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { lessons: _unusedLessons, attendanceRecords, studentCards, studentTags, danceQualifications, ...studentData } = student;
   const tags = studentTags.map((st) => ({ id: st.tag.id, name: st.tag.name }));
 
+  // 轉換而來的卡不是「買」的 — 它繼承舊卡的剩餘價值，計進去會把消費金額灌水。
+  const purchasedCards = studentCards.filter((card) => card.origin === "PURCHASE");
+
   const overview = {
     lastAttendAt: lastAttendance?.lessonPeriod.attendanceTakenAt,
     attendLessonCount: student.lessons.length,
-    cardCount: studentCards.length,
-    totalSpend: studentCards.reduce((acc, card) => acc + card.finalPrice, 0),
-    totalSaved: studentCards.reduce((acc, card) => acc + (card.basePrice - card.finalPrice), 0),
+    cardCount: purchasedCards.length,
+    totalSpend: purchasedCards.reduce((acc, card) => acc + card.finalPrice, 0),
+    totalSaved: purchasedCards.reduce((acc, card) => acc + (card.basePrice - card.finalPrice), 0),
   }
 
 
