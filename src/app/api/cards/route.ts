@@ -5,10 +5,18 @@ import { decodeAuthToken } from "@/lib/auth";
 export async function GET() {
   const { classroomId } = await decodeAuthToken();
 
+  // 購買人次與營收只算真的有金流的卡：origin = CONVERSION 是舊卡轉換來的，
+  // 錢已經在原始購買時認列過，計進來會讓同一筆錢在兩張卡各算一次。
+  // activeHolders 則要含轉換卡 —— 那確實是有效持卡。
   const cardInclude = {
-    _count: { select: { studentCards: true } },
+    _count: { select: { studentCards: { where: { origin: "PURCHASE" as const } } } },
     studentCards: {
-      select: { finalPrice: true, remainingSessions: true, expiredAt: true as const },
+      select: {
+        finalPrice: true,
+        remainingSessions: true,
+        expiredAt: true as const,
+        origin: true,
+      },
     },
   };
 
@@ -29,7 +37,9 @@ export async function GET() {
     studentCards: undefined,
     purchasedCount: card._count.studentCards,
     activeHolders: card.studentCards.filter((sc) => sc.remainingSessions > 0 && !sc.expiredAt).length,
-    totalRevenue: card.studentCards.reduce((sum, sc) => sum + sc.finalPrice, 0),
+    totalRevenue: card.studentCards
+      .filter((sc) => sc.origin === "PURCHASE")
+      .reduce((sum, sc) => sum + sc.finalPrice, 0),
   });
 
   const result = {
