@@ -9,8 +9,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const card = await prisma.card.findFirst({
     where: { id: Number(id), classroomId },
     include: {
-      _count: { select: { studentCards: true } },
-      studentCards: { select: { finalPrice: true } },
+      // 與卡片列表同口徑：購買人次/營收排除轉換卡（origin = CONVERSION），
+      // 因為那筆錢在原始購買時已經認列過。
+      _count: { select: { studentCards: { where: { origin: "PURCHASE" } } } },
+      studentCards: { where: { origin: "PURCHASE" }, select: { finalPrice: true } },
     },
   });
 
