@@ -63,6 +63,7 @@ model Classroom {
   ownerId     Int
   owner       User         @relation("OwnedClassrooms", fields: [ownerId], references: [id])
   name        String
+  checkinKey  String?      @unique // 現場 QR 自助簽到金鑰（貼在教室看板）；可重新產生以作廢舊看板
   memberships Membership[]
   cards       Card[]
   students    Student[]

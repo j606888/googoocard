@@ -105,6 +105,40 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 | `not_checked` | 恰好一張可用卡，等確認 |
 | `not_qualified` | 唯一的卡是複習卡但不符資格（含舞種不符的 legacy 掛卡） |
 
+## 學生自助簽到（兩個入口，同一顆引擎）
+
+學生自助簽到一律走 `selfCheckIn()`（`src/domains/attendance/attendance.service.ts`）：
+每個時段各開一個 transaction（其中一段因 unique 衝突失敗不會拖垮其他段）、
+`source = STUDENT`、**不設 `attendanceTakenAt`**（定案權留給老師）、依 `selectStudentCard`
+自動扣卡、`@@unique([lessonPeriodId, studentId])` 保證冪等、連續多時段簽到會同步更新
+記憶體中的卡片餘額避免重複挑到已用完的卡。
+
+「今天有哪些課」的定義集中在 `src/service/checkin.ts` 的 `getTodayLessons()`
+（台北時區，walk-in 制：當天所有課程都可簽，不限已報名的），兩個入口共用。
+
+| 入口 | 身分驗證 | 路由 |
+|---|---|---|
+| LINE LIFF「上課簽到」 | LINE ID Token → `Student.lineUserId`（`src/lib/liffAuth.ts`） | `/liff/checkin`、`/api/liff/today`、`/api/liff/checkin` |
+| 教室現場 QR 看板 | **無**（只有網址中的教室金鑰） | `/checkin/[key]`、`/api/checkin/[key]{,/students,/checkin}` |
+
+### 現場 QR 簽到（`Classroom.checkinKey`）
+
+貼在教室看板上的固定 QR Code，掃進去 → 從名單選自己 → 勾選今天要簽的時段 → 送出。
+**這是刻意的信任模型**：教室相信學生只幫自己報名，助教稍後在點名畫面複核後才定案。
+
+- 金鑰是 `Classroom.checkinKey`（`nanoid(10)`，nullable、unique），老師第一次開
+  `/checkin-qr` 時 lazy 產生；看板外流的補救手段是同頁的「重新產生」（`POST /api/checkin-key`），
+  舊網址立刻 404。
+- 公開頁與 API 不驗身分，但**強制教室邊界與日期邊界**：學生／課程必須屬於金鑰的教室
+  （否則 403 / 404），`periodIds` 必須是今天的時段（否則 400 `period_not_today`），
+  避免拿金鑰補簽或預簽別天。
+- 名單端點只回 `id / name / avatarUrl`，且**教室今天沒課時回空陣列**，降低名單外流價值。
+- 課卡不足**不擋簽到**，只在結果頁提醒學生找助教買卡（公開頁不提供自助購卡，
+  那需要身分驗證，走 LIFF）。
+- 已知取捨：沒有 rate limit；知道金鑰的人可以代簽他人。這由助教複核與金鑰輪替來承擔。
+- UI：`src/features/checkin/`（`PeriodSelectList` / `CheckinResultList` 與 LIFF 共用），
+  老師端看板頁 `src/features/checkinQr/`（`qrcode.react` 輸出 SVG，含 `@media print` 版面）。
+
 ## 買卡流程（StudentCard 建立）
 
 兩個入口，同一個 API（`POST /api/students/[id]/student-cards`）：
@@ -158,7 +192,8 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 ## API 慣例
 
 - 所有 handler 用 `decodeAuthToken()` 取 `{ userId, classroomId }`（JWT cookie）。
-- Middleware（`src/middleware.ts`）保護除 `/`、`/login`、`/signup`、`/invitations`、`/api`、`/public-students` 外的所有路由。
+- Middleware（`src/middleware.ts`）保護除 `/`、`/login`、`/signup`、`/invitations`、`/liff`、`/checkin/`、`/api`、`/public-students` 外的所有路由。
+  （`/api` 整段在 middleware 層是公開的，真正的把關在各 handler。）
 - 前端資料層全部走 RTK Query（`src/store/slices/`，一 resource 一檔），
   mutation 用 tag invalidation 同步 UI（`TAG_TYPES` 在 `store/api.ts`）。
 - 學生 API 回傳的 `danceQualifications` 是扁平的 `DanceType[]`（不是 join table 物件）。
