@@ -5,6 +5,12 @@ export interface Classroom {
   name: string;
 }
 
+export interface CheckinKey {
+  classroomName: string;
+  key: string;
+  url: string;
+}
+
 const classroomsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getClassrooms: builder.query<
@@ -29,6 +35,17 @@ const classroomsApi = api.injectEndpoints({
       }),
       invalidatesTags: TAG_TYPES,
     }),
+    getCheckinKey: builder.query<CheckinKey, void>({
+      query: () => "checkin-key",
+      providesTags: ["Classroom"],
+    }),
+    rotateCheckinKey: builder.mutation<CheckinKey, void>({
+      query: () => ({
+        url: "checkin-key",
+        method: "POST",
+      }),
+      invalidatesTags: ["Classroom"],
+    }),
   }),
 });
 
@@ -36,4 +53,6 @@ export const {
   useGetClassroomsQuery,
   useCreateClassroomMutation,
   useSwitchClassroomMutation,
+  useGetCheckinKeyQuery,
+  useRotateCheckinKeyMutation,
 } = classroomsApi;

@@ -10,6 +10,7 @@ export function middleware(req: NextRequest) {
     pathname.startsWith('/liff') ||
     pathname.startsWith('/signup') ||
     pathname.startsWith('/invitations') ||
+    pathname.startsWith('/checkin/') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/images') ||
     pathname.startsWith('/api') ||

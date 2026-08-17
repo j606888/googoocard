@@ -121,7 +121,7 @@ Unresolved attendance cases surface as `uncheckedType` on the `AttendanceRecord`
 
 ### 學生自助簽到與老師定案的整合
 
-學生可在 LIFF 自助簽到（`selfCheckIn` 建 `AttendanceRecord` 且 `source = STUDENT`，**不設** `attendanceTakenAt`，留給老師定案並即時扣卡）。老師後台點名（`CheckPeriod` / `PeriodAttendanceForm`）載入時會以 `GET .../attendance` 帶出該時段已存在的紀錄，**預設勾選**，並對 `source = STUDENT` 者標上「自助簽到」徽章。
+學生自助簽到有**兩個入口、同一顆引擎**：LINE LIFF（`/liff/checkin`，以 LINE ID Token 驗身分）與教室現場 QR 看板（`/checkin/[key]`，**不驗身分**，只靠 `Classroom.checkinKey` 界定教室）。兩者都呼叫 `selfCheckIn` 建 `AttendanceRecord` 且 `source = STUDENT`，**不設** `attendanceTakenAt`，留給老師定案；卡在自助簽到當下就扣。「今天有哪些課」由 `src/service/checkin.ts` 的 `getTodayLessons()` 統一定義。QR 入口的邊界防護是「教室 + 今天」（跨教室 403/404、非今日時段 400），課卡不足不擋簽到、只提醒。老師端 `/checkin-qr` 產生／輪替金鑰。老師後台點名（`CheckPeriod` / `PeriodAttendanceForm`）載入時會以 `GET .../attendance` 帶出該時段已存在的紀錄，**預設勾選**，並對 `source = STUDENT` 者標上「自助簽到」徽章。
 
 `takeAttendance` 與 `updateAttendance` 共用 `reconcileAndFinalize`：送出的 `studentIds` 為準（authoritative）—新學生建紀錄並扣卡、已存在者保留不動（**不重複扣卡**）、被取消勾選者移除紀錄並退還課卡。
 

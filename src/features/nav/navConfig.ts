@@ -6,6 +6,7 @@ import {
   Users,
   Boxes,
   DollarSign,
+  QrCode,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,6 +27,7 @@ export const PRIMARY_LINKS: NavLink[] = [
 export const SECONDARY_LINKS: NavLink[] = [
   { name: "Calendar", icon: CalendarDays, href: "/calendar" },
   { name: "Cards", icon: CreditCard, href: "/cards" },
+  { name: "Check-in QR", icon: QrCode, href: "/checkin-qr" },
   { name: "Teachers", icon: GraduationCap, href: "/teachers" },
   { name: "Teams", icon: Boxes, href: "/teams" },
 ];
