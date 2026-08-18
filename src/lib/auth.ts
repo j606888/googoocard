@@ -24,7 +24,18 @@ export const createAuthSession = async (userId: number, classroomId?: number) =>
   return token;
 };
 
-export const decodeAuthToken = async () => {
+type AuthSession = {
+  userId?: number;
+  classroomId?: number;
+  exp?: number;
+};
+
+/**
+ * Read + verify the auth cookie without any side effect.
+ * Safe to call from a Server Component (unlike decodeAuthToken, which may
+ * re-set the cookie — writing cookies during render throws in Next 15).
+ */
+export const readAuthSession = async (): Promise<AuthSession> => {
   const cookieStore = await cookies();
   const token = cookieStore.get("auth_token")?.value;
 
@@ -33,20 +44,28 @@ export const decodeAuthToken = async () => {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as {
+    const { userId, classroomId, exp } = jwt.verify(token, JWT_SECRET) as {
       userId: number;
       classroomId?: number;
       exp: number;
     };
-    const { userId, classroomId, exp } = decoded;
-
-    const nowSeconds = Math.floor(Date.now() / 1000);
-    if (exp - nowSeconds < TWO_WEEKS_SECONDS) {
-      await createAuthSession(userId, classroomId);
-    }
-    return { userId, classroomId };
+    return { userId, classroomId, exp };
   } catch {
     console.error("Error decoding auth token");
     return {};
   }
+};
+
+export const decodeAuthToken = async () => {
+  const { userId, classroomId, exp } = await readAuthSession();
+
+  if (!userId) {
+    return {};
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (exp! - nowSeconds < TWO_WEEKS_SECONDS) {
+    await createAuthSession(userId, classroomId);
+  }
+  return { userId, classroomId };
 };

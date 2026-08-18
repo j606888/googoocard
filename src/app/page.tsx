@@ -1,10 +1,7 @@
-'use client';
-
 import { IdCard, BookOpenText, Users, Snail } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect } from 'react';
-import { useGetClassroomsQuery } from '@/store/slices/classrooms';
-import { useRouter } from 'next/navigation';
+import { redirect } from 'next/navigation'
+import { readAuthSession } from '@/lib/auth'
 
 const FEATURES = [
   {
@@ -23,16 +20,14 @@ const FEATURES = [
     description: 'Understand all the details',
   }
 ]
-export default function Home() {
-  const { data: classrooms, error } = useGetClassroomsQuery();
-  const router = useRouter();
 
-  useEffect(() => {
-    if (classrooms && !error) {
-      router.push(`/lessons`);
-    }
-  }, [classrooms, error, router]);
-  
+export default async function Home() {
+  const { userId, classroomId } = await readAuthSession();
+
+  if (userId) {
+    redirect(classroomId ? '/lessons' : '/onboarding');
+  }
+
   return (
     <main className="flex flex-col items-center justify-center left-0 right-0 top-0 bottom-0 absolute bg-primary-50">
       <div className="flex flex-col items-center justify-center h-full">
