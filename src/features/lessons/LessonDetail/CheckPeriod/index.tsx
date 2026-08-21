@@ -45,7 +45,10 @@ const CheckPeriod = () => {
       periodId: Number(periodId),
       studentIds,
     });
-    router.push(`/lessons/${id}/periods/${periodId}/check-success`);
+    // justSubmitted flags the celebratory "just checked in" framing — browsing
+    // back to this same screen later (from the period timeline, unpaid bell,
+    // income calendar) omits it and gets the plain record view instead.
+    router.push(`/lessons/${id}/periods/${periodId}/check-success?justSubmitted=1`);
   };
 
   return (

@@ -31,7 +31,7 @@ const EditPeriod = () => {
       periodId: Number(periodId),
       studentIds,
     });
-    router.push(`/lessons/${id}/periods/${periodId}/check-success`);
+    router.push(`/lessons/${id}/periods/${periodId}/check-success?justSubmitted=1`);
   };
 
   return (

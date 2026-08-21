@@ -28,6 +28,7 @@ export interface LessonCloneSource {
   teacherIds: number[];
   cardIds: number[];
   danceType: DanceType;
+  groupId?: number | null;
   initialPeriod?: { startTime: string; endTime: string };
 }
 

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { refreshLesson, summarizeLessonPeriods } from "@/service/lesson";
 import { cardMatchesLesson } from "@/domains/qualification";
+import { findLessonGroupInClassroom } from "@/lib/authz";
 import { DanceType, Prisma } from "@prisma/client";
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -15,6 +16,7 @@ export async function GET(request: Request) {
   const sort = searchParams.get("sort") ?? "name";
   const search = searchParams.get("search")?.trim() ?? "";
   const danceTypeParam = searchParams.get("danceType");
+  const groupIdParam = searchParams.get("groupId");
   const pageParam = searchParams.get("page");
 
   if (!classroomId) {
@@ -25,12 +27,18 @@ export async function GET(request: Request) {
     danceTypeParam && danceTypeParam in DanceType
       ? (danceTypeParam as DanceType)
       : undefined;
+  // "none" asks for the virtual 未分類 bucket (groupId IS NULL); a numeric id
+  // scopes to one LessonGroup's members; omitted means no group filter at all.
+  const groupId =
+    groupIdParam === "none" ? null : groupIdParam !== null ? parseInt(groupIdParam, 10) : undefined;
 
-  // Shared filter (search + danceType) applied to both the listing and tabsCount,
-  // so the tab counts reflect what the user is currently filtering by.
+  // Shared filter (search + danceType + groupId) applied to both the listing
+  // and tabsCount, so the tab counts reflect what the user is currently
+  // filtering by (including "just this group"'s lessons).
   const filterWhere: Prisma.LessonWhereInput = {
     classroomId,
     ...(danceType ? { danceType } : {}),
+    ...(groupId !== undefined && !Number.isNaN(groupId as number) ? { groupId } : {}),
     ...(search
       ? {
           OR: [
@@ -48,8 +56,10 @@ export async function GET(request: Request) {
   const orderBy =
     sort === "name" ? { name: "asc" as const } : { endAt: "desc" as const };
 
+  // tab="all" (used by the group-detail view, which has no status tabs of its
+  // own) skips the status filter instead of matching a literal "all" status.
   const lessons = await prisma.lesson.findMany({
-    where: { ...filterWhere, status: tab },
+    where: { ...filterWhere, ...(tab !== "all" ? { status: tab } : {}) },
     orderBy,
     include: {
       periods: true,
@@ -65,10 +75,12 @@ export async function GET(request: Request) {
       totalPeriods,
       attendedCount,
       nextSessionDate,
+      nextSessionEndTime,
       nextSessionPeriodId,
       dueForAttendanceCount,
       dueForAttendancePeriodId,
       dueForAttendanceDate,
+      dueForAttendanceEndTime,
       lastPeriodStart,
       lastPeriodEnd,
     } = summarizeLessonPeriods(lesson.periods, now);
@@ -81,13 +93,16 @@ export async function GET(request: Request) {
       studentCount: lesson._count.students,
       teachers: lesson.teachers.map((t) => t.teacher),
       cardIds: lesson.cards.map((c) => c.cardId),
+      groupId: lesson.groupId,
       totalPeriods,
       attendedCount,
       nextSessionDate,
+      nextSessionEndTime,
       nextSessionPeriodId,
       dueForAttendanceCount,
       dueForAttendancePeriodId,
       dueForAttendanceDate,
+      dueForAttendanceEndTime,
       lastPeriodStart,
       lastPeriodEnd,
     };
@@ -146,6 +161,17 @@ export async function POST(request: Request) {
   const { classroomId } = await decodeAuthToken();
   const draftLesson = await request.json() as DraftLesson;
 
+  // A groupId is caller-controlled input — verify it names a group in this
+  // classroom before attaching it (same IDOR guard as findLessonInClassroom),
+  // or a bogus/foreign id either 500s on the FK or silently links to another
+  // classroom's group.
+  if (
+    draftLesson.groupId != null &&
+    !(await findLessonGroupInClassroom(draftLesson.groupId, classroomId))
+  ) {
+    return NextResponse.json({ error: "Group not found" }, { status: 404 });
+  }
+
   const cards = await prisma.card.findMany({
     where: { id: { in: draftLesson.cardIds } },
   });
@@ -169,6 +195,7 @@ export async function POST(request: Request) {
         classroomId: classroomId!,
         status: "inProgress",
         danceType: draftLesson.danceType,
+        groupId: draftLesson.groupId ?? null,
       },
     });
 

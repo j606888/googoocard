@@ -68,6 +68,7 @@ model Classroom {
   cards       Card[]
   students    Student[]
   lessons     Lesson[]
+  lessonGroups LessonGroup[]
   inviteTokens InviteToken[]
   tags        Tag[]
   createdAt   DateTime     @default(now())
@@ -187,12 +188,30 @@ model Lesson {
   status      String          @default("inProgress")
   endAt       DateTime?
   danceType   DanceType         @default(BACHATA)
+  groupId     Int?
+  group       LessonGroup?    @relation(fields: [groupId], references: [id])
   teachers    LessonTeacher[]
   cards       LessonCard[]
   periods     LessonPeriod[]
   students    LessonStudent[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+}
+
+// Bundles recurring lesson slots that share a schedule (e.g. "週日課" holding
+// several time slots taught on Sundays) so they can be browsed as one unit.
+// `groupId` on Lesson is nullable — ungrouped lessons are treated as a
+// virtual "未分類" bucket, no row needed here for that.
+model LessonGroup {
+  id          Int       @id @default(autoincrement())
+  name        String
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  lessons     Lesson[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([name, classroomId])
 }
 
 model LessonTeacher {
