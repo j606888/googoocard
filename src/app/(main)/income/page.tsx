@@ -1,25 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { DollarSign } from "lucide-react";
+import { CircleDollarSign, DollarSign, List } from "lucide-react";
 import Navbar from "@/features/Navbar";
-import DailyTab from "@/features/income/DailyTab";
-import CardMonthlyTab from "@/features/income/CardMonthlyTab";
+import Drawer from "@/components/Drawer";
+import IncomeCalendar from "@/features/income/IncomeCalendar";
 import RecordsTab from "@/features/income/RecordsTab";
 import UnpaidTab from "@/features/income/UnpaidTab";
 import { useGetUnpaidStudentCardsQuery } from "@/store/slices/students";
 
-type Tab = "daily" | "cardMonthly" | "records" | "unpaid";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "daily", label: "課程營收" },
-  { id: "cardMonthly", label: "課卡營收" },
-  { id: "records", label: "課卡紀錄" },
-  { id: "unpaid", label: "未付款" },
-];
-
 const IncomePage = () => {
-  const [activeTab, setActiveTab] = useState<Tab>("daily");
+  const [recordsOpen, setRecordsOpen] = useState(false);
+  const [unpaidOpen, setUnpaidOpen] = useState(false);
   const { data: unpaidCards } = useGetUnpaidStudentCardsQuery();
   const unpaidCount = unpaidCards?.length ?? 0;
 
@@ -30,56 +22,53 @@ const IncomePage = () => {
         <div className="flex items-center gap-2 mb-3 lg:mb-6">
           <DollarSign className="w-6 h-6 text-primary-500" />
           <h2 className="text-2xl font-semibold">Income</h2>
-        </div>
-
-        {/* Mobile: tab switcher */}
-        <div className="lg:hidden">
-          <div className="flex flex-wrap gap-2 mb-4">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                className={`relative px-3 py-1.5 rounded-sm text-sm cursor-pointer ${
-                  activeTab === tab.id
-                    ? "bg-primary-500 text-white"
-                    : "bg-neutral-100 text-neutral-700"
-                }`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-                {tab.id === "unpaid" && unpaidCount > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-danger-500 text-white text-[10px] font-semibold align-middle">
-                    {unpaidCount}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-          {activeTab === "daily" && <DailyTab />}
-          {activeTab === "cardMonthly" && <CardMonthlyTab />}
-          {activeTab === "records" && <RecordsTab />}
-          {activeTab === "unpaid" && <UnpaidTab />}
-        </div>
-
-        {/* Desktop: card revenue chart full-width on top, then side by side, unpaid below */}
-        <div className="hidden lg:flex lg:flex-col lg:gap-8">
-          <CardMonthlyTab />
-          <div className="grid grid-cols-[3fr_2fr] gap-8 items-start">
-            <DailyTab />
-            <RecordsTab />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold mb-3">
-              未付款
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => setRecordsOpen(true)}
+              className="w-10 h-10 rounded-full bg-neutral-100 text-neutral-600 flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors"
+              aria-label="課卡紀錄"
+              title="課卡紀錄"
+            >
+              <List className="w-[18px] h-[18px]" />
+            </button>
+            <button
+              onClick={() => setUnpaidOpen(true)}
+              className="relative w-10 h-10 rounded-full bg-neutral-100 text-neutral-600 flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors"
+              aria-label="未付款"
+              title="未付款"
+            >
+              <CircleDollarSign className="w-[18px] h-[18px]" />
               {unpaidCount > 0 && (
-                <span className="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-danger-500 text-white text-xs font-semibold align-middle">
+                <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-danger-500 text-white text-[10px] font-semibold flex items-center justify-center ring-2 ring-white">
                   {unpaidCount}
                 </span>
               )}
-            </h3>
-            <UnpaidTab />
+            </button>
           </div>
         </div>
+
+        <IncomeCalendar />
       </div>
+
+      <Drawer
+        open={recordsOpen}
+        onClose={() => setRecordsOpen(false)}
+        onSubmit={() => setRecordsOpen(false)}
+        title="課卡紀錄"
+        submitText="關閉"
+      >
+        <RecordsTab />
+      </Drawer>
+
+      <Drawer
+        open={unpaidOpen}
+        onClose={() => setUnpaidOpen(false)}
+        onSubmit={() => setUnpaidOpen(false)}
+        title="未付款"
+        submitText="關閉"
+      >
+        <UnpaidTab />
+      </Drawer>
     </>
   );
 };
