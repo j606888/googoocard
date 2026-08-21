@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { DanceType, LessonPeriod, StudentCardOrigin } from "@prisma/client";
+import { createStudent as createStudentWithNumber } from "@/service/student";
 
 // Wipe all tables between tests (FK-safe via CASCADE).
 export async function resetDb() {
@@ -27,8 +28,9 @@ export async function createStudent(
     qualifications = [],
   }: { name?: string; qualifications?: DanceType[] } = {}
 ) {
-  const student = await prisma.student.create({
-    data: { name, avatarUrl: "/images/avatar_1.png", classroomId },
+  const student = await createStudentWithNumber(classroomId, {
+    name,
+    avatarUrl: "/images/avatar_1.png",
   });
   if (qualifications.length > 0) {
     await prisma.studentDanceQualification.createMany({

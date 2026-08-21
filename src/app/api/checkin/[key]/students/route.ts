@@ -5,7 +5,9 @@ import { getTodayLessons, resolveCheckinClassroom } from "@/service/checkin";
 // Roster for the public QR check-in page — the student picks themselves from it,
 // so it is readable by anyone who can see the wall poster. Two deliberate limits
 // keep the exposure minimal:
-//   1. only id / name / avatarUrl — no cards, balances, notes or share keys;
+//   1. only id / name / avatarUrl / number — no cards, balances, notes or share
+//      keys; the classroom-scoped number is the same sensitivity as name/avatar
+//      (an identifier, not a secret) and helps students find themselves faster;
 //   2. empty when the classroom has no class today, so the poster URL is inert
 //      on non-class days.
 export async function GET(
@@ -26,7 +28,7 @@ export async function GET(
 
   const students = await prisma.student.findMany({
     where: { classroomId: classroom.id },
-    select: { id: true, name: true, avatarUrl: true },
+    select: { id: true, name: true, avatarUrl: true, number: true },
     orderBy: { name: "asc" },
   });
 

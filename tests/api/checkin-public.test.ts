@@ -146,7 +146,7 @@ describe("公開 QR 簽到 API", () => {
   });
 
   describe("GET /api/checkin/[key]/students", () => {
-    it("只回該教室學生的 id / name / avatarUrl", async () => {
+    it("只回該教室學生的 id / name / avatarUrl / number", async () => {
       const other = await createOtherClassroom();
       await createStudent(other.id, { name: "Outsider" });
 
@@ -154,8 +154,9 @@ describe("公開 QR 簽到 API", () => {
       expect(res.status).toBe(200);
       const { students } = await res.json();
       expect(students).toHaveLength(1);
-      expect(Object.keys(students[0]).sort()).toEqual(["avatarUrl", "id", "name"]);
+      expect(Object.keys(students[0]).sort()).toEqual(["avatarUrl", "id", "name", "number"].sort());
       expect(students[0].name).toBe("Amy");
+      expect(students[0].number).toBe(1);
     });
 
     it("今天沒課 → 不外流名單", async () => {

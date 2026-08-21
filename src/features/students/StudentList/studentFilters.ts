@@ -66,3 +66,24 @@ export const applyStudentFilters = (
 
 export const tagLabel = (name: string): string =>
   name === NEEDS_RENEWAL_TAG ? "需續約" : name;
+
+export type StudentSort = "name" | "number";
+
+const sortStorageKey = (classroomId: number) => `student-sort:${classroomId}`;
+
+export const loadStudentSort = (classroomId: number): StudentSort => {
+  try {
+    const raw = localStorage.getItem(sortStorageKey(classroomId));
+    return raw === "number" ? "number" : "name";
+  } catch {
+    return "name";
+  }
+};
+
+export const saveStudentSort = (classroomId: number, sort: StudentSort) => {
+  try {
+    localStorage.setItem(sortStorageKey(classroomId), sort);
+  } catch {
+    // ignore quota / serialization errors
+  }
+};

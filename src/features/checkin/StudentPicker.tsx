@@ -8,6 +8,7 @@ export interface CheckinStudent {
   id: number;
   name: string;
   avatarUrl: string;
+  number: number;
 }
 
 // Step 1 of the public QR check-in: the student finds themselves in the roster.
@@ -25,7 +26,9 @@ const StudentPicker = ({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return students;
-    return students.filter((s) => s.name.toLowerCase().includes(q));
+    return students.filter(
+      (s) => s.name.toLowerCase().includes(q) || String(s.number).includes(q)
+    );
   }, [students, query]);
 
   return (
@@ -40,7 +43,7 @@ const StudentPicker = ({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="搜尋姓名"
+          placeholder="搜尋姓名或編號"
           className="w-full rounded-xl border border-neutral-200 py-3 pl-9 pr-3 text-base outline-none focus:border-primary-500"
         />
       </div>
@@ -63,6 +66,7 @@ const StudentPicker = ({
                 alt={student.name}
               />
               <span className="text-base font-medium">{student.name}</span>
+              <span className="ml-auto text-xs font-mono text-neutral-400">#{student.number}</span>
             </button>
           ))}
         </div>

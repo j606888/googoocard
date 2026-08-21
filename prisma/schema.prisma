@@ -64,6 +64,7 @@ model Classroom {
   owner       User         @relation("OwnedClassrooms", fields: [ownerId], references: [id])
   name        String
   checkinKey  String?      @unique // 現場 QR 自助簽到金鑰（貼在教室看板）；可重新產生以作廢舊看板
+  nextStudentNumber Int    @default(1) // 下一個要指派的學生編號（每教室各自從 1 開始，遞增不回收）
   memberships Membership[]
   cards       Card[]
   students    Student[]
@@ -118,6 +119,7 @@ model Card {
 
 model Student {
   id           Int           @id @default(autoincrement())
+  number       Int           // 教室內學生編號，從 1 開始、系統自動指派、不可編輯（見 src/service/student.ts）
   name         String
   avatarUrl    String
   note         String?
@@ -136,6 +138,7 @@ model Student {
   updatedAt    DateTime      @updatedAt
 
   @@index([lineUserId])
+  @@unique([classroomId, number])
 }
 
 model StudentDanceQualification {

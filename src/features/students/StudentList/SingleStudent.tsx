@@ -30,6 +30,7 @@ const SingleStudent = ({ student }: { student: Student }) => {
         <div className="flex flex-1 items-center justify-between min-w-0">
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-mono text-neutral-400 shrink-0">#{student.number}</span>
               <h2 className="font-medium">{student.name}</h2>
               {student.note && (
                 <p className="text-sm text-neutral-500">({student.note})</p>
@@ -62,6 +63,7 @@ const SingleStudent = ({ student }: { student: Student }) => {
         <div className="flex flex-1 items-center justify-between min-w-0">
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-mono text-neutral-400 shrink-0">#{student.number}</span>
               <h2 className="font-semibold text-neutral-900">{student.name}</h2>
               {student.note && (
                 <p className="text-sm text-neutral-500 truncate max-w-40">({student.note})</p>
