@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
-import { nanoid } from "nanoid";
+import { createStudent } from "@/service/student";
 
 export async function GET(request: Request) {
   const { classroomId } = await decodeAuthToken();
@@ -10,6 +10,7 @@ export async function GET(request: Request) {
   const query = searchParams.get("query");
   const needsRenewalParam = searchParams.get("needsRenewal");
   const filterNeedsRenewal = needsRenewalParam === "true";
+  const sort = searchParams.get("sort") === "number" ? "number" : "name";
 
   const students = await prisma.student.findMany({
     where: {
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
           }
         : {}),
     },
+    orderBy: sort === "number" ? { number: "asc" } : { name: "asc" },
     include: {
       studentCards: {
         where: {
@@ -103,9 +105,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const student = await prisma.student.create({
-    data: { name, avatarUrl, note, classroomId: classroomId!, randomKey: nanoid(8) },
-  });
+  const student = await createStudent(classroomId!, { name, avatarUrl, note });
 
   return NextResponse.json(student);
 }

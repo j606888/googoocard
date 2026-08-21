@@ -10,6 +10,7 @@ export interface StudentTag {
 
 export interface Student {
   id: number;
+  number: number;
   name: string;
   note?: string;
   randomKey: string;
@@ -105,14 +106,20 @@ export interface UnpaidStudentCard {
 
 const studentsApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getStudents: builder.query<Student[], { query?: string; needsRenewal?: boolean } | void>({
-      query: ({ query, needsRenewal } = {}) => {
+    getStudents: builder.query<
+      Student[],
+      { query?: string; needsRenewal?: boolean; sort?: "name" | "number" } | void
+    >({
+      query: ({ query, needsRenewal, sort } = {}) => {
         const searchParams = new URLSearchParams();
         if (query) {
           searchParams.set("query", query);
         }
         if (needsRenewal) {
           searchParams.set("needsRenewal", "true");
+        }
+        if (sort) {
+          searchParams.set("sort", sort);
         }
         const queryString = searchParams.toString();
         return `students${queryString ? `?${queryString}` : ""}`;

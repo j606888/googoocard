@@ -14,21 +14,25 @@ import { DanceType } from "@prisma/client";
 import { ALL_DANCE_TYPES, danceTypeLabel } from "@/lib/danceTypes";
 import {
   StudentFilters,
+  StudentSort,
   EMPTY_FILTERS,
   applyStudentFilters,
   countActiveFilters,
   loadStudentFilters,
   saveStudentFilters,
+  loadStudentSort,
+  saveStudentSort,
   tagLabel,
 } from "./studentFilters";
 
 const StudentList = () => {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<StudentFilters>(EMPTY_FILTERS);
+  const [sort, setSort] = useState<StudentSort>("name");
   const [hydratedClassroomId, setHydratedClassroomId] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const { data: allStudents = [], isLoading } = useGetStudentsQuery({ query });
+  const { data: allStudents = [], isLoading } = useGetStudentsQuery({ query, sort });
   const { data: lessonsData } = useGetLessonsQuery({ tab: "inProgress", sort: "createdAt" });
   const { data: tags = [] } = useGetTagsQuery();
   const { data: classroomData } = useGetClassroomsQuery();
@@ -46,6 +50,7 @@ const StudentList = () => {
   useEffect(() => {
     if (classroomId == null) return;
     setFilters(loadStudentFilters(classroomId));
+    setSort(loadStudentSort(classroomId));
     setHydratedClassroomId(classroomId);
   }, [classroomId]);
 
@@ -54,6 +59,11 @@ const StudentList = () => {
     if (classroomId == null || hydratedClassroomId !== classroomId) return;
     saveStudentFilters(classroomId, filters);
   }, [classroomId, hydratedClassroomId, filters]);
+
+  useEffect(() => {
+    if (classroomId == null || hydratedClassroomId !== classroomId) return;
+    saveStudentSort(classroomId, sort);
+  }, [classroomId, hydratedClassroomId, sort]);
 
   const students = useMemo(
     () => applyStudentFilters(allStudents, filters),
@@ -98,9 +108,25 @@ const StudentList = () => {
         <NewStudent />
       </div>
 
-      <div className="flex items-start gap-2 mb-3">
-        <div className="flex-1">
+      <div className="flex flex-wrap items-start gap-2 mb-3">
+        <div className="flex-1 min-w-40">
           <Searchbar onSearch={setQuery} />
+        </div>
+        <div className="flex items-center rounded-xl border border-neutral-200 p-0.5 text-sm">
+          {(["name", "number"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setSort(option)}
+              className={`px-2.5 py-2 rounded-[10px] transition-colors cursor-pointer ${
+                sort === option
+                  ? "bg-primary-500 text-white"
+                  : "text-neutral-600 hover:text-primary-600"
+              }`}
+            >
+              {option === "name" ? "姓名" : "編號"}
+            </button>
+          ))}
         </div>
         <button
           type="button"
