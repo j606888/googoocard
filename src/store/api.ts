@@ -13,6 +13,7 @@ export const TAG_TYPES = [
   "Attendance",
   "AttendanceRecord",
   "Tag",
+  "LessonGroup",
 ]
 
 const rawBaseQuery = fetchBaseQuery({ baseUrl: "/api" });

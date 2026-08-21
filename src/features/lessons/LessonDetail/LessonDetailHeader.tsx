@@ -37,6 +37,14 @@ const LessonDetailHeader = ({
           <ArrowLeft className="w-4 h-4" />
           <span>Lessons</span>
         </Link>
+        {lesson.group && (
+          <>
+            <span>/</span>
+            <Link href={`/lessons/groups/${lesson.group.id}`} className="hover:text-neutral-700">
+              {lesson.group.name}
+            </Link>
+          </>
+        )}
         <span>/</span>
         <span className="text-neutral-700 font-medium truncate max-w-xs">{lesson.name}</span>
       </div>

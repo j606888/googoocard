@@ -20,6 +20,10 @@ export interface LessonPeriodSummary {
   dueForAttendancePeriodId: number | null;
   /** Start of the earliest due period — the date shown on the 點名 CTA. */
   dueForAttendanceDate: Date | null;
+  /** End of that same due period — paired with dueForAttendanceDate for a "14:00–15:00" style display. */
+  dueForAttendanceEndTime: Date | null;
+  /** End of the next upcoming period — paired with nextSessionDate. */
+  nextSessionEndTime: Date | null;
   lastPeriodStart: Date | null;
   lastPeriodEnd: Date | null;
 }
@@ -64,10 +68,12 @@ export const summarizeLessonPeriods = (
     attendedCount,
     allAttendanceChecked: totalPeriods > 0 && attendedCount === totalPeriods,
     nextSessionDate: nextSession?.startTime ?? null,
+    nextSessionEndTime: nextSession?.endTime ?? null,
     nextSessionPeriodId: nextSession?.id ?? null,
     dueForAttendanceCount: due.length,
     dueForAttendancePeriodId: due[0]?.id ?? null,
     dueForAttendanceDate: due[0]?.startTime ?? null,
+    dueForAttendanceEndTime: due[0]?.endTime ?? null,
     lastPeriodStart: lastPeriod?.startTime ?? null,
     lastPeriodEnd: lastPeriod?.endTime ?? null,
   };

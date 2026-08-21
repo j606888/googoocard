@@ -14,6 +14,8 @@ export interface Lesson {
   teachers: Teacher[];
   danceType: DanceType;
   cards: Card[];
+  groupId: number | null;
+  group: { id: number; name: string } | null;
 }
 
 export interface Period {
@@ -33,15 +35,18 @@ export interface LessonSummary {
   studentCount: number;
   teachers: { id: number; name: string }[];
   cardIds: number[];
+  groupId: number | null;
   totalPeriods: number;
   attendedCount: number;
   /** Earliest upcoming session start (ISO), or null — informational "next class". */
   nextSessionDate: string | null;
+  nextSessionEndTime: string | null;
   nextSessionPeriodId: number | null;
   /** Periods already due but not yet checked — drives the 點名 CTA / warning. */
   dueForAttendanceCount: number;
   dueForAttendancePeriodId: number | null;
   dueForAttendanceDate: string | null;
+  dueForAttendanceEndTime: string | null;
   lastPeriodStart: string | null;
   lastPeriodEnd: string | null;
 }
@@ -64,6 +69,8 @@ export interface GetLessonsArgs {
   sort: string;
   search?: string;
   danceType?: DanceType | null;
+  /** Restrict to one LessonGroup's members — omit for the unfiltered list. */
+  groupId?: number | null;
   page?: number;
 }
 
@@ -80,6 +87,8 @@ export interface DraftLesson {
   teacherIds: number[];
   cardIds: number[];
   danceType: DanceType;
+  /** LessonGroup to file this lesson under — null means 未分類 (ungrouped). */
+  groupId?: number | null;
   periods?: {
     startTime: string;
     endTime: string;
@@ -137,10 +146,13 @@ const lessonsApi = api.injectEndpoints({
       },
       GetLessonsArgs
     >({
-      query: ({ tab, sort, search, danceType, page }) => {
+      query: ({ tab, sort, search, danceType, groupId, page }) => {
         const params = new URLSearchParams({ tab, sort });
         if (search) params.set("search", search);
         if (danceType) params.set("danceType", danceType);
+        // undefined = no group filter; null = the virtual 未分類 bucket; a
+        // number = that one LessonGroup's members.
+        if (groupId !== undefined) params.set("groupId", groupId === null ? "none" : String(groupId));
         if (page !== undefined) params.set("page", String(page));
         return `lessons?${params.toString()}`;
       },

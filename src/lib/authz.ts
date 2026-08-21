@@ -24,3 +24,11 @@ export async function findStudentInClassroom(
   if (!classroomId || Number.isNaN(studentId)) return null;
   return prisma.student.findFirst({ where: { id: studentId, classroomId } });
 }
+
+export async function findLessonGroupInClassroom(
+  groupId: number,
+  classroomId: number | null | undefined
+) {
+  if (!classroomId || Number.isNaN(groupId)) return null;
+  return prisma.lessonGroup.findFirst({ where: { id: groupId, classroomId } });
+}

@@ -151,6 +151,44 @@ describe("GET /api/lessons (list)", () => {
     expect(p2.hasNextPage).toBe(false);
   });
 
+  it("filters by groupId, leaving ungrouped lessons out", async () => {
+    const group = await prisma.lessonGroup.create({
+      data: { name: "週日課", classroomId },
+    });
+    const grouped = await makeLesson(classroomId, "Bachata Lv2", DanceType.BACHATA);
+    await prisma.lesson.update({ where: { id: grouped.id }, data: { groupId: group.id } });
+    await makeLesson(classroomId, "Ungrouped", DanceType.BACHATA);
+
+    const res = await GET(getRequest({ tab: "inProgress", sort: "name", groupId: String(group.id) }));
+    const body = await res.json();
+    expect(body.lessons.map((l: { name: string }) => l.name)).toEqual(["Bachata Lv2"]);
+    expect(body.lessons[0].groupId).toBe(group.id);
+  });
+
+  it("groupId=none filters to the ungrouped bucket only", async () => {
+    const group = await prisma.lessonGroup.create({
+      data: { name: "週日課", classroomId },
+    });
+    const grouped = await makeLesson(classroomId, "Bachata Lv2", DanceType.BACHATA);
+    await prisma.lesson.update({ where: { id: grouped.id }, data: { groupId: group.id } });
+    await makeLesson(classroomId, "Ungrouped", DanceType.BACHATA);
+
+    const res = await GET(getRequest({ tab: "inProgress", sort: "name", groupId: "none" }));
+    const body = await res.json();
+    expect(body.lessons.map((l: { name: string }) => l.name)).toEqual(["Ungrouped"]);
+    expect(body.lessons[0].groupId).toBeNull();
+  });
+
+  it("tab=all skips the status filter (both in-progress and finished lessons returned)", async () => {
+    await makeLesson(classroomId, "Still going", DanceType.BACHATA, [FUTURE]);
+    const finished = await makeLesson(classroomId, "Wrapped up", DanceType.BACHATA);
+    await prisma.lesson.update({ where: { id: finished.id }, data: { status: "finished" } });
+
+    const res = await GET(getRequest({ tab: "all", sort: "name" }));
+    const body = await res.json();
+    expect(body.lessons.map((l: { name: string }) => l.name)).toEqual(["Still going", "Wrapped up"]);
+  });
+
   it("sorts by next session ascending, sessionless lessons last", async () => {
     await makeLesson(classroomId, "Later", DanceType.BACHATA, [
       { start: "2031-01-01T10:00:00Z", end: "2031-01-01T11:00:00Z" },

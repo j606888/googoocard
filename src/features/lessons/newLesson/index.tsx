@@ -3,11 +3,12 @@ import { useState } from "react";
 import CardSelect from "./CardSelect";
 import { Button } from "@/components/ui/button";
 import TeacherSelect from "./TeacherSelect";
+import LessonGroupSelect from "./LessonGroupSelect";
 import SubNavbar from "@/features/SubNavbar";
 import PeriodList from "./PeriodList";
 import AddPeriodForm from "./AddPeriodForm";
 import { useCreateLessonMutation } from "@/store/slices/lessons";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import DanceTypeSelect from "./DanceTypeSelect";
 import { DanceType } from "@prisma/client";
 import {
@@ -25,6 +26,11 @@ const validationErrors = {
 };
 
 const NewLesson = () => {
+  const searchParams = useSearchParams();
+  // "+ 新增這天的堂" on a group's detail page links here with ?groupId=…
+  // so the new lesson starts pre-assigned to that group.
+  const groupIdParam = searchParams.get("groupId");
+
   const [initialClone] = useState(() => {
     if (typeof window === "undefined") return null;
     const source = getLessonCloneSource();
@@ -41,6 +47,9 @@ const NewLesson = () => {
   );
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>(
     initialClone?.cardIds ?? []
+  );
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(
+    initialClone?.groupId ?? (groupIdParam ? Number(groupIdParam) : null)
   );
 
   const cloneInitialPeriod = initialClone?.initialPeriod;
@@ -109,6 +118,7 @@ const NewLesson = () => {
         teacherIds: selectedTeacherIds,
         cardIds: selectedCardIds,
         danceType,
+        groupId: selectedGroupId,
         periods,
       });
 
@@ -145,6 +155,10 @@ const NewLesson = () => {
           <DanceTypeSelect
             danceType={danceType}
             onChange={handleDanceTypeChange}
+          />
+          <LessonGroupSelect
+            groupId={selectedGroupId}
+            onChange={setSelectedGroupId}
           />
           <TeacherSelect
             error={errors.teachers}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
-import { findLessonInClassroom } from "@/lib/authz";
+import { findLessonInClassroom, findLessonGroupInClassroom } from "@/lib/authz";
 import { DraftLesson } from "@/store/slices/lessons";
 import { cardMatchesLesson } from "@/domains/qualification";
 
@@ -30,6 +30,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           card: true,
         },
       },
+      group: {
+        select: { id: true, name: true },
+      },
     },
   });
 
@@ -55,6 +58,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
   const draftLesson = await request.json() as DraftLesson;
 
+  if (
+    draftLesson.groupId != null &&
+    !(await findLessonGroupInClassroom(draftLesson.groupId, classroomId))
+  ) {
+    return NextResponse.json({ error: "Group not found" }, { status: 404 });
+  }
+
   const cards = await prisma.card.findMany({
     where: { id: { in: draftLesson.cardIds } },
   });
@@ -76,6 +86,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     data: {
       name: draftLesson.lessonName,
       danceType: draftLesson.danceType,
+      groupId: draftLesson.groupId ?? null,
     },
   });
 

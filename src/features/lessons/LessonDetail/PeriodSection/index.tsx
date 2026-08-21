@@ -4,21 +4,23 @@ import {
   useResetAttendanceMutation,
 } from "@/store/slices/lessons";
 import AddPeriodForm from "./AddPeriodForm";
-import { format } from "date-fns";
+import { format, isToday } from "date-fns";
 import Menu from "@/components/Menu";
 import {
   EllipsisVertical,
-  PenTool,
   Check,
-  NotepadText,
+  Clock,
   Trash,
   Eraser,
   PencilLine,
+  AlarmClock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useDeletePeriodMutation } from "@/store/slices/lessons";
 import { toast } from "sonner";
+
+const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 const PeriodSection = ({
   lesson,
@@ -42,13 +44,14 @@ const PeriodSection = ({
         </h3>
         <AddPeriodForm lessonId={lesson.id} periods={periods} />
       </div>
-      <div className="flex flex-col gap-3">
-        {periods.map((period) => (
-          <PeriodCard
+      <div className="flex flex-col">
+        {periods.map((period, index) => (
+          <PeriodRow
             key={period.id}
             period={period}
             canCheck={period.id === firstPendingPeriodId}
             isLastAttend={period.id === lastAttendPeriodId}
+            isLastRow={index === periods.length - 1}
           />
         ))}
       </div>
@@ -56,25 +59,36 @@ const PeriodSection = ({
   );
 };
 
-const PeriodCard = ({
+// A past→today→future timeline: a rail dot + connecting line on the left,
+// date/time/status on the right. Replaces the old identical bordered-box
+// list where every action lived behind one dropdown menu.
+const PeriodRow = ({
   period,
   canCheck = false,
   isLastAttend = false,
+  isLastRow = false,
 }: {
   period: Period;
   canCheck?: boolean;
   isLastAttend?: boolean;
+  isLastRow?: boolean;
 }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
   const startTime = new Date(period.startTime);
   const endTime = new Date(period.endTime);
-  const date = format(startTime, "yyyy/MM/dd, EEE");
-  const startHour = format(startTime, "h:mm a");
-  const endHour = format(endTime, "h:mm a");
+  const attended = Boolean(period.attendanceTakenAt);
+  const date = format(startTime, "M/d");
+  const weekday = WEEKDAYS[startTime.getDay()];
+  const startHour = format(startTime, "HH:mm");
+  const endHour = format(endTime, "HH:mm");
   const [deletePeriod] = useDeletePeriodMutation();
   const [resetAttendance] = useResetAttendanceMutation();
+
+  // Taken-but-not-the-last-attended period has nothing left to do (viewing
+  // its record is the row's own click target below) — no menu at all then.
+  const showMenu = !attended || isLastAttend;
 
   const handleCheck = () => {
     if (new Date() < new Date(startTime)) {
@@ -114,52 +128,84 @@ const PeriodCard = ({
   };
 
   return (
-    <div
-      key={period.id}
-      className="flex flex-col gap-3 p-3 border border-neutral-200 rounded-md"
-    >
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold flex items-center gap-2">
-          {date}
-          {period.attendanceTakenAt && (
-            <Check className="w-5 h-5 text-primary-500" />
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 text-sm ">
-            <span>{startHour}</span>
-            <span>-</span>
-            <span>{endHour}</span>
+    <div className="flex gap-3">
+      {/* Rail: status dot + connecting line down to the next row */}
+      <div className="flex flex-col items-center w-5 shrink-0">
+        {attended ? (
+          <div className="w-5 h-5 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
+            <Check className="w-3 h-3 text-white" strokeWidth={3} />
           </div>
-          <button onClick={() => setMenuOpen(!menuOpen)} ref={buttonRef}>
-            <EllipsisVertical className="w-4 h-4 cursor-pointer" />
-          </button>
+        ) : canCheck ? (
+          <div className="w-5 h-5 rounded-full bg-white border-2 border-warning-500 shrink-0" />
+        ) : (
+          <div className="w-5 h-5 rounded-full bg-white border-2 border-neutral-300 shrink-0" />
+        )}
+        {!isLastRow && <div className="w-0.5 flex-1 bg-neutral-200" />}
+      </div>
+
+      <div className={`flex-1 min-w-0 ${isLastRow ? "" : "pb-3.5"}`}>
+        <div
+          className={`flex items-center justify-between gap-2 ${
+            attended ? "cursor-pointer" : ""
+          }`}
+          onClick={attended ? handleViewAttendance : undefined}
+        >
+          <div>
+            <div className="text-sm font-semibold">
+              {date}（{weekday}）
+              {isToday(startTime) && !attended && (
+                <span className="text-warning-600 font-bold"> · 今天</span>
+              )}
+            </div>
+            <div className="text-xs text-neutral-400">
+              {startHour}–{endHour}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {attended ? (
+              <span className="text-xs font-semibold text-primary-600">
+                已點名
+              </span>
+            ) : canCheck ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCheck();
+                }}
+                className="flex items-center gap-1.5 bg-warning-500 text-white rounded-full px-3.5 py-1.5 text-xs font-bold cursor-pointer hover:bg-warning-600"
+              >
+                <AlarmClock className="w-3.5 h-3.5" />
+                點名
+              </button>
+            ) : (
+              <span className="flex items-center gap-1 text-xs text-neutral-400">
+                <Clock className="w-3.5 h-3.5" />
+                尚未開始
+              </span>
+            )}
+            {showMenu && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(!menuOpen);
+                }}
+                ref={buttonRef}
+              >
+                <EllipsisVertical className="w-4 h-4 text-neutral-300 cursor-pointer hover:text-neutral-500" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
-      {canCheck && (
-        <button
-          className="flex items-center justify-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md text-sm cursor-pointer hover:bg-primary-600"
-          onClick={handleCheck}
-        >
-          <PenTool className="w-4 h-4" />
-          Check
-        </button>
-      )}
+
       <Menu
         open={menuOpen}
         anchorEl={buttonRef.current}
         onClose={() => setMenuOpen(false)}
       >
         <div className="flex flex-col gap-3 p-3">
-          {period.attendanceTakenAt ? (
-            <button
-              className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
-              onClick={handleViewAttendance}
-            >
-              <NotepadText className="w-4 h-4" />
-              View Attendance
-            </button>
-          ) : (
+          {!attended && (
             <button
               className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
               onClick={handleDelete}

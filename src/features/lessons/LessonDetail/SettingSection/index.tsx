@@ -5,6 +5,7 @@ import InputField from "@/components/InputField";
 import DanceTypeSelect from "@/features/lessons/newLesson/DanceTypeSelect";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
+import LessonGroupSelect from "@/features/lessons/newLesson/LessonGroupSelect";
 import { Button } from "@/components/ui/button";
 import { useUpdateLessonMutation, useDeleteLessonMutation } from "@/store/slices/lessons";
 import { useRouter } from "next/navigation";
@@ -21,6 +22,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
   const [danceType, setDanceType] = useState<DanceType>(lesson.danceType);  
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(lesson.teachers.map((teacher) => teacher.id));
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>(lesson.cards.map((card) => card.id));
+  const [groupId, setGroupId] = useState<number | null>(lesson.groupId);
   const [errors, setErrors] = useState<{
     lessonName?: string;
     teachers?: string;
@@ -70,7 +72,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
     });
     setErrors(errors);
     if (Object.keys(errors).length === 0) {
-      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceType } });
+      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceType, groupId } });
     }
   };
 
@@ -87,6 +89,10 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
           <DanceTypeSelect
             danceType={danceType}
             onChange={handleDanceTypeChange}
+          />
+          <LessonGroupSelect
+            groupId={groupId}
+            onChange={setGroupId}
           />
           <TeacherSelect
             error={errors.teachers}

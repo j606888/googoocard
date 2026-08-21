@@ -33,6 +33,7 @@ const LessonDetail = () => {
     <>
       <SubNavbar
         title={lesson?.name || ""}
+        subtitle={lesson?.group?.name}
         backUrl="/lessons"
         withUnpaidBell
         className="lg:hidden"

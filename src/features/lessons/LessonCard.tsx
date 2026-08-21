@@ -43,6 +43,7 @@ const LessonCard = ({ lesson }: { lesson: LessonSummary }) => {
       teacherIds: lesson.teachers.map((t) => t.id),
       cardIds: lesson.cardIds,
       danceType: lesson.danceType,
+      groupId: lesson.groupId,
       initialPeriod,
     });
     router.push("/lessons/new");
