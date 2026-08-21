@@ -257,7 +257,7 @@ const PublicCheckin = ({ checkinKey }: { checkinKey: string }) => {
           className="mb-4 flex items-center gap-1 text-sm text-neutral-500"
         >
           <ChevronLeft className="h-4 w-4" />
-          {student.name}（不是我）
+          {student.name}
         </button>
 
         <h2 className="mb-3 text-lg font-semibold">要簽到哪幾堂課？</h2>
