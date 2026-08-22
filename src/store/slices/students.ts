@@ -29,6 +29,8 @@ export interface Event {
   title: string;
   description: string;
   createdAt: string;
+  resourceType: string;
+  resourceId: number;
 }
 
 export interface StudentWithDetail extends Student {
@@ -229,6 +231,7 @@ const studentsApi = api.injectEndpoints({
     }),
     getStudentEvents: builder.query<Event[], { id: number }>({
       query: ({ id }) => `students/${id}/events`,
+      providesTags: ["Student"],
     }),
     getTags: builder.query<StudentTag[], void>({
       query: () => "tags",

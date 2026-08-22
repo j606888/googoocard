@@ -1,6 +1,5 @@
-import { Copy } from "lucide-react";
-import { toast } from "sonner";
 import { useGetStudentLineBindLinkQuery } from "@/store/slices/students";
+import CopyLinkRow from "./CopyLinkRow";
 
 // Teacher-facing: shows a LINE binding deep link for this student that the
 // teacher copies and sends to the student. The student taps it, sends the
@@ -32,27 +31,13 @@ const StudentLineBind = ({ studentId }: { studentId: number }) => {
     );
   }
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(data.deepLink!);
-    toast.success("已複製學生綁定連結");
-  };
-
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-neutral-700">LINE 綁定連結</p>
-        <button
-          className="inline-flex items-center gap-1.5 text-xs font-medium bg-[#06C755] text-white rounded-full px-3 py-1.5 cursor-pointer hover:opacity-90 transition-opacity"
-          onClick={handleCopy}
-        >
-          <Copy className="w-3.5 h-3.5" />
-          <span>複製連結</span>
-        </button>
-      </div>
-      <p className="text-xs text-neutral-500 break-all p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl">
-        {data.deepLink}
-      </p>
-    </div>
+    <CopyLinkRow
+      label="LINE 綁定連結"
+      value={data.deepLink}
+      tone="line"
+      copyButtonLabel="複製連結"
+    />
   );
 };
 
