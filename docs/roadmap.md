@@ -138,36 +138,46 @@ Upstash Redis 即可，呼叫端不用改。
 
 ---
 
-# P1 — 技術地基
+# P1 — 技術地基 ✅ 全數完成 2026-08-24
 
-## [ ] P1-1 Foreign key 全無索引
+> `npm run lint` → `npm run build` → `npx tsc --noEmit` → `npm test`（283 項）全綠。
+
+## [x] P1-1 Foreign key 全無索引 ✅ 2026-08-24
 
 全 schema 只有 3 個 `@@index`。**Postgres 不會自動為 FK 建索引，Prisma 也不會**——
 每個 `where: { classroomId }` / `where: { studentId }` 目前都是 Seq Scan。
 現在資料量小所以無感，但成長是線性的，且 `GET /api/students/[id]` 本來就已經
 把整份出席史拉進記憶體（見 P3-1），兩者會相乘。
 
-需補（`prisma/schema.prisma` + migration）：
+**已做**：migration `20260823082607_add_foreign_key_indexes`，18 個索引。
 
-```
-Student.classroomId          Card.classroomId           Lesson.classroomId
-Lesson.groupId               StudentCard.studentId      StudentCard.cardId
-LessonPeriod.lessonId        AttendanceRecord.studentId AttendanceRecord.studentCardId
-Event.studentId              LessonStudent.studentId    LessonTeacher.teacherId
-LessonCard.cardId            StudentTag.tagId           Membership.classroomId
-Teacher.classroomId          InviteToken.classroomId
-```
+⚠️ **原本列的清單有幾個是多餘的**——複合 `@@unique` 的**前導欄位**本來就能被單欄
+查詢使用，所以下列不需要也不應該再加獨立索引（多加只會拖慢寫入、佔空間）：
 
-複合索引另補：
-- `LessonPeriod(lessonId, startTime)` — 每日營收與行事曆查詢
+| 欄位 | 已被哪個索引覆蓋 |
+|---|---|
+| `Student.classroomId` | `@@unique([classroomId, number])` |
+| `Membership.userId` | `@@unique([userId, classroomId])` |
+| `AttendanceRecord.lessonPeriodId` | `@@unique([lessonPeriodId, studentId])` |
+| `StudentTag.studentId` | `@@unique([studentId, tagId])` |
+| `LessonStudent.lessonId` / `LessonCard.lessonId` / `LessonTeacher.lessonId` | 各自的 `@@unique` |
+| `StudentDanceQualification.studentId` | `@@unique([studentId, danceType])` |
+
+反之 `Tag.classroomId` 與 `LessonGroup.classroomId` **需要**獨立索引，
+因為它們的 unique 是 `[name, classroomId]`，前導是 `name`。
+
+兩個複合索引，讓過濾與排序共用同一個索引：
+- `LessonPeriod(lessonId, startTime)` — 每日營收與行事曆
 - `StudentCard(studentId, expiredAt)` — 可用卡查詢（點名熱路徑）
+- `Event(studentId, createdAt)` — 學生時間軸（`EXPLAIN` 顯示 Index Scan Backward，無額外 sort）
 
-**部署注意**：production 用手寫 `CREATE INDEX CONCURRENTLY` 避免鎖表。
-`CONCURRENTLY` 不能在 transaction 內執行，Prisma migration 預設包 transaction，
-需在 migration 檔頂端處理或拆成獨立檔。小表其實秒級完成，但既然 production 有人在用，
-照規矩來。
+**部署注意——與原計畫不同**：用的是 plain `CREATE INDEX`，不是 `CONCURRENTLY`。
+Prisma Migrate 把每個 migration 包在 transaction 裡執行，而 `CONCURRENTLY`
+不能在 transaction 內跑。這些表目前是數百到數千列，建索引是毫秒級，
+`SHARE` 鎖只擋寫入（不擋讀取）那麼一瞬間。等到哪張表破百萬列時，
+建索引就得移出 Prisma 另外處理。
 
-## [ ] P1-2 輸入驗證層
+## [x] P1-2 輸入驗證層 ✅ 2026-08-24（金流路徑）
 
 - 專案沒有 zod 或任何 schema 驗證。
 - **52 處 `parseInt(id)` 沒有 NaN 防護** → `/api/students/abc` 會讓 Prisma 丟出
@@ -175,27 +185,57 @@ Teacher.classroomId          InviteToken.classroomId
 - POST body 直接解構，無型別檢查：買卡 API 的 `price` / `sessions` 可以傳負數或字串，
   直接寫進 `StudentCard` 汙染營收數字。
 
-**做法**：裝 `zod`，新增 `src/lib/apiValidation.ts`（與既有的表單驗證
-`src/lib/validation.ts` 分開）：
-- `parseId(raw): number | null` — 統一取代所有 `parseInt(id)`
-- 各 route 的 body schema，解析失敗回 400 帶欄位錯誤
+**已做**：裝 `zod@4`，新增兩個檔案：
+- `src/lib/schemas.ts` — 金流路徑的 request schema。`z.coerce` 讓表單送來的
+  數字字串正常轉型，同時擋掉負數與零。
+- `src/lib/apiRoute.ts` 的 `parseId()` / `parseBody()` / `parseQuery()`。
 
-**先套用在有金流語意的 route**（買卡、轉卡、確認付款、點名），其餘漸進遷移。
+**契約錯誤碼保留**：`architecture.md` 的驗證矩陣把
+`PRACTICE_CARD_REQUIRES_DANCE_TYPE` 這類字串列為 API 契約。zod 的一般驗證錯誤
+會回 `{ code: "VALIDATION_FAILED", fields: {...} }`，會破壞契約，所以
+schema 的 `superRefine` 用 `params: { apiCode }` 標記，`errorResponse` 讀到就
+原樣回那個字串。前端目前是 client-side 驗證、沒讀這些碼，但契約仍然保住。
 
-## [ ] P1-3 統一錯誤處理
+**已遷移**：買卡、轉卡、確認付款、`POST/PATCH /api/cards`。
+其餘 route 沿用舊寫法，之後動到再遷移。
 
-64 個 route 只有 7 個有 try/catch。新增 `src/lib/apiHandler.ts` 的 `withApiHandler()`：
-- 未預期例外 → log + 回通用 500（**不吐 stack**）
-- `PrismaClientKnownRequestError` P2025 → 404、P2002 → 409
+## [x] P1-3 統一錯誤處理 ✅ 2026-08-24
 
-## [ ] P1-4 CI
+64 個 route 只有 7 個有 try/catch。
 
-專案沒有 `.github/`——那 23 支整合測試不會自動跑，只靠手動 `npm test`。
+**已做**：`src/lib/apiRoute.ts` 的 `apiRoute()` / `publicApiRoute()` 包裝器，
+外加 `src/lib/apiError.ts` 的 `ApiError`（帶 status + code，可從 service 層往外丟）。
 
-新增 `.github/workflows/ci.yml`：`services: postgres`（對齊 `docker-compose.yml` 的
-port 54330 / postgres-password）→ `npm ci` → `npm run lint` → `npm run build` → `npm test`。
-`tests/global-setup.ts` 會自動建 `googoocard_test` 並 migrate，CI 只需給指向 localhost 的
-`DATABASE_URL`（`tests/test-db-url.ts` 的 localhost 守門會通過）。
+包裝器做兩件事：
+1. **預設要求登入**——這正是 P0 那類漏洞的根治方式：handler 只有在有 session
+   且有 classroomId 時才會被呼叫，公開端點必須明講 `publicApiRoute`。
+   （P0 的修補是逐一補洞；這裡是把安全變成預設值。）
+2. **未預期例外 → 乾淨的 500**，log 在伺服器端、**不吐 stack** 給客戶端。
+   `ZodError` → 400，Prisma P2025 → 404、P2002 → 409。
+
+handler 收到的是單一 context 物件而非 Next 的 `(request, segment)`：
+`params` 已 await 完、`classroomId` 是非 nullable，呼叫端不必再寫 `classroomId!`。
+回傳值可以是 `Response`，也可以直接回物件讓包裝器 JSON 編碼。
+
+> ⚠️ Next 產生的 route 型別要求第二個參數存在且非 optional，
+> 所以 `NextSegment<P>` 宣告成必填（runtime 仍用 `?.` 防護）。
+> 這個錯誤只有在 `.next/types` 存在時才會被 tsc 抓到——**所以 CI 必須先 build 再 typecheck**。
+
+**尚未遷移的 route 仍是舊寫法**，兩種風格會並存一陣子。動到哪個就順手遷移哪個。
+
+## [x] P1-4 CI ✅ 2026-08-24
+
+專案沒有 `.github/`——那些整合測試不會自動跑，只靠手動 `npm test`。
+
+**已做**：`.github/workflows/ci.yml`。postgres service 用與 `docker-compose.yml`
+完全相同的 image、帳密與 port（54330），所以 `TEST_DATABASE_URL` 的預設值
+不用改就能用。`tests/global-setup.ts` 會自動建 `googoocard_test` 並 migrate。
+
+順序是 **lint → build → typecheck → test**，build 必須在 typecheck 之前
+（理由見 P1-3 的警告）。`JWT_SECRET` 給的是 build-time placeholder，
+因為 `src/lib/auth.ts` 在 module load 時就讀它，沒設會 build 失敗。
+
+CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
 
 ---
 
@@ -250,6 +290,17 @@ port 54330 / postgres-password）→ `npm ci` → `npm run lint` → `npm run bu
 - **課程模板／重複排課** — 現在每期課要手動建所有 periods。
 
 ---
+
+# 待你決定的業務規則
+
+修 P1 時碰到的，**刻意沒有自作主張**——這些是業務決定，不是驗證層該決定的：
+
+- **轉卡堂數沒有上限。** `POST .../convert` 的 `sessions` 只驗證是正整數，
+  沒有擋「超過原卡剩餘堂數」。轉換沒有金流，所以 6 打成 60 等於憑空發 60 堂課。
+  要擋嗎？還是有「補償／加碼」的正當情境？
+  （位置：`src/app/api/students/[id]/student-cards/[studentCardId]/convert/route.ts`）
+- **買卡價格只擋負數，不擋離譜的值。** `price` 可以是 0（招待卡、全額折扣，
+  這是刻意允許的），但也可以是 999999。要不要加一個相對於 `card.price` 的合理範圍？
 
 # P3 — 重構待辦
 

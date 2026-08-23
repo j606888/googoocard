@@ -22,12 +22,12 @@ enum DanceType {
 }
 
 enum CardPurchaseSource {
-  STAFF   // bought by 老闆/助教 (a User) on the backend
+  STAFF // bought by 老闆/助教 (a User) on the backend
   STUDENT // self-purchased by the student (future flow; purchasedByUserId is null)
 }
 
 enum StudentCardOrigin {
-  PURCHASE   // 正常購買 — 有真的金流，計入課卡營收
+  PURCHASE // 正常購買 — 有真的金流，計入課卡營收
   CONVERSION // 由舊卡轉換而來（例：Level 1 升級 Level 2、複習卡折抵）— 不重複計入課卡營收
 }
 
@@ -42,40 +42,40 @@ enum LineMenuMode {
 }
 
 model User {
-  id          Int          @id @default(autoincrement())
-  email       String       @unique
-  name        String
-  password    String
-  randomKey   String?      @unique // one-time key shown on the website; sent to the LINE bot to bind
-  lineUserId  String?      @unique // bound LINE userId; used for LIFF auto-login
-  classrooms  Classroom[]  @relation("OwnedClassrooms")
-  memberships Membership[]
+  id                    Int           @id @default(autoincrement())
+  email                 String        @unique
+  name                  String
+  password              String
+  randomKey             String?       @unique // one-time key shown on the website; sent to the LINE bot to bind
+  lineUserId            String?       @unique // bound LINE userId; used for LIFF auto-login
+  classrooms            Classroom[]   @relation("OwnedClassrooms")
+  memberships           Membership[]
   purchasedStudentCards StudentCard[] @relation("PurchasedStudentCards")
   confirmedStudentCards StudentCard[] @relation("ConfirmedStudentCards")
-  currentClassroomId Int?
-  currentClassroom Classroom? @relation(fields: [currentClassroomId], references: [id])
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  currentClassroomId    Int?
+  currentClassroom      Classroom?    @relation(fields: [currentClassroomId], references: [id])
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 }
 
 model Classroom {
-  id          Int          @id @default(autoincrement())
-  ownerId     Int
-  owner       User         @relation("OwnedClassrooms", fields: [ownerId], references: [id])
-  name        String
-  checkinKey  String?      @unique // 現場 QR 自助簽到金鑰（貼在教室看板）；可重新產生以作廢舊看板
-  nextStudentNumber Int    @default(1) // 下一個要指派的學生編號（每教室各自從 1 開始，遞增不回收）
-  memberships Membership[]
-  cards       Card[]
-  students    Student[]
-  lessons     Lesson[]
-  lessonGroups LessonGroup[]
-  inviteTokens InviteToken[]
-  tags        Tag[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  teachers    Teacher[]
-  User        User[]
+  id                Int           @id @default(autoincrement())
+  ownerId           Int
+  owner             User          @relation("OwnedClassrooms", fields: [ownerId], references: [id])
+  name              String
+  checkinKey        String?       @unique // 現場 QR 自助簽到金鑰（貼在教室看板）；可重新產生以作廢舊看板
+  nextStudentNumber Int           @default(1) // 下一個要指派的學生編號（每教室各自從 1 開始，遞增不回收）
+  memberships       Membership[]
+  cards             Card[]
+  students          Student[]
+  lessons           Lesson[]
+  lessonGroups      LessonGroup[]
+  inviteTokens      InviteToken[]
+  tags              Tag[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  teachers          Teacher[]
+  User              User[]
 }
 
 model Membership {
@@ -88,7 +88,12 @@ model Membership {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // Postgres does NOT index foreign keys automatically, and neither does
+  // Prisma. Where a composite @@unique already leads with the FK column that
+  // prefix serves single-column lookups, so no extra index is added — e.g.
+  // `userId` here is covered by the unique below, `classroomId` is not.
   @@unique([userId, classroomId])
+  @@index([classroomId])
 }
 
 model Teacher {
@@ -99,46 +104,51 @@ model Teacher {
   lessons     LessonTeacher[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+
+  @@index([classroomId])
 }
 
 model Card {
-  id           Int           @id @default(autoincrement())
-  name         String
-  price        Int
-  sessions     Int
-  expiredAt    DateTime?
-  classroomId  Int
-  studentCards StudentCard[]
-  lessons      LessonCard[]
-  isPracticeCard Boolean @default(false)
-  danceType    DanceType?
-  classroom    Classroom     @relation(fields: [classroomId], references: [id])
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id             Int           @id @default(autoincrement())
+  name           String
+  price          Int
+  sessions       Int
+  expiredAt      DateTime?
+  classroomId    Int
+  studentCards   StudentCard[]
+  lessons        LessonCard[]
+  isPracticeCard Boolean       @default(false)
+  danceType      DanceType?
+  classroom      Classroom     @relation(fields: [classroomId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([classroomId])
 }
 
 model Student {
-  id           Int           @id @default(autoincrement())
-  number       Int           // 教室內學生編號，從 1 開始、系統自動指派、不可編輯（見 src/service/student.ts）
-  name         String
-  avatarUrl    String
-  note         String?
-  randomKey    String? @unique // public-students share link token (NOT for LINE)
-  lineBindKey  String? @unique // one-time key for the LINE binding deep link
-  lineUserId   String? // bound LINE userId — NOT unique: one LINE account can bind multiple students across classrooms
-  classroomId  Int
-  classroom    Classroom     @relation(fields: [classroomId], references: [id])
-  studentCards StudentCard[]
-  studentTags  StudentTag[]
-  lessons      LessonStudent[]
-  attendanceRecords AttendanceRecord[]
-  events Event[]
+  id                  Int                         @id @default(autoincrement())
+  number              Int // 教室內學生編號，從 1 開始、系統自動指派、不可編輯（見 src/service/student.ts）
+  name                String
+  avatarUrl           String
+  note                String?
+  randomKey           String?                     @unique // public-students share link token (NOT for LINE)
+  lineBindKey         String?                     @unique // one-time key for the LINE binding deep link
+  lineUserId          String? // bound LINE userId — NOT unique: one LINE account can bind multiple students across classrooms
+  classroomId         Int
+  classroom           Classroom                   @relation(fields: [classroomId], references: [id])
+  studentCards        StudentCard[]
+  studentTags         StudentTag[]
+  lessons             LessonStudent[]
+  attendanceRecords   AttendanceRecord[]
+  events              Event[]
   danceQualifications StudentDanceQualification[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
 
-  @@index([lineUserId])
+  // `classroomId` needs no index of its own — this unique leads with it.
   @@unique([classroomId, number])
+  @@index([lineUserId])
 }
 
 model StudentDanceQualification {
@@ -152,35 +162,40 @@ model StudentDanceQualification {
 }
 
 model StudentCard {
-  id                Int      @id @default(autoincrement())
+  id                Int                @id @default(autoincrement())
   studentId         Int
-  student           Student  @relation(fields: [studentId], references: [id])
+  student           Student            @relation(fields: [studentId], references: [id])
   cardId            Int
-  card              Card     @relation(fields: [cardId], references: [id])
+  card              Card               @relation(fields: [cardId], references: [id])
   basePrice         Int
   finalPrice        Int
   totalSessions     Int
   remainingSessions Int
   purchaseSource    CardPurchaseSource @default(STAFF)
   purchasedByUserId Int?
-  purchasedBy       User?    @relation("PurchasedStudentCards", fields: [purchasedByUserId], references: [id])
-  isPaid            Boolean  @default(true) // existing rows treated as paid
+  purchasedBy       User?              @relation("PurchasedStudentCards", fields: [purchasedByUserId], references: [id])
+  isPaid            Boolean            @default(true) // existing rows treated as paid
   paidAt            DateTime?
   paidByUserId      Int?
-  paidBy            User?    @relation("ConfirmedStudentCards", fields: [paidByUserId], references: [id])
+  paidBy            User?              @relation("ConfirmedStudentCards", fields: [paidByUserId], references: [id])
   attendanceRecords AttendanceRecord[]
   note              String?
-  origin            StudentCardOrigin @default(PURCHASE)
+  origin            StudentCardOrigin  @default(PURCHASE)
   // 轉換鏈：欄位放在「舊卡」上指向新卡，所以多張舊卡可以合併成一張新卡
   // （複習卡 3 堂折 1 堂 Level 2 就是這個形狀）。
   convertedToId     Int?
-  convertedTo       StudentCard?  @relation("StudentCardConversion", fields: [convertedToId], references: [id])
-  convertedFrom     StudentCard[] @relation("StudentCardConversion")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  convertedTo       StudentCard?       @relation("StudentCardConversion", fields: [convertedToId], references: [id])
+  convertedFrom     StudentCard[]      @relation("StudentCardConversion")
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
   expiredAt         DateTime?
 
   @@index([convertedToId])
+  // Composite, not a bare [studentId]: the hot query is "this student's cards
+  // that aren't expired" (attendance card selection, renewal checks), and the
+  // leading column still serves plain studentId lookups.
+  @@index([studentId, expiredAt])
+  @@index([cardId])
 }
 
 model Lesson {
@@ -190,7 +205,7 @@ model Lesson {
   classroom   Classroom       @relation(fields: [classroomId], references: [id])
   status      String          @default("inProgress")
   endAt       DateTime?
-  danceType   DanceType         @default(BACHATA)
+  danceType   DanceType       @default(BACHATA)
   groupId     Int?
   group       LessonGroup?    @relation(fields: [groupId], references: [id])
   teachers    LessonTeacher[]
@@ -199,6 +214,9 @@ model Lesson {
   students    LessonStudent[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+
+  @@index([classroomId])
+  @@index([groupId])
 }
 
 // Bundles recurring lesson slots that share a schedule (e.g. "週日課" holding
@@ -214,7 +232,9 @@ model LessonGroup {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // The unique leads with `name`, so it does NOT serve classroomId lookups.
   @@unique([name, classroomId])
+  @@index([classroomId])
 }
 
 model LessonTeacher {
@@ -227,6 +247,7 @@ model LessonTeacher {
   updatedAt DateTime @updatedAt
 
   @@unique([lessonId, teacherId])
+  @@index([teacherId])
 }
 
 model LessonCard {
@@ -239,18 +260,22 @@ model LessonCard {
   updatedAt DateTime @updatedAt
 
   @@unique([lessonId, cardId])
+  @@index([cardId])
 }
 
 model LessonPeriod {
-  id        Int      @id @default(autoincrement())
-  lessonId  Int
-  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  id                Int                @id @default(autoincrement())
+  lessonId          Int
+  lesson            Lesson             @relation(fields: [lessonId], references: [id])
   attendanceRecords AttendanceRecord[]
-  startTime DateTime
-  endTime   DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  startTime         DateTime
+  endTime           DateTime
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
   attendanceTakenAt DateTime?
+
+  // Daily revenue and the calendar both filter a lesson's periods by date.
+  @@index([lessonId, startTime])
 }
 
 model LessonStudent {
@@ -263,46 +288,55 @@ model LessonStudent {
   updatedAt DateTime @updatedAt
 
   @@unique([lessonId, studentId])
+  @@index([studentId])
 }
 
 model AttendanceRecord {
-  id        Int      @id @default(autoincrement())
+  id             Int              @id @default(autoincrement())
   lessonPeriodId Int
-  lessonPeriod LessonPeriod @relation(fields: [lessonPeriodId], references: [id])
-  studentId Int
-  student   Student  @relation(fields: [studentId], references: [id])
-  studentCardId Int?
-  studentCard StudentCard? @relation(fields: [studentCardId], references: [id])
-  source    AttendanceSource @default(TEACHER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  lessonPeriod   LessonPeriod     @relation(fields: [lessonPeriodId], references: [id])
+  studentId      Int
+  student        Student          @relation(fields: [studentId], references: [id])
+  studentCardId  Int?
+  studentCard    StudentCard?     @relation(fields: [studentCardId], references: [id])
+  source         AttendanceSource @default(TEACHER)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   // One attendance record per student per period — guards against duplicate
   // self check-ins (LIFF double-tap / concurrent submit) double-charging a card.
   @@unique([lessonPeriodId, studentId])
+  @@index([studentId])
+  @@index([studentCardId])
 }
 
 model InviteToken {
-  id        Int      @id @default(autoincrement())
-  token     String   @unique
+  id          Int       @id @default(autoincrement())
+  token       String    @unique
   classroomId Int
-  classroom Classroom @relation(fields: [classroomId], references: [id])
-  maxUses Int
-  uses    Int @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  maxUses     Int
+  uses        Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([classroomId])
 }
 
 model Event {
-  id        Int      @id @default(autoincrement())
-  title      String
-  description String
-  studentId Int
-  student Student @relation(fields: [studentId], references: [id])
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String
+  studentId    Int
+  student      Student  @relation(fields: [studentId], references: [id])
   resourceType String
-  resourceId Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  resourceId   Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // The timeline reads one student's events newest-first, so the sort column
+  // rides along in the index.
+  @@index([studentId, createdAt])
 }
 
 model Tag {
@@ -314,7 +348,9 @@ model Tag {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
+  // The unique leads with `name`, so it does NOT serve classroomId lookups.
   @@unique([name, classroomId])
+  @@index([classroomId])
 }
 
 model StudentTag {
@@ -326,17 +362,18 @@ model StudentTag {
   createdAt DateTime @default(now())
 
   @@unique([studentId, tagId])
+  @@index([tagId])
 }
 
 // Per-LINE-account UI state. A LINE userId can be both a teacher (User) and a
 // student (Student) — this remembers which menu to show by default so switching
 // to the student menu sticks across messages.
 model LineAccount {
-  lineUserId String       @id
-  menuMode   LineMenuMode @default(TEACHER)
+  lineUserId        String       @id
+  menuMode          LineMenuMode @default(TEACHER)
   // The student the account last selected in LIFF, so the LINE bot's menu shows
   // the same one. Plain id (no FK) — webhook re-validates ownership before use.
   selectedStudentId Int?
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 }

@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { decodeAuthToken } from "@/lib/auth";
+import { apiRoute, parseId, parseBody } from "@/lib/apiRoute";
+import { notFound } from "@/lib/apiError";
+import { cardSchema } from "@/lib/schemas";
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const { classroomId } = await decodeAuthToken();
+type Params = { id: string };
 
+export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
   const card = await prisma.card.findFirst({
-    where: { id: Number(id), classroomId },
+    where: { id: parseId(params.id, "card id"), classroomId },
     include: {
       // 與卡片列表同口徑：購買人次/營收排除轉換卡（origin = CONVERSION），
       // 因為那筆錢在原始購買時已經認列過。
@@ -16,9 +16,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     },
   });
 
-  if (!card) {
-    return NextResponse.json({ error: "Card not found" }, { status: 404 });
-  }
+  if (!card) throw notFound("Card");
 
   // Holders = student cards that still have sessions left and aren't expired,
   // matching the "active" predicate used in the aggregate list (api/cards/route.ts).
@@ -33,7 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const { _count, studentCards, ...cardFields } = card;
 
-  return NextResponse.json({
+  return {
     card: cardFields,
     purchasedCount: _count.studentCards,
     activeHolderCount: holderCards.length,
@@ -50,40 +48,31 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       student: sc.student,
       purchasedBy: sc.purchasedBy,
     })),
+  };
+});
+
+export const DELETE = apiRoute<Params>(async ({ params, classroomId }) => {
+  return prisma.card.delete({
+    where: { id: parseId(params.id, "card id"), classroomId },
   });
-}
+});
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const { classroomId } = await decodeAuthToken();
-
-  const card = await prisma.card.delete({
-    where: { id: Number(id), classroomId },
-  });
-
-  return NextResponse.json(card);
-}
-
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const { classroomId } = await decodeAuthToken();
-  const { name, price, sessions, isPracticeCard, danceType } = await request.json();
-
-  if (isPracticeCard && !danceType) {
-    return NextResponse.json({ error: "PRACTICE_CARD_REQUIRES_DANCE_TYPE" }, { status: 400 });
-  }
+export const PATCH = apiRoute<Params>(async ({ request, params, classroomId }) => {
+  const cardId = parseId(params.id, "card id");
+  const { name, price, sessions, isPracticeCard, danceType } = await parseBody(
+    request,
+    cardSchema
+  );
 
   // GET and DELETE in this file were already classroom-scoped; PATCH was not,
   // so another classroom's card price and session count were editable.
   const existing = await prisma.card.findFirst({
-    where: { id: Number(id), classroomId },
+    where: { id: cardId, classroomId },
     select: { id: true },
   });
-  if (!existing) {
-    return NextResponse.json({ error: "Card not found" }, { status: 404 });
-  }
+  if (!existing) throw notFound("Card");
 
-  const card = await prisma.card.update({
+  return prisma.card.update({
     where: { id: existing.id },
     data: {
       name,
@@ -91,10 +80,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       sessions,
       isPracticeCard,
       // General cards may carry a danceType as a category label (does not
-      // restrict usage). Practice cards require it (guarded above).
+      // restrict usage). Practice cards require it (guarded by the schema).
       danceType: danceType ?? null,
     },
   });
-
-  return NextResponse.json(card);
-}
+});

@@ -35,7 +35,8 @@ describe("Card danceType as a category label for general cards", () => {
         sessions: 8,
         isPracticeCard: false,
         danceType: DanceType.ZOUK,
-      })
+      }),
+      routeParams({})
     );
 
     expect(res.status).toBe(200);
@@ -52,7 +53,8 @@ describe("Card danceType as a category label for general cards", () => {
         sessions: 10,
         isPracticeCard: false,
         danceType: null,
-      })
+      }),
+      routeParams({})
     );
     const card = await prisma.card.findFirst({ where: { name: "通用 10堂" } });
     expect(card?.danceType).toBeNull();
@@ -66,7 +68,8 @@ describe("Card danceType as a category label for general cards", () => {
         sessions: 8,
         isPracticeCard: true,
         danceType: null,
-      })
+      }),
+      routeParams({})
     );
     expect(res.status).toBe(400);
     const body = await res.json();

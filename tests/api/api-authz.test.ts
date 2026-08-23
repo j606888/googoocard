@@ -84,9 +84,11 @@ describe("API 授權邊界", () => {
       expect(res.status).toBe(401);
     });
 
+    // 已改用 apiRoute 包裝的 route 在 wrapper 層就回 401（根本沒進 handler），
+    // 尚未遷移的則是 handler 內查不到資源而回 404。兩者都算擋下。
     it("GET /api/students/[id]/student-cards 未登入不回資料", async () => {
       const res = await studentCardsGet(jsonRequest("GET"), routeParams({ id: "1" }));
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(401);
     });
 
     it("GET /api/students/[id]/events 未登入不回資料", async () => {

@@ -43,7 +43,7 @@ describe("卡片統計排除轉換卡", () => {
       origin: "CONVERSION",
     });
 
-    const body = await (await listGET()).json();
+    const body = await (await listGET(new Request("http://test.local/api/cards"), routeParams({}))).json();
     const found = body.activeCards.find((c: { name: string }) => c.name === "進階6堂");
 
     expect(found.totalRevenue).toBe(2000); // 不含轉換卡的 1133
@@ -84,7 +84,7 @@ describe("卡片統計排除轉換卡", () => {
     await createStudentCard(student.id, card.id, { finalPrice: 3000, remainingSessions: 6 });
     await createStudentCard(student.id, card.id, { finalPrice: 2500, remainingSessions: 0 });
 
-    const body = await (await listGET()).json();
+    const body = await (await listGET(new Request("http://test.local/api/cards"), routeParams({}))).json();
     const found = body.activeCards.find((c: { name: string }) => c.name === "一般卡");
 
     expect(found.totalRevenue).toBe(5500);

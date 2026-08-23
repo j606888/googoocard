@@ -1,57 +1,57 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { decodeAuthToken } from "@/lib/auth";
+import { apiRoute, parseId } from "@/lib/apiRoute";
+import { badRequest, notFound } from "@/lib/apiError";
 
 // Mark a previously-unpaid StudentCard as paid, recording WHO confirmed it
 // (often a different person than who opened the card — e.g. assistant opens,
 // owner confirms after receiving cash).
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string; studentCardId: string }> }
-) {
-  const { id, studentCardId } = await params;
-  const { userId, classroomId } = await decodeAuthToken();
+type Params = { id: string; studentCardId: string };
+
+export const POST = apiRoute<Params>(async ({ params, userId, classroomId }) => {
+  const studentId = parseId(params.id, "student id");
+  const cardId = parseId(params.studentCardId, "student card id");
 
   const studentCard = await prisma.studentCard.findUnique({
-    where: { id: parseInt(studentCardId) },
+    where: { id: cardId },
     include: { card: true, student: { select: { classroomId: true } } },
   });
 
   // Scope to the caller's classroom — a (studentId, studentCardId) pair from
   // another classroom must not be operable. 404 to avoid leaking existence.
   if (!studentCard || studentCard.student.classroomId !== classroomId) {
-    return NextResponse.json({ error: "Student card not found" }, { status: 404 });
+    throw notFound("Student card");
   }
 
-  if (studentCard.studentId !== parseInt(id)) {
-    return NextResponse.json(
-      { error: "Student card does not belong to the student" },
-      { status: 400 }
-    );
+  if (studentCard.studentId !== studentId) {
+    throw badRequest("CARD_STUDENT_MISMATCH", "Student card does not belong to the student");
   }
 
   if (studentCard.isPaid) {
-    return NextResponse.json({ error: "ALREADY_PAID" }, { status: 400 });
+    throw badRequest("ALREADY_PAID");
   }
 
-  const updated = await prisma.studentCard.update({
-    where: { id: studentCard.id },
-    data: {
-      isPaid: true,
-      paidAt: new Date(),
-      paidByUserId: userId ?? null,
-    },
-  });
+  // Flipping the flag and recording the event are one unit — an unrecorded
+  // payment confirmation is exactly the kind of gap this flow exists to close.
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.studentCard.update({
+      where: { id: studentCard.id },
+      data: {
+        isPaid: true,
+        paidAt: new Date(),
+        paidByUserId: userId,
+      },
+    });
 
-  await prisma.event.create({
-    data: {
-      title: "確認付款",
-      description: `確認付款 ${studentCard.card.name}（$${studentCard.finalPrice}）`,
-      studentId: parseInt(id),
-      resourceType: "studentCard",
-      resourceId: studentCard.id,
-    },
-  });
+    await tx.event.create({
+      data: {
+        title: "確認付款",
+        description: `確認付款 ${studentCard.card.name}（$${studentCard.finalPrice}）`,
+        studentId,
+        resourceType: "studentCard",
+        resourceId: studentCard.id,
+      },
+    });
 
-  return NextResponse.json(updated);
-}
+    return updated;
+  });
+});

@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch makes the in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Same image and credentials as docker-compose.yml, and mapped to the
+        # same port, so TEST_DATABASE_URL's default works unchanged here.
+        image: postgres:10.10
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: postgres
+        ports:
+          - 54330:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Localhost by construction: tests/test-db-url.ts refuses anything else,
+      # so CI can never reach production. `googoocard_test` is created and
+      # migrated by tests/global-setup.ts.
+      DATABASE_URL: postgresql://postgres:password@localhost:54330/googoocard_test?schema=public
+      # Build-time placeholders. src/lib/auth.ts reads JWT_SECRET at module
+      # load, so the build fails without one; the value is never used to sign
+      # anything a person sees.
+      JWT_SECRET: ci-placeholder-not-a-real-secret
+      NEXT_PUBLIC_HOST_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # postinstall runs `prisma generate`, which needs the schema but no
+      # database connection.
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Build before typecheck: tsconfig includes `.next/types/**/*.ts`, the
+      # route signatures Next generates during a build. Running tsc first would
+      # silently skip them — and those are exactly what catches a handler whose
+      # shape doesn't match what Next passes it.
+      - name: Build
+        run: npm run build
+
+      # Covers what `next build` doesn't: the test files.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npm test

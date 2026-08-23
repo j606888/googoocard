@@ -1,56 +1,44 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { decodeAuthToken } from "@/lib/auth";
 import { findStudentInClassroom } from "@/lib/authz";
+import { apiRoute, parseId, parseBody } from "@/lib/apiRoute";
+import { ApiError, notFound } from "@/lib/apiError";
+import { buyStudentCardSchema } from "@/lib/schemas";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { canBuyCard } from "@/domains/qualification";
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const { classroomId } = await decodeAuthToken();
+type Params = { id: string };
 
+export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
   // Ran with no auth at all until 2026-08-23 — any card balance was readable
   // by incrementing the student id.
-  const student = await findStudentInClassroom(parseInt(id), classroomId);
-  if (!student) {
-    return NextResponse.json({ error: "Student not found" }, { status: 404 });
-  }
+  const student = await findStudentInClassroom(parseId(params.id, "student id"), classroomId);
+  if (!student) throw notFound("Student");
 
-  const studentCards = await prisma.studentCard.findMany({
-    where: {
-      studentId: student.id,
-    },
+  return prisma.studentCard.findMany({
+    where: { studentId: student.id },
   });
+});
 
-  return NextResponse.json(studentCards);
-}
+export const POST = apiRoute<Params>(async ({ request, params, userId, classroomId }) => {
+  const studentId = parseId(params.id, "student id");
+  const { cardId, sessions, price, lessonId, isPaid } = await parseBody(
+    request,
+    buyStudentCardSchema
+  );
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const { userId, classroomId } = await decodeAuthToken();
-  const { cardId, sessions, price, lessonId, isPaid = true } = await request.json();
-
-  const student = await findStudentInClassroom(parseInt(id), classroomId);
-  if (!student) {
-    return NextResponse.json({ error: "Student not found" }, { status: 404 });
-  }
+  const student = await findStudentInClassroom(studentId, classroomId);
+  if (!student) throw notFound("Student");
 
   // The card must be the caller's own classroom's too, or a card id from
   // another classroom could be attached to this student.
   const card = await prisma.card.findFirst({
-    where: {
-      id: cardId,
-      classroomId,
-    },
+    where: { id: cardId, classroomId },
   });
-
-  if (!card) {
-    return NextResponse.json({ error: "Card not found" }, { status: 404 });
-  }
+  if (!card) throw notFound("Card");
 
   if (card.isPracticeCard) {
     const qualifications = await prisma.studentDanceQualification.findMany({
-      where: { studentId: parseInt(id) },
+      where: { studentId },
     });
     // Scoped: the lesson supplies the dance type that decides qualification,
     // so a foreign lesson id must not be able to unlock a practice card.
@@ -64,44 +52,50 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       lesson?.danceType
     );
     if (!decision.allowed) {
-      if (decision.reason === "NOT_QUALIFIED") {
-        return NextResponse.json({ error: "STUDENT_NOT_QUALIFIED" }, { status: 403 });
-      }
-      return NextResponse.json({ error: "CARD_MISSING_DANCE_TYPE" }, { status: 422 });
+      throw decision.reason === "NOT_QUALIFIED"
+        ? new ApiError(403, "STUDENT_NOT_QUALIFIED")
+        : new ApiError(422, "CARD_MISSING_DANCE_TYPE");
     }
   }
 
-  const paid = isPaid !== false;
-  const studentCard = await prisma.studentCard.create({
-    data: {
-      studentId: parseInt(id),
-      cardId,
-      basePrice: card.price,
-      finalPrice: price,
-      // total and remaining must match at creation; both follow the (editable)
-      // session count chosen at purchase, defaulting to the card's own sessions.
-      totalSessions: sessions,
-      remainingSessions: sessions,
-      purchaseSource: "STAFF",
-      purchasedByUserId: userId ?? null,
-      isPaid: paid,
-      // When paid at point of sale, the seller is also the payment confirmer.
-      paidAt: paid ? new Date() : null,
-      paidByUserId: paid ? userId ?? null : null,
-    },
+  // The card row, its purchase Event and the renewal tag are one unit of work:
+  // a card that exists with no Event leaves a gap in the student's timeline,
+  // and a stale "Needs Renewal" tag tells the teacher to chase a student who
+  // just paid.
+  const studentCard = await prisma.$transaction(async (tx) => {
+    const created = await tx.studentCard.create({
+      data: {
+        studentId,
+        cardId,
+        basePrice: card.price,
+        finalPrice: price,
+        // total and remaining must match at creation; both follow the (editable)
+        // session count chosen at purchase, defaulting to the card's own sessions.
+        totalSessions: sessions,
+        remainingSessions: sessions,
+        purchaseSource: "STAFF",
+        purchasedByUserId: userId,
+        isPaid,
+        // When paid at point of sale, the seller is also the payment confirmer.
+        paidAt: isPaid ? new Date() : null,
+        paidByUserId: isPaid ? userId : null,
+      },
+    });
+
+    await tx.event.create({
+      data: {
+        title: "購買課卡",
+        description: `購買新課卡 ${card.name}`,
+        studentId,
+        resourceType: "studentCard",
+        resourceId: created.id,
+      },
+    });
+
+    return created;
   });
 
-  await prisma.event.create({
-    data: {
-      title: "購買課卡",
-      description: `購買新課卡 ${card.name}`,
-      studentId: parseInt(id),
-      resourceType: "studentCard",
-      resourceId: studentCard.id,
-    }
-  });
+  await refreshNeedsRenewalTag(studentId, card.classroomId);
 
-  await refreshNeedsRenewalTag(parseInt(id), card.classroomId);
-
-  return NextResponse.json(studentCard);
-}
+  return studentCard;
+});

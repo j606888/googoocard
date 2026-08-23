@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { decodeAuthToken } from "@/lib/auth";
+import { apiRoute, parseId, parseBody } from "@/lib/apiRoute";
+import { ApiError, badRequest, notFound } from "@/lib/apiError";
+import { convertStudentCardSchema } from "@/lib/schemas";
 import { canBuyCard } from "@/domains/qualification";
 import { performConversion } from "@/service/studentCardConversion";
 
@@ -9,16 +10,15 @@ import { performConversion } from "@/service/studentCardConversion";
 //
 // 這支只負責驗證與授權；實際寫入在 performConversion
 // (`src/service/studentCardConversion.ts`)，與批次轉換腳本共用同一份語意。
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string; studentCardId: string }> }
-) {
-  const { id, studentCardId } = await params;
-  const { userId, classroomId } = await decodeAuthToken();
-  const { targetCardId, sessions, note } = await request.json();
+type Params = { id: string; studentCardId: string };
+
+export const POST = apiRoute<Params>(async ({ request, params, userId, classroomId }) => {
+  const studentId = parseId(params.id, "student id");
+  const sourceCardId = parseId(params.studentCardId, "student card id");
+  const { targetCardId, sessions, note } = await parseBody(request, convertStudentCardSchema);
 
   const sourceCard = await prisma.studentCard.findUnique({
-    where: { id: parseInt(studentCardId) },
+    where: { id: sourceCardId },
     include: {
       card: true,
       student: { select: { classroomId: true } },
@@ -27,44 +27,26 @@ export async function POST(
 
   // Scope to the caller's classroom — 404 to avoid leaking existence.
   if (!sourceCard || sourceCard.student.classroomId !== classroomId) {
-    return NextResponse.json({ error: "Student card not found" }, { status: 404 });
+    throw notFound("Student card");
   }
 
-  if (sourceCard.studentId !== parseInt(id)) {
-    return NextResponse.json(
-      { error: "Student card does not belong to the student" },
-      { status: 400 }
-    );
+  if (sourceCard.studentId !== studentId) {
+    throw badRequest("CARD_STUDENT_MISMATCH", "Student card does not belong to the student");
   }
-
   if (sourceCard.expiredAt) {
-    return NextResponse.json(
-      { error: "Student card already expired" },
-      { status: 400 }
-    );
+    throw badRequest("CARD_EXPIRED", "Student card already expired");
   }
-
   if (sourceCard.convertedToId) {
-    return NextResponse.json(
-      { error: "Student card already converted" },
-      { status: 400 }
-    );
+    throw badRequest("CARD_ALREADY_CONVERTED", "Student card already converted");
   }
-
   if (sourceCard.remainingSessions <= 0) {
-    return NextResponse.json(
-      { error: "Student card has no remaining sessions" },
-      { status: 400 }
-    );
+    throw badRequest("CARD_NO_SESSIONS", "Student card has no remaining sessions");
   }
 
-  const targetCard = await prisma.card.findUnique({
-    where: { id: parseInt(String(targetCardId)) },
+  const targetCard = await prisma.card.findFirst({
+    where: { id: targetCardId, classroomId },
   });
-
-  if (!targetCard || targetCard.classroomId !== classroomId) {
-    return NextResponse.json({ error: "Card not found" }, { status: 404 });
-  }
+  if (!targetCard) throw notFound("Card");
 
   // 轉成複習卡時，資格照購買規則擋 — 不能用轉換繞過。
   if (targetCard.isPracticeCard) {
@@ -76,26 +58,22 @@ export async function POST(
       qualifications.map((q) => q.danceType)
     );
     if (!decision.allowed) {
-      if (decision.reason === "NOT_QUALIFIED") {
-        return NextResponse.json({ error: "STUDENT_NOT_QUALIFIED" }, { status: 403 });
-      }
-      return NextResponse.json({ error: "CARD_MISSING_DANCE_TYPE" }, { status: 422 });
+      throw decision.reason === "NOT_QUALIFIED"
+        ? new ApiError(403, "STUDENT_NOT_QUALIFIED")
+        : new ApiError(422, "CARD_MISSING_DANCE_TYPE");
     }
   }
 
   // 預設等堂轉換 (Level 1 → Level 2)；複習卡折抵則由呼叫端指定較少的堂數。
-  const newSessions = sessions === undefined ? sourceCard.remainingSessions : sessions;
-  if (!Number.isInteger(newSessions) || newSessions < 1) {
-    return NextResponse.json({ error: "Invalid sessions" }, { status: 400 });
-  }
+  // 刻意不設上限：轉換沒有金流，理論上打錯字（6 打成 60）會憑空發課，
+  // 但要不要擋是業務決定，不是驗證層該自作主張的 —— 見 docs/roadmap.md。
+  const newSessions = sessions ?? sourceCard.remainingSessions;
 
-  const newStudentCard = await performConversion({
+  return performConversion({
     sourceCard,
     targetCard,
     sessions: newSessions,
     note,
     actorUserId: userId,
   });
-
-  return NextResponse.json(newStudentCard);
-}
+});
