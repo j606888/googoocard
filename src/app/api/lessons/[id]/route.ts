@@ -3,12 +3,22 @@ import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
 import { findLessonInClassroom, findLessonGroupInClassroom } from "@/lib/authz";
 import { DraftLesson } from "@/store/slices/lessons";
+import { toStudentPayload } from "@/service/studentDetail";
 import { cardMatchesLesson } from "@/domains/qualification";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { classroomId } = await decodeAuthToken();
+
+  // PUT/DELETE in this file were scoped in commit 00cf407; GET was left
+  // unauthenticated, exposing any lesson's roster, teachers and cards.
+  const scoped = await findLessonInClassroom(parseInt(id), classroomId);
+  if (!scoped) {
+    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+  }
+
   const lesson = await prisma.lesson.findUnique({
-    where: { id: parseInt(id) },
+    where: { id: scoped.id },
     include: {
       periods: {
         orderBy: {
@@ -42,7 +52,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const result = {
     ...lesson,
-    students: lesson.students.map((student) => student.student),
+    // Whitelist — the raw Student row carries `lineBindKey`. See toStudentPayload.
+    students: lesson.students.map((student) => toStudentPayload(student.student)),
     teachers: lesson.teachers.map((teacher) => teacher.teacher),
     cards: lesson.cards.map((card) => card.card),
   };

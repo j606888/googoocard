@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { decodeAuthToken } from "@/lib/auth";
+import { findLessonInClassroom } from "@/lib/authz";
+import { toStudentPayload } from "@/service/studentDetail";
 
 const ATTENDANCE_STATUS = {
   NOT_STARTED: "not_started",
@@ -12,8 +15,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const { classroomId } = await decodeAuthToken();
+
+  // Ran with no auth at all until 2026-08-23 — any lesson's roster and
+  // per-period attendance was readable by incrementing the lesson id.
+  const scoped = await findLessonInClassroom(parseInt(id), classroomId);
+  if (!scoped) {
+    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+  }
+
   const lesson = await prisma.lesson.findUnique({
-    where: { id: parseInt(id) },
+    where: { id: scoped.id },
     include: {
       students: {
         include: {
@@ -49,8 +61,10 @@ export async function GET(
       }
     });
 
+    // Whitelist, not `...student` — the roster only needs identity, and the
+    // row carries `lineBindKey` / `randomKey`. See toStudentPayload.
     return {
-      ...student,
+      ...toStudentPayload(student),
       attendances,
     };
   });

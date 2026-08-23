@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
 import { createStudent } from "@/service/student";
+import { toStudentPayload } from "@/service/studentDetail";
 
 export async function GET(request: Request) {
   const { classroomId } = await decodeAuthToken();
@@ -70,13 +71,13 @@ export async function GET(request: Request) {
       .map((ls) => ls.lesson.id);
 
     return {
-      ...student,
+      // Whitelist, not `...student` — the row carries `lineBindKey` (a LINE
+      // account-takeover token) and `lineUserId`. See toStudentPayload.
+      ...toStudentPayload(student, { includeShareKey: true }),
       tags: student.studentTags.map((st) => ({ id: st.tag.id, name: st.tag.name })),
       danceQualifications: student.danceQualifications.map((q) => q.danceType),
       isInActiveLesson,
       activeLessonIds,
-      lessons: undefined,
-      studentTags: undefined,
       studentCards: activeStudentCards.map((studentCard) => ({
         ...studentCard,
         card: studentCard.card,

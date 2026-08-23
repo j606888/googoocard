@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { decodeAuthToken } from "@/lib/auth";
+import { findStudentInClassroom } from "@/lib/authz";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { classroomId } = await decodeAuthToken();
+
+  // Ran with no auth at all until 2026-08-23.
+  const student = await findStudentInClassroom(parseInt(id), classroomId);
+  if (!student) {
+    return NextResponse.json({ error: "Student not found" }, { status: 404 });
+  }
 
   // Fetch a generous window; we slice to 10 AFTER filtering out stale events.
   const events = await prisma.event.findMany({
-    where: { studentId: parseInt(id) },
+    where: { studentId: student.id },
     orderBy: {
       createdAt: "desc",
     },

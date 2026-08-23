@@ -2,10 +2,59 @@ import prisma from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 
 /**
+ * The Student columns an API response may carry.
+ *
+ * This is a whitelist on purpose — NEVER `...spread` a Student row into a
+ * response. The row holds three secrets that grant access on their own:
+ *
+ *   - `lineBindKey`  — send it to the LINE bot and it binds that Student to
+ *                      YOUR LINE account (see api/line/webhook). Full takeover:
+ *                      self check-in, card balances, buying cards as them.
+ *   - `randomKey`    — the public share-link token for /public-students.
+ *   - `lineUserId`   — the student's LINE account id.
+ *
+ * `lineBindKey` must only ever leave via `api/students/[id]/line-bind-link`,
+ * which is authenticated and classroom-scoped.
+ */
+type StudentRow = {
+  id: number;
+  number: number;
+  name: string;
+  avatarUrl: string;
+  note: string | null;
+  randomKey: string | null;
+  classroomId: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export function toStudentPayload(
+  student: StudentRow,
+  { includeShareKey = false }: { includeShareKey?: boolean } = {}
+) {
+  return {
+    id: student.id,
+    number: student.number,
+    name: student.name,
+    avatarUrl: student.avatarUrl,
+    note: student.note,
+    classroomId: student.classroomId,
+    createdAt: student.createdAt,
+    updatedAt: student.updatedAt,
+    // Only the teacher-facing student detail needs the share-link token; the
+    // public page and LIFF must not hand out a token they already used.
+    ...(includeShareKey ? { randomKey: student.randomKey } : {}),
+  };
+}
+
+/**
  * Assemble the full student-detail payload (overview, cards with their
  * attendance, attendance grouped by lesson and by date, dance qualifications)
  * for a single student. Shared by the public share page (`/public-students`)
  * and the student LIFF "我的課卡" entry (`/api/liff/me`).
+ *
+ * Both callers are unauthenticated (a share token / a LIFF ID token), so the
+ * payload runs through `toStudentPayload` with no share key.
  *
  * Returns null if the student doesn't exist.
  */
@@ -14,7 +63,9 @@ export async function buildStudentDetailPayload(studentId: number) {
     where: { id: studentId },
     include: {
       lessons: true,
-      classroom: true,
+      // NOT `classroom: true` — the full row carries `checkinKey`, the
+      // walk-in QR self check-in secret for the whole classroom.
+      classroom: { select: { id: true, name: true } },
       danceQualifications: true,
       studentCards: {
         include: { card: true },
@@ -35,8 +86,7 @@ export async function buildStudentDetailPayload(studentId: number) {
     orderBy: { createdAt: "desc" },
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { lessons: _unusedLessons, attendanceRecords, studentCards, danceQualifications, ...studentData } = student;
+  const { attendanceRecords, studentCards, danceQualifications } = student;
 
   const overview = {
     lastAttendAt: lastAttendance?.lessonPeriod.attendanceTakenAt,
@@ -162,6 +212,7 @@ export async function buildStudentDetailPayload(studentId: number) {
     attendancesByLesson,
     studentCards: studentCardsWithAttendances,
     danceQualifications: danceQualifications.map((q) => q.danceType),
-    ...studentData,
+    classroom: student.classroom,
+    ...toStudentPayload(student),
   };
 }

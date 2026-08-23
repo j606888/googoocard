@@ -1,15 +1,24 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
+import { findStudentInClassroom } from "@/lib/authz";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { canBuyCard } from "@/domains/qualification";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { classroomId } = await decodeAuthToken();
+
+  // Ran with no auth at all until 2026-08-23 — any card balance was readable
+  // by incrementing the student id.
+  const student = await findStudentInClassroom(parseInt(id), classroomId);
+  if (!student) {
+    return NextResponse.json({ error: "Student not found" }, { status: 404 });
+  }
 
   const studentCards = await prisma.studentCard.findMany({
     where: {
-      studentId: parseInt(id),
+      studentId: student.id,
     },
   });
 
@@ -18,12 +27,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { userId } = await decodeAuthToken();
+  const { userId, classroomId } = await decodeAuthToken();
   const { cardId, sessions, price, lessonId, isPaid = true } = await request.json();
 
-  const card = await prisma.card.findUnique({
+  const student = await findStudentInClassroom(parseInt(id), classroomId);
+  if (!student) {
+    return NextResponse.json({ error: "Student not found" }, { status: 404 });
+  }
+
+  // The card must be the caller's own classroom's too, or a card id from
+  // another classroom could be attached to this student.
+  const card = await prisma.card.findFirst({
     where: {
       id: cardId,
+      classroomId,
     },
   });
 
@@ -35,8 +52,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const qualifications = await prisma.studentDanceQualification.findMany({
       where: { studentId: parseInt(id) },
     });
+    // Scoped: the lesson supplies the dance type that decides qualification,
+    // so a foreign lesson id must not be able to unlock a practice card.
     const lesson = lessonId
-      ? await prisma.lesson.findUnique({ where: { id: lessonId } })
+      ? await prisma.lesson.findFirst({ where: { id: lessonId, classroomId } })
       : null;
 
     const decision = canBuyCard(

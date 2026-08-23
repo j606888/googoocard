@@ -51,10 +51,20 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; periodId: string }> }
 ) {
-  const { periodId } = await params;
+  const { id, periodId } = await params;
+  const { classroomId } = await decodeAuthToken();
+
+  // POST/PUT here were scoped in commit 00cf407; GET was left unauthenticated,
+  // exposing any period's attendance roster by incrementing the period id.
+  const scopedLesson = await findLessonInClassroom(parseInt(id), classroomId);
+  if (!scopedLesson) {
+    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+  }
 
   const lessonPeriod = await prisma.lessonPeriod.findUnique({
-    where: { id: parseInt(periodId) },
+    // Bind the period to the lesson too — otherwise a period id from another
+    // classroom's lesson would still resolve.
+    where: { id: parseInt(periodId), lessonId: scopedLesson.id },
     include: {
       attendanceRecords: {
         include: {

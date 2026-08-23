@@ -2,12 +2,21 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { decodeAuthToken } from "@/lib/auth";
+import { findStudentInClassroom } from "@/lib/authz";
+import { toStudentPayload } from "@/service/studentDetail";
 import { DanceType } from "@prisma/client";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { name, note, avatarUrl, danceQualifications } = await request.json();
   const { classroomId } = await decodeAuthToken();
+
+  // The duplicate-name check below is classroom-scoped, but the update itself
+  // was not — a student id from another classroom was fully editable.
+  const target = await findStudentInClassroom(parseInt(id), classroomId);
+  if (!target) {
+    return NextResponse.json({ error: "Student not found" }, { status: 404 });
+  }
 
   if (danceQualifications !== undefined) {
     const validTypes = Object.values(DanceType);
@@ -65,12 +74,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { classroomId } = await decodeAuthToken();
 
-  const student = await prisma.student.findUnique({
-    where: { id: parseInt(id) },
+  if (!classroomId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const student = await prisma.student.findFirst({
+    // Scoped to the caller's classroom: this handler used to run with no auth
+    // at all, exposing every student's full profile by incrementing the id.
+    where: { id: parseInt(id), classroomId },
     include: {
       lessons: true,
-      classroom: true,
+      // NOT `classroom: true` — that row carries `checkinKey`, the classroom's
+      // walk-in QR self check-in secret.
+      classroom: { select: { id: true, name: true } },
       studentTags: {
         include: { tag: true },
         orderBy: { createdAt: "asc" },
@@ -114,8 +132,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     },
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { lessons: _unusedLessons, attendanceRecords, studentCards, studentTags, danceQualifications, ...studentData } = student;
+  const { attendanceRecords, studentCards, studentTags, danceQualifications } = student;
   const tags = studentTags.map((st) => ({ id: st.tag.id, name: st.tag.name }));
 
   // 轉換而來的卡不是「買」的 — 它繼承舊卡的剩餘價值，計進去會把消費金額灌水。
@@ -257,6 +274,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     studentCards: studentCardsWithAttendances,
     tags,
     danceQualifications: danceQualifications.map((q) => q.danceType),
-    ...studentData,
+    classroom: student.classroom,
+    // Teacher-facing, so the share-link token is included — but `lineBindKey`
+    // and `lineUserId` never are. See toStudentPayload.
+    ...toStudentPayload(student, { includeShareKey: true }),
   });
 }

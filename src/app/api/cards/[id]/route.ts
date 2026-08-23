@@ -66,14 +66,25 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { classroomId } = await decodeAuthToken();
   const { name, price, sessions, isPracticeCard, danceType } = await request.json();
 
   if (isPracticeCard && !danceType) {
     return NextResponse.json({ error: "PRACTICE_CARD_REQUIRES_DANCE_TYPE" }, { status: 400 });
   }
 
+  // GET and DELETE in this file were already classroom-scoped; PATCH was not,
+  // so another classroom's card price and session count were editable.
+  const existing = await prisma.card.findFirst({
+    where: { id: Number(id), classroomId },
+    select: { id: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Card not found" }, { status: 404 });
+  }
+
   const card = await prisma.card.update({
-    where: { id: Number(id) },
+    where: { id: existing.id },
     data: {
       name,
       price,

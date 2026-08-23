@@ -3,10 +3,29 @@ import { createAuthSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { joinClassroom } from "@/service/classroom";
+import { hit, reset, clientIp } from "@/lib/rateLimit";
+
+// This endpoint distinguishes "email not found" from "wrong password" (a
+// deliberate UX choice, see commit 0b04823), which makes it doubly worth
+// throttling: unlimited tries would allow both account enumeration and
+// password brute-forcing.
+const MAX_FAILURES = 10;
+const WINDOW_MS = 15 * 60 * 1000;
 
 export async function POST(request: Request) {
   try {
     const { email, password, token } = await request.json();
+
+    // Key on email + IP: one attacker can't lock a real user out of their own
+    // account from a different address, and one IP can't spray many emails.
+    const limitKey = `login:${String(email).toLowerCase()}:${clientIp(request)}`;
+    const limit = hit(limitKey, { limit: MAX_FAILURES, windowMs: WINDOW_MS });
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: "Too many attempts", code: "RATE_LIMITED" },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfter) } }
+      );
+    }
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -30,6 +49,9 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
+
+    // Succeeded — don't let earlier typos count against the next login.
+    reset(limitKey);
 
     let classroomId: number | null = null;
 

@@ -92,13 +92,18 @@ async function validateUpdateAttendanceRequest(
 }
 
 
+// `classroomId` is always the lesson's own. Without it a caller could pass
+// student ids from another classroom and have their cards deducted — the route
+// guards only prove the LESSON belongs to the caller, not the students.
 async function fetchStudentsWithValidCards(
   studentIds: number[],
-  validCardIds: number[]
+  validCardIds: number[],
+  classroomId: number
 ): Promise<StudentWithCards[]> {
   return prisma.student.findMany({
     where: {
       id: { in: studentIds },
+      classroomId,
     },
     include: {
       studentCards: {
@@ -398,8 +403,15 @@ async function reconcileAndFinalize(
   // Fetch new students with their valid cards
   const newStudents =
     newStudentIds.length > 0
-      ? await fetchStudentsWithValidCards(newStudentIds, validCardIds)
+      ? await fetchStudentsWithValidCards(newStudentIds, validCardIds, lesson.classroomId)
       : [];
+
+  // Any id that didn't come back belongs to another classroom (or no longer
+  // exists). Reject the whole batch rather than silently skipping it — a
+  // partial success here would leave the teacher's roster out of sync.
+  if (newStudents.length !== newStudentIds.length) {
+    throw new Error("Student not found in this classroom");
+  }
 
   // Process updates in a transaction
   await prisma.$transaction(async (tx) => {
@@ -518,7 +530,15 @@ export async function selfCheckIn({
   }
 
   const validCardIds = lesson.cards.map((card) => card.cardId);
-  const [student] = await fetchStudentsWithValidCards([studentId], validCardIds);
+  // Scoped to the lesson's classroom, which also enforces the "student and
+  // lesson must be in the same classroom" rule both self check-in entry points
+  // rely on (LIFF resolves the student from a LINE token, the QR board from a
+  // classroom key).
+  const [student] = await fetchStudentsWithValidCards(
+    [studentId],
+    validCardIds,
+    lesson.classroomId
+  );
   if (!student) {
     throw new Error("Student not found");
   }
