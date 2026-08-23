@@ -36,6 +36,8 @@ Tests are safe by construction: they run against a separate `googoocard_test` da
 **Googoocard** is a Next.js 15 App Router fullstack app for dance class management — lessons, student attendance, payment cards, and revenue analytics.
 
 > 📖 **Detailed architecture doc: [`docs/architecture.md`](docs/architecture.md)** — full domain model, practice-card qualification rules, attendance flow, validation matrix, testing setup, and deployment cautions. Read it before touching attendance, card purchase, or qualification logic.
+>
+> 🗺️ **Roadmap & known gaps: [`docs/roadmap.md`](docs/roadmap.md)** — audited security holes, tech debt, and the feature backlog. **Search it for the file you're about to change** before editing an API route or the Prisma schema; several routes have known-unfixed auth/scoping gaps, and it also records deliberate trade-offs so they don't get re-litigated.
 
 ### Stack
 
