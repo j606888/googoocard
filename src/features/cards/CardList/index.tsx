@@ -47,7 +47,7 @@ const CardList = () => {
   return (
     <div className="px-5 py-3 lg:px-8 lg:py-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-2xl font-semibold">Cards</h2>
+        <h2 className="text-2xl font-semibold">課卡</h2>
         <NewCard />
       </div>
 
@@ -67,9 +67,9 @@ const CardList = () => {
             <CreditCard className="w-6 h-6 text-white" />
           </div>
           <div className="flex flex-col items-center justify-center">
-            <p className="text-lg font-bold">No cards yet</p>
+            <p className="text-lg font-bold">還沒有課卡</p>
             <p className="text-sm text-neutral-500 text-center">
-              Create your first card to get started.
+              建立第一張課卡就可以開始了。
             </p>
           </div>
         </div>
@@ -77,9 +77,9 @@ const CardList = () => {
 
       {hasAnyCard && !hasFilteredMatch && (
         <div className="flex flex-col items-center justify-center p-8 gap-1 bg-neutral-50 rounded-xl">
-          <p className="text-base font-semibold text-neutral-700">No matching cards</p>
+          <p className="text-base font-semibold text-neutral-700">沒有符合的課卡</p>
           <p className="text-sm text-neutral-500 text-center">
-            Try a different type or dance filter.
+            換個類型或舞種篩選再試試。
           </p>
         </div>
       )}

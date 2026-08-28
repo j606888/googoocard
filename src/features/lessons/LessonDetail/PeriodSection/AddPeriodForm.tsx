@@ -11,8 +11,8 @@ import TimePicker, {
 import { useEffect } from "react";
 
 const validationErrors = {
-  empty: "Can not be empty",
-  toTimeMustGreater: "Must greater than From",
+  empty: "不可空白",
+  toTimeMustGreater: "必須晚於開始時間",
 };
 
 const validateForm = (data: {
@@ -150,7 +150,7 @@ const AddPeriodForm = ({
     });
 
     if (isDuplicated) {
-      setErrors({ ...errors, date: "Period exists" });
+      setErrors({ ...errors, date: "時段重複" });
       return;
     }
 
@@ -171,7 +171,7 @@ const AddPeriodForm = ({
           className="text-sm font-medium"
           onClick={() => setNewPeriodModalOpen(true)}
         >
-          Add Period
+          新增時段
         </span>
       </button>
       {newPeriodModalOpen && (
@@ -179,12 +179,12 @@ const AddPeriodForm = ({
           open={newPeriodModalOpen}
           onClose={() => setNewPeriodModalOpen(false)}
           onSubmit={handleSubmit}
-          title="New Period"
-          submitText="Add Period"
+          title="新增時段"
+          submitText="新增"
           isLoading={isLoading}
         >
           <div className="flex flex-col gap-0.5 mb-4">
-            <label className="text-sm text-neutral-700">Date</label>
+            <label className="text-sm text-neutral-700">日期</label>
             <DatePicker date={date} setDate={handleDateChange} />
             {errors.date && (
               <p className="text-sm text-danger-500">{errors.date}</p>
@@ -192,7 +192,7 @@ const AddPeriodForm = ({
           </div>
           <div className="flex gap-2 mb-6">
             <div>
-              <label className="text-sm text-neutral-700">From</label>
+              <label className="text-sm text-neutral-700">開始</label>
               <TimePicker
                 selectedTime={fromTime}
                 setSelectedTime={handleFromTimeChange}
@@ -202,7 +202,7 @@ const AddPeriodForm = ({
               )}
             </div>
             <div>
-              <label className="text-sm text-neutral-700">To</label>
+              <label className="text-sm text-neutral-700">結束</label>
               <TimePicker
                 selectedTime={toTime}
                 setSelectedTime={handleToTimeChange}

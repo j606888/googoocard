@@ -104,7 +104,7 @@ const StudentList = () => {
   return (
     <div className="px-5 py-3 lg:px-8 lg:py-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold">Students</h2>
+        <h2 className="text-2xl font-semibold">學生</h2>
         <NewStudent />
       </div>
 
@@ -170,9 +170,9 @@ const StudentList = () => {
             <Users className="w-6 h-6 text-white" />
           </div>
           <div className="flex flex-col items-center justify-center">
-            <p className="text-lg font-bold">No students yet</p>
+            <p className="text-lg font-bold">還沒有學生</p>
             <p className="text-sm text-neutral-500 text-center">
-              Create student so they can start lesson
+              建立學生後就可以開始上課
             </p>
           </div>
         </div>

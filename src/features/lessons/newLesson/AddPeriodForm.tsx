@@ -13,8 +13,8 @@ const getInitialTimeOption = (isoString: string): Option | null => {
 };
 
 const validationErrors = {
-  empty: "Can not be empty",
-  toTimeMustGreater: "Must greater than From",
+  empty: "不可空白",
+  toTimeMustGreater: "必須晚於開始時間",
 };
 
 const validateForm = (data: {
@@ -145,7 +145,7 @@ const AddPeriodForm = ({
     });
 
     if (isDuplicated) {
-      setErrors({ ...errors, date: "Period exists" });
+      setErrors({ ...errors, date: "時段重複" });
       return;
     }
 
@@ -157,15 +157,15 @@ const AddPeriodForm = ({
 
   return (
     <div className="border-b border-neutral-200 py-1 flex flex-col gap-3">
-      <label className="font-medium -mb-3">Periods</label>
+      <label className="font-medium -mb-3">時段</label>
       <div className="flex gap-2 items-center justify-between">
         <div className="flex flex-col gap-0.5">
-          <label className="text-sm text-neutral-700">Date</label>
+          <label className="text-sm text-neutral-700">日期</label>
           <DatePicker date={date} setDate={handleDateChange} />
           {errors.date && <p className="text-sm text-danger-500">{errors.date}</p>}
         </div>
         <div className="">
-          <label className="text-sm text-neutral-700">From</label>
+          <label className="text-sm text-neutral-700">開始</label>
           <TimePicker
             selectedTime={fromTime}
             setSelectedTime={handleFromTimeChange}
@@ -176,7 +176,7 @@ const AddPeriodForm = ({
         </div>
         <span className="text-sm text-neutral-500 mt-5">-</span>
         <div className="">
-          <label className="text-sm text-neutral-700">To</label>
+          <label className="text-sm text-neutral-700">結束</label>
           <TimePicker
             selectedTime={toTime}
             setSelectedTime={handleToTimeChange}
@@ -192,13 +192,13 @@ const AddPeriodForm = ({
             className="text-sm border border-primary-500 rounded-md px-2 py-1 text-primary-700 cursor-pointer hover:bg-primary-50"
             onClick={minusOneWeek}
           >
-            -1 Week
+            -1 週
           </div>
           <div
             className="text-sm border border-primary-500 rounded-md px-2 py-1 text-primary-700 cursor-pointer hover:bg-primary-50"
             onClick={addOneWeek}
           >
-            +1 Week
+            +1 週
           </div>
         </div>
         <button
@@ -206,7 +206,7 @@ const AddPeriodForm = ({
           onClick={handleSubmit}
         >
           <Plus className="w-4 h-4" />
-          <span className="font-medium">Add Period</span>
+          <span className="font-medium">新增時段</span>
         </button>
       </div>
       {error && <p className="text-sm text-danger-500">{error}</p>}

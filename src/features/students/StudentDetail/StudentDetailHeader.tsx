@@ -16,8 +16,8 @@ const StudentDetailHeader = ({
 }) => {
   const activeCards = student.studentCards.filter((c) => c.remainingSessions > 0);
   const lastAttend = student.overview.lastAttendAt
-    ? format(new Date(student.overview.lastAttendAt), "MMM d, yyyy")
-    : "No attendance yet";
+    ? format(new Date(student.overview.lastAttendAt), "yyyy年M月d日")
+    : "尚未上課";
 
   return (
     <div className="hidden lg:block border-b border-neutral-200 px-8 py-5 bg-white">
@@ -25,7 +25,7 @@ const StudentDetailHeader = ({
       <div className="flex items-center gap-2 text-sm text-neutral-500 mb-3">
         <Link href={backHref} className="flex items-center gap-1 hover:text-neutral-700">
           <ArrowLeft className="w-4 h-4" />
-          <span>Students</span>
+          <span>學生</span>
         </Link>
         <span>/</span>
         <span className="text-neutral-700 font-medium">{student.name}</span>
@@ -86,14 +86,14 @@ const StudentDetailHeader = ({
         </div>
         <div className="flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
           <CreditCard className="w-4 h-4" />
-          <span>{student.overview.cardCount} cards total</span>
+          <span>共 {student.overview.cardCount} 張課卡</span>
           {activeCards.length > 0 && (
-            <span className="text-primary-600 font-semibold">({activeCards.length} active)</span>
+            <span className="text-primary-600 font-semibold">（{activeCards.length} 張可用）</span>
           )}
         </div>
         <div className="flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
           <span className={`w-2 h-2 rounded-full shrink-0 ${student.overview.lastAttendAt ? "bg-primary-500" : "bg-neutral-300"}`} />
-          <span>Last seen: {lastAttend}</span>
+          <span>最近上課：{lastAttend}</span>
         </div>
       </div>
     </div>

@@ -7,9 +7,9 @@ import { DanceType } from "@prisma/client";
 import CardDanceTypeSelect from "./CardDanceTypeSelect";
 
 const validationErrors = {
-  cardName: "Must provide a name",
-  price: "Must be a number",
-  sessions: "Must be a number",
+  cardName: "請輸入課卡名稱",
+  price: "請輸入數字",
+  sessions: "請輸入數字",
 };
 
 const validateForm = (data: {
@@ -117,16 +117,16 @@ const EditCard = ({
   return (
     <>
       <Drawer
-        title="Edit Card"
+        title="編輯課卡"
         open={!!cardId}
         onClose={handleClose}
         onSubmit={handleSubmit}
         isLoading={isLoading}
-        submitText="Update"
+        submitText="儲存"
       >
         <form className="mb-6 flex flex-col gap-4">
           <InputField
-            label="Card Name"
+            label="課卡名稱"
             value={cardName}
             placeholder="E.g. 初階6堂"
             onChange={handleCardNameChange}
@@ -134,14 +134,14 @@ const EditCard = ({
           />
           <div className="flex gap-4">
             <InputField
-              label="Price"
+              label="金額"
               value={price}
               onChange={handlePriceChange}
               error={errors.price}
               type="number"
             />
             <InputField
-              label="Sessions"
+              label="堂數"
               value={sessions}
               onChange={handleSessionsChange}
               error={errors.sessions}
@@ -153,7 +153,7 @@ const EditCard = ({
               checked={isPracticeCard}
               onCheckedChange={setIsPracticeCard}
             />
-            <span>Is Practice Card</span>
+            <span>設為複習卡</span>
           </div>
           <CardDanceTypeSelect
             value={danceType}

@@ -166,7 +166,7 @@ const BuyAndUseForm = ({
         disabled={!selectedCardId || !cardSessions || !cardPrice}
       >
         <div className="mb-4">
-          <p>Choose card</p>
+          <p>選擇課卡</p>
           {shouldLockGeneralCards && (
             <div className="flex flex-col gap-2 p-3 mt-2 rounded-sm bg-primary-50 border border-primary-200">
               <p className="text-xs text-primary-700">
@@ -221,7 +221,7 @@ const BuyAndUseForm = ({
             <div className="flex gap-3">
               <div className="mb-4">
                 <InputField
-                  label="Card Price"
+                  label="課卡金額"
                   value={cardPrice}
                   onChange={handleCardPriceChange}
                   type="number"
@@ -229,7 +229,7 @@ const BuyAndUseForm = ({
               </div>
               <div className="mb-4">
                 <InputField
-                  label="Card sessions"
+                  label="課卡堂數"
                   value={cardSessions}
                   onChange={handleCardSessionsChange}
                   type="number"

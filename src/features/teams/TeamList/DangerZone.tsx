@@ -65,29 +65,29 @@ const DangerZone = ({ role }: { role: string }) => {
       <div className="mt-8 rounded-xl border border-danger-200 bg-danger-50 p-4">
         <div className="flex items-center gap-2 text-danger-700">
           <AlertTriangle className="h-4 w-4" />
-          <h3 className="font-semibold">Danger zone</h3>
+          <h3 className="font-semibold">危險操作區</h3>
         </div>
         <p className="mt-1.5 text-sm text-neutral-600">
           {isOwner
-            ? "Deleting archives the classroom for everyone. It disappears from every member's classroom list and the check-in QR board stops working."
-            : `You'll lose access to ${classroom.name}. The owner can invite you back later.`}
+            ? "刪除會把整間教室封存：所有成員的教室清單都會看不到它，牆上的簽到 QR 看板也會失效。"
+            : `你將失去 ${classroom.name} 的存取權，之後可以再請教室擁有者邀請你回來。`}
         </p>
         <button
           onClick={() => setOpen(true)}
           className="mt-3 w-full cursor-pointer rounded-lg border border-danger-500 py-2 font-semibold text-danger-600 hover:bg-danger-100"
         >
-          {isOwner ? "Delete classroom" : "Leave classroom"}
+          {isOwner ? "刪除教室" : "退出教室"}
         </button>
       </div>
 
       <Drawer
-        title={isOwner ? "Delete classroom" : "Leave classroom"}
+        title={isOwner ? "刪除教室" : "退出教室"}
         open={open}
         onClose={close}
         onSubmit={handleSubmit}
         isLoading={isDeleting || isLeaving}
         variant="danger"
-        submitText={isOwner ? "DELETE" : "LEAVE"}
+        submitText={isOwner ? "刪除" : "退出"}
         // Typing the name is the whole guardrail for an action that takes the
         // classroom away from every member at once.
         disabled={isOwner && confirmName.trim() !== classroom.name}
@@ -95,16 +95,16 @@ const DangerZone = ({ role }: { role: string }) => {
         {isOwner ? (
           <>
             <p className="mb-3 text-sm text-neutral-600">
-              <span className="font-semibold text-neutral-900">{classroom.name}</span> will be
-              archived along with everything in it:
+              <span className="font-semibold text-neutral-900">{classroom.name}</span>{" "}
+              以及裡面的所有資料都會被封存：
             </p>
             <ul className="mb-4 space-y-1 rounded-lg bg-neutral-100 p-3 text-sm text-neutral-700">
-              <li>{detail?.counts.students ?? "—"} students</li>
-              <li>{detail?.counts.lessons ?? "—"} lessons</li>
-              <li>{detail?.counts.studentCards ?? "—"} student cards</li>
+              <li>{detail?.counts.students ?? "—"} 位學生</li>
+              <li>{detail?.counts.lessons ?? "—"} 堂課程</li>
+              <li>{detail?.counts.studentCards ?? "—"} 張學生課卡</li>
             </ul>
             <label className="mb-2 block text-sm font-medium">
-              Type <span className="font-semibold">{classroom.name}</span> to confirm
+              請輸入 <span className="font-semibold">{classroom.name}</span> 以確認
             </label>
             <input
               className="mb-2 w-full rounded bg-neutral-100 p-2"
@@ -115,9 +115,9 @@ const DangerZone = ({ role }: { role: string }) => {
           </>
         ) : (
           <p className="text-sm text-neutral-600">
-            You will be removed from{" "}
-            <span className="font-semibold text-neutral-900">{classroom.name}</span> and lose
-            access to its students, lessons and revenue.
+            你將被移出{" "}
+            <span className="font-semibold text-neutral-900">{classroom.name}</span>
+            ，並失去其中學生、課程與收入資料的存取權。
           </p>
         )}
         {error && <p className="mt-2 text-sm text-danger-600">{error}</p>}

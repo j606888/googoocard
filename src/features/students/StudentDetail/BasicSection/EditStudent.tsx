@@ -73,20 +73,20 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
         open={isOpen}
         onClose={() => setIsOpen(false)}
         onSubmit={handleSubmit}
-        title={`Edit ${student.name}`}
+        title={`編輯 ${student.name}`}
         isLoading={isLoading}
         disabled={avatarUploading}
-        submitText="Update"
+        submitText="儲存"
       >
         <form className="mb-6 flex flex-col gap-4">
           <InputField
-            label="Name"
+            label="姓名"
             value={name}
             onChange={handleNameChange}
             error={errors.name}
           />
           <InputField
-            label="Note(Student doesn't see this)"
+            label="備註（學生看不到）"
             value={note || ""}
             onChange={(e) => setNote(e.target.value)}
           />
@@ -97,7 +97,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
           />
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-neutral-700">
-              Completed LV1 (可購買複習卡)
+              已完成 LV1（可購買複習卡）
             </label>
             <div className="flex flex-wrap gap-2">
               {ALL_DANCE_TYPES.map((type) => {
@@ -123,7 +123,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-neutral-700">Tags</label>
+            <label className="text-sm font-medium text-neutral-700">標籤</label>
             <div className="flex flex-wrap gap-2 min-h-8">
               {student.tags?.map((tag) => (
                 <span
@@ -168,7 +168,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag(tagInput); } }}
-                placeholder="New tag name..."
+                placeholder="新標籤名稱…"
                 className="flex-1 text-sm border border-neutral-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
               />
               <button
@@ -177,7 +177,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
                 disabled={!tagInput.trim()}
                 className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white disabled:opacity-40 hover:bg-primary-600 transition-colors"
               >
-                Add
+                新增
               </button>
             </div>
           </div>

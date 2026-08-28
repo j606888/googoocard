@@ -23,7 +23,7 @@ export function DatePicker({ date, setDate }: { date: Date | undefined, setDate:
             id="date"
             className="w-32 justify-between font-normal cursor-pointer"
           >
-            {date ? date.toLocaleDateString() : "Select date"}
+            {date ? date.toLocaleDateString("zh-TW") : "選擇日期"}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto overflow-hidden p-0" align="start">

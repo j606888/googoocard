@@ -56,12 +56,12 @@ const CalendarView = () => {
   return (
     <div className="px-5 py-3 lg:px-8 lg:py-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold">Calendar</h2>
+        <h2 className="text-2xl font-semibold">行事曆</h2>
         <div className="flex items-center gap-1">
           <button
             onClick={() => goToMonth(subMonths(viewMonth, 1))}
             className="p-2 rounded-full text-neutral-500 hover:bg-neutral-100"
-            aria-label="Previous month"
+            aria-label="上個月"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -71,7 +71,7 @@ const CalendarView = () => {
           <button
             onClick={() => goToMonth(addMonths(viewMonth, 1))}
             className="p-2 rounded-full text-neutral-500 hover:bg-neutral-100"
-            aria-label="Next month"
+            aria-label="下個月"
           >
             <ChevronRight className="w-5 h-5" />
           </button>

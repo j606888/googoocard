@@ -8,7 +8,7 @@ const InvitationCard = ({ inviteToken, onDelete }: { inviteToken: InviteToken, o
   return <div className='border border-neutral-200 rounded-sm p-3 flex flex-col gap-2'>
     <div className='flex items-center justify-between'>
       <div className='flex items-center gap-2'>
-        <span className='text-sm'>usage:</span>
+        <span className='text-sm'>已使用：</span>
         <span className='text-sm font-medium'>{inviteToken.uses} / {inviteToken.maxUses}</span>
       </div>
       <Trash className='w-4 h-4 text-neutral-500 cursor-pointer' onClick={() => onDelete(inviteToken.id)} />
@@ -18,10 +18,10 @@ const InvitationCard = ({ inviteToken, onDelete }: { inviteToken: InviteToken, o
     </div>
     <button className='bg-primary-500 text-white px-3 py-2 rounded-sm flex items-center gap-2 justify-center cursor-pointer hover:bg-primary-600' onClick={() => {
       navigator.clipboard.writeText(`${NEXT_PUBLIC_HOST_URL}/invitations?token=${inviteToken.token}`);
-      toast("Copied to clipboard");
+      toast("已複製");
     }}>
       <Copy className='w-4 h-4' />
-      <span className='text-sm'>Copy the link</span>
+      <span className='text-sm'>複製連結</span>
     </button>
   </div>;
 };

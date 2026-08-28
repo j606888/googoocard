@@ -15,7 +15,7 @@ const Searchbar = ({ onSearch }: { onSearch: (search: string) => void }) => {
         <Search className="w-5 h-5 text-neutral-400 flex-shrink-0" />
         <input
           type="text"
-          placeholder="Search students"
+          placeholder="搜尋學生姓名"
           className="w-full bg-transparent outline-none placeholder:text-neutral-400"
           onChange={handleSearch}
           value={search}

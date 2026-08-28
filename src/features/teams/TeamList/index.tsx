@@ -15,7 +15,11 @@ import {
 import { useGetMeQuery } from "@/store/slices/me";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 
-const TABS = ["Members", "Invitations"] as const;
+// Label is display text; `value` stays the identifier the panels switch on.
+const TABS = [
+  { label: "成員", value: "Members" },
+  { label: "邀請連結", value: "Invitations" },
+] as const;
 
 const TeamList = () => {
   const [newMemberModalOpen, setNewMemberModalOpen] = useState(false);
@@ -36,7 +40,7 @@ const TeamList = () => {
   const isOwner = myRole === "owner";
 
   const handleRemoveMember = async (membership: Membership) => {
-    if (!confirm(`Remove ${membership.user.name} from this classroom?`)) {
+    if (!confirm(`確定要把 ${membership.user.name} 移出這間教室嗎？`)) {
       return;
     }
     await removeMembership({ id: membership.id });
@@ -49,7 +53,7 @@ const TeamList = () => {
   };
 
   const handleDeleteInviteToken = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this invite token?")) {
+    if (!confirm("確定要刪除這個邀請連結嗎？")) {
       return;
     }
     await deleteInviteToken({ id });
@@ -61,29 +65,29 @@ const TeamList = () => {
     <>
       <div className="px-5 py-3">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-2xl font-semibold">Teams</h2>
+          <h2 className="text-2xl font-semibold">團隊</h2>
           <button className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600">
             <Plus className="w-4 h-4" />
             <span
               className="font-medium"
               onClick={() => setNewMemberModalOpen(true)}
             >
-              Invite
+              邀請
             </span>
           </button>
         </div>
         <div className="flex border-b border-neutral-200 mb-3">
           {TABS.map((tab) => (
             <div
-              key={tab}
+              key={tab.value}
               className={`px-4 py-2 cursor-pointer ${
-                tab === activeTab
+                tab.value === activeTab
                   ? "border-b-2 border-primary-500 font-semibold text-primary-500"
                   : "text-neutral-500"
               }`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => setActiveTab(tab.value)}
             >
-              {tab}
+              {tab.label}
             </div>
           ))}
         </div>
@@ -113,19 +117,19 @@ const TeamList = () => {
         )}
       </div>
       <Drawer
-        title="Create invite link"
+        title="建立邀請連結"
         open={newMemberModalOpen}
         onClose={() => setNewMemberModalOpen(false)}
         onSubmit={handleCreateInviteToken}
       >
         <form>
           <p className="text-sm text-neutral-500 mb-2">
-            Anymoe with invite link can join the classroom
+            任何人只要有這個連結就能加入教室
           </p>
-          <label className="block mb-2 font-medium">Max usage</label>
+          <label className="block mb-2 font-medium">可使用次數</label>
           <input
             className="w-full mb-4 p-2 rounded bg-neutral-100"
-            placeholder="Max uses"
+            placeholder="最多幾次"
             value={maxUses}
             onChange={(e) => setMaxUses(Number(e.target.value))}
           />

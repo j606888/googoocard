@@ -8,9 +8,9 @@ import { StudentWithDetail } from "@/store/slices/students";
 import { useSearchParams } from "next/navigation";
 
 const tabs = [
-  { label: "Basic", query: "basic" },
-  { label: "Cards", query: "cards" },
-  { label: "Attend", query: "attend" },
+  { label: "基本資料", query: "basic" },
+  { label: "課卡", query: "cards" },
+  { label: "出席", query: "attend" },
 ];
 
 const StudentDetail = ({
@@ -69,7 +69,7 @@ const StudentDetail = ({
         <div className="w-80 flex-shrink-0 border-r border-neutral-200 overflow-y-auto">
           <div className="p-5">
             <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-4">
-              Student Info
+              學生資料
             </p>
             <BasicSection student={student} isPublic={isPublic} />
           </div>
@@ -79,7 +79,7 @@ const StudentDetail = ({
         <div className="flex-1 overflow-y-auto bg-neutral-50/30">
           <div className="p-6">
             <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-4">
-              Payment Cards
+              課卡
             </p>
             <CardsSection
               student={student}
@@ -93,7 +93,7 @@ const StudentDetail = ({
         <div className="w-96 flex-shrink-0 border-l border-neutral-200 overflow-y-auto">
           <div className="p-5">
             <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-4">
-              Attendance History
+              出席紀錄
             </p>
             <AttendSection student={student} />
           </div>

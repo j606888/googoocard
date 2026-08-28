@@ -36,7 +36,7 @@ const LessonGroupSelect = ({
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="block font-medium mb-1">Group</label>
+      <label className="block font-medium mb-1">群組</label>
       <MultiSelect
         options={groupOptions}
         values={groupId !== null ? [groupId] : []}
@@ -51,14 +51,14 @@ const LessonGroupSelect = ({
         }}
       />
       <Drawer
-        title="Create Group"
+        title="新增群組"
         open={newGroupModalOpen}
         onClose={() => setNewGroupModalOpen(false)}
         onSubmit={handleCreateGroup}
         isLoading={isLoading}
       >
         <form>
-          <label className="block mb-2 font-medium">Name</label>
+          <label className="block mb-2 font-medium">名稱</label>
           <input
             className="w-full mb-4 p-2 rounded bg-neutral-100 focus:outline-primary-500"
             placeholder="例如：週日課"

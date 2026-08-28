@@ -39,7 +39,7 @@ function SignupForm() {
       router.push(redirect || "/redirect");
     } catch (err) {
       console.error("Signup error:", err);
-      setErrors({ email: "An error occurred. Please try again." });
+      setErrors({ email: "發生錯誤，請再試一次。" });
     } finally {
       setLoading(false);
     }
@@ -49,21 +49,21 @@ function SignupForm() {
     <AuthScaffold
       heroTitle={
         <>
-          Still using the Lesson Card?
+          還在用紙本課程卡嗎？
           <br />
-          Throw it right away!
+          現在就把它丟掉吧！
         </>
       }
     >
       <div className="w-full">
-        <h2 className="text-[28px] font-semibold mb-4 text-center">Sign Up</h2>
+        <h2 className="text-[28px] font-semibold mb-4 text-center">註冊</h2>
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-3">
             <User className="w-6 h-6 text-neutral-500" />
             <div className="relative w-full">
               <input
                 type="text"
-                placeholder="Name"
+                placeholder="姓名"
                 className={`w-full border-b-2 ${
                   errors.name ? "border-danger-500" : "border-neutral-300"
                 } px-1.5 py-3 text-base focus:outline-none focus:border-primary-500`}
@@ -82,7 +82,7 @@ function SignupForm() {
             <div className="relative w-full">
               <input
                 type="email"
-                placeholder="Email"
+                placeholder="電子郵件"
                 className={`w-full border-b-2 ${
                   errors.email ? "border-danger-500" : "border-neutral-300"
                 } px-1.5 py-3 text-base focus:outline-none focus:border-primary-500`}
@@ -101,7 +101,7 @@ function SignupForm() {
             <div className="relative w-full">
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="Password"
+                placeholder="密碼"
                 className={`w-full border-b-2 ${
                   errors.password ? "border-danger-500" : "border-neutral-300"
                 } px-1.5 py-3 text-base focus:outline-none focus:border-primary-500`}
@@ -137,12 +137,12 @@ function SignupForm() {
           disabled={loading}
           onClick={handleSubmit}
         >
-          Sign Up
+          註冊
         </button>
         <p className="text-sm text-neutral-500 text-center mt-3">
-          Already have an account?{" "}
+          已經有帳號了嗎？{" "}
           <Link href="/login" className="text-primary-500 underline">
-            Login
+            登入
           </Link>
         </p>
       </div>
@@ -153,7 +153,7 @@ function SignupForm() {
 
 export default function SignupPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div>載入中…</div>}>
       <SignupForm />
     </Suspense>
   );

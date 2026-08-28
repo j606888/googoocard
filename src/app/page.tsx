@@ -6,18 +6,18 @@ import { readAuthSession } from '@/lib/auth'
 const FEATURES = [
   {
     icon: IdCard,
-    title: 'Cards',
-    description: 'Sell card to students at no time',
+    title: '課卡',
+    description: '隨時幫學生開卡',
   },
   {
     icon: BookOpenText,
-    title: 'Lessons',
-    description: 'Check the lesson anytime',
+    title: '課程',
+    description: '隨時掌握課程狀況',
   },
   {
     icon: Users,
-    title: 'Students',
-    description: 'Understand all the details',
+    title: '學生',
+    description: '學生大小事一次看懂',
   }
 ]
 
@@ -36,7 +36,7 @@ export default async function Home() {
         </div>
         <h1 className="text-3xl font-bold text-black">Googoo Card</h1>
         <p className="text-base text-neutral-500 mb-8">
-          Make your lesson easier
+          讓你的教學更輕鬆
         </p>
         <div className="flex flex-col gap-4 items-start mb-8">
           {FEATURES.map((feature) => (
@@ -56,12 +56,12 @@ export default async function Home() {
       <div className="flex flex-col gap-4 px-6 py-6 w-full">
         <Link href="/signup">
           <button className="bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg cursor-pointer hover:bg-primary-600">
-            Sign up
+            註冊
           </button>
         </Link>
         <Link href="/login">
           <button className="border-1 border-primary-500 bg-white w-full text-primary-500 px-4 py-3 rounded-md font-bold text-lg cursor-pointer hover:bg-primary-50">
-          Login
+          登入
           </button>
         </Link>
       </div>

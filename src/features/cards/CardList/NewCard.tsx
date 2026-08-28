@@ -8,11 +8,11 @@ import { DanceType } from "@prisma/client";
 import CardDanceTypeSelect from "./CardDanceTypeSelect";
 
 const CardValidationErrors = {
-  cardName: "Must provide a name",
-  price: "Must be a number",
-  priceTooHigh: "Price must be less than 30000",
-  sessions: "Must be a number",
-  sessionsTooHigh: "Sessions must be less than 100",
+  cardName: "請輸入課卡名稱",
+  price: "請輸入數字",
+  priceTooHigh: "金額必須小於 30000",
+  sessions: "請輸入數字",
+  sessionsTooHigh: "堂數必須小於 100",
 };
 
 export const cardValidationForm = (data: { cardName: string; price: string; sessions: string }) => {
@@ -105,11 +105,11 @@ const NewCard = () => {
       <button className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600">
         <Plus className="w-4 h-4" />
         <span className="font-medium" onClick={() => setOpen(true)}>
-          New Card
+          新增課卡
         </span>
       </button>
       <Drawer
-        title="New Card"
+        title="新增課卡"
         open={open}
         onClose={handleClose}
         onSubmit={handleSubmit}
@@ -117,7 +117,7 @@ const NewCard = () => {
       >
         <form className="mb-6 flex flex-col gap-4">
           <InputField
-            label="Card Name"
+            label="課卡名稱"
             value={cardName}
             placeholder="E.g. 初階6堂"
             onChange={handleCardNameChange}
@@ -125,14 +125,14 @@ const NewCard = () => {
           />
           <div className="flex gap-4">
             <InputField
-              label="Price"
+              label="金額"
               value={price}
               onChange={handlePriceChange}
               error={errors.price}
               type="number"
             />
             <InputField
-              label="Sessions"
+              label="堂數"
               value={sessions}
               onChange={handleSessionsChange}
               error={errors.sessions}
@@ -144,7 +144,7 @@ const NewCard = () => {
               checked={isPracticeCard}
               onCheckedChange={setIsPracticeCard}
             />
-            <span>Is Practice Card</span>
+            <span>設為複習卡</span>
           </div>
           <CardDanceTypeSelect
             value={danceType}

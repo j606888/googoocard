@@ -81,7 +81,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
         {otherClassrooms && otherClassrooms.length > 0 ? (
           <>
             <p className="px-2 pb-1 pt-1.5 text-xs font-medium text-neutral-400">
-              Switch classroom
+              切換教室
             </p>
             {otherClassrooms.map((classroom) => (
               <button
@@ -100,7 +100,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           </>
         ) : (
           <p className="px-2 py-2 text-sm text-neutral-400">
-            No other classrooms
+            沒有其他教室
           </p>
         )}
         <Link
@@ -109,7 +109,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           className="mt-1 flex items-center gap-2 rounded-xl border-t border-neutral-100 px-2 py-2.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
         >
           <Plus className="h-4 w-4" />
-          Create another classroom
+          建立新教室
         </Link>
       </Menu>
       <div className="flex flex-col gap-1.5 mt-3">
@@ -128,7 +128,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
             >
               <link.icon className="w-6 h-6" />
               <span>{link.name}</span>
-              {link.name === "Students" && renewalCount > 0 && (
+              {link.href === "/students" && renewalCount > 0 && (
                 <span
                   className={`ml-auto min-w-5 h-5 px-1 rounded-full text-xs font-semibold flex items-center justify-center ${
                     active
@@ -149,7 +149,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           onClick={handleLogout}
         >
           <LogOut className="w-6 h-6" />
-          <span>Logout</span>
+          <span>登出</span>
         </div>
         <div className="text-neutral-700 p-3">
           <span>@GOOGOOCARD</span>

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 export interface NavLink {
+  /** Display label. Identity is `href` — never match on this. */
   name: string;
   icon: LucideIcon;
   href: string;
@@ -18,18 +19,18 @@ export interface NavLink {
 
 /** Always-visible priority destinations (mobile bottom bar). */
 export const PRIMARY_LINKS: NavLink[] = [
-  { name: "Lessons", icon: BookOpenText, href: "/lessons" },
-  { name: "Students", icon: Users, href: "/students" },
-  { name: "Income", icon: DollarSign, href: "/income" },
+  { name: "課程", icon: BookOpenText, href: "/lessons" },
+  { name: "學生", icon: Users, href: "/students" },
+  { name: "收入", icon: DollarSign, href: "/income" },
 ];
 
 /** Secondary destinations (mobile "More" sheet). */
 export const SECONDARY_LINKS: NavLink[] = [
-  { name: "Calendar", icon: CalendarDays, href: "/calendar" },
-  { name: "Cards", icon: CreditCard, href: "/cards" },
-  { name: "Check-in QR", icon: QrCode, href: "/checkin-qr" },
-  { name: "Teachers", icon: GraduationCap, href: "/teachers" },
-  { name: "Teams", icon: Boxes, href: "/teams" },
+  { name: "行事曆", icon: CalendarDays, href: "/calendar" },
+  { name: "課卡", icon: CreditCard, href: "/cards" },
+  { name: "簽到 QR", icon: QrCode, href: "/checkin-qr" },
+  { name: "老師", icon: GraduationCap, href: "/teachers" },
+  { name: "團隊", icon: Boxes, href: "/teams" },
 ];
 
 /** Full list for the desktop sidebar — priority items first, then the rest. */

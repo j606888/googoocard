@@ -60,7 +60,7 @@ const ClassroomSwitcher = () => {
               {otherClassrooms && otherClassrooms.length > 0 ? (
                 <>
                   <p className="px-2 pb-1 pt-1.5 text-xs font-medium text-neutral-400">
-                    Switch classroom
+                    切換教室
                   </p>
                   {otherClassrooms.map((classroom) => (
                     <button
@@ -79,7 +79,7 @@ const ClassroomSwitcher = () => {
                 </>
               ) : (
                 <p className="px-2 py-2 text-sm text-neutral-400">
-                  No other classrooms
+                  沒有其他教室
                 </p>
               )}
               <Link
@@ -88,7 +88,7 @@ const ClassroomSwitcher = () => {
                 className="mt-1 flex items-center gap-2 rounded-xl border-t border-neutral-100 px-2 py-2.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
               >
                 <Plus className="h-4 w-4" />
-                Create another classroom
+                建立新教室
               </Link>
             </motion.div>
           </>

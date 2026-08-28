@@ -9,14 +9,14 @@ import { DanceType } from "@prisma/client";
 import { DANCE_TYPE_META } from "@/lib/danceTypes";
 
 const TABS = [
-  { label: "In progress", value: "inProgress" },
-  { label: "Finished", value: "finished" },
+  { label: "上課中", value: "inProgress" },
+  { label: "已結束", value: "finished" },
 ];
 
 const SORT_OPTIONS = [
-  { label: "Next session", value: "nextSession" },
-  { label: "Name", value: "name" },
-  { label: "End at", value: "endAt" },
+  { label: "下次上課", value: "nextSession" },
+  { label: "名稱", value: "name" },
+  { label: "結束時間", value: "endAt" },
 ];
 
 const DANCE_TYPE_ORDER = Object.keys(DANCE_TYPE_META) as DanceType[];
@@ -65,14 +65,14 @@ const TabAndSort = ({
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search lesson or teacher"
+          placeholder="搜尋課程或老師"
           className="w-full rounded-full border border-neutral-200 bg-white py-2 pl-9 pr-9 text-sm outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
         />
         {search && (
           <button
             onClick={() => setSearch("")}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
-            aria-label="Clear search"
+            aria-label="清除搜尋"
           >
             <X className="w-4 h-4" />
           </button>
@@ -90,7 +90,7 @@ const TabAndSort = ({
                 : "bg-neutral-100 text-neutral-500 hover:text-neutral-700"
             }`}
           >
-            All
+            全部
           </button>
           {danceChips.map((type) => {
             const meta = DANCE_TYPE_META[type];
@@ -137,12 +137,12 @@ const TabAndSort = ({
               onClick={() => setOpen(!open)}
             >
               <ArrowDownUp className="w-4 h-4" />
-              <span className="text-sm">Sort</span>
+              <span className="text-sm">排序</span>
             </div>
           </PopoverTrigger>
           <PopoverContent className="w-44">
             <div className="flex flex-col gap-3">
-              <div className="text-xs text-neutral-500 font-medium">Sort by</div>
+              <div className="text-xs text-neutral-500 font-medium">排序依據</div>
               <div className="flex flex-col gap-1">
                 {SORT_OPTIONS.map((option) => (
                   <div

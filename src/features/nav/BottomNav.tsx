@@ -34,8 +34,8 @@ const BottomNav = () => {
           {PRIMARY_LINKS.map((link) => {
             const active = pathname.startsWith(link.href);
             let badge: number | undefined;
-            if (link.name === "Students" && renewalCount > 0) badge = renewalCount;
-            if (link.name === "Income" && unpaidCount > 0) badge = unpaidCount;
+            if (link.href === "/students" && renewalCount > 0) badge = renewalCount;
+            if (link.href === "/income" && unpaidCount > 0) badge = unpaidCount;
             return (
               <NavTab
                 key={link.name}
@@ -50,7 +50,7 @@ const BottomNav = () => {
           <NavTab
             as="button"
             onClick={() => setMoreOpen(true)}
-            label="More"
+            label="更多"
             Icon={MoreHorizontal}
             active={moreActive}
           />

@@ -35,7 +35,7 @@ const LessonDetailHeader = ({
       <div className="flex items-center gap-2 text-sm text-neutral-500 mb-3">
         <Link href="/lessons" className="flex items-center gap-1 hover:text-neutral-700">
           <ArrowLeft className="w-4 h-4" />
-          <span>Lessons</span>
+          <span>課程</span>
         </Link>
         {lesson.group && (
           <>
@@ -61,7 +61,7 @@ const LessonDetailHeader = ({
               {lesson.danceType}
             </span>
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isFinished ? "bg-neutral-100 text-neutral-600" : "bg-primary-100 text-primary-700"}`}>
-              {isFinished ? "Finished" : "In Progress"}
+              {isFinished ? "已結束" : "上課中"}
             </span>
           </div>
         </div>
@@ -75,7 +75,7 @@ const LessonDetailHeader = ({
             }`}
           >
             <Settings className="w-3.5 h-3.5" />
-            Edit
+            編輯
           </button>
           <UnpaidBell />
         </div>
@@ -85,15 +85,15 @@ const LessonDetailHeader = ({
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200 shadow-sm">
           <Users className="w-4 h-4" />
-          <span>{lesson.students.length} students</span>
+          <span>{lesson.students.length} 位學生</span>
         </div>
         <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200 shadow-sm">
           <BookOpenText className="w-4 h-4" />
-          <span>{attendedCount} / {periods.length} periods</span>
+          <span>{attendedCount} / {periods.length} 個時段</span>
         </div>
         <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200 shadow-sm">
           <span className={`w-2 h-2 rounded-full ${attendanceRate >= 80 ? "bg-primary-500" : attendanceRate >= 50 ? "bg-warning-500" : "bg-neutral-400"}`} />
-          <span>{attendanceRate}% attendance rate</span>
+          <span>出席率 {attendanceRate}%</span>
         </div>
         {lesson.teachers.length > 0 && (
           <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200 shadow-sm">

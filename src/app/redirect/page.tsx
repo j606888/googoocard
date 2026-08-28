@@ -67,7 +67,7 @@ function RedirectPageFallback() {
           className="text-white text-center text-xl font-semibold w-30
          mx-auto"
         >
-          Loading...
+          載入中…
         </h2>
       </div>
     </div>

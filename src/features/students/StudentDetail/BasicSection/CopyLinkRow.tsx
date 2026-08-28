@@ -30,7 +30,7 @@ const CopyLinkRow = ({
 
   const handleCopy = () => {
     navigator.clipboard.writeText(value);
-    toast.success("Copied to clipboard");
+    toast.success("已複製");
   };
 
   return (

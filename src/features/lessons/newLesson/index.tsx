@@ -19,10 +19,10 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 const validationErrors = {
-  lessonName: "Must provide a name",
-  teachers: "Must select at least one teacher",
-  cards: "Must select at least one card",
-  periods: "Must add at least one period",
+  lessonName: "請輸入課程名稱",
+  teachers: "請至少選擇一位老師",
+  cards: "請至少選擇一張課卡",
+  periods: "請至少新增一個時段",
 };
 
 const NewLesson = () => {
@@ -128,14 +128,14 @@ const NewLesson = () => {
 
   return (
     <>
-      <SubNavbar title="New Lesson" backUrl="/lessons" className="lg:hidden" />
+      <SubNavbar title="新增課程" backUrl="/lessons" className="lg:hidden" />
 
       {/* Desktop: inline page header */}
       <div className="hidden lg:flex items-center gap-3 px-8 pt-6 pb-2">
         <Link href="/lessons" className="text-neutral-400 hover:text-neutral-600 transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-xl font-bold text-neutral-900">New Lesson</h1>
+        <h1 className="text-xl font-bold text-neutral-900">新增課程</h1>
       </div>
 
       {/* Form — single column mobile, two-column desktop */}
@@ -143,11 +143,11 @@ const NewLesson = () => {
         {/* Left column: basic info */}
         <div className="flex flex-col gap-4 lg:bg-white lg:border lg:border-neutral-100 lg:rounded-xl lg:p-6 lg:shadow-sm">
           <div className="hidden lg:block text-base font-semibold text-neutral-800 -mb-1">
-            Lesson Info
+            課程資訊
           </div>
           <InputField
-            label="Lesson Name"
-            placeholder="E.g. Bachata Lv1"
+            label="課程名稱"
+            placeholder="例：Bachata Lv1"
             value={lessonName}
             onChange={handleLessonNameChange}
             error={errors.lessonName}
@@ -173,16 +173,16 @@ const NewLesson = () => {
           />
           {/* Create button — desktop only, inside left col */}
           <Button className="w-full hidden lg:block" onClick={handleSubmit} isLoading={isLoading}>
-            Create Lesson
+            建立課程
           </Button>
         </div>
 
         {/* Right column: schedule */}
         <div className="flex flex-col gap-4 lg:bg-white lg:border lg:border-neutral-100 lg:rounded-xl lg:p-6 lg:shadow-sm">
           <div className="hidden lg:flex items-center justify-between -mb-1">
-            <span className="text-base font-semibold text-neutral-800">Schedule</span>
+            <span className="text-base font-semibold text-neutral-800">排課</span>
             <span className="text-sm text-neutral-400">
-              {periods.length} period{periods.length !== 1 ? "s" : ""} added
+              已新增 {periods.length} 個時段
             </span>
           </div>
           <AddPeriodForm
@@ -196,7 +196,7 @@ const NewLesson = () => {
 
         {/* Create button — mobile only, below both cols */}
         <Button className="w-full lg:hidden" onClick={handleSubmit} isLoading={isLoading}>
-          Create
+          建立
         </Button>
       </div>
     </>

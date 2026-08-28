@@ -26,7 +26,7 @@ const ProfileCard = ({
               </span>
             </div>
             <p className="text-xs text-neutral-400 mt-0.5">
-              Joined {format(new Date(student.createdAt), "MMM yyyy")}
+              加入於 {format(new Date(student.createdAt), "yyyy年M月")}
             </p>
             {student.note && !isPublic && (
               <p className="text-sm text-neutral-500">{student.note}</p>

@@ -16,7 +16,7 @@ const CardDanceTypeSelect = ({
   return (
     <div className="flex flex-col gap-2">
       <label className="text-sm font-medium text-neutral-700">
-        Dance Type{optional && <span className="text-neutral-400 font-normal"> (optional)</span>}
+        舞種{optional && <span className="text-neutral-400 font-normal">（選填）</span>}
       </label>
       {optional && (
         <p className="text-xs text-neutral-400 -mt-1">

@@ -16,7 +16,7 @@ const DanceTypeSelect = ({
 }) => {
   return (
     <div className="flex flex-col gap-1">
-      <label className="block font-medium mb-1">Dance Type</label>
+      <label className="block font-medium mb-1">舞種</label>
 
       {/* Mobile: react-select dropdown */}
       <div className="lg:hidden">

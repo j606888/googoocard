@@ -4,17 +4,17 @@ import { format } from "date-fns";
 
 const StatTiles = ({ overview }: { overview: StudentWithDetail["overview"] }) => {
   const lastClassLabel = overview.lastAttendAt
-    ? format(new Date(overview.lastAttendAt), "MMM d, yyyy")
-    : "No attendance yet";
+    ? format(new Date(overview.lastAttendAt), "yyyy年M月d日")
+    : "尚未上課";
 
   return (
     <div className="grid grid-cols-2 gap-3">
       <Tile
         icon={CircleDollarSign}
-        label="Total Spend"
+        label="累計消費"
         value={`$${overview.totalSpend.toLocaleString()}`}
       />
-      <Tile icon={Clock} label="Last Class" value={lastClassLabel} />
+      <Tile icon={Clock} label="最近上課" value={lastClassLabel} />
     </div>
   );
 };

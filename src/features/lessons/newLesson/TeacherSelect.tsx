@@ -27,12 +27,12 @@ const TeacherSelect = ({ selectedTeacherIds, onChange, error }: { selectedTeache
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="block font-medium mb-1">Teachers</label>
+      <label className="block font-medium mb-1">老師</label>
       <MultiSelect
         options={teacherOptions}
         values={selectedTeacherIds}
         newOptionLabel="New teacher"
-        placeholder="Select teachers"
+        placeholder="選擇老師"
         newOptionOnClick={() => {
           setNewTeacherModalOpen(true);
         }}
@@ -42,17 +42,17 @@ const TeacherSelect = ({ selectedTeacherIds, onChange, error }: { selectedTeache
         error={error}
       />
        <Drawer
-        title="Create Teacher"
+        title="新增老師"
         open={newTeacherModalOpen}
         onClose={() => setNewTeacherModalOpen(false)}
         onSubmit={handleCreateTeacher}
         isLoading={isLoading}
       >
         <form>
-          <label className="block mb-2 font-medium">Name</label>
+          <label className="block mb-2 font-medium">姓名</label>
           <input
             className="w-full mb-4 p-2 rounded bg-neutral-100 focus:outline-primary-500"
-            placeholder="Enter name"
+            placeholder="輸入姓名"
             value={newTeacherName}
             onChange={(e) => setNewTeacherName(e.target.value)}
           />

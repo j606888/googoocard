@@ -99,11 +99,11 @@ const NewCard = ({ selectedCardIds, onChange, danceType, error }: { selectedCard
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="block font-medium mb-1">Cards</label>
+      <label className="block font-medium mb-1">課卡</label>
       <MultiSelect
         options={cardOptions}
         values={selectedCardIds}
-        placeholder="Select cards"
+        placeholder="選擇課卡"
         newOptionLabel="New card"
         newOptionOnClick={() => {
           setOpen(true);
@@ -114,7 +114,7 @@ const NewCard = ({ selectedCardIds, onChange, danceType, error }: { selectedCard
         error={error}
       />
       <Drawer
-        title="New Card"
+        title="新增課卡"
         open={open}
         onClose={handleClose}
         onSubmit={handleSubmit}
@@ -122,7 +122,7 @@ const NewCard = ({ selectedCardIds, onChange, danceType, error }: { selectedCard
       >
         <form className="mb-6">
           <InputField
-            label="Card Name"
+            label="課卡名稱"
             value={cardName}
             placeholder="E.g. 初階6堂"
             onChange={handleCardNameChange}
@@ -130,14 +130,14 @@ const NewCard = ({ selectedCardIds, onChange, danceType, error }: { selectedCard
           />
           <div className="flex gap-4">
             <InputField
-              label="Price"
+              label="金額"
               value={price}
               onChange={handlePriceChange}
               error={errors.price}
               type="number"
             />
             <InputField
-              label="Sessions"
+              label="堂數"
               value={sessions}
               onChange={handleSessionsChange}
               error={errors.sessions}

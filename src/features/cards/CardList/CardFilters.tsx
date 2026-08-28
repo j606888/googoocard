@@ -59,7 +59,7 @@ const CardFilters = ({
                 : "bg-neutral-100 text-neutral-500 hover:text-neutral-700"
             }`}
           >
-            All
+            全部
           </button>
           {danceChips.map((type) => {
             const meta = DANCE_TYPE_META[type];

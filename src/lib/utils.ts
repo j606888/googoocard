@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { format } from "date-fns";
+import { zhTW } from "date-fns/locale";
 import { Period } from "@/store/slices/lessons";
 
 export function cn(...inputs: ClassValue[]) {
@@ -12,9 +13,9 @@ export function periodInfo(period?: Period) {
 
   const startTime = new Date(period.startTime);
   const endTime = new Date(period.endTime);
-  const date = format(startTime, "yyyy/MM/dd, EEE");
-  const startHour = format(startTime, "h:mm a");
-  const endHour = format(endTime, "h:mm a");
+  const date = format(startTime, "yyyy/MM/dd (EEE)", { locale: zhTW });
+  const startHour = format(startTime, "a h:mm", { locale: zhTW });
+  const endHour = format(endTime, "a h:mm", { locale: zhTW });
   return { date, startHour, endHour };
 }
 

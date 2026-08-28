@@ -6,7 +6,7 @@ import InputField from "@/components/InputField";
 import AvatarPicker, { PRESET_AVATARS } from "@/features/students/AvatarPicker";
 
 const validationErrors = {
-  name: "Must provide a name",
+  name: "請輸入姓名",
 };
 
 const validateForm = (data: { name: string }) => {
@@ -43,7 +43,7 @@ const NewStudent = () => {
       setOpen(false);
       setIsLoading(false);
     } catch (error) {
-      setErrors({ name: "Student already exists" });
+      setErrors({ name: "學生已存在" });
       console.error(error);
     }
   };
@@ -69,11 +69,11 @@ const NewStudent = () => {
       <button className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600">
         <Plus className="w-4 h-4" />
         <span className="font-medium" onClick={() => setOpen(true)}>
-          New Student
+          新增學生
         </span>
       </button>
       <Drawer
-        title="New Student"
+        title="新增學生"
         open={open}
         onClose={handleClose}
         onSubmit={handleSubmit}
@@ -82,14 +82,14 @@ const NewStudent = () => {
       >
         <form className="mb-6 flex flex-col gap-3">
           <InputField
-            label="Student Name"
+            label="學生姓名"
             value={name}
-            placeholder="E.g. Dingding"
+            placeholder="例：丁丁"
             onChange={handleCardNameChange}
             error={errors.name}
           />
           <InputField
-            label="Note(Student doesn't see this)"
+            label="備註（學生看不到）"
             value={note}
             placeholder="E.g. 紅色頭髮那個"
             onChange={handleNoteChange}

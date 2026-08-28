@@ -86,7 +86,7 @@ const LessonCard = ({ lesson }: { lesson: LessonSummary }) => {
           <button
             onClick={handleClone}
             className="p-1.5 text-neutral-300 hover:text-primary-500 hover:bg-primary-50 rounded-lg shrink-0 transition-colors"
-            aria-label="Clone lesson"
+            aria-label="複製課程"
           >
             <Copy className="w-4 h-4" />
           </button>

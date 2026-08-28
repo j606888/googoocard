@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { format } from "date-fns";
+import { zhTW } from "date-fns/locale";
 import { Period, LessonStudent } from "@/store/slices/lessons";
 import { studentDetailHref } from "@/lib/studentNav";
 
@@ -13,9 +14,9 @@ const STATUS_DOT: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  attended: "Attended",
-  absent: "Absent",
-  not_started: "Not taken yet",
+  attended: "已出席",
+  absent: "缺席",
+  not_started: "尚未點名",
 };
 
 const AttendanceMatrix = ({
@@ -41,7 +42,7 @@ const AttendanceMatrix = ({
     return (
       <div className="flex flex-col items-center justify-center h-48 text-neutral-400 gap-2">
         <span className="text-4xl">📋</span>
-        <p className="text-sm">No students enrolled yet</p>
+        <p className="text-sm">還沒有學生加入這門課</p>
       </div>
     );
   }
@@ -49,8 +50,8 @@ const AttendanceMatrix = ({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold text-neutral-800">Attendance Overview</h3>
-        <span className="text-sm text-neutral-500">{sortedPeriods.length} period{sortedPeriods.length !== 1 ? "s" : ""}</span>
+        <h3 className="text-base font-semibold text-neutral-800">出席總覽</h3>
+        <span className="text-sm text-neutral-500">{sortedPeriods.length} 個時段</span>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200">
@@ -58,7 +59,7 @@ const AttendanceMatrix = ({
           <thead>
             <tr className="bg-neutral-50">
               <th className="sticky left-0 bg-neutral-50 z-10 text-left px-4 py-3 font-medium text-neutral-600 border-b border-r border-neutral-200 w-44 min-w-44">
-                Student
+                學生
               </th>
               {sortedPeriods.map((p) => (
                 <th
@@ -66,7 +67,7 @@ const AttendanceMatrix = ({
                   className="px-2 py-3 text-center font-medium text-neutral-500 border-b border-neutral-200 min-w-12"
                 >
                   <div className="text-xs">{format(new Date(p.startTime), "M/d")}</div>
-                  <div className="text-xs text-neutral-400">{format(new Date(p.startTime), "EEE")}</div>
+                  <div className="text-xs text-neutral-400">{format(new Date(p.startTime), "EEE", { locale: zhTW })}</div>
                   {p.attendanceTakenAt && (
                     <div className="w-1.5 h-1.5 rounded-full bg-primary-500 mx-auto mt-1" />
                   )}
@@ -100,7 +101,7 @@ const AttendanceMatrix = ({
                       <td key={p.id} className="px-2 py-3 text-center">
                         <div
                           className={`w-5 h-5 rounded-full mx-auto ${STATUS_DOT[status]}`}
-                          title={`${student.name} — ${format(new Date(p.startTime), "MMM d")}: ${label}`}
+                          title={`${student.name} — ${format(new Date(p.startTime), "M月d日")}: ${label}`}
                         />
                       </td>
                     );
@@ -117,19 +118,19 @@ const AttendanceMatrix = ({
         <div className="flex items-center gap-4 text-xs text-neutral-500">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-primary-500" />
-            <span>Attended</span>
+            <span>已出席</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-danger-400" />
-            <span>Absent</span>
+            <span>缺席</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-neutral-200 border border-neutral-300" />
-            <span>Not taken</span>
+            <span>尚未點名</span>
           </div>
         </div>
         <div className="text-xs text-neutral-500">
-          {totalAttended} / {totalCells} total &mdash; <span className="font-semibold text-neutral-700">{rate}% rate</span>
+          共 {totalAttended} / {totalCells} &mdash; <span className="font-semibold text-neutral-700">出席率 {rate}%</span>
         </div>
       </div>
     </div>

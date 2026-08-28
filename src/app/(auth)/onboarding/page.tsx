@@ -37,15 +37,15 @@ export default function OnboardingPage() {
     <AuthScaffold
       heroTitle={
         <>
-          Welcome to GooGoocard!
+          歡迎使用 GooGoocard！
           <br />
-          Let&apos;s get started!
+          我們開始吧！
         </>
       }
     >
       <div className="w-full">
         <h2 className="text-[28px] font-semibold mb-4">
-          What is your classroom name?
+          你的教室叫什麼名字？
         </h2>
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-3">
@@ -53,7 +53,7 @@ export default function OnboardingPage() {
             <div className="relative w-full">
               <input
                 type="text"
-                placeholder="Your classroom name"
+                placeholder="你的教室名稱"
                 className={`w-full border-b-2 ${
                   error ? "border-danger-500" : "border-neutral-300"
                 } px-1.5 py-3 text-base focus:outline-none focus:border-primary-500`}
@@ -82,7 +82,7 @@ export default function OnboardingPage() {
           disabled={loading}
           onClick={handleSubmit}
         >
-          Submit
+          送出
         </button>
       </div>
     </AuthScaffold>

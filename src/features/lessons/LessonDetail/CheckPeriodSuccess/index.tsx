@@ -126,7 +126,7 @@ const CheckPeriodSuccess = () => {
           <PendingStudents records={pendingRecords} lesson={lesson} />
         )}
         <div className="flex items-center justify-between w-full">
-          <p className="text-sm font-medium text-neutral-700">Show income</p>
+          <p className="text-sm font-medium text-neutral-700">顯示收入</p>
           <Switch checked={showIncome} onCheckedChange={setShowIncome} />
         </div>
         <div className="flex flex-col gap-2 w-full">
@@ -150,7 +150,7 @@ const CheckPeriodSuccess = () => {
                   <span className="font-semibold text-neutral-900">${Math.round(attendanceRecord?.income)}</span>
                 ) : (
                   <span>
-                    {attendanceRecord?.remainingSessions} left
+                    剩 {attendanceRecord?.remainingSessions} 堂
                   </span>
                 )}
               </div>
@@ -158,7 +158,7 @@ const CheckPeriodSuccess = () => {
           ))}
           {showIncome && (
             <div className="flex justify-between w-full px-3 py-2.5 bg-primary-50 rounded-xl mt-2">
-              <span className="text-sm font-semibold text-neutral-700">Total</span>
+              <span className="text-sm font-semibold text-neutral-700">合計</span>
               <span className="text-sm font-bold text-primary-700">
                 $
                 {Math.round(
@@ -201,7 +201,7 @@ const CheckPeriodSuccess = () => {
             <button
               className="bg-primary-500 text-white px-4 py-3 rounded-xl flex items-center justify-center gap-2 w-full cursor-pointer hover:bg-primary-600 font-semibold shadow-[0_6px_18px_-6px_rgba(43,142,110,0.7)] transition-colors"
             >
-              <span>Back to Lesson</span>
+              <span>回到課程</span>
             </button>
           </Link>
         </div>

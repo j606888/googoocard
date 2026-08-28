@@ -10,9 +10,9 @@ import EventRow from "./EventRow";
 import EventSubRow from "./EventSubRow";
 
 const FILTERS: { label: string; value: EventFilter }[] = [
-  { label: "All", value: "all" },
-  { label: "Check-in", value: "checkin" },
-  { label: "Card", value: "card" },
+  { label: "全部", value: "all" },
+  { label: "簽到", value: "checkin" },
+  { label: "課卡", value: "card" },
 ];
 
 const EventTimeline = ({ studentId }: { studentId: number }) => {
@@ -24,7 +24,7 @@ const EventTimeline = ({ studentId }: { studentId: number }) => {
 
   return (
     <div className="flex flex-col gap-2">
-      <h4 className="text-sm font-semibold text-neutral-700">Events</h4>
+      <h4 className="text-sm font-semibold text-neutral-700">動態</h4>
 
       <div className="flex bg-neutral-100 p-1 rounded-xl">
         {FILTERS.map((filter) => (
@@ -43,7 +43,7 @@ const EventTimeline = ({ studentId }: { studentId: number }) => {
       </div>
 
       {groups.length === 0 && (
-        <p className="py-6 text-center text-sm text-neutral-400">No events in this category yet.</p>
+        <p className="py-6 text-center text-sm text-neutral-400">這個分類還沒有紀錄。</p>
       )}
 
       <div className="flex flex-col gap-1">

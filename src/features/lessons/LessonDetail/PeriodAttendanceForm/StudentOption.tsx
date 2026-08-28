@@ -60,7 +60,7 @@ const StudentOption = ({
         <div className="flex items-center gap-1 pl-12">
           <MdInfo className="w-4 h-4 text-primary-600" />
           <span className="text-xs font-medium text-primary-700">
-            First time joined class
+            第一次上這門課
           </span>
         </div>
       )}

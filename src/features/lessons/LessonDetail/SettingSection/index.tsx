@@ -11,9 +11,9 @@ import { useUpdateLessonMutation, useDeleteLessonMutation } from "@/store/slices
 import { useRouter } from "next/navigation";
 
 const validationErrors = {
-  lessonName: "Must provide a name",
-  teachers: "Must select at least one teacher",
-  cards: "Must select at least one card",
+  lessonName: "請輸入課程名稱",
+  teachers: "請至少選擇一位老師",
+  cards: "請至少選擇一張課卡",
 };
 
 const SettingSection = ({ lesson }: { lesson: Lesson }) => {
@@ -34,7 +34,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
   const hasNoPeriods = lesson.periods.length === 0;
 
   const handleDelete = () => {
-    const confirmed = confirm("Are you sure you want to delete this lesson?");
+    const confirmed = confirm("確定要刪除這門課程嗎？");
     if (!confirmed) return;
     router.push("/lessons");
     deleteLesson(lesson.id);
@@ -80,8 +80,8 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
     <div className="px-5 py-5 flex flex-col gap-5">
         <div className="flex flex-col gap-4">
           <InputField
-            label="Lesson Name"
-            placeholder="E.g. Bachata Lv1"
+            label="課程名稱"
+            placeholder="例：Bachata Lv1"
             value={lessonName}
             onChange={handleLessonNameChange}
             error={errors.lessonName}
@@ -106,7 +106,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
             danceType={danceType}
           />
           <Button className="w-full" onClick={handleSubmit} isLoading={isLoading}>
-            Update
+            儲存
           </Button>
           <div className="pt-4 border-t border-neutral-200">
             <button
@@ -116,11 +116,11 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
                 !hasNoPeriods || isDeleting ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
               }`}
             >
-              Delete Lesson
+              刪除課程
             </button>
             {!hasNoPeriods && (
               <p className="text-xs text-neutral-400 mt-1 text-center">
-                Remove all periods before deleting this lesson
+                刪除課程前，請先移除所有時段
               </p>
             )}
           </div>

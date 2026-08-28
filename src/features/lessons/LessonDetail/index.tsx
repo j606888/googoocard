@@ -14,9 +14,9 @@ import LessonDetailHeader from "./LessonDetailHeader";
 import AttendanceMatrix from "./AttendanceMatrix";
 
 export const TABS = [
-  { name: "Periods", query: "periods" },
-  { name: "Students", query: "students" },
-  { name: "Settings", query: "settings" },
+  { name: "時段", query: "periods" },
+  { name: "學生", query: "students" },
+  { name: "設定", query: "settings" },
 ];
 
 const LessonDetail = () => {

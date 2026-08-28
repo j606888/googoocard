@@ -21,7 +21,7 @@ const IncomePage = () => {
       <div className="px-5 py-3 lg:px-8 lg:py-6">
         <div className="flex items-center gap-2 mb-3 lg:mb-6">
           <DollarSign className="w-6 h-6 text-primary-500" />
-          <h2 className="text-2xl font-semibold">Income</h2>
+          <h2 className="text-2xl font-semibold">收入</h2>
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={() => setRecordsOpen(true)}

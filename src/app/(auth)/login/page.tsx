@@ -9,9 +9,9 @@ import AuthScaffold from "../AuthScaffold";
 
 const HERO_TITLE = (
   <>
-    Still using the Lesson Card?
+    還在用紙本課程卡嗎？
     <br />
-    Throw it right away!
+    現在就把它丟掉吧！
   </>
 );
 
@@ -65,14 +65,14 @@ function LoginForm() {
   return (
     <AuthScaffold heroTitle={HERO_TITLE}>
       <div className="w-full">
-        <h2 className="text-[28px] font-semibold mb-4 text-center">Login</h2>
+        <h2 className="text-[28px] font-semibold mb-4 text-center">登入</h2>
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-3">
             <Mail className="w-6 h-6 text-neutral-500" />
             <div className="relative w-full">
               <input
                 type="email"
-                placeholder="Email"
+                placeholder="電子郵件"
                 className={`w-full border-b-2 ${
                   error && errorField === "email"
                     ? "border-danger-500"
@@ -93,7 +93,7 @@ function LoginForm() {
             <div className="relative w-full">
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="Password"
+                placeholder="密碼"
                 className={`w-full border-b-2 ${
                   error && errorField === "password"
                     ? "border-danger-500"
@@ -137,12 +137,12 @@ function LoginForm() {
           disabled={loading}
           onClick={handleSubmit}
         >
-          Login
+          登入
         </button>
         <p className="text-sm text-neutral-500 text-center mt-3">
-          Don&apos;t have an account?{" "}
+          還沒有帳號嗎？{" "}
           <Link href="/signup" className="text-primary-500 underline">
-            Sign up
+            註冊
           </Link>
         </p>
       </div>
@@ -154,7 +154,7 @@ function LoginPageFallback() {
   return (
     <AuthScaffold heroTitle={HERO_TITLE}>
       <div className="w-full">
-        <h2 className="text-[28px] font-semibold mb-4 text-center">Login</h2>
+        <h2 className="text-[28px] font-semibold mb-4 text-center">登入</h2>
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-3">
             <Mail className="w-6 h-6 text-neutral-500" />

@@ -73,11 +73,11 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], selfCheckInStudentIds =
         student.name.toLowerCase().includes(filterKeyword.toLowerCase())
     ) || [];
 
-  if (!period) return <div>Loading...</div>;
+  if (!period) return <div>載入中…</div>;
 
   return (
     <>
-      <SubNavbar title={"Check Period"} backUrl={`/lessons/${id}`} />
+      <SubNavbar title={"點名"} backUrl={`/lessons/${id}`} />
       <div className="px-5 pt-5 pb-40 md:pb-28 flex flex-col gap-5">
         <div>
           <PeriodInfo period={period} />

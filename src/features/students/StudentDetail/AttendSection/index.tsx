@@ -5,11 +5,11 @@ import AttendanceByDate from "./AttendanceByDate";
 
 const TABS = [
   {
-    label: "Group by Lesson",
+    label: "依課程",
     value: "group_by_lesson",
   },
   {
-    label: "Group by Date",
+    label: "依日期",
     value: "group_by_date",
   },
 ];
@@ -22,7 +22,7 @@ const AttendSection = ({ student }: { student: StudentWithDetail }) => {
     return (
       <div className="flex flex-col gap-3">
         <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
-          No class attend yet Q_Q
+          還沒有上課紀錄 Q_Q
         </div>
       </div>
     );

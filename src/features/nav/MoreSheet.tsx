@@ -70,7 +70,7 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 py-3.5 text-neutral-600 active:bg-neutral-100"
             >
               <LogOut className="h-5 w-5" />
-              <span className="text-sm font-medium">Logout</span>
+              <span className="text-sm font-medium">登出</span>
             </button>
 
             <p className="mt-5 text-center text-xs font-medium tracking-wide text-neutral-300">

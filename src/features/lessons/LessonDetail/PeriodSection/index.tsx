@@ -92,7 +92,7 @@ const PeriodRow = ({
 
   const handleCheck = () => {
     if (new Date() < new Date(startTime)) {
-      const confirmed = confirm("Are you sure you want to check this period?");
+      const confirmed = confirm("這個時段還沒開始，確定要點名嗎？");
       if (!confirmed) {
         return;
       }
@@ -102,7 +102,7 @@ const PeriodRow = ({
 
   const handleDelete = () => {
     setMenuOpen(false);
-    const confirmed = confirm("Are you sure you want to delete this period?");
+    const confirmed = confirm("確定要刪除這個時段嗎？");
     if (confirmed) {
       deletePeriod({ id: period.lessonId, periodId: period.id });
     }
@@ -115,10 +115,10 @@ const PeriodRow = ({
   };
 
   const handleReset = () => {
-    const confirmed = confirm("Are you sure you want to reset this period?");
+    const confirmed = confirm("確定要重置這個時段的點名嗎？");
     if (confirmed) {
       resetAttendance({ id: period.lessonId, periodId: period.id });
-      toast.success("Reset attendance successfully");
+      toast.success("已重置點名紀錄");
     }
     setMenuOpen(false);
   };
@@ -211,7 +211,7 @@ const PeriodRow = ({
               onClick={handleDelete}
             >
               <Trash className="w-4 h-4" />
-              Delete
+              刪除
             </button>
           )}
           {isLastAttend && (
@@ -221,14 +221,14 @@ const PeriodRow = ({
                 onClick={handleUpdate}
               >
                 <PencilLine className="w-4 h-4" />
-                Update
+                修改
               </button>
               <button
                 className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
                 onClick={handleReset}
               >
                 <Eraser className="w-4 h-4" />
-                Reset
+                重置
               </button>
             </>
           )}

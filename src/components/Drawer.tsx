@@ -25,7 +25,7 @@ const Drawer = ({
   children,
   isLoading,
   disabled = false,
-  submitText = "CREATE",
+  submitText = "建立",
   variant = "primary",
 }: BottomSheetDialogProps) => {
   const isDesktop = useIsDesktop();

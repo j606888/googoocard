@@ -56,7 +56,7 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
               <div className="flex flex-wrap items-center gap-1.5">
                 {card.isPracticeCard && (
                   <span className="text-xs text-warning-900 bg-warning-100 border border-warning-300 rounded-full px-2.5 py-0.5 w-fit">
-                    Practice Card
+                    複習卡
                   </span>
                 )}
                 {card.danceType ? (
@@ -84,19 +84,19 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
         </div>
 
         <div className="grid grid-cols-3 gap-2 mb-3">
-          <Stat label="Price" value={`$${card.price.toLocaleString()}`} />
-          <Stat label="Sessions" value={`${card.sessions}`} />
-          <Stat label="Per session" value={`$${perSession.toLocaleString()}`} highlight />
+          <Stat label="金額" value={`$${card.price.toLocaleString()}`} />
+          <Stat label="堂數" value={`${card.sessions}`} />
+          <Stat label="單堂" value={`$${perSession.toLocaleString()}`} highlight />
         </div>
 
         <div className="border-t border-neutral-100 pt-3 flex items-center justify-between text-xs text-neutral-500">
           <span className="flex items-center gap-1">
             <Users className="w-3.5 h-3.5" />
-            {card.activeHolders} active
+            {card.activeHolders} 人持有
           </span>
-          <span>{card.purchasedCount} purchased</span>
+          <span>{card.purchasedCount} 人購買</span>
           <span className="font-medium text-neutral-700">
-            ${card.totalRevenue.toLocaleString()} revenue
+            ${card.totalRevenue.toLocaleString()} 收入
           </span>
         </div>
       </div>
@@ -122,7 +122,7 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
             onClick={handleEdit}
           >
             <Pencil className="w-4.5 h-4.5" />
-            <span>Edit</span>
+            <span>編輯</span>
           </button>
         )}
         {card.purchasedCount === 0 && (
@@ -131,7 +131,7 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
             onClick={handleDelete}
           >
             <Trash className="w-4.5 h-4.5" />
-            <span>Delete</span>
+            <span>刪除</span>
           </button>
         )}
         {isDisabled ? (
@@ -140,7 +140,7 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
             onClick={handleEnable}
           >
             <Lightbulb className="w-4.5 h-4.5" />
-            <span>Enable</span>
+            <span>啟用</span>
           </button>
         ) : (
           <button
@@ -151,16 +151,16 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
             }}
           >
             <Ban className="w-4.5 h-4.5" />
-            <span>Disable</span>
+            <span>停用</span>
           </button>
         )}
       </Menu>
 
       <ConfirmDialog
         open={confirmDisable}
-        title="Disable this card?"
-        message={`"${card.name}" will no longer be available for new purchases. Existing student cards are not affected.`}
-        confirmLabel="Disable"
+        title="停用這張卡片？"
+        message={`「${card.name}」之後無法再被購買，已發出的學生課卡不受影響。`}
+        confirmLabel="停用"
         onConfirm={handleExpire}
         onCancel={() => setConfirmDisable(false)}
         isLoading={isExpiring}

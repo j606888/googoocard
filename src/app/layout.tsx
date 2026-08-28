@@ -12,7 +12,7 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: "Googoocard",
-  description: "Make your lesson easier",
+  description: "讓你的教學更輕鬆",
 };
 
 export const viewport: Viewport = {
@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="zh-Hant-TW">
       <body className={`${poppins.variable} font-sans antialiased`}>
         <Providers>
           {children}

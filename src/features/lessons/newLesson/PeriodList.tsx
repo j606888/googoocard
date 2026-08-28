@@ -1,5 +1,6 @@
 import { Snail, Trash } from "lucide-react";
 import { format } from "date-fns";
+import { zhTW } from "date-fns/locale";
 
 const PeriodList = ({
   periods,
@@ -24,9 +25,9 @@ const PeriodList = ({
               <Snail className="w-6 h-6 text-white" />
             </div>
             <div className="text-center">
-              <h4 className="text-lg font-semibold">No periods yet</h4>
+              <h4 className="text-lg font-semibold">還沒有時段</h4>
               <p className="text-sm text-neutral-500">
-                Add at least one period to continue
+                至少新增一個時段才能繼續
               </p>
             </div>
           </div>
@@ -43,8 +44,8 @@ const PeriodCard = ({
   period: { startTime: string; endTime: string };
   onDelete: () => void;
 }) => {
-  const date = format(new Date(period.startTime), "MMM d");
-  const weekday = format(new Date(period.startTime), "EEE");
+  const date = format(new Date(period.startTime), "M月d日");
+  const weekday = format(new Date(period.startTime), "EEE", { locale: zhTW });
 
   return (
     <div className="flex items-center gap-2">

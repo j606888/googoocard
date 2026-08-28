@@ -19,7 +19,7 @@ const MemberCard = ({
         <div className="flex items-center gap-2">
           <span className='text-xl font-semibold'>{membership.user.name}</span>
           {isMe && (
-            <span className='text-xs text-primary-900 font-medium px-2 rounded-full bg-primary-100'>You</span>
+            <span className='text-xs text-primary-900 font-medium px-2 rounded-full bg-primary-100'>你</span>
           )}
         </div>
         <p className='text-sm text-neutral-500'>{membership.user.email}</p>
@@ -28,7 +28,7 @@ const MemberCard = ({
         {isOwner && (
           <div className="flex items-center gap-1 px-2 py-1 bg-warning-100 rounded-full">
             <Crown className="w-4 h-4 text-warning-900" />
-            <span className="text-xs text-warning-900 font-medium">Owner</span>
+            <span className="text-xs text-warning-900 font-medium">擁有者</span>
           </div>
         )}
         {onRemove && !isMe && !isOwner && (

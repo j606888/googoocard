@@ -44,7 +44,7 @@ const TeacherCard = ({
       >
         <button className='flex gap-2 items-center p-3 hover:bg-neutral-100 rounded-sm' onClick={handleDelete}>
           <Trash className="w-4.5 h-4.5" />
-          <span>Delete</span>
+          <span>刪除</span>
         </button>
       </Menu>
     </div>

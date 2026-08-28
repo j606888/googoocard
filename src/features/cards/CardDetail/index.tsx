@@ -30,7 +30,7 @@ const CardDetail = ({ detail }: { detail: CardDetailType }) => {
         className="hidden lg:inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-700 mb-4"
       >
         <ArrowLeftIcon className="w-4 h-4" />
-        Cards
+        課卡
       </Link>
 
       {/* Title + badges */}
@@ -38,7 +38,7 @@ const CardDetail = ({ detail }: { detail: CardDetailType }) => {
         <h2 className="text-2xl font-semibold">{card.name}</h2>
         {card.isPracticeCard && (
           <span className="text-xs text-warning-900 bg-warning-100 border border-warning-300 rounded-full px-2.5 py-0.5">
-            Practice Card
+            複習卡
           </span>
         )}
         {card.danceType && (

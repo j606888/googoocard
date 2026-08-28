@@ -18,11 +18,11 @@ const Basic = ({
       <StatTiles overview={student.overview} />
       {!isPublic && (
         <CopyLinkRow
-          label="Shared URL"
-          caption="Student's public profile page"
+          label="分享連結"
+          caption="學生的公開頁面"
           value={`${window.location.origin}/public-students/${student.randomKey}`}
           tone="primary"
-          copyButtonLabel="Copy link"
+          copyButtonLabel="複製連結"
         />
       )}
       {!isPublic && <StudentLineBind studentId={student.id} />}

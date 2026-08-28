@@ -107,18 +107,18 @@ const BuyCard = ({ student }: { student: Student }) => {
         }}
       >
         <MdAddCard className="w-4.5 h-4.5 text-white" />
-        <span className="text-sm font-medium text-white">Buy Card</span>
+        <span className="text-sm font-medium text-white">買卡</span>
       </div>
       <Drawer
-        title={`Buy Card for ${student.name}`}
+        title={`為 ${student.name} 買卡`}
         open={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         onSubmit={handleSubmit}
-        submitText="Buy"
+        submitText="購買"
         isLoading={isLoading}
       >
         <div className="mb-4">
-          <p>Choose card</p>
+          <p>選擇課卡</p>
           <div className="flex flex-wrap gap-2 pt-2">
             {cardOptions?.map((card) => (
               <div
@@ -144,7 +144,7 @@ const BuyCard = ({ student }: { student: Student }) => {
             <div className="flex gap-3">
               <div className="mb-4">
                 <InputField
-                  label="Card Price"
+                  label="課卡金額"
                   value={cardPrice}
                   onChange={handleCardPriceChange}
                   type="number"
@@ -152,7 +152,7 @@ const BuyCard = ({ student }: { student: Student }) => {
               </div>
               <div className="mb-4">
                 <InputField
-                  label="Card sessions"
+                  label="課卡堂數"
                   value={cardSessions}
                   onChange={handleCardSessionsChange}
                   type="number"

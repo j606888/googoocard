@@ -11,7 +11,7 @@ import InputField from "@/components/InputField";
 import AvatarPicker, { PRESET_AVATARS } from "@/features/students/AvatarPicker";
 
 const validationErrors = {
-  name: "Must provide a name",
+  name: "請輸入姓名",
 };
 
 const validateForm = (data: { name: string }) => {
@@ -79,7 +79,7 @@ const CreateStudent = ({
       setSelectedAvatarUrl(PRESET_AVATARS[0]);
       setIsDrawerOpen(false);
     } catch (error) {
-      setErrors({ name: "Student already exists" });
+      setErrors({ name: "學生已存在" });
       console.error(error);
     }
   };
@@ -99,10 +99,10 @@ const CreateStudent = ({
         onClick={() => setIsDrawerOpen(true)}
       >
         <Plus className="w-4 h-4" />
-        <span className="font-medium">Create</span>
+        <span className="font-medium">新增</span>
       </button>
       <Drawer
-        title="Create Student"
+        title="新增學生"
         open={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         onSubmit={handleSubmit}
@@ -111,9 +111,9 @@ const CreateStudent = ({
       >
         <form className="mb-6 flex flex-col gap-4">
           <InputField
-            label="Student Name"
+            label="學生姓名"
             value={newStudentName}
-            placeholder="E.g. Dingding"
+            placeholder="例：丁丁"
             onChange={(e) => {
               setNewStudentName(e.target.value);
               setErrors({});
@@ -121,7 +121,7 @@ const CreateStudent = ({
             error={errors.name}
           />
           <InputField
-            label="Note(Student doesn't see this)"
+            label="備註（學生看不到）"
             value={note}
             placeholder="E.g. 紅色頭髮那個"
             onChange={(e) => setNote(e.target.value)}
@@ -133,7 +133,7 @@ const CreateStudent = ({
           />
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-neutral-700">Tags</label>
+            <label className="text-sm font-medium text-neutral-700">標籤</label>
             {pendingTags.length > 0 && (
               <div className="flex flex-wrap gap-2 min-h-8">
                 {pendingTags.map((tag) => (
@@ -179,7 +179,7 @@ const CreateStudent = ({
                     addPendingTag(tagInput);
                   }
                 }}
-                placeholder="New tag name..."
+                placeholder="新標籤名稱…"
                 className="flex-1 text-sm border border-neutral-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
               />
               <button
@@ -188,7 +188,7 @@ const CreateStudent = ({
                 disabled={!tagInput.trim()}
                 className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white disabled:opacity-40 hover:bg-primary-600 transition-colors"
               >
-                Add
+                新增
               </button>
             </div>
           </div>

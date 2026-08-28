@@ -28,14 +28,14 @@ const TeacherList = () => {
     <>
       <div className="px-5 py-3">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-2xl font-semibold">Teachers</h2>
+          <h2 className="text-2xl font-semibold">老師</h2>
           <button className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600">
             <Plus className="w-4 h-4" />
             <span
               className="font-medium"
               onClick={() => setNewTeacherModalOpen(true)}
             >
-              New Teacher
+              新增老師
             </span>
           </button>
         </div>
@@ -45,9 +45,9 @@ const TeacherList = () => {
               <GraduationCap className="w-6 h-6 text-white" />
             </div>
             <div className="flex flex-col items-center justify-center">
-              <p className="text-lg font-bold">No teachers found</p>
+              <p className="text-lg font-bold">還沒有老師</p>
               <p className="text-sm text-neutral-500 text-center">
-                We can&apos;t have a lesson without teacher, right?
+                沒有老師就沒辦法上課囉。
               </p>
             </div>
           </div>
@@ -59,16 +59,16 @@ const TeacherList = () => {
         </div>
       </div>
       <Drawer
-        title="Create Teacher"
+        title="新增老師"
         open={newTeacherModalOpen}
         onClose={() => setNewTeacherModalOpen(false)}
         onSubmit={handleCreateTeacher}
       >
         <form>
-          <label className="block mb-2 font-medium">Name</label>
+          <label className="block mb-2 font-medium">姓名</label>
           <input
             className="w-full mb-4 p-2 rounded bg-neutral-100"
-            placeholder="Enter name"
+            placeholder="輸入姓名"
             value={newTeacherName}
             onChange={(e) => setNewTeacherName(e.target.value)}
           />
