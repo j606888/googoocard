@@ -20,7 +20,7 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 import { GET as studentGet, PATCH as studentPatch } from "@/app/api/students/[id]/route";
-import { GET as studentListGet } from "@/app/api/students/route";
+import { GET as studentListGet, POST as studentPost } from "@/app/api/students/route";
 import { GET as studentCardsGet } from "@/app/api/students/[id]/student-cards/route";
 import { GET as studentEventsGet } from "@/app/api/students/[id]/events/route";
 import { GET as lessonGet } from "@/app/api/lessons/[id]/route";
@@ -387,6 +387,45 @@ describe("API 授權邊界", () => {
       );
       const body = await res.json();
       expect(findSecrets(body)).toEqual([]);
+    });
+
+    // 寫入路徑也會回傳學生資料，之前只掃了 GET，PATCH 就漏在這裡。
+    it("PATCH /api/students/[id] 不含權杖欄位", async () => {
+      const mine = await createClassroom();
+      auth.classroomId = mine.id;
+      const student = await createStudent(mine.id);
+      await prisma.student.update({
+        where: { id: student.id },
+        data: { lineBindKey: "bindme", lineUserId: "U123" },
+      });
+
+      const res = await studentPatch(
+        jsonRequest("PATCH", { name: "Renamed", note: "n", avatarUrl: "a.png" }),
+        routeParams({ id: String(student.id) })
+      );
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(findSecrets(body)).toEqual([]);
+      expect(body.name).toBe("Renamed");
+      // 老師端仍需要分享連結的 randomKey。
+      expect(body).toHaveProperty("randomKey");
+    });
+
+    it("POST /api/students 不含權杖欄位", async () => {
+      const mine = await createClassroom();
+      auth.classroomId = mine.id;
+
+      const res = await studentPost(
+        jsonRequest("POST", { name: "New Student", avatarUrl: "a.png", note: null })
+      );
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      // 新建的學生還沒有 lineBindKey，所以這裡守的是「不要 spread 整列」的形狀，
+      // 而不是某個當下真的有值的欄位。
+      expect(Object.keys(body)).not.toContain("lineBindKey");
+      expect(Object.keys(body)).not.toContain("lineUserId");
+      expect(findSecrets(body)).toEqual([]);
+      expect(body).toHaveProperty("randomKey");
     });
   });
 });

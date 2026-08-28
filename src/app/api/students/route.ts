@@ -108,5 +108,8 @@ export async function POST(request: Request) {
 
   const student = await createStudent(classroomId!, { name, avatarUrl, note });
 
-  return NextResponse.json(student);
+  // A brand-new student has no `lineBindKey` / `lineUserId` yet, so the raw row
+  // leaks nothing today — but it's the same shape that leaked before, and it
+  // would start leaking silently the day either is set at creation.
+  return NextResponse.json(toStudentPayload(student, { includeShareKey: true }));
 }

@@ -65,7 +65,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return student;
     });
 
-    return NextResponse.json(student);
+    // Never `NextResponse.json(student)` — the raw row carries `lineBindKey`
+    // and `lineUserId`. The share key stays, since this is the teacher-facing
+    // detail page and its `Student` type declares `randomKey`.
+    return NextResponse.json(toStudentPayload(student, { includeShareKey: true }));
   } catch (error) {
     console.error("Failed to update student", error);
     return NextResponse.json({ error: "更新失敗，請稍後再試" }, { status: 500 });
