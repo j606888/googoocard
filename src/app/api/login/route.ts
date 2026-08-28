@@ -30,7 +30,12 @@ export async function POST(request: Request) {
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
-        memberships: true,
+        // Archived classrooms must not be a landing spot — every consumer of
+        // this list treats it as "classrooms this user can enter".
+        memberships: {
+          where: { classroom: { deletedAt: null } },
+          orderBy: { id: "asc" },
+        },
       }
     });
 
@@ -59,7 +64,17 @@ export async function POST(request: Request) {
       classroomId = await joinClassroom({ userId: user.id, token });
     }
 
-    const currentClassroomId = classroomId || user.currentClassroomId || user.memberships[0].classroomId;
+    // `memberships[0]` used to be read unguarded, so a user with no live
+    // membership (signed up via an invite-less flow, or just left their last
+    // classroom) got a 500 instead of being sent to onboarding.
+    const stillAMember = user.memberships.some(
+      (m) => m.classroomId === user.currentClassroomId
+    );
+    const currentClassroomId =
+      classroomId ??
+      (stillAMember ? user.currentClassroomId : null) ??
+      user.memberships[0]?.classroomId ??
+      undefined;
 
     await createAuthSession(user.id, currentClassroomId);
 

@@ -65,6 +65,10 @@ model Classroom {
   name              String
   checkinKey        String?       @unique // 現場 QR 自助簽到金鑰（貼在教室看板）；可重新產生以作廢舊看板
   nextStudentNumber Int           @default(1) // 下一個要指派的學生編號（每教室各自從 1 開始，遞增不回收）
+  // 軟刪除／封存。非 null = 教室已收掉：從切換選單消失、無法再切進去、
+  // 成員的舊 JWT 也進不來（apiRoute 每次請求會重查 membership 並 join 這個條件）。
+  // 資料完整保留以便救回；真正清資料留給日後的 purge script。
+  deletedAt         DateTime?
   memberships       Membership[]
   cards             Card[]
   students          Student[]

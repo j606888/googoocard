@@ -12,13 +12,42 @@ export async function resetDb() {
   );
 }
 
-export async function createClassroom() {
-  const user = await prisma.user.create({
-    data: { email: "owner@test.local", name: "Owner", password: "x" },
+/**
+ * A classroom plus its owner's `Membership`.
+ *
+ * The membership is not optional set dressing: `apiRoute` re-reads it on every
+ * request (see src/lib/apiRoute.ts), so a classroom without one answers 401 to
+ * everything. Tests mock `decodeAuthToken` to return `userId: 1`, and `resetDb`
+ * truncates with RESTART IDENTITY, so the first user created is id 1 — pass
+ * `ownerUserId` when a test needs the membership to belong to someone else.
+ */
+export async function createClassroom({
+  name = "Test Classroom",
+  email = "owner@test.local",
+  ownerUserId,
+}: { name?: string; email?: string; ownerUserId?: number } = {}) {
+  const user = ownerUserId
+    ? await prisma.user.findUniqueOrThrow({ where: { id: ownerUserId } })
+    : await prisma.user.create({
+        data: { email, name: "Owner", password: "x" },
+      });
+  const classroom = await prisma.classroom.create({
+    data: { ownerId: user.id, name },
   });
-  return prisma.classroom.create({
-    data: { ownerId: user.id, name: "Test Classroom" },
+  await prisma.membership.create({
+    data: { userId: user.id, classroomId: classroom.id, role: "owner" },
   });
+  return classroom;
+}
+
+/** A second User in an existing classroom — an 助教 unless told otherwise. */
+export async function createMember(
+  classroomId: number,
+  { email = "member@test.local", name = "Member", role = "assistant" } = {}
+) {
+  const user = await prisma.user.create({ data: { email, name, password: "x" } });
+  await prisma.membership.create({ data: { userId: user.id, classroomId, role } });
+  return user;
 }
 
 export async function createStudent(

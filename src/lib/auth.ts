@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
+import prisma from "@/lib/prisma";
+import { NO_CLASSROOM } from "@/lib/authz";
 
 const TWO_WEEKS_SECONDS = 14 * 24 * 60 * 60;
 const JWT_SECRET = process.env.JWT_SECRET!;
@@ -56,16 +58,48 @@ export const readAuthSession = async (): Promise<AuthSession> => {
   }
 };
 
-export const decodeAuthToken = async () => {
+/**
+ * The session every API handler runs on: verifies the cookie, slides its expiry,
+ * and — crucially — re-checks that `classroomId` from the JWT is still a
+ * classroom this user belongs to.
+ *
+ * That last step is what makes leaving a classroom, being removed from one, and
+ * archiving one take effect on the very next request. The token itself lives 30
+ * days and cannot be revoked, so without re-reading `Membership` a removed
+ * assistant would keep full access for a month. It costs one indexed lookup
+ * (`@@unique([userId, classroomId])`) per request.
+ *
+ * When there is no live classroom, `classroomId` comes back as `NO_CLASSROOM`
+ * rather than `undefined` — see the constant for why that distinction matters.
+ */
+export const decodeAuthToken = async (): Promise<{
+  userId?: number;
+  classroomId: number;
+  role?: string;
+}> => {
   const { userId, classroomId, exp } = await readAuthSession();
 
   if (!userId) {
-    return {};
+    return { classroomId: NO_CLASSROOM };
   }
 
   const nowSeconds = Math.floor(Date.now() / 1000);
   if (exp! - nowSeconds < TWO_WEEKS_SECONDS) {
     await createAuthSession(userId, classroomId);
   }
-  return { userId, classroomId };
+
+  if (!classroomId) {
+    return { userId, classroomId: NO_CLASSROOM };
+  }
+
+  const membership = await prisma.membership.findFirst({
+    where: { userId, classroomId, classroom: { deletedAt: null } },
+    select: { role: true },
+  });
+
+  if (!membership) {
+    return { userId, classroomId: NO_CLASSROOM };
+  }
+
+  return { userId, classroomId, role: membership.role };
 };

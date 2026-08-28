@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { ZodError, type ZodType } from "zod";
 import { decodeAuthToken } from "@/lib/auth";
 import { ApiError } from "@/lib/apiError";
+import { NO_CLASSROOM } from "@/lib/authz";
 
 /**
  * Wrapper for Next.js route handlers that makes the two things we kept getting
@@ -11,8 +12,9 @@ import { ApiError } from "@/lib/apiError";
  *  1. **Auth is required unless you opt out.** `src/middleware.ts` treats all of
  *     `/api` as public, so before this every handler had to remember to call
  *     `decodeAuthToken()` itself — and eight of them didn't (see docs/roadmap.md
- *     P0). Here a handler only runs once there's a session with a classroom;
- *     public endpoints must say `publicApiRoute` out loud.
+ *     P0). Here a handler only runs once there's a session with a classroom the
+ *     caller is still a member of; public endpoints must say `publicApiRoute`
+ *     out loud.
  *  2. **Unexpected throws become a clean 500.** Only 7 of 64 routes had a
  *     try/catch, so anything unforeseen surfaced as a framework error page.
  *
@@ -26,6 +28,8 @@ type Handler<P, R> = (ctx: {
   params: P;
   userId: number;
   classroomId: number;
+  /** The caller's role in `classroomId` — "owner" or "assistant". */
+  role: string;
 }) => Promise<R>;
 
 type PublicHandler<P, R> = (ctx: { request: Request; params: P }) => Promise<R>;
@@ -93,18 +97,34 @@ function errorResponse(error: unknown, label: string): Response {
   );
 }
 
-/** Authenticated route: 401 unless the caller has a session with a classroom. */
+/**
+ * Authenticated, classroom-scoped route: 401 unless the caller has a session
+ * with a classroom they are still a member of.
+ *
+ * `decodeAuthToken` does the membership re-check and reports `NO_CLASSROOM`
+ * when it fails, so leaving, being removed, and archiving all take effect on
+ * the next request. It also hands back the caller's `role`, so owner-only
+ * routes need no query of their own.
+ *
+ * Not for the routes a user must reach *without* a live classroom — listing
+ * their classrooms, creating one, switching between them. Those guard
+ * themselves, or a stale JWT would lock them out of their own recovery path.
+ */
 export function apiRoute<P = Record<string, never>, R = unknown>(handler: Handler<P, R>) {
   return async (request: Request, segment: NextSegment<P>): Promise<Response> => {
     const label = `${request.method} ${new URL(request.url).pathname}`;
     try {
-      const { userId, classroomId } = await decodeAuthToken();
-      if (!userId || !classroomId) {
+      const { userId, classroomId, role } = await decodeAuthToken();
+      if (!userId || !classroomId || classroomId === NO_CLASSROOM) {
         return NextResponse.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
       }
 
       const params = ((await segment?.params) ?? {}) as P;
-      return await toResponse(await handler({ request, params, userId, classroomId }));
+      return await toResponse(
+        // `role` is only absent when the membership lookup was skipped, which
+        // the guard above already ruled out.
+        await handler({ request, params, userId, classroomId, role: role ?? "assistant" })
+      );
     } catch (error) {
       return errorResponse(error, label);
     }

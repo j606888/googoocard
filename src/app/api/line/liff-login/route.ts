@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
   const user = await prisma.user.findUnique({
     where: { lineUserId: verified.userId },
-    include: { memberships: true },
+    include: { memberships: { where: { classroom: { deletedAt: null } }, orderBy: { id: "asc" } } },
   });
   if (!user) {
     // Bound on LINE side but no matching account — needs to bind first.
@@ -23,7 +23,11 @@ export async function POST(request: Request) {
   }
 
   const classroomId =
-    user.currentClassroomId ?? user.memberships[0]?.classroomId ?? undefined;
+    (user.memberships.some((m) => m.classroomId === user.currentClassroomId)
+      ? user.currentClassroomId
+      : null) ??
+    user.memberships[0]?.classroomId ??
+    undefined;
   await createAuthSession(user.id, classroomId);
 
   return NextResponse.json({ ok: true });

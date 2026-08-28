@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import {
   resetDb,
   createClassroom,
+  createMember,
   createStudent,
   createCard,
   createLesson,
@@ -231,8 +232,10 @@ describe("POST .../confirm-payment", () => {
     });
 
     // 老闆（user 2）確認收款
-    const owner = await prisma.user.create({
-      data: { email: "boss@test.local", name: "Boss", password: "x" },
+    const owner = await createMember(classroomId, {
+      email: "boss@test.local",
+      name: "Boss",
+      role: "owner",
     });
     auth.userId = owner.id;
 

@@ -13,8 +13,11 @@ export async function GET() {
     where: {
       userId: userId,
     },
-    include: {
-      classroom: true,
+    // Never `include: { classroom: true }` — that ships `Classroom.checkinKey`,
+    // the walk-in QR self check-in key for the whole classroom (docs/roadmap.md
+    // P0-2). Whitelist the fields instead.
+    select: {
+      classroom: { select: { id: true, name: true } },
     },
   });
   const classrooms = memberships.map((membership) => membership.classroom);

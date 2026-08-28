@@ -1,26 +1,17 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { apiRoute } from "@/lib/apiRoute";
 
-import { decodeAuthToken } from "@/lib/auth";
-export async function GET() {
-  const { classroomId } = await decodeAuthToken()
+export const GET = apiRoute(async ({ classroomId }) => {
   const memberships = await prisma.membership.findMany({
-    where: {
-      classroomId,
+    where: { classroomId },
+    orderBy: { id: "asc" },
+    select: {
+      id: true,
+      role: true,
+      userId: true,
+      user: { select: { id: true, name: true, email: true } },
     },
-    include: {
-      user: true,
-    },
-  })
+  });
 
-  const result = memberships.map((membership) => ({
-    ...membership,
-    user: {
-      id: membership.user.id,
-      name: membership.user.name,
-      email: membership.user.email,
-    },
-  }));
-
-  return NextResponse.json(result)
-}
+  return memberships;
+});
