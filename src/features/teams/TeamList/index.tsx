@@ -3,11 +3,14 @@ import { useState } from "react";
 import Drawer from "@/components/Drawer";
 import MemberCard from "./MemberCard";
 import InvitationCard from "./InvitationCard";
+import DangerZone from "./DangerZone";
 import {
+  Membership,
   useCreateInviteTokenMutation,
   useDeleteInviteTokenMutation,
   useGetInviteTokensQuery,
   useGetMembershipsQuery,
+  useRemoveMembershipMutation,
 } from "@/store/slices/memberships";
 import { useGetMeQuery } from "@/store/slices/me";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
@@ -24,7 +27,20 @@ const TeamList = () => {
   const [deleteInviteToken] = useDeleteInviteTokenMutation();
   const { data: inviteTokens, isLoading: isInviteTokensLoading } = useGetInviteTokensQuery();
   const { data: me } = useGetMeQuery();
+  const [removeMembership] = useRemoveMembershipMutation();
   const [maxUses, setMaxUses] = useState(1);
+
+  // The viewer's own role in the current classroom — the same list already
+  // powers the "You" pill, so no extra request is needed for it.
+  const myRole = memberships?.find((membership) => membership.userId === me?.id)?.role;
+  const isOwner = myRole === "owner";
+
+  const handleRemoveMember = async (membership: Membership) => {
+    if (!confirm(`Remove ${membership.user.name} from this classroom?`)) {
+      return;
+    }
+    await removeMembership({ id: membership.id });
+  };
 
   const handleCreateInviteToken = async () => {
     await createInviteToken({ maxUses });
@@ -78,8 +94,10 @@ const TeamList = () => {
                 key={membership.id}
                 membership={membership}
                 isMe={membership.userId === me?.id}
+                onRemove={isOwner ? handleRemoveMember : undefined}
               />
             ))}
+            {myRole && <DangerZone role={myRole} />}
           </div>
         )}
         {activeTab === "Invitations" && (

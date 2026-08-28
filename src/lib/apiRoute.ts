@@ -34,6 +34,13 @@ type Handler<P, R> = (ctx: {
 
 type PublicHandler<P, R> = (ctx: { request: Request; params: P }) => Promise<R>;
 
+/** Authenticated but classroom-less: the caller only has to be a logged-in user. */
+type SessionHandler<P, R> = (ctx: {
+  request: Request;
+  params: P;
+  userId: number;
+}) => Promise<R>;
+
 // Next's generated route typing requires the second argument to be present and
 // non-optional, so it's declared required here even though a non-dynamic route
 // resolves `params` to `{}`. The runtime still guards with `?.` in case Next
@@ -106,9 +113,9 @@ function errorResponse(error: unknown, label: string): Response {
  * the next request. It also hands back the caller's `role`, so owner-only
  * routes need no query of their own.
  *
- * Not for the routes a user must reach *without* a live classroom — listing
- * their classrooms, creating one, switching between them. Those guard
- * themselves, or a stale JWT would lock them out of their own recovery path.
+ * Routes a user must reach *without* a live classroom — listing/creating
+ * classrooms, switching, leaving, deleting — use `sessionRoute` instead;
+ * otherwise a stale JWT would lock them out of their own recovery path.
  */
 export function apiRoute<P = Record<string, never>, R = unknown>(handler: Handler<P, R>) {
   return async (request: Request, segment: NextSegment<P>): Promise<Response> => {
@@ -125,6 +132,36 @@ export function apiRoute<P = Record<string, never>, R = unknown>(handler: Handle
         // the guard above already ruled out.
         await handler({ request, params, userId, classroomId, role: role ?? "assistant" })
       );
+    } catch (error) {
+      return errorResponse(error, label);
+    }
+  };
+}
+
+/**
+ * Authenticated but **not** classroom-scoped: 401 unless someone is logged in,
+ * and that's all it asks.
+ *
+ * For the handful of routes that manage classroom membership itself, where
+ * requiring a live current classroom would be circular — you must be able to
+ * list your classrooms, create your first one, switch away from an archived
+ * one, or leave one, with a JWT whose `classroomId` is stale or absent.
+ * Handlers here take a caller-supplied classroom id and guard it themselves
+ * with `requireMembership` / `requireOwner` from `@/lib/authz`.
+ */
+export function sessionRoute<P = Record<string, never>, R = unknown>(
+  handler: SessionHandler<P, R>
+) {
+  return async (request: Request, segment: NextSegment<P>): Promise<Response> => {
+    const label = `${request.method} ${new URL(request.url).pathname}`;
+    try {
+      const { userId } = await decodeAuthToken();
+      if (!userId) {
+        return NextResponse.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+      }
+
+      const params = ((await segment?.params) ?? {}) as P;
+      return await toResponse(await handler({ request, params, userId }));
     } catch (error) {
       return errorResponse(error, label);
     }

@@ -1,63 +1,60 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { createAuthSession, decodeAuthToken } from '@/lib/auth';
+import prisma from "@/lib/prisma";
+import { createAuthSession, decodeAuthToken } from "@/lib/auth";
+import { sessionRoute, parseBody } from "@/lib/apiRoute";
+import { createClassroomSchema } from "@/lib/schemas";
 
-export async function GET() {
-  const { userId, classroomId } = await decodeAuthToken();
-
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+/**
+ * List the caller's classrooms. `sessionRoute`, not `apiRoute`: this is the
+ * recovery path after leaving or deleting a classroom, so it has to answer even
+ * when the JWT's `classroomId` no longer resolves to a live membership.
+ */
+export const GET = sessionRoute(async ({ userId }) => {
+  const { classroomId } = await decodeAuthToken();
 
   const memberships = await prisma.membership.findMany({
-    where: {
-      userId: userId,
-    },
+    where: { userId, classroom: { deletedAt: null } },
+    orderBy: { id: "asc" },
     // Never `include: { classroom: true }` — that ships `Classroom.checkinKey`,
     // the walk-in QR self check-in key for the whole classroom (docs/roadmap.md
     // P0-2). Whitelist the fields instead.
     select: {
+      role: true,
       classroom: { select: { id: true, name: true } },
     },
   });
-  const classrooms = memberships.map((membership) => membership.classroom);
 
-  return NextResponse.json({ classrooms, currentClassroomId: classroomId });
-}
+  const classrooms = memberships.map(({ classroom, role }) => ({ ...classroom, role }));
 
-export async function POST(request: Request) {
-  try {
-    const { name } = await request.json();
-    const { userId } = await decodeAuthToken();
+  // The JWT can outlive the membership it names. Only report a current
+  // classroom that's actually still in the list, so the UI falls through to
+  // onboarding instead of rendering a classroom the user can no longer enter.
+  const currentClassroomId = classrooms.some((c) => c.id === classroomId)
+    ? classroomId!
+    : null;
 
-    const classroom = await prisma.$transaction(async (tx) => {
-      const classroom = await tx.classroom.create({
-        data: {
-          name,
-          ownerId: userId!,
-        },
-      });
+  return { classrooms, currentClassroomId };
+});
 
-      await tx.membership.create({
-        data: {
-          userId: userId!,
-          classroomId: classroom.id,
-          role: 'owner',
-        },
-      });
+export const POST = sessionRoute(async ({ request, userId }) => {
+  const { name } = await parseBody(request, createClassroomSchema);
 
-      return classroom;
+  const classroom = await prisma.$transaction(async (tx) => {
+    const created = await tx.classroom.create({
+      data: { name, ownerId: userId },
     });
 
-    await createAuthSession(userId!, classroom.id);
-    await prisma.user.update({
-      where: { id: userId! },
-      data: { currentClassroomId: classroom.id },
+    await tx.membership.create({
+      data: { userId, classroomId: created.id, role: "owner" },
     });
 
-    return NextResponse.json({ success: true, classroom });
-  } catch (err) {
-    console.error('[CREATE_CLASSROOM_ERROR]', err);
-    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
-  }
-}
+    return created;
+  });
+
+  await createAuthSession(userId, classroom.id);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { currentClassroomId: classroom.id },
+  });
+
+  return { success: true, classroom: { id: classroom.id, name: classroom.name } };
+});

@@ -1,6 +1,7 @@
 # Googoocard 體檢與藍圖
 
 > 建立：2026-08-23（全專案掃描：21.8k 行 / 64 個 API route / 23 支整合測試）
+> 更新：2026-08-28（P0b 教室生命週期）
 > 前提：**production 上已有多間教室在使用**——跨教室資料邊界是實質風險，不是理論問題。
 
 ## 這份文件是什麼
@@ -138,6 +139,77 @@ Upstash Redis 即可，呼叫端不用改。
 
 ---
 
+# P0b — 教室生命週期修補 ✅ 2026-08-28
+
+> 做「離開／刪除教室」時連帶修掉的三個既有缺陷。`npm run lint` / `build` / `test`（301 項）全綠。
+> 新增回歸測試 `tests/api/classroom-lifecycle.test.ts`（16 項）。
+
+## [x] P0b-1 未驗證請求會回傳全資料庫 ⚠️ 曾是最嚴重 ✅ 2026-08-28
+
+`decodeAuthToken()` 在沒有 cookie 時回 `{}`，於是 `classroomId` 是 `undefined`。
+而 **Prisma 把 `where: { classroomId: undefined }` 解讀成「這個條件不存在」**——
+不是「找不到」，是**不過濾**。
+
+實測（`GET /api/students`，完全沒有 cookie）：**200，回傳全部教室的所有學生**。
+`/api` 在 middleware 是公開的，所以這條路徑不需要任何憑證。
+當時 64 個 route 有 55 個還沒包 `apiRoute`（P1-3 的遷移還沒做完），全部共用這個形狀。
+
+**已做**：`decodeAuthToken()` 改回 `NO_CLASSROOM`（`= -1`，定義在 `src/lib/authz.ts`）
+而不是 `undefined`。`-1` 永遠對不到任何列（Postgres identity 從 1 開始），
+所以那 55 個手寫 route 全部一次 fail closed，不必逐一遷移。
+包了 `apiRoute` 的路由則明確回 401。
+
+> **教訓**：`where: { classroomId }` 這種簡寫在 Prisma 裡不是安全預設。
+> scoping 欄位若可能是 undefined，就是**放大**查詢而不是收斂。
+
+## [x] P0b-2 JWT 無法撤銷 → 退出／踢人／封存都不會生效 ✅ 2026-08-28
+
+JWT 內嵌 `classroomId`、活 30 天、無法撤銷，而所有 handler 都只信它。
+沒有這一層，「移除成員」只是把一列資料刪掉——對方手上的 cookie 還能用一個月。
+
+**已做**：`decodeAuthToken()` 每次都重讀 `Membership` 並 join
+`classroom.deletedAt IS NULL`（`@@unique([userId, classroomId])` 的索引查詢），
+查不到就回 `NO_CLASSROOM`。同一次查詢也把 `role` 帶回來，
+所以 owner-only 路由不需要額外查詢。
+
+**代價（刻意接受）**：每個請求多一次索引查詢。以這個規模（每間教室個位數成員）
+換掉「權限撤銷最多延遲 30 天」是划算的。
+
+## [x] P0b-3 三個新發現的外洩／缺口 ✅ 2026-08-28
+
+- **`GET /api/classrooms`** 用 `include: { classroom: true }` → 把 `Classroom.checkinKey`
+  吐給前端。P0-2 掃過一輪 `classroom: true`，這支漏掉了。
+  **已修**：改成 `select: { id, name }`，並回傳呼叫者的 `role`。
+- **`GET /api/memberships`** 完全沒有 auth guard。`classroomId` 是 undefined 時
+  `where: { classroomId: undefined }` → 回傳**全站所有教室的成員**（含 email）。
+  **已修**：包 `apiRoute`。
+- **`POST /api/login`** 的 `user.memberships[0].classroomId` 沒有 optional chaining
+  → 使用者成員數為 0 時登入回 500。加上「離開最後一間教室」後變成可觸發。
+  **已修**：`?.` + 只在仍是有效 membership 時採用 `currentClassroomId`。
+
+## [x] P0b-4 離開／封存教室／移除成員 ✅ 2026-08-28
+
+原本 `/api/classrooms` 只有 GET 與 POST，`[id]/route.ts` 不存在——教室建了就出不去。
+
+**已做**（完整規則見 `architecture.md` 的「教室生命週期與角色」）：
+
+| 端點 | 說明 |
+|---|---|
+| `DELETE /api/classrooms/[id]` | owner 封存教室（軟刪除 `deletedAt` + 清 `checkinKey`） |
+| `GET /api/classrooms/[id]` | owner 讀教室 + 學生／課程／課卡數，給刪除確認框顯示衝擊範圍 |
+| `POST /api/classrooms/[id]/leave` | assistant 退出；owner 403 `OWNER_CANNOT_LEAVE` |
+| `DELETE /api/memberships/[id]` | owner 移除 assistant；不能移除自己或另一位 owner |
+
+新增第三個 wrapper **`sessionRoute`**（只要求登入、不要求教室）。
+管理教室本身的路由必須用它：使用者的 JWT 指向一間已經沒了的教室時，
+`apiRoute` 會 401，等於把人鎖死在沒有救回路徑的狀態。
+
+**軟刪除而非真刪**：domain 沒有任何 `onDelete: Cascade`，真刪要依序拆約 16 張表，
+且會銷毀營收與出席歷史。`Membership` 刻意保留，救回教室時團隊會一起回來。
+**沒有 purge job**——可與 P2-1 的 cron 基礎設施一起做。
+
+---
+
 # P1 — 技術地基 ✅ 全數完成 2026-08-24
 
 > `npm run lint` → `npm run build` → `npx tsc --noEmit` → `npm test`（283 項）全綠。
@@ -222,6 +294,8 @@ handler 收到的是單一 context 物件而非 Next 的 `(request, segment)`：
 > 這個錯誤只有在 `.next/types` 存在時才會被 tsc 抓到——**所以 CI 必須先 build 再 typecheck**。
 
 **尚未遷移的 route 仍是舊寫法**，兩種風格會並存一陣子。動到哪個就順手遷移哪個。
+（2026-08-28 清點：64 支裡還有 55 支沒包。P0b-1 已讓它們 fail closed，
+但只有包了 `apiRoute` 的才會回乾淨的 401 並拿得到 `role`。）
 
 ## [x] P1-4 CI ✅ 2026-08-24
 
@@ -288,6 +362,10 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
   可與 P2-1 的 cron 共用排程基礎設施。
 - **營收 CSV 匯出** — 老師報稅／對帳用。
 - **課程模板／重複排課** — 現在每期課要手動建所有 periods。
+- **轉移教室所有權** — 目前 owner 唯一的出場方式是封存教室。要能把 `Membership.role`
+  與 `Classroom.ownerId` 一起交棒，之後 owner 才能像 assistant 一樣退出。
+- **已封存教室的還原 UI** — 現在只能手動 `UPDATE "Classroom" SET "deletedAt" = NULL`。
+  一併考慮 purge job（真正清資料），可共用 P2-1 的 cron 基礎設施。
 
 ---
 

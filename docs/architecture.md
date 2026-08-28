@@ -1,6 +1,6 @@
 # Googoocard 系統架構
 
-> 最後更新：2026-06-11（複習卡資格系統重構後）
+> 最後更新：2026-08-28（教室生命週期：離開／封存／移除成員）
 
 Next.js 15 App Router 全端應用，管理舞蹈教室的課程、學生、點名與課卡收入。
 Mobile-first（UI 最大寬度 480px），桌面版另有 `lg:` breakpoint 佈局。
@@ -189,9 +189,56 @@ Classroom（頂層容器，所有實體都屬於一間教室）
   `refreshNeedsRenewalTag`）：學生最新一張多堂卡用完 → 自動加 tag，買新卡/退堂 → 自動移除。
   觸發點：點名、買卡、退卡。**不要手動增刪這個 tag 的邏輯**，改 `computeNeedsRenewal` 即可。
 
+## 教室生命週期與角色
+
+`Membership.role` 只有兩個值：`"owner"`（建立教室的人）與 `"assistant"`（用邀請連結加入的人）。
+
+| 角色 | 可做 | 不可做 |
+|---|---|---|
+| `owner` | 封存教室、移除 assistant | 退出教室 |
+| `assistant` | 退出教室 | 封存教室、移除任何人 |
+
+owner 不能「退出」——教室會變成沒有 owner，而 `Classroom.ownerId` 仍指向一個非成員。
+要走就封存教室。**轉移所有權目前沒有實作**（見 `docs/roadmap.md` backlog）。
+
+**刪除教室 = 軟刪除（封存）**，`Classroom.deletedAt`。整個 domain 沒有任何
+`onDelete: Cascade`，真刪要依序拆掉約 16 張表，還會連營收與出席歷史一起銷毀。
+`DELETE /api/classrooms/[id]` 因此只做三件事：
+
+1. 設 `deletedAt`
+2. 把 `checkinKey` 設 null——牆上那張 QR 看板當場失效
+3. 清空所有指向它的 `User.currentClassroomId`
+
+`Membership` **刻意保留**，這樣救回教室時整個團隊會一起回來。
+救回目前只能手動 `UPDATE "Classroom" SET "deletedAt" = NULL WHERE id = ...`
+（`checkinKey` 會在下次有人開 `/checkin-qr` 時重新產生）。
+
+UI 在 `/teams` 頁 Members 分頁底部的「Danger zone」（`src/features/teams/TeamList/DangerZone.tsx`），
+依角色顯示「Leave classroom」或「Delete classroom」；刪除要求輸入教室名稱才能送出。
+
+### 為什麼每個請求都要重查 membership
+
+JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話，「退出」「移除成員」
+「封存教室」三件事都會延遲最多一個月才生效。所以 **`decodeAuthToken()` 每次都會重讀
+`Membership`**（`@@unique([userId, classroomId])` 的索引查詢），並 join
+`classroom.deletedAt IS NULL`。這三個動作因此在下一個請求就生效。
+
+查不到 membership 時回的是 `NO_CLASSROOM`（`= -1`，定義在 `src/lib/authz.ts`），
+**不是 `undefined`**。這點很重要：多數 handler 仍然直接寫 `where: { classroomId }`，
+而 Prisma 把 `undefined` 解讀成「這個條件不存在」——也就是**放大**成全資料庫查詢而不是收斂成空集合。
+`-1` 永遠對不到任何列（Postgres identity 從 1 開始），所以那些 handler 會 fail closed。
+
 ## API 慣例
 
-- 所有 handler 用 `decodeAuthToken()` 取 `{ userId, classroomId }`（JWT cookie）。
+- 所有 handler 用 `decodeAuthToken()` 取 `{ userId, classroomId, role }`（JWT cookie）。
+- 三個 route wrapper（`src/lib/apiRoute.ts`）：
+
+  | Wrapper | 要求 | 用在哪 |
+  |---|---|---|
+  | `apiRoute` | 登入 **且** 是 `classroomId` 的現任成員，否則 401；handler 拿得到 `role` | 一般 classroom-scoped 路由 |
+  | `sessionRoute` | 只要求登入，不要求教室 | 管理教室本身的路由（列出／建立／切換／退出／封存）——這些必須在 JWT 的教室已失效時仍然打得通，否則使用者會被鎖死沒有救回路徑 |
+  | `publicApiRoute` | 不要求登入 | login/signup、LINE webhook、LIFF、現場 QR 簽到 |
+
 - Middleware（`src/middleware.ts`）保護除 `/`、`/login`、`/signup`、`/invitations`、`/liff`、`/checkin/`、`/api`、`/public-students` 外的所有路由。
   （`/api` 整段在 middleware 層是公開的，真正的把關在各 handler。）
 - 前端資料層全部走 RTK Query（`src/store/slices/`，一 resource 一檔），

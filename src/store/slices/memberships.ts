@@ -48,6 +48,13 @@ const membershipsApi = api.injectEndpoints({
       }),
       invalidatesTags: TAG_TYPES,
     }),
+    removeMembership: builder.mutation<void, { id: number }>({
+      query: ({ id }) => ({
+        url: `memberships/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Membership"],
+    }),
     deleteInviteToken: builder.mutation<void, { id: number }>({
       query: ({ id }) => ({
         url: `invite-tokens/${id}`,
@@ -66,6 +73,7 @@ const membershipsApi = api.injectEndpoints({
 
 export const {
   useGetMembershipsQuery,
+  useRemoveMembershipMutation,
   useCreateInviteTokenMutation,
   useGetInviteTokensQuery,
   useDeleteInviteTokenMutation,

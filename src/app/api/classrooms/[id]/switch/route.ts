@@ -1,33 +1,20 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { createAuthSession, decodeAuthToken } from "@/lib/auth";
+import { createAuthSession } from "@/lib/auth";
+import { sessionRoute, parseId } from "@/lib/apiRoute";
+import { requireMembership } from "@/lib/authz";
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const { userId } = await decodeAuthToken();
+type Params = { id: string };
 
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = sessionRoute<Params>(async ({ params, userId }) => {
+  const classroomId = parseId(params.id, "classroom id");
+  // 404s for a classroom the caller isn't in, and for an archived one.
+  await requireMembership(userId, classroomId);
 
-  const membership = await prisma.membership.findFirst({
-    where: {
-      userId: userId,
-      classroomId: parseInt(id),
-    },
-  });
-
-  if (!membership) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
   await prisma.user.update({
     where: { id: userId },
-    data: { currentClassroomId: parseInt(id) },
+    data: { currentClassroomId: classroomId },
   });
-  await createAuthSession(userId, parseInt(id));
+  await createAuthSession(userId, classroomId);
 
-  return NextResponse.json({ message: "Classroom switched successfully" });
-}
+  return { message: "Classroom switched successfully" };
+});

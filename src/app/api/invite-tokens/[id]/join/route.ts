@@ -1,58 +1,59 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { createAuthSession, decodeAuthToken } from "@/lib/auth";
+import { createAuthSession } from "@/lib/auth";
+import { sessionRoute } from "@/lib/apiRoute";
+import { ApiError, badRequest } from "@/lib/apiError";
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id: token } = await params;
-  const { userId, classroomId } = await decodeAuthToken();
+// `[id]` is the token string here, not a numeric id.
+type Params = { id: string };
+
+export const POST = sessionRoute<Params>(async ({ params, userId }) => {
+  const token = params.id;
 
   const inviteToken = await prisma.inviteToken.findUnique({
     where: { token },
+    include: { classroom: { select: { id: true, deletedAt: true } } },
   });
 
-  if (!userId) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  // Same 404 for a token that never existed and one whose classroom has been
+  // archived — a stale invite link shouldn't confirm the classroom ever existed.
+  if (!inviteToken || inviteToken.classroom.deletedAt) {
+    throw new ApiError(404, "INVITE_TOKEN_NOT_FOUND", "Invite token not found");
   }
 
-  if (!inviteToken) {
-    return NextResponse.json(
-      { error: "Invite token not found" },
-      { status: 404 }
-    );
-  }
-
-  if (inviteToken.classroomId === classroomId) {
-    return NextResponse.json(
-      { error: "You are already a member of this classroom" },
-      { status: 400 }
-    );
+  // Was keyed off the JWT's current classroom, so re-using a link for a
+  // classroom you're already in — but not currently switched to — hit the
+  // `@@unique([userId, classroomId])` constraint and answered 500.
+  const existing = await prisma.membership.findFirst({
+    where: { userId, classroomId: inviteToken.classroomId },
+  });
+  if (existing) {
+    throw badRequest("ALREADY_A_MEMBER", "You are already a member of this classroom");
   }
 
   if (inviteToken.maxUses && inviteToken.uses >= inviteToken.maxUses) {
-    return NextResponse.json(
-      { error: "Invite token has reached the maximum number of uses" },
-      { status: 400 }
+    throw badRequest(
+      "INVITE_TOKEN_EXHAUSTED",
+      "Invite token has reached the maximum number of uses"
     );
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.inviteToken.update({
+  await prisma.$transaction([
+    prisma.inviteToken.update({
       where: { id: inviteToken.id },
-      data: { uses: inviteToken.uses + 1 },
-    });
+      data: { uses: { increment: 1 } },
+    }),
+    prisma.membership.create({
+      data: { userId, classroomId: inviteToken.classroomId, role: "assistant" },
+    }),
+    // Joining also switches you into the classroom; this used to update only
+    // the JWT, leaving `User.currentClassroomId` behind.
+    prisma.user.update({
+      where: { id: userId },
+      data: { currentClassroomId: inviteToken.classroomId },
+    }),
+  ]);
 
-    await tx.membership.create({
-      data: {
-        userId: userId,
-        classroomId: inviteToken.classroomId,
-        role: "assistant",
-      },
-    });
-    await createAuthSession(userId, inviteToken.classroomId);
-  });
+  await createAuthSession(userId, inviteToken.classroomId);
 
-  return NextResponse.json({ success: true });
-}
+  return { success: true };
+});

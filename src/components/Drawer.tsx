@@ -13,6 +13,8 @@ interface BottomSheetDialogProps {
   isLoading?: boolean;
   submitText?: string;
   disabled?: boolean;
+  /** "danger" paints the submit button red — for destructive confirmations. */
+  variant?: "primary" | "danger";
 }
 
 const Drawer = ({
@@ -24,8 +26,14 @@ const Drawer = ({
   isLoading,
   disabled = false,
   submitText = "CREATE",
+  variant = "primary",
 }: BottomSheetDialogProps) => {
   const isDesktop = useIsDesktop();
+
+  const submitColor =
+    variant === "danger"
+      ? "bg-danger-500 hover:bg-danger-600"
+      : "bg-primary-500 hover:bg-primary-600";
 
   const panelClassName = isDesktop
     ? "relative z-50 rounded-2xl bg-white shadow-xl p-4 min-h-70 flex flex-col w-full max-w-[480px] max-h-[85vh]"
@@ -61,7 +69,7 @@ const Drawer = ({
         <button
           disabled={disabled}
           type="submit"
-          className={`mt-auto w-full bg-primary-500 text-white font-semibold py-2 rounded flex items-center justify-center gap-2 cursor-pointer hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`mt-auto w-full ${submitColor} text-white font-semibold py-2 rounded flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
             isLoading ? "opacity-50 cursor-not-allowed" : ""
           }`}
           onClick={() => !isLoading && onSubmit()}

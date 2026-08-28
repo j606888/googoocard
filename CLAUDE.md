@@ -77,7 +77,7 @@ tests/                    # Vitest integration tests (factories, test-DB setup) 
 
 ### Data Flow
 
-1. **Auth**: Middleware (`src/middleware.ts`) guards all routes except `/`, `/login`, `/signup`, `/invitations`, `/api`, `/public-students`. Token decoded in every API handler via `decodeAuthToken()`.
+1. **Auth**: Middleware (`src/middleware.ts`) guards all routes except `/`, `/login`, `/signup`, `/invitations`, `/api`, `/public-students`. Token decoded in every API handler via `decodeAuthToken()`, which also re-verifies membership and returns `NO_CLASSROOM` (`-1`, from `src/lib/authz.ts`) when there is none — **never `undefined`**, because Prisma reads `where: { classroomId: undefined }` as "no filter" and would return every classroom's rows. Route wrappers in `src/lib/apiRoute.ts`: `apiRoute` (needs a live membership), `sessionRoute` (login only — for the classroom-management routes), `publicApiRoute` (no auth).
 
 2. **API**: Each resource has REST endpoints under `src/app/api/`. Handlers call Prisma directly or delegate to `src/service/`.
 
@@ -87,7 +87,8 @@ tests/                    # Vitest integration tests (factories, test-DB setup) 
 
 ### Core Domain Model
 
-- `Classroom` — top-level container; all other entities belong to one. Users track a `currentClassroomId` for multi-classroom context switching.
+- `Classroom` — top-level container; all other entities belong to one. Users track a `currentClassroomId` for multi-classroom context switching. Deletion is a **soft delete** (`deletedAt`) — see "教室生命週期與角色" in `docs/architecture.md`.
+- `Membership` — (user, classroom, role) join. `role` is `"owner"` (creator) or `"assistant"` (joined via invite). Owners delete a classroom; assistants leave it. `decodeAuthToken()` re-reads this row on **every** request, so removals take effect immediately — don't bypass it.
 - `Student` — enrolled in a classroom
 - `StudentDanceQualification` — (studentId, danceType) rows marking which dance types a student has completed Lv1 in, i.e. may buy/use practice cards for. APIs expose it as a flat `danceQualifications: DanceType[]`.
 - `Card` — configurable card type (session limit, price). `isPracticeCard` + `danceType` define a practice (複習) card; `danceType` is required for practice cards, `null` on general cards (and on legacy practice cards, which fall back to the lesson's danceType).

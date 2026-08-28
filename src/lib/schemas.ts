@@ -71,3 +71,8 @@ export const cardSchema = z
 export const takeAttendanceSchema = z.object({
   studentIds: z.array(positiveInt),
 });
+
+/** Classroom name. Trimmed so a whitespace-only name can't slip through. */
+export const createClassroomSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+});
