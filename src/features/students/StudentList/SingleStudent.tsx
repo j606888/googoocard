@@ -2,7 +2,7 @@
 
 import { Student } from "@/store/slices/students";
 import { useRouter } from "next/navigation";
-import { CreditCard, AlertCircle, Tag } from "lucide-react";
+import { CreditCard } from "lucide-react";
 import DanceBadge from "./DanceBadge";
 
 const tagStyle = (name: string) =>
@@ -10,10 +10,13 @@ const tagStyle = (name: string) =>
     ? "text-danger-700 bg-danger-100"
     : "text-neutral-600 bg-neutral-100";
 
+/**
+ * 手機版列表的一列。桌面版走分割檢視（見 StudentsSplitView / RosterRow），
+ * 不再共用這個元件。
+ */
 const SingleStudent = ({ student }: { student: Student }) => {
   const router = useRouter();
   const studentCards = student.studentCards;
-  const activeCards = studentCards.filter((c) => c.remainingSessions > 0);
   const firstTag = student.tags?.[0];
 
   return (
@@ -21,8 +24,7 @@ const SingleStudent = ({ student }: { student: Student }) => {
       className="cursor-pointer"
       onClick={() => router.push(`/students/${student.id}`)}
     >
-      {/* Mobile layout */}
-      <div className="lg:hidden flex items-center gap-3 py-2 px-1 border-b border-neutral-100 hover:bg-neutral-50">
+      <div className="flex items-center gap-3 py-2 px-1 border-b border-neutral-100 hover:bg-neutral-50">
         <img
           src={student.avatarUrl}
           className="w-10 h-10 rounded-full object-cover shrink-0"
@@ -47,51 +49,6 @@ const SingleStudent = ({ student }: { student: Student }) => {
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0 mr-1">
-            {student.danceQualifications?.map((type) => (
-              <DanceBadge key={type} type={type} />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Desktop layout */}
-      <div className="hidden lg:flex lg:items-center lg:gap-4 lg:border lg:border-neutral-200 lg:rounded-2xl lg:p-4 lg:hover:shadow-md lg:hover:border-neutral-300 lg:transition-all lg:duration-200 lg:bg-white">
-        <img
-          src={student.avatarUrl}
-          className="w-11 h-11 rounded-full object-cover ring-2 ring-neutral-100 shrink-0"
-        />
-        <div className="flex flex-1 items-center justify-between min-w-0">
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-mono text-neutral-400 shrink-0">#{student.number}</span>
-              <h2 className="font-semibold text-neutral-900">{student.name}</h2>
-              {student.note && (
-                <p className="text-sm text-neutral-500 truncate max-w-40">({student.note})</p>
-              )}
-              {firstTag && (
-                <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${tagStyle(firstTag.name)}`}>
-                  {firstTag.name === "Needs Renewal" ? (
-                    <AlertCircle className="w-3 h-3" />
-                  ) : (
-                    <Tag className="w-3 h-3" />
-                  )}
-                  {firstTag.name}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-3 mt-1 text-xs text-neutral-400">
-              <span className="flex items-center gap-1">
-                <CreditCard className="w-3.5 h-3.5" />
-                {studentCards.length} cards
-              </span>
-              {activeCards.length > 0 && (
-                <span className="text-primary-600 font-medium">
-                  {activeCards.length} active
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
             {student.danceQualifications?.map((type) => (
               <DanceBadge key={type} type={type} />
             ))}

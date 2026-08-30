@@ -5,7 +5,12 @@ import { DanceType } from "@prisma/client";
 import { danceTypeLabel } from "@/lib/danceTypes";
 import { StudentTag } from "@/store/slices/students";
 import { LessonSummary } from "@/store/slices/lessons";
-import { EMPTY_FILTERS, StudentFilters, tagLabel } from "./studentFilters";
+import {
+  EMPTY_FILTERS,
+  RECENT_ATTEND_DAYS,
+  StudentFilters,
+  tagLabel,
+} from "./studentFilters";
 
 interface FilterDrawerProps {
   open: boolean;
@@ -86,6 +91,16 @@ const FilterDrawer = ({
           label="上課中"
           active={filters.inActiveLesson}
           onClick={() => onChange({ ...filters, inActiveLesson: !filters.inActiveLesson })}
+        />
+        <Chip
+          label={`近 ${RECENT_ATTEND_DAYS} 天有上課`}
+          active={filters.recentlyAttended}
+          onClick={() => onChange({ ...filters, recentlyAttended: !filters.recentlyAttended })}
+        />
+        <Chip
+          label="無有效課卡"
+          active={filters.noActiveCard}
+          onClick={() => onChange({ ...filters, noActiveCard: !filters.noActiveCard })}
         />
       </Section>
 

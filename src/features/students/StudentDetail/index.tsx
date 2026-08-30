@@ -16,13 +16,20 @@ const tabs = [
 const StudentDetail = ({
   student,
   isPublic = false,
+  layout = "auto",
 }: {
   student: StudentWithDetail;
   isPublic?: boolean;
+  /**
+   * "auto" —— 手機分頁、桌面三欄（獨立的學生頁）。
+   * "tabs" —— 一律用分頁版面，給分割檢視的右欄用（寬度約 800px，放不下三欄）。
+   */
+  layout?: "auto" | "tabs";
 }) => {
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState(tab || "cards");
+  const isPane = layout === "tabs";
 
   const handleTabClick = (tab: string) => {
     setActiveTab(tab);
@@ -30,6 +37,48 @@ const StudentDetail = ({
     url.searchParams.set("tab", tab);
     window.history.replaceState({}, "", url);
   };
+
+  const section = (
+    <>
+      {activeTab === "basic" && <BasicSection student={student} isPublic={isPublic} />}
+      {activeTab === "cards" && (
+        <CardsSection
+          key={student.id}
+          student={student}
+          studentCards={student.studentCards}
+          isPublic={isPublic}
+          columns={isPane ? 2 : 1}
+        />
+      )}
+      {activeTab === "attend" && <AttendSection key={student.id} student={student} />}
+    </>
+  );
+
+  // 分割檢視右欄：分頁切換靠左（不撐滿），內容區自己捲動
+  if (isPane) {
+    return (
+      <div className="flex flex-col h-full min-h-0">
+        <div className="flex-none px-6 py-3 border-b border-neutral-200">
+          <div className="inline-flex gap-1 bg-neutral-100 rounded-xl p-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.query}
+                className={`px-5 py-1.5 text-sm rounded-lg cursor-pointer transition-colors ${
+                  activeTab === tab.query
+                    ? "bg-white text-neutral-900 font-semibold shadow-sm"
+                    : "text-neutral-500 hover:text-neutral-700"
+                }`}
+                onClick={() => handleTabClick(tab.query)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">{section}</div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -50,17 +99,7 @@ const StudentDetail = ({
             </button>
           ))}
         </div>
-        {activeTab === "basic" && (
-          <BasicSection student={student} isPublic={isPublic} />
-        )}
-        {activeTab === "cards" && (
-          <CardsSection
-            student={student}
-            studentCards={student.studentCards}
-            isPublic={isPublic}
-          />
-        )}
-        {activeTab === "attend" && <AttendSection student={student} />}
+        {section}
       </div>
 
       {/* Desktop: 3-panel layout */}

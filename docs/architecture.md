@@ -260,7 +260,20 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 ## 返回來源（StudentDetail back navigation）
 
-進入 `/students/[id]` 的連結可帶 `?from=<encodedPath>`，返回鍵讀它決定回哪：有就回該頁、沒有（或非站內路徑）fallback 回 `/students`。helper 在 `src/lib/studentNav.ts`（`studentDetailHref` / `resolveBackHref`）。目前 check-success（`StudentInfo`）與課程詳情（`AttendanceMatrix`、`StudentSection`）的入口會帶來源；學生列表不帶、維持回 `/students`。未來其他頁面要此行為，連結改用 `studentDetailHref(id, pathname)` 即可。
+進入 `/students/[id]` 的連結可帶 `?from=<encodedPath>`，返回鍵讀它決定回哪：有就回該頁、沒有（或非站內路徑）fallback 回 `/students`。helper 在 `src/lib/studentNav.ts`（`studentDetailHref` / `resolveBackHref`）。目前 check-success（`StudentInfo`）與課程詳情（`AttendanceMatrix`、`StudentSection`）的入口會帶來源；桌面分割檢視的「完整頁面」帶 `/students?sel=<id>`，返回時會回到同一位學生被選取的名單；手機列表不帶、維持回 `/students`。未來其他頁面要此行為，連結改用 `studentDetailHref(id, pathname)` 即可。
+
+## 學生頁版面（手機列表 vs 桌面分割檢視）
+
+`/students` 依寬度掛載**其中一棵樹**（`useIsWide()`，≥1024px）——不是用 CSS 藏，因為兩棵都掛的話兩份篩選狀態會各自寫 localStorage 而分岔。
+
+- **手機**：`StudentList`（`variant="page"`）維持原本的整頁列表，點學生跳 `/students/[id]`。
+- **桌面**：`StudentsSplitView` = 左欄 `StudentList variant="roster"`（密集列 `RosterRow`、搜尋、排序選單、快速條件、↑↓／`/`／Enter 鍵盤操作）+ 右欄 `StudentDetailHeader variant="pane"` 與 `StudentDetail layout="tabs"`。換人只換右欄，不換頁。
+
+選取狀態同時活在 React state 與網址：**state 是畫面的真相**（`router.replace` 只改 query 時不會讓這頁的 `useSearchParams()` 重繪，靠網址驅動會整個選不動），**網址是可分享的鏡射**，用 `history.replaceState` 寫回，所以連續看十位學生不會在瀏覽紀錄堆十筆。
+
+右欄只放日常會看的三個分頁；轉換卡片、停用、備註、確認付款等深度操作維持在原本的三欄完整頁面（右上角「完整頁面」）。
+
+排序有四種（`SORT_OPTIONS`，`studentFilters.ts`）：姓名／編號／剩餘堂數（少到多）／最近上課（久到近）。**一律在前端排**——列表沒有分頁，而且後兩者不是 DB 單一欄位排得出來的。`GET /api/students` 為此多回一個 `lastAttendAt`（巢狀 `take: 1` 取最近一筆已點名的出席，靠 `AttendanceRecord @@index([studentId])`）。
 
 ## 測試
 

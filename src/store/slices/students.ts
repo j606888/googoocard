@@ -22,6 +22,8 @@ export interface Student {
   isInActiveLesson: boolean;
   activeLessonIds: number[];
   danceQualifications: DanceType[];
+  /** 最近一次已點名的出席時間；從未上過課為 null。 */
+  lastAttendAt: string | null;
 }
 
 export interface Event {

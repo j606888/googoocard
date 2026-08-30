@@ -10,12 +10,17 @@ const CardsSection = ({
   student,
   studentCards,
   isPublic,
+  columns = 1,
 }: {
   student: StudentWithDetail;
   studentCards: StudentCardWithCard[];
   isPublic?: boolean;
+  /** 分割檢視右欄有 ~800px，課卡排兩欄比較不浪費空間 */
+  columns?: 1 | 2;
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>("all");
+  const cardListClass =
+    columns === 2 ? "grid grid-cols-2 gap-3 items-start" : "flex flex-col gap-3";
 
   const filterOptions = useMemo(() => {
     const cardNames = [...new Set(studentCards.map((card) => card.card.name))];
@@ -84,7 +89,7 @@ const CardsSection = ({
         ))}
       </div>
       {filteredActiveCards.length > 0 ? (
-        <div className="flex flex-col gap-3">
+        <div className={cardListClass}>
           {filteredActiveCards.map((studentCard) => (
             <StudentCard
               key={studentCard.id}
@@ -102,6 +107,7 @@ const CardsSection = ({
       {filteredHistoricalCards.length > 0 && (
         <div className="flex flex-col gap-3 pt-2 border-t border-neutral-200">
           <p className="text-sm font-medium text-neutral-600">已結束/已過期課卡</p>
+          <div className={cardListClass}>
           {filteredHistoricalCards.map((studentCard) => (
             <StudentCard
               key={studentCard.id}
@@ -110,6 +116,7 @@ const CardsSection = ({
               isPublic={isPublic}
             />
           ))}
+          </div>
         </div>
       )}
     </div>

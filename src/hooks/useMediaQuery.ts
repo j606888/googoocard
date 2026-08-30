@@ -25,3 +25,8 @@ export function useMediaQuery(query: string): boolean {
 export function useIsDesktop(): boolean {
   return useMediaQuery("(min-width: 768px)");
 }
+
+/** True on `lg` and wider (≥ 1024px) — the width the split student view needs. */
+export function useIsWide(): boolean {
+  return useMediaQuery("(min-width: 1024px)");
+}

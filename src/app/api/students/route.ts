@@ -55,6 +55,14 @@ export async function GET(request: Request) {
           lesson: { select: { id: true, status: true } },
         },
       },
+      // 只取「最近一次已點名的出席」一列（`AttendanceRecord` 有 @@index([studentId])），
+      // 桌面版名單要靠它排序／顯示「最近上課」。刻意不拉整份出席史。
+      attendanceRecords: {
+        where: { lessonPeriod: { attendanceTakenAt: { not: null } } },
+        orderBy: { lessonPeriod: { attendanceTakenAt: "desc" } },
+        take: 1,
+        select: { lessonPeriod: { select: { attendanceTakenAt: true } } },
+      },
     },
   });
 
@@ -78,6 +86,8 @@ export async function GET(request: Request) {
       danceQualifications: student.danceQualifications.map((q) => q.danceType),
       isInActiveLesson,
       activeLessonIds,
+      lastAttendAt:
+        student.attendanceRecords[0]?.lessonPeriod.attendanceTakenAt ?? null,
       studentCards: activeStudentCards.map((studentCard) => ({
         ...studentCard,
         card: studentCard.card,
