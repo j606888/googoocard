@@ -115,6 +115,9 @@ export const SORT_OPTIONS: {
   { value: "lastAttend", label: "最近上課（久到近）", short: "最近上課" },
 ];
 
+/** 沒有存過偏好時的排序。編號是老師心裡的固定順序，比姓名筆畫穩定。 */
+export const DEFAULT_SORT: StudentSort = "number";
+
 const isStudentSort = (value: string): value is StudentSort =>
   SORT_OPTIONS.some((option) => option.value === value);
 
@@ -150,9 +153,9 @@ const sortStorageKey = (classroomId: number) => `student-sort:${classroomId}`;
 export const loadStudentSort = (classroomId: number): StudentSort => {
   try {
     const raw = localStorage.getItem(sortStorageKey(classroomId));
-    return raw && isStudentSort(raw) ? raw : "name";
+    return raw && isStudentSort(raw) ? raw : DEFAULT_SORT;
   } catch {
-    return "name";
+    return DEFAULT_SORT;
   }
 };
 

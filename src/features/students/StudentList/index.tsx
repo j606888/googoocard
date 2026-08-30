@@ -17,6 +17,7 @@ import { ALL_DANCE_TYPES, danceTypeLabel } from "@/lib/danceTypes";
 import {
   StudentFilters,
   StudentSort,
+  DEFAULT_SORT,
   EMPTY_FILTERS,
   RECENT_ATTEND_DAYS,
   applyStudentFilters,
@@ -54,7 +55,7 @@ const StudentList = ({
   const isRoster = variant === "roster";
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<StudentFilters>(EMPTY_FILTERS);
-  const [sort, setSort] = useState<StudentSort>("name");
+  const [sort, setSort] = useState<StudentSort>(DEFAULT_SORT);
   const [hydratedClassroomId, setHydratedClassroomId] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
