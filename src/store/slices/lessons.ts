@@ -3,6 +3,7 @@ import { api } from "../api";
 import { Card } from "./cards";
 import { Teacher } from "./teachers";
 import { DanceType } from "@prisma/client";
+import type { CardStatus } from "@/domains/attendance/rosterInsights";
 
 export interface Lesson {
   id: number;
@@ -130,9 +131,17 @@ export interface LessonStudent {
   name: string;
   avatarUrl: string;
   attendances: {
+    /** Join key: two periods can share a startTime, so never match on that. */
+    periodId: number;
     startTime: string;
     attendanceStatus: "not_started" | "attended" | "absent";
   }[];
+  /**
+   * What this student can still spend **on this lesson** — not the same as the
+   * classroom-wide "Needs Renewal" tag. See src/domains/attendance/rosterInsights.ts.
+   */
+  cardStatus: CardStatus;
+  danceQualifications: DanceType[];
 }
 
 const lessonsApi = api.injectEndpoints({
@@ -251,7 +260,10 @@ const lessonsApi = api.injectEndpoints({
         url: `lessons/${id}/students`,
         method: "GET",
       }),
-      providesTags: ["Lesson"],
+      // "StudentCard" as well as "Lesson": the payload now carries cardStatus,
+      // so buying a card (which invalidates StudentCard) has to refetch the
+      // roster — otherwise the triage row that prompted the purchase stays put.
+      providesTags: ["Lesson", "StudentCard"],
     }),
     createPeriod: builder.mutation<
       void,

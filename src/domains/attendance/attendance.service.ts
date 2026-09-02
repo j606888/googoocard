@@ -3,6 +3,13 @@ import prisma from "@/lib/prisma";
 import { refreshLesson } from "@/service/lesson";
 import { refreshNeedsRenewalTags } from "@/service/studentTag";
 import { canUseCard, cardMatchesLesson, isQualified, requiredDanceTypeFor } from "@/domains/qualification";
+import {
+  fetchStudentsWithValidCards,
+  type StudentWithLessonCards,
+} from "@/service/lessonCards";
+
+// Local alias kept so the rest of this file reads unchanged.
+type StudentWithCards = StudentWithLessonCards;
 
 type LessonWithCards = Prisma.LessonGetPayload<{
   include: {
@@ -14,16 +21,6 @@ type LessonWithCards = Prisma.LessonGetPayload<{
   };
 }>;
 
-type StudentWithCards = Prisma.StudentGetPayload<{
-  include: {
-    studentCards: {
-      include: {
-        card: true;
-      };
-    };
-    danceQualifications: true;
-  };
-}>;
 
 async function validateAttendanceRequest(
   lessonId: number,
@@ -92,34 +89,6 @@ async function validateUpdateAttendanceRequest(
 }
 
 
-// `classroomId` is always the lesson's own. Without it a caller could pass
-// student ids from another classroom and have their cards deducted — the route
-// guards only prove the LESSON belongs to the caller, not the students.
-async function fetchStudentsWithValidCards(
-  studentIds: number[],
-  validCardIds: number[],
-  classroomId: number
-): Promise<StudentWithCards[]> {
-  return prisma.student.findMany({
-    where: {
-      id: { in: studentIds },
-      classroomId,
-    },
-    include: {
-      studentCards: {
-        where: {
-          cardId: { in: validCardIds },
-          remainingSessions: { gt: 0 },
-          expiredAt: null,
-        },
-        include: {
-          card: true,
-        },
-      },
-      danceQualifications: true,
-    },
-  });
-}
 
 function selectStudentCard(
   student: StudentWithCards,

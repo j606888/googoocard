@@ -5,6 +5,7 @@ import { ArrowLeft, Users, BookOpenText, GraduationCap, Settings } from "lucide-
 import { Lesson, LessonStudent } from "@/store/slices/lessons";
 import { DANCE_TYPE_META } from "@/lib/danceTypes";
 import UnpaidBell from "@/features/UnpaidBell";
+import { lessonAttendanceRate } from "@/domains/attendance/rosterInsights";
 
 const LessonDetailHeader = ({
   lesson,
@@ -20,12 +21,10 @@ const LessonDetailHeader = ({
   const style = DANCE_TYPE_META[lesson.danceType];
   const periods = lesson.periods || [];
   const attendedCount = periods.filter((p) => p.attendanceTakenAt).length;
-  const totalAttendances = students.reduce(
-    (sum, s) => sum + s.attendances.filter((a) => a.attendanceStatus === "attended").length,
-    0
-  );
-  const totalPossible = students.length * periods.length;
-  const attendanceRate = totalPossible > 0 ? Math.round((totalAttendances / totalPossible) * 100) : 0;
+  // Divides by periods that were actually taken, not by every scheduled one —
+  // the old maths counted future sessions as missed, so a lesson that had
+  // barely started reported a depressed rate.
+  const { rate: attendanceRate } = lessonAttendanceRate(students);
 
   const isFinished = periods.length > 0 && attendedCount === periods.length;
 
