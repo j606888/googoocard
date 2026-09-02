@@ -10,19 +10,19 @@ import {
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 import TabAndSort from "./TabAndSort";
 import LessonCard from "./LessonCard";
-import GroupCard, { GroupCardData } from "./GroupCard";
+import GroupRow, { GroupRowHeader, GroupRowData } from "./GroupRow";
 import Drawer from "@/components/Drawer";
 import { useEffect, useMemo, useState } from "react";
 import { DanceType } from "@prisma/client";
 
-// Folds a group's member LessonSummary rows into the card's status line —
+// Folds a group's member LessonSummary rows into the cells of one GroupRow —
 // pure client-side aggregation over fields the /lessons list already
 // computes per lesson (summarizeLessonPeriods), no extra backend rollup.
 const summarizeGroup = (
   id: number | "ungrouped",
   name: string,
   lessons: LessonSummary[]
-): GroupCardData => ({
+): GroupRowData => ({
   id,
   name,
   lessonCount: lessons.length,
@@ -81,7 +81,7 @@ const LessonsList = () => {
   // no dedicated group-summary endpoint needed. Assumes a classroom's
   // in-progress lesson count comfortably fits one unpaginated fetch (true
   // for a single dance studio's schedule).
-  const groupCards = useMemo<GroupCardData[]>(() => {
+  const groupRows = useMemo<GroupRowData[]>(() => {
     if (!useGroupedView || !lessons) return [];
     const byGroup = new Map<number, LessonSummary[]>();
     const ungrouped: LessonSummary[] = [];
@@ -94,11 +94,11 @@ const LessonsList = () => {
         else byGroup.set(lesson.groupId, [lesson]);
       }
     }
-    const cards = (groups ?? []).map((g) => summarizeGroup(g.id, g.name, byGroup.get(g.id) ?? []));
+    const rows = (groups ?? []).map((g) => summarizeGroup(g.id, g.name, byGroup.get(g.id) ?? []));
     if (ungrouped.length > 0) {
-      cards.push(summarizeGroup("ungrouped", "未分類", ungrouped));
+      rows.push(summarizeGroup("ungrouped", "未分類", ungrouped));
     }
-    return cards;
+    return rows;
   }, [useGroupedView, lessons, groups]);
 
   const handleCreateGroup = async () => {
@@ -109,7 +109,7 @@ const LessonsList = () => {
   };
 
   return (
-    <div className="px-5 py-3 lg:px-8 lg:py-6">
+    <div className="px-5 py-3 lg:px-8 lg:py-6 w-full max-w-[1240px] mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">課程</h2>
         <button
@@ -154,9 +154,13 @@ const LessonsList = () => {
         </div>
       ) : useGroupedView ? (
         <div className="flex flex-col gap-3">
-          {groupCards.map((group) => (
-            <GroupCard key={group.id} group={group} />
-          ))}
+          {/* One table on desktop, one stack of cards on phone — same rows. */}
+          <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden">
+            <GroupRowHeader />
+            {groupRows.map((group) => (
+              <GroupRow key={group.id} group={group} />
+            ))}
+          </div>
           <button
             onClick={() => setCreateGroupOpen(true)}
             className="flex items-center justify-center gap-2 border border-dashed border-neutral-300 rounded-2xl text-neutral-500 py-3 text-sm font-semibold cursor-pointer hover:border-neutral-400 hover:text-neutral-700"
