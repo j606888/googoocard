@@ -27,7 +27,10 @@ const AttendanceOverview = ({
   lesson: Lesson;
   students: LessonStudent[];
 }) => {
-  const periods = lesson.periods ?? [];
+  // Memoised for the identity, not the cost: the `?? []` would otherwise hand
+  // the two memos below a fresh array on every render of a lesson with no
+  // periods yet, so they would recompute for nothing.
+  const periods = useMemo(() => lesson.periods ?? [], [lesson.periods]);
 
   const headcounts = useMemo(
     () => headcountByPeriod(students, periods),
