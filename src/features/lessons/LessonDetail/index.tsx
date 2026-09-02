@@ -7,11 +7,10 @@ import {
 import SubNavbar from "@/features/SubNavbar";
 import { useState } from "react";
 import PeriodSection from "./PeriodSection";
-import StudentSection from "./StudentSection";
 import SettingSection from "./SettingSection";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 import LessonDetailHeader from "./LessonDetailHeader";
-import AttendanceMatrix from "./AttendanceMatrix";
+import AttendanceOverview from "./AttendanceOverview";
 
 export const TABS = [
   { name: "時段", query: "periods" },
@@ -49,7 +48,9 @@ const LessonDetail = () => {
               <PeriodSection lesson={lesson} periods={lesson?.periods || []} />
             )}
             {activeTab === "students" && (
-              <StudentSection students={students || []} />
+              <div className="px-5 pb-4">
+                <AttendanceOverview lesson={lesson} students={students || []} />
+              </div>
             )}
             {activeTab === "settings" && <SettingSection lesson={lesson} />}
           </div>
@@ -69,10 +70,7 @@ const LessonDetail = () => {
               </div>
               {/* Center: Attendance matrix */}
               <div className="flex-1 overflow-auto p-6 bg-neutral-50/30">
-                <AttendanceMatrix
-                  periods={lesson?.periods || []}
-                  students={students || []}
-                />
+                <AttendanceOverview lesson={lesson} students={students || []} />
               </div>
               {/* Right: Settings (toggleable) */}
               {showSettings && (
