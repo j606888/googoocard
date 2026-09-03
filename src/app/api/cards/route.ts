@@ -30,9 +30,16 @@ export const GET = apiRoute(async ({ classroomId }) => {
     orderBy: { createdAt: "desc" },
   });
 
+  // 明列欄位而不是把整列 DB row 攤進回應（見 docs/roadmap.md 的 IDOR 章節）。
   const mapCard = (card: typeof activeCards[0]) => ({
-    ...card,
-    studentCards: undefined,
+    id: card.id,
+    name: card.name,
+    price: card.price,
+    sessions: card.sessions,
+    isPracticeCard: card.isPracticeCard,
+    danceType: card.danceType,
+    expiredAt: card.expiredAt,
+    createdAt: card.createdAt,
     purchasedCount: card._count.studentCards,
     activeHolders: card.studentCards.filter((sc) => sc.remainingSessions > 0 && !sc.expiredAt).length,
     totalRevenue: card.studentCards

@@ -3,13 +3,22 @@
 import { useState } from "react";
 import { DanceType } from "@prisma/client";
 import { useGetCardsQuery, Card } from "@/store/slices/cards";
-import { CreditCard, ChevronDown } from "lucide-react";
+import { CreditCard, ChevronDown, Ban } from "lucide-react";
 import { DANCE_TYPE_META } from "@/lib/danceTypes";
+import SortMenu from "@/components/SortMenu";
 import NewCard from "./NewCard";
 import SingleCard from "./SingleCard";
 import CardListSkeleton from "./CardListSkeleton";
 import EditCard from "./EditCard";
 import CardFilters, { CardTypeFilter } from "./CardFilters";
+import {
+  CARD_SORT_OPTIONS,
+  CardSort,
+  DEFAULT_CARD_SORT,
+  cardsSummary,
+  sortCards,
+  splitByType,
+} from "../cardInsights";
 
 const DANCE_TYPE_ORDER = Object.keys(DANCE_TYPE_META) as DanceType[];
 
@@ -23,6 +32,7 @@ const CardList = () => {
   const [editCardId, setEditCardId] = useState<number | null>(null);
   const [typeFilter, setTypeFilter] = useState<CardTypeFilter>("all");
   const [danceFilter, setDanceFilter] = useState<DanceType | null>(null);
+  const [sort, setSort] = useState<CardSort>(DEFAULT_CARD_SORT);
 
   if (isLoading) return <CardListSkeleton />;
 
@@ -44,10 +54,39 @@ const CardList = () => {
   const filteredExpired = expiredCards.filter(matchesFilters);
   const hasFilteredMatch = filteredActive.length > 0 || filteredExpired.length > 0;
 
+  const summary = cardsSummary(activeCards);
+  // 分組固定（一般卡在上、複習卡在下），排序只改變組內順序。
+  const { general, practice } = splitByType(sortCards(filteredActive, sort));
+  // 已經用「類型」篩到單一組時就不必再多一層組標題。
+  const showGroupHeadings = typeFilter === "all";
+
   return (
     <div className="px-5 py-3 lg:px-8 lg:py-6">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-2xl font-semibold">課卡</h2>
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="text-2xl font-semibold">課卡</h2>
+          {/* 用間距而不是「·」分隔——換行時分隔點會落在行尾。 */}
+          {hasAnyCard && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[13px] text-neutral-500">
+              <span>
+                啟用中 <b className="font-semibold text-neutral-900">{summary.kinds}</b> 種
+              </span>
+              <span>
+                使用中的課卡{" "}
+                <b className="font-semibold text-neutral-900">
+                  {summary.activeStudentCards}
+                </b>{" "}
+                張
+              </span>
+              <span>
+                累積課卡收入{" "}
+                <b className="font-semibold text-neutral-900">
+                  ${summary.totalRevenue.toLocaleString()}
+                </b>
+              </span>
+            </div>
+          )}
+        </div>
         <NewCard />
       </div>
 
@@ -58,6 +97,9 @@ const CardList = () => {
           danceFilter={danceFilter}
           setDanceFilter={setDanceFilter}
           availableDanceTypes={availableDanceTypes}
+          sortMenu={
+            <SortMenu sort={sort} options={CARD_SORT_OPTIONS} onChange={setSort} />
+          }
         />
       )}
 
@@ -84,31 +126,43 @@ const CardList = () => {
         </div>
       )}
 
-      {filteredActive.length > 0 && (
-        <>
-          <div className="text-neutral-600 text-sm mb-3">
-            Enabled Cards ({filteredActive.length})
-          </div>
-          <div className="flex flex-col gap-4 mb-6 lg:grid lg:grid-cols-2 lg:gap-4 xl:grid-cols-3">
-            {filteredActive.map((card) => (
-              <SingleCard key={card.id} card={card} onEdit={() => setEditCardId(card.id)} />
-            ))}
-          </div>
-        </>
+      {general.length > 0 && (
+        <CardGroup
+          cards={general}
+          onEdit={setEditCardId}
+          heading={showGroupHeadings ? "一般課卡" : undefined}
+          dotClass="bg-primary-500"
+        />
+      )}
+
+      {practice.length > 0 && (
+        <CardGroup
+          cards={practice}
+          onEdit={setEditCardId}
+          heading={showGroupHeadings ? "複習卡" : undefined}
+          hint="僅限有該舞種 Lv1 資格的學生購買"
+          dotClass="bg-warning-500"
+        />
       )}
 
       {filteredExpired.length > 0 && (
         <>
           <hr className="border-neutral-100 my-6" />
           <button
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-neutral-50 hover:bg-neutral-100 transition-colors mb-3 cursor-pointer"
+            className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-neutral-50 hover:bg-neutral-100 transition-colors mb-3 cursor-pointer"
             onClick={() => setShowExpiredCards(!showExpiredCards)}
           >
-            <span className="text-sm font-medium text-neutral-600">
-              Disabled Cards ({filteredExpired.length})
+            <span className="flex items-center gap-2 min-w-0 text-left">
+              <Ban className="w-4 h-4 shrink-0 text-neutral-400" />
+              <span className="text-sm font-medium text-neutral-600 shrink-0">
+                已停用的課卡 {filteredExpired.length} 種
+              </span>
+              <span className="hidden sm:inline text-xs text-neutral-400 truncate">
+                不能再購買，已發出的學生課卡不受影響
+              </span>
             </span>
             <ChevronDown
-              className={`w-4 h-4 text-neutral-400 transition-transform duration-200 ${
+              className={`w-4 h-4 shrink-0 text-neutral-400 transition-transform duration-200 ${
                 showExpiredCards ? "rotate-180" : ""
               }`}
             />
@@ -127,5 +181,36 @@ const CardList = () => {
     </div>
   );
 };
+
+const CardGroup = ({
+  cards,
+  heading,
+  hint,
+  dotClass,
+  onEdit,
+}: {
+  cards: Card[];
+  heading?: string;
+  hint?: string;
+  dotClass: string;
+  onEdit: (id: number) => void;
+}) => (
+  <div className="mb-6">
+    {heading && (
+      <div className="flex items-baseline flex-wrap gap-2 mb-3">
+        <span className={`w-2 h-2 rounded-full ${dotClass}`} />
+        <h3 className="text-sm font-semibold text-neutral-700">{heading}</h3>
+        <span className="text-[13px] text-neutral-400">
+          {cards.length} 種{hint ? ` · ${hint}` : ""}
+        </span>
+      </div>
+    )}
+    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-4 xl:grid-cols-3">
+      {cards.map((card) => (
+        <SingleCard key={card.id} card={card} onEdit={() => onEdit(card.id)} />
+      ))}
+    </div>
+  </div>
+);
 
 export default CardList;

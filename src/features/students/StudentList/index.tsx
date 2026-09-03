@@ -7,7 +7,7 @@ import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import SingleStudent from "./SingleStudent";
 import RosterRow from "./RosterRow";
 import Searchbar from "./Searchbar";
-import SortMenu from "./SortMenu";
+import SortMenu from "@/components/SortMenu";
 import FilterDrawer from "./FilterDrawer";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Users, SlidersHorizontal, X, CornerDownLeft } from "lucide-react";
@@ -18,6 +18,7 @@ import {
   StudentFilters,
   StudentSort,
   DEFAULT_SORT,
+  SORT_OPTIONS,
   EMPTY_FILTERS,
   RECENT_ATTEND_DAYS,
   applyStudentFilters,
@@ -331,7 +332,7 @@ const StudentList = ({
           <Searchbar onSearch={setQuery} inputRef={searchInputRef} compact />
 
           <div className="flex items-center gap-2 mt-2.5">
-            <SortMenu sort={sort} onChange={setSort} />
+            <SortMenu sort={sort} options={SORT_OPTIONS} onChange={setSort} />
             <div className="ml-auto">{filterButton}</div>
           </div>
 
@@ -406,7 +407,7 @@ const StudentList = ({
       <Searchbar onSearch={setQuery} />
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <SortMenu sort={sort} onChange={setSort} />
+        <SortMenu sort={sort} options={SORT_OPTIONS} onChange={setSort} />
         {filterButton}
       </div>
 
