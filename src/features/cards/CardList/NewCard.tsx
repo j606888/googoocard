@@ -2,10 +2,8 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import Drawer from "@/components/Drawer";
 import { useCreateCardMutation } from "@/store/slices/cards";
-import InputField from "@/components/InputField";
-import { Switch } from "@/components/ui/switch";
 import { DanceType } from "@prisma/client";
-import CardDanceTypeSelect from "./CardDanceTypeSelect";
+import CardFormFields, { CardFormErrors, CardFormValues } from "./CardFormFields";
 
 const CardValidationErrors = {
   cardName: "請輸入課卡名稱",
@@ -14,6 +12,9 @@ const CardValidationErrors = {
   sessions: "請輸入數字",
   sessionsTooHigh: "堂數必須小於 100",
 };
+
+/** 複習卡沒選舞種時的前端訊息。API 端的契約字串是 PRACTICE_CARD_REQUIRES_DANCE_TYPE。 */
+export const DANCE_TYPE_REQUIRED = "請選擇舞種";
 
 export const cardValidationForm = (data: { cardName: string; price: string; sessions: string }) => {
   const errors: { cardName?: string; price?: string; sessions?: string } = {};
@@ -35,25 +36,35 @@ export const cardValidationForm = (data: { cardName: string; price: string; sess
   return errors;
 };
 
+const EMPTY_FORM: CardFormValues = {
+  cardName: "",
+  price: "",
+  sessions: "",
+  isPracticeCard: false,
+  danceType: null,
+};
+
 const NewCard = () => {
   const [open, setOpen] = useState(false);
-  const [cardName, setCardName] = useState("");
-  const [price, setPrice] = useState("");
-  const [sessions, setSessions] = useState("");
-  const [isPracticeCard, setIsPracticeCard] = useState(false);
-  const [danceType, setDanceType] = useState<DanceType | null>(null);
-  const [errors, setErrors] = useState<{ cardName?: string; price?: string; sessions?: string; danceType?: string }>({});
+  const [values, setValues] = useState<CardFormValues>(EMPTY_FORM);
+  const [errors, setErrors] = useState<CardFormErrors>({});
 
   const [createCard, { isLoading }] = useCreateCardMutation();
 
+  const setValue = <K extends keyof CardFormValues>(key: K, value: CardFormValues[K]) =>
+    setValues((prev) => ({ ...prev, [key]: value }));
+
+  const clearError = (key: keyof CardFormErrors) =>
+    setErrors((prev) => ({ ...prev, [key]: undefined }));
+
   const handleSubmit = async () => {
-    const errors: { cardName?: string; price?: string; sessions?: string; danceType?: string } =
-      cardValidationForm({ cardName, price, sessions });
+    const { cardName, price, sessions, isPracticeCard, danceType } = values;
+    const nextErrors: CardFormErrors = cardValidationForm({ cardName, price, sessions });
     if (isPracticeCard && !danceType) {
-      errors.danceType = "Practice card must have a dance type";
+      nextErrors.danceType = DANCE_TYPE_REQUIRED;
     }
-    if (Object.keys(errors).length > 0) {
-      setErrors(errors);
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
       return;
     }
     await createCard({
@@ -61,38 +72,10 @@ const NewCard = () => {
       price: Number(price),
       sessions: Number(sessions),
       isPracticeCard,
-      danceType,
+      danceType: danceType as DanceType | null,
     });
-    setCardName("");
-    setPrice("");
-    setSessions("");
-    setIsPracticeCard(false);
-    setDanceType(null);
+    setValues(EMPTY_FORM);
     setOpen(false);
-  };
-
-  const handleCardNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCardName(e.target.value);
-    if (errors.cardName) {
-      setErrors((prev) => ({ ...prev, cardName: undefined }));
-    }
-  };
-
-  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const onlyDigits = e.target.value.replace(/\D/g, "");
-    setPrice(onlyDigits);
-
-    if (errors.price && onlyDigits) {
-      setErrors((prev) => ({ ...prev, price: undefined }));
-    }
-  };
-
-  const handleSessionsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const onlyDigits = e.target.value.replace(/\D/g, "");
-    setSessions(onlyDigits);
-    if (errors.sessions && onlyDigits) {
-      setErrors((prev) => ({ ...prev, sessions: undefined }));
-    }
   };
 
   const handleClose = () => {
@@ -102,11 +85,12 @@ const NewCard = () => {
 
   return (
     <>
-      <button className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600">
-        <Plus className="w-4 h-4" />
-        <span className="font-medium" onClick={() => setOpen(true)}>
-          新增課卡
-        </span>
+      <button
+        onClick={() => setOpen(true)}
+        className="shrink-0 whitespace-nowrap bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600"
+      >
+        <Plus className="w-4 h-4 shrink-0" />
+        <span className="font-medium">新增課卡</span>
       </button>
       <Drawer
         title="新增課卡"
@@ -116,46 +100,11 @@ const NewCard = () => {
         isLoading={isLoading}
       >
         <form className="mb-6 flex flex-col gap-4">
-          <InputField
-            label="課卡名稱"
-            value={cardName}
-            placeholder="E.g. 初階6堂"
-            onChange={handleCardNameChange}
-            error={errors.cardName}
-          />
-          <div className="flex gap-4">
-            <InputField
-              label="金額"
-              value={price}
-              onChange={handlePriceChange}
-              error={errors.price}
-              type="number"
-            />
-            <InputField
-              label="堂數"
-              value={sessions}
-              onChange={handleSessionsChange}
-              error={errors.sessions}
-              type="number"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={isPracticeCard}
-              onCheckedChange={setIsPracticeCard}
-            />
-            <span>設為複習卡</span>
-          </div>
-          <CardDanceTypeSelect
-            value={danceType}
-            optional={!isPracticeCard}
-            onChange={(type) => {
-              setDanceType(type);
-              if (errors.danceType) {
-                setErrors((prev) => ({ ...prev, danceType: undefined }));
-              }
-            }}
-            error={errors.danceType}
+          <CardFormFields
+            values={values}
+            errors={errors}
+            onChange={setValue}
+            onErrorClear={clearError}
           />
         </form>
       </Drawer>

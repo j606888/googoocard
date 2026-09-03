@@ -3,22 +3,31 @@
 import { useRef, useState } from "react";
 import { ArrowUpDown, Check, ChevronDown } from "lucide-react";
 import Menu from "@/components/Menu";
-import { SORT_OPTIONS, StudentSort } from "./studentFilters";
+
+export interface SortOption<T extends string> {
+  value: T;
+  /** 選單裡的完整說明（帶方向） */
+  label: string;
+  /** 收合時顯示在按鈕上的短標籤 */
+  short: string;
+}
 
 /**
- * 排序選單。桌面版名單多了「剩餘堂數」「最近上課」兩把尺，
- * 選項數量已經超過原本的分段切換，所以改成下拉。
+ * 排序下拉選單。列表的排序選項一多就塞不進分段切換，
+ * 學生名單與課卡列表共用同一顆。
  */
-const SortMenu = ({
+const SortMenu = <T extends string>({
   sort,
+  options,
   onChange,
 }: {
-  sort: StudentSort;
-  onChange: (sort: StudentSort) => void;
+  sort: T;
+  options: SortOption<T>[];
+  onChange: (sort: T) => void;
 }) => {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement>(null);
-  const current = SORT_OPTIONS.find((option) => option.value === sort) ?? SORT_OPTIONS[0];
+  const current = options.find((option) => option.value === sort) ?? options[0];
 
   return (
     <>
@@ -30,7 +39,7 @@ const SortMenu = ({
       >
         <ArrowUpDown className="w-4 h-4 text-neutral-400" />
         <span>排序</span>
-        <span className="font-semibold text-neutral-900">{current.short}</span>
+        <span className="font-semibold text-neutral-900">{current?.short}</span>
         <ChevronDown
           className={`w-4 h-4 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}
         />
@@ -41,7 +50,7 @@ const SortMenu = ({
         onClose={() => setOpen(false)}
         className="w-56 rounded-2xl border border-black/5 bg-white p-2 shadow-[0_12px_40px_-12px_rgba(27,94,74,0.45)] z-50 flex flex-col"
       >
-        {SORT_OPTIONS.map((option) => (
+        {options.map((option) => (
           <button
             key={option.value}
             type="button"

@@ -1,5 +1,6 @@
 import { DanceType } from "@prisma/client";
 import { Student } from "@/store/slices/students";
+import { SortOption } from "@/components/SortMenu";
 import { differenceInCalendarDays } from "date-fns";
 
 export interface StudentFilters {
@@ -102,13 +103,7 @@ export const tagLabel = (name: string): string =>
 
 export type StudentSort = "name" | "number" | "remaining" | "lastAttend";
 
-export const SORT_OPTIONS: {
-  value: StudentSort;
-  /** 選單裡的完整說明（帶方向） */
-  label: string;
-  /** 收合時顯示在按鈕上的短標籤 */
-  short: string;
-}[] = [
+export const SORT_OPTIONS: SortOption<StudentSort>[] = [
   { value: "name", label: "姓名", short: "姓名" },
   { value: "number", label: "編號", short: "編號" },
   { value: "remaining", label: "剩餘堂數（少到多）", short: "剩餘堂數" },

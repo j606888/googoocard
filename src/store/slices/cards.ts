@@ -9,6 +9,7 @@ export interface Card {
   danceType: DanceType | null;
   sessions: number;
   expiredAt: Date | null;
+  createdAt: string;
   purchasedCount: number;
   activeHolders: number;
   totalRevenue: number;
