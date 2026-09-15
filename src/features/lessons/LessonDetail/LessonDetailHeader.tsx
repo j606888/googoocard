@@ -29,7 +29,7 @@ const LessonDetailHeader = ({
   const isFinished = periods.length > 0 && attendedCount === periods.length;
 
   return (
-    <div className={`hidden lg:block border-b border-neutral-200 px-8 py-5 ${style.light}`}>
+    <div className={`border-b border-neutral-200 px-8 py-5 ${style.light}`}>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-neutral-500 mb-3">
         <Link href="/lessons" className="flex items-center gap-1 hover:text-neutral-700">
