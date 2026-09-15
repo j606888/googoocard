@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useSizeClass } from "@/hooks/useMediaQuery";
+import StepFlow from "@/components/StepFlow";
 
 const validationErrors = {
   lessonName: "請輸入課程名稱",
@@ -150,67 +151,62 @@ const NewLesson = () => {
         <SubNavbar title="新增課程" backUrl="/lessons" />
       )}
 
-      {/* Form — single column mobile, two-column desktop */}
-      <div className="px-5 py-5 flex flex-col gap-5 lg:px-8 lg:pb-8 lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8 lg:items-start">
-        {/* Left column: basic info */}
-        <div className="flex flex-col gap-4 lg:bg-white lg:border lg:border-neutral-100 lg:rounded-xl lg:p-6 lg:shadow-sm">
-          {isExpanded && (
-            <div className="text-base font-semibold text-neutral-800 -mb-1">
-              課程資訊
-            </div>
-          )}
-          <InputField
-            label="課程名稱"
-            placeholder="例：Bachata Lv1"
-            value={lessonName}
-            onChange={handleLessonNameChange}
-            error={errors.lessonName}
-          />
-          <DanceTypeSelect
-            danceType={danceType}
-            onChange={handleDanceTypeChange}
-          />
-          <LessonGroupSelect
-            groupId={selectedGroupId}
-            onChange={setSelectedGroupId}
-          />
-          <TeacherSelect
-            error={errors.teachers}
-            onChange={handleTeacherChange}
-            selectedTeacherIds={selectedTeacherIds}
-          />
-          <CardSelect
-            error={errors.cards}
-            onChange={handleCardChange}
-            selectedCardIds={selectedCardIds}
-            danceType={danceType}
-          />
-          {/* 桌面：送出按鈕收在左欄內 */}
-          {isExpanded && submitButton}
-        </div>
-
-        {/* Right column: schedule */}
-        <div className="flex flex-col gap-4 lg:bg-white lg:border lg:border-neutral-100 lg:rounded-xl lg:p-6 lg:shadow-sm">
-          {isExpanded && (
-            <div className="flex items-center justify-between -mb-1">
-              <span className="text-base font-semibold text-neutral-800">排課</span>
-              <span className="text-sm text-neutral-400">
-                已新增 {periods.length} 個時段
-              </span>
-            </div>
-          )}
-          <AddPeriodForm
-            periods={periods}
-            onAddPeriod={handleAddPeriod}
-            error={errors.periods}
-            initialPeriod={cloneInitialPeriod}
-          />
-          <PeriodList periods={periods} onDelete={handleDeletePeriod} />
-        </div>
-
-        {/* 手機：送出按鈕在兩區塊之下 */}
-        {!isExpanded && submitButton}
-      </div>
+      <StepFlow
+        columns="3fr 2fr"
+        submit={submitButton}
+        steps={[
+          {
+            key: "info",
+            title: "課程資訊",
+            content: (
+              <>
+                <InputField
+                  label="課程名稱"
+                  placeholder="例：Bachata Lv1"
+                  value={lessonName}
+                  onChange={handleLessonNameChange}
+                  error={errors.lessonName}
+                />
+                <DanceTypeSelect
+                  danceType={danceType}
+                  onChange={handleDanceTypeChange}
+                />
+                <LessonGroupSelect
+                  groupId={selectedGroupId}
+                  onChange={setSelectedGroupId}
+                />
+                <TeacherSelect
+                  error={errors.teachers}
+                  onChange={handleTeacherChange}
+                  selectedTeacherIds={selectedTeacherIds}
+                />
+                <CardSelect
+                  error={errors.cards}
+                  onChange={handleCardChange}
+                  selectedCardIds={selectedCardIds}
+                  danceType={danceType}
+                />
+              </>
+            ),
+          },
+          {
+            key: "schedule",
+            title: "排課",
+            aside: `已新增 ${periods.length} 個時段`,
+            content: (
+              <>
+                <AddPeriodForm
+                  periods={periods}
+                  onAddPeriod={handleAddPeriod}
+                  error={errors.periods}
+                  initialPeriod={cloneInitialPeriod}
+                />
+                <PeriodList periods={periods} onDelete={handleDeletePeriod} />
+              </>
+            ),
+          },
+        ]}
+      />
     </>
   );
 };
