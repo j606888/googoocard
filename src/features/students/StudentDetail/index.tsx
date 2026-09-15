@@ -6,6 +6,7 @@ import CardsSection from "./CardsSection";
 import AttendSection from "./AttendSection";
 import { StudentWithDetail } from "@/store/slices/students";
 import { useSearchParams } from "next/navigation";
+import { useSizeClass } from "@/hooks/useMediaQuery";
 
 const tabs = [
   { label: "基本資料", query: "basic" },
@@ -30,6 +31,9 @@ const StudentDetail = ({
   const tab = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState(tab || "cards");
   const isPane = layout === "tabs";
+  // 只掛一棵樹：兩棵都掛的話 BasicSection / CardsSection / AttendSection
+  // 在手機上也會全部被 mount（見 docs/ui-responsive.md 的「代價一」）。
+  const isExpanded = useSizeClass() === "expanded";
 
   const handleTabClick = (tab: string) => {
     setActiveTab(tab);
@@ -80,30 +84,10 @@ const StudentDetail = ({
     );
   }
 
-  return (
-    <>
-      {/* Mobile: tab-based layout */}
-      <div className="lg:hidden px-5 py-3">
-        <div className="flex w-full gap-1 mb-4 bg-neutral-100 rounded-full p-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.query}
-              className={`flex-1 text-center py-2 text-sm rounded-full cursor-pointer transition-colors ${
-                activeTab === tab.query
-                  ? "bg-white text-primary-700 font-semibold shadow-sm"
-                  : "text-neutral-500"
-              }`}
-              onClick={() => handleTabClick(tab.query)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        {section}
-      </div>
-
-      {/* Desktop: 3-panel layout */}
-      <div className="hidden lg:flex lg:flex-1 lg:min-h-[calc(100vh-140px)] lg:overflow-hidden">
+  // 獨立學生頁：桌面三欄
+  if (isExpanded) {
+    return (
+      <div className="flex flex-1 min-h-[calc(100vh-140px)] overflow-hidden">
         {/* Left: Basic info */}
         <div className="w-80 flex-shrink-0 border-r border-neutral-200 overflow-y-auto">
           <div className="p-5">
@@ -138,7 +122,29 @@ const StudentDetail = ({
           </div>
         </div>
       </div>
-    </>
+    );
+  }
+
+  // 獨立學生頁：手機分頁
+  return (
+    <div className="px-5 py-3">
+      <div className="flex w-full gap-1 mb-4 bg-neutral-100 rounded-full p-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.query}
+            className={`flex-1 text-center py-2 text-sm rounded-full cursor-pointer transition-colors ${
+              activeTab === tab.query
+                ? "bg-white text-primary-700 font-semibold shadow-sm"
+                : "text-neutral-500"
+            }`}
+            onClick={() => handleTabClick(tab.query)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {section}
+    </div>
   );
 };
 
