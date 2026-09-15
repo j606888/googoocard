@@ -17,6 +17,7 @@ import {
 } from "@/lib/lessonDraftStorage";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useSizeClass } from "@/hooks/useMediaQuery";
 
 const validationErrors = {
   lessonName: "請輸入課程名稱",
@@ -27,6 +28,9 @@ const validationErrors = {
 
 const NewLesson = () => {
   const searchParams = useSearchParams();
+  // 只渲染一份 header 與一顆送出按鈕。表單狀態本來就只有一份，
+  // 兩份按鈕綁同一個 handleSubmit，所以收成一份不影響行為。
+  const isExpanded = useSizeClass() === "expanded";
   // "+ 新增這天的堂" on a group's detail page links here with ?groupId=…
   // so the new lesson starts pre-assigned to that group.
   const groupIdParam = searchParams.get("groupId");
@@ -126,25 +130,35 @@ const NewLesson = () => {
     }
   };
 
+  const submitButton = (
+    <Button className="w-full" onClick={handleSubmit} isLoading={isLoading}>
+      {isExpanded ? "建立課程" : "建立"}
+    </Button>
+  );
+
   return (
     <>
-      <SubNavbar title="新增課程" backUrl="/lessons" className="lg:hidden" />
-
-      {/* Desktop: inline page header */}
-      <div className="hidden lg:flex items-center gap-3 px-8 pt-6 pb-2">
-        <Link href="/lessons" className="text-neutral-400 hover:text-neutral-600 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <h1 className="text-xl font-bold text-neutral-900">新增課程</h1>
-      </div>
+      {isExpanded ? (
+        /* 桌面：頁內 header */
+        <div className="flex items-center gap-3 px-8 pt-6 pb-2">
+          <Link href="/lessons" className="text-neutral-400 hover:text-neutral-600 transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <h1 className="text-xl font-bold text-neutral-900">新增課程</h1>
+        </div>
+      ) : (
+        <SubNavbar title="新增課程" backUrl="/lessons" />
+      )}
 
       {/* Form — single column mobile, two-column desktop */}
       <div className="px-5 py-5 flex flex-col gap-5 lg:px-8 lg:pb-8 lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8 lg:items-start">
         {/* Left column: basic info */}
         <div className="flex flex-col gap-4 lg:bg-white lg:border lg:border-neutral-100 lg:rounded-xl lg:p-6 lg:shadow-sm">
-          <div className="hidden lg:block text-base font-semibold text-neutral-800 -mb-1">
-            課程資訊
-          </div>
+          {isExpanded && (
+            <div className="text-base font-semibold text-neutral-800 -mb-1">
+              課程資訊
+            </div>
+          )}
           <InputField
             label="課程名稱"
             placeholder="例：Bachata Lv1"
@@ -171,20 +185,20 @@ const NewLesson = () => {
             selectedCardIds={selectedCardIds}
             danceType={danceType}
           />
-          {/* Create button — desktop only, inside left col */}
-          <Button className="w-full hidden lg:block" onClick={handleSubmit} isLoading={isLoading}>
-            建立課程
-          </Button>
+          {/* 桌面：送出按鈕收在左欄內 */}
+          {isExpanded && submitButton}
         </div>
 
         {/* Right column: schedule */}
         <div className="flex flex-col gap-4 lg:bg-white lg:border lg:border-neutral-100 lg:rounded-xl lg:p-6 lg:shadow-sm">
-          <div className="hidden lg:flex items-center justify-between -mb-1">
-            <span className="text-base font-semibold text-neutral-800">排課</span>
-            <span className="text-sm text-neutral-400">
-              已新增 {periods.length} 個時段
-            </span>
-          </div>
+          {isExpanded && (
+            <div className="flex items-center justify-between -mb-1">
+              <span className="text-base font-semibold text-neutral-800">排課</span>
+              <span className="text-sm text-neutral-400">
+                已新增 {periods.length} 個時段
+              </span>
+            </div>
+          )}
           <AddPeriodForm
             periods={periods}
             onAddPeriod={handleAddPeriod}
@@ -194,10 +208,8 @@ const NewLesson = () => {
           <PeriodList periods={periods} onDelete={handleDeletePeriod} />
         </div>
 
-        {/* Create button — mobile only, below both cols */}
-        <Button className="w-full lg:hidden" onClick={handleSubmit} isLoading={isLoading}>
-          建立
-        </Button>
+        {/* 手機：送出按鈕在兩區塊之下 */}
+        {!isExpanded && submitButton}
       </div>
     </>
   );
