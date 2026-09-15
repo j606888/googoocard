@@ -8,10 +8,10 @@ export default function MainLayout({
 }) {
   return (
     <div className="flex min-h-screen bg-white">
-      <aside className="hidden md:flex md:w-64 md:flex-shrink-0 md:flex-col md:sticky md:top-0 md:h-screen md:border-r md:border-neutral-200 bg-white">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-shrink-0 lg:flex-col lg:sticky lg:top-0 lg:h-screen lg:border-r lg:border-neutral-200 bg-white">
         <DesktopSidebar />
       </aside>
-      <div className="flex flex-col flex-1 min-w-0 pb-24 md:pb-0">
+      <div className="flex flex-col flex-1 min-w-0 pb-24 lg:pb-0">
         {children}
       </div>
       <BottomNav />

@@ -27,7 +27,7 @@ const BottomNav = () => {
   return (
     <>
       <nav
-        className="md:hidden fixed inset-x-0 bottom-0 z-40 pointer-events-none"
+        className="lg:hidden fixed inset-x-0 bottom-0 z-40 pointer-events-none"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="pointer-events-auto mx-3 mb-3 flex items-center justify-around gap-1 rounded-[26px] border border-black/5 bg-white/80 px-2 py-2 shadow-[0_10px_30px_-8px_rgba(27,94,74,0.35)] backdrop-blur-xl">

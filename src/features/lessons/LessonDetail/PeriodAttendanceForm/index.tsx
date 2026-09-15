@@ -78,7 +78,7 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], selfCheckInStudentIds =
   return (
     <>
       <SubNavbar title={"點名"} backUrl={`/lessons/${id}`} />
-      <div className="px-5 pt-5 pb-40 md:pb-28 flex flex-col gap-5">
+      <div className="px-5 pt-5 pb-40 lg:pb-28 flex flex-col gap-5">
         <div>
           <PeriodInfo period={period} />
         </div>
@@ -109,9 +109,10 @@ const PeriodAttendanceForm = ({ defaultSelectedIds = [], selfCheckInStudentIds =
           </div>
         </div>
         {/* Lifted above the mobile BottomNav (floating pill, fixed bottom-0
-            z-40) so the button stays tappable; flush to bottom on desktop where
-            the nav is md:hidden. */}
-        <div className="fixed left-0 right-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-0 bg-white/90 backdrop-blur-md border-t border-neutral-100 flex gap-4 px-5 py-4 z-30">
+            z-40) so the button stays tappable; flush to bottom on the expanded
+            layout, where the nav is lg:hidden. Both sides switch at the single
+            size-class boundary (--breakpoint-lg), so they stay in step. */}
+        <div className="fixed left-0 right-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-0 bg-white/90 backdrop-blur-md border-t border-neutral-100 flex gap-4 px-5 py-4 z-30">
           <Button
             onClick={handleSubmit}
             disabled={selectedStudents.length === 0}

@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, X } from "lucide-react";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
+import { useSizeClass } from "@/hooks/useMediaQuery";
 
 interface BottomSheetDialogProps {
   open: boolean;
@@ -28,7 +28,7 @@ const Drawer = ({
   submitText = "建立",
   variant = "primary",
 }: BottomSheetDialogProps) => {
-  const isDesktop = useIsDesktop();
+  const isDesktop = useSizeClass() === "expanded";
 
   const submitColor =
     variant === "danger"

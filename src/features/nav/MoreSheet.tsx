@@ -26,7 +26,7 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
   return (
     <AnimatePresence>
       {open && (
-        <div className="md:hidden">
+        <div className="lg:hidden">
           <motion.div
             className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}

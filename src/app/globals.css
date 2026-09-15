@@ -1,6 +1,17 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
+
+/* 版型模式切換點（唯一真相）。
+   全專案只有這一個邊界：< 1024px = compact（手機版型 + BottomNav），
+   ≥ 1024px = expanded（桌面版型 + 側邊欄）。CSS 端用 `lg:` 變體，
+   JS 端由 `useSizeClass()` 讀這個變數，兩邊讀同一個值。
+   其他 breakpoint（sm: / xl:）只做微調，不准做版型模式切換。
+   `static` 是必要的：預設會 tree-shake 掉沒被當成 CSS 變數引用的 theme
+   token，而 useSizeClass() 需要在 runtime 讀得到它。 */
+@theme static {
+    --breakpoint-lg: 1024px;
+}
 @theme {
     /* Primary Colors */
     --color-primary-900: #1B5E4A;
