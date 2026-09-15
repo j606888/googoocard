@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 import TabAndSort from "./TabAndSort";
 import LessonCard from "./LessonCard";
-import GroupRow, { GroupRowHeader } from "./GroupRow";
+import GroupTable from "./GroupRow";
 import Drawer from "@/components/Drawer";
 import { useState } from "react";
 import { useLessonsList } from "./useLessonsList";
@@ -85,13 +85,8 @@ const LessonsList = () => {
         </div>
       ) : useGroupedView ? (
         <div className="flex flex-col gap-3">
-          {/* One table on desktop, one stack of cards on phone — same rows. */}
-          <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden">
-            <GroupRowHeader />
-            {groupRows.map((group) => (
-              <GroupRow key={group.id} group={group} />
-            ))}
-          </div>
+          {/* 同一份 DOM：手機是卡片、桌面是表格 */}
+          <GroupTable groups={groupRows} />
           <button
             onClick={() => setCreateGroupOpen(true)}
             className="flex items-center justify-center gap-2 border border-dashed border-neutral-300 rounded-2xl text-neutral-500 py-3 text-sm font-semibold cursor-pointer hover:border-neutral-400 hover:text-neutral-700"
