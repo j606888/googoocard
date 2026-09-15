@@ -29,7 +29,7 @@ const PendingStudents = ({
         {records.map((record) => (
           <div
             key={record.studentId}
-            className="flex items-center gap-2 bg-white rounded-xl px-2.5 py-2 border border-danger-100"
+            className="flex flex-wrap items-center gap-2 bg-white rounded-xl px-2.5 py-2 border border-danger-100"
           >
             <StudentInfo
               studentId={record.studentId}

@@ -1,4 +1,4 @@
-import Drawer from "@/components/Drawer";
+import ExpandableAction from "@/components/ExpandableAction";
 import { AttendanceRecord, Lesson } from "@/store/slices/lessons";
 import { useEffect, useMemo, useState } from "react";
 import { useGetStudentCardsByLessonQuery } from "@/store/slices/students";
@@ -76,16 +76,11 @@ const ChooseCardForm = ({
 
   return (
     <>
-      <button
-        className="text-xs font-medium rounded-full text-white bg-primary-500 hover:bg-primary-600 w-24 px-3 py-2 cursor-pointer transition-colors"
-        onClick={() => setOpen(true)}
-      >
-        選擇一張使用
-      </button>
-      <Drawer
+      <ExpandableAction
+        triggerLabel="選擇一張使用"
         title={`為 ${record.studentName} 選擇課卡使用`}
         open={open}
-        onClose={handleClose}
+        onOpenChange={(next) => (next ? setOpen(true) : handleClose())}
         onSubmit={handleSubmit}
         submitText="使用這張"
         disabled={!selectedCardId}
@@ -171,7 +166,7 @@ const ChooseCardForm = ({
             </div>
           ))}
         </div>
-      </Drawer>
+      </ExpandableAction>
     </>
   );
 };

@@ -14,9 +14,11 @@ import { periodInfo } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import StudentInfo from "@/components/StudentInfo";
 import PendingStudents from "./PendingStudents";
+import { useSizeClass } from "@/hooks/useMediaQuery";
 
 const CheckPeriodSuccess = () => {
   const [showIncome, setShowIncome] = useState(false);
+  const isExpanded = useSizeClass() === "expanded";
   const { id, periodId } = useParams();
   const searchParams = useSearchParams();
   // Present only right after CheckPeriod/EditPeriod submit — distinguishes
@@ -66,7 +68,9 @@ const CheckPeriodSuccess = () => {
   if (!attendanceRecords || !lesson) {
     return (
       <>
-        <SubNavbar title={lesson?.name || ""} backUrl={`/lessons/${id}`} />
+        {!isExpanded && (
+          <SubNavbar title={lesson?.name || ""} backUrl={`/lessons/${id}`} />
+        )}
         <div className="h-[calc(100vh-64px)] flex items-center justify-center">
           <PulseLoader color="#55BD95" size={20} />
         </div>
@@ -76,8 +80,12 @@ const CheckPeriodSuccess = () => {
 
   return (
     <>
-      <SubNavbar title={lesson?.name || ""} backUrl={`/lessons/${id}`} />
-      <div className="px-5 py-6 flex flex-col items-center gap-5 max-w-md mx-auto w-full">
+      {!isExpanded && (
+        <SubNavbar title={lesson?.name || ""} backUrl={`/lessons/${id}`} />
+      )}
+      {/* 手機維持窄欄；桌面放寬到 3xl——1920px 上不該還是手機寬，
+          但點名結果是一份逐列的清單，全寬拉開反而難讀。 */}
+      <div className="px-5 py-6 lg:px-8 flex flex-col items-center gap-5 max-w-md lg:max-w-3xl mx-auto w-full">
         {justSubmitted ? (
           <>
             <div className="flex justify-center items-center rounded-full bg-primary-100 w-20 h-20 ring-8 ring-primary-50">
