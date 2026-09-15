@@ -1,8 +1,7 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, X } from "lucide-react";
-import { useSizeClass } from "@/hooks/useMediaQuery";
+import ResponsiveDialog, { ResponsiveDialogTitle } from "./ResponsiveDialog";
 
 interface BottomSheetDialogProps {
   open: boolean;
@@ -17,6 +16,10 @@ interface BottomSheetDialogProps {
   variant?: "primary" | "danger";
 }
 
+/**
+ * 有主張的對話框：標題列 ＋ 內容 ＋ 一顆送出按鈕。
+ * 遮罩、定位、動畫、focus 管理全部交給 `ResponsiveDialog`。
+ */
 const Drawer = ({
   title,
   open,
@@ -28,38 +31,21 @@ const Drawer = ({
   submitText = "建立",
   variant = "primary",
 }: BottomSheetDialogProps) => {
-  const isDesktop = useSizeClass() === "expanded";
-
   const submitColor =
     variant === "danger"
       ? "bg-danger-500 hover:bg-danger-600"
       : "bg-primary-500 hover:bg-primary-600";
 
-  const panelClassName = isDesktop
-    ? "relative z-50 rounded-2xl bg-white shadow-xl p-4 min-h-70 flex flex-col w-full max-w-[480px] max-h-[85vh]"
-    : "fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-white shadow-xl p-4 min-h-70 flex flex-col max-w-[480px] mx-auto";
-
-  const panelMotion = isDesktop
-    ? {
-        initial: { opacity: 0, scale: 0.96 },
-        animate: { opacity: 1, scale: 1 },
-        exit: { opacity: 0, scale: 0.96 },
-        transition: { type: "tween" as const, ease: "easeInOut" as const, duration: 0.2 },
-      }
-    : {
-        initial: { y: "100%" },
-        animate: { y: 0 },
-        exit: { y: "100%" },
-        transition: { type: "tween" as const, ease: "easeInOut" as const, duration: 0.3 },
-      };
-
-  const panel = (
-    <motion.div className={panelClassName} {...panelMotion}>
+  return (
+    <ResponsiveDialog open={open} onClose={onClose}>
       <div className="relative flex items-center justify-center mb-6 ">
-        <h2 className="text-xl font-semibold">{title}</h2>
+        <ResponsiveDialogTitle className="text-xl font-semibold">
+          {title}
+        </ResponsiveDialogTitle>
         <button
           className="text-neutral-500 absolute right-0 top-0 flex items-center gap-2 cursor-pointer"
           onClick={onClose}
+          aria-label="關閉"
         >
           <X className="w-6 h-6" />
         </button>
@@ -78,38 +64,7 @@ const Drawer = ({
           {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
         </button>
       </div>
-    </motion.div>
-  );
-
-  return (
-    <AnimatePresence>
-      {open && (
-        <>
-          {/* Background overlay */}
-          <motion.div
-            className="fixed inset-0 bg-black/70 z-40"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-
-          {/* Dialog content */}
-          {isDesktop ? (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center px-4"
-              onClick={onClose}
-            >
-              <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[480px]">
-                {panel}
-              </div>
-            </div>
-          ) : (
-            panel
-          )}
-        </>
-      )}
-    </AnimatePresence>
+    </ResponsiveDialog>
   );
 };
 

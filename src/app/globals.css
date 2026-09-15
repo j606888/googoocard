@@ -12,6 +12,40 @@
 @theme static {
     --breakpoint-lg: 1024px;
 }
+/* ResponsiveDialog 的進退場動畫。
+   交給 Radix 的 Presence 驅動（它會等 animationend 才卸載節點），
+   而不是 framer-motion 的 AnimatePresence——後者配 forceMount 時
+   退場跑完不會把節點移除，會留下一層 opacity:0 的全螢幕遮罩吃掉點擊。 */
+@keyframes rd-fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes rd-fade-out { from { opacity: 1 } to { opacity: 0 } }
+@keyframes rd-sheet-in { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes rd-sheet-out { from { transform: translateY(0) } to { transform: translateY(100%) } }
+@keyframes rd-panel-in {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.96) }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1) }
+}
+@keyframes rd-panel-out {
+    from { opacity: 1; transform: translate(-50%, -50%) scale(1) }
+    to { opacity: 0; transform: translate(-50%, -50%) scale(0.96) }
+}
+
+.rd-overlay[data-state="open"] { animation: rd-fade-in 0.2s ease-in-out }
+.rd-overlay[data-state="closed"] { animation: rd-fade-out 0.2s ease-in-out }
+
+/* 手機底部抽屜 */
+.rd-sheet[data-state="open"] { animation: rd-sheet-in 0.3s ease-in-out }
+.rd-sheet[data-state="closed"] { animation: rd-sheet-out 0.3s ease-in-out }
+
+/* 桌面置中彈窗。translate(-50%, -50%) 同時出現在 keyframes 與靜止狀態，
+   動畫結束後才不會跳回未置中的位置。 */
+.rd-panel { transform: translate(-50%, -50%) }
+.rd-panel[data-state="open"] { animation: rd-panel-in 0.2s ease-in-out }
+.rd-panel[data-state="closed"] { animation: rd-panel-out 0.2s ease-in-out }
+
+@media (prefers-reduced-motion: reduce) {
+    .rd-overlay, .rd-sheet, .rd-panel { animation: none !important }
+}
+
 @theme {
     /* Primary Colors */
     --color-primary-900: #1B5E4A;
