@@ -11,6 +11,7 @@
 | [`architecture.md`](architecture.md) | 系統**現在是什麼**——領域模型、資格規則、點名流程、部署注意 |
 | **本文** | 系統**還缺什麼、下一步做什麼**——技術債、安全缺口、功能藍圖 |
 | [`design-system-audit.md`](design-system-audit.md) | 色彩 token 與元件收斂（**已全部完成**，保留作為決策紀錄） |
+| [`ui-responsive.md`](ui-responsive.md) | 手機／桌面版型**該用哪種機制**——五種並存機制的現況、決策規則、收斂待辦 |
 | [`student-login-checkin-payment-plan.md`](student-login-checkin-payment-plan.md) | LINE 綁定 → 自助簽到 → 購卡對帳的原始規劃稿（Phase 1–2 已上線，Phase 3 未做） |
 
 **動手改任何區塊前，先在本文搜尋該檔名**，確認沒有已知未修的安全或效能問題會被你的改動放大。
@@ -349,6 +350,35 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
 斷言只有「卡用完 + 已綁 LINE + 不在冷卻期內」的學生進入推播名單。
 **絕不可打到真實 LINE API**（headless/CI 環境沒有正式 token，且會真的發訊息給學生）。
 
+## [ ] P2-2 點名帶錯時段的防呆 ⚠️ 已在 production 造成兩次資料錯位
+
+**為什麼**：Bailamore 教室（classroom 3）的週日課程連續兩週把點名寫到錯的日期上——
+8/30 的點名寫進 8/23 的時段、9/13 的點名寫進 8/30 的時段。起因是 **8/23 因大雨停課但時段沒刪**，
+之後每次點名都被往前帶一格，錯位會一直累積下去。
+已於 2026-09-14 用一次性腳本改 6 筆 `LessonPeriod.startTime/endTime` 修回
+（出席紀錄、課卡、Event 都沒動，因為資料內容本身是對的，只是掛錯日期）。
+
+**根因**：`summarizeLessonPeriods()`（`src/service/lesson.ts:74`）的
+`dueForAttendancePeriodId` 取 `due[0]`，也就是**最早的未點名時段**；
+`LessonCard.tsx:54` 與 `TimeSlotCard.tsx:28` 的「點名」CTA 直接 push 到那個 period。
+只要有任何一個舊時段沒點名（停課、忘記點），老師就會被靜靜帶到舊日期，
+而點名頁的 `PeriodInfo.tsx` 雖然有顯示日期，但視覺上跟一般資訊同級，不會被注意到。
+
+**要做**：
+
+1. **`PeriodInfo.tsx` 加警示** — 時段日期 ≠ 今天時，日期改用警示色 + 明確文案
+   （例如「⚠️ 這是 8/23 的課，不是今天」）。成本最低、擋掉大部分情況，**先做這個**。
+2. **CTA 優先帶到今天** — `summarizeLessonPeriods()` 另外回一個
+   `todayPeriodId`（`startTime` 落在今天的時段），CTA 有今天就帶今天，
+   沒有才 fallback 到現行的 `due[0]`。注意 `dueForAttendanceCount` 的 ⚠️ 語意要保留，
+   老師仍需要知道「有 N 個時段沒點名」。
+3. **補時段的日期修改 API** — `src/app/api/lessons/[id]/periods/` 目前只有 POST 與 DELETE，
+   **沒有 PATCH**，所以這次只能直接改 DB。停課想調整日期只能刪掉重建（會連帶失去已有的出席），
+   加一個 PATCH 讓老師自己能改時段日期。
+
+**測試**：`src/service/lesson.test.ts` 已有 `summarizeLessonPeriods` 的單元測試，
+補「有今天的時段時優先回今天」「只有舊的未點名時段時 fallback 到最早那個」兩個 case。
+
 ## Backlog（不排期，想到再補）
 
 - **請假／補課** — 目前出席只有「有來／沒來」二元。加請假狀態（不扣堂）+ 補課到其他時段。
@@ -402,6 +432,47 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
 - **`Membership.role` 是 `String` 且永遠是 `"owner"`** — 沒有助教權限分級。
   任何被邀請加入教室的成員都能看營收、改課卡價格、刪學生。
   這在「已有多間教室在用」的前提下是產品缺口，不只是技術債。
+
+## [x] P3-3 手機／桌面版型機制收斂 ✅ 2026-09-16
+
+**為什麼**：手機版是一頁一步的流程、桌面版是一次展開的分割檢視，兩邊架構持續分岔，
+每加一個畫面就要重新想一次「桌面版怎麼辦」。
+
+**根因**：專案同時跑著**五種**分岔機制而沒有規則——`hidden lg:` 雙樹並掛、純 CSS、
+JS size class 切換、adaptive 元件、以及「手機 only 桌面沒設計」。而且有**兩個互相衝突的
+「桌面」定義**：外殼切 `md:` 768（`src/app/(main)/layout.tsx:11,14`）、內容切 `lg:` 1024
+（119 處），中間 768–1024 是沒設計過的區間。
+
+**已經付出的代價**（都來自雙樹並掛）：
+- `32eaaea fix(lessons): keep the overview's periods array stable across renders` 的根因就是
+  `LessonDetail/index.tsx:44-82` 兩棵樹同時掛載，`AttendanceOverview` 的三個推導各跑兩次。
+- `app/(main)/students/page.tsx:9` 的註解記錄了第二個坑：兩棵樹會讓兩份篩選狀態各自寫
+  `localStorage` 而分岔。
+
+**做了什麼** ✅ 2026-09-16（五項全數完成，實際做法逐項記在
+[`ui-responsive.md`](ui-responsive.md) 的待辦清單）：
+1. `globals.css` 的 `@theme static` 加 `--breakpoint-lg: 1024px` 當唯一真相，
+   `useIsDesktop()`／`useIsWide()` 合併成 `useSizeClass()`（回傳 `"compact" | "expanded"`，
+   runtime 讀同一個 token），外殼全部改 `lg:`。768–1024 的破區間消失。
+2. `LessonDetail` / `StudentDetail` / `newLesson` 三個畫面改成只掛一棵樹。
+3. 抽出 `useAttendanceFlow` 與 `useLessonsList`，純推導另外抽成
+   `attendanceFlow.ts` / `lessonGrouping.ts`，共 33 個單元測試。
+4. 四個 primitives 全部做完：`ResponsiveDialog`（＋`@radix-ui/react-dialog`）、
+   `DataView`、`SplitView`、`StepFlow`，另外多一個 `ExpandableAction`。
+5. 桌面點名補上：三個 route 維持整頁（不引入 intercepting route），
+   改用桌面兩欄版面；未綁卡學生改成就地展開而非五次彈窗往返。
+
+**量級結果**：breakpoint 從 151 處／31 檔降到 **95 處／25 檔**；`md:` 只剩
+shadcn calendar 內部排版那一處；整畫面的雙樹並掛歸零（剩下的 `hidden lg:`
+全是頁首、表頭、圖示這類小塊靜態內容，符合文件界線）。
+
+**一個值得記住的踩雷**：`ResponsiveDialog` 一開始照網路上常見的
+framer-motion `AnimatePresence` + Radix `forceMount` 模式寫，**在這個專案是壞的**——
+退場動畫跑完後節點不會被移除，留下一層 `opacity: 0` 的全螢幕遮罩吃掉整頁點擊
+（22 個 Drawer 呼叫點全中）。改用 Radix 原生的 `data-state` + CSS keyframes。
+
+**不做兩套 app**：`src/features` + `src/components` 共 14,450 行，分家等於翻倍；
+而 breakpoint 只有 151 處分佈在 31 個檔案，收斂便宜一個量級。
 
 ---
 
