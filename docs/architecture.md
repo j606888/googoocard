@@ -3,7 +3,7 @@
 > 最後更新：2026-08-28（教室生命週期：離開／封存／移除成員）
 
 Next.js 15 App Router 全端應用，管理舞蹈教室的課程、學生、點名與課卡收入。
-Mobile-first（UI 最大寬度 480px），桌面版另有 `lg:` breakpoint 佈局。
+Mobile-first，但**老師後台在桌面是滿版 + 側邊欄**，版型模式切在 `lg:`；`max-w-[480px]` 只剩學生端（LIFF、現場 QR）與 Drawer。版型該用哪種機制、以及待收斂的分岔，見 [`ui-responsive.md`](ui-responsive.md)。
 
 ## 技術棧
 

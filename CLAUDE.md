@@ -137,6 +137,8 @@ Unresolved attendance cases surface as `uncheckedType` on the `AttendanceRecord`
 
 `@/*` maps to `src/*` (configured in `tsconfig.json`).
 
-### Mobile-First
+### Mobile-First, but not 480px-only
 
-UI is constrained to max-width 480px throughout.
+Mobile-first, but the **teacher-facing app goes full-width with a sidebar on desktop** — the layout-mode switch is `lg:` (content) while the nav shell still switches at `md:` (a known inconsistency). `max-w-[480px]` now only applies to the student-facing entry points (LIFF, on-site QR check-in) and to `Drawer`.
+
+⚠️ Five mobile/desktop divergence mechanisms coexist (one of them has already cost a bug); which one a screen may use is now a written rule, not a judgment call. **Read [`docs/ui-responsive.md`](docs/ui-responsive.md) before adding a desktop layout to any screen** — it states the rule (one 1024px size class, logic in hooks, `variant` props over parallel trees, four adaptive primitives), and records the deliberate trade-offs so they don't get re-litigated.
