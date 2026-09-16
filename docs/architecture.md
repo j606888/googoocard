@@ -214,7 +214,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 | 環節 | 位置 |
 |---|---|
-| 排程宣告 | `vercel.ts` 的 `crons`：`0 2 * * *` UTC＝台北 10:00，每天一次 |
+| 排程宣告 | ⚠️ **尚未接上**——見下方「排程檔待補」 |
 | 進入點 | `GET /api/cron/renewal-reminders`（**GET**，Vercel cron 只發 GET） |
 | 名單與推播 | `src/service/renewalReminder.ts` |
 | 訊息 | `src/lib/line.ts` 的 `buildRenewalReminderFlex()` + `pushMessage()` |
@@ -239,6 +239,30 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 **`?dryRun=1`** 只回名單、不推播也不寫紀錄。上 production 或改判定邏輯後先用它確認名單。
 測試一律 `vi.mock("@/lib/line")` 攔 `pushMessage`，**絕不可打到真實 LINE API**。
+
+### ⚠️ 排程檔待補——這個功能目前不會自己跑
+
+程式全都就位並測過了，但**沒有任何東西會定時呼叫它**：`vercel.ts` 曾經寫好又拿掉，
+因為它會是這個專案第一份 Vercel 設定檔，而「omit 掉的欄位會不會重置 dashboard 的
+build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
+
+要真正啟用時，三件事**一起做、一次驗證**：
+
+1. 加回 `vercel.ts`（需 `npm i -D @vercel/config`）：
+
+   ```ts
+   import type { VercelConfig } from "@vercel/config/v1";
+   export const config: VercelConfig = {
+     crons: [{ path: "/api/cron/renewal-reminders", schedule: "0 2 * * *" }],
+   };
+   ```
+
+   `0 2 * * *` UTC＝台北 10:00，每天一次（Hobby / Pro 都合法）。
+   部署後確認 dashboard 的 build 設定沒被覆蓋；有疑慮就改成只含 `crons` 的 `vercel.json`。
+2. Vercel 設 `CRON_SECRET` 與 `RENEWAL_REMINDER_CLASSROOM_IDS`。
+3. `npm run db:deploy` 套用 `RenewalReminder` 的 migration。
+
+在那之前部署是安全的：route 存在但沒有排程會呼叫它，而且 `CRON_SECRET` 未設 → 一律 401。
 
 ## 教室生命週期與角色
 

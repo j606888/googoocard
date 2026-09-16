@@ -316,14 +316,14 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
 
 # P2 — 功能藍圖
 
-## [x] P2-1 續卡提醒推播 ✅ 2026-09-16
+## [x] P2-1 續卡提醒推播 ✅ 2026-09-16（程式完成；⚠️ 排程檔未接，見下）
 
 **為什麼**：判定邏輯與通知通道都已經在了，只差排程與去重。學生課卡用完卻沒人提醒
 是直接的營收漏損。
 
-**做法**：每天台北時間 10:00（cron `0 2 * * *` UTC）掃一次，對「多堂卡剛好用完 +
-已綁 LINE + 教室在白名單 + 不在冷卻期」的學生推一張 Flex 卡片，附一鍵開 LIFF 購卡頁
-的按鈕。冷卻 **14 天**。
+**做法**：掃一次「多堂卡剛好用完 + 已綁 LINE + 教室在白名單 + 不在冷卻期」的學生，
+推一張 Flex 卡片，附一鍵開 LIFF 購卡頁的按鈕。冷卻 **14 天**。
+預定排程是每天台北 10:00（cron `0 2 * * *` UTC），但**設定檔還沒接上**。
 
 | 檔案 | 做了什麼 |
 |---|---|
@@ -332,7 +332,7 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
 | `src/lib/line.ts` | 新 `pushMessage()`、新 `buildRenewalReminderFlex()`；`menuBubble()` 多一個 optional `lead` 參數 |
 | `src/service/renewalReminder.ts` | `collectRenewalCandidates()` / `sendRenewalReminders()` |
 | `src/app/api/cron/renewal-reminders/route.ts` | cron 進入點，自己驗 `CRON_SECRET` |
-| `vercel.ts` | 專案第一份 Vercel 設定檔，只宣告 cron（需 `@vercel/config`） |
+| ~~`vercel.ts`~~ | ⚠️ **寫好又拿掉了，排程還沒接上**——見下方「排程檔待補」 |
 | `tests/api/renewal-reminders.test.ts` | 17 個 case |
 
 **三個與原計畫不同的決定**：
@@ -362,8 +362,23 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
 **待辦（backlog）**：`Classroom.renewalReminderEnabled` 欄位 + 老師端設定 UI，
 取代現在的環境變數白名單；冷卻天數也一併搬進去。
 
-**cron 基礎設施已就緒**——backlog 裡兩件本來卡在「沒有排程」的事現在有地方掛了：
-課卡到期自動處理、已封存教室的 purge job。往 `vercel.ts` 的 `crons` 加一筆即可。
+### ⚠️ 排程檔待補——這個功能目前不會自己跑
+
+程式全都就位、17 個測試也綠了，但**沒有任何東西會定時呼叫它**。`vercel.ts` 一度寫好，
+2026-09-16 又拿掉：它會是這個專案第一份 Vercel 設定檔，而「omit 掉的欄位會不會重置
+dashboard 的 build 設定」沒有實證，不值得為一個還沒要開的功能冒這個險。
+
+在那之前部署是安全的——整個功能只有那一支新 route 碰得到（`src/` 裡沒有任何既有程式碼
+import `renewalReminder` / `pushMessage` / `findExhaustedRenewableCard`），沒有排程會呼叫它，
+而且 `CRON_SECRET` 未設 → 一律 401。migration 也可以晚點再套。
+
+**要啟用時三件事一起做、一次驗證**（完整步驟與 `vercel.ts` 內容見
+[`architecture.md`](architecture.md) 的「排程檔待補」）：加回 `vercel.ts`
+（需 `npm i -D @vercel/config`）、Vercel 設 `CRON_SECRET` 與
+`RENEWAL_REMINDER_CLASSROOM_IDS`、`npm run db:deploy`。
+
+**cron 基礎設施（除了排程檔）已就緒**——backlog 裡兩件本來卡在「沒有排程」的事
+現在只差那一份設定檔：課卡到期自動處理、已封存教室的 purge job。
 
 ## [x] P2-2 點名帶錯時段的防呆 ✅ 2026-09-16（三步全數完成）
 
@@ -435,14 +450,14 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
   規劃已寫在 `student-login-checkin-payment-plan.md` 末段，目前只做到 `isPaid` 布林值
   與未付款清單（`/api/student-cards/unpaid`、`UnpaidBell.tsx`）。
 - **課卡到期自動處理** — `StudentCard.expiredAt` 有欄位但沒有定期 job 去掃。
-  排程基礎設施 P2-1 已備好，往 `vercel.ts` 的 `crons` 加一筆、照
-  `src/app/api/cron/renewal-reminders/route.ts` 的 `CRON_SECRET` 驗證抄一份即可。
+  route 這一半 P2-1 已備好（照 `src/app/api/cron/renewal-reminders/route.ts` 的
+  `CRON_SECRET` 驗證抄一份），但排程設定檔還沒接上，見 P2-1 的「排程檔待補」。
 - **營收 CSV 匯出** — 老師報稅／對帳用。
 - **課程模板／重複排課** — 現在每期課要手動建所有 periods。
 - **轉移教室所有權** — 目前 owner 唯一的出場方式是封存教室。要能把 `Membership.role`
   與 `Classroom.ownerId` 一起交棒，之後 owner 才能像 assistant 一樣退出。
 - **已封存教室的還原 UI** — 現在只能手動 `UPDATE "Classroom" SET "deletedAt" = NULL`。
-  一併考慮 purge job（真正清資料），排程基礎設施 P2-1 已備好（見 `vercel.ts`）。
+  一併考慮 purge job（真正清資料）；cron route 的寫法見 P2-1，排程設定檔仍待補。
 - **續卡提醒的教室開關欄位化** — `Classroom.renewalReminderEnabled` + 冷卻天數 +
   老師端設定 UI，取代 P2-1 現在用的環境變數白名單 `RENEWAL_REMINDER_CLASSROOM_IDS`。
 
