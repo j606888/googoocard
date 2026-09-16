@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildStudentMenuFlex } from "./line";
+import { buildRenewalReminderFlex, buildStudentMenuFlex } from "./line";
 
 // The student menu's LIFF action URLs are the contract the flex message (and
 // later the Rich Menu) depends on, so pin them down. Each menu entry is an
@@ -12,7 +12,7 @@ interface Action {
   data?: string;
 }
 
-function actionsOf(flex: ReturnType<typeof buildStudentMenuFlex>): Action[] {
+function actionsOf(flex: Record<string, unknown>): Action[] {
   // contents.body.contents = [row, separator, row, separator, ...]
   const contents = flex.contents as {
     body: { contents: { type: string; action?: Action }[] };
@@ -44,5 +44,31 @@ describe("buildStudentMenuFlex", () => {
     const postbacks = withSwitch.filter((a) => a.type === "postback");
     expect(postbacks).toHaveLength(1);
     expect(postbacks[0].label).toBe("切換到老師");
+  });
+});
+
+describe("buildRenewalReminderFlex", () => {
+  it("只給一個通往 LIFF 購卡頁的按鈕，並在說明裡帶上卡名", () => {
+    const flex = buildRenewalReminderFlex({ name: "小明", cardName: "六堂卡" });
+
+    expect(flex.altText).toBe("續卡提醒");
+
+    const actions = actionsOf(flex);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].label).toBe("購買課卡");
+    expect(actions[0].uri).toMatch(/\/buy$/);
+
+    // 說明段落是 rows 的第一個 box（沒有 action），和按鈕列分開。
+    const body = (flex.contents as { body: { contents: Record<string, unknown>[] } }).body;
+    const lead = JSON.stringify(body.contents[0]);
+    expect(lead).toContain("小明");
+    expect(lead).toContain("六堂卡");
+  });
+
+  it("沒有名字與卡名時仍然說得通", () => {
+    const flex = buildRenewalReminderFlex({});
+    const body = (flex.contents as { body: { contents: Record<string, unknown>[] } }).body;
+    expect(JSON.stringify(body.contents[0])).toContain("課卡");
+    expect(actionsOf(flex)).toHaveLength(1);
   });
 });

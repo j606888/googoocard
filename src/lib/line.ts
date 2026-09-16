@@ -132,9 +132,27 @@ function itemRow(item: MenuItem): LineMessage {
 /**
  * A branded menu bubble: a purple header with the brand + a subtitle, a body of
  * icon-rows (separated by hairlines), and a small footer hint.
+ *
+ * `lead` prepends a wrapped paragraph above the rows — used by messages that
+ * need to say something before offering the action (e.g. the renewal reminder).
  */
-function menuBubble(subtitle: string, items: MenuItem[]): LineMessage {
+function menuBubble(
+  subtitle: string,
+  items: MenuItem[],
+  opts: { lead?: string } = {},
+): LineMessage {
   const rows: LineMessage[] = [];
+  if (opts.lead) {
+    rows.push({
+      type: "box",
+      layout: "vertical",
+      paddingAll: "lg",
+      contents: [
+        { type: "text", text: opts.lead, wrap: true, size: "sm", color: TEXT_MAIN },
+      ],
+    });
+    rows.push({ type: "separator", color: ROW_DIVIDER });
+  }
   items.forEach((item, i) => {
     if (i > 0) rows.push({ type: "separator", color: ROW_DIVIDER });
     rows.push(itemRow(item));
@@ -215,6 +233,24 @@ export function buildStudentMenuFlex(
 }
 
 /**
+ * The 續卡提醒 push: tells the student which card ran out and offers a one-tap
+ * route to the LIFF purchase page. Same branded bubble as the menus.
+ */
+export function buildRenewalReminderFlex(opts: {
+  name?: string;
+  cardName?: string;
+}): LineMessage {
+  const card = opts.cardName ? `《${opts.cardName}》` : "課卡";
+  return {
+    type: "flex",
+    altText: "續卡提醒",
+    contents: menuBubble("續卡提醒", [liffItem("🛒", "購買課卡", "buy")], {
+      lead: `${opts.name ? `${opts.name}，你` : "你"}的${card}堂數已經用完囉！要繼續上課的話，點下面就能直接續卡 👇`,
+    }),
+  };
+}
+
+/**
  * Reply to a LINE event using its short-lived replyToken.
  * https://developers.line.biz/en/reference/messaging-api/#send-reply-message
  */
@@ -236,6 +272,44 @@ export async function replyMessage(
   });
   if (!res.ok) {
     console.error(`[line] reply failed: ${res.status} ${await res.text()}`);
+  }
+}
+
+/**
+ * Push a message to a LINE user without a replyToken (we initiate, not the user).
+ * https://developers.line.biz/en/reference/messaging-api/#send-push-message
+ *
+ * Returns whether LINE accepted it. Unlike `replyMessage` this also catches the
+ * `fetch` itself: the renewal-reminder cron loops over many students and must not
+ * abort the batch on one network blip. Still never throws — outbound failures are
+ * swallowed, per the convention. The caller uses the boolean to decide whether to
+ * record the send (a failed push must not burn the cooldown).
+ */
+export async function pushMessage(
+  to: string,
+  messages: LineMessage[],
+): Promise<boolean> {
+  if (!CHANNEL_ACCESS_TOKEN) {
+    console.warn("[line] LINE_CHANNEL_ACCESS_TOKEN not set; skipping push");
+    return false;
+  }
+  try {
+    const res = await fetch("https://api.line.me/v2/bot/message/push", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${CHANNEL_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify({ to, messages }),
+    });
+    if (!res.ok) {
+      console.error(`[line] push failed: ${res.status} ${await res.text()}`);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("[line] push threw", e);
+    return false;
   }
 }
 

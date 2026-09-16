@@ -1,7 +1,7 @@
 # Googoocard 體檢與藍圖
 
 > 建立：2026-08-23（全專案掃描：21.8k 行 / 64 個 API route / 23 支整合測試）
-> 更新：2026-08-28（P0b 教室生命週期）
+> 更新：2026-09-16（P2-1 續卡提醒推播，專案有了第一個 cron）
 > 前提：**production 上已有多間教室在使用**——跨教室資料邊界是實質風險，不是理論問題。
 
 ## 這份文件是什麼
@@ -316,39 +316,54 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
 
 # P2 — 功能藍圖
 
-## [ ] P2-1 續卡提醒推播 ⭐ 下一個要做的
+## [x] P2-1 續卡提醒推播 ✅ 2026-09-16
 
-**為什麼是它**：判定邏輯與通知通道都已經在了，只差排程與去重，投入產出比最高。
-學生課卡用完卻沒人提醒是直接的營收漏損。
+**為什麼**：判定邏輯與通知通道都已經在了，只差排程與去重。學生課卡用完卻沒人提醒
+是直接的營收漏損。
 
-**現有拼圖**：
+**做法**：每天台北時間 10:00（cron `0 2 * * *` UTC）掃一次，對「多堂卡剛好用完 +
+已綁 LINE + 教室在白名單 + 不在冷卻期」的學生推一張 Flex 卡片，附一鍵開 LIFF 購卡頁
+的按鈕。冷卻 **14 天**。
 
-| 元件 | 位置 | 狀態 |
-|---|---|---|
-| 「誰需要續卡」判定 | `src/service/studentTag.ts` 的 `computeNeedsRenewal()` | ✅ 已有 |
-| 學生 LINE 身分 | `Student.lineUserId` | ✅ 已有 |
-| LINE 通道與 Flex 訊息 | `src/lib/line.ts` | ✅ 部分 |
+| 檔案 | 做了什麼 |
+|---|---|
+| `prisma/schema.prisma` | 新 model `RenewalReminder`（`studentId` / `studentCardId` / `sentAt`），migration `20260916060145_add_renewal_reminder` |
+| `src/service/studentTag.ts` | `computeNeedsRenewal()` 拆出 **`findExhaustedRenewableCard()`**（回傳是哪張卡用完），布林版建立在它之上——判定規則仍然只有一份 |
+| `src/lib/line.ts` | 新 `pushMessage()`、新 `buildRenewalReminderFlex()`；`menuBubble()` 多一個 optional `lead` 參數 |
+| `src/service/renewalReminder.ts` | `collectRenewalCandidates()` / `sendRenewalReminders()` |
+| `src/app/api/cron/renewal-reminders/route.ts` | cron 進入點，自己驗 `CRON_SECRET` |
+| `vercel.ts` | 專案第一份 Vercel 設定檔，只宣告 cron（需 `@vercel/config`） |
+| `tests/api/renewal-reminders.test.ts` | 17 個 case |
 
-**缺的四塊**：
+**三個與原計畫不同的決定**：
 
-1. **`pushMessage()`** — `src/lib/line.ts` 目前只有 `replyMessage()`，需要 replyToken，
-   只能被動回覆。主動推播要打 `POST https://api.line.me/v2/bot/message/push`，
-   沿用同一份 `LINE_CHANNEL_ACCESS_TOKEN`，並遵守既有慣例：**外呼失敗一律吞掉，
-   不得中斷主流程**。
-2. **去重／冷卻** — 避免每天重複轟炸。
-   **決定**：新開 `RenewalReminder` model（`studentId` / `sentAt` / `studentCardId`），
-   **不要**塞進既有 `Event` 表——`GET /api/students/[id]/events` 會把所有 event 顯示在
-   學生頁時間軸上，推播紀錄會污染 UI。預設冷卻 14 天。
-3. **排程** — 專案沒有 `vercel.json` / `vercel.ts`，等於沒有任何 cron。
-   新增 `vercel.ts`（Vercel 現行建議寫法，優於 `vercel.json`）宣告 cron 打
-   `POST /api/cron/renewal-reminders`。**該 route 必須自己驗 `CRON_SECRET` header**——
-   `/api` 在 middleware 是公開的，沒人會幫你擋。
-4. **老師端開關** — 教室層級的推播開關與冷卻天數。最小版先寫死常數，
-   `Classroom` 加欄位列為 backlog。
+1. **route 是 `GET`，不是 `POST`。** Vercel Cron Jobs 只會對目標路徑發 **GET**
+   request，原本寫的 `POST /api/cron/renewal-reminders` 永遠不會被觸發。
+2. **教室開關用環境變數 `RENEWAL_REMINDER_CLASSROOM_IDS`（逗號分隔的教室 id），
+   不是原始碼常數。** 語意上一樣是「先寫死」（不碰 schema、不碰 UI），但常數版本
+   沒辦法測——整合測試建立的教室 id 不可預測。env 版本還能不重新部署就開關一間教室。
+   **未設定 = 一間都不推**（fail-closed：部署當下不會突然開始發訊息給學生）。
+3. **`pushMessage()` 回傳 `boolean` 並自己 try/catch `fetch`。** 仍然不 throw、
+   仍然吞掉外呼失敗（符合既有慣例），但呼叫端要知道成敗：**推失敗就不寫
+   `RenewalReminder`**，否則 token 壞掉時會靜靜地把 14 天冷卻期燒掉。
+   `replyMessage()` 沒包 try/catch，網路層丟出來會往上炸——cron 迴圈跑幾百個學生
+   不能因為一次 DNS 失敗整批中斷。
 
-**測試**：沿用 `tests/api/` 模式，mock `@/lib/line` 的 push。
-斷言只有「卡用完 + 已綁 LINE + 不在冷卻期內」的學生進入推播名單。
-**絕不可打到真實 LINE API**（headless/CI 環境沒有正式 token，且會真的發訊息給學生）。
+**兩層判定，刻意的**：`Needs Renewal` tag 當預篩（一次查詢縮小範圍，該 tag 由
+`refreshNeedsRenewalTag()` 在點名／購卡／轉卡時維護，也就是所有會翻轉它的事件），
+再對每個候選呼叫 `findExhaustedRenewableCard()` 複驗。複驗擋掉 tag 漂移，順便拿到
+卡名與 `studentCardId`。冷卻用一次 `groupBy` 取每人最後推播時間，不在迴圈裡逐人查。
+
+**已知取捨**：`Student.lineUserId` 不是 unique，一個 LINE 帳號綁多位學生時會收到多則。
+這是對的——每則訊息指名的是哪一位學生要續卡。
+
+**`?dryRun=1`** 只回名單、不推播也不寫紀錄。上 production 或改判定邏輯後先用它確認名單。
+
+**待辦（backlog）**：`Classroom.renewalReminderEnabled` 欄位 + 老師端設定 UI，
+取代現在的環境變數白名單；冷卻天數也一併搬進去。
+
+**cron 基礎設施已就緒**——backlog 裡兩件本來卡在「沒有排程」的事現在有地方掛了：
+課卡到期自動處理、已封存教室的 purge job。往 `vercel.ts` 的 `crons` 加一筆即可。
 
 ## [x] P2-2 點名帶錯時段的防呆 ✅ 2026-09-16（三步全數完成）
 
@@ -420,13 +435,16 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
   規劃已寫在 `student-login-checkin-payment-plan.md` 末段，目前只做到 `isPaid` 布林值
   與未付款清單（`/api/student-cards/unpaid`、`UnpaidBell.tsx`）。
 - **課卡到期自動處理** — `StudentCard.expiredAt` 有欄位但沒有定期 job 去掃。
-  可與 P2-1 的 cron 共用排程基礎設施。
+  排程基礎設施 P2-1 已備好，往 `vercel.ts` 的 `crons` 加一筆、照
+  `src/app/api/cron/renewal-reminders/route.ts` 的 `CRON_SECRET` 驗證抄一份即可。
 - **營收 CSV 匯出** — 老師報稅／對帳用。
 - **課程模板／重複排課** — 現在每期課要手動建所有 periods。
 - **轉移教室所有權** — 目前 owner 唯一的出場方式是封存教室。要能把 `Membership.role`
   與 `Classroom.ownerId` 一起交棒，之後 owner 才能像 assistant 一樣退出。
 - **已封存教室的還原 UI** — 現在只能手動 `UPDATE "Classroom" SET "deletedAt" = NULL`。
-  一併考慮 purge job（真正清資料），可共用 P2-1 的 cron 基礎設施。
+  一併考慮 purge job（真正清資料），排程基礎設施 P2-1 已備好（見 `vercel.ts`）。
+- **續卡提醒的教室開關欄位化** — `Classroom.renewalReminderEnabled` + 冷卻天數 +
+  老師端設定 UI，取代 P2-1 現在用的環境變數白名單 `RENEWAL_REMINDER_CLASSROOM_IDS`。
 
 ---
 

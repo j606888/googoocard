@@ -147,6 +147,7 @@ model Student {
   attendanceRecords   AttendanceRecord[]
   events              Event[]
   danceQualifications StudentDanceQualification[]
+  renewalReminders    RenewalReminder[]
   createdAt           DateTime                    @default(now())
   updatedAt           DateTime                    @updatedAt
 
@@ -380,4 +381,19 @@ model LineAccount {
   selectedStudentId Int?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
+}
+
+// 續卡提醒的推播紀錄。刻意獨立於 `Event`——`GET /api/students/[id]/events` 會把
+// 所有 event 畫在學生頁時間軸上，推播紀錄放進去會污染 UI。這張表只服務冷卻判定。
+model RenewalReminder {
+  id            Int      @id @default(autoincrement())
+  studentId     Int
+  student       Student  @relation(fields: [studentId], references: [id])
+  // 觸發這次推播的那張用完的卡，僅供追查；卡之後被轉換／過期也不影響冷卻判定。
+  studentCardId Int?
+  sentAt        DateTime @default(now())
+
+  // 冷卻查的是「這位學生最近一次推播是什麼時候」，排序欄位跟著進索引，
+  // 和 Event 的 [studentId, createdAt] 同一個道理。
+  @@index([studentId, sentAt])
 }

@@ -29,7 +29,15 @@ async function ensureNeedsRenewalTag(classroomId: number) {
   }
 }
 
-async function computeNeedsRenewal(studentId: number): Promise<boolean> {
+/**
+ * 找出「害這位學生需要續卡」的那張卡：未過期、非單堂卡、同卡種中最新的一張，
+ * 且剩餘堂數為 0。沒有就回傳 null。
+ *
+ * 這是續卡判定的**唯一**出處——「Needs Renewal」tag 與續卡提醒推播
+ * （src/service/renewalReminder.ts）都建立在它之上。要改規則就改這裡，
+ * 不要在別處另寫一套。
+ */
+export async function findExhaustedRenewableCard(studentId: number) {
   const studentCards = await prisma.studentCard.findMany({
     where: { studentId, expiredAt: null },
     include: { card: true },
@@ -43,7 +51,11 @@ async function computeNeedsRenewal(studentId: number): Promise<boolean> {
       latestCardByType.set(sc.cardId, sc);
     }
   }
-  return [...latestCardByType.values()].some((sc) => sc.remainingSessions === 0);
+  return [...latestCardByType.values()].find((sc) => sc.remainingSessions === 0) ?? null;
+}
+
+async function computeNeedsRenewal(studentId: number): Promise<boolean> {
+  return (await findExhaustedRenewableCard(studentId)) !== null;
 }
 
 export async function refreshNeedsRenewalTag(studentId: number, classroomId: number) {

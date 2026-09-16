@@ -23,6 +23,8 @@ docker-compose up -d  # Starts Postgres on port 54330 (user/password: postgres/p
 
 Required env vars: `DATABASE_URL`, `JWT_SECRET`. For custom student avatar upload, also set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (see "Student Avatars" in `docs/architecture.md`); the preset avatars still work without them.
 
+For the daily renewal-reminder cron (see "續卡提醒推播" in `docs/architecture.md`): `CRON_SECRET` (the route refuses everything when it's unset) and `RENEWAL_REMINDER_CLASSROOM_IDS` (comma-separated classroom ids; **unset = no classroom gets pushes**). Leave the allowlist empty locally — a real `LINE_CHANNEL_ACCESS_TOKEN` plus a non-empty allowlist means the cron sends real messages to real students. Use `?dryRun=1` to inspect the list without sending.
+
 **Env layout is fail-safe — local is the default, production is opt-in:**
 - `.env` — local only (docker Postgres on `:54330`). Never put production credentials here.
 - `.env.production` — production RDS `DATABASE_URL` (gitignored); used **only** by `npm run db:deploy`.

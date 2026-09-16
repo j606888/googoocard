@@ -202,7 +202,43 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - `Tag` / `StudentTag`：教室層級的自由標籤，學生編輯頁可增刪。
 - **"Needs Renewal"** 由系統自動維護（`src/service/studentTag.ts` 的
   `refreshNeedsRenewalTag`）：學生最新一張多堂卡用完 → 自動加 tag，買新卡/退堂 → 自動移除。
-  觸發點：點名、買卡、退卡。**不要手動增刪這個 tag 的邏輯**，改 `computeNeedsRenewal` 即可。
+  觸發點：點名、買卡、退卡。**不要手動增刪這個 tag 的邏輯**，改
+  `findExhaustedRenewableCard` 即可（見下一節）。
+
+## 續卡提醒推播（每日 cron）
+
+判定的**唯一出處**是 `src/service/studentTag.ts` 的 **`findExhaustedRenewableCard(studentId)`**：
+未過期、非單堂卡（`totalSessions > 1`）、同卡種中最新的一張，且剩餘堂數為 0 → 回傳那張卡。
+`computeNeedsRenewal()`（"Needs Renewal" tag）與續卡推播都建立在它之上。
+**要改續卡規則就改這個函式，不要在別處另寫一套。**
+
+| 環節 | 位置 |
+|---|---|
+| 排程宣告 | `vercel.ts` 的 `crons`：`0 2 * * *` UTC＝台北 10:00，每天一次 |
+| 進入點 | `GET /api/cron/renewal-reminders`（**GET**，Vercel cron 只發 GET） |
+| 名單與推播 | `src/service/renewalReminder.ts` |
+| 訊息 | `src/lib/line.ts` 的 `buildRenewalReminderFlex()` + `pushMessage()` |
+
+**驗證**：`/api` 在 middleware 是公開的，route 自己比對
+`Authorization: Bearer <CRON_SECRET>`（timing-safe；Vercel 設了 `CRON_SECRET` 會自動帶）。
+**`CRON_SECRET` 未設定就一律拒絕。**
+
+**教室開關**：環境變數 `RENEWAL_REMINDER_CLASSROOM_IDS`（逗號分隔的教室 id），
+**未設定 = 一間都不推**（fail-closed）。欄位化＋老師端 UI 見 roadmap backlog。
+
+**冷卻 14 天**（`RENEWAL_REMINDER_COOLDOWN_DAYS`），紀錄在 `RenewalReminder` 表。
+**刻意不放進 `Event`**——`GET /api/students/[id]/events` 會把所有 event 畫在學生頁
+時間軸上，推播紀錄放進去會污染 UI。
+
+**兩層判定**：`Needs Renewal` tag 當預篩（縮小範圍），再逐人呼叫
+`findExhaustedRenewableCard()` 複驗 —— 複驗擋掉 tag 漂移，也拿到卡名與 `studentCardId`。
+封存教室（`Classroom.deletedAt`）要自己擋，cron 沒有 `apiRoute` 的 membership 檢查。
+
+**推失敗不寫紀錄**：`pushMessage()` 回傳 `boolean`（不 throw，外呼失敗照慣例吞掉），
+失敗就不落 `RenewalReminder`，否則 token 壞掉會靜靜地把冷卻期燒掉。
+
+**`?dryRun=1`** 只回名單、不推播也不寫紀錄。上 production 或改判定邏輯後先用它確認名單。
+測試一律 `vi.mock("@/lib/line")` 攔 `pushMessage`，**絕不可打到真實 LINE API**。
 
 ## 教室生命週期與角色
 
