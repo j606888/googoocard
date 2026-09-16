@@ -65,7 +65,10 @@ const TimeSlotCard = ({ lesson }: { lesson: LessonSummary }) => {
             className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-warning-500 text-white text-sm font-semibold hover:bg-warning-600 transition-colors"
           >
             <AlarmClock className="w-4 h-4" />
-            待點名
+            {/* A backlog target is another day's period — never label it with the clock time alone. */}
+            {lesson.dueForAttendanceIsBacklog && start
+              ? `${format(new Date(start), "M月d日")} 待點名`
+              : "待點名"}
           </button>
         ) : isFinished ? (
           <div className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-primary-50 text-primary-700 text-sm font-medium">

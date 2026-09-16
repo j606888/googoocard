@@ -48,6 +48,8 @@ export interface LessonSummary {
   dueForAttendancePeriodId: number | null;
   dueForAttendanceDate: string | null;
   dueForAttendanceEndTime: string | null;
+  /** CTA target is an older unchecked period, not today's — show its date, not just its time. */
+  dueForAttendanceIsBacklog: boolean;
   lastPeriodStart: string | null;
   lastPeriodEnd: string | null;
 }

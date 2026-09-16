@@ -350,7 +350,7 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
 斷言只有「卡用完 + 已綁 LINE + 不在冷卻期內」的學生進入推播名單。
 **絕不可打到真實 LINE API**（headless/CI 環境沒有正式 token，且會真的發訊息給學生）。
 
-## [ ] P2-2 點名帶錯時段的防呆 ⚠️ 已在 production 造成兩次資料錯位
+## [~] P2-2 點名帶錯時段的防呆 ⚠️ 已在 production 造成兩次資料錯位（1、2 已完成 2026-09-16，3 未做）
 
 **為什麼**：Bailamore 教室（classroom 3）的週日課程連續兩週把點名寫到錯的日期上——
 8/30 的點名寫進 8/23 的時段、9/13 的點名寫進 8/30 的時段。起因是 **8/23 因大雨停課但時段沒刪**，
@@ -378,6 +378,26 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
 
 **測試**：`src/service/lesson.test.ts` 已有 `summarizeLessonPeriods` 的單元測試，
 補「有今天的時段時優先回今天」「只有舊的未點名時段時 fallback 到最早那個」兩個 case。
+
+**已完成（2026-09-16）——第 1、2 步**
+
+- **CTA 改成今天優先**：沒有另外開 `todayPeriodId`，而是直接把
+  `dueForAttendancePeriodId` / `Date` / `EndTime` 的語意改成「CTA 要開的那個時段」
+  ＝有今天就今天、否則最早的未點名。理由是這三個欄位的**唯一**消費者就是
+  `LessonCard` / `TimeSlotCard` 的 CTA（已 grep 確認），多開一組欄位等於讓 UI 有兩個
+  真相來源——正是這個 bug 的成因。`dueForAttendanceCount` 的 ⚠️ 語意完全不動。
+- **新增 `dueForAttendanceIsBacklog`**（summary → API payload → `LessonSummary`）：
+  CTA 目標不是今天時為 true。`TimeSlotCard` 用它把「待點名」改成「8月23日 待點名」——
+  群組日檢視只顯示 `HH:mm`，不標日期的話舊時段看起來就像今天的課。
+  `LessonCard` 本來就印 `M月d日`，不用改。
+- **`PeriodInfo.tsx` 警示**：時段不是今天時整塊轉 warning 色，並多一行
+  「這是 8月23日 的課，不是今天（9月16日）。確定要點這一堂嗎？」
+- 單元測試補了兩個 case（含 Bailamore 情境：舊時段沒點名時 CTA 仍指向今天），
+  並修掉原本斷言「earliest by start time」的那一行。385 tests pass。
+
+**沒做的是第 3 步**（時段日期 PATCH API）。`periods/[periodId]/route.ts` 目前仍只有
+`DELETE`。刻意分開：改日期會動到既有出席紀錄的語意（已點名的時段改期＝那些
+`AttendanceRecord` 算哪一天？扣的卡要不要動？），風險等級跟前兩步不同，值得單獨一輪。
 
 ## Backlog（不排期，想到再補）
 

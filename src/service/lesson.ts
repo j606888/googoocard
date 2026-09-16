@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { endOfDay } from "date-fns";
+import { endOfDay, isSameDay } from "date-fns";
 
 type SummarizablePeriod = {
   id: number;
@@ -15,13 +15,23 @@ export interface LessonPeriodSummary {
   /** Earliest period starting strictly after `now` — the informational "next class" date. */
   nextSessionDate: Date | null;
   nextSessionPeriodId: number | null;
-  /** Periods already due (start <= end of today) but not yet checked — drives the 點名 CTA / ⚠️. */
+  /** How many periods are due (start <= end of today) but not yet checked — drives the ⚠️. */
   dueForAttendanceCount: number;
+  /**
+   * The period the 點名 CTA opens: **today's due period if there is one**, otherwise the
+   * earliest due one. Today-first because a stale unchecked period (rained-off class that
+   * was never deleted) used to silently drag every later 點名 onto the wrong date — it
+   * corrupted two weeks of Bailamore attendance before anyone noticed. The backlog is
+   * still surfaced, as `dueForAttendanceCount` + `dueForAttendanceIsBacklog`, not by
+   * hijacking the CTA.
+   */
   dueForAttendancePeriodId: number | null;
-  /** Start of the earliest due period — the date shown on the 點名 CTA. */
+  /** Start of that same period — the date shown on the 點名 CTA. */
   dueForAttendanceDate: Date | null;
-  /** End of that same due period — paired with dueForAttendanceDate for a "14:00–15:00" style display. */
+  /** End of that same period — paired with dueForAttendanceDate for a "14:00–15:00" style display. */
   dueForAttendanceEndTime: Date | null;
+  /** True when the CTA target is *not* today's period — the UI must show its date, not just its time. */
+  dueForAttendanceIsBacklog: boolean;
   /** End of the next upcoming period — paired with nextSessionDate. */
   nextSessionEndTime: Date | null;
   lastPeriodStart: Date | null;
@@ -58,6 +68,9 @@ export const summarizeLessonPeriods = (
     (p) => !p.attendanceTaken && p.startTime.getTime() <= todayEnd.getTime()
   );
 
+  // Today first, earliest-overdue only as a fallback (see LessonPeriodSummary).
+  const dueTarget = due.find((p) => isSameDay(p.startTime, now)) ?? due[0] ?? null;
+
   const lastPeriod = parsed.reduce<(typeof parsed)[number] | null>(
     (latest, p) => (!latest || p.endTime > latest.endTime ? p : latest),
     null
@@ -71,9 +84,10 @@ export const summarizeLessonPeriods = (
     nextSessionEndTime: nextSession?.endTime ?? null,
     nextSessionPeriodId: nextSession?.id ?? null,
     dueForAttendanceCount: due.length,
-    dueForAttendancePeriodId: due[0]?.id ?? null,
-    dueForAttendanceDate: due[0]?.startTime ?? null,
-    dueForAttendanceEndTime: due[0]?.endTime ?? null,
+    dueForAttendancePeriodId: dueTarget?.id ?? null,
+    dueForAttendanceDate: dueTarget?.startTime ?? null,
+    dueForAttendanceEndTime: dueTarget?.endTime ?? null,
+    dueForAttendanceIsBacklog: dueTarget ? !isSameDay(dueTarget.startTime, now) : false,
     lastPeriodStart: lastPeriod?.startTime ?? null,
     lastPeriodEnd: lastPeriod?.endTime ?? null,
   };

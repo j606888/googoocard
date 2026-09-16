@@ -81,6 +81,7 @@ export async function GET(request: Request) {
       dueForAttendancePeriodId,
       dueForAttendanceDate,
       dueForAttendanceEndTime,
+      dueForAttendanceIsBacklog,
       lastPeriodStart,
       lastPeriodEnd,
     } = summarizeLessonPeriods(lesson.periods, now);
@@ -103,6 +104,7 @@ export async function GET(request: Request) {
       dueForAttendancePeriodId,
       dueForAttendanceDate,
       dueForAttendanceEndTime,
+      dueForAttendanceIsBacklog,
       lastPeriodStart,
       lastPeriodEnd,
     };
