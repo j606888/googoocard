@@ -39,6 +39,24 @@ export const convertStudentCardSchema = z.object({
   note: z.string().max(500).nullish(),
 });
 
+/**
+ * A lesson period's time slot (PATCH .../periods/[periodId]).
+ *
+ * Re-dating a period exists because of docs/roadmap.md P2-2: a class that was
+ * rained off but never re-dated dragged two weeks of attendance onto the wrong
+ * days, and without this the only fix was delete-and-recreate, which throws the
+ * period's attendance away.
+ */
+export const periodTimesSchema = z
+  .object({
+    startTime: z.coerce.date(),
+    endTime: z.coerce.date(),
+  })
+  .refine((data) => data.endTime > data.startTime, {
+    path: ["endTime"],
+    message: "結束時間必須晚於開始時間",
+  });
+
 export const studentCardNoteSchema = z.object({
   note: z.string().max(500, "備註不能超過 500 字").nullable(),
 });

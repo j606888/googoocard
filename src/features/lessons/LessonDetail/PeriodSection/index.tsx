@@ -4,6 +4,7 @@ import {
   useResetAttendanceMutation,
 } from "@/store/slices/lessons";
 import AddPeriodForm from "./AddPeriodForm";
+import EditPeriodTimeForm from "./EditPeriodTimeForm";
 import { format, isToday } from "date-fns";
 import Menu from "@/components/Menu";
 import {
@@ -13,6 +14,7 @@ import {
   Trash,
   Eraser,
   PencilLine,
+  CalendarCog,
   AlarmClock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -75,6 +77,7 @@ const PeriodRow = ({
 }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [editTimeOpen, setEditTimeOpen] = useState(false);
   const router = useRouter();
   const startTime = new Date(period.startTime);
   const endTime = new Date(period.endTime);
@@ -85,10 +88,6 @@ const PeriodRow = ({
   const endHour = format(endTime, "HH:mm");
   const [deletePeriod] = useDeletePeriodMutation();
   const [resetAttendance] = useResetAttendanceMutation();
-
-  // Taken-but-not-the-last-attended period has nothing left to do (viewing
-  // its record is the row's own click target below) — no menu at all then.
-  const showMenu = !attended || isLastAttend;
 
   const handleCheck = () => {
     if (new Date() < new Date(startTime)) {
@@ -121,6 +120,11 @@ const PeriodRow = ({
       toast.success("已重置點名紀錄");
     }
     setMenuOpen(false);
+  };
+
+  const handleEditTime = () => {
+    setMenuOpen(false);
+    setEditTimeOpen(true);
   };
 
   const handleUpdate = () => {
@@ -184,17 +188,18 @@ const PeriodRow = ({
                 尚未開始
               </span>
             )}
-            {showMenu && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(!menuOpen);
-                }}
-                ref={buttonRef}
-              >
-                <EllipsisVertical className="w-4 h-4 text-neutral-300 cursor-pointer hover:text-neutral-500" />
-              </button>
-            )}
+            {/* Every row has a menu now: any period can be mis-dated, including
+                ones already checked — that is the Bailamore case. 修改／重置 stay
+                limited to the last attended period, 刪除 to unchecked ones. */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(!menuOpen);
+              }}
+              ref={buttonRef}
+            >
+              <EllipsisVertical className="w-4 h-4 text-neutral-300 cursor-pointer hover:text-neutral-500" />
+            </button>
           </div>
         </div>
       </div>
@@ -205,6 +210,16 @@ const PeriodRow = ({
         onClose={() => setMenuOpen(false)}
       >
         <div className="flex flex-col gap-3 p-3">
+          {/* Re-dating stays available after 點名: moving a period keeps its
+              records (see the PATCH route), and the mis-dated ones are exactly
+              the periods that need moving. */}
+          <button
+            className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
+            onClick={handleEditTime}
+          >
+            <CalendarCog className="w-4 h-4" />
+            修改時間
+          </button>
           {!attended && (
             <button
               className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
@@ -234,6 +249,14 @@ const PeriodRow = ({
           )}
         </div>
       </Menu>
+
+      {editTimeOpen && (
+        <EditPeriodTimeForm
+          period={period}
+          open={editTimeOpen}
+          onClose={() => setEditTimeOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -350,7 +350,7 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
 斷言只有「卡用完 + 已綁 LINE + 不在冷卻期內」的學生進入推播名單。
 **絕不可打到真實 LINE API**（headless/CI 環境沒有正式 token，且會真的發訊息給學生）。
 
-## [~] P2-2 點名帶錯時段的防呆 ⚠️ 已在 production 造成兩次資料錯位（1、2 已完成 2026-09-16，3 未做）
+## [x] P2-2 點名帶錯時段的防呆 ✅ 2026-09-16（三步全數完成）
 
 **為什麼**：Bailamore 教室（classroom 3）的週日課程連續兩週把點名寫到錯的日期上——
 8/30 的點名寫進 8/23 的時段、9/13 的點名寫進 8/30 的時段。起因是 **8/23 因大雨停課但時段沒刪**，
@@ -395,9 +395,20 @@ CI 打不到 production：`tests/test-db-url.ts` 硬性要求 localhost。
 - 單元測試補了兩個 case（含 Bailamore 情境：舊時段沒點名時 CTA 仍指向今天），
   並修掉原本斷言「earliest by start time」的那一行。385 tests pass。
 
-**沒做的是第 3 步**（時段日期 PATCH API）。`periods/[periodId]/route.ts` 目前仍只有
-`DELETE`。刻意分開：改日期會動到既有出席紀錄的語意（已點名的時段改期＝那些
-`AttendanceRecord` 算哪一天？扣的卡要不要動？），風險等級跟前兩步不同，值得單獨一輪。
+**已完成——第 3 步（時段日期 PATCH）**
+
+- `PATCH /api/lessons/[id]/periods/[periodId]`，body 走新的 `periodTimesSchema`
+  （`z.coerce.date()` + 結束必須晚於開始）。順手把同檔的 `DELETE` 一起遷到
+  `apiRoute` 包裝（P1-2「碰到就遷」的政策）。
+- **業務決定：出席紀錄跟著時段走。** `AttendanceRecord` 以 id 指向 `LessonPeriod`，
+  所以改期不動紀錄、不動課卡，已點名的時段一樣能改——這正是 9/14 那支一次性腳本
+  做的事（只改 6 筆 `startTime/endTime`），等於把手動修法變成老師自己能按的按鈕。
+  改完呼叫 `refreshLesson()`，`endAt` / `status` 跟著重算。
+- UI：時段列表每一列的選單都加「修改時間」（`EditPeriodTimeForm.tsx`）。
+  選單原本只在「未點名或最後一個已點名」時出現，現在一律出現——會被帶錯日期的
+  往往正是中間那些已點名的時段。已點名時 drawer 會說明「不會動到出席紀錄與課卡」。
+- 測試：`tests/api/lesson-period-patch.test.ts` 5 個 case（紀錄保留、`endAt` 跟著動、
+  結束早於開始 400、跨教室 404、時段不屬於該課 404）。全專案 390 tests pass。
 
 ## Backlog（不排期，想到再補）
 

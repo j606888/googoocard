@@ -105,6 +105,21 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 | `not_checked` | 恰好一張可用卡，等確認 |
 | `not_qualified` | 唯一的卡是複習卡但不符資格（含舞種不符的 legacy 掛卡） |
 
+### 老師會被帶到哪一個時段（點名 CTA）
+
+`summarizeLessonPeriods()`（`src/service/lesson.ts`）回的 `dueForAttendancePeriodId`
+就是課程卡片上「點名」按鈕要開的時段：**當天的未點名時段優先**，沒有才 fallback 到
+最早的未點名。歷史上它單純取最早的未點名，於是任何一個沒點到的舊時段（停課、忘記點）
+都會把後續每次點名靜靜帶到錯的日期，而且會一路累積——production 已因此錯位兩週
+（見 `docs/roadmap.md` P2-2）。backlog 不會被藏起來：`dueForAttendanceCount` 照舊顯示
+「N 堂待點名」，`dueForAttendanceIsBacklog` 讓 `TimeSlotCard` 把日期標出來，
+`PeriodInfo.tsx` 則在點名頁對「不是今天的時段」整塊轉成警示色。
+
+時段本身可以改期：`PATCH /api/lessons/[id]/periods/[periodId]`（UI 在時段列表的
+「修改時間」）。**出席紀錄是跟著時段走的**——`AttendanceRecord` 以 id 指向
+`LessonPeriod`，所以改期不動紀錄也不動課卡，已點名的時段一樣能改。停課改期因此不必
+刪掉時段重建（那會連同出席一起丟掉）。
+
 ## 學生自助簽到（兩個入口，同一顆引擎）
 
 學生自助簽到一律走 `selfCheckIn()`（`src/domains/attendance/attendance.service.ts`）：

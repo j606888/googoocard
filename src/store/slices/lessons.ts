@@ -278,6 +278,18 @@ const lessonsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Lesson"],
     }),
+    /** Re-date a period; its attendance records move with it (see the PATCH route). */
+    updatePeriod: builder.mutation<
+      void,
+      { id: number; periodId: number; startTime: string; endTime: string }
+    >({
+      query: ({ id, periodId, startTime, endTime }) => ({
+        url: `lessons/${id}/periods/${periodId}`,
+        method: "PATCH",
+        body: { startTime, endTime },
+      }),
+      invalidatesTags: ["Lesson"],
+    }),
     deletePeriod: builder.mutation<void, { id: number; periodId: number }>({
       query: ({ id, periodId }) => ({
         url: `lessons/${id}/periods/${periodId}`,
@@ -317,6 +329,7 @@ export const {
   useConsumeStudentCardMutation,
   useGetLessonStudentsQuery,
   useCreatePeriodMutation,
+  useUpdatePeriodMutation,
   useDeletePeriodMutation,
   useGetUnbindAttendanceRecordsQuery,
 } = lessonsApi;
