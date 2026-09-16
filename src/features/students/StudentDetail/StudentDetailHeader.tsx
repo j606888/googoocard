@@ -24,7 +24,8 @@ const StudentDetailHeader = ({
   student: StudentWithDetail;
   backHref?: string;
   /**
-   * "page" —— 獨立學生頁的頁首（含麵包屑，只在桌面顯示）。
+   * "page" —— 獨立學生頁的桌面頁首（含麵包屑）。要不要渲染由呼叫端的
+   *           size class 決定，這裡不再用 CSS 藏——裡面掛著 EditStudent 的狀態。
    * "pane" —— 分割檢視右欄的頁首：沒有麵包屑（左邊名單一直在），
    *           改成「完整頁面」出口，深度操作仍回到三欄頁。
    */
@@ -43,7 +44,7 @@ const StudentDetailHeader = ({
       className={
         isPane
           ? "flex-none border-b border-neutral-200 px-6 py-4 bg-white"
-          : "hidden lg:block border-b border-neutral-200 px-8 py-5 bg-white"
+          : "border-b border-neutral-200 px-8 py-5 bg-white"
       }
     >
       {/* Breadcrumb — 分割檢視不需要，左邊名單就是返回路徑 */}

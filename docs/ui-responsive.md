@@ -142,10 +142,14 @@ breakpoint 耦合現在兩邊都對齊同一個邊界。
 `newLesson` 順手把寫兩份的 submit 按鈕與 header 收成一份（`DanceTypeSelect` 的下拉 vs
 radio group 也是）。
 
-**沒做完的一塊**：`StudentDetail/StudentDetailHeader.tsx:46` 的 `hidden lg:block` 還在，
-所以手機上仍會 mount 一份看不見的 `EditStudent`（8 個 `useState`）。要修得動
-`app/(main)/students/[id]/page.tsx`——它有自己的 `lg:hidden` 綠色 header，兩者要一起換
-才不會在手機上同時出現兩個頁首。`GroupDetail.tsx:35,38` 是同一個模式，也還在。
+**補完（2026-09-16 同日）**：`StudentDetailHeader.tsx` 的 `hidden lg:block` 已拿掉，
+渲染與否改由 `app/(main)/students/[id]/page.tsx` 的 `useSizeClass()` 決定——`compact`
+掛綠色 app-bar、`expanded` 掛 `StudentDetailHeader`，一次只有一個。手機因此不再 mount
+那份看不見的 `EditStudent`（8 個 `useState`）。`variant="pane"` 那一支不受影響。
+
+**`GroupDetail.tsx:35,38` 重新判定為不用改**：它的兩份頁首（`SubNavbar` 與桌面
+`hidden lg:flex` 的 `ArrowLeft` + `h1`）內部都沒有 hook 或狀態——`SubNavbar.tsx` 整檔零
+hook——正好落在下面「已知取捨」寫的界線內：小塊靜態內容用 `hidden lg:` 是可以的。
 
 ### [x] 3. 抽 screen hook ✅ 2026-09-16
 
