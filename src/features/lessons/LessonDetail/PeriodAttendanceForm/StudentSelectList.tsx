@@ -22,12 +22,12 @@ const StudentSelectList = ({
     }
   };
 
-  const sortedStudents = students.sort((a) => {
-    if (attendStudentIds.includes(a.id)) {
-      return -1;
-    }
-    return 1;
-  });
+  // 已出席的排前面。先複製再排：students 可能是 RTK Query 回傳的凍結陣列，
+  // 原地 sort 會丟 "Cannot assign to read only property"，整頁白屏。
+  const sortedStudents = [...students].sort(
+    (a, b) =>
+      Number(attendStudentIds.includes(b.id)) - Number(attendStudentIds.includes(a.id))
+  );
 
   return (
     <div className="flex flex-col gap-1">
