@@ -25,6 +25,18 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
   const [addStudentTag] = useAddStudentTagMutation();
   const [removeStudentTag] = useRemoveStudentTagMutation();
 
+  // 表單 state 只在掛載時初始化；分割畫面切換學生不會重新掛載，
+  // 所以每次打開都從當下的 student 重設，避免沿用上一位學生的資料。
+  const handleOpen = () => {
+    setName(student.name);
+    setNote(student.note);
+    setSelectedAvatarUrl(student.avatarUrl);
+    setDanceQualifications(student.danceQualifications ?? []);
+    setErrors({});
+    setTagInput("");
+    setIsOpen(true);
+  };
+
   const handleSubmit = async () => {
     if (!name) {
       setErrors({ name: "請輸入姓名" });
@@ -67,7 +79,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
     <>
       <SquarePen
         className="w-5 h-5 text-neutral-500 cursor-pointer"
-        onClick={() => setIsOpen(true)}
+        onClick={handleOpen}
       />
       <Drawer
         open={isOpen}
