@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
 import { createStudent } from "@/service/student";
 import { toStudentPayload } from "@/service/studentDetail";
+import { parseCardSerial } from "@/lib/cardSerial";
 
 export async function GET(request: Request) {
   const { classroomId } = await decodeAuthToken();
@@ -12,16 +13,21 @@ export async function GET(request: Request) {
   const needsRenewalParam = searchParams.get("needsRenewal");
   const filterNeedsRenewal = needsRenewalParam === "true";
   const sort = searchParams.get("sort") === "number" ? "number" : "name";
+  const serialNumber = query ? parseCardSerial(query) : null;
 
   const students = await prisma.student.findMany({
     where: {
       classroomId,
       ...(query
         ? {
-            name: {
-              contains: query,
-              mode: "insensitive",
-            },
+            OR: [
+              { name: { contains: query, mode: "insensitive" } },
+              // 搜尋框打「A0412」/「#a0412」也能找到持有這張卡的學生
+              // （含已結束的卡 —— 老師常拿舊收據上的卡號來查）。
+              ...(serialNumber !== null
+                ? [{ studentCards: { some: { serialNumber } } }]
+                : []),
+            ],
           }
         : {}),
       ...(filterNeedsRenewal

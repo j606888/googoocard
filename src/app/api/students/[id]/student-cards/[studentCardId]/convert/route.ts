@@ -4,6 +4,7 @@ import { ApiError, badRequest, notFound } from "@/lib/apiError";
 import { convertStudentCardSchema } from "@/lib/schemas";
 import { canBuyCard } from "@/domains/qualification";
 import { performConversion } from "@/service/studentCardConversion";
+import { residualValueOf, suggestConversion } from "@/domains/cardConversion";
 
 // 課卡轉換 — 把一張還沒用完的舊卡換成另一種卡（Level 1 升級成 Level 2、
 // 複習卡 3 堂折抵成 1 堂 Level 2）。
@@ -42,6 +43,10 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
   if (sourceCard.remainingSessions <= 0) {
     throw badRequest("CARD_NO_SESSIONS", "Student card has no remaining sessions");
   }
+  // 新卡一律視為已付清；讓未付款的卡轉換會讓那筆欠款憑空消失（2026-10-02 定案）。
+  if (!sourceCard.isPaid) {
+    throw badRequest("CARD_UNPAID", "Student card must be paid before conversion");
+  }
 
   const targetCard = await prisma.card.findFirst({
     where: { id: targetCardId, classroomId },
@@ -64,10 +69,16 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
     }
   }
 
-  // 預設等堂轉換 (Level 1 → Level 2)；複習卡折抵則由呼叫端指定較少的堂數。
-  // 刻意不設上限：轉換沒有金流，理論上打錯字（6 打成 60）會憑空發課，
-  // 但要不要擋是業務決定，不是驗證層該自作主張的 —— 見 docs/roadmap.md。
-  const newSessions = sessions ?? sourceCard.remainingSessions;
+  // 預設堂數 = 剩餘價值依新卡牌價換算後四捨五入（與轉換表單的建議值同一份規則）。
+  // 呼叫端指定的堂數不設上限：超過換算值等於加贈，UI 只提醒不擋 ——
+  // 補償／加碼是正當情境（2026-10-02 定案）。
+  const newSessions =
+    sessions ??
+    suggestConversion({
+      residualValue: residualValueOf(sourceCard),
+      targetPrice: targetCard.price,
+      targetSessions: targetCard.sessions,
+    }).suggested;
 
   return performConversion({
     sourceCard,

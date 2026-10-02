@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { decodeAuthToken } from "@/lib/auth";
 import { findStudentInClassroom } from "@/lib/authz";
-import { toStudentPayload } from "@/service/studentDetail";
+import { conversionLinksInclude, toStudentPayload } from "@/service/studentDetail";
 import { DanceType } from "@prisma/client";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -100,6 +100,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       studentCards: {
         include: {
           card: true,
+          ...conversionLinksInclude,
           purchasedBy: { select: { name: true } },
           paidBy: { select: { name: true } },
         },

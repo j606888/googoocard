@@ -467,10 +467,6 @@ import `renewalReminder` / `pushMessage` / `findExhaustedRenewableCard`），沒
 
 修 P1 時碰到的，**刻意沒有自作主張**——這些是業務決定，不是驗證層該決定的：
 
-- **轉卡堂數沒有上限。** `POST .../convert` 的 `sessions` 只驗證是正整數，
-  沒有擋「超過原卡剩餘堂數」。轉換沒有金流，所以 6 打成 60 等於憑空發 60 堂課。
-  要擋嗎？還是有「補償／加碼」的正當情境？
-  （位置：`src/app/api/students/[id]/student-cards/[studentCardId]/convert/route.ts`）
 - **買卡價格只擋負數，不擋離譜的值。** `price` 可以是 0（招待卡、全額折扣，
   這是刻意允許的），但也可以是 999999。要不要加一個相對於 `card.price` 的合理範圍？
 
@@ -544,6 +540,9 @@ framer-motion `AnimatePresence` + Radix `forceMount` 模式寫，**在這個專�
 
 這些是看起來像問題、但已經想過並決定接受的：
 
+- **轉卡堂數不設上限，只提醒**（2026-10-02 定案）。預設堂數改成依剩餘價值換算（四捨五入），
+  老師手動調高時 UI 以紅字顯示「以牌價計多 $X」，但 API 不擋——補償／加碼是正當情境。
+  未付款的卡則**禁止**轉換（否則欠款消失）。見 `docs/architecture.md`「課卡轉換」。
 - **`/api/checkin/[key]` 不驗身分** — 現場 QR 看板的信任模型就是「教室相信學生只幫自己
   簽到」，助教稍後複核才定案。防護是教室邊界 + 日期邊界 + 金鑰可輪替。
   詳見 `architecture.md`「現場 QR 簽到」。

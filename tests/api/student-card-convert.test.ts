@@ -40,11 +40,12 @@ describe("POST /api/students/[id]/student-cards/[studentCardId]/convert", () => 
     auth.userId = classroom.ownerId;
   });
 
-  it("等堂升級：新卡繼承剩餘堂數與剩餘價值，舊卡停用並連結", async () => {
+  it("預設堂數依剩餘價值換算：新卡帶走剩餘價值，舊卡停用並連結（備註帶編號）", async () => {
     const student = await createStudent(classroomId);
     const level1 = await createCard(classroomId, { name: "Level 1", sessions: 6 });
     const level2 = await createCard(classroomId, { name: "Level 2", price: 4000, sessions: 6 });
     // 6 堂 3000 元 → 單堂 500，用掉 2 堂剩 4 堂 = 剩餘價值 2000
+    // Level 2 牌價單堂 4000/6 ≈ 666.67 → 2000 ÷ 666.67 = 3 堂（剛好整除）
     const sc = await createStudentCard(student.id, level1.id, {
       totalSessions: 6,
       remainingSessions: 4,
@@ -57,20 +58,75 @@ describe("POST /api/students/[id]/student-cards/[studentCardId]/convert", () => 
 
     expect(created.cardId).toBe(level2.id);
     expect(created.origin).toBe("CONVERSION");
-    expect(created.totalSessions).toBe(4);
-    expect(created.remainingSessions).toBe(4);
+    expect(created.totalSessions).toBe(3);
+    expect(created.remainingSessions).toBe(3);
+    // 舊卡是教室第 1 張（#A0001），新卡接著發 #A0002
+    expect(created.serialNumber).toBe(sc.serialNumber + 1);
     expect(created.finalPrice).toBe(2000);
     expect(created.basePrice).toBe(4000);
     // 沒有金流 → 直接視為已付清，不能落入未付款清單
     expect(created.isPaid).toBe(true);
     expect(created.paidAt).not.toBeNull();
-    expect(created.note).toBe("由「Level 1」剩餘 4 堂轉換而來。");
+    expect(created.note).toBe("由 #A0001「Level 1」剩餘 4 堂轉換而來。");
 
     const old = await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } });
     expect(old.expiredAt).not.toBeNull();
     expect(old.convertedToId).toBe(created.id);
     expect(old.remainingSessions).toBe(4); // 跟一般停用一致，不歸零
-    expect(old.note).toBe("已轉換為「Level 2」4 堂（剩餘 4 堂），故停用。");
+    expect(old.note).toBe("已轉換為 #A0002「Level 2」3 堂（剩餘 4 堂），故停用。");
+  });
+
+  it("除不盡時預設四捨五入", async () => {
+    const student = await createStudent(classroomId);
+    const from = await createCard(classroomId, { name: "Level 1", sessions: 8 });
+    const to = await createCard(classroomId, { name: "Level 2", price: 5600, sessions: 8 });
+    // 8 堂 4800 剩 5 堂 = 3000；3000 ÷ 700 = 4.29 → 4
+    const sc = await createStudentCard(student.id, from.id, {
+      totalSessions: 8,
+      remainingSessions: 5,
+      finalPrice: 4800,
+    });
+    const roundedDown = await (await convert(student.id, sc.id, { targetCardId: to.id })).json();
+    expect(roundedDown.totalSessions).toBe(4);
+
+    // 3000 ÷ 650 = 4.62 → 5
+    const to10 = await createCard(classroomId, { name: "Level 2 季卡", price: 6500, sessions: 10 });
+    const sc2 = await createStudentCard(student.id, from.id, {
+      totalSessions: 8,
+      remainingSessions: 5,
+      finalPrice: 4800,
+    });
+    const roundedUp = await (await convert(student.id, sc2.id, { targetCardId: to10.id })).json();
+    expect(roundedUp.totalSessions).toBe(5);
+  });
+
+  it("手動指定比換算多的堂數 → 允許（只在 UI 提醒加贈）", async () => {
+    const student = await createStudent(classroomId);
+    const from = await createCard(classroomId, { name: "Level 1" });
+    const to = await createCard(classroomId, { name: "Level 2" });
+    const sc = await createStudentCard(student.id, from.id, { remainingSessions: 2 });
+
+    const res = await convert(student.id, sc.id, { targetCardId: to.id, sessions: 10 });
+    expect(res.status).toBe(200);
+    expect((await res.json()).totalSessions).toBe(10);
+  });
+
+  it("未付款的卡不能轉換 → 400，不然那筆欠款會消失", async () => {
+    const student = await createStudent(classroomId);
+    const from = await createCard(classroomId, { name: "Level 1" });
+    const to = await createCard(classroomId, { name: "Level 2" });
+    const sc = await createStudentCard(student.id, from.id, { isPaid: false });
+
+    const res = await convert(student.id, sc.id, { targetCardId: to.id });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/must be paid/i);
+
+    const untouched = await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } });
+    expect(untouched.expiredAt).toBeNull();
+    expect(await prisma.studentCard.count({ where: { studentId: student.id } })).toBe(1);
+    // 沒建卡就不該消耗編號
+    const classroom = await prisma.classroom.findUniqueOrThrow({ where: { id: classroomId } });
+    expect(classroom.nextCardSerial).toBe(2);
   });
 
   it("複習卡折抵：指定較少堂數，剩餘價值仍全額帶走", async () => {
@@ -126,7 +182,7 @@ describe("POST /api/students/[id]/student-cards/[studentCardId]/convert", () => 
 
     const old = await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } });
     expect(old.note?.startsWith("原本的備註\n")).toBe(true);
-    expect(old.note).toContain("已轉換為「新卡」");
+    expect(old.note).toContain("已轉換為 #A0002「新卡」");
   });
 
   it("寫入 Event 供學生時間軸顯示", async () => {
@@ -141,8 +197,7 @@ describe("POST /api/students/[id]/student-cards/[studentCardId]/convert", () => 
       where: { studentId: student.id, title: "課卡轉換" },
     });
     expect(event.resourceId).toBe(created.id);
-    expect(event.description).toContain("Level 1");
-    expect(event.description).toContain("Level 2");
+    expect(event.description).toBe("#A0001「Level 1」轉換為 #A0002「Level 2」2 堂");
   });
 
   it("同一張卡不能轉換兩次 → 400", async () => {

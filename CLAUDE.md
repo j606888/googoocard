@@ -94,7 +94,7 @@ tests/                    # Vitest integration tests (factories, test-DB setup) 
 - `Student` — enrolled in a classroom
 - `StudentDanceQualification` — (studentId, danceType) rows marking which dance types a student has completed Lv1 in, i.e. may buy/use practice cards for. APIs expose it as a flat `danceQualifications: DanceType[]`.
 - `Card` — configurable card type (session limit, price). `isPracticeCard` + `danceType` define a practice (複習) card; `danceType` is required for practice cards, `null` on general cards (and on legacy practice cards, which fall back to the lesson's danceType).
-- `StudentCard` — a student's instance of a Card (tracks `remainingSessions`, `expiredAt`)
+- `StudentCard` — a student's instance of a Card (tracks `remainingSessions`, `expiredAt`). `serialNumber` is a per-classroom sequence shown as `#A0001`…`#A9999` → `#B0001` (`src/lib/cardSerial.ts`); issue it only via `nextCardSerial(tx, classroomId)` inside the creating transaction — there is no DB unique constraint. Conversion rules (value-based default sessions, unpaid cards blocked) live in `src/domains/cardConversion` — see "課卡轉換" / "卡片編號" in `docs/architecture.md`.
 - `Lesson` — has `status` (`inProgress` / `finished`) and `danceType` (`BACHATA`, `SALSA`, `ZOUK`, `HUSTLE`, `KIZOMBA`). Status is computed by `refreshLesson()` in `src/service/lesson.ts` after each attendance operation.
 - `LessonPeriod` — a time slot within a Lesson; `attendanceTakenAt` marks when attendance was recorded
 - `AttendanceRecord` — links a student + lessonPeriod + (optionally) a StudentCard; card session is decremented on creation, incremented on removal

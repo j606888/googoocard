@@ -13,6 +13,7 @@ import { ArrowLeftIcon, Ban, Lightbulb, Pencil, Search, Users } from "lucide-rea
 import SortMenu from "@/components/SortMenu";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import EditCard from "../CardList/EditCard";
+import CardSerial from "@/components/CardSerial";
 import {
   DEFAULT_HOLDER_SORT,
   HOLDER_SORT_OPTIONS,
@@ -236,8 +237,11 @@ const CardDetail = ({ detail }: { detail: CardDetailType }) => {
                       style={{ width: `${remainingPct}%` }}
                     />
                   </div>
-                  <p className="text-xs text-neutral-400 mt-1">
-                    {formatDate(holder.createdAt, "M/d")} 購買 · 已上 {used} 堂
+                  <p className="flex items-center gap-1.5 text-xs text-neutral-400 mt-1">
+                    <CardSerial serialNumber={holder.serialNumber} />
+                    <span>
+                      {formatDate(holder.createdAt, "M/d")} 購買 · 已上 {used} 堂
+                    </span>
                   </p>
                 </div>
                 <div className="text-right leading-none shrink-0">

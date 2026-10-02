@@ -33,8 +33,8 @@ export const buyStudentCardSchema = z.object({
 
 export const convertStudentCardSchema = z.object({
   targetCardId: positiveInt,
-  // Omitted means "same number of sessions as the source card has left"; the
-  // route resolves that, so it stays optional here.
+  // Omitted means "the residual value converted at the target card's price,
+  // rounded" (src/domains/cardConversion); the route resolves that.
   sessions: sessions.optional(),
   note: z.string().max(500).nullish(),
 });

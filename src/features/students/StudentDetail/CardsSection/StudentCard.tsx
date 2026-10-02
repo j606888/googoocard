@@ -7,7 +7,9 @@ import {
 } from "@/store/slices/students";
 import { formatDate } from "@/lib/utils";
 import {
+  ArrowRightToLine,
   ChevronDown,
+  ChevronRight,
   CircleDollarSign,
   EllipsisVertical,
   Hourglass,
@@ -22,16 +24,24 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import Menu from "@/components/Menu";
 import Drawer from "@/components/Drawer";
 import ConvertCard from "./ConvertCard";
+import CardSerial from "@/components/CardSerial";
+import { formatCardSerial } from "@/lib/cardSerial";
 import { DanceType } from "@prisma/client";
 
 const StudentCard = ({
   studentCard,
   danceQualifications = [],
   isPublic,
+  highlighted = false,
+  onJumpToCard,
 }: {
   studentCard: StudentCardWithCard;
   danceQualifications?: DanceType[];
   isPublic?: boolean;
+  /** 從轉換鏈另一端跳過來時短暫高亮 */
+  highlighted?: boolean;
+  /** 點「來自 #A0412」/「已轉換為 #A0873」時捲到那張卡；不給就只顯示不跳轉 */
+  onJumpToCard?: (studentCardId: number) => void;
 }) => {
   const [expireStudentCard] = useExpireStudentCardMutation();
   const [deleteStudentCard, { isLoading: isDeleting }] =
@@ -56,13 +66,18 @@ const StudentCard = ({
   const canExpire = !isFinished;
   const canDelete = usedSessions === 0;
   // 轉換只對「還有剩餘堂數、還沒轉換過」的卡開放 — 用完的卡沒有價值可以帶走。
-  const canConvert = !isFinished && !studentCard.convertedToId;
+  // 未付款的卡要先確認付款：新卡一律視為已付清，不擋的話那筆欠款會消失。
+  const isConvertedAway = !!studentCard.convertedToId;
+  const showConvert = !isFinished && !isConvertedAway;
+  const canConvert = showConvert && !isUnpaid;
   const isConverted = studentCard.origin === "CONVERSION";
+  const convertedFrom = studentCard.convertedFrom ?? [];
+  const convertedTo = studentCard.convertedTo ?? null;
   // 備註在任何狀態都能編輯（含已停用的卡），所以後台一律顯示選單。
   const hasActions = !isPublic;
   const progress = Math.min(100, Math.round((usedSessions / studentCard.totalSessions) * 100));
   const isPractice = studentCard.card.isPracticeCard;
-  const remainingTone = isFinished ? "text-neutral-400" : "text-primary-600";
+  const remainingTone = isFinished ? "text-neutral-400" : "text-primary-700";
   const sessionRows = useMemo(
     () =>
       Array.from({ length: studentCard.totalSessions }, (_, index) => {
@@ -134,7 +149,10 @@ const StudentCard = ({
   return (
     <div
       key={studentCard.id}
-      className="relative flex flex-col rounded-2xl border border-neutral-200 bg-white shadow-sm"
+      id={`student-card-${studentCard.id}`}
+      className={`relative flex flex-col rounded-2xl border bg-white shadow-sm scroll-mt-4 transition-shadow duration-500 ${
+        highlighted ? "border-primary-500 ring-4 ring-primary-100" : "border-neutral-200"
+      }`}
     >
       {/* Compact summary — click to expand */}
       <button
@@ -144,6 +162,7 @@ const StudentCard = ({
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
+            <CardSerial serialNumber={studentCard.serialNumber} muted={isFinished} />
             <h4 className="text-base font-semibold text-neutral-900 truncate">
               {studentCard.card.name}
             </h4>
@@ -153,8 +172,13 @@ const StudentCard = ({
               </span>
             )}
             {isConverted && (
-              <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-primary-100 text-primary-700">
+              <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-primary-100 text-primary-900">
                 轉換卡
+              </span>
+            )}
+            {isConvertedAway && (
+              <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600">
+                已轉換
               </span>
             )}
             {isUnpaid && (
@@ -188,13 +212,37 @@ const StudentCard = ({
               </span>
               <span className="text-sm text-neutral-400">/{studentCard.totalSessions}</span>
             </div>
-            <div className="text-[11px] text-neutral-400 mt-1">剩餘堂數</div>
+            <div className="text-[11px] text-neutral-500 mt-1">
+              {isConvertedAway ? "轉出堂數" : "剩餘堂數"}
+            </div>
           </div>
           <ChevronDown
             className={`w-5 h-5 text-neutral-400 transition-transform ${expanded ? "rotate-180" : ""}`}
           />
         </div>
       </button>
+
+      {/* 轉換鏈：新卡「來自」、舊卡「已轉換為」—— 放在摘要按鈕外面（按鈕裡不能再放按鈕） */}
+      {(convertedFrom.length > 0 || convertedTo) && (
+        <div className="px-4 pb-3 -mt-1 flex flex-col gap-1.5">
+          {convertedFrom.map((from) => (
+            <ConversionLink
+              key={from.id}
+              tone="from"
+              onClick={onJumpToCard && (() => onJumpToCard(from.id))}
+            >
+              來自 <strong className="tabular-nums">{formatCardSerial(from.serialNumber)}</strong>{" "}
+              {from.card.name} · 剩 {from.remainingSessions} 堂轉入
+            </ConversionLink>
+          ))}
+          {convertedTo && (
+            <ConversionLink tone="to" onClick={onJumpToCard && (() => onJumpToCard(convertedTo.id))}>
+              已轉換為 <strong className="tabular-nums">{formatCardSerial(convertedTo.serialNumber)}</strong>{" "}
+              {convertedTo.card.name} · {convertedTo.totalSessions} 堂
+            </ConversionLink>
+          )}
+        </div>
+      )}
 
       {/* Expandable detail */}
       <AnimatePresence initial={false}>
@@ -287,10 +335,11 @@ const StudentCard = ({
                       <NotebookPen className="w-4 h-4" />
                       <span>{studentCard.note ? "編輯備註" : "新增備註"}</span>
                     </button>
-                    {canConvert && (
+                    {showConvert && (
                       <button
                         type="button"
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100 rounded-sm cursor-pointer whitespace-nowrap"
+                        disabled={!canConvert}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100 rounded-sm cursor-pointer whitespace-nowrap disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:text-neutral-400"
                         onClick={() => {
                           setMenuOpen(false);
                           setConvertOpen(true);
@@ -298,6 +347,7 @@ const StudentCard = ({
                       >
                         <Repeat2 className="w-4 h-4" />
                         <span>轉換卡片</span>
+                        {isUnpaid && <span className="text-xs">（請先確認付款）</span>}
                       </button>
                     )}
                     {canExpire && (
@@ -389,6 +439,41 @@ const StudentCard = ({
         isLoading={isDeleting}
       />
     </div>
+  );
+};
+
+const ConversionLink = ({
+  tone,
+  onClick,
+  children,
+}: {
+  tone: "from" | "to";
+  onClick?: () => void;
+  children: React.ReactNode;
+}) => {
+  const className = `flex items-center gap-2 w-full rounded-xl px-3 py-2 text-left text-xs ${
+    tone === "from"
+      ? "bg-primary-50 border border-primary-300 text-primary-900"
+      : "bg-neutral-50 border border-dashed border-neutral-300 text-neutral-700"
+  }`;
+  const content = (
+    <>
+      {tone === "from" ? (
+        <ArrowRightToLine className="w-4 h-4 shrink-0" aria-hidden />
+      ) : (
+        <Repeat2 className="w-4 h-4 shrink-0" aria-hidden />
+      )}
+      <span className="flex-1 min-w-0">{children}</span>
+      {onClick && <ChevronRight className="w-4 h-4 shrink-0" aria-hidden />}
+    </>
+  );
+  // 公開頁／LIFF 不給 onClick：只顯示，不做成看起來能點的按鈕。
+  return onClick ? (
+    <button type="button" onClick={onClick} className={`${className} cursor-pointer hover:brightness-[0.98]`}>
+      {content}
+    </button>
+  ) : (
+    <div className={className}>{content}</div>
   );
 };
 

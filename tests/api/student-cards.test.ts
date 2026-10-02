@@ -7,6 +7,7 @@ import {
   createMember,
   createStudent,
   createCard,
+  createStudentCard,
   createLesson,
   jsonRequest,
   routeParams,
@@ -266,17 +267,7 @@ describe("POST .../confirm-payment", () => {
     });
     const otherStudent = await createStudent(otherClassroom.id, { name: "別人" });
     const otherCard = await createCard(otherClassroom.id);
-    const otherSc = await prisma.studentCard.create({
-      data: {
-        studentId: otherStudent.id,
-        cardId: otherCard.id,
-        basePrice: 3000,
-        finalPrice: 3000,
-        totalSessions: 6,
-        remainingSessions: 6,
-        isPaid: false,
-      },
-    });
+    const otherSc = await createStudentCard(otherStudent.id, otherCard.id, { isPaid: false });
 
     // auth.classroomId 仍是自己的教室
     const res = await CONFIRM_PAYMENT(

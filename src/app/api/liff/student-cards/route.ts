@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { bearerToken, resolveOwnedStudent } from "@/lib/liffAuth";
 import { canBuyCard } from "@/domains/qualification";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
+import { nextCardSerial } from "@/service/studentCardSerial";
 
 // Student self-service card purchase from the LIFF「購買課卡」page (trust-open):
 // creates a real, immediately-usable StudentCard marked unpaid
@@ -38,30 +39,37 @@ export async function POST(request: Request) {
     }
   }
 
-  const studentCard = await prisma.studentCard.create({
-    data: {
-      studentId: student.id,
-      cardId: card.id,
-      basePrice: card.price,
-      finalPrice: card.price,
-      totalSessions: card.sessions,
-      remainingSessions: card.sessions,
-      purchaseSource: "STUDENT",
-      purchasedByUserId: null,
-      isPaid: false,
-      paidAt: null,
-      paidByUserId: null,
-    },
-  });
+  // Card, serial and purchase Event are one unit of work: the serial counter
+  // must only advance for a card that actually exists.
+  const studentCard = await prisma.$transaction(async (tx) => {
+    const created = await tx.studentCard.create({
+      data: {
+        serialNumber: await nextCardSerial(tx, card.classroomId),
+        studentId: student.id,
+        cardId: card.id,
+        basePrice: card.price,
+        finalPrice: card.price,
+        totalSessions: card.sessions,
+        remainingSessions: card.sessions,
+        purchaseSource: "STUDENT",
+        purchasedByUserId: null,
+        isPaid: false,
+        paidAt: null,
+        paidByUserId: null,
+      },
+    });
 
-  await prisma.event.create({
-    data: {
-      title: "購買課卡",
-      description: `學生自助購買課卡 ${card.name}（待付款）`,
-      studentId: student.id,
-      resourceType: "studentCard",
-      resourceId: studentCard.id,
-    },
+    await tx.event.create({
+      data: {
+        title: "購買課卡",
+        description: `學生自助購買課卡 ${card.name}（待付款）`,
+        studentId: student.id,
+        resourceType: "studentCard",
+        resourceId: created.id,
+      },
+    });
+
+    return created;
   });
 
   await refreshNeedsRenewalTag(student.id, card.classroomId);

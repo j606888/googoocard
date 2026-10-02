@@ -5,6 +5,7 @@ import { ApiError, notFound } from "@/lib/apiError";
 import { buyStudentCardSchema } from "@/lib/schemas";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { canBuyCard } from "@/domains/qualification";
+import { nextCardSerial } from "@/service/studentCardSerial";
 
 type Params = { id: string };
 
@@ -65,6 +66,7 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
   const studentCard = await prisma.$transaction(async (tx) => {
     const created = await tx.studentCard.create({
       data: {
+        serialNumber: await nextCardSerial(tx, card.classroomId),
         studentId,
         cardId,
         basePrice: card.price,

@@ -48,6 +48,21 @@ export function toStudentPayload(
 }
 
 /**
+ * The other end of a card-conversion chain, for showing「來自 #A0412」/
+ * 「已轉換為 #A0873」on a StudentCard. Whitelisted fields only; both ends
+ * always belong to the same student.
+ */
+export const conversionLinksInclude = {
+  convertedTo: {
+    select: { id: true, serialNumber: true, totalSessions: true, card: { select: { name: true } } },
+  },
+  convertedFrom: {
+    select: { id: true, serialNumber: true, remainingSessions: true, card: { select: { name: true } } },
+    orderBy: { id: "asc" },
+  },
+} as const;
+
+/**
  * Assemble the full student-detail payload (overview, cards with their
  * attendance, attendance grouped by lesson and by date, dance qualifications)
  * for a single student. Shared by the public share page (`/public-students`)
@@ -68,7 +83,7 @@ export async function buildStudentDetailPayload(studentId: number) {
       classroom: { select: { id: true, name: true } },
       danceQualifications: true,
       studentCards: {
-        include: { card: true },
+        include: { card: true, ...conversionLinksInclude },
         orderBy: { createdAt: "desc" },
       },
       attendanceRecords: {

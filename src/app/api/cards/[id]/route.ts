@@ -38,6 +38,7 @@ export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
     totalRevenue: studentCards.reduce((sum, sc) => sum + sc.finalPrice, 0),
     holders: holderCards.map((sc) => ({
       id: sc.id,
+      serialNumber: sc.serialNumber,
       studentId: sc.studentId,
       createdAt: sc.createdAt,
       remainingSessions: sc.remainingSessions,

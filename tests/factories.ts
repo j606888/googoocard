@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { DanceType, LessonPeriod, StudentCardOrigin } from "@prisma/client";
 import { createStudent as createStudentWithNumber } from "@/service/student";
+import { nextCardSerial } from "@/service/studentCardSerial";
 
 // Wipe all tables between tests (FK-safe via CASCADE).
 export async function resetDb() {
@@ -155,20 +156,28 @@ export async function createStudentCard(
     note?: string;
   } = {}
 ) {
-  return prisma.studentCard.create({
-    data: {
-      studentId,
-      cardId,
-      basePrice: finalPrice,
-      finalPrice,
-      totalSessions,
-      remainingSessions,
-      ...(isPaid === undefined ? {} : { isPaid }),
-      ...(createdAt === undefined ? {} : { createdAt }),
-      ...(origin === undefined ? {} : { origin }),
-      ...(note === undefined ? {} : { note }),
-    },
+  // 跟正式的建卡路徑一樣從教室計數器發號，測試裡的編號才會是連號。
+  const { classroomId } = await prisma.student.findUniqueOrThrow({
+    where: { id: studentId },
+    select: { classroomId: true },
   });
+  return prisma.$transaction(async (tx) =>
+    tx.studentCard.create({
+      data: {
+        serialNumber: await nextCardSerial(tx, classroomId),
+        studentId,
+        cardId,
+        basePrice: finalPrice,
+        finalPrice,
+        totalSessions,
+        remainingSessions,
+        ...(isPaid === undefined ? {} : { isPaid }),
+        ...(createdAt === undefined ? {} : { createdAt }),
+        ...(origin === undefined ? {} : { origin }),
+        ...(note === undefined ? {} : { note }),
+      },
+    })
+  );
 }
 
 // Pending attendance record (no card consumed yet) — what the attendance GET

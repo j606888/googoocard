@@ -103,6 +103,10 @@ describe("LIFF buy card", () => {
       expect(body.finalPrice).toBe(3000);
       expect(body.totalSessions).toBe(6);
       expect(body.remainingSessions).toBe(6);
+      // 教室第一張卡 → #A0001，計數器往前推
+      expect(body.serialNumber).toBe(1);
+      const classroom = await prisma.classroom.findUniqueOrThrow({ where: { id: classroomId } });
+      expect(classroom.nextCardSerial).toBe(2);
 
       const stored = await prisma.studentCard.findUnique({ where: { id: body.id } });
       expect(stored?.studentId).toBe(student.id);

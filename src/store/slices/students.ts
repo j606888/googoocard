@@ -77,8 +77,17 @@ export interface StudentCardWithCard extends StudentCard {
   }[]
 }
 
+/** 轉換鏈另一端的卡 —— 只帶顯示「來自 #A0412」/「已轉換為 #A0873」需要的欄位。 */
+export interface ConversionLinkCard {
+  id: number;
+  serialNumber: number;
+  card: { name: string };
+}
+
 export interface StudentCard {
   id: number;
+  /** 教室內流水號；顯示用 formatCardSerial()（src/lib/cardSerial.ts） */
+  serialNumber: number;
   studentId: number;
   cardId: number;
   basePrice: number;
@@ -89,6 +98,9 @@ export interface StudentCard {
   note: string | null;
   origin: "PURCHASE" | "CONVERSION";
   convertedToId: number | null;
+  /** 學生詳情（含公開頁／LIFF）才會帶，其他端點沒有 */
+  convertedTo?: (ConversionLinkCard & { totalSessions: number }) | null;
+  convertedFrom?: (ConversionLinkCard & { remainingSessions: number })[];
   isPaid: boolean;
   paidAt: string | null;
   purchasedBy?: { name: string } | null;

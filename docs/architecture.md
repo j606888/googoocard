@@ -175,8 +175,14 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 - 新卡 `origin = CONVERSION`、`isPaid = true`（無金流，避免落入未付款催收清單）
 - 新卡 `finalPrice` = **舊卡剩餘價值** = `舊卡單堂價 × 舊卡剩餘堂數`
-- 新卡 `totalSessions` = `sessions`，未指定時預設等於舊卡剩餘堂數
-- 舊卡設 `expiredAt`、`convertedToId` 指向新卡，`note` **附加**轉換說明（不覆蓋既有備註）
+- 新卡 `totalSessions` = `sessions`，未指定時預設 = **剩餘價值 ÷ 新卡牌價單堂價（`card.price / card.sessions`），四捨五入、至少 1 堂**。
+  換算是純函式 `src/domains/cardConversion`（`residualValueOf` / `suggestConversion`），轉換表單的即時預覽與 API 預設值共用同一份
+- 老師可以手動改堂數。**超過換算值只提醒、不擋**（UI 紅字「以牌價計多 $X」）——補償／加碼是正當情境（2026-10-02 定案）。
+  4.29 給 5 堂這種取整誤差不算加贈：門檻是換算值的無條件進位
+- **未付款的卡不能轉換**（API 400 `CARD_UNPAID`、選單項目停用並寫「請先確認付款」）：
+  新卡一律 `isPaid = true`，放行的話那筆欠款會憑空消失
+- 舊卡設 `expiredAt`、`convertedToId` 指向新卡，`note` **附加**轉換說明（不覆蓋既有備註）；
+  自動備註與 Event 都帶卡片編號（「已轉換為 #A0873「Level 2」4 堂…」、「由 #A0412「Level 1」剩餘 5 堂轉換而來。」）
 - `remainingSessions` 刻意不歸零，與一般停用一致
 - 轉成複習卡時照樣走 `canBuyCard` 資格檢查，不能靠轉換繞過
 - 寫 `Event`（課卡轉換）並刷新 Needs Renewal tag
@@ -190,6 +196,28 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - 學生 overview 的 `cardCount` / `totalSpend` / `totalSaved` 同樣只算 `origin = PURCHASE`。
 
 轉換鏈的 FK（`convertedToId`）放在**舊卡**上指向新卡，所以支援多張舊卡合併成一張新卡。
+
+**轉換鏈的顯示**：學生詳情（含公開頁／LIFF，`buildStudentDetailPayload`）的每張卡多帶
+`convertedTo` / `convertedFrom`（`conversionLinksInclude`，`src/service/studentDetail.ts`，白名單欄位）。
+新卡顯示「來自 #A0412 …」、舊卡標「已轉換」並顯示「已轉換為 #A0873 …」，剩餘堂數改稱「轉出堂數」。
+後台點那一列會捲到另一端的卡並短暫高亮（被卡種篩選藏起來就先切回「全部」）；公開頁／LIFF 只顯示不跳轉。
+
+## 卡片編號（StudentCard.serialNumber）
+
+每張 StudentCard 有一個**教室內流水號** `serialNumber`（從 1 開始），顯示成一個字母加四位數：
+`#A0001`…`#A9999` → `#B0001`…（每個字母都從 0001 起、沒有 0000，一個字母 9999 張）。
+格式化／解析是純函式 `src/lib/cardSerial.ts`（`formatCardSerial` / `parseCardSerial`），UI 用 `<CardSerial>`。
+
+- **發號**：`nextCardSerial(tx, classroomId)`（`src/service/studentCardSerial.ts`）遞增 `Classroom.nextCardSerial`，
+  必須在建卡的同一個 transaction 裡呼叫。三個建卡入口都走它：後台買卡、LIFF 自助買卡、`performConversion`。
+  跟學生編號（`Classroom.nextStudentNumber`）同一個模式。
+- **沒有 DB unique**：StudentCard 沒有 `classroomId`，加不了 `(classroomId, serialNumber)` 的唯一約束；
+  唯一性由計數器那一列的 row lock 保證（同教室的並發建卡會排隊）。這是刻意的取捨——
+  為了一個約束把 `classroomId` 反正規化到 StudentCard 不划算。**別在 transaction 外發號，也別用 `max + 1`。**
+- **舊資料**：migration `20261002090000_add_student_card_serial` 依每間教室的 `createdAt, id` 順序補號，
+  並把計數器推到 `max + 1`。`npm run db:deploy` 套用即補齊 production。
+- **顯示位置**：學生詳情的卡片（後台、公開頁、LIFF）、轉換表單、點名選卡（`ChooseCardForm`）、卡種詳情的持卡人列表。
+- **搜尋**：`GET /api/students?query=` 若 query 長得像卡號（`A0412`、`#a0412`）會多比對持有該卡的學生（含已結束的卡）。
 
 ## 課卡備註（StudentCard.note）
 

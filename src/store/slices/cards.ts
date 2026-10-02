@@ -17,6 +17,7 @@ export interface Card {
 
 export interface CardHolder {
   id: number;
+  serialNumber: number;
   studentId: number;
   createdAt: string;
   remainingSessions: number;

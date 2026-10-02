@@ -4,7 +4,7 @@ import {
 } from "@/store/slices/students";
 import StudentCard from "./StudentCard";
 import BuyCard from "./BuyCard";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const CardsSection = ({
   student,
@@ -19,6 +19,29 @@ const CardsSection = ({
   columns?: 1 | 2;
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>("all");
+  // 轉換鏈的跳轉目標：捲過去並短暫高亮。
+  const [focusCardId, setFocusCardId] = useState<number | null>(null);
+
+  const jumpToCard = useCallback(
+    (studentCardId: number) => {
+      const target = studentCards.find((card) => card.id === studentCardId);
+      // 目標卡被卡種篩選藏起來的話，先切回「全部」才捲得到。
+      if (target && activeFilter !== "all" && target.card.name !== activeFilter) {
+        setActiveFilter("all");
+      }
+      setFocusCardId(studentCardId);
+    },
+    [studentCards, activeFilter]
+  );
+
+  useEffect(() => {
+    if (focusCardId === null) return;
+    document
+      .getElementById(`student-card-${focusCardId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const timer = setTimeout(() => setFocusCardId(null), 1600);
+    return () => clearTimeout(timer);
+  }, [focusCardId]);
   const cardListClass =
     columns === 2 ? "grid grid-cols-2 gap-3 items-start" : "flex flex-col gap-3";
 
@@ -96,6 +119,8 @@ const CardsSection = ({
               studentCard={studentCard}
               danceQualifications={student.danceQualifications}
               isPublic={isPublic}
+              highlighted={focusCardId === studentCard.id}
+              onJumpToCard={isPublic ? undefined : jumpToCard}
             />
           ))}
         </div>
@@ -114,6 +139,8 @@ const CardsSection = ({
               studentCard={studentCard}
               danceQualifications={student.danceQualifications}
               isPublic={isPublic}
+              highlighted={focusCardId === studentCard.id}
+              onJumpToCard={isPublic ? undefined : jumpToCard}
             />
           ))}
           </div>

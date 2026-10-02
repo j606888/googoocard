@@ -83,6 +83,16 @@ async function resolveClassroom() {
 }
 
 /** 清掉這間教室的營運資料，學生本身保留。FK 順序：由葉往根。 */
+// 課卡編號：跟 src/service/studentCardSerial.ts 一樣從教室計數器發號
+async function nextCardSerial(classroomId) {
+  const { nextCardSerial } = await prisma.classroom.update({
+    where: { id: classroomId },
+    data: { nextCardSerial: { increment: 1 } },
+    select: { nextCardSerial: true },
+  });
+  return nextCardSerial - 1;
+}
+
 async function wipe(classroomId) {
   const inClassroom = { student: { classroomId } };
   await prisma.attendanceRecord.deleteMany({ where: inClassroom });
@@ -102,6 +112,8 @@ async function wipe(classroomId) {
     data: { convertedToId: null },
   });
   await prisma.studentCard.deleteMany({ where: inClassroom });
+  // 這間教室的卡全刪了，課卡編號從 #A0001 重新發
+  await prisma.classroom.update({ where: { id: classroomId }, data: { nextCardSerial: 1 } });
   await prisma.card.deleteMany({ where: { classroomId } });
   await prisma.teacher.deleteMany({ where: { classroomId } });
 }
@@ -333,6 +345,7 @@ async function main() {
 
     const created = await prisma.studentCard.create({
       data: {
+        serialNumber: await nextCardSerial(classroomId),
         studentId,
         cardId: card.id,
         basePrice: card.price,
@@ -497,6 +510,7 @@ async function main() {
     const when = addDays(today, -Math.floor(rand() * 20) - 2);
     const target = await prisma.studentCard.create({
       data: {
+        serialNumber: await nextCardSerial(classroomId),
         studentId: student.id,
         cardId: cards.g8.id,
         basePrice: cards.g8.price,

@@ -3,6 +3,7 @@ import { AttendanceRecord, Lesson } from "@/store/slices/lessons";
 import { useEffect, useMemo, useState } from "react";
 import { useGetStudentCardsByLessonQuery } from "@/store/slices/students";
 import { formatDate } from "@/lib/utils";
+import CardSerial from "@/components/CardSerial";
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
@@ -116,9 +117,12 @@ const ChooseCardForm = ({
               onClick={() => handleSelectCard(studentCard.id)}
             >
               <div className="flex justify-between">
-                <h4 className="text-base font-light">
-                  {studentCard.card.name}
-                </h4>
+                <div className="flex items-start gap-2 min-w-0">
+                  <CardSerial serialNumber={studentCard.serialNumber} className="mt-0.5" />
+                  <h4 className="text-base font-light">
+                    {studentCard.card.name}
+                  </h4>
+                </div>
                 <div className="flex flex-col w-32 gap-1 font-normal text-neutral-700">
                   <div className="flex justify-between">
                     <span className="text-xs">價格：</span>

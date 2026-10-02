@@ -32,7 +32,7 @@ const Searchbar = ({
         <input
           ref={inputRef}
           type="text"
-          placeholder={compact ? "搜尋姓名或編號" : "搜尋學生姓名"}
+          placeholder={compact ? "搜尋姓名或卡號" : "搜尋學生姓名或卡號"}
           className="w-full bg-transparent outline-none placeholder:text-neutral-400"
           onChange={handleSearch}
           value={search}
