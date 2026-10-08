@@ -5,6 +5,7 @@ import { findLessonInClassroom, findLessonGroupInClassroom } from "@/lib/authz";
 import { DraftLesson } from "@/store/slices/lessons";
 import { toStudentPayload } from "@/service/studentDetail";
 import { cardMatchesLesson } from "@/domains/qualification";
+import { isValidDanceLevel } from "@/lib/danceLevels";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -69,6 +70,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
   const draftLesson = await request.json() as DraftLesson;
 
+  if (draftLesson.level !== undefined && !isValidDanceLevel(draftLesson.level)) {
+    return NextResponse.json({ error: "Invalid level" }, { status: 400 });
+  }
+
   if (
     draftLesson.groupId != null &&
     !(await findLessonGroupInClassroom(draftLesson.groupId, classroomId))
@@ -97,6 +102,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     data: {
       name: draftLesson.lessonName,
       danceType: draftLesson.danceType,
+      level: draftLesson.level,
       groupId: draftLesson.groupId ?? null,
     },
   });

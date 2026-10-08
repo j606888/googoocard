@@ -3,6 +3,7 @@ import { useState } from "react";
 import { DanceType } from "@prisma/client";
 import InputField from "@/components/InputField";
 import DanceTypeSelect from "@/features/lessons/newLesson/DanceTypeSelect";
+import LevelSelect from "@/features/lessons/newLesson/LevelSelect";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
 import LessonGroupSelect from "@/features/lessons/newLesson/LessonGroupSelect";
@@ -19,7 +20,8 @@ const validationErrors = {
 const SettingSection = ({ lesson }: { lesson: Lesson }) => {
 
   const [lessonName, setLessonName] = useState(lesson.name);
-  const [danceType, setDanceType] = useState<DanceType>(lesson.danceType);  
+  const [danceType, setDanceType] = useState<DanceType>(lesson.danceType);
+  const [level, setLevel] = useState<number>(lesson.level);
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(lesson.teachers.map((teacher) => teacher.id));
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>(lesson.cards.map((card) => card.id));
   const [groupId, setGroupId] = useState<number | null>(lesson.groupId);
@@ -72,7 +74,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
     });
     setErrors(errors);
     if (Object.keys(errors).length === 0) {
-      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceType, groupId } });
+      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceType, level, groupId } });
     }
   };
 
@@ -90,6 +92,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
             danceType={danceType}
             onChange={handleDanceTypeChange}
           />
+          <LevelSelect level={level} onChange={setLevel} />
           <LessonGroupSelect
             groupId={groupId}
             onChange={setGroupId}

@@ -2,7 +2,7 @@ import { AttendanceSource, Prisma, StudentCard } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { refreshLesson } from "@/service/lesson";
 import { refreshNeedsRenewalTags } from "@/service/studentTag";
-import { canUseCard, cardMatchesLesson, isQualified, requiredDanceTypeFor } from "@/domains/qualification";
+import { canUseCard, cardMatchesLesson, isQualified, requiredDanceTypeFor, toDanceLevels } from "@/domains/qualification";
 import {
   fetchStudentsWithValidCards,
   type StudentWithLessonCards,
@@ -94,20 +94,20 @@ function selectStudentCard(
   student: StudentWithCards,
   lesson: LessonWithCards
 ): StudentWithCards["studentCards"][number] | null {
-  const qualifications = student.danceQualifications.map((q) => q.danceType);
+  const levels = toDanceLevels(student.danceQualifications);
   const shouldForcePracticeCard = shouldUsePracticePriority(lesson, student);
 
   if (shouldForcePracticeCard) {
     const practiceCards = student.studentCards.filter(
       (studentCard) =>
         studentCard.card.isPracticeCard &&
-        canUseCard(studentCard.card, qualifications, lesson.danceType)
+        canUseCard(studentCard.card, levels, lesson.danceType, lesson.level)
     );
     return getRecommendedStudentCard(practiceCards);
   }
 
   const usableCards = student.studentCards.filter((studentCard) =>
-    canUseCard(studentCard.card, qualifications, lesson.danceType)
+    canUseCard(studentCard.card, levels, lesson.danceType, lesson.level)
   );
 
   if (usableCards.length === 1) {
@@ -120,16 +120,16 @@ function shouldUsePracticePriority(
   lesson: LessonWithCards,
   student: StudentWithCards
 ) {
-  const qualifications = student.danceQualifications.map((q) => q.danceType);
+  const levels = toDanceLevels(student.danceQualifications);
 
   // Practice priority applies when the lesson accepts a practice card the
-  // student is qualified to use.
+  // student is qualified to use at this lesson's level.
   return lesson.cards.some(({ card }) => {
     if (!card.isPracticeCard || !cardMatchesLesson(card, lesson.danceType)) {
       return false;
     }
     const required = requiredDanceTypeFor(card, lesson.danceType);
-    return required !== null && isQualified(qualifications, required);
+    return required !== null && isQualified(levels, required, lesson.level);
   });
 }
 

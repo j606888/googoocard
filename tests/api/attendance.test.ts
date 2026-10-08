@@ -759,3 +759,99 @@ describe("resetAttendance — 清除事件 (audit events)", () => {
     ).toBe(0);
   });
 });
+
+describe("階級 — 複習卡只能複習已完成階級以內的課", () => {
+  let classroomId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    const classroom = await createClassroom();
+    classroomId = classroom.id;
+    auth.classroomId = classroomId;
+  });
+
+  async function setup(lessonLevel: number, completedLevel: number) {
+    const general = await createCard(classroomId, { name: "一般卡" });
+    const practice = await createCard(classroomId, {
+      isPracticeCard: true,
+      danceType: DanceType.HUSTLE,
+    });
+    const { lesson, period } = await createLesson(classroomId, {
+      danceType: DanceType.HUSTLE,
+      level: lessonLevel,
+      cardIds: [general.id, practice.id],
+      withPeriod: true,
+    });
+    const student = await createStudent(classroomId, {
+      levels: { HUSTLE: completedLevel },
+    });
+    return { general, practice, lesson, period: period!, student };
+  }
+
+  it("已完成中階 → 中階課自動扣複習卡", async () => {
+    const { lesson, period, student, practice } = await setup(2, 2);
+    const practiceSC = await createStudentCard(student.id, practice.id);
+
+    await takeAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period.id,
+      studentIds: [student.id],
+    });
+
+    const record = await prisma.attendanceRecord.findFirstOrThrow({
+      where: { lessonPeriodId: period.id, studentId: student.id },
+    });
+    expect(record.studentCardId).toBe(practiceSC.id);
+  });
+
+  it("已完成初階 → 中階課不能用複習卡（not_qualified）", async () => {
+    const { lesson, period, student, practice } = await setup(2, 1);
+    const practiceSC = await createStudentCard(student.id, practice.id);
+
+    await takeAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period.id,
+      studentIds: [student.id],
+    });
+
+    const [record] = await getAttendance(lesson.id, period.id);
+    expect(record.uncheckedType).toBe("not_qualified");
+    const updated = await prisma.studentCard.findUniqueOrThrow({
+      where: { id: practiceSC.id },
+    });
+    expect(updated.remainingSessions).toBe(6);
+  });
+
+  it("已完成初階 + 持一般卡 → 中階課扣一般卡、不走複習卡優先", async () => {
+    const { lesson, period, student, general, practice } = await setup(2, 1);
+    const generalSC = await createStudentCard(student.id, general.id);
+    await createStudentCard(student.id, practice.id);
+
+    await takeAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period.id,
+      studentIds: [student.id],
+    });
+
+    const record = await prisma.attendanceRecord.findFirstOrThrow({
+      where: { lessonPeriodId: period.id, studentId: student.id },
+    });
+    expect(record.studentCardId).toBe(generalSC.id);
+  });
+
+  it("已完成進階 → 初階課照常扣複習卡", async () => {
+    const { lesson, period, student, practice } = await setup(1, 3);
+    const practiceSC = await createStudentCard(student.id, practice.id);
+
+    await takeAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period.id,
+      studentIds: [student.id],
+    });
+
+    const record = await prisma.attendanceRecord.findFirstOrThrow({
+      where: { lessonPeriodId: period.id, studentId: student.id },
+    });
+    expect(record.studentCardId).toBe(practiceSC.id);
+  });
+});

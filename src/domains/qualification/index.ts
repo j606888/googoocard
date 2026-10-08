@@ -8,15 +8,32 @@ export type QualifiableCard = {
   danceType: DanceType | null;
 };
 
+// Highest completed level per dance type (1 = 初階, see src/lib/danceLevels.ts).
+// A missing key = not qualified for that dance type at all.
+export type DanceLevels = Partial<Record<DanceType, number>>;
+
+export function toDanceLevels(
+  rows: { danceType: DanceType; level: number }[]
+): DanceLevels {
+  const levels: DanceLevels = {};
+  for (const row of rows) {
+    levels[row.danceType] = row.level;
+  }
+  return levels;
+}
+
 export type BuyDecision =
   | { allowed: true }
   | { allowed: false; reason: "NOT_QUALIFIED" | "UNKNOWN_DANCE_TYPE" };
 
+// Qualified when the student has completed at least `requiredLevel` of the
+// dance type. Buying needs level 1; using a practice card needs the lesson's level.
 export function isQualified(
-  qualifications: DanceType[],
-  danceType: DanceType
+  levels: DanceLevels,
+  danceType: DanceType,
+  requiredLevel = 1
 ): boolean {
-  return qualifications.includes(danceType);
+  return (levels[danceType] ?? 0) >= requiredLevel;
 }
 
 // A practice card's required dance type: its own danceType when set,
@@ -29,10 +46,13 @@ export function requiredDanceTypeFor(
 }
 
 // Usage context (attendance / consuming a session) — lesson is always known.
+// A practice card reviews a lesson only up to the level the student completed:
+// completed 中階 → may review 初階 and 中階 lessons, not 進階.
 export function canUseCard(
   card: QualifiableCard,
-  qualifications: DanceType[],
-  lessonDanceType: DanceType
+  levels: DanceLevels,
+  lessonDanceType: DanceType,
+  lessonLevel: number
 ): boolean {
   if (!card.isPracticeCard) {
     return true;
@@ -41,14 +61,17 @@ export function canUseCard(
     return false;
   }
   const required = requiredDanceTypeFor(card, lessonDanceType);
-  return required !== null && isQualified(qualifications, required);
+  return required !== null && isQualified(levels, required, lessonLevel);
 }
 
 // Purchase context — lesson is optional (student-detail page has none).
+// Without a lesson, completing 初階 is enough. Buying inside a lesson is
+// buying to review THAT lesson, so the lesson's level must be reached too.
 export function canBuyCard(
   card: QualifiableCard,
-  qualifications: DanceType[],
-  lessonDanceType?: DanceType | null
+  levels: DanceLevels,
+  lessonDanceType?: DanceType | null,
+  lessonLevel = 1
 ): BuyDecision {
   if (!card.isPracticeCard) {
     return { allowed: true };
@@ -57,7 +80,7 @@ export function canBuyCard(
   if (required === null) {
     return { allowed: false, reason: "UNKNOWN_DANCE_TYPE" };
   }
-  if (!isQualified(qualifications, required)) {
+  if (!isQualified(levels, required, lessonLevel)) {
     return { allowed: false, reason: "NOT_QUALIFIED" };
   }
   return { allowed: true };

@@ -2,15 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { DanceType } from "@prisma/client";
 import Drawer from "@/components/Drawer";
 import RoundCheckbox from "@/components/RoundCheckbox";
 import InputField from "@/components/InputField";
 import { Switch } from "@/components/ui/switch";
 import { useGetLessonQuery } from "@/store/slices/lessons";
 import { useCreateStudentCardMutation } from "@/store/slices/students";
-import { canBuyCard, requiredDanceTypeFor } from "@/domains/qualification";
-import { danceTypeLabel } from "@/lib/danceTypes";
+import { canBuyCard, requiredDanceTypeFor, type DanceLevels } from "@/domains/qualification";
+import { practiceQualificationLabel } from "@/lib/danceLevels";
 import type { Card } from "@/store/slices/cards";
 
 /**
@@ -28,7 +27,7 @@ const BuyCardDrawer = ({
   student,
   trigger,
 }: {
-  student: { id: number; name: string; danceQualifications?: DanceType[] };
+  student: { id: number; name: string; danceLevels?: DanceLevels };
   trigger: (open: () => void) => React.ReactNode;
 }) => {
   const { id: lessonId } = useParams();
@@ -46,16 +45,16 @@ const BuyCardDrawer = ({
 
   const cardOptions = useMemo(() => lesson?.cards ?? [], [lesson]);
   const qualifications = useMemo(
-    () => student.danceQualifications ?? [],
-    [student.danceQualifications]
+    () => student.danceLevels ?? {},
+    [student.danceLevels]
   );
 
   const forbiddenHint = (card: Card) => {
     if (!lesson) return null;
-    if (canBuyCard(card, qualifications, lesson.danceType).allowed) return null;
+    if (canBuyCard(card, qualifications, lesson.danceType, lesson.level).allowed) return null;
     const required = requiredDanceTypeFor(card, lesson.danceType);
     return required
-      ? `未具備 ${danceTypeLabel(required)} 複習資格`
+      ? `未具備 ${practiceQualificationLabel(required, lesson.level)} 複習資格`
       : "複習卡未設定舞種";
   };
 

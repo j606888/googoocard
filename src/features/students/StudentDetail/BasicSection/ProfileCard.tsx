@@ -2,6 +2,7 @@ import { StudentWithDetail } from "@/store/slices/students";
 import { format } from "date-fns";
 import EditStudent from "./EditStudent";
 import StarBadge from "./StarBadge";
+import { DEFAULT_DANCE_LEVEL } from "@/lib/danceLevels";
 
 const ProfileCard = ({
   student,
@@ -42,7 +43,7 @@ const ProfileCard = ({
       {student.danceQualifications?.length > 0 && (
         <div className="flex flex-wrap gap-2 items-start">
           {student.danceQualifications.map((type) => (
-            <StarBadge key={type} type={type} />
+            <StarBadge key={type} type={type} level={student.danceLevels?.[type] ?? DEFAULT_DANCE_LEVEL} />
           ))}
         </div>
       )}

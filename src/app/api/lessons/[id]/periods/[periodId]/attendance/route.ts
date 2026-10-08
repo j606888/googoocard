@@ -9,6 +9,7 @@ import {
 } from "@/domains/attendance/attendance.service";
 import {
   canUseCard,
+  toDanceLevels,
   cardMatchesLesson,
   isQualified,
   requiredDanceTypeFor,
@@ -182,7 +183,7 @@ function findUncheckedType(lesson: LessonWithCards, student: StudentWithCards) {
   // actually pick — see attendance.service.ts.
   const qualifications = getQualifications(student);
   const usableCards = matchedCards.filter((studentCard) =>
-    canUseCard(studentCard.card, qualifications, lesson.danceType)
+    canUseCard(studentCard.card, qualifications, lesson.danceType, lesson.level)
   );
 
   if (usableCards.length === 0) {
@@ -211,20 +212,20 @@ function findUncheckedType(lesson: LessonWithCards, student: StudentWithCards) {
 }
 
 function getQualifications(student: StudentWithCards) {
-  return student.danceQualifications.map((q) => q.danceType);
+  return toDanceLevels(student.danceQualifications);
 }
 
 function shouldUsePracticePriority(lesson: LessonWithCards, student: StudentWithCards) {
   const qualifications = getQualifications(student);
 
   // Practice priority applies when the lesson accepts a practice card the
-  // student is qualified to use.
+  // student is qualified to use at this lesson's level.
   return lesson.cards.some(({ card }) => {
     if (!card.isPracticeCard || !cardMatchesLesson(card, lesson.danceType)) {
       return false;
     }
     const required = requiredDanceTypeFor(card, lesson.danceType);
-    return required !== null && isQualified(qualifications, required);
+    return required !== null && isQualified(qualifications, required, lesson.level);
   });
 }
 
@@ -246,7 +247,7 @@ function getPracticePriorityCard(
   const practiceCards = matchedCards.filter(
     (studentCard) =>
       studentCard.card.isPracticeCard &&
-      canUseCard(studentCard.card, qualifications, lesson.danceType)
+      canUseCard(studentCard.card, qualifications, lesson.danceType, lesson.level)
   );
   return getRecommendedStudentCard(practiceCards) ?? null;
 }

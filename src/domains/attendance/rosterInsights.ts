@@ -1,5 +1,5 @@
 import { DanceType } from "@prisma/client";
-import { canUseCard, type QualifiableCard } from "@/domains/qualification";
+import { canUseCard, type DanceLevels, type QualifiableCard } from "@/domains/qualification";
 
 // Pure derivations behind the lesson-detail attendance overview. No prisma —
 // the same functions run on the server (building the roster payload) and in the
@@ -60,11 +60,12 @@ export type InsightPeriod = {
 
 export function cardStatusFor(
   studentCards: { remainingSessions: number; card: QualifiableCard }[],
-  qualifications: DanceType[],
-  lessonDanceType: DanceType
+  levels: DanceLevels,
+  lessonDanceType: DanceType,
+  lessonLevel: number
 ): CardStatus {
   const usable = studentCards.filter((studentCard) =>
-    canUseCard(studentCard.card, qualifications, lessonDanceType)
+    canUseCard(studentCard.card, levels, lessonDanceType, lessonLevel)
   );
   const usableSessions = usable.reduce(
     (sum, studentCard) => sum + studentCard.remainingSessions,

@@ -10,6 +10,8 @@ import AddPeriodForm from "./AddPeriodForm";
 import { useCreateLessonMutation } from "@/store/slices/lessons";
 import { useRouter, useSearchParams } from "next/navigation";
 import DanceTypeSelect from "./DanceTypeSelect";
+import LevelSelect from "./LevelSelect";
+import { DEFAULT_DANCE_LEVEL } from "@/lib/danceLevels";
 import { DanceType } from "@prisma/client";
 import {
   getLessonCloneSource,
@@ -46,6 +48,9 @@ const NewLesson = () => {
   const [lessonName, setLessonName] = useState(initialClone?.lessonName ?? "");
   const [danceType, setDanceType] = useState<DanceType>(
     initialClone?.danceType ?? DanceType.BACHATA
+  );
+  const [level, setLevel] = useState<number>(
+    initialClone?.level ?? DEFAULT_DANCE_LEVEL
   );
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(
     initialClone?.teacherIds ?? []
@@ -123,6 +128,7 @@ const NewLesson = () => {
         teacherIds: selectedTeacherIds,
         cardIds: selectedCardIds,
         danceType,
+        level,
         groupId: selectedGroupId,
         periods,
       });
@@ -171,6 +177,7 @@ const NewLesson = () => {
                   danceType={danceType}
                   onChange={handleDanceTypeChange}
                 />
+                <LevelSelect level={level} onChange={setLevel} />
                 <LessonGroupSelect
                   groupId={selectedGroupId}
                   onChange={setSelectedGroupId}

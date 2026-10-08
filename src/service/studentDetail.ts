@@ -1,3 +1,4 @@
+import { toDanceLevels } from "@/domains/qualification";
 import prisma from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 
@@ -227,6 +228,7 @@ export async function buildStudentDetailPayload(studentId: number) {
     attendancesByLesson,
     studentCards: studentCardsWithAttendances,
     danceQualifications: danceQualifications.map((q) => q.danceType),
+    danceLevels: toDanceLevels(danceQualifications),
     classroom: student.classroom,
     ...toStudentPayload(student),
   };

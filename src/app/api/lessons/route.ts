@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { refreshLesson, summarizeLessonPeriods } from "@/service/lesson";
 import { cardMatchesLesson } from "@/domains/qualification";
+import { DEFAULT_DANCE_LEVEL, isValidDanceLevel } from "@/lib/danceLevels";
 import { findLessonGroupInClassroom } from "@/lib/authz";
 import { DanceType, Prisma } from "@prisma/client";
 
@@ -90,6 +91,7 @@ export async function GET(request: Request) {
       id: lesson.id,
       name: lesson.name,
       danceType: lesson.danceType,
+      level: lesson.level,
       status: lesson.status,
       studentCount: lesson._count.students,
       teachers: lesson.teachers.map((t) => t.teacher),
@@ -163,6 +165,10 @@ export async function POST(request: Request) {
   const { classroomId } = await decodeAuthToken();
   const draftLesson = await request.json() as DraftLesson;
 
+  if (draftLesson.level !== undefined && !isValidDanceLevel(draftLesson.level)) {
+    return NextResponse.json({ error: "Invalid level" }, { status: 400 });
+  }
+
   // A groupId is caller-controlled input — verify it names a group in this
   // classroom before attaching it (same IDOR guard as findLessonInClassroom),
   // or a bogus/foreign id either 500s on the FK or silently links to another
@@ -197,6 +203,7 @@ export async function POST(request: Request) {
         classroomId: classroomId!,
         status: "inProgress",
         danceType: draftLesson.danceType,
+        level: draftLesson.level ?? DEFAULT_DANCE_LEVEL,
         groupId: draftLesson.groupId ?? null,
       },
     });

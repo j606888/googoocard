@@ -5,10 +5,12 @@ import { decodeAuthToken } from "@/lib/auth";
 import { findStudentInClassroom } from "@/lib/authz";
 import { conversionLinksInclude, toStudentPayload } from "@/service/studentDetail";
 import { DanceType } from "@prisma/client";
+import { DEFAULT_DANCE_LEVEL, isValidDanceLevel } from "@/lib/danceLevels";
+import { toDanceLevels } from "@/domains/qualification";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { name, note, avatarUrl, danceQualifications } = await request.json();
+  const { name, note, avatarUrl, danceQualifications, danceLevels } = await request.json();
   const { classroomId } = await decodeAuthToken();
 
   // The duplicate-name check below is classroom-scoped, but the update itself
@@ -18,7 +20,24 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Student not found" }, { status: 404 });
   }
 
-  if (danceQualifications !== undefined) {
+  // `danceLevels` ({ HUSTLE: 2, ... }) is the current shape; the older
+  // `danceQualifications` (DanceType[]) is still accepted and means 初階.
+  // Either way it is authoritative: dance types left out lose the qualification.
+  let levels: [DanceType, number][] | undefined;
+  if (danceLevels !== undefined) {
+    const validTypes: string[] = Object.values(DanceType);
+    if (
+      danceLevels === null ||
+      typeof danceLevels !== "object" ||
+      Array.isArray(danceLevels) ||
+      Object.entries(danceLevels).some(
+        ([type, level]) => !validTypes.includes(type) || !isValidDanceLevel(level)
+      )
+    ) {
+      return NextResponse.json({ error: "Invalid dance levels" }, { status: 400 });
+    }
+    levels = Object.entries(danceLevels) as [DanceType, number][];
+  } else if (danceQualifications !== undefined) {
     const validTypes = Object.values(DanceType);
     if (
       !Array.isArray(danceQualifications) ||
@@ -26,6 +45,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     ) {
       return NextResponse.json({ error: "Invalid dance qualifications" }, { status: 400 });
     }
+    levels = (danceQualifications as DanceType[]).map((type) => [type, DEFAULT_DANCE_LEVEL]);
   }
 
   const existingStudent = await prisma.student.findFirst({
@@ -49,17 +69,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         data: { name, note, avatarUrl },
       });
 
-      if (danceQualifications !== undefined) {
+      if (levels !== undefined) {
         await tx.studentDanceQualification.deleteMany({
-          where: { studentId: student.id, danceType: { notIn: danceQualifications } },
-        });
-        await tx.studentDanceQualification.createMany({
-          data: (danceQualifications as DanceType[]).map((danceType) => ({
+          where: {
             studentId: student.id,
-            danceType,
-          })),
-          skipDuplicates: true,
+            danceType: { notIn: levels.map(([danceType]) => danceType) },
+          },
         });
+        for (const [danceType, level] of levels) {
+          await tx.studentDanceQualification.upsert({
+            where: { studentId_danceType: { studentId: student.id, danceType } },
+            create: { studentId: student.id, danceType, level },
+            update: { level },
+          });
+        }
       }
 
       return student;
@@ -278,6 +301,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     studentCards: studentCardsWithAttendances,
     tags,
     danceQualifications: danceQualifications.map((q) => q.danceType),
+    danceLevels: toDanceLevels(danceQualifications),
     classroom: student.classroom,
     // Teacher-facing, so the share-link token is included — but `lineBindKey`
     // and `lineUserId` never are. See toStudentPayload.

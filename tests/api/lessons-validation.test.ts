@@ -157,3 +157,47 @@ describe("課程掛卡的舞種驗證", () => {
     });
   });
 });
+
+describe("課程階級", () => {
+  let classroomId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    const classroom = await createClassroom();
+    classroomId = classroom.id;
+    auth.classroomId = classroomId;
+  });
+
+  it("未帶 level → 預設初階 (1)", async () => {
+    const card = await createCard(classroomId);
+    const res = await POST(jsonRequest("POST", draft(DanceType.HUSTLE, [card.id])));
+    expect(res.status).toBe(200);
+    const lesson = await prisma.lesson.findFirstOrThrow();
+    expect(lesson.level).toBe(1);
+  });
+
+  it("帶 level 建立與更新", async () => {
+    const card = await createCard(classroomId);
+    await POST(
+      jsonRequest("POST", { ...draft(DanceType.HUSTLE, [card.id]), level: 2 })
+    );
+    const lesson = await prisma.lesson.findFirstOrThrow();
+    expect(lesson.level).toBe(2);
+
+    const res = await PUT(
+      jsonRequest("PUT", { ...draft(DanceType.HUSTLE, [card.id]), level: 3 }),
+      routeParams({ id: String(lesson.id) })
+    );
+    expect(res.status).toBe(200);
+    expect((await prisma.lesson.findUniqueOrThrow({ where: { id: lesson.id } })).level).toBe(3);
+  });
+
+  it("無效 level → 400", async () => {
+    const card = await createCard(classroomId);
+    const res = await POST(
+      jsonRequest("POST", { ...draft(DanceType.HUSTLE, [card.id]), level: 4 })
+    );
+    expect(res.status).toBe(400);
+    expect(await prisma.lesson.count()).toBe(0);
+  });
+});

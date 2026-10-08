@@ -20,12 +20,12 @@ Mobile-first，但**老師後台在桌面是滿版 + 側邊欄**，版型模式�
 Classroom（頂層容器，所有實體都屬於一間教室）
 ├── Student ──┬── StudentCard（學生持有的課卡實例：remainingSessions / expiredAt /
 │             │                note / origin / convertedToId → 見「課卡轉換」）
-│             ├── StudentDanceQualification（學生 × 舞種的 Lv1 資格，可買/用複習卡）
+│             ├── StudentDanceQualification（學生 × 舞種 + 已完成階級 level，可買/用複習卡）
 │             ├── StudentTag ── Tag（自由標籤；"Needs Renewal" 為系統自動維護）
 │             └── Event（學生事件日誌：簽到、買卡、課卡用完）
 ├── Card（課卡種類：價格/堂數；isPracticeCard + danceType 定義複習卡）
 ├── Teacher（教室內的老師實體，不是 User）
-└── Lesson（danceType + status inProgress/finished）
+└── Lesson（danceType + level 初/中/進階 + status inProgress/finished）
     ├── LessonCard（此課程接受哪些課卡）
     ├── LessonTeacher
     ├── LessonPeriod（單堂時段；attendanceTakenAt 標記已點名）
@@ -42,8 +42,19 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 ## 複習卡資格系統
 
-**目的**：複習卡較便宜，只有完成某舞種 Lv1 的學生可購買/使用；
+**目的**：複習卡較便宜，只有完成某舞種初階的學生可購買/使用；
 同時避免符合資格的學生在複習課誤用較貴的一般卡。
+
+### 階級（2026-10 起）
+
+有些舞種分初階／中階／進階班（例：Hustle），複習卡只有一種，但只能複習「自己已完成的階級以內」：
+
+- `StudentDanceQualification.level` = 該舞種**已完成**的最高階級（1 初階、2 中階、3 進階）。
+- `Lesson.level` = 這堂課教的階級，建課/編輯時手動選，預設 1。
+- **用**複習卡：`學生 level ≥ 課程 level`。已完成中階（正在上進階）→ 可複習初階、中階；已完成初階 → 只能複習初階。
+- **買**複習卡：學生頁 / LIFF（無課程）只要 level ≥ 1；課程內買卡（帶 `lessonId`）視為買來複習這堂，需達課程 level。
+- 階級定義集中在 `src/lib/danceLevels.ts`（全舞種共用 3 階）。舊資料全部 = 1，沒分階的教室行為完全不變（UI 只在 level ≥ 2 時才顯示階級）。
+- API：學生回應同時有 `danceQualifications: DanceType[]`（徽章/篩選用）與 `danceLevels: { [DanceType]: level }`（資格判斷用）；`PATCH /api/students/[id]` 收 `danceLevels`，舊的 `danceQualifications` 陣列仍接受（= 初階）。
 
 ### 單一真相：`src/domains/qualification/index.ts`
 
@@ -51,10 +62,11 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 | 函式 | 用途 |
 |---|---|
-| `isQualified(quals, danceType)` | 學生是否有某舞種資格 |
+| `isQualified(levels, danceType, requiredLevel = 1)` | 學生該舞種已完成階級是否 ≥ requiredLevel |
+| `toDanceLevels(rows)` | prisma 資格列 → `DanceLevels` map（server 共用） |
 | `requiredDanceTypeFor(card, lessonDanceType?)` | 複習卡所需舞種 = `card.danceType ?? lesson.danceType ?? null` |
-| `canUseCard(card, quals, lessonDanceType)` | 點名/扣堂情境（一定有課程上下文） |
-| `canBuyCard(card, quals, lessonDanceType?)` | 購買情境；失敗回 `NOT_QUALIFIED` 或 `UNKNOWN_DANCE_TYPE` |
+| `canUseCard(card, levels, lessonDanceType, lessonLevel)` | 點名/扣堂情境（一定有課程上下文，需達課程階級） |
+| `canBuyCard(card, levels, lessonDanceType?, lessonLevel = 1)` | 購買情境；失敗回 `NOT_QUALIFIED` 或 `UNKNOWN_DANCE_TYPE` |
 | `cardMatchesLesson(card, lessonDanceType)` | 複習卡能否掛到課程（null = legacy 通用，可掛任何課程） |
 
 ### UI 集中設定：`src/lib/danceTypes.ts`
@@ -78,6 +90,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 | 符合資格者在複習課買/用一般卡 | **軟擋**：UI 預設鎖定一般卡，老師可點「手動切換覆蓋」放行 | `BuyAndUseForm.tsx`、`ChooseCardForm.tsx` |
 | 課程掛上舞種不符的複習卡 | 擋：API 400 `PRACTICE_CARD_DANCE_TYPE_MISMATCH`（含卡名）+ UI 選單過濾 | `api/lessons` POST/PUT、`CardSelect.tsx` |
 | 建/改複習卡未填舞種 | 擋：API 400 `PRACTICE_CARD_REQUIRES_DANCE_TYPE` + UI 必填驗證 | `api/cards` POST/PATCH、`NewCard/EditCard.tsx` |
+| 階級不足用複習卡（例：已完成初階，上中階課） | 點名不自動扣複習卡（`not_qualified`，UI 顯示「未具備中階複習資格」）；課程內買複習卡同樣硬擋 | `attendance.service.ts`、attendance route、`BuyAndUseForm.tsx`、`BuyCardDrawer.tsx` |
 | 手動消耗任意卡（consume） | **不擋**——老師永遠可手動消耗，確保 legacy/特殊情況可處理 | consume route |
 
 ## 點名流程

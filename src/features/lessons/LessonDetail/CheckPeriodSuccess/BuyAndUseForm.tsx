@@ -9,7 +9,7 @@ import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { canBuyCard, requiredDanceTypeFor } from "@/domains/qualification";
-import { danceTypeLabel } from "@/lib/danceTypes";
+import { practiceQualificationLabel } from "@/lib/danceLevels";
 import { Card } from "@/store/slices/cards";
 
 const BuyAndUseForm = ({
@@ -44,13 +44,13 @@ const BuyAndUseForm = ({
   });
 
   const qualifications = useMemo(
-    () => student?.danceQualifications ?? [],
+    () => student?.danceLevels ?? {},
     [student]
   );
 
   // Practice card the student is not qualified for — hard block.
   const isCardForbidden = (card: Card) =>
-    !canBuyCard(card, qualifications, lesson.danceType).allowed;
+    !canBuyCard(card, qualifications, lesson.danceType, lesson.level).allowed;
 
   // The lesson offers a practice card this student can buy — lock general
   // cards by default so the student's benefit isn't wasted on a pricier card.
@@ -59,9 +59,9 @@ const BuyAndUseForm = ({
       cardOptions.some(
         (card) =>
           card.isPracticeCard &&
-          canBuyCard(card, qualifications, lesson.danceType).allowed
+          canBuyCard(card, qualifications, lesson.danceType, lesson.level).allowed
       ) && !allowManualOverride,
-    [cardOptions, qualifications, lesson.danceType, allowManualOverride]
+    [cardOptions, qualifications, lesson.danceType, lesson.level, allowManualOverride]
   );
 
   const isCardDisabled = (card: Card) => {
@@ -73,7 +73,7 @@ const BuyAndUseForm = ({
     if (!isCardForbidden(card)) return null;
     const required = requiredDanceTypeFor(card, lesson.danceType);
     return required
-      ? `未具備 ${danceTypeLabel(required)} 複習資格`
+      ? `未具備 ${practiceQualificationLabel(required, lesson.level)} 複習資格`
       : "複習卡未設定舞種";
   };
 

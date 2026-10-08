@@ -1,3 +1,4 @@
+import { toDanceLevels } from "@/domains/qualification";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
@@ -90,6 +91,7 @@ export async function GET(request: Request) {
       ...toStudentPayload(student, { includeShareKey: true }),
       tags: student.studentTags.map((st) => ({ id: st.tag.id, name: st.tag.name })),
       danceQualifications: student.danceQualifications.map((q) => q.danceType),
+      danceLevels: toDanceLevels(student.danceQualifications),
       isInActiveLesson,
       activeLessonIds,
       lastAttendAt:

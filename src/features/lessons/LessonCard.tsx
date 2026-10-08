@@ -43,6 +43,7 @@ const LessonCard = ({ lesson }: { lesson: LessonSummary }) => {
       teacherIds: lesson.teachers.map((t) => t.id),
       cardIds: lesson.cardIds,
       danceType: lesson.danceType,
+      level: lesson.level,
       groupId: lesson.groupId,
       initialPeriod,
     });

@@ -32,7 +32,7 @@ const BuyCard = ({ student }: { student: Student }) => {
   // No lesson context here — a practice card is only buyable when the student
   // is qualified for the card's own dance type.
   const buyBlockedReason = (card: Card): string | null => {
-    const decision = canBuyCard(card, student.danceQualifications ?? []);
+    const decision = canBuyCard(card, student.danceLevels ?? {});
     if (decision.allowed) return null;
     if (decision.reason === "NOT_QUALIFIED" && card.danceType) {
       return `未具備 ${danceTypeLabel(card.danceType)} 複習資格`;

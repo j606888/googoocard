@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { bearerToken, resolveOwnedStudent } from "@/lib/liffAuth";
-import { canBuyCard } from "@/domains/qualification";
+import { canBuyCard, toDanceLevels } from "@/domains/qualification";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { nextCardSerial } from "@/service/studentCardSerial";
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     });
     const decision = canBuyCard(
       card,
-      qualifications.map((q) => q.danceType),
+      toDanceLevels(qualifications),
     );
     if (!decision.allowed) {
       return NextResponse.json({ error: "STUDENT_NOT_QUALIFIED" }, { status: 403 });

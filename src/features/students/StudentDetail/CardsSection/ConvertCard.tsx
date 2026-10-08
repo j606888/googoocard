@@ -9,7 +9,7 @@ import {
   useConvertStudentCardMutation,
 } from "@/store/slices/students";
 import { Card, useGetCardsQuery } from "@/store/slices/cards";
-import { canBuyCard } from "@/domains/qualification";
+import { canBuyCard, type DanceLevels } from "@/domains/qualification";
 import {
   listValueOf,
   residualValueOf,
@@ -18,7 +18,6 @@ import {
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatDate } from "@/lib/utils";
 import { DANCE_TYPE_META, danceTypeLabel } from "@/lib/danceTypes";
-import { DanceType } from "@prisma/client";
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 
@@ -43,12 +42,12 @@ const DeltaChip = ({ delta, format }: { delta: number; format: (n: number) => st
 // 舊卡會停用並標記「已轉換 → 新卡」，新卡標記「來自舊卡」，不產生新營收。
 const ConvertCard = ({
   studentCard,
-  danceQualifications,
+  danceLevels,
   open,
   onClose,
 }: {
   studentCard: StudentCardWithCard;
-  danceQualifications: DanceType[];
+  danceLevels: DanceLevels;
   open: boolean;
   onClose: () => void;
 }) => {
@@ -81,7 +80,7 @@ const ConvertCard = ({
   }, [open]);
 
   const blockedReason = (card: Card): string | null => {
-    const decision = canBuyCard(card, danceQualifications ?? []);
+    const decision = canBuyCard(card, danceLevels ?? {});
     if (decision.allowed) return null;
     if (decision.reason === "NOT_QUALIFIED" && card.danceType) {
       return `未具備 ${danceTypeLabel(card.danceType)} 複習資格`;

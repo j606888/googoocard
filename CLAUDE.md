@@ -92,7 +92,7 @@ tests/                    # Vitest integration tests (factories, test-DB setup) 
 - `Classroom` — top-level container; all other entities belong to one. Users track a `currentClassroomId` for multi-classroom context switching. Deletion is a **soft delete** (`deletedAt`) — see "教室生命週期與角色" in `docs/architecture.md`.
 - `Membership` — (user, classroom, role) join. `role` is `"owner"` (creator) or `"assistant"` (joined via invite). Owners delete a classroom; assistants leave it. `decodeAuthToken()` re-reads this row on **every** request, so removals take effect immediately — don't bypass it.
 - `Student` — enrolled in a classroom
-- `StudentDanceQualification` — (studentId, danceType) rows marking which dance types a student has completed Lv1 in, i.e. may buy/use practice cards for. APIs expose it as a flat `danceQualifications: DanceType[]`.
+- `StudentDanceQualification` — (studentId, danceType, level) rows: the highest level (1 初階 / 2 中階 / 3 進階, `src/lib/danceLevels.ts`) a student has completed in a dance type. Level ≥ 1 = may buy practice cards; a practice card is usable only in lessons with `Lesson.level` ≤ that level. APIs expose both `danceQualifications: DanceType[]` and `danceLevels: { [DanceType]: level }`.
 - `Card` — configurable card type (session limit, price). `isPracticeCard` + `danceType` define a practice (複習) card; `danceType` is required for practice cards, `null` on general cards (and on legacy practice cards, which fall back to the lesson's danceType).
 - `StudentCard` — a student's instance of a Card (tracks `remainingSessions`, `expiredAt`). `serialNumber` is a per-classroom sequence shown as `#A0001`…`#A9999` → `#B0001` (`src/lib/cardSerial.ts`); issue it only via `nextCardSerial(tx, classroomId)` inside the creating transaction — there is no DB unique constraint. Conversion rules (value-based default sessions, unpaid cards blocked) live in `src/domains/cardConversion` — see "課卡轉換" / "卡片編號" in `docs/architecture.md`.
 - `Lesson` — has `status` (`inProgress` / `finished`) and `danceType` (`BACHATA`, `SALSA`, `ZOUK`, `HUSTLE`, `KIZOMBA`). Status is computed by `refreshLesson()` in `src/service/lesson.ts` after each attendance operation.
@@ -105,7 +105,7 @@ tests/                    # Vitest integration tests (factories, test-DB setup) 
 
 ### Practice-Card Qualification (複習卡資格)
 
-All qualification decisions go through **`src/domains/qualification/index.ts`** — pure functions shared by server and client (`isQualified`, `canUseCard`, `canBuyCard`, `cardMatchesLesson`). Never hardcode per-dance-type checks anywhere else. Core rule: a practice card's required dance type = `card.danceType ?? lesson.danceType ?? null`.
+All qualification decisions go through **`src/domains/qualification/index.ts`** — pure functions shared by server and client (`isQualified`, `canUseCard`, `canBuyCard`, `cardMatchesLesson`). Never hardcode per-dance-type checks anywhere else. Core rule: a practice card's required dance type = `card.danceType ?? lesson.danceType ?? null`. Required level = `lesson.level` when a lesson is in context (using, or buying inside a lesson), otherwise 1.
 
 Enforcement (full matrix in `docs/architecture.md`):
 - Unqualified student buying a practice card → **hard-blocked** (API 403 + UI disabled), in both the student-detail BuyCard and the in-lesson BuyAndUseForm.

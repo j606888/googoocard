@@ -1,4 +1,5 @@
 import { DanceType } from "@prisma/client";
+import type { DanceLevels } from "@/domains/qualification";
 import { api } from "../api";
 import { Card } from "./cards";
 import { Classroom } from "./classrooms";
@@ -22,6 +23,8 @@ export interface Student {
   isInActiveLesson: boolean;
   activeLessonIds: number[];
   danceQualifications: DanceType[];
+  /** 各舞種已完成階級（1=初階）；見 src/domains/qualification。 */
+  danceLevels: DanceLevels;
   /** 最近一次已點名的出席時間；從未上過課為 null。 */
   lastAttendAt: string | null;
 }
@@ -164,11 +167,11 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Student"],
     }),
-    updateStudent: builder.mutation<Student, { id: number; name: string; note?: string; avatarUrl: string; danceQualifications: DanceType[] }>({
-      query: ({ id, name, note, avatarUrl, danceQualifications }) => ({
+    updateStudent: builder.mutation<Student, { id: number; name: string; note?: string; avatarUrl: string; danceLevels: DanceLevels }>({
+      query: ({ id, name, note, avatarUrl, danceLevels }) => ({
         url: `students/${id}`,
         method: "PATCH",
-        body: { name, note, avatarUrl, danceQualifications },
+        body: { name, note, avatarUrl, danceLevels },
       }),
       invalidatesTags: ["Student"],
     }),

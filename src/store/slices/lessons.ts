@@ -4,6 +4,7 @@ import { Card } from "./cards";
 import { Teacher } from "./teachers";
 import { DanceType } from "@prisma/client";
 import type { CardStatus } from "@/domains/attendance/rosterInsights";
+import type { DanceLevels } from "@/domains/qualification";
 
 export interface Lesson {
   id: number;
@@ -14,6 +15,8 @@ export interface Lesson {
   periods: Period[];
   teachers: Teacher[];
   danceType: DanceType;
+  /** 1 = 初階, 2 = 中階, 3 = 進階 — see src/lib/danceLevels.ts. */
+  level: number;
   cards: Card[];
   groupId: number | null;
   group: { id: number; name: string } | null;
@@ -32,6 +35,7 @@ export interface LessonSummary {
   id: number;
   name: string;
   danceType: DanceType;
+  level: number;
   status: string;
   studentCount: number;
   teachers: { id: number; name: string }[];
@@ -90,6 +94,8 @@ export interface DraftLesson {
   teacherIds: number[];
   cardIds: number[];
   danceType: DanceType;
+  /** 1 = 初階 (default), 2 = 中階, 3 = 進階. */
+  level?: number;
   /** LessonGroup to file this lesson under — null means 未分類 (ungrouped). */
   groupId?: number | null;
   periods?: {
@@ -144,6 +150,7 @@ export interface LessonStudent {
    */
   cardStatus: CardStatus;
   danceQualifications: DanceType[];
+  danceLevels: DanceLevels;
 }
 
 const lessonsApi = api.injectEndpoints({

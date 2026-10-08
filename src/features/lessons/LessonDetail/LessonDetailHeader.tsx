@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, Users, BookOpenText, GraduationCap, Settings } from "lucide-react";
 import { Lesson, LessonStudent } from "@/store/slices/lessons";
 import { DANCE_TYPE_META } from "@/lib/danceTypes";
+import { DEFAULT_DANCE_LEVEL, danceLevelLabel } from "@/lib/danceLevels";
 import UnpaidBell from "@/features/UnpaidBell";
 import { lessonAttendanceRate } from "@/domains/attendance/rosterInsights";
 
@@ -59,6 +60,11 @@ const LessonDetailHeader = ({
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${style.badge}`}>
               {lesson.danceType}
             </span>
+            {lesson.level > DEFAULT_DANCE_LEVEL && (
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${style.badge}`}>
+                {danceLevelLabel(lesson.level)}
+              </span>
+            )}
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isFinished ? "bg-neutral-100 text-neutral-600" : "bg-primary-100 text-primary-700"}`}>
               {isFinished ? "已結束" : "上課中"}
             </span>

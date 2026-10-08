@@ -9,6 +9,8 @@ import InputField from "@/components/InputField";
 import { useUpdateStudentMutation, useGetTagsQuery, useAddStudentTagMutation, useRemoveStudentTagMutation } from "@/store/slices/students";
 import { DanceType } from "@prisma/client";
 import { ALL_DANCE_TYPES, DANCE_TYPE_META } from "@/lib/danceTypes";
+import { DANCE_LEVELS, DEFAULT_DANCE_LEVEL } from "@/lib/danceLevels";
+import type { DanceLevels } from "@/domains/qualification";
 import AvatarPicker from "@/features/students/AvatarPicker";
 
 const EditStudent = ({ student }: { student: StudentWithDetail }) => {
@@ -17,7 +19,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
   const [note, setNote] = useState(student.note);
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(student.avatarUrl);
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const [danceQualifications, setDanceQualifications] = useState<DanceType[]>(student.danceQualifications ?? []);
+  const [danceLevels, setDanceLevels] = useState<DanceLevels>(student.danceLevels ?? {});
   const [errors, setErrors] = useState<{ name?: string }>({});
   const [tagInput, setTagInput] = useState("");
   const [updateStudent, { isLoading }] = useUpdateStudentMutation();
@@ -31,7 +33,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
     setName(student.name);
     setNote(student.note);
     setSelectedAvatarUrl(student.avatarUrl);
-    setDanceQualifications(student.danceQualifications ?? []);
+    setDanceLevels(student.danceLevels ?? {});
     setErrors({});
     setTagInput("");
     setIsOpen(true);
@@ -43,7 +45,7 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
       return;
     }
     try {
-      await updateStudent({ id: student.id, name, note, avatarUrl: selectedAvatarUrl, danceQualifications }).unwrap();
+      await updateStudent({ id: student.id, name, note, avatarUrl: selectedAvatarUrl, danceLevels }).unwrap();
       setIsOpen(false);
     } catch (err) {
       const message = (err as { data?: { error?: string } })?.data?.error ?? "更新失敗，請稍後再試";
@@ -59,10 +61,22 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
     }
   };
 
+  // Tapping a chip toggles 初階 — the same one-tap flow as before levels
+  // existed. Raising the level is a separate, optional select on the chip.
   const toggleQualification = (type: DanceType) => {
-    setDanceQualifications((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
+    setDanceLevels((prev) => {
+      const next = { ...prev };
+      if (next[type] !== undefined) {
+        delete next[type];
+      } else {
+        next[type] = DEFAULT_DANCE_LEVEL;
+      }
+      return next;
+    });
+  };
+
+  const setQualificationLevel = (type: DanceType, level: number) => {
+    setDanceLevels((prev) => ({ ...prev, [type]: level }));
   };
 
   const handleAddTag = async (tagName: string) => {
@@ -109,26 +123,45 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
           />
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-neutral-700">
-              已完成 LV1（可購買複習卡）
+              已完成（可使用複習卡）
             </label>
             <div className="flex flex-wrap gap-2">
               {ALL_DANCE_TYPES.map((type) => {
                 const style = DANCE_TYPE_META[type];
-                const selected = danceQualifications.includes(type);
+                const level = danceLevels[type];
+                const selected = level !== undefined;
                 return (
-                  <button
+                  <div
                     key={type}
-                    type="button"
-                    onClick={() => toggleQualification(type)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all cursor-pointer ${
+                    className={`flex items-center rounded-full border text-sm font-medium transition-all ${
                       selected
                         ? `${style.light} ${style.border} ${style.text}`
                         : "bg-white border-neutral-200 text-neutral-500 hover:border-neutral-300"
                     }`}
                   >
-                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${style.dot}`} />
-                    {style.label}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleQualification(type)}
+                      className="flex items-center gap-1.5 pl-3 py-1.5 pr-3 cursor-pointer"
+                    >
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${style.dot}`} />
+                      {style.label}
+                    </button>
+                    {selected && (
+                      <select
+                        aria-label={`${style.label} 已完成階級`}
+                        value={level}
+                        onChange={(e) => setQualificationLevel(type, Number(e.target.value))}
+                        className="-ml-1 mr-2 bg-transparent text-xs cursor-pointer focus:outline-none"
+                      >
+                        {DANCE_LEVELS.map(({ value, label }) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 );
               })}
             </div>

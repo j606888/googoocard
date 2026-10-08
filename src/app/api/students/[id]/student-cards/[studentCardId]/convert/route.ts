@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import { apiRoute, parseId, parseBody } from "@/lib/apiRoute";
 import { ApiError, badRequest, notFound } from "@/lib/apiError";
 import { convertStudentCardSchema } from "@/lib/schemas";
-import { canBuyCard } from "@/domains/qualification";
+import { canBuyCard, toDanceLevels } from "@/domains/qualification";
 import { performConversion } from "@/service/studentCardConversion";
 import { residualValueOf, suggestConversion } from "@/domains/cardConversion";
 
@@ -60,7 +60,7 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
     });
     const decision = canBuyCard(
       targetCard,
-      qualifications.map((q) => q.danceType)
+      toDanceLevels(qualifications)
     );
     if (!decision.allowed) {
       throw decision.reason === "NOT_QUALIFIED"

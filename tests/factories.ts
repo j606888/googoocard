@@ -56,18 +56,28 @@ export async function createStudent(
   {
     name = "Student",
     qualifications = [],
-  }: { name?: string; qualifications?: DanceType[] } = {}
+    levels = {},
+  }: {
+    name?: string;
+    qualifications?: DanceType[];
+    /** Completed level per dance type; takes the place of `qualifications` (level 1). */
+    levels?: Partial<Record<DanceType, number>>;
+  } = {}
 ) {
   const student = await createStudentWithNumber(classroomId, {
     name,
     avatarUrl: "/images/avatar_1.png",
   });
-  if (qualifications.length > 0) {
+  const rows = [
+    ...qualifications.map((danceType) => ({ danceType, level: 1 })),
+    ...Object.entries(levels).map(([danceType, level]) => ({
+      danceType: danceType as DanceType,
+      level: level!,
+    })),
+  ];
+  if (rows.length > 0) {
     await prisma.studentDanceQualification.createMany({
-      data: qualifications.map((danceType) => ({
-        studentId: student.id,
-        danceType,
-      })),
+      data: rows.map((row) => ({ studentId: student.id, ...row })),
     });
   }
   return student;
@@ -106,16 +116,18 @@ export async function createLesson(
     cardIds = [],
     withPeriod = false,
     groupId = null,
+    level = 1,
   }: {
     name?: string;
     danceType?: DanceType;
+    level?: number;
     cardIds?: number[];
     withPeriod?: boolean;
     groupId?: number | null;
   } = {}
 ) {
   const lesson = await prisma.lesson.create({
-    data: { name, classroomId, danceType, status: "inProgress", groupId },
+    data: { name, classroomId, danceType, level, status: "inProgress", groupId },
   });
   if (cardIds.length > 0) {
     await prisma.lessonCard.createMany({

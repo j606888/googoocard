@@ -4,6 +4,7 @@ import { AttendanceRecord, Lesson } from "@/store/slices/lessons";
 import { MdOutlineWarning } from "react-icons/md";
 import ChooseCardForm from "./ChooseCardForm";
 import UseNowButton from "./UseNowButton";
+import { DEFAULT_DANCE_LEVEL, danceLevelLabel } from "@/lib/danceLevels";
 
 const UNCHECK_DESCRIPTION_MAP = {
   no_card: "無課卡",
@@ -39,7 +40,9 @@ const PendingStudents = ({
             />
             <div className="flex flex-1 items-center gap-1 text-danger-500">
               <p className="text-xs font-medium">
-                {UNCHECK_DESCRIPTION_MAP[record.uncheckedType]}
+                {record.uncheckedType === "not_qualified" && lesson.level > DEFAULT_DANCE_LEVEL
+                  ? `未具備${danceLevelLabel(lesson.level)}複習資格`
+                  : UNCHECK_DESCRIPTION_MAP[record.uncheckedType]}
               </p>
             </div>
             {["no_card", "no_practice_card", "not_qualified"].includes(record.uncheckedType) ? (

@@ -4,7 +4,7 @@ import { apiRoute, parseId, parseBody } from "@/lib/apiRoute";
 import { ApiError, notFound } from "@/lib/apiError";
 import { buyStudentCardSchema } from "@/lib/schemas";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
-import { canBuyCard } from "@/domains/qualification";
+import { canBuyCard, toDanceLevels } from "@/domains/qualification";
 import { nextCardSerial } from "@/service/studentCardSerial";
 
 type Params = { id: string };
@@ -49,8 +49,9 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
 
     const decision = canBuyCard(
       card,
-      qualifications.map((q) => q.danceType),
-      lesson?.danceType
+      toDanceLevels(qualifications),
+      lesson?.danceType,
+      lesson?.level
     );
     if (!decision.allowed) {
       throw decision.reason === "NOT_QUALIFIED"

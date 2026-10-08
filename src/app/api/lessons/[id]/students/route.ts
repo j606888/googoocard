@@ -5,6 +5,7 @@ import { findLessonInClassroom } from "@/lib/authz";
 import { toStudentPayload } from "@/service/studentDetail";
 import { fetchStudentsWithValidCards } from "@/service/lessonCards";
 import { cardStatusFor, type CardStatus } from "@/domains/attendance/rosterInsights";
+import { toDanceLevels, type DanceLevels } from "@/domains/qualification";
 
 const ATTENDANCE_STATUS = {
   NOT_STARTED: "not_started",
@@ -72,12 +73,17 @@ export async function GET(
 
   const cardStatusByStudent = new Map<number, CardStatus>();
   const qualificationsByStudent = new Map<number, string[]>();
+  const levelsByStudent = new Map<number, DanceLevels>();
   for (const student of withCards) {
-    const qualifications = student.danceQualifications.map((q) => q.danceType);
-    qualificationsByStudent.set(student.id, qualifications);
+    const levels = toDanceLevels(student.danceQualifications);
+    qualificationsByStudent.set(
+      student.id,
+      student.danceQualifications.map((q) => q.danceType)
+    );
+    levelsByStudent.set(student.id, levels);
     cardStatusByStudent.set(
       student.id,
-      cardStatusFor(student.studentCards, qualifications, lesson.danceType)
+      cardStatusFor(student.studentCards, levels, lesson.danceType, lesson.level)
     );
   }
 
@@ -110,6 +116,7 @@ export async function GET(
       attendances,
       cardStatus: cardStatusByStudent.get(student.id) ?? EMPTY_CARD_STATUS,
       danceQualifications: qualificationsByStudent.get(student.id) ?? [],
+      danceLevels: levelsByStudent.get(student.id) ?? {},
     };
   });
 

@@ -137,4 +137,54 @@ describe("PATCH /api/students/[id] (資格同步)", () => {
 
     expect(res.status).toBe(400);
   });
+
+  it("danceLevels 設定各舞種已完成階級", async () => {
+    const student = await createStudent(classroomId, {
+      name: "Amy",
+      qualifications: [DanceType.BACHATA, DanceType.ZOUK],
+    });
+
+    const res = await PATCH(
+      jsonRequest("PATCH", baseBody({ danceLevels: { HUSTLE: 2, BACHATA: 1 } })),
+      routeParams({ id: String(student.id) })
+    );
+
+    expect(res.status).toBe(200);
+    const rows = await prisma.studentDanceQualification.findMany({
+      where: { studentId: student.id },
+    });
+    expect(
+      Object.fromEntries(rows.map((r) => [r.danceType, r.level]))
+    ).toEqual({ HUSTLE: 2, BACHATA: 1 }); // ZOUK 被移除
+  });
+
+  it("danceLevels 可升級既有資格的階級", async () => {
+    const student = await createStudent(classroomId, {
+      name: "Amy",
+      qualifications: [DanceType.HUSTLE],
+    });
+
+    await PATCH(
+      jsonRequest("PATCH", baseBody({ danceLevels: { HUSTLE: 3 } })),
+      routeParams({ id: String(student.id) })
+    );
+
+    const row = await prisma.studentDanceQualification.findFirstOrThrow({
+      where: { studentId: student.id, danceType: DanceType.HUSTLE },
+    });
+    expect(row.level).toBe(3);
+  });
+
+  it("danceLevels 無效階級 → 400", async () => {
+    const student = await createStudent(classroomId, { name: "Amy" });
+
+    for (const danceLevels of [{ HUSTLE: 4 }, { HUSTLE: 0 }, { TANGO: 1 }, [DanceType.HUSTLE]]) {
+      const res = await PATCH(
+        jsonRequest("PATCH", baseBody({ danceLevels })),
+        routeParams({ id: String(student.id) })
+      );
+      expect(res.status).toBe(400);
+    }
+    expect(await qualificationsOf(student.id)).toEqual([]);
+  });
 });

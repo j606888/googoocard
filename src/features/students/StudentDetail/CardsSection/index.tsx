@@ -117,7 +117,7 @@ const CardsSection = ({
             <StudentCard
               key={studentCard.id}
               studentCard={studentCard}
-              danceQualifications={student.danceQualifications}
+              danceLevels={student.danceLevels}
               isPublic={isPublic}
               highlighted={focusCardId === studentCard.id}
               onJumpToCard={isPublic ? undefined : jumpToCard}
@@ -137,7 +137,7 @@ const CardsSection = ({
             <StudentCard
               key={studentCard.id}
               studentCard={studentCard}
-              danceQualifications={student.danceQualifications}
+              danceLevels={student.danceLevels}
               isPublic={isPublic}
               highlighted={focusCardId === studentCard.id}
               onJumpToCard={isPublic ? undefined : jumpToCard}

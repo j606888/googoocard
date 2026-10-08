@@ -26,17 +26,17 @@ import Drawer from "@/components/Drawer";
 import ConvertCard from "./ConvertCard";
 import CardSerial from "@/components/CardSerial";
 import { formatCardSerial } from "@/lib/cardSerial";
-import { DanceType } from "@prisma/client";
+import type { DanceLevels } from "@/domains/qualification";
 
 const StudentCard = ({
   studentCard,
-  danceQualifications = [],
+  danceLevels = {},
   isPublic,
   highlighted = false,
   onJumpToCard,
 }: {
   studentCard: StudentCardWithCard;
-  danceQualifications?: DanceType[];
+  danceLevels?: DanceLevels;
   isPublic?: boolean;
   /** 從轉換鏈另一端跳過來時短暫高亮 */
   highlighted?: boolean;
@@ -405,7 +405,7 @@ const StudentCard = ({
 
       <ConvertCard
         studentCard={studentCard}
-        danceQualifications={danceQualifications}
+        danceLevels={danceLevels}
         open={convertOpen}
         onClose={() => setConvertOpen(false)}
       />

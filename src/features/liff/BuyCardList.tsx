@@ -70,7 +70,7 @@ export default function BuyCardList({
   // Hide practice cards the student isn't qualified for (vs. teacher UI which
   // shows them disabled). General cards are always buyable.
   const visibleCards = (cards ?? []).filter(
-    (card) => canBuyCard(card, student.danceQualifications ?? []).allowed,
+    (card) => canBuyCard(card, student.danceLevels ?? {}).allowed,
   );
 
   const handleConfirm = async () => {

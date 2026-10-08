@@ -162,6 +162,9 @@ model StudentDanceQualification {
   studentId Int
   student   Student   @relation(fields: [studentId], references: [id])
   danceType DanceType
+  // Highest completed level (1 = 初階, 2 = 中階, 3 = 進階 — src/lib/danceLevels.ts).
+  // Practice cards may be used in lessons whose level <= this.
+  level     Int       @default(1)
   createdAt DateTime  @default(now())
 
   @@unique([studentId, danceType])
@@ -216,6 +219,8 @@ model Lesson {
   status      String          @default("inProgress")
   endAt       DateTime?
   danceType   DanceType       @default(BACHATA)
+  // Level taught (1 = 初階, 2 = 中階, 3 = 進階 — src/lib/danceLevels.ts).
+  level       Int             @default(1)
   groupId     Int?
   group       LessonGroup?    @relation(fields: [groupId], references: [id])
   teachers    LessonTeacher[]

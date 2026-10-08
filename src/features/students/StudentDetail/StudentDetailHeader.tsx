@@ -14,6 +14,7 @@ import { StudentWithDetail } from "@/store/slices/students";
 import { format } from "date-fns";
 import EditStudent from "./BasicSection/EditStudent";
 import { danceTypeLabel } from "@/lib/danceTypes";
+import { DEFAULT_DANCE_LEVEL, practiceQualificationLabel } from "@/lib/danceLevels";
 
 const StudentDetailHeader = ({
   student,
@@ -97,7 +98,9 @@ const StudentDetailHeader = ({
                 className="inline-flex items-center gap-1 text-xs font-medium bg-warning-100 text-warning-900 px-2.5 py-1 rounded-full"
               >
                 <Star className="w-3 h-3" />
-                {danceTypeLabel(type)} Lv1
+                {(student.danceLevels?.[type] ?? DEFAULT_DANCE_LEVEL) > DEFAULT_DANCE_LEVEL
+                  ? practiceQualificationLabel(type, student.danceLevels[type]!)
+                  : `${danceTypeLabel(type)} Lv1`}
               </span>
             ))}
           </div>
