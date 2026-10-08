@@ -247,7 +247,7 @@ const StudentList = ({
     })),
     ...filters.qualifications.map((type) => ({
       key: `qual:${type}`,
-      label: `${danceTypeLabel(type as DanceType)} Lv1`,
+      label: `${danceTypeLabel(type as DanceType)} 過課`,
       onRemove: () =>
         setFilters((f) => ({ ...f, qualifications: f.qualifications.filter((q) => q !== type) })),
     })),

@@ -54,7 +54,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - **用**複習卡：`學生 level ≥ 課程 level`。已完成中階（正在上進階）→ 可複習初階、中階；已完成初階 → 只能複習初階。
 - **買**複習卡：學生頁 / LIFF（無課程）只要 level ≥ 1；課程內買卡（帶 `lessonId`）視為買來複習這堂，需達課程 level。
 - 階級定義集中在 `src/lib/danceLevels.ts`（全舞種共用 3 階）。舊資料全部 = 1，沒分階的教室行為完全不變（UI 只在 level ≥ 2 時才顯示階級）。
-- API：學生回應同時有 `danceQualifications: DanceType[]`（徽章/篩選用）與 `danceLevels: { [DanceType]: level }`（資格判斷用）；`PATCH /api/students/[id]` 收 `danceLevels`，舊的 `danceQualifications` 陣列仍接受（= 初階）。
+- API：學生回應同時有 `danceQualifications: DanceType[]`（徽章/篩選用）與 `danceLevels: { [DanceType]: level }`（資格判斷用）；`PATCH /api/students/[id]` 收 `danceLevels`，舊的 `danceQualifications` 陣列仍接受：新增的舞種為初階，已存在的舞種**保留原階級**（避免舊分頁把中階學生降回初階）。
 
 ### 單一真相：`src/domains/qualification/index.ts`
 

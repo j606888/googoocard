@@ -102,7 +102,7 @@ const CardFormFields = ({
           <span>設為複習卡</span>
         </div>
         <p className="text-xs text-neutral-500 leading-relaxed pl-[52px]">
-          只有取得該舞種 Lv1 資格的學生才買得到，也只能用在同舞種的課。
+          只有取得該舞種複習資格的學生才買得到，也只能用在同舞種、且不超過學生已完成階級的課。
         </p>
       </div>
 

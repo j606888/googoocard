@@ -140,7 +140,7 @@ const CardList = () => {
           cards={practice}
           onEdit={setEditCardId}
           heading={showGroupHeadings ? "複習卡" : undefined}
-          hint="僅限有該舞種 Lv1 資格的學生購買"
+          hint="僅限有該舞種複習資格的學生購買"
           dotClass="bg-warning-500"
         />
       )}

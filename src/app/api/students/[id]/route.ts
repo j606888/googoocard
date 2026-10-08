@@ -21,9 +21,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   // `danceLevels` ({ HUSTLE: 2, ... }) is the current shape; the older
-  // `danceQualifications` (DanceType[]) is still accepted and means 初階.
+  // `danceQualifications` (DanceType[]) is still accepted from pre-level
+  // clients: it adds new dance types at 初階 but keeps an existing row's level,
+  // so a stale tab can't silently downgrade a 中階 student.
   // Either way it is authoritative: dance types left out lose the qualification.
-  let levels: [DanceType, number][] | undefined;
+  // A `null` level = keep the existing level (初階 when newly created).
+  let levels: [DanceType, number | null][] | undefined;
   if (danceLevels !== undefined) {
     const validTypes: string[] = Object.values(DanceType);
     if (
@@ -45,7 +48,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     ) {
       return NextResponse.json({ error: "Invalid dance qualifications" }, { status: 400 });
     }
-    levels = (danceQualifications as DanceType[]).map((type) => [type, DEFAULT_DANCE_LEVEL]);
+    levels = (danceQualifications as DanceType[]).map((type) => [type, null]);
   }
 
   const existingStudent = await prisma.student.findFirst({
@@ -79,8 +82,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         for (const [danceType, level] of levels) {
           await tx.studentDanceQualification.upsert({
             where: { studentId_danceType: { studentId: student.id, danceType } },
-            create: { studentId: student.id, danceType, level },
-            update: { level },
+            create: { studentId: student.id, danceType, level: level ?? DEFAULT_DANCE_LEVEL },
+            update: level === null ? {} : { level },
           });
         }
       }

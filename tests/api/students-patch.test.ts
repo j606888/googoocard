@@ -187,4 +187,28 @@ describe("PATCH /api/students/[id] (資格同步)", () => {
     }
     expect(await qualificationsOf(student.id)).toEqual([]);
   });
+
+  it("舊格式 danceQualifications 不會把既有階級降回初階（舊分頁保護）", async () => {
+    const student = await createStudent(classroomId, {
+      name: "Amy",
+      qualifications: [DanceType.HUSTLE],
+    });
+    await prisma.studentDanceQualification.updateMany({
+      where: { studentId: student.id, danceType: DanceType.HUSTLE },
+      data: { level: 2 },
+    });
+
+    const res = await PATCH(
+      jsonRequest("PATCH", baseBody({ danceQualifications: [DanceType.HUSTLE, DanceType.ZOUK] })),
+      routeParams({ id: String(student.id) })
+    );
+
+    expect(res.status).toBe(200);
+    const rows = await prisma.studentDanceQualification.findMany({
+      where: { studentId: student.id },
+    });
+    expect(
+      Object.fromEntries(rows.map((r) => [r.danceType, r.level]))
+    ).toEqual({ HUSTLE: 2, ZOUK: 1 });
+  });
 });

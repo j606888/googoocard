@@ -122,7 +122,7 @@ const FilterDrawer = ({
           {availableQualifications.map((type) => (
             <Chip
               key={type}
-              label={`${danceTypeLabel(type)} Lv1`}
+              label={danceTypeLabel(type)}
               active={filters.qualifications.includes(type)}
               onClick={() =>
                 onChange({ ...filters, qualifications: toggle(filters.qualifications, type) })
