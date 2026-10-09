@@ -49,7 +49,7 @@ const SingleStudent = ({ student }: { student: Student }) => {
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0 mr-1">
-            <DanceBadges styleIds={student.danceQualifications} />
+            <DanceBadges levels={student.danceLevels} />
           </div>
         </div>
       </div>

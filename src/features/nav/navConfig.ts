@@ -7,6 +7,7 @@ import {
   Boxes,
   DollarSign,
   QrCode,
+  Music,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,6 +31,7 @@ export const SECONDARY_LINKS: NavLink[] = [
   { name: "課卡", icon: CreditCard, href: "/cards" },
   { name: "簽到 QR", icon: QrCode, href: "/checkin-qr" },
   { name: "老師", icon: GraduationCap, href: "/teachers" },
+  { name: "舞種", icon: Music, href: "/dance-styles" },
   { name: "團隊", icon: Boxes, href: "/teams" },
 ];
 

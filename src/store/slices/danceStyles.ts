@@ -37,6 +37,12 @@ const danceStylesApi = api.injectEndpoints({
       query: ({ id, ...body }) => ({ url: `dance-styles/${id}`, method: "PATCH", body }),
       invalidatesTags: AFFECTED_TAGS,
     }),
+    /** `ids` = every style of the classroom, archived included, in the new order. */
+    reorderDanceStyles: builder.mutation<DanceStyle[], number[]>({
+      query: (ids) => ({ url: "dance-styles/order", method: "PUT", body: { ids } }),
+      // Order only affects pickers and badge order, which all read this list.
+      invalidatesTags: ["DanceStyle"],
+    }),
   }),
 });
 
@@ -44,4 +50,5 @@ export const {
   useGetDanceStylesQuery,
   useCreateDanceStyleMutation,
   useUpdateDanceStyleMutation,
+  useReorderDanceStylesMutation,
 } = danceStylesApi;

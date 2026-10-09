@@ -102,6 +102,12 @@ export const createDanceStyleSchema = z.object({
   hasLevels: z.boolean().optional().default(false),
 });
 
+/** The classroom's full style list in its new order — archived styles included,
+ * so every `sortOrder` is rewritten in one go and no two styles tie. */
+export const reorderDanceStylesSchema = z.object({
+  ids: z.array(positiveInt).min(1),
+});
+
 /** Every field optional: rename, recolour, toggle levels, reorder, archive/restore. */
 export const updateDanceStyleSchema = z.object({
   name: danceStyleName.optional(),

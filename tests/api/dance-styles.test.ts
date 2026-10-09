@@ -15,6 +15,7 @@ vi.mock("@/lib/auth", () => ({
 
 import { GET, POST } from "@/app/api/dance-styles/route";
 import { PATCH } from "@/app/api/dance-styles/[id]/route";
+import { PUT as REORDER } from "@/app/api/dance-styles/order/route";
 
 describe("/api/dance-styles", () => {
   let classroomId: number;
@@ -157,5 +158,47 @@ describe("/api/dance-styles", () => {
       (await PATCH(jsonRequest("PATCH", { name: "X" }), routeParams({ id: String(style.id) })))
         .status
     ).toBe(401);
+  });
+
+  describe("PUT /order", () => {
+    const reorder = (ids: number[]) => REORDER(jsonRequest("PUT", { ids }), routeParams({}));
+
+    it("rewrites sortOrder to each id's index, archived styles included", async () => {
+      // Tied sortOrders — what the per-style PATCH couldn't untangle.
+      const a = await createDanceStyle(classroomId, { name: "A", sortOrder: 0 });
+      const b = await createDanceStyle(classroomId, { name: "B", sortOrder: 0 });
+      const c = await createDanceStyle(classroomId, {
+        name: "C",
+        sortOrder: 0,
+        archivedAt: new Date("2026-01-01"),
+      });
+
+      const res = await reorder([b.id, c.id, a.id]);
+
+      expect(res.status).toBe(200);
+      expect((await res.json()).map((s: { name: string }) => s.name)).toEqual(["B", "C", "A"]);
+      const rows = await prisma.danceStyle.findMany({ orderBy: { sortOrder: "asc" } });
+      expect(rows.map((r) => [r.name, r.sortOrder])).toEqual([
+        ["B", 0],
+        ["C", 1],
+        ["A", 2],
+      ]);
+    });
+
+    it("a missing, duplicated or foreign id → 400, nothing changed", async () => {
+      const a = await createDanceStyle(classroomId, { name: "A", sortOrder: 0 });
+      const b = await createDanceStyle(classroomId, { name: "B", sortOrder: 1 });
+      const other = await createClassroom({ name: "Other", email: "other@test.local" });
+      const foreign = await createDanceStyle(other.id, { name: "F" });
+
+      for (const ids of [[b.id], [b.id, b.id], [b.id, foreign.id], [b.id, a.id, foreign.id]]) {
+        const res = await reorder(ids);
+        expect(res.status).toBe(400);
+        expect((await res.json()).code).toBe("DANCE_STYLE_ORDER_MISMATCH");
+      }
+      const rows = await prisma.danceStyle.findMany({ where: { classroomId }, orderBy: { id: "asc" } });
+      expect(rows.map((r) => r.sortOrder)).toEqual([0, 1]);
+      expect((await prisma.danceStyle.findUniqueOrThrow({ where: { id: foreign.id } })).sortOrder).toBe(0);
+    });
   });
 });
