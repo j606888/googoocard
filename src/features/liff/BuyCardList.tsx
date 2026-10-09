@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DanceType } from "@prisma/client";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 import { StudentWithDetail } from "@/store/slices/students";
 import { LiffAuthContext } from "@/app/liff/LiffStudentGate";
 import { canBuyCard } from "@/domains/qualification";
-import { DANCE_TYPE_META, danceTypeLabel } from "@/lib/danceTypes";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
 
 interface BuyableCard {
   id: number;
@@ -16,7 +16,8 @@ interface BuyableCard {
   price: number;
   sessions: number;
   isPracticeCard: boolean;
-  danceType: DanceType | null;
+  danceStyleId: number | null;
+  danceStyle: DanceStyleSummary | null;
 }
 
 // LIFF self-service card purchase. Lists the classroom's purchasable cards,
@@ -137,11 +138,11 @@ export default function BuyCardList({
         <div className="rounded-xl border border-neutral-200 p-4">
           <div className="flex items-center gap-2">
             <span className="text-lg font-semibold">{purchased.name}</span>
-            {purchased.isPracticeCard && purchased.danceType && (
+            {purchased.isPracticeCard && purchased.danceStyle && (
               <span
-                className={`rounded-full px-2 py-0.5 text-xs font-medium ${DANCE_TYPE_META[purchased.danceType].badge}`}
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${danceStyleMeta(purchased.danceStyle).badge}`}
               >
-                {danceTypeLabel(purchased.danceType)}
+                {purchased.danceStyle.name}
               </span>
             )}
           </div>
@@ -184,11 +185,11 @@ export default function BuyCardList({
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{card.name}</span>
-                  {card.isPracticeCard && card.danceType && (
+                  {card.isPracticeCard && card.danceStyle && (
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${DANCE_TYPE_META[card.danceType].badge}`}
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${danceStyleMeta(card.danceStyle).badge}`}
                     >
-                      {danceTypeLabel(card.danceType)}
+                      {card.danceStyle.name}
                     </span>
                   )}
                 </div>
@@ -215,11 +216,11 @@ export default function BuyCardList({
             <div className="rounded-xl border border-neutral-200 p-4">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold">{selected.name}</span>
-                {selected.isPracticeCard && selected.danceType && (
+                {selected.isPracticeCard && selected.danceStyle && (
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${DANCE_TYPE_META[selected.danceType].badge}`}
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${danceStyleMeta(selected.danceStyle).badge}`}
                   >
-                    {danceTypeLabel(selected.danceType)}
+                    {selected.danceStyle.name}
                   </span>
                 )}
               </div>

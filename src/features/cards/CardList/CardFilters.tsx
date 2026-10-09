@@ -1,5 +1,5 @@
-import { DanceType } from "@prisma/client";
-import { DANCE_TYPE_META } from "@/lib/danceTypes";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 
 export type CardTypeFilter = "all" | "general" | "practice";
 
@@ -8,8 +8,6 @@ const TYPE_CHIPS: { label: string; value: CardTypeFilter }[] = [
   { label: "一般卡", value: "general" },
   { label: "複習卡", value: "practice" },
 ];
-
-const DANCE_TYPE_ORDER = Object.keys(DANCE_TYPE_META) as DanceType[];
 
 const chipClass = (active: boolean, activeStyle = "bg-neutral-800 text-white") =>
   `shrink-0 text-xs font-medium px-3 py-1 rounded-full transition-colors cursor-pointer ${
@@ -21,20 +19,21 @@ const CardFilters = ({
   setTypeFilter,
   danceFilter,
   setDanceFilter,
-  availableDanceTypes,
+  availableDanceStyles,
   sortMenu,
 }: {
   typeFilter: CardTypeFilter;
   setTypeFilter: (value: CardTypeFilter) => void;
-  danceFilter: DanceType | null;
-  setDanceFilter: (value: DanceType | null) => void;
-  availableDanceTypes: DanceType[];
+  danceFilter: number | null;
+  setDanceFilter: (value: number | null) => void;
+  /** Styles the classroom has cards for, already in display order. */
+  availableDanceStyles: DanceStyleSummary[];
   /** 排序下拉；由列表傳進來，跟篩選共用同一條工具列。 */
   sortMenu?: React.ReactNode;
 }) => {
-  // Only offer dance types the classroom actually has cards for; hide the row
-  // entirely when there's nothing meaningful to filter (0 or 1 dance type).
-  const danceChips = DANCE_TYPE_ORDER.filter((t) => availableDanceTypes.includes(t));
+  // Only offer dance styles the classroom actually has cards for; hide the row
+  // entirely when there's nothing meaningful to filter (0 or 1 dance style).
+  const danceChips = availableDanceStyles;
   const showDanceFilter = danceChips.length > 1;
 
   return (
@@ -56,7 +55,7 @@ const CardFilters = ({
         {sortMenu && <div className="shrink-0 ml-auto">{sortMenu}</div>}
       </div>
 
-      {/* Dance-type chips */}
+      {/* Dance-style chips */}
       {showDanceFilter && (
         <div className="flex items-center gap-3">
           <span className="shrink-0 w-8 text-xs font-medium text-neutral-400">舞種</span>
@@ -67,13 +66,13 @@ const CardFilters = ({
             >
               全部
             </button>
-            {danceChips.map((type) => {
-              const meta = DANCE_TYPE_META[type];
-              const active = danceFilter === type;
+            {danceChips.map((style) => {
+              const meta = danceStyleMeta(style);
+              const active = danceFilter === style.id;
               return (
                 <button
-                  key={type}
-                  onClick={() => setDanceFilter(active ? null : type)}
+                  key={style.id}
+                  onClick={() => setDanceFilter(active ? null : style.id)}
                   className={chipClass(active, meta.badge)}
                 >
                   {meta.label}

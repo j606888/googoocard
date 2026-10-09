@@ -4,13 +4,13 @@ import { AlarmClock, Check, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { LessonSummary } from "@/store/slices/lessons";
-import { DANCE_TYPE_META } from "@/lib/danceTypes";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 
 // Compact, time-first row for browsing a group's slots on one day — as
 // opposed to LessonCard's date-first grid tile used in the flat/search list.
 const TimeSlotCard = ({ lesson }: { lesson: LessonSummary }) => {
   const router = useRouter();
-  const style = DANCE_TYPE_META[lesson.danceType];
+  const style = danceStyleMeta(lesson.danceStyle);
   const hasDue = lesson.dueForAttendanceCount > 0 && lesson.dueForAttendancePeriodId !== null;
   const isFinished = lesson.status === "finished";
   const titleHasDance = lesson.name.toLowerCase().includes(style.label.toLowerCase());

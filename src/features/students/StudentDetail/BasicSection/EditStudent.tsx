@@ -7,8 +7,8 @@ import Drawer from "@/components/Drawer";
 import { StudentWithDetail } from "@/store/slices/students";
 import InputField from "@/components/InputField";
 import { useUpdateStudentMutation, useGetTagsQuery, useAddStudentTagMutation, useRemoveStudentTagMutation } from "@/store/slices/students";
-import { DanceType } from "@prisma/client";
-import { ALL_DANCE_TYPES, DANCE_TYPE_META } from "@/lib/danceTypes";
+import { useDanceStyles } from "@/hooks/useDanceStyles";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { DANCE_LEVELS, DEFAULT_DANCE_LEVEL } from "@/lib/danceLevels";
 import type { DanceLevels } from "@/domains/qualification";
 import AvatarPicker from "@/features/students/AvatarPicker";
@@ -26,6 +26,15 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
   const { data: allTags = [] } = useGetTagsQuery();
   const [addStudentTag] = useAddStudentTagMutation();
   const [removeStudentTag] = useRemoveStudentTagMutation();
+  const { styles, byId } = useDanceStyles();
+  // Archived styles aren't offered, but one the student already holds stays
+  // listed — the PATCH is authoritative, so it must be visible to be removable.
+  const styleChoices = [
+    ...styles,
+    ...[...byId.values()].filter(
+      (style) => style.archivedAt && danceLevels[style.id] !== undefined
+    ),
+  ];
 
   // 表單 state 只在掛載時初始化；分割畫面切換學生不會重新掛載，
   // 所以每次打開都從當下的 student 重設，避免沿用上一位學生的資料。
@@ -63,20 +72,20 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
 
   // Tapping a chip toggles 初階 — the same one-tap flow as before levels
   // existed. Raising the level is a separate, optional select on the chip.
-  const toggleQualification = (type: DanceType) => {
+  const toggleQualification = (styleId: number) => {
     setDanceLevels((prev) => {
       const next = { ...prev };
-      if (next[type] !== undefined) {
-        delete next[type];
+      if (next[styleId] !== undefined) {
+        delete next[styleId];
       } else {
-        next[type] = DEFAULT_DANCE_LEVEL;
+        next[styleId] = DEFAULT_DANCE_LEVEL;
       }
       return next;
     });
   };
 
-  const setQualificationLevel = (type: DanceType, level: number) => {
-    setDanceLevels((prev) => ({ ...prev, [type]: level }));
+  const setQualificationLevel = (styleId: number, level: number) => {
+    setDanceLevels((prev) => ({ ...prev, [styleId]: level }));
   };
 
   const handleAddTag = async (tagName: string) => {
@@ -126,13 +135,13 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
               已完成（可使用複習卡）
             </label>
             <div className="flex flex-wrap gap-2">
-              {ALL_DANCE_TYPES.map((type) => {
-                const style = DANCE_TYPE_META[type];
-                const level = danceLevels[type];
+              {styleChoices.map((danceStyle) => {
+                const style = danceStyleMeta(danceStyle);
+                const level = danceLevels[danceStyle.id];
                 const selected = level !== undefined;
                 return (
                   <div
-                    key={type}
+                    key={danceStyle.id}
                     className={`flex items-center rounded-full border text-sm font-medium transition-all ${
                       selected
                         ? `${style.light} ${style.border} ${style.text}`
@@ -141,17 +150,17 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
                   >
                     <button
                       type="button"
-                      onClick={() => toggleQualification(type)}
+                      onClick={() => toggleQualification(danceStyle.id)}
                       className="flex items-center gap-1.5 pl-3 py-1.5 pr-3 cursor-pointer"
                     >
                       <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${style.dot}`} />
                       {style.label}
                     </button>
-                    {selected && (
+                    {selected && danceStyle.hasLevels && (
                       <select
                         aria-label={`${style.label} 已完成階級`}
                         value={level}
-                        onChange={(e) => setQualificationLevel(type, Number(e.target.value))}
+                        onChange={(e) => setQualificationLevel(danceStyle.id, Number(e.target.value))}
                         className="-ml-1 mr-2 bg-transparent text-xs cursor-pointer focus:outline-none"
                       >
                         {DANCE_LEVELS.map(({ value, label }) => (

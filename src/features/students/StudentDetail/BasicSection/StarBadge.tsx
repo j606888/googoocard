@@ -1,18 +1,17 @@
 import { Star } from "lucide-react";
-import { DanceType } from "@prisma/client";
-import { danceTypeLabel } from "@/lib/danceTypes";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
 import { DEFAULT_DANCE_LEVEL, danceLevelLabel } from "@/lib/danceLevels";
 
-// Level 1 shows no level, so classrooms without levels see just the dance type.
-const StarBadge = ({ type, level }: { type: DanceType; level: number }) => {
+// Level 1, or a style without levels, shows no level range.
+const StarBadge = ({ style, level }: { style: DanceStyleSummary; level: number }) => {
   const scope =
-    level > DEFAULT_DANCE_LEVEL
+    style.hasLevels && level > DEFAULT_DANCE_LEVEL
       ? ` ${danceLevelLabel(DEFAULT_DANCE_LEVEL)}–${danceLevelLabel(level)}`
       : "";
   return (
     <div className="inline-flex gap-1.5 items-center bg-warning-100 text-warning-900 rounded-full py-1 pl-2.5 pr-3">
       <Star className="w-3.5 h-3.5 fill-warning-500 text-warning-500" />
-      <p className="text-sm font-medium">{`可使用 ${danceTypeLabel(type)}${scope} 複習卷`}</p>
+      <p className="text-sm font-medium">{`可使用 ${style.name}${scope} 複習卷`}</p>
     </div>
   );
 };

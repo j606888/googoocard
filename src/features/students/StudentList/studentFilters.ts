@@ -1,11 +1,10 @@
-import { DanceType } from "@prisma/client";
 import { Student } from "@/store/slices/students";
 import { SortOption } from "@/components/SortMenu";
 import { differenceInCalendarDays } from "date-fns";
 
 export interface StudentFilters {
   tags: string[]; // tag name，例 ["Needs Renewal", "未繳費"]
-  qualifications: DanceType[];
+  qualifications: number[]; // danceStyleId
   lessonIds: number[];
   inActiveLesson: boolean;
   recentlyAttended: boolean; // 近 RECENT_ATTEND_DAYS 天內有上過課
@@ -48,7 +47,11 @@ export const loadStudentFilters = (classroomId: number): StudentFilters => {
     const parsed = JSON.parse(raw);
     return {
       tags: Array.isArray(parsed.tags) ? parsed.tags : [],
-      qualifications: Array.isArray(parsed.qualifications) ? parsed.qualifications : [],
+      // Filters saved before dance styles were classroom data hold enum names
+      // ("BACHATA"); those would match no one, so only style ids survive.
+      qualifications: Array.isArray(parsed.qualifications)
+        ? parsed.qualifications.filter((q: unknown) => typeof q === "number")
+        : [],
       lessonIds: Array.isArray(parsed.lessonIds) ? parsed.lessonIds : [],
       inActiveLesson: Boolean(parsed.inActiveLesson),
       recentlyAttended: Boolean(parsed.recentlyAttended),

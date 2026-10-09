@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { DanceType } from "@prisma/client";
 import { LessonSummary } from "@/store/slices/lessons";
 import {
   summarizeGroup,
@@ -9,12 +8,16 @@ import {
   UNGROUPED_ID,
 } from "./lessonGrouping";
 
+const BACHATA = { id: 1, name: "Bachata", color: "green", hasLevels: false };
+const SALSA = { id: 2, name: "Salsa", color: "orange", hasLevels: false };
+
 const lesson = (
   overrides: Partial<LessonSummary> & Pick<LessonSummary, "id">
 ): LessonSummary =>
   ({
     name: `課程 ${overrides.id}`,
-    danceType: DanceType.BACHATA,
+    danceStyleId: BACHATA.id,
+    danceStyle: BACHATA,
     status: "inProgress",
     studentCount: 0,
     groupId: null,
@@ -35,11 +38,11 @@ describe("summarizeGroup", () => {
 
   it("舞種去重", () => {
     const row = summarizeGroup(1, "週日課", [
-      lesson({ id: 1, danceType: DanceType.BACHATA }),
-      lesson({ id: 2, danceType: DanceType.SALSA }),
-      lesson({ id: 3, danceType: DanceType.BACHATA }),
+      lesson({ id: 1, danceStyleId: BACHATA.id, danceStyle: BACHATA }),
+      lesson({ id: 2, danceStyleId: SALSA.id, danceStyle: SALSA }),
+      lesson({ id: 3, danceStyleId: BACHATA.id, danceStyle: BACHATA }),
     ]);
-    expect(row.danceTypes).toEqual([DanceType.BACHATA, DanceType.SALSA]);
+    expect(row.danceStyles).toEqual([BACHATA, SALSA]);
   });
 
   it("取最早的下次上課日", () => {
@@ -76,7 +79,7 @@ describe("summarizeGroup", () => {
     expect(row).toMatchObject({
       lessonCount: 0,
       studentCount: 0,
-      danceTypes: [],
+      danceStyles: [],
       dueForAttendanceCount: 0,
       nextSessionDate: null,
     });
@@ -136,7 +139,7 @@ describe("isFlattenedView / shouldUseGroupedView", () => {
   });
 
   it("有舞種篩選就攤平", () => {
-    expect(isFlattenedView("", DanceType.SALSA)).toBe(true);
+    expect(isFlattenedView("", SALSA.id)).toBe(true);
   });
 
   it("都沒有就不攤平", () => {

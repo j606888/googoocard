@@ -2,7 +2,7 @@
 
 import { AlertCircle } from "lucide-react";
 import { Student } from "@/store/slices/students";
-import DanceBadge from "./DanceBadge";
+import { DanceBadges } from "./DanceBadge";
 import {
   RECENT_ATTEND_DAYS,
   daysSinceLastAttend,
@@ -91,9 +91,7 @@ const RosterRow = ({
         </div>
       </div>
       <div className="flex items-center gap-1 shrink-0">
-        {student.danceQualifications?.map((type) => (
-          <DanceBadge key={type} type={type} />
-        ))}
+        <DanceBadges styleIds={student.danceQualifications} />
       </div>
     </button>
   );

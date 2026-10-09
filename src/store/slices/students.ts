@@ -1,4 +1,5 @@
 import type { DanceLevels } from "@/domains/qualification";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
 import { api } from "../api";
 import { Card } from "./cards";
 import { Classroom } from "./classrooms";
@@ -39,6 +40,9 @@ export interface Event {
 }
 
 export interface StudentWithDetail extends Student {
+  /** The styles in `danceQualifications`, in the classroom's order — embedded so
+   * LIFF and the public share page can label them without a teacher session. */
+  qualifiedDanceStyles: DanceStyleSummary[];
   overview: {
     lastAttendAt: string | null;
     cardCount: number;

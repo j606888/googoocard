@@ -172,6 +172,10 @@ describe("PATCH /api/students/[id] (資格同步)", () => {
     const body = await (await GET(jsonRequest("GET"), routeParams({ id: String(student.id) }))).json();
     expect(body.danceQualifications).toEqual([S.HUSTLE]);
     expect(body.danceLevels).toEqual({ [S.HUSTLE]: 2 });
+    // Embedded so LIFF / the public share page can label it without a teacher session.
+    expect(body.qualifiedDanceStyles).toEqual([
+      { id: S.HUSTLE, name: "Hustle", color: "stone", hasLevels: true },
+    ]);
   });
 
   it("danceLevels 設定各舞種已完成階級", async () => {

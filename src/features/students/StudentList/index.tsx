@@ -12,8 +12,7 @@ import FilterDrawer from "./FilterDrawer";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Users, SlidersHorizontal, X, CornerDownLeft } from "lucide-react";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
-import { DanceType } from "@prisma/client";
-import { ALL_DANCE_TYPES, danceTypeLabel } from "@/lib/danceTypes";
+import { useDanceStyles } from "@/hooks/useDanceStyles";
 import {
   StudentFilters,
   StudentSort,
@@ -70,10 +69,14 @@ const StudentList = ({
 
   const inProgressLessons = lessonsData?.lessons ?? [];
 
-  // 學生資格中實際存在的舞種，動態決定「過課」可選項
+  // 學生資格中實際存在的舞種，動態決定「過課」可選項（依教室的舞種順序）
+  const { byId: danceStylesById } = useDanceStyles();
   const availableQualifications = useMemo(
-    () => ALL_DANCE_TYPES.filter((type) => allStudents.some((s) => s.danceQualifications?.includes(type))),
-    [allStudents]
+    () =>
+      [...danceStylesById.values()].filter((style) =>
+        allStudents.some((s) => s.danceQualifications?.includes(style.id))
+      ),
+    [allStudents, danceStylesById]
   );
 
   // 載入：教室就緒（或切換）後從 localStorage 還原（mount 先 EMPTY，避免 hydration mismatch）
@@ -245,12 +248,17 @@ const StudentList = ({
       label: tagLabel(name),
       onRemove: () => setFilters((f) => ({ ...f, tags: f.tags.filter((t) => t !== name) })),
     })),
-    ...filters.qualifications.map((type) => ({
-      key: `qual:${type}`,
-      label: `${danceTypeLabel(type as DanceType)} 過課`,
-      onRemove: () =>
-        setFilters((f) => ({ ...f, qualifications: f.qualifications.filter((q) => q !== type) })),
-    })),
+    ...filters.qualifications
+      .filter((styleId) => danceStylesById.has(styleId))
+      .map((styleId) => ({
+        key: `qual:${styleId}`,
+        label: `${danceStylesById.get(styleId)!.name} 過課`,
+        onRemove: () =>
+          setFilters((f) => ({
+            ...f,
+            qualifications: f.qualifications.filter((q) => q !== styleId),
+          })),
+      })),
     ...filters.lessonIds
       .filter((id) => lessonName(id))
       .map((id) => ({

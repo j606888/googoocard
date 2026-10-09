@@ -4,11 +4,10 @@ import { useCreateCardMutation, useGetCardsQuery } from "@/store/slices/cards";
 import InputField from "@/components/InputField";
 import MultiSelect from "@/components/MultiSelect";
 import { cardValidationForm } from "@/features/cards/CardList/NewCard";
-import { DanceType } from "@prisma/client";
 import { cardMatchesLesson } from "@/domains/qualification";
 import { toast } from "sonner";
 
-const NewCard = ({ selectedCardIds, onChange, danceType, error }: { selectedCardIds: number[], onChange: (value: number[]) => void, danceType: DanceType, error?: string }) => {
+const NewCard = ({ selectedCardIds, onChange, danceStyleId, error }: { selectedCardIds: number[], onChange: (value: number[]) => void, danceStyleId: number | null, error?: string }) => {
   const { data: cards } = useGetCardsQuery();
   const [open, setOpen] = useState(false);
   const [cardName, setCardName] = useState("");
@@ -24,7 +23,7 @@ const NewCard = ({ selectedCardIds, onChange, danceType, error }: { selectedCard
       setErrors(errors);
       return;
     }
-    const card = await createCard({ name: cardName, price: Number(price), sessions: Number(sessions), isPracticeCard: false, danceType: null });
+    const card = await createCard({ name: cardName, price: Number(price), sessions: Number(sessions), isPracticeCard: false, danceStyleId: null });
     if (card.data) {
       onChange([...selectedCardIds, card.data.id]);
     }
@@ -74,9 +73,9 @@ const NewCard = ({ selectedCardIds, onChange, danceType, error }: { selectedCard
     ),
   ];
 
-  // Practice cards of another dance type can't be attached to this lesson.
+  // Practice cards of another dance style can't be attached to this lesson.
   const matchingCards = candidateCards.filter((card) =>
-    cardMatchesLesson(card, danceType)
+    cardMatchesLesson(card, danceStyleId)
   );
 
   const cardOptions = matchingCards.map((card) => ({
@@ -85,17 +84,19 @@ const NewCard = ({ selectedCardIds, onChange, danceType, error }: { selectedCard
   }));
 
   useEffect(() => {
-    if (!cards) return;
+    // No style yet (styles still loading, or none chosen): nothing to check
+    // against, and pruning now would drop a cloned lesson's practice cards.
+    if (!cards || danceStyleId === null) return;
     const validIds = selectedCardIds.filter((id) => {
       const card = candidateCards.find((c) => c.id === id);
-      return !card || cardMatchesLesson(card, danceType);
+      return !card || cardMatchesLesson(card, danceStyleId);
     });
     if (validIds.length !== selectedCardIds.length) {
       toast.info("已移除與舞種不符的複習卡");
       onChange(validIds);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [danceType, cards, selectedCardIds]);
+  }, [danceStyleId, cards, selectedCardIds]);
 
   return (
     <div className="flex flex-col gap-1">

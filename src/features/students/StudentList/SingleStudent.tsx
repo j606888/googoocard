@@ -3,7 +3,7 @@
 import { Student } from "@/store/slices/students";
 import { useRouter } from "next/navigation";
 import { CreditCard } from "lucide-react";
-import DanceBadge from "./DanceBadge";
+import { DanceBadges } from "./DanceBadge";
 
 const tagStyle = (name: string) =>
   name === "Needs Renewal"
@@ -49,9 +49,7 @@ const SingleStudent = ({ student }: { student: Student }) => {
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0 mr-1">
-            {student.danceQualifications?.map((type) => (
-              <DanceBadge key={type} type={type} />
-            ))}
+            <DanceBadges styleIds={student.danceQualifications} />
           </div>
         </div>
       </div>

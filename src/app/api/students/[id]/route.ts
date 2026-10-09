@@ -135,7 +135,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         include: { tag: true },
         orderBy: { createdAt: "asc" },
       },
-      danceQualifications: true,
+      // Ordered and joined to their style so pages without a teacher session
+      // (LIFF, the public share link) can label them without /api/dance-styles.
+      danceQualifications: {
+        include: { danceStyle: { select: danceStyleSummarySelect } },
+        orderBy: { danceStyle: { sortOrder: "asc" } },
+      },
       studentCards: {
         include: {
           card: { include: { danceStyle: { select: danceStyleSummarySelect } } },
@@ -318,6 +323,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     tags,
     danceQualifications: danceQualifications.flatMap((q) => (q.danceStyleId === null ? [] : [q.danceStyleId])),
     danceLevels: toDanceLevels(danceQualifications),
+    qualifiedDanceStyles: danceQualifications.flatMap((q) => (q.danceStyle ? [q.danceStyle] : [])),
     classroom: student.classroom,
     // Teacher-facing, so the share-link token is included — but `lineBindKey`
     // and `lineUserId` never are. See toStudentPayload.

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import Drawer from "@/components/Drawer";
 import { useGetCardsQuery, useUpdateCardMutation } from "@/store/slices/cards";
-import { DanceType } from "@prisma/client";
 import CardFormFields, { CardFormErrors, CardFormValues } from "./CardFormFields";
 import { DANCE_TYPE_REQUIRED } from "./NewCard";
 
@@ -44,7 +43,7 @@ const EditCard = ({
     price: "",
     sessions: "",
     isPracticeCard: false,
-    danceType: null,
+    danceStyleId: null,
   });
   const [errors, setErrors] = useState<CardFormErrors>({});
   const [updateCard, { isLoading }] = useUpdateCardMutation();
@@ -56,10 +55,10 @@ const EditCard = ({
     setErrors((prev) => ({ ...prev, [key]: undefined }));
 
   const handleSubmit = async () => {
-    const { cardName, price, sessions, isPracticeCard, danceType } = values;
+    const { cardName, price, sessions, isPracticeCard, danceStyleId } = values;
     const nextErrors: CardFormErrors = validateForm({ cardName, price, sessions });
-    if (isPracticeCard && !danceType) {
-      nextErrors.danceType = DANCE_TYPE_REQUIRED;
+    if (isPracticeCard && !danceStyleId) {
+      nextErrors.danceStyleId = DANCE_TYPE_REQUIRED;
     }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
@@ -71,7 +70,7 @@ const EditCard = ({
       price: Number(price),
       sessions: Number(sessions),
       isPracticeCard,
-      danceType: danceType as DanceType | null,
+      danceStyleId,
     });
     onClose();
   };
@@ -88,7 +87,7 @@ const EditCard = ({
         price: card.price.toString(),
         sessions: card.sessions.toString(),
         isPracticeCard: card.isPracticeCard,
-        danceType: card.danceType ?? null,
+        danceStyleId: card.danceStyleId ?? null,
       });
     }
   }, [card]);

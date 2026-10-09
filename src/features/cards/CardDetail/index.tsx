@@ -7,7 +7,7 @@ import {
   useEnableCardMutation,
   useExpireCardMutation,
 } from "@/store/slices/cards";
-import { DANCE_TYPE_META, danceTypeLabel } from "@/lib/danceTypes";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { formatDate } from "@/lib/utils";
 import { ArrowLeftIcon, Ban, Lightbulb, Pencil, Search, Users } from "lucide-react";
 import SortMenu from "@/components/SortMenu";
@@ -97,9 +97,9 @@ const CardDetail = ({ detail }: { detail: CardDetailType }) => {
               一般卡
             </span>
           )}
-          {card.danceType && (
-            <span className={`text-xs rounded-full px-2.5 py-0.5 ${DANCE_TYPE_META[card.danceType].badge}`}>
-              {danceTypeLabel(card.danceType)}
+          {card.danceStyle && (
+            <span className={`text-xs rounded-full px-2.5 py-0.5 ${danceStyleMeta(card.danceStyle).badge}`}>
+              {card.danceStyle.name}
             </span>
           )}
           {isDisabled && (

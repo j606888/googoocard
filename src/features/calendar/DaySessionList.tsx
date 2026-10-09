@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { Check, AlarmClock, Clock, CalendarOff } from "lucide-react";
 import { CalendarPeriod } from "@/store/slices/lessons";
-import { DANCE_TYPE_META } from "@/lib/danceTypes";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { sessionState } from "./status";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -48,7 +48,7 @@ const DaySessionList = ({ day, periods }: DaySessionListProps) => {
       ) : (
         <div className="flex flex-col gap-2.5">
           {periods.map((p) => {
-            const style = DANCE_TYPE_META[p.danceType];
+            const style = danceStyleMeta(p.danceStyle);
             const state = sessionState(p, now);
             return (
               <button

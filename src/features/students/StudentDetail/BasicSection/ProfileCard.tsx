@@ -40,10 +40,14 @@ const ProfileCard = ({
           </div>
         )}
       </div>
-      {student.danceQualifications?.length > 0 && (
+      {student.qualifiedDanceStyles?.length > 0 && (
         <div className="flex flex-wrap gap-2 items-start">
-          {student.danceQualifications.map((type) => (
-            <StarBadge key={type} type={type} level={student.danceLevels?.[type] ?? DEFAULT_DANCE_LEVEL} />
+          {student.qualifiedDanceStyles.map((style) => (
+            <StarBadge
+              key={style.id}
+              style={style}
+              level={student.danceLevels?.[style.id] ?? DEFAULT_DANCE_LEVEL}
+            />
           ))}
         </div>
       )}

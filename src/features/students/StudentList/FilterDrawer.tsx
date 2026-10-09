@@ -1,8 +1,7 @@
 "use client";
 
 import Drawer from "@/components/Drawer";
-import { DanceType } from "@prisma/client";
-import { danceTypeLabel } from "@/lib/danceTypes";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
 import { StudentTag } from "@/store/slices/students";
 import { LessonSummary } from "@/store/slices/lessons";
 import {
@@ -19,7 +18,7 @@ interface FilterDrawerProps {
   onChange: (next: StudentFilters) => void;
   tags: StudentTag[];
   lessons: Pick<LessonSummary, "id" | "name">[];
-  availableQualifications: DanceType[];
+  availableQualifications: DanceStyleSummary[];
   resultCount: number;
 }
 
@@ -119,13 +118,13 @@ const FilterDrawer = ({
 
       {availableQualifications.length > 0 && (
         <Section title="過課">
-          {availableQualifications.map((type) => (
+          {availableQualifications.map((style) => (
             <Chip
-              key={type}
-              label={danceTypeLabel(type)}
-              active={filters.qualifications.includes(type)}
+              key={style.id}
+              label={style.name}
+              active={filters.qualifications.includes(style.id)}
               onClick={() =>
-                onChange({ ...filters, qualifications: toggle(filters.qualifications, type) })
+                onChange({ ...filters, qualifications: toggle(filters.qualifications, style.id) })
               }
             />
           ))}

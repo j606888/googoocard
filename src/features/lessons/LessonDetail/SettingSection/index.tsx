@@ -1,8 +1,8 @@
 import { Lesson } from "@/store/slices/lessons";
 import { useState } from "react";
-import { DanceType } from "@prisma/client";
 import InputField from "@/components/InputField";
-import DanceTypeSelect from "@/features/lessons/newLesson/DanceTypeSelect";
+import DanceStyleSelect from "@/features/lessons/newLesson/DanceStyleSelect";
+import { useDanceStyles } from "@/hooks/useDanceStyles";
 import LevelSelect from "@/features/lessons/newLesson/LevelSelect";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
@@ -15,12 +15,15 @@ const validationErrors = {
   lessonName: "請輸入課程名稱",
   teachers: "請至少選擇一位老師",
   cards: "請至少選擇一張課卡",
+  danceStyle: "請選擇舞種",
 };
 
 const SettingSection = ({ lesson }: { lesson: Lesson }) => {
 
   const [lessonName, setLessonName] = useState(lesson.name);
-  const [danceType, setDanceType] = useState<DanceType>(lesson.danceType);
+  const [danceStyleId, setDanceStyleId] = useState<number | null>(lesson.danceStyleId);
+  const { byId } = useDanceStyles();
+  const hasLevels = danceStyleId !== null && (byId.get(danceStyleId)?.hasLevels ?? false);
   const [level, setLevel] = useState<number>(lesson.level);
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(lesson.teachers.map((teacher) => teacher.id));
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>(lesson.cards.map((card) => card.id));
@@ -29,6 +32,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
     lessonName?: string;
     teachers?: string;
     cards?: string;
+    danceStyle?: string;
   }>({});
   const [updateLesson, { isLoading }] = useUpdateLessonMutation();
   const [deleteLesson, { isLoading: isDeleting }] = useDeleteLessonMutation();
@@ -48,8 +52,11 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
     setLessonName(e.target.value);
   };
 
-  const handleDanceTypeChange = (value: DanceType) => {
-    setDanceType(value);
+  const handleDanceStyleChange = (value: number) => {
+    setDanceStyleId(value);
+    if (errors.danceStyle) {
+      setErrors((prev) => ({ ...prev, danceStyle: undefined }));
+    }
   };
 
   const handleTeacherChange = (value: number[]) => {
@@ -71,10 +78,11 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
       lessonName,
       teachers: selectedTeacherIds,
       cards: selectedCardIds,
+      danceStyleId,
     });
     setErrors(errors);
-    if (Object.keys(errors).length === 0) {
-      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceType, level, groupId } });
+    if (Object.keys(errors).length === 0 && danceStyleId !== null) {
+      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId, level, groupId } });
     }
   };
 
@@ -88,11 +96,12 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
             onChange={handleLessonNameChange}
             error={errors.lessonName}
           />
-          <DanceTypeSelect
-            danceType={danceType}
-            onChange={handleDanceTypeChange}
+          <DanceStyleSelect
+            danceStyleId={danceStyleId}
+            onChange={handleDanceStyleChange}
+            error={errors.danceStyle}
           />
-          <LevelSelect level={level} onChange={setLevel} />
+          {hasLevels && <LevelSelect level={level} onChange={setLevel} />}
           <LessonGroupSelect
             groupId={groupId}
             onChange={setGroupId}
@@ -106,7 +115,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
             error={errors.cards}
             onChange={handleCardChange}
             selectedCardIds={selectedCardIds}
-            danceType={danceType}
+            danceStyleId={danceStyleId}
           />
           <Button className="w-full" onClick={handleSubmit} isLoading={isLoading}>
             儲存
@@ -136,12 +145,17 @@ const validateForm = (data: {
   lessonName: string;
   teachers: number[];
   cards: number[];
+  danceStyleId: number | null;
 }) => {
   const errors: {
     lessonName?: string;
     teachers?: string;
     cards?: string;
+    danceStyle?: string;
   } = {};
+  if (data.danceStyleId === null) {
+    errors.danceStyle = validationErrors.danceStyle;
+  }
   if (!data.lessonName) {
     errors.lessonName = validationErrors.lessonName;
   }

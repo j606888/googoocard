@@ -29,12 +29,6 @@ export type DanceStyleSummary = {
   hasLevels: boolean;
 };
 
-/** A style as the dance-styles management API returns it. */
-export type DanceStylePayload = DanceStyleSummary & {
-  sortOrder: number;
-  archivedAt: Date | null;
-};
-
 /** Prisma `select` for `DanceStyleSummary` — use it in includes instead of
  * `danceStyle: true`, so new DanceStyle columns never leak into responses. */
 export const danceStyleSummarySelect = {

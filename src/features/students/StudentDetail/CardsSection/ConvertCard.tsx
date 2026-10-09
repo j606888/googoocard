@@ -17,7 +17,7 @@ import {
 } from "@/domains/cardConversion";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatDate } from "@/lib/utils";
-import { DANCE_TYPE_META, danceTypeLabel } from "@/lib/danceTypes";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 
@@ -82,8 +82,8 @@ const ConvertCard = ({
   const blockedReason = (card: Card): string | null => {
     const decision = canBuyCard(card, danceLevels ?? {});
     if (decision.allowed) return null;
-    if (decision.reason === "NOT_QUALIFIED" && card.danceType) {
-      return `未具備 ${danceTypeLabel(card.danceType)} 複習資格`;
+    if (decision.reason === "NOT_QUALIFIED" && card.danceStyle) {
+      return `未具備 ${card.danceStyle.name} 複習資格`;
     }
     return "複習卡未設定舞種，請先至課卡頁設定";
   };
@@ -225,11 +225,11 @@ const ConvertCard = ({
                     <span className="flex-1 min-w-0 flex flex-col gap-0.5">
                       <span className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-semibold text-neutral-900">{card.name}</span>
-                        {card.isPracticeCard && card.danceType && (
+                        {card.isPracticeCard && card.danceStyle && (
                           <span
-                            className={`text-[11px] font-medium px-2 py-px rounded-full ${DANCE_TYPE_META[card.danceType].badge}`}
+                            className={`text-[11px] font-medium px-2 py-px rounded-full ${danceStyleMeta(card.danceStyle).badge}`}
                           >
-                            {danceTypeLabel(card.danceType)} 複習
+                            {card.danceStyle.name} 複習
                           </span>
                         )}
                       </span>

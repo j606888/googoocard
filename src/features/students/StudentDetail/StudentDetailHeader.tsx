@@ -91,13 +91,13 @@ const StudentDetailHeader = ({
             ))}
           </div>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {student.danceQualifications?.map((type) => (
+            {student.qualifiedDanceStyles?.map((style) => (
               <span
-                key={type}
+                key={style.id}
                 className="inline-flex items-center gap-1 text-xs font-medium bg-warning-100 text-warning-900 px-2.5 py-1 rounded-full"
               >
                 <Star className="w-3 h-3" />
-                {practiceQualificationLabel(type, student.danceLevels?.[type] ?? DEFAULT_DANCE_LEVEL)}
+                {practiceQualificationLabel(style, student.danceLevels?.[style.id] ?? DEFAULT_DANCE_LEVEL)}
               </span>
             ))}
           </div>

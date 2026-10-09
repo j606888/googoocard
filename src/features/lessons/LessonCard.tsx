@@ -5,11 +5,11 @@ import { LessonSummary } from "@/store/slices/lessons";
 import { format, addDays } from "date-fns";
 import { useRouter } from "next/navigation";
 import { setLessonCloneSource } from "@/lib/lessonDraftStorage";
-import { DANCE_TYPE_META } from "@/lib/danceTypes";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 
 const LessonCard = ({ lesson }: { lesson: LessonSummary }) => {
   const router = useRouter();
-  const style = DANCE_TYPE_META[lesson.danceType];
+  const style = danceStyleMeta(lesson.danceStyle);
   const isFinished = lesson.status === "finished";
   const hasDue = lesson.dueForAttendanceCount > 0 && lesson.dueForAttendancePeriodId !== null;
 
@@ -42,7 +42,7 @@ const LessonCard = ({ lesson }: { lesson: LessonSummary }) => {
       lessonName: lesson.name,
       teacherIds: lesson.teachers.map((t) => t.id),
       cardIds: lesson.cardIds,
-      danceType: lesson.danceType,
+      danceStyleId: lesson.danceStyleId,
       level: lesson.level,
       groupId: lesson.groupId,
       initialPeriod,

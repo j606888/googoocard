@@ -1,6 +1,6 @@
 import { Card } from "@/store/slices/cards";
 import { EllipsisVertical, Trash, Ban, Lightbulb, Pencil, Users, TriangleAlert, Info } from "lucide-react";
-import { DANCE_TYPE_META, danceTypeLabel } from "@/lib/danceTypes";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { useState, useRef } from "react";
 import Link from "next/link";
 import Menu from "@/components/Menu";
@@ -72,9 +72,9 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
                   一般卡
                 </span>
               )}
-              {card.danceType ? (
-                <span className={`text-xs rounded-full px-2.5 py-0.5 w-fit ${DANCE_TYPE_META[card.danceType].badge}`}>
-                  {danceTypeLabel(card.danceType)}
+              {card.danceStyle ? (
+                <span className={`text-xs rounded-full px-2.5 py-0.5 w-fit ${danceStyleMeta(card.danceStyle).badge}`}>
+                  {card.danceStyle.name}
                 </span>
               ) : (
                 card.isPracticeCard && (

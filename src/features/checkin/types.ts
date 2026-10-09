@@ -1,4 +1,4 @@
-import { DanceType } from "@prisma/client";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
 
 /** Wire shapes shared by the LIFF check-in page and the public QR check-in page. */
 
@@ -12,7 +12,7 @@ export interface TodayPeriod {
 export interface TodayLesson {
   lessonId: number;
   lessonName: string;
-  danceType: DanceType;
+  danceStyle: DanceStyleSummary | null;
   periods: TodayPeriod[];
 }
 

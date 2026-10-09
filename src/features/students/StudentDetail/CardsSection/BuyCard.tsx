@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { useCreateStudentCardMutation } from "@/store/slices/students";
 import { Card, useGetCardsQuery } from "@/store/slices/cards";
 import { canBuyCard } from "@/domains/qualification";
-import { DANCE_TYPE_META, danceTypeLabel } from "@/lib/danceTypes";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 
 const BuyCard = ({ student }: { student: Student }) => {
   const { data: cards } = useGetCardsQuery();
@@ -34,8 +34,8 @@ const BuyCard = ({ student }: { student: Student }) => {
   const buyBlockedReason = (card: Card): string | null => {
     const decision = canBuyCard(card, student.danceLevels ?? {});
     if (decision.allowed) return null;
-    if (decision.reason === "NOT_QUALIFIED" && card.danceType) {
-      return `未具備 ${danceTypeLabel(card.danceType)} 複習資格`;
+    if (decision.reason === "NOT_QUALIFIED" && card.danceStyle) {
+      return `未具備 ${card.danceStyle.name} 複習資格`;
     }
     return "複習卡未設定舞種，請先至課卡頁設定";
   };
@@ -136,11 +136,11 @@ const BuyCard = ({ student }: { student: Student }) => {
                   <div className="flex gap-2 items-center">
                     <RoundCheckbox isChecked={selectedCardId === card.id} />
                     <p>{card.name}</p>
-                    {card.isPracticeCard && card.danceType && (
+                    {card.isPracticeCard && card.danceStyle && (
                       <span
-                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${DANCE_TYPE_META[card.danceType].badge}`}
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${danceStyleMeta(card.danceStyle).badge}`}
                       >
-                        {danceTypeLabel(card.danceType)}
+                        {card.danceStyle.name}
                       </span>
                     )}
                   </div>

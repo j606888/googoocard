@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { DanceType } from "@prisma/client";
 import { useGetCardsQuery, Card } from "@/store/slices/cards";
 import { CreditCard, ChevronDown, Ban } from "lucide-react";
-import { DANCE_TYPE_META } from "@/lib/danceTypes";
+import { useDanceStyles } from "@/hooks/useDanceStyles";
 import SortMenu from "@/components/SortMenu";
 import NewCard from "./NewCard";
 import SingleCard from "./SingleCard";
@@ -20,8 +19,6 @@ import {
   splitByType,
 } from "../cardInsights";
 
-const DANCE_TYPE_ORDER = Object.keys(DANCE_TYPE_META) as DanceType[];
-
 const CardList = () => {
   const { data, isLoading } = useGetCardsQuery();
   const { activeCards, expiredCards } = data || {
@@ -31,21 +28,22 @@ const CardList = () => {
   const [showExpiredCards, setShowExpiredCards] = useState(false);
   const [editCardId, setEditCardId] = useState<number | null>(null);
   const [typeFilter, setTypeFilter] = useState<CardTypeFilter>("all");
-  const [danceFilter, setDanceFilter] = useState<DanceType | null>(null);
+  const [danceFilter, setDanceFilter] = useState<number | null>(null);
   const [sort, setSort] = useState<CardSort>(DEFAULT_CARD_SORT);
+  const { byId } = useDanceStyles();
 
   if (isLoading) return <CardListSkeleton />;
 
-  // Dance types with at least one card (active or disabled), in canonical order.
-  const availableDanceTypes = DANCE_TYPE_ORDER.filter((t) =>
-    [...activeCards, ...expiredCards].some((c) => c.danceType === t)
+  // Dance styles with at least one card (active or disabled), in the classroom's order.
+  const availableDanceStyles = [...byId.values()].filter((style) =>
+    [...activeCards, ...expiredCards].some((c) => c.danceStyleId === style.id)
   );
 
   const matchesFilters = (card: Card) => {
     const typeOk =
       typeFilter === "all" ||
       (typeFilter === "practice" ? card.isPracticeCard : !card.isPracticeCard);
-    const danceOk = danceFilter === null || card.danceType === danceFilter;
+    const danceOk = danceFilter === null || card.danceStyleId === danceFilter;
     return typeOk && danceOk;
   };
 
@@ -96,7 +94,7 @@ const CardList = () => {
           setTypeFilter={setTypeFilter}
           danceFilter={danceFilter}
           setDanceFilter={setDanceFilter}
-          availableDanceTypes={availableDanceTypes}
+          availableDanceStyles={availableDanceStyles}
           sortMenu={
             <SortMenu sort={sort} options={CARD_SORT_OPTIONS} onChange={setSort} />
           }

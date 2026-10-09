@@ -9,10 +9,10 @@ import PeriodList from "./PeriodList";
 import AddPeriodForm from "./AddPeriodForm";
 import { useCreateLessonMutation } from "@/store/slices/lessons";
 import { useRouter, useSearchParams } from "next/navigation";
-import DanceTypeSelect from "./DanceTypeSelect";
+import DanceStyleSelect from "./DanceStyleSelect";
 import LevelSelect from "./LevelSelect";
 import { DEFAULT_DANCE_LEVEL } from "@/lib/danceLevels";
-import { DanceType } from "@prisma/client";
+import { useDanceStyles } from "@/hooks/useDanceStyles";
 import {
   getLessonCloneSource,
   clearLessonCloneSource,
@@ -27,6 +27,7 @@ const validationErrors = {
   teachers: "請至少選擇一位老師",
   cards: "請至少選擇一張課卡",
   periods: "請至少新增一個時段",
+  danceStyle: "請選擇舞種",
 };
 
 const NewLesson = () => {
@@ -46,9 +47,14 @@ const NewLesson = () => {
   });
 
   const [lessonName, setLessonName] = useState(initialClone?.lessonName ?? "");
-  const [danceType, setDanceType] = useState<DanceType>(
-    initialClone?.danceType ?? DanceType.BACHATA
+  const { styles } = useDanceStyles();
+  const [pickedStyleId, setPickedStyleId] = useState<number | null>(
+    initialClone?.danceStyleId ?? null
   );
+  // Until the teacher picks one, default to the classroom's first style —
+  // the old form defaulted to Bachata the same way.
+  const danceStyleId = pickedStyleId ?? styles[0]?.id ?? null;
+  const hasLevels = styles.find((style) => style.id === danceStyleId)?.hasLevels ?? false;
   const [level, setLevel] = useState<number>(
     initialClone?.level ?? DEFAULT_DANCE_LEVEL
   );
@@ -71,6 +77,7 @@ const NewLesson = () => {
     teachers?: string;
     cards?: string;
     periods?: string;
+    danceStyle?: string;
   }>({});
   const [createLesson, { isLoading }] = useCreateLessonMutation();
   const router = useRouter();
@@ -82,8 +89,11 @@ const NewLesson = () => {
     setLessonName(e.target.value);
   };
 
-  const handleDanceTypeChange = (value: DanceType) => {
-    setDanceType(value);
+  const handleDanceStyleChange = (value: number) => {
+    setPickedStyleId(value);
+    if (errors.danceStyle) {
+      setErrors((prev) => ({ ...prev, danceStyle: undefined }));
+    }
   };
 
   const handleTeacherChange = (value: number[]) => {
@@ -120,15 +130,17 @@ const NewLesson = () => {
       teachers: selectedTeacherIds,
       cards: selectedCardIds,
       periods,
+      danceStyleId,
     });
     setErrors(errors);
-    if (Object.keys(errors).length === 0) {
+    if (Object.keys(errors).length === 0 && danceStyleId !== null) {
       await createLesson({
         lessonName,
         teacherIds: selectedTeacherIds,
         cardIds: selectedCardIds,
-        danceType,
-        level,
+        danceStyleId,
+        // A style without levels has no 階級 picker; its lessons are 初階.
+        level: hasLevels ? level : DEFAULT_DANCE_LEVEL,
         groupId: selectedGroupId,
         periods,
       });
@@ -173,11 +185,12 @@ const NewLesson = () => {
                   onChange={handleLessonNameChange}
                   error={errors.lessonName}
                 />
-                <DanceTypeSelect
-                  danceType={danceType}
-                  onChange={handleDanceTypeChange}
+                <DanceStyleSelect
+                  danceStyleId={danceStyleId}
+                  onChange={handleDanceStyleChange}
+                  error={errors.danceStyle}
                 />
-                <LevelSelect level={level} onChange={setLevel} />
+                {hasLevels && <LevelSelect level={level} onChange={setLevel} />}
                 <LessonGroupSelect
                   groupId={selectedGroupId}
                   onChange={setSelectedGroupId}
@@ -191,7 +204,7 @@ const NewLesson = () => {
                   error={errors.cards}
                   onChange={handleCardChange}
                   selectedCardIds={selectedCardIds}
-                  danceType={danceType}
+                  danceStyleId={danceStyleId}
                 />
               </>
             ),
@@ -223,13 +236,18 @@ const validateForm = (data: {
   teachers: number[];
   cards: number[];
   periods: { startTime: string; endTime: string }[];
+  danceStyleId: number | null;
 }) => {
   const errors: {
     lessonName?: string;
     teachers?: string;
     cards?: string;
     periods?: string;
+    danceStyle?: string;
   } = {};
+  if (data.danceStyleId === null) {
+    errors.danceStyle = validationErrors.danceStyle;
+  }
   if (!data.lessonName) {
     errors.lessonName = validationErrors.lessonName;
   }

@@ -83,7 +83,12 @@ export async function buildStudentDetailPayload(studentId: number) {
       // NOT `classroom: true` — the full row carries `checkinKey`, the
       // walk-in QR self check-in secret for the whole classroom.
       classroom: { select: { id: true, name: true } },
-      danceQualifications: true,
+      // Ordered and joined to their style so pages without a teacher session
+      // (LIFF, the public share link) can label them without /api/dance-styles.
+      danceQualifications: {
+        include: { danceStyle: { select: danceStyleSummarySelect } },
+        orderBy: { danceStyle: { sortOrder: "asc" } },
+      },
       studentCards: {
         include: {
           card: { include: { danceStyle: { select: danceStyleSummarySelect } } },
@@ -233,6 +238,7 @@ export async function buildStudentDetailPayload(studentId: number) {
     studentCards: studentCardsWithAttendances,
     danceQualifications: danceQualifications.flatMap((q) => (q.danceStyleId === null ? [] : [q.danceStyleId])),
     danceLevels: toDanceLevels(danceQualifications),
+    qualifiedDanceStyles: danceQualifications.flatMap((q) => (q.danceStyle ? [q.danceStyle] : [])),
     classroom: student.classroom,
     ...toStudentPayload(student),
   };

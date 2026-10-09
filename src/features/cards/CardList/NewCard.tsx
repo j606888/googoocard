@@ -2,7 +2,6 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import Drawer from "@/components/Drawer";
 import { useCreateCardMutation } from "@/store/slices/cards";
-import { DanceType } from "@prisma/client";
 import CardFormFields, { CardFormErrors, CardFormValues } from "./CardFormFields";
 
 const CardValidationErrors = {
@@ -41,7 +40,7 @@ const EMPTY_FORM: CardFormValues = {
   price: "",
   sessions: "",
   isPracticeCard: false,
-  danceType: null,
+  danceStyleId: null,
 };
 
 const NewCard = () => {
@@ -58,10 +57,10 @@ const NewCard = () => {
     setErrors((prev) => ({ ...prev, [key]: undefined }));
 
   const handleSubmit = async () => {
-    const { cardName, price, sessions, isPracticeCard, danceType } = values;
+    const { cardName, price, sessions, isPracticeCard, danceStyleId } = values;
     const nextErrors: CardFormErrors = cardValidationForm({ cardName, price, sessions });
-    if (isPracticeCard && !danceType) {
-      nextErrors.danceType = DANCE_TYPE_REQUIRED;
+    if (isPracticeCard && !danceStyleId) {
+      nextErrors.danceStyleId = DANCE_TYPE_REQUIRED;
     }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
@@ -72,7 +71,7 @@ const NewCard = () => {
       price: Number(price),
       sessions: Number(sessions),
       isPracticeCard,
-      danceType: danceType as DanceType | null,
+      danceStyleId,
     });
     setValues(EMPTY_FORM);
     setOpen(false);

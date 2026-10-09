@@ -1,5 +1,4 @@
-import { DanceType } from "@prisma/client";
-import { danceTypeLabel } from "@/lib/danceTypes";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
 
 // Course levels shared by every dance type. A student's qualification stores
 // the highest level they have completed; a lesson stores the level it teaches.
@@ -22,9 +21,29 @@ export function danceLevelLabel(level: number): string {
   return DANCE_LEVELS.find((l) => l.value === level)?.label ?? `Lv${level}`;
 }
 
-// "Hustle" for 初階 (what every classroom without levels sees), "Hustle 中階" above it.
-export function practiceQualificationLabel(danceType: DanceType, level: number): string {
-  return level > DEFAULT_DANCE_LEVEL
-    ? `${danceTypeLabel(danceType)} ${danceLevelLabel(level)}`
-    : danceTypeLabel(danceType);
+// "Hustle" for 初階 or a style without levels, "Hustle 中階" above it.
+export function practiceQualificationLabel(
+  style: Pick<DanceStyleSummary, "name" | "hasLevels">,
+  level: number
+): string {
+  return style.hasLevels && level > DEFAULT_DANCE_LEVEL
+    ? `${style.name} ${danceLevelLabel(level)}`
+    : style.name;
+}
+
+type StyleLabelSource = Pick<DanceStyleSummary, "name" | "hasLevels">;
+
+/**
+ * Why a practice card can't be bought in a lesson. The required style is the
+ * card's own, falling back to the lesson's for legacy cards without one —
+ * the same rule as `requiredDanceStyleFor`.
+ */
+export function practiceCardBlockedHint(
+  card: { danceStyle?: StyleLabelSource | null },
+  lesson: { danceStyle: StyleLabelSource | null; level: number }
+): string {
+  const style = card.danceStyle ?? lesson.danceStyle;
+  return style
+    ? `未具備 ${practiceQualificationLabel(style, lesson.level)} 複習資格`
+    : "複習卡未設定舞種";
 }

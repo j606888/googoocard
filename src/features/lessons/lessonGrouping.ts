@@ -1,6 +1,6 @@
 import { LessonSummary } from "@/store/slices/lessons";
 import { GroupRowData } from "./GroupRow";
-import { DanceType } from "@prisma/client";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
 
 /**
  * 課程列表的群組彙總與檢視模式規則。全部是純函式——
@@ -15,6 +15,17 @@ import { DanceType } from "@prisma/client";
 export const UNGROUPED_ID = "ungrouped" as const;
 export const UNGROUPED_NAME = "未分類";
 
+/** 群組內出現過的舞種，依第一次出現的順序去重；沒有舞種的課略過。 */
+const uniqueStyles = (lessons: LessonSummary[]): DanceStyleSummary[] => {
+  const seen = new Map<number, DanceStyleSummary>();
+  for (const lesson of lessons) {
+    if (lesson.danceStyle && !seen.has(lesson.danceStyle.id)) {
+      seen.set(lesson.danceStyle.id, lesson.danceStyle);
+    }
+  }
+  return [...seen.values()];
+};
+
 /** 把一個群組底下的課程摺成一列 GroupRow 的各個欄位。 */
 export const summarizeGroup = (
   id: number | typeof UNGROUPED_ID,
@@ -25,7 +36,7 @@ export const summarizeGroup = (
   name,
   lessonCount: lessons.length,
   studentCount: lessons.reduce((sum, l) => sum + l.studentCount, 0),
-  danceTypes: [...new Set(lessons.map((l) => l.danceType))],
+  danceStyles: uniqueStyles(lessons),
   dueForAttendanceCount: lessons.reduce(
     (sum, l) => sum + l.dueForAttendanceCount,
     0
@@ -43,8 +54,8 @@ export const summarizeGroup = (
  */
 export const isFlattenedView = (
   search: string,
-  danceType: DanceType | null
-): boolean => Boolean(search || danceType);
+  danceStyleId: number | null
+): boolean => Boolean(search || danceStyleId);
 
 /**
  * 沒在篩選、而且至少有一個群組時才用群組檢視。
@@ -52,9 +63,9 @@ export const isFlattenedView = (
  */
 export const shouldUseGroupedView = (
   search: string,
-  danceType: DanceType | null,
+  danceStyleId: number | null,
   groupCount: number
-): boolean => !isFlattenedView(search, danceType) && groupCount > 0;
+): boolean => !isFlattenedView(search, danceStyleId) && groupCount > 0;
 
 /**
  * 把課程分到各自的群組並彙總成列。群組順序照 `groups` 給的順序，

@@ -40,7 +40,7 @@ const PendingStudents = ({
             />
             <div className="flex flex-1 items-center gap-1 text-danger-500">
               <p className="text-xs font-medium">
-                {record.uncheckedType === "not_qualified" && lesson.level > DEFAULT_DANCE_LEVEL
+                {record.uncheckedType === "not_qualified" && lesson.danceStyle?.hasLevels && lesson.level > DEFAULT_DANCE_LEVEL
                   ? `未具備${danceLevelLabel(lesson.level)}複習資格`
                   : UNCHECK_DESCRIPTION_MAP[record.uncheckedType]}
               </p>

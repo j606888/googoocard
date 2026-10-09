@@ -2,7 +2,7 @@
 
 import { isSameMonth, format } from "date-fns";
 import { CalendarPeriod } from "@/store/slices/lessons";
-import { DANCE_TYPE_META } from "@/lib/danceTypes";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { sessionState } from "./status";
 
 interface DayCellProps {
@@ -60,7 +60,7 @@ const DayCell = ({
           <span
             key={p.periodId}
             className={`w-1.5 h-1.5 rounded-full ${
-              selected ? "bg-white/90" : DANCE_TYPE_META[p.danceType].dot
+              selected ? "bg-white/90" : danceStyleMeta(p.danceStyle).dot
             }`}
           />
         ))}

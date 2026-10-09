@@ -1,14 +1,13 @@
 import InputField from "@/components/InputField";
 import { Switch } from "@/components/ui/switch";
-import { DanceType } from "@prisma/client";
-import CardDanceTypeSelect from "./CardDanceTypeSelect";
+import CardDanceStyleSelect from "./CardDanceStyleSelect";
 import { perSessionPrice } from "../cardInsights";
 
 export interface CardFormErrors {
   cardName?: string;
   price?: string;
   sessions?: string;
-  danceType?: string;
+  danceStyleId?: string;
 }
 
 export interface CardFormValues {
@@ -16,7 +15,7 @@ export interface CardFormValues {
   price: string;
   sessions: string;
   isPracticeCard: boolean;
-  danceType: DanceType | null;
+  danceStyleId: number | null;
 }
 
 /**
@@ -34,7 +33,7 @@ const CardFormFields = ({
   onChange: <K extends keyof CardFormValues>(key: K, value: CardFormValues[K]) => void;
   onErrorClear: (key: keyof CardFormErrors) => void;
 }) => {
-  const { cardName, price, sessions, isPracticeCard, danceType } = values;
+  const { cardName, price, sessions, isPracticeCard, danceStyleId } = values;
 
   const digitsOnly = (value: string) => value.replace(/\D/g, "");
 
@@ -106,14 +105,14 @@ const CardFormFields = ({
         </p>
       </div>
 
-      <CardDanceTypeSelect
-        value={danceType}
+      <CardDanceStyleSelect
+        value={danceStyleId}
         optional={!isPracticeCard}
-        onChange={(type) => {
-          onChange("danceType", type);
-          if (errors.danceType) onErrorClear("danceType");
+        onChange={(styleId) => {
+          onChange("danceStyleId", styleId);
+          if (errors.danceStyleId) onErrorClear("danceStyleId");
         }}
-        error={errors.danceType}
+        error={errors.danceStyleId}
       />
     </>
   );

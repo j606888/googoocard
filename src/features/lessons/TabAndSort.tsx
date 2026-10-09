@@ -5,8 +5,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useState } from "react";
-import { DanceType } from "@prisma/client";
-import { DANCE_TYPE_META } from "@/lib/danceTypes";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
+import { useDanceStyles } from "@/hooks/useDanceStyles";
 
 const TABS = [
   { label: "上課中", value: "inProgress" },
@@ -19,8 +19,6 @@ const SORT_OPTIONS = [
   { label: "結束時間", value: "endAt" },
 ];
 
-const DANCE_TYPE_ORDER = Object.keys(DANCE_TYPE_META) as DanceType[];
-
 const TabAndSort = ({
   activeTab,
   setActiveTab,
@@ -29,9 +27,9 @@ const TabAndSort = ({
   tabsCount,
   search,
   setSearch,
-  danceType,
-  setDanceType,
-  availableDanceTypes,
+  danceStyleId,
+  setDanceStyleId,
+  availableDanceStyleIds,
 }: {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -40,15 +38,19 @@ const TabAndSort = ({
   tabsCount: { inProgress: number; finished: number } | undefined;
   search: string;
   setSearch: (search: string) => void;
-  danceType: DanceType | null;
-  setDanceType: (danceType: DanceType | null) => void;
-  availableDanceTypes: DanceType[];
+  danceStyleId: number | null;
+  setDanceStyleId: (danceStyleId: number | null) => void;
+  availableDanceStyleIds: number[];
 }) => {
   const [open, setOpen] = useState(false);
 
-  // Only offer dance types this classroom actually teaches; hide the whole row
-  // when there's nothing meaningful to filter by (0 or 1 dance type).
-  const danceChips = DANCE_TYPE_ORDER.filter((t) => availableDanceTypes.includes(t));
+  // Only offer dance styles this classroom actually has lessons in (archived
+  // ones included — old lessons are still listed); hide the whole row when
+  // there's nothing meaningful to filter by (0 or 1 style).
+  const { byId } = useDanceStyles();
+  const danceChips = [...byId.values()].filter((style) =>
+    availableDanceStyleIds.includes(style.id)
+  );
   const showDanceFilter = danceChips.length > 1;
 
   const handleSort = (value: string) => {
@@ -79,26 +81,26 @@ const TabAndSort = ({
         )}
       </div>
 
-      {/* Dance-type filter chips */}
+      {/* Dance-style filter chips */}
       {showDanceFilter && (
         <div className="flex items-center gap-2 overflow-x-auto pb-0.5 -mx-1 px-1">
           <button
-            onClick={() => setDanceType(null)}
+            onClick={() => setDanceStyleId(null)}
             className={`shrink-0 text-xs font-medium px-3 py-1 rounded-full transition-colors ${
-              danceType === null
+              danceStyleId === null
                 ? "bg-neutral-800 text-white"
                 : "bg-neutral-100 text-neutral-500 hover:text-neutral-700"
             }`}
           >
             全部
           </button>
-          {danceChips.map((type) => {
-            const meta = DANCE_TYPE_META[type];
-            const active = danceType === type;
+          {danceChips.map((style) => {
+            const meta = danceStyleMeta(style);
+            const active = danceStyleId === style.id;
             return (
               <button
-                key={type}
-                onClick={() => setDanceType(active ? null : type)}
+                key={style.id}
+                onClick={() => setDanceStyleId(active ? null : style.id)}
                 className={`shrink-0 text-xs font-medium px-3 py-1 rounded-full transition-colors ${
                   active ? meta.badge : "bg-neutral-100 text-neutral-500 hover:text-neutral-700"
                 }`}

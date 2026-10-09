@@ -8,8 +8,8 @@ import InputField from "@/components/InputField";
 import { Switch } from "@/components/ui/switch";
 import { useGetLessonQuery } from "@/store/slices/lessons";
 import { useCreateStudentCardMutation } from "@/store/slices/students";
-import { canBuyCard, requiredDanceTypeFor, type DanceLevels } from "@/domains/qualification";
-import { practiceQualificationLabel } from "@/lib/danceLevels";
+import { canBuyCard, type DanceLevels } from "@/domains/qualification";
+import { practiceCardBlockedHint } from "@/lib/danceLevels";
 import type { Card } from "@/store/slices/cards";
 
 /**
@@ -51,11 +51,8 @@ const BuyCardDrawer = ({
 
   const forbiddenHint = (card: Card) => {
     if (!lesson) return null;
-    if (canBuyCard(card, qualifications, lesson.danceType, lesson.level).allowed) return null;
-    const required = requiredDanceTypeFor(card, lesson.danceType);
-    return required
-      ? `未具備 ${practiceQualificationLabel(required, lesson.level)} 複習資格`
-      : "複習卡未設定舞種";
+    if (canBuyCard(card, qualifications, lesson).allowed) return null;
+    return practiceCardBlockedHint(card, lesson);
   };
 
   const handleSelectCard = (card: Card) => {

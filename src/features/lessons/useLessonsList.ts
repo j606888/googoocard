@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { DanceType } from "@prisma/client";
 import { useGetLessonsQuery } from "@/store/slices/lessons";
 import {
   useGetLessonGroupsQuery,
@@ -18,7 +17,7 @@ export const useLessonsList = () => {
   const [sort, setSort] = useState("name");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [danceType, setDanceType] = useState<DanceType | null>(null);
+  const [danceStyleId, setDanceStyleId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [newGroupName, setNewGroupName] = useState("");
 
@@ -31,13 +30,13 @@ export const useLessonsList = () => {
   // Any filter change restarts pagination from the first page.
   useEffect(() => {
     setPage(1);
-  }, [activeTab, sort, debouncedSearch, danceType]);
+  }, [activeTab, sort, debouncedSearch, danceStyleId]);
 
   const { data: lessons, isLoading, isFetching } = useGetLessonsQuery({
     tab: activeTab,
     sort,
     search: debouncedSearch,
-    danceType,
+    danceStyleId,
     page,
   });
   const { data: groups } = useGetLessonGroupsQuery();
@@ -46,7 +45,7 @@ export const useLessonsList = () => {
 
   const useGroupedView = shouldUseGroupedView(
     debouncedSearch,
-    danceType,
+    danceStyleId,
     groups?.length ?? 0
   );
 
@@ -75,15 +74,15 @@ export const useLessonsList = () => {
     groupRows,
     useGroupedView,
     /** 有在篩選（關鍵字或舞種）——空狀態的文案靠它分岔。 */
-    isFiltering: Boolean(debouncedSearch || danceType),
+    isFiltering: Boolean(debouncedSearch || danceStyleId),
     activeTab,
     setActiveTab,
     sort,
     setSort,
     search,
     setSearch,
-    danceType,
-    setDanceType,
+    danceStyleId,
+    setDanceStyleId,
     loadMore: () => setPage((p) => p + 1),
     newGroupName,
     setNewGroupName,

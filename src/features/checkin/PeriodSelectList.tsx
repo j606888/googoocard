@@ -1,6 +1,6 @@
 "use client";
 
-import { DANCE_TYPE_META, danceTypeLabel } from "@/lib/danceTypes";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { TodayLesson, timeFmt } from "./types";
 
 // Today's lessons grouped by lesson with their periods as toggleable rows.
@@ -22,9 +22,9 @@ const PeriodSelectList = ({
           <div className="flex items-center gap-2">
             <span className="font-semibold">{lesson.lessonName}</span>
             <span
-              className={`rounded-full px-2 py-0.5 text-xs font-medium ${DANCE_TYPE_META[lesson.danceType].badge}`}
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${danceStyleMeta(lesson.danceStyle).badge}`}
             >
-              {danceTypeLabel(lesson.danceType)}
+              {danceStyleMeta(lesson.danceStyle).label}
             </span>
           </div>
           <div className="flex flex-col gap-2">

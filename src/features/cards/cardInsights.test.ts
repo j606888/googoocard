@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { DanceType } from "@prisma/client";
 import { Card, CardHolder } from "@/store/slices/cards";
 import {
   perSessionPrice,
@@ -15,7 +14,7 @@ const card = (overrides: Partial<Card> & Pick<Card, "id" | "name">): Card => ({
   price: 1200,
   sessions: 6,
   isPracticeCard: false,
-  danceType: null,
+  danceStyleId: null,
   expiredAt: null,
   createdAt: "2026-01-01T00:00:00.000Z",
   purchasedCount: 0,
@@ -98,7 +97,7 @@ describe("splitByType", () => {
       id: 2,
       name: "複習卡",
       isPracticeCard: true,
-      danceType: DanceType.BACHATA,
+      danceStyleId: 1,
     });
     const general2 = card({ id: 3, name: "私人課" });
 

@@ -26,8 +26,8 @@ const LessonsList = () => {
     setSort,
     search,
     setSearch,
-    danceType,
-    setDanceType,
+    danceStyleId,
+    setDanceStyleId,
     loadMore,
     newGroupName,
     setNewGroupName,
@@ -60,9 +60,9 @@ const LessonsList = () => {
         setSort={setSort}
         search={search}
         setSearch={setSearch}
-        danceType={danceType}
-        setDanceType={setDanceType}
-        availableDanceTypes={lessons?.availableDanceTypes ?? []}
+        danceStyleId={danceStyleId}
+        setDanceStyleId={setDanceStyleId}
+        availableDanceStyleIds={lessons?.availableDanceStyleIds ?? []}
       />
 
       {isLoading ? (

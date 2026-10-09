@@ -3,8 +3,8 @@
 import { AlarmClock, ChevronRight, Folder, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format, isToday, isTomorrow } from "date-fns";
-import { DanceType } from "@prisma/client";
-import { DANCE_TYPE_META } from "@/lib/danceTypes";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 import DataView, { DataViewColumn } from "@/components/DataView";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -18,7 +18,7 @@ export interface GroupRowData {
   name: string;
   lessonCount: number;
   studentCount: number;
-  danceTypes: DanceType[];
+  danceStyles: DanceStyleSummary[];
   dueForAttendanceCount: number;
   nextSessionDate: string | null;
 }
@@ -75,23 +75,23 @@ const GroupTable = ({ groups }: { groups: GroupRowData[] }) => {
       },
     },
     {
-      key: "danceTypes",
+      key: "danceStyles",
       header: "舞種",
       width: "132px",
-      hideOnMobile: (group) => group.danceTypes.length === 0,
+      hideOnMobile: (group) => group.danceStyles.length === 0,
       render: (group) => {
-        if (group.danceTypes.length === 0)
+        if (group.danceStyles.length === 0)
           return <span className="text-neutral-300">—</span>;
-        const shown = group.danceTypes.slice(0, MAX_DANCE_BADGES);
-        const hidden = group.danceTypes.length - shown.length;
+        const shown = group.danceStyles.slice(0, MAX_DANCE_BADGES);
+        const hidden = group.danceStyles.length - shown.length;
         return (
           <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-            {shown.map((type) => (
+            {shown.map((style) => (
               <span
-                key={type}
-                className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full ${DANCE_TYPE_META[type].badge}`}
+                key={style.id}
+                className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full ${danceStyleMeta(style).badge}`}
               >
-                {DANCE_TYPE_META[type].label}
+                {style.name}
               </span>
             ))}
             {hidden > 0 && (
