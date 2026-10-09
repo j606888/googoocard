@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DanceType } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { resetDb, createClassroom, createStudent, createCard } from "../factories";
+import { resetDb, createClassroom, createStudent, createCard,
+  createDanceStyles,
+  type DanceStyleIds,
+} from "../factories";
 
 // The LIFF ID token is verified by LINE's external endpoint — mock it so the
 // token string IS the resolved lineUserId ("bad" → invalid token).
@@ -37,6 +39,9 @@ function buyRequest(token: string | null, body: unknown) {
   });
 }
 
+// Dance style ids for the classroom under test, keyed by the old enum name.
+let S: DanceStyleIds;
+
 describe("LIFF buy card", () => {
   let classroomId: number;
 
@@ -44,6 +49,7 @@ describe("LIFF buy card", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
   });
 
   describe("GET /api/liff/cards", () => {
@@ -75,7 +81,7 @@ describe("LIFF buy card", () => {
       await createCard(classroomId, {
         name: "Bachata 複習卡",
         isPracticeCard: true,
-        danceType: DanceType.BACHATA,
+        danceStyleId: S.BACHATA,
       });
 
       const res = await GET(cardsRequest("lineA", student.id));
@@ -117,7 +123,7 @@ describe("LIFF buy card", () => {
       await bindStudent(student.id, "lineA");
       const card = await createCard(classroomId, {
         isPracticeCard: true,
-        danceType: DanceType.BACHATA,
+        danceStyleId: S.BACHATA,
       });
 
       const res = await POST(buyRequest("lineA", { studentId: student.id, cardId: card.id }));
@@ -127,12 +133,12 @@ describe("LIFF buy card", () => {
 
     it("具資格學生購買複習卡 → 成功", async () => {
       const student = await createStudent(classroomId, {
-        qualifications: [DanceType.BACHATA],
+        qualifications: [S.BACHATA],
       });
       await bindStudent(student.id, "lineA");
       const card = await createCard(classroomId, {
         isPracticeCard: true,
-        danceType: DanceType.BACHATA,
+        danceStyleId: S.BACHATA,
       });
 
       const res = await POST(buyRequest("lineA", { studentId: student.id, cardId: card.id }));

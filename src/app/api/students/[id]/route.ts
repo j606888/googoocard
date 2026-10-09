@@ -4,9 +4,9 @@ import { formatDate } from "@/lib/utils";
 import { decodeAuthToken } from "@/lib/auth";
 import { findStudentInClassroom } from "@/lib/authz";
 import { conversionLinksInclude, toStudentPayload } from "@/service/studentDetail";
-import { DanceType } from "@prisma/client";
 import { DEFAULT_DANCE_LEVEL, isValidDanceLevel } from "@/lib/danceLevels";
 import { toDanceLevels } from "@/domains/qualification";
+import { danceStyleSummarySelect } from "@/lib/danceStyles";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -20,35 +20,43 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Student not found" }, { status: 404 });
   }
 
-  // `danceLevels` ({ HUSTLE: 2, ... }) is the current shape; the older
-  // `danceQualifications` (DanceType[]) is still accepted from pre-level
-  // clients: it adds new dance types at 初階 but keeps an existing row's level,
+  // `danceLevels` ({ [danceStyleId]: 2, ... }) is the current shape; the older
+  // `danceQualifications` (danceStyleId[]) is still accepted from pre-level
+  // clients: it adds new dance styles at 初階 but keeps an existing row's level,
   // so a stale tab can't silently downgrade a 中階 student.
-  // Either way it is authoritative: dance types left out lose the qualification.
+  // Either way it is authoritative: dance styles left out lose the qualification.
   // A `null` level = keep the existing level (初階 when newly created).
-  let levels: [DanceType, number | null][] | undefined;
+  let levels: [number, number | null][] | undefined;
   if (danceLevels !== undefined) {
-    const validTypes: string[] = Object.values(DanceType);
     if (
       danceLevels === null ||
       typeof danceLevels !== "object" ||
       Array.isArray(danceLevels) ||
-      Object.entries(danceLevels).some(
-        ([type, level]) => !validTypes.includes(type) || !isValidDanceLevel(level)
-      )
+      Object.values(danceLevels).some((level) => !isValidDanceLevel(level))
     ) {
       return NextResponse.json({ error: "Invalid dance levels" }, { status: 400 });
     }
-    levels = Object.entries(danceLevels) as [DanceType, number][];
+    levels = Object.entries(danceLevels as Record<string, number>).map(
+      ([styleId, level]) => [Number(styleId), level]
+    );
   } else if (danceQualifications !== undefined) {
-    const validTypes = Object.values(DanceType);
-    if (
-      !Array.isArray(danceQualifications) ||
-      danceQualifications.some((type) => !validTypes.includes(type))
-    ) {
+    if (!Array.isArray(danceQualifications)) {
       return NextResponse.json({ error: "Invalid dance qualifications" }, { status: 400 });
     }
-    levels = (danceQualifications as DanceType[]).map((type) => [type, null]);
+    levels = danceQualifications.map((styleId) => [Number(styleId), null]);
+  }
+
+  // Every style id must be one of this classroom's — otherwise a student
+  // could be qualified for another classroom's style.
+  if (levels !== undefined) {
+    const styleIds = levels.map(([styleId]) => styleId);
+    const owned =
+      styleIds.every((styleId) => Number.isInteger(styleId) && styleId > 0) &&
+      (await prisma.danceStyle.count({ where: { id: { in: styleIds }, classroomId } })) ===
+        new Set(styleIds).size;
+    if (!owned) {
+      return NextResponse.json({ error: "DANCE_STYLE_NOT_FOUND" }, { status: 400 });
+    }
   }
 
   const existingStudent = await prisma.student.findFirst({
@@ -76,13 +84,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         await tx.studentDanceQualification.deleteMany({
           where: {
             studentId: student.id,
-            danceType: { notIn: levels.map(([danceType]) => danceType) },
+            // Rows the backfill hasn't reached (null style) go too: the client
+            // only ever sees, and sends back, style ids.
+            OR: [
+              { danceStyleId: null },
+              { danceStyleId: { notIn: levels.map(([danceStyleId]) => danceStyleId) } },
+            ],
           },
         });
-        for (const [danceType, level] of levels) {
+        for (const [danceStyleId, level] of levels) {
           await tx.studentDanceQualification.upsert({
-            where: { studentId_danceType: { studentId: student.id, danceType } },
-            create: { studentId: student.id, danceType, level: level ?? DEFAULT_DANCE_LEVEL },
+            where: { studentId_danceStyleId: { studentId: student.id, danceStyleId } },
+            create: { studentId: student.id, danceStyleId, level: level ?? DEFAULT_DANCE_LEVEL },
             update: level === null ? {} : { level },
           });
         }
@@ -125,7 +138,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       danceQualifications: true,
       studentCards: {
         include: {
-          card: true,
+          card: { include: { danceStyle: { select: danceStyleSummarySelect } } },
           ...conversionLinksInclude,
           purchasedBy: { select: { name: true } },
           paidBy: { select: { name: true } },
@@ -303,7 +316,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     attendancesByLesson,
     studentCards: studentCardsWithAttendances,
     tags,
-    danceQualifications: danceQualifications.flatMap((q) => (q.danceType ? [q.danceType] : [])),
+    danceQualifications: danceQualifications.flatMap((q) => (q.danceStyleId === null ? [] : [q.danceStyleId])),
     danceLevels: toDanceLevels(danceQualifications),
     classroom: student.classroom,
     // Teacher-facing, so the share-link token is included — but `lineBindKey`

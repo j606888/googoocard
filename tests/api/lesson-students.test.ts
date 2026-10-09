@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DanceType } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
   resetDb,
@@ -7,6 +6,7 @@ import {
   createStudent,
   createCard,
   createLesson,
+  createDanceStyle,
   createStudentCard,
   jsonRequest,
   routeParams,
@@ -88,13 +88,14 @@ describe("GET /api/lessons/[id]/students", () => {
     const classroom = await createClassroom();
     auth.classroomId = classroom.id;
 
+    const salsa = await createDanceStyle(classroom.id, { name: "Salsa", color: "orange" });
     const practice = await createCard(classroom.id, {
       name: "Salsa 複習卡",
       isPracticeCard: true,
-      danceType: DanceType.SALSA,
+      danceStyleId: salsa.id,
     });
     const { lesson } = await createLesson(classroom.id, {
-      danceType: DanceType.SALSA,
+      danceStyleId: salsa.id,
       cardIds: [practice.id],
     });
     const student = await createStudent(classroom.id);
@@ -111,7 +112,7 @@ describe("GET /api/lessons/[id]/students", () => {
     expect(before.body[0].danceQualifications).toEqual([]);
 
     await prisma.studentDanceQualification.create({
-      data: { studentId: student.id, danceType: DanceType.SALSA },
+      data: { studentId: student.id, danceStyleId: salsa.id },
     });
 
     const after = await fetchRoster(lesson.id);
@@ -121,7 +122,8 @@ describe("GET /api/lessons/[id]/students", () => {
       blockedCardCount: 0,
       level: "ok",
     });
-    expect(after.body[0].danceQualifications).toEqual([DanceType.SALSA]);
+    expect(after.body[0].danceQualifications).toEqual([salsa.id]);
+    expect(after.body[0].danceLevels).toEqual({ [salsa.id]: 1 });
   });
 
   it("剩 1 堂算 low，剩 2 堂算 ok", async () => {

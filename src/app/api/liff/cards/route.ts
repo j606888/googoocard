@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { bearerToken, resolveOwnedStudent } from "@/lib/liffAuth";
+import { danceStyleSummarySelect } from "@/lib/danceStyles";
 
 // Cards a student can purchase from the LIFF「購買課卡」page. Auth is a LIFF ID
 // token (Bearer header); the student is resolved + ownership-checked via
@@ -23,7 +24,8 @@ export async function GET(request: Request) {
       price: true,
       sessions: true,
       isPracticeCard: true,
-      danceType: true,
+      danceStyleId: true,
+      danceStyle: { select: danceStyleSummarySelect },
     },
     orderBy: { createdAt: "desc" },
   });

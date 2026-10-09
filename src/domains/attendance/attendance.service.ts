@@ -2,7 +2,7 @@ import { AttendanceSource, Prisma, StudentCard } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { refreshLesson } from "@/service/lesson";
 import { refreshNeedsRenewalTags } from "@/service/studentTag";
-import { canUseCard, cardMatchesLesson, isQualified, requiredDanceTypeFor, toDanceLevels } from "@/domains/qualification";
+import { canUseCard, cardMatchesLesson, isQualified, requiredDanceStyleFor, requiredLevelFor, toDanceLevels } from "@/domains/qualification";
 import {
   fetchStudentsWithValidCards,
   type StudentWithLessonCards,
@@ -13,6 +13,7 @@ type StudentWithCards = StudentWithLessonCards;
 
 type LessonWithCards = Prisma.LessonGetPayload<{
   include: {
+    danceStyle: true;
     cards: {
       include: {
         card: true;
@@ -30,6 +31,7 @@ async function validateAttendanceRequest(
     prisma.lesson.findUnique({
       where: { id: lessonId },
       include: {
+        danceStyle: true,
         cards: {
           include: {
             card: true,
@@ -65,6 +67,7 @@ async function validateUpdateAttendanceRequest(
     prisma.lesson.findUnique({
       where: { id: lessonId },
       include: {
+        danceStyle: true,
         cards: {
           include: {
             card: true,
@@ -101,13 +104,13 @@ function selectStudentCard(
     const practiceCards = student.studentCards.filter(
       (studentCard) =>
         studentCard.card.isPracticeCard &&
-        canUseCard(studentCard.card, levels, lesson.danceType, lesson.level)
+        canUseCard(studentCard.card, levels, lesson)
     );
     return getRecommendedStudentCard(practiceCards);
   }
 
   const usableCards = student.studentCards.filter((studentCard) =>
-    canUseCard(studentCard.card, levels, lesson.danceType, lesson.level)
+    canUseCard(studentCard.card, levels, lesson)
   );
 
   if (usableCards.length === 1) {
@@ -125,11 +128,11 @@ function shouldUsePracticePriority(
   // Practice priority applies when the lesson accepts a practice card the
   // student is qualified to use at this lesson's level.
   return lesson.cards.some(({ card }) => {
-    if (!card.isPracticeCard || !cardMatchesLesson(card, lesson.danceType)) {
+    if (!card.isPracticeCard || !cardMatchesLesson(card, lesson.danceStyleId)) {
       return false;
     }
-    const required = requiredDanceTypeFor(card, lesson.danceType);
-    return required !== null && isQualified(levels, required, lesson.level);
+    const required = requiredDanceStyleFor(card, lesson);
+    return required !== null && isQualified(levels, required, requiredLevelFor(lesson));
   });
 }
 
@@ -492,7 +495,7 @@ export async function selfCheckIn({
 }): Promise<SelfCheckInResult[]> {
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
-    include: { cards: { include: { card: true } } },
+    include: { danceStyle: true, cards: { include: { card: true } } },
   });
   if (!lesson) {
     throw new Error("Lesson not found");

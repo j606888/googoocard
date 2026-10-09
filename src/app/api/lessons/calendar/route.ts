@@ -1,6 +1,7 @@
 import { decodeAuthToken } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { danceStyleSummarySelect } from "@/lib/danceStyles";
 
 // Returns every LessonPeriod (session) whose startTime falls in [from, to) for
 // the current classroom, flattened for the calendar month grid. Unlike
@@ -28,7 +29,15 @@ export async function GET(request: Request) {
       lesson: { classroomId },
     },
     include: {
-      lesson: { select: { id: true, name: true, danceType: true, status: true } },
+      lesson: {
+        select: {
+          id: true,
+          name: true,
+          danceStyleId: true,
+          danceStyle: { select: danceStyleSummarySelect },
+          status: true,
+        },
+      },
       _count: { select: { attendanceRecords: true } },
     },
     orderBy: { startTime: "asc" },
@@ -38,7 +47,8 @@ export async function GET(request: Request) {
     periodId: period.id,
     lessonId: period.lesson.id,
     lessonName: period.lesson.name,
-    danceType: period.lesson.danceType,
+    danceStyleId: period.lesson.danceStyleId,
+    danceStyle: period.lesson.danceStyle,
     lessonStatus: period.lesson.status,
     startTime: period.startTime,
     endTime: period.endTime,

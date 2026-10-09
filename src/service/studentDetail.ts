@@ -1,6 +1,7 @@
 import { toDanceLevels } from "@/domains/qualification";
 import prisma from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
+import { danceStyleSummarySelect } from "@/lib/danceStyles";
 
 /**
  * The Student columns an API response may carry.
@@ -84,7 +85,10 @@ export async function buildStudentDetailPayload(studentId: number) {
       classroom: { select: { id: true, name: true } },
       danceQualifications: true,
       studentCards: {
-        include: { card: true, ...conversionLinksInclude },
+        include: {
+          card: { include: { danceStyle: { select: danceStyleSummarySelect } } },
+          ...conversionLinksInclude,
+        },
         orderBy: { createdAt: "desc" },
       },
       attendanceRecords: {
@@ -227,7 +231,7 @@ export async function buildStudentDetailPayload(studentId: number) {
     attendancesByDate: sortedAttendancesByDate,
     attendancesByLesson,
     studentCards: studentCardsWithAttendances,
-    danceQualifications: danceQualifications.flatMap((q) => (q.danceType ? [q.danceType] : [])),
+    danceQualifications: danceQualifications.flatMap((q) => (q.danceStyleId === null ? [] : [q.danceStyleId])),
     danceLevels: toDanceLevels(danceQualifications),
     classroom: student.classroom,
     ...toStudentPayload(student),

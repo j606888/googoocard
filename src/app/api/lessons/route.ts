@@ -5,8 +5,9 @@ import prisma from "@/lib/prisma";
 import { refreshLesson, summarizeLessonPeriods } from "@/service/lesson";
 import { cardMatchesLesson } from "@/domains/qualification";
 import { DEFAULT_DANCE_LEVEL, isValidDanceLevel } from "@/lib/danceLevels";
-import { findLessonGroupInClassroom } from "@/lib/authz";
-import { DanceType, Prisma } from "@prisma/client";
+import { findDanceStyleInClassroom, findLessonGroupInClassroom } from "@/lib/authz";
+import { danceStyleSummarySelect } from "@/lib/danceStyles";
+import { Prisma } from "@prisma/client";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
   const tab = searchParams.get("tab") ?? "inProgress";
   const sort = searchParams.get("sort") ?? "name";
   const search = searchParams.get("search")?.trim() ?? "";
-  const danceTypeParam = searchParams.get("danceType");
+  const danceStyleIdParam = searchParams.get("danceStyleId");
   const groupIdParam = searchParams.get("groupId");
   const pageParam = searchParams.get("page");
 
@@ -24,21 +25,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const danceType =
-    danceTypeParam && danceTypeParam in DanceType
-      ? (danceTypeParam as DanceType)
-      : undefined;
+  const danceStyleId = danceStyleIdParam ? parseInt(danceStyleIdParam, 10) : undefined;
   // "none" asks for the virtual 未分類 bucket (groupId IS NULL); a numeric id
   // scopes to one LessonGroup's members; omitted means no group filter at all.
   const groupId =
     groupIdParam === "none" ? null : groupIdParam !== null ? parseInt(groupIdParam, 10) : undefined;
 
-  // Shared filter (search + danceType + groupId) applied to both the listing
+  // Shared filter (search + danceStyleId + groupId) applied to both the listing
   // and tabsCount, so the tab counts reflect what the user is currently
   // filtering by (including "just this group"'s lessons).
   const filterWhere: Prisma.LessonWhereInput = {
     classroomId,
-    ...(danceType ? { danceType } : {}),
+    ...(danceStyleId && !Number.isNaN(danceStyleId) ? { danceStyleId } : {}),
     ...(groupId !== undefined && !Number.isNaN(groupId as number) ? { groupId } : {}),
     ...(search
       ? {
@@ -63,6 +61,7 @@ export async function GET(request: Request) {
     where: { ...filterWhere, ...(tab !== "all" ? { status: tab } : {}) },
     orderBy,
     include: {
+      danceStyle: { select: danceStyleSummarySelect },
       periods: true,
       teachers: { include: { teacher: { select: { id: true, name: true } } } },
       cards: { select: { cardId: true } },
@@ -90,7 +89,8 @@ export async function GET(request: Request) {
     return {
       id: lesson.id,
       name: lesson.name,
-      danceType: lesson.danceType,
+      danceStyleId: lesson.danceStyleId,
+      danceStyle: lesson.danceStyle,
       level: lesson.level,
       status: lesson.status,
       studentCount: lesson._count.students,
@@ -143,21 +143,23 @@ export async function GET(request: Request) {
     }),
   };
 
-  // Dance types that actually have lessons in this classroom, so the filter
+  // Dance styles that actually have lessons in this classroom, so the filter
   // chips never offer a dead-end (0-result) option. Classroom-wide + unfiltered
-  // so the set stays stable across tab/search/danceType changes.
-  const distinctDanceTypes = await prisma.lesson.findMany({
-    where: { classroomId },
-    distinct: ["danceType"],
-    select: { danceType: true },
+  // so the set stays stable across tab/search/danceStyleId changes.
+  const distinctDanceStyles = await prisma.lesson.findMany({
+    where: { classroomId, danceStyleId: { not: null } },
+    distinct: ["danceStyleId"],
+    select: { danceStyleId: true },
   });
-  const availableDanceTypes = distinctDanceTypes.map((d) => d.danceType);
+  const availableDanceStyleIds = distinctDanceStyles.flatMap((d) =>
+    d.danceStyleId === null ? [] : [d.danceStyleId]
+  );
 
   return NextResponse.json({
     lessons: summaries,
     tabsCount,
     hasNextPage,
-    availableDanceTypes,
+    availableDanceStyleIds,
   });
 }
 
@@ -173,6 +175,15 @@ export async function POST(request: Request) {
   // classroom before attaching it (same IDOR guard as findLessonInClassroom),
   // or a bogus/foreign id either 500s on the FK or silently links to another
   // classroom's group.
+  // The dance style is caller-controlled too: it must be one of this
+  // classroom's, or a lesson could borrow another classroom's style.
+  if (typeof draftLesson.danceStyleId !== "number") {
+    return NextResponse.json({ error: "DANCE_STYLE_REQUIRED" }, { status: 400 });
+  }
+  if (!(await findDanceStyleInClassroom(draftLesson.danceStyleId, classroomId))) {
+    return NextResponse.json({ error: "DANCE_STYLE_NOT_FOUND" }, { status: 400 });
+  }
+
   if (
     draftLesson.groupId != null &&
     !(await findLessonGroupInClassroom(draftLesson.groupId, classroomId))
@@ -184,7 +195,7 @@ export async function POST(request: Request) {
     where: { id: { in: draftLesson.cardIds } },
   });
   const mismatchedCards = cards.filter(
-    (card) => !cardMatchesLesson(card, draftLesson.danceType)
+    (card) => !cardMatchesLesson(card, draftLesson.danceStyleId)
   );
   if (mismatchedCards.length > 0) {
     return NextResponse.json(
@@ -202,7 +213,7 @@ export async function POST(request: Request) {
         name: draftLesson.lessonName,
         classroomId: classroomId!,
         status: "inProgress",
-        danceType: draftLesson.danceType,
+        danceStyleId: draftLesson.danceStyleId,
         level: draftLesson.level ?? DEFAULT_DANCE_LEVEL,
         groupId: draftLesson.groupId ?? null,
       },

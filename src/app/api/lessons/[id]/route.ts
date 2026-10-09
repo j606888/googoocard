@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
-import { findLessonInClassroom, findLessonGroupInClassroom } from "@/lib/authz";
+import {
+  findDanceStyleInClassroom,
+  findLessonInClassroom,
+  findLessonGroupInClassroom,
+} from "@/lib/authz";
+import { danceStyleSummarySelect } from "@/lib/danceStyles";
 import { DraftLesson } from "@/store/slices/lessons";
 import { toStudentPayload } from "@/service/studentDetail";
 import { cardMatchesLesson } from "@/domains/qualification";
@@ -21,6 +26,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const lesson = await prisma.lesson.findUnique({
     where: { id: scoped.id },
     include: {
+      danceStyle: { select: danceStyleSummarySelect },
       periods: {
         orderBy: {
           startTime: "asc",
@@ -38,7 +44,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       },
       cards: {
         include: {
-          card: true,
+          card: { include: { danceStyle: { select: danceStyleSummarySelect } } },
         },
       },
       group: {
@@ -74,6 +80,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Invalid level" }, { status: 400 });
   }
 
+  if (typeof draftLesson.danceStyleId !== "number") {
+    return NextResponse.json({ error: "DANCE_STYLE_REQUIRED" }, { status: 400 });
+  }
+  if (!(await findDanceStyleInClassroom(draftLesson.danceStyleId, classroomId))) {
+    return NextResponse.json({ error: "DANCE_STYLE_NOT_FOUND" }, { status: 400 });
+  }
+
   if (
     draftLesson.groupId != null &&
     !(await findLessonGroupInClassroom(draftLesson.groupId, classroomId))
@@ -85,7 +98,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     where: { id: { in: draftLesson.cardIds } },
   });
   const mismatchedCards = cards.filter(
-    (card) => !cardMatchesLesson(card, draftLesson.danceType)
+    (card) => !cardMatchesLesson(card, draftLesson.danceStyleId)
   );
   if (mismatchedCards.length > 0) {
     return NextResponse.json(
@@ -101,7 +114,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     where: { id: parseInt(id) },
     data: {
       name: draftLesson.lessonName,
-      danceType: draftLesson.danceType,
+      danceStyleId: draftLesson.danceStyleId,
       level: draftLesson.level,
       groupId: draftLesson.groupId ?? null,
     },

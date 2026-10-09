@@ -1,4 +1,4 @@
-import { DanceType } from "@prisma/client";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
 import { api } from "../api";
 
 export interface Card {
@@ -6,7 +6,8 @@ export interface Card {
   name: string;
   price: number;
   isPracticeCard: boolean;
-  danceType: DanceType | null;
+  danceStyleId: number | null;
+  danceStyle?: DanceStyleSummary | null;
   sessions: number;
   expiredAt: Date | null;
   createdAt: string;
@@ -36,7 +37,8 @@ export interface CardDetail {
     price: number;
     sessions: number;
     isPracticeCard: boolean;
-    danceType: DanceType | null;
+    danceStyleId: number | null;
+    danceStyle: DanceStyleSummary | null;
     expiredAt: string | null;
   };
   purchasedCount: number;
@@ -55,7 +57,7 @@ const cardsApi = api.injectEndpoints({
       query: ({ id }) => `cards/${id}`,
       providesTags: ["Card", "StudentCard"],
     }),
-    createCard: builder.mutation<Card, { name: string; price: number; sessions: number; isPracticeCard: boolean; danceType: DanceType | null }>({
+    createCard: builder.mutation<Card, { name: string; price: number; sessions: number; isPracticeCard: boolean; danceStyleId: number | null }>({
       query: (card) => ({
         url: "cards",
         method: "POST",
@@ -84,11 +86,11 @@ const cardsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Card", "Attendance"],
     }),
-    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number; isPracticeCard: boolean; danceType: DanceType | null }>({
-      query: ({ id, name, price, sessions, isPracticeCard, danceType }) => ({
+    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number; isPracticeCard: boolean; danceStyleId: number | null }>({
+      query: ({ id, name, price, sessions, isPracticeCard, danceStyleId }) => ({
         url: `cards/${id}`,
         method: "PATCH",
-        body: { name, price, sessions, isPracticeCard, danceType },
+        body: { name, price, sessions, isPracticeCard, danceStyleId },
       }),
       invalidatesTags: ["Card", "Attendance"],
     }),

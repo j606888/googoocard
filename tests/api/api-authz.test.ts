@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DanceType } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
   resetDb,
@@ -62,7 +61,6 @@ async function seedForeignClassroom() {
   const student = await createStudent(classroom.id, { name: "Foreign Student" });
   const card = await createCard(classroom.id, { name: "Foreign Card" });
   const { lesson } = await createLesson(classroom.id, {
-    danceType: DanceType.BACHATA,
     cardIds: [card.id],
     withPeriod: true,
   });
@@ -233,7 +231,6 @@ describe("API 授權邊界", () => {
       auth.classroomId = mine.id;
       const myCard = await createCard(mine.id);
       const { lesson: myLesson } = await createLesson(mine.id, {
-        danceType: DanceType.BACHATA,
         cardIds: [myCard.id],
         withPeriod: true,
       });
@@ -254,7 +251,6 @@ describe("API 授權邊界", () => {
       auth.classroomId = mine.id;
       const myCard = await createCard(mine.id);
       const { lesson } = await createLesson(mine.id, {
-        danceType: DanceType.BACHATA,
         cardIds: [myCard.id],
         withPeriod: true,
       });
@@ -338,7 +334,6 @@ describe("API 授權邊界", () => {
       auth.classroomId = mine.id;
       const card = await createCard(mine.id);
       const { lesson } = await createLesson(mine.id, {
-        danceType: DanceType.BACHATA,
         cardIds: [card.id],
         withPeriod: true,
       });
@@ -366,7 +361,6 @@ describe("API 授權邊界", () => {
       auth.classroomId = mine.id;
       const card = await createCard(mine.id);
       const { lesson, period } = await createLesson(mine.id, {
-        danceType: DanceType.BACHATA,
         cardIds: [card.id],
         withPeriod: true,
       });

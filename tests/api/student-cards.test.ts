@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DanceType } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
   resetDb,
@@ -11,6 +10,8 @@ import {
   createLesson,
   jsonRequest,
   routeParams,
+  createDanceStyles,
+  type DanceStyleIds,
 } from "../factories";
 
 const auth = vi.hoisted(() => ({ userId: 1, classroomId: 0 }));
@@ -21,6 +22,9 @@ vi.mock("@/lib/auth", () => ({
 import { POST } from "@/app/api/students/[id]/student-cards/route";
 import { POST as CONFIRM_PAYMENT } from "@/app/api/students/[id]/student-cards/[studentCardId]/confirm-payment/route";
 
+// Dance style ids for the classroom under test, keyed by the old enum name.
+let S: DanceStyleIds;
+
 describe("POST /api/students/[id]/student-cards (購買驗證)", () => {
   let classroomId: number;
 
@@ -28,6 +32,7 @@ describe("POST /api/students/[id]/student-cards (購買驗證)", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
   });
 
@@ -53,7 +58,7 @@ describe("POST /api/students/[id]/student-cards (購買驗證)", () => {
     const card = await createCard(classroomId, {
       name: "Bachata 複習卡",
       isPracticeCard: true,
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
     });
 
     const res = await POST(
@@ -70,11 +75,11 @@ describe("POST /api/students/[id]/student-cards (購買驗證)", () => {
 
   it("資格不符的舞種也擋（有 Salsa 資格買 Bachata 複習卡）", async () => {
     const student = await createStudent(classroomId, {
-      qualifications: [DanceType.SALSA],
+      qualifications: [S.SALSA],
     });
     const card = await createCard(classroomId, {
       isPracticeCard: true,
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
     });
 
     const res = await POST(
@@ -87,11 +92,11 @@ describe("POST /api/students/[id]/student-cards (購買驗證)", () => {
 
   it("符合資格的學生可以買複習卡", async () => {
     const student = await createStudent(classroomId, {
-      qualifications: [DanceType.BACHATA],
+      qualifications: [S.BACHATA],
     });
     const card = await createCard(classroomId, {
       isPracticeCard: true,
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
     });
 
     const res = await POST(
@@ -107,11 +112,11 @@ describe("POST /api/students/[id]/student-cards (購買驗證)", () => {
 
   it("legacy 複習卡（無舞種）且無課程上下文 → 422 CARD_MISSING_DANCE_TYPE", async () => {
     const student = await createStudent(classroomId, {
-      qualifications: [DanceType.BACHATA],
+      qualifications: [S.BACHATA],
     });
     const card = await createCard(classroomId, {
       isPracticeCard: true,
-      danceType: null,
+      danceStyleId: null,
     });
 
     const res = await POST(
@@ -126,15 +131,15 @@ describe("POST /api/students/[id]/student-cards (購買驗證)", () => {
   it("legacy 複習卡帶 lessonId（課程內買卡）→ 用課程舞種驗證", async () => {
     const studentQualified = await createStudent(classroomId, {
       name: "qualified",
-      qualifications: [DanceType.BACHATA],
+      qualifications: [S.BACHATA],
     });
     const studentNot = await createStudent(classroomId, { name: "not" });
     const card = await createCard(classroomId, {
       isPracticeCard: true,
-      danceType: null,
+      danceStyleId: null,
     });
     const { lesson } = await createLesson(classroomId, {
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
       cardIds: [card.id],
     });
 
@@ -215,6 +220,7 @@ describe("POST .../confirm-payment", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
     auth.userId = 1;
   });

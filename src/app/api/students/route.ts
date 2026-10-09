@@ -90,7 +90,7 @@ export async function GET(request: Request) {
       // account-takeover token) and `lineUserId`. See toStudentPayload.
       ...toStudentPayload(student, { includeShareKey: true }),
       tags: student.studentTags.map((st) => ({ id: st.tag.id, name: st.tag.name })),
-      danceQualifications: student.danceQualifications.flatMap((q) => (q.danceType ? [q.danceType] : [])),
+      danceQualifications: student.danceQualifications.flatMap((q) => (q.danceStyleId === null ? [] : [q.danceStyleId])),
       danceLevels: toDanceLevels(student.danceQualifications),
       isInActiveLesson,
       activeLessonIds,

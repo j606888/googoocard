@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DanceType } from "@prisma/client";
+import { DANCE_STYLE_COLORS } from "@/lib/danceStyles";
 
 /**
  * Request schemas for the routes with money or card-balance semantics.
@@ -15,8 +15,6 @@ export const positiveInt = z.coerce.number().int().positive();
 
 /** Money in whole NTD. Zero is allowed — comped and 100%-discounted cards exist. */
 export const money = z.coerce.number().int().min(0);
-
-export const danceType = z.enum(DanceType);
 
 /** Card sessions. Upper bound is a typo guard, not a business rule. */
 export const sessions = z.coerce.number().int().min(1).max(1000);
@@ -67,7 +65,7 @@ export const cardSchema = z
     price: money,
     sessions,
     isPracticeCard: z.boolean().optional().default(false),
-    danceType: danceType.nullish(),
+    danceStyleId: positiveInt.nullish(),
   })
   // Mirrors the rule in docs/architecture.md: a practice card's dance type is
   // what decides who may buy and use it, so it can't be left blank. Living in
@@ -76,12 +74,12 @@ export const cardSchema = z
   // `params.apiCode` makes the response answer with the documented error string
   // instead of the generic validation shape — see errorResponse in apiRoute.ts.
   .superRefine((data, ctx) => {
-    if (data.isPracticeCard && !data.danceType) {
+    if (data.isPracticeCard && !data.danceStyleId) {
       ctx.addIssue({
         code: "custom",
         message: "PRACTICE_CARD_REQUIRES_DANCE_TYPE",
         params: { apiCode: "PRACTICE_CARD_REQUIRES_DANCE_TYPE" },
-        path: ["danceType"],
+        path: ["danceStyleId"],
       });
     }
   });
@@ -93,4 +91,22 @@ export const takeAttendanceSchema = z.object({
 /** Classroom name. Trimmed so a whitespace-only name can't slip through. */
 export const createClassroomSchema = z.object({
   name: z.string().trim().min(1).max(100),
+});
+
+const danceStyleName = z.string().trim().min(1, "請輸入舞種名稱").max(30);
+const danceStyleColor = z.enum(DANCE_STYLE_COLORS);
+
+export const createDanceStyleSchema = z.object({
+  name: danceStyleName,
+  color: danceStyleColor,
+  hasLevels: z.boolean().optional().default(false),
+});
+
+/** Every field optional: rename, recolour, toggle levels, reorder, archive/restore. */
+export const updateDanceStyleSchema = z.object({
+  name: danceStyleName.optional(),
+  color: danceStyleColor.optional(),
+  hasLevels: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).optional(),
+  archived: z.boolean().optional(),
 });

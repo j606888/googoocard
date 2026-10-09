@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DanceType } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
   resetDb,
@@ -40,7 +39,6 @@ async function createForeignClassroom() {
   });
   const card = await createCard(classroom.id);
   const { lesson, period } = await createLesson(classroom.id, {
-    danceType: DanceType.BACHATA,
     cardIds: [card.id],
     withPeriod: true,
   });
@@ -62,7 +60,7 @@ describe("跨教室授權：lessons/* 寫入路徑一律回 404", () => {
     const res = await lessonPut(
       jsonRequest("PUT", {
         lessonName: "hacked",
-        danceType: DanceType.SALSA,
+        danceStyleId: lesson.danceStyleId,
         teacherIds: [],
         cardIds: [],
       }),
@@ -71,7 +69,7 @@ describe("跨教室授權：lessons/* 寫入路徑一律回 404", () => {
     expect(res.status).toBe(404);
     const after = await prisma.lesson.findUniqueOrThrow({ where: { id: lesson.id } });
     expect(after.name).toBe(lesson.name);
-    expect(after.danceType).toBe(DanceType.BACHATA);
+    expect(after.danceStyleId).toBe(lesson.danceStyleId);
   });
 
   it("DELETE lesson → 404，課程仍存在", async () => {

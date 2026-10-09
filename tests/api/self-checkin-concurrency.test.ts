@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { DanceType } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
   resetDb,
@@ -8,10 +7,15 @@ import {
   createCard,
   createLesson,
   createStudentCard,
+  createDanceStyles,
+  type DanceStyleIds,
 } from "../factories";
 import { selfCheckIn, takeAttendance } from "@/domains/attendance/attendance.service";
 
 // 自助簽到走 service 直呼，不經 route，不需 mock auth。
+
+// Dance style ids for the classroom under test, keyed by the old enum name.
+let S: DanceStyleIds;
 
 describe("selfCheckIn 並發 — 不重複扣卡 (#1 unique 約束)", () => {
   let classroomId: number;
@@ -20,6 +24,7 @@ describe("selfCheckIn 並發 — 不重複扣卡 (#1 unique 約束)", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
   });
 
   it("DB 層拒絕同一 (period, student) 的重複出席紀錄", async () => {
@@ -111,6 +116,7 @@ describe("takeAttendance — period 必須屬於 lesson (#2)", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
   });
 
   it("periodId 屬於別堂課 → throw Lesson period not found，且不建立紀錄", async () => {
@@ -121,7 +127,7 @@ describe("takeAttendance — period 必須屬於 lesson (#2)", () => {
     });
     const { period: periodB } = await createLesson(classroomId, {
       name: "B",
-      danceType: DanceType.SALSA,
+      danceStyleId: S.SALSA,
       withPeriod: true,
     });
     const student = await createStudent(classroomId);

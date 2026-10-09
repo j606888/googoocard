@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { DanceType } from "@prisma/client";
 import {
   attentionItems,
   buildRosterRows,
@@ -139,8 +138,10 @@ describe("headcountByPeriod", () => {
 });
 
 describe("cardStatusFor", () => {
-  const general = { isPracticeCard: false, danceType: null };
-  const bachataPractice = { isPracticeCard: true, danceType: DanceType.BACHATA };
+  const BACHATA = 1;
+  const bachataLesson = { danceStyleId: BACHATA, level: 1, danceStyle: { hasLevels: false } };
+  const general = { isPracticeCard: false, danceStyleId: null };
+  const bachataPractice = { isPracticeCard: true, danceStyleId: BACHATA };
 
   it("sums remaining sessions across usable cards", () => {
     expect(
@@ -150,9 +151,7 @@ describe("cardStatusFor", () => {
           { remainingSessions: 2, card: general },
         ],
         {},
-        DanceType.BACHATA,
-        1
-      )
+        bachataLesson)
     ).toMatchObject({ usableSessions: 5, usableCardCount: 2, level: "ok" });
   });
 
@@ -161,9 +160,7 @@ describe("cardStatusFor", () => {
       cardStatusFor(
         [{ remainingSessions: 4, card: bachataPractice }],
         {},
-        DanceType.BACHATA,
-        1
-      )
+        bachataLesson)
     ).toMatchObject({
       usableSessions: 0,
       usableCardCount: 0,
@@ -176,20 +173,18 @@ describe("cardStatusFor", () => {
     expect(
       cardStatusFor(
         [{ remainingSessions: 4, card: bachataPractice }],
-        { BACHATA: 1 },
-        DanceType.BACHATA,
-        1
-      )
+        { [BACHATA]: 1 },
+        bachataLesson)
     ).toMatchObject({ usableSessions: 4, usableCardCount: 1, blockedCardCount: 0 });
   });
 
   it("flags exactly one remaining session as low and two as ok", () => {
-    expect(cardStatusFor([{ remainingSessions: 1, card: general }], {}, DanceType.BACHATA, 1).level).toBe("low");
-    expect(cardStatusFor([{ remainingSessions: 2, card: general }], {}, DanceType.BACHATA, 1).level).toBe("ok");
+    expect(cardStatusFor([{ remainingSessions: 1, card: general }], {}, bachataLesson).level).toBe("low");
+    expect(cardStatusFor([{ remainingSessions: 2, card: general }], {}, bachataLesson).level).toBe("ok");
   });
 
   it("reports none for a student holding nothing", () => {
-    expect(cardStatusFor([], {}, DanceType.BACHATA, 1)).toMatchObject({
+    expect(cardStatusFor([], {}, bachataLesson)).toMatchObject({
       usableSessions: 0,
       blockedCardCount: 0,
       level: "none",

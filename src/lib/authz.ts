@@ -59,6 +59,24 @@ export async function findDanceStyleInClassroom(
   return prisma.danceStyle.findFirst({ where: { id: danceStyleId, classroomId } });
 }
 
+/**
+ * For writes that point a lesson / card / qualification at a dance style the
+ * client chose. Unlike the finders above this answers 400, not 404: the
+ * resource being written exists, it's the referenced style that's bad.
+ * Archived styles are accepted — an old lesson keeps its archived style when
+ * it's edited; the UI just stops offering archived styles for new ones.
+ */
+export async function requireDanceStyleInClassroom(
+  danceStyleId: number,
+  classroomId: number
+) {
+  const style = await findDanceStyleInClassroom(danceStyleId, classroomId);
+  if (!style) {
+    throw new ApiError(400, "DANCE_STYLE_NOT_FOUND", "Dance style not found");
+  }
+  return style;
+}
+
 // ---------------------------------------------------------------------------
 // Membership guards.
 //

@@ -44,15 +44,13 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
     // Scoped: the lesson supplies the dance type that decides qualification,
     // so a foreign lesson id must not be able to unlock a practice card.
     const lesson = lessonId
-      ? await prisma.lesson.findFirst({ where: { id: lessonId, classroomId } })
+      ? await prisma.lesson.findFirst({
+          where: { id: lessonId, classroomId },
+          include: { danceStyle: { select: { hasLevels: true } } },
+        })
       : null;
 
-    const decision = canBuyCard(
-      card,
-      toDanceLevels(qualifications),
-      lesson?.danceType,
-      lesson?.level
-    );
+    const decision = canBuyCard(card, toDanceLevels(qualifications), lesson);
     if (!decision.allowed) {
       throw decision.reason === "NOT_QUALIFIED"
         ? new ApiError(403, "STUDENT_NOT_QUALIFIED")

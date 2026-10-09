@@ -1,4 +1,3 @@
-import { DanceType } from "@prisma/client";
 import type { DanceLevels } from "@/domains/qualification";
 import { api } from "../api";
 import { Card } from "./cards";
@@ -22,8 +21,9 @@ export interface Student {
   tags: StudentTag[];
   isInActiveLesson: boolean;
   activeLessonIds: number[];
-  danceQualifications: DanceType[];
-  /** 各舞種已完成階級（1=初階）；見 src/domains/qualification。 */
+  /** 有資格的舞種 id。 */
+  danceQualifications: number[];
+  /** 各舞種（以 danceStyleId 為 key）已完成階級（1=初階）；見 src/domains/qualification。 */
   danceLevels: DanceLevels;
   /** 最近一次已點名的出席時間；從未上過課為 null。 */
   lastAttendAt: string | null;

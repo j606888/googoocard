@@ -2,6 +2,8 @@ import prisma from "@/lib/prisma";
 import { apiRoute, parseId, parseBody } from "@/lib/apiRoute";
 import { notFound } from "@/lib/apiError";
 import { cardSchema } from "@/lib/schemas";
+import { requireDanceStyleInClassroom } from "@/lib/authz";
+import { danceStyleSummarySelect } from "@/lib/danceStyles";
 
 type Params = { id: string };
 
@@ -9,6 +11,7 @@ export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
   const card = await prisma.card.findFirst({
     where: { id: parseId(params.id, "card id"), classroomId },
     include: {
+      danceStyle: { select: danceStyleSummarySelect },
       // 與卡片列表同口徑：購買人次/營收排除轉換卡（origin = CONVERSION），
       // 因為那筆錢在原始購買時已經認列過。
       _count: { select: { studentCards: { where: { origin: "PURCHASE" } } } },
@@ -29,13 +32,24 @@ export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
     orderBy: { createdAt: "desc" },
   });
 
-  const { _count, studentCards, ...cardFields } = card;
-
   return {
-    card: cardFields,
-    purchasedCount: _count.studentCards,
+    // Whitelisted, not spread — see docs/roadmap.md "never spread a DB row".
+    card: {
+      id: card.id,
+      name: card.name,
+      price: card.price,
+      sessions: card.sessions,
+      isPracticeCard: card.isPracticeCard,
+      danceStyleId: card.danceStyleId,
+      danceStyle: card.danceStyle,
+      expiredAt: card.expiredAt,
+      classroomId: card.classroomId,
+      createdAt: card.createdAt,
+      updatedAt: card.updatedAt,
+    },
+    purchasedCount: card._count.studentCards,
     activeHolderCount: holderCards.length,
-    totalRevenue: studentCards.reduce((sum, sc) => sum + sc.finalPrice, 0),
+    totalRevenue: card.studentCards.reduce((sum, sc) => sum + sc.finalPrice, 0),
     holders: holderCards.map((sc) => ({
       id: sc.id,
       serialNumber: sc.serialNumber,
@@ -60,7 +74,7 @@ export const DELETE = apiRoute<Params>(async ({ params, classroomId }) => {
 
 export const PATCH = apiRoute<Params>(async ({ request, params, classroomId }) => {
   const cardId = parseId(params.id, "card id");
-  const { name, price, sessions, isPracticeCard, danceType } = await parseBody(
+  const { name, price, sessions, isPracticeCard, danceStyleId } = await parseBody(
     request,
     cardSchema
   );
@@ -72,6 +86,7 @@ export const PATCH = apiRoute<Params>(async ({ request, params, classroomId }) =
     select: { id: true },
   });
   if (!existing) throw notFound("Card");
+  if (danceStyleId) await requireDanceStyleInClassroom(danceStyleId, classroomId);
 
   return prisma.card.update({
     where: { id: existing.id },
@@ -80,9 +95,10 @@ export const PATCH = apiRoute<Params>(async ({ request, params, classroomId }) =
       price,
       sessions,
       isPracticeCard,
-      // General cards may carry a danceType as a category label (does not
+      // General cards may carry a dance style as a category label (does not
       // restrict usage). Practice cards require it (guarded by the schema).
-      danceType: danceType ?? null,
+      danceStyleId: danceStyleId ?? null,
     },
+    include: { danceStyle: { select: danceStyleSummarySelect } },
   });
 });

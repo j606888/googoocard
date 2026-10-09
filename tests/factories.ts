@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { DanceType, LessonPeriod, StudentCardOrigin } from "@prisma/client";
+import { LessonPeriod, StudentCardOrigin } from "@prisma/client";
 import { createStudent as createStudentWithNumber } from "@/service/student";
 import { nextCardSerial } from "@/service/studentCardSerial";
 
@@ -59,9 +59,10 @@ export async function createStudent(
     levels = {},
   }: {
     name?: string;
-    qualifications?: DanceType[];
-    /** Completed level per dance type; takes the place of `qualifications` (level 1). */
-    levels?: Partial<Record<DanceType, number>>;
+    /** Dance style ids the student has completed (level 1). */
+    qualifications?: number[];
+    /** Completed level per dance style id; takes the place of `qualifications` (level 1). */
+    levels?: Record<number, number>;
   } = {}
 ) {
   const student = await createStudentWithNumber(classroomId, {
@@ -69,10 +70,10 @@ export async function createStudent(
     avatarUrl: "/images/avatar_1.png",
   });
   const rows = [
-    ...qualifications.map((danceType) => ({ danceType, level: 1 })),
-    ...Object.entries(levels).map(([danceType, level]) => ({
-      danceType: danceType as DanceType,
-      level: level!,
+    ...qualifications.map((danceStyleId) => ({ danceStyleId, level: 1 })),
+    ...Object.entries(levels).map(([danceStyleId, level]) => ({
+      danceStyleId: Number(danceStyleId),
+      level,
     })),
   ];
   if (rows.length > 0) {
@@ -90,17 +91,17 @@ export async function createCard(
     price = 3000,
     sessions = 6,
     isPracticeCard = false,
-    danceType = null,
+    danceStyleId = null,
   }: {
     name?: string;
     price?: number;
     sessions?: number;
     isPracticeCard?: boolean;
-    danceType?: DanceType | null;
+    danceStyleId?: number | null;
   } = {}
 ) {
   return prisma.card.create({
-    data: { name, price, sessions, classroomId, isPracticeCard, danceType },
+    data: { name, price, sessions, classroomId, isPracticeCard, danceStyleId },
   });
 }
 
@@ -125,6 +126,39 @@ export async function createDanceStyle(
   });
 }
 
+/**
+ * The five styles every classroom had under the old enum, keyed by the old
+ * enum name so tests read the same. Hustle is the levelled one, as in production.
+ */
+export type DanceStyleIds = Record<"BACHATA" | "SALSA" | "ZOUK" | "HUSTLE" | "KIZOMBA", number>;
+
+export async function createDanceStyles(classroomId: number): Promise<DanceStyleIds> {
+  const specs = [
+    ["BACHATA", "Bachata", "green", false],
+    ["SALSA", "Salsa", "orange", false],
+    ["ZOUK", "Zouk", "slate", false],
+    ["HUSTLE", "Hustle", "stone", true],
+    ["KIZOMBA", "Kizomba", "purple", false],
+  ] as const;
+  const ids = {} as DanceStyleIds;
+  for (const [index, [key, name, color, hasLevels]] of specs.entries()) {
+    ids[key] = (
+      await createDanceStyle(classroomId, { name, color, hasLevels, sortOrder: index })
+    ).id;
+  }
+  return ids;
+}
+
+/** The classroom's "Bachata" style, created on first use — for tests that need
+ * a lesson but don't care about its style. */
+export async function defaultDanceStyle(classroomId: number) {
+  return prisma.danceStyle.upsert({
+    where: { classroomId_name: { classroomId, name: "Bachata" } },
+    create: { classroomId, name: "Bachata", color: "green" },
+    update: {},
+  });
+}
+
 export async function createLessonGroup(classroomId: number, name = "Group") {
   return prisma.lessonGroup.create({ data: { name, classroomId } });
 }
@@ -133,14 +167,15 @@ export async function createLesson(
   classroomId: number,
   {
     name = "Lesson",
-    danceType = DanceType.BACHATA,
+    danceStyleId,
     cardIds = [],
     withPeriod = false,
     groupId = null,
     level = 1,
   }: {
     name?: string;
-    danceType?: DanceType;
+    /** Omitted: the classroom's default "Bachata" style (created on first use). */
+    danceStyleId?: number;
     level?: number;
     cardIds?: number[];
     withPeriod?: boolean;
@@ -148,7 +183,14 @@ export async function createLesson(
   } = {}
 ) {
   const lesson = await prisma.lesson.create({
-    data: { name, classroomId, danceType, level, status: "inProgress", groupId },
+    data: {
+      name,
+      classroomId,
+      danceStyleId: danceStyleId ?? (await defaultDanceStyle(classroomId)).id,
+      level,
+      status: "inProgress",
+      groupId,
+    },
   });
   if (cardIds.length > 0) {
     await prisma.lessonCard.createMany({

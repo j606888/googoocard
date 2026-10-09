@@ -37,6 +37,7 @@ export async function GET(
   const lesson = await prisma.lesson.findUnique({
     where: { id: scoped.id },
     include: {
+      danceStyle: { select: { hasLevels: true } },
       students: {
         include: {
           student: true,
@@ -72,18 +73,18 @@ export async function GET(
   );
 
   const cardStatusByStudent = new Map<number, CardStatus>();
-  const qualificationsByStudent = new Map<number, string[]>();
+  const qualificationsByStudent = new Map<number, number[]>();
   const levelsByStudent = new Map<number, DanceLevels>();
   for (const student of withCards) {
     const levels = toDanceLevels(student.danceQualifications);
     qualificationsByStudent.set(
       student.id,
-      student.danceQualifications.flatMap((q) => (q.danceType ? [q.danceType] : []))
+      student.danceQualifications.flatMap((q) => (q.danceStyleId === null ? [] : [q.danceStyleId]))
     );
     levelsByStudent.set(student.id, levels);
     cardStatusByStudent.set(
       student.id,
-      cardStatusFor(student.studentCards, levels, lesson.danceType, lesson.level)
+      cardStatusFor(student.studentCards, levels, lesson)
     );
   }
 

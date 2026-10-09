@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DanceType } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
   resetDb,
@@ -8,6 +7,8 @@ import {
   createLesson,
   jsonRequest,
   routeParams,
+  createDanceStyles,
+  type DanceStyleIds,
 } from "../factories";
 
 const auth = vi.hoisted(() => ({ userId: 1, classroomId: 0 }));
@@ -18,11 +19,11 @@ vi.mock("@/lib/auth", () => ({
 import { POST } from "@/app/api/lessons/route";
 import { PUT } from "@/app/api/lessons/[id]/route";
 
-const draft = (danceType: DanceType, cardIds: number[]) => ({
+const draft = (danceStyleId: number, cardIds: number[]) => ({
   lessonName: "Test Lesson",
   teacherIds: [],
   cardIds,
-  danceType,
+  danceStyleId,
   periods: [
     {
       startTime: "2026-06-01T10:00:00Z",
@@ -31,6 +32,9 @@ const draft = (danceType: DanceType, cardIds: number[]) => ({
   ],
 });
 
+// Dance style ids for the classroom under test, keyed by the old enum name.
+let S: DanceStyleIds;
+
 describe("課程掛卡的舞種驗證", () => {
   let classroomId: number;
 
@@ -38,6 +42,7 @@ describe("課程掛卡的舞種驗證", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
   });
 
@@ -46,11 +51,11 @@ describe("課程掛卡的舞種驗證", () => {
       const salsaPractice = await createCard(classroomId, {
         name: "Salsa 複習卡",
         isPracticeCard: true,
-        danceType: DanceType.SALSA,
+        danceStyleId: S.SALSA,
       });
 
       const res = await POST(
-        jsonRequest("POST", draft(DanceType.BACHATA, [salsaPractice.id]))
+        jsonRequest("POST", draft(S.BACHATA, [salsaPractice.id]))
       );
 
       expect(res.status).toBe(400);
@@ -65,13 +70,13 @@ describe("課程掛卡的舞種驗證", () => {
       const bachataPractice = await createCard(classroomId, {
         name: "Bachata 複習卡",
         isPracticeCard: true,
-        danceType: DanceType.BACHATA,
+        danceStyleId: S.BACHATA,
       });
 
       const res = await POST(
         jsonRequest(
           "POST",
-          draft(DanceType.BACHATA, [general.id, bachataPractice.id])
+          draft(S.BACHATA, [general.id, bachataPractice.id])
         )
       );
 
@@ -80,14 +85,42 @@ describe("課程掛卡的舞種驗證", () => {
       expect(lessonCards).toHaveLength(2);
     });
 
+    it("沒帶舞種 → 400 DANCE_STYLE_REQUIRED", async () => {
+      const { danceStyleId: _omit, ...withoutStyle } = draft(S.BACHATA, []);
+      const res = await POST(jsonRequest("POST", withoutStyle));
+
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe("DANCE_STYLE_REQUIRED");
+      expect(await prisma.lesson.count()).toBe(0);
+    });
+
+    it("別間教室的舞種 → 400 DANCE_STYLE_NOT_FOUND", async () => {
+      const other = await createClassroom({ name: "Other", email: "other@test.local" });
+      const foreign = await createDanceStyles(other.id);
+
+      const res = await POST(jsonRequest("POST", draft(foreign.BACHATA, [])));
+
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe("DANCE_STYLE_NOT_FOUND");
+      expect(await prisma.lesson.count()).toBe(0);
+    });
+
+    it("建立的課程寫入 danceStyleId", async () => {
+      const res = await POST(jsonRequest("POST", draft(S.SALSA, [])));
+
+      expect(res.status).toBe(200);
+      const lesson = await prisma.lesson.findFirstOrThrow();
+      expect(lesson.danceStyleId).toBe(S.SALSA);
+    });
+
     it("legacy 複習卡（無舞種）任何課程都可掛", async () => {
       const legacyPractice = await createCard(classroomId, {
         isPracticeCard: true,
-        danceType: null,
+        danceStyleId: null,
       });
 
       const res = await POST(
-        jsonRequest("POST", draft(DanceType.KIZOMBA, [legacyPractice.id]))
+        jsonRequest("POST", draft(S.KIZOMBA, [legacyPractice.id]))
       );
 
       expect(res.status).toBe(200);
@@ -99,10 +132,10 @@ describe("課程掛卡的舞種驗證", () => {
       const bachataPractice = await createCard(classroomId, {
         name: "Bachata 複習卡",
         isPracticeCard: true,
-        danceType: DanceType.BACHATA,
+        danceStyleId: S.BACHATA,
       });
       const { lesson } = await createLesson(classroomId, {
-        danceType: DanceType.BACHATA,
+        danceStyleId: S.BACHATA,
         cardIds: [bachataPractice.id],
       });
 
@@ -112,7 +145,7 @@ describe("課程掛卡的舞種驗證", () => {
           lessonName: lesson.name,
           teacherIds: [],
           cardIds: [bachataPractice.id],
-          danceType: DanceType.SALSA,
+          danceStyleId: S.SALSA,
         }),
         routeParams({ id: String(lesson.id) })
       );
@@ -125,17 +158,38 @@ describe("課程掛卡的舞種驗證", () => {
       ).toBe(1);
     });
 
+    it("改成別間教室的舞種 → 400，課程不變", async () => {
+      const { lesson } = await createLesson(classroomId, { danceStyleId: S.BACHATA });
+      const other = await createClassroom({ name: "Other", email: "other@test.local" });
+      const foreign = await createDanceStyles(other.id);
+
+      const res = await PUT(
+        jsonRequest("PUT", {
+          lessonName: lesson.name,
+          teacherIds: [],
+          cardIds: [],
+          danceStyleId: foreign.SALSA,
+        }),
+        routeParams({ id: String(lesson.id) })
+      );
+
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe("DANCE_STYLE_NOT_FOUND");
+      const unchanged = await prisma.lesson.findUniqueOrThrow({ where: { id: lesson.id } });
+      expect(unchanged.danceStyleId).toBe(S.BACHATA);
+    });
+
     it("換成相符的卡 → 更新成功", async () => {
       const bachataPractice = await createCard(classroomId, {
         isPracticeCard: true,
-        danceType: DanceType.BACHATA,
+        danceStyleId: S.BACHATA,
       });
       const salsaPractice = await createCard(classroomId, {
         isPracticeCard: true,
-        danceType: DanceType.SALSA,
+        danceStyleId: S.SALSA,
       });
       const { lesson } = await createLesson(classroomId, {
-        danceType: DanceType.BACHATA,
+        danceStyleId: S.BACHATA,
         cardIds: [bachataPractice.id],
       });
 
@@ -144,7 +198,7 @@ describe("課程掛卡的舞種驗證", () => {
           lessonName: lesson.name,
           teacherIds: [],
           cardIds: [salsaPractice.id],
-          danceType: DanceType.SALSA,
+          danceStyleId: S.SALSA,
         }),
         routeParams({ id: String(lesson.id) })
       );
@@ -165,12 +219,13 @@ describe("課程階級", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
   });
 
   it("未帶 level → 預設初階 (1)", async () => {
     const card = await createCard(classroomId);
-    const res = await POST(jsonRequest("POST", draft(DanceType.HUSTLE, [card.id])));
+    const res = await POST(jsonRequest("POST", draft(S.HUSTLE, [card.id])));
     expect(res.status).toBe(200);
     const lesson = await prisma.lesson.findFirstOrThrow();
     expect(lesson.level).toBe(1);
@@ -179,13 +234,13 @@ describe("課程階級", () => {
   it("帶 level 建立與更新", async () => {
     const card = await createCard(classroomId);
     await POST(
-      jsonRequest("POST", { ...draft(DanceType.HUSTLE, [card.id]), level: 2 })
+      jsonRequest("POST", { ...draft(S.HUSTLE, [card.id]), level: 2 })
     );
     const lesson = await prisma.lesson.findFirstOrThrow();
     expect(lesson.level).toBe(2);
 
     const res = await PUT(
-      jsonRequest("PUT", { ...draft(DanceType.HUSTLE, [card.id]), level: 3 }),
+      jsonRequest("PUT", { ...draft(S.HUSTLE, [card.id]), level: 3 }),
       routeParams({ id: String(lesson.id) })
     );
     expect(res.status).toBe(200);
@@ -195,7 +250,7 @@ describe("課程階級", () => {
   it("無效 level → 400", async () => {
     const card = await createCard(classroomId);
     const res = await POST(
-      jsonRequest("POST", { ...draft(DanceType.HUSTLE, [card.id]), level: 4 })
+      jsonRequest("POST", { ...draft(S.HUSTLE, [card.id]), level: 4 })
     );
     expect(res.status).toBe(400);
     expect(await prisma.lesson.count()).toBe(0);

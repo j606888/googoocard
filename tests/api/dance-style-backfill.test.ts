@@ -3,12 +3,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import prisma from "@/lib/prisma";
 import { findDanceStyleInClassroom } from "@/lib/authz";
+import type { DanceType } from "@prisma/client";
 import {
   resetDb,
   createClassroom,
-  createCard,
   createDanceStyle,
-  createLesson,
   createStudent,
 } from "../factories";
 
@@ -34,6 +33,48 @@ async function runBackfill() {
   for (const statement of statements) await prisma.$executeRawUnsafe(statement);
 }
 
+// Rows as the old code writes them: enum set, danceStyleId NULL. The shared
+// factories write danceStyleId, so these bypass them.
+const createLesson = async (
+  classroomId: number,
+  { danceType, level = 1 }: { danceType: DanceType; level?: number },
+) => ({
+  lesson: await prisma.lesson.create({
+    data: { name: "Lesson", classroomId, danceType, level },
+  }),
+});
+const createCard = (
+  classroomId: number,
+  {
+    isPracticeCard = false,
+    danceType = null,
+  }: { isPracticeCard?: boolean; danceType?: DanceType | null } = {},
+) =>
+  prisma.card.create({
+    data: {
+      name: "Card",
+      price: 3000,
+      sessions: 6,
+      classroomId,
+      isPracticeCard,
+      danceType,
+    },
+  });
+const createLegacyStudent = async (
+  classroomId: number,
+  levels: Partial<Record<DanceType, number>>,
+) => {
+  const student = await createStudent(classroomId);
+  await prisma.studentDanceQualification.createMany({
+    data: Object.entries(levels).map(([danceType, level]) => ({
+      studentId: student.id,
+      danceType: danceType as DanceType,
+      level: level!,
+    })),
+  });
+  return student;
+};
+
 const stylesOf = (classroomId: number) =>
   prisma.danceStyle.findMany({
     where: { classroomId },
@@ -56,7 +97,7 @@ describe("dance style backfill", () => {
       danceType: "KIZOMBA",
     });
     await createCard(classroomId); // general card: no style
-    await createStudent(classroomId, { qualifications: ["ZOUK"] });
+    await createLegacyStudent(classroomId, { ZOUK: 1 });
     const other = (
       await createClassroom({ name: "Other", email: "o@test.local" })
     ).id;
@@ -91,7 +132,7 @@ describe("dance style backfill", () => {
   it("turns hasLevels on only where a lesson or qualification is above level 1", async () => {
     await createLesson(classroomId, { danceType: "HUSTLE", level: 2 });
     await createLesson(classroomId, { danceType: "BACHATA" });
-    await createStudent(classroomId, { levels: { ZOUK: 3, BACHATA: 1 } });
+    await createLegacyStudent(classroomId, { ZOUK: 3, BACHATA: 1 });
 
     await runBackfill();
 
@@ -167,5 +208,13 @@ describe("findDanceStyleInClassroom", () => {
     expect((await findDanceStyleInClassroom(style.id, a))?.id).toBe(style.id);
     expect(await findDanceStyleInClassroom(style.id, b)).toBeNull();
     expect(await findDanceStyleInClassroom(NaN, a)).toBeNull();
+  });
+});
+
+describe("dance style backfill re-run migration", () => {
+  it("carries the backfill block verbatim", () => {
+    const rerunDir = readdirSync(MIGRATIONS).find((d) => d.endsWith("_dance_styles_rebackfill"))!;
+    const rerun = readFileSync(path.join(MIGRATIONS, rerunDir, "migration.sql"), "utf8");
+    expect(rerun.split("-- BACKFILL BEGIN")[1].split("-- BACKFILL END")[0]).toBe(block);
   });
 });

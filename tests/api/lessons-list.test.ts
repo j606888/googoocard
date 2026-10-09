@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DanceType } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { resetDb, createClassroom } from "../factories";
+import { resetDb, createClassroom,
+  createDanceStyles,
+  type DanceStyleIds,
+} from "../factories";
 
 const createTeacher = (classroomId: number, { name }: { name: string }) =>
   prisma.teacher.create({ data: { name, classroomId } });
@@ -21,11 +23,11 @@ const FUTURE = { start: "2030-01-01T10:00:00Z", end: "2030-01-01T11:00:00Z" };
 async function makeLesson(
   classroomId: number,
   name: string,
-  danceType: DanceType,
+  danceStyleId: number,
   periods: { start: string; end: string; taken?: boolean }[] = []
 ) {
   const lesson = await prisma.lesson.create({
-    data: { name, classroomId, danceType, status: "inProgress" },
+    data: { name, classroomId, danceStyleId, status: "inProgress" },
   });
   for (const p of periods) {
     await prisma.lessonPeriod.create({
@@ -45,6 +47,9 @@ function getRequest(params: Record<string, string>) {
   return new Request(`http://test.local/api/lessons?${qs}`);
 }
 
+// Dance style ids for the classroom under test, keyed by the old enum name.
+let S: DanceStyleIds;
+
 describe("GET /api/lessons (list)", () => {
   let classroomId: number;
 
@@ -52,12 +57,13 @@ describe("GET /api/lessons (list)", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
   });
 
   it("returns summary fields per lesson (no full arrays)", async () => {
     const teacher = await createTeacher(classroomId, { name: "Alice" });
-    const lesson = await makeLesson(classroomId, "Bachata Lv1", DanceType.BACHATA, [
+    const lesson = await makeLesson(classroomId, "Bachata Lv1", S.BACHATA, [
       { ...PAST, taken: true },
       FUTURE,
     ]);
@@ -72,7 +78,8 @@ describe("GET /api/lessons (list)", () => {
     expect(l).toMatchObject({
       id: lesson.id,
       name: "Bachata Lv1",
-      danceType: "BACHATA",
+      danceStyleId: S.BACHATA,
+      danceStyle: { id: S.BACHATA, name: "Bachata", color: "green", hasLevels: false },
       studentCount: 0,
       totalPeriods: 2,
       attendedCount: 1,
@@ -87,7 +94,7 @@ describe("GET /api/lessons (list)", () => {
   });
 
   it("flags due-for-attendance when a past period is unchecked", async () => {
-    await makeLesson(classroomId, "Overdue", DanceType.BACHATA, [PAST]);
+    await makeLesson(classroomId, "Overdue", S.BACHATA, [PAST]);
 
     const res = await GET(getRequest({ tab: "inProgress", sort: "name" }));
     const body = await res.json();
@@ -98,9 +105,9 @@ describe("GET /api/lessons (list)", () => {
 
   it("filters by search on lesson name and teacher name", async () => {
     const teacher = await createTeacher(classroomId, { name: "Bob" });
-    const salsa = await makeLesson(classroomId, "Salsa Party", DanceType.SALSA);
+    const salsa = await makeLesson(classroomId, "Salsa Party", S.SALSA);
     await prisma.lessonTeacher.create({ data: { lessonId: salsa.id, teacherId: teacher.id } });
-    await makeLesson(classroomId, "Bachata Basics", DanceType.BACHATA);
+    await makeLesson(classroomId, "Bachata Basics", S.BACHATA);
 
     const byName = await (await GET(getRequest({ tab: "inProgress", sort: "name", search: "Bachata" }))).json();
     expect(byName.lessons.map((l: { name: string }) => l.name)).toEqual(["Bachata Basics"]);
@@ -109,30 +116,30 @@ describe("GET /api/lessons (list)", () => {
     expect(byTeacher.lessons.map((l: { name: string }) => l.name)).toEqual(["Salsa Party"]);
   });
 
-  it("filters by danceType and reflects it in tabsCount", async () => {
-    await makeLesson(classroomId, "Bachata A", DanceType.BACHATA);
-    await makeLesson(classroomId, "Salsa B", DanceType.SALSA);
+  it("filters by danceStyleId and reflects it in tabsCount", async () => {
+    await makeLesson(classroomId, "Bachata A", S.BACHATA);
+    await makeLesson(classroomId, "Salsa B", S.SALSA);
 
-    const res = await GET(getRequest({ tab: "inProgress", sort: "name", danceType: "SALSA" }));
+    const res = await GET(getRequest({ tab: "inProgress", sort: "name", danceStyleId: String(S.SALSA) }));
     const body = await res.json();
     expect(body.lessons.map((l: { name: string }) => l.name)).toEqual(["Salsa B"]);
     expect(body.tabsCount.inProgress).toBe(1);
   });
 
-  it("availableDanceTypes lists only dance types with lessons, unaffected by filters", async () => {
-    await makeLesson(classroomId, "Bachata A", DanceType.BACHATA);
-    await makeLesson(classroomId, "Salsa B", DanceType.SALSA);
+  it("availableDanceStyleIds lists only dance styles with lessons, unaffected by filters", async () => {
+    await makeLesson(classroomId, "Bachata A", S.BACHATA);
+    await makeLesson(classroomId, "Salsa B", S.SALSA);
 
     // Even while filtering to SALSA, the available set stays classroom-wide.
-    const res = await GET(getRequest({ tab: "inProgress", sort: "name", danceType: "SALSA" }));
+    const res = await GET(getRequest({ tab: "inProgress", sort: "name", danceStyleId: String(S.SALSA) }));
     const body = await res.json();
-    expect([...body.availableDanceTypes].sort()).toEqual(["BACHATA", "SALSA"]);
-    expect(body.availableDanceTypes).not.toContain("ZOUK");
+    expect([...body.availableDanceStyleIds].sort()).toEqual([S.BACHATA, S.SALSA].sort());
+    expect(body.availableDanceStyleIds).not.toContain(S.ZOUK);
   });
 
   it("paginates only when page is provided", async () => {
     for (let i = 0; i < 25; i++) {
-      await makeLesson(classroomId, `L${String(i).padStart(2, "0")}`, DanceType.BACHATA);
+      await makeLesson(classroomId, `L${String(i).padStart(2, "0")}`, S.BACHATA);
     }
 
     // No page param -> all 25, no next page.
@@ -155,9 +162,9 @@ describe("GET /api/lessons (list)", () => {
     const group = await prisma.lessonGroup.create({
       data: { name: "週日課", classroomId },
     });
-    const grouped = await makeLesson(classroomId, "Bachata Lv2", DanceType.BACHATA);
+    const grouped = await makeLesson(classroomId, "Bachata Lv2", S.BACHATA);
     await prisma.lesson.update({ where: { id: grouped.id }, data: { groupId: group.id } });
-    await makeLesson(classroomId, "Ungrouped", DanceType.BACHATA);
+    await makeLesson(classroomId, "Ungrouped", S.BACHATA);
 
     const res = await GET(getRequest({ tab: "inProgress", sort: "name", groupId: String(group.id) }));
     const body = await res.json();
@@ -169,9 +176,9 @@ describe("GET /api/lessons (list)", () => {
     const group = await prisma.lessonGroup.create({
       data: { name: "週日課", classroomId },
     });
-    const grouped = await makeLesson(classroomId, "Bachata Lv2", DanceType.BACHATA);
+    const grouped = await makeLesson(classroomId, "Bachata Lv2", S.BACHATA);
     await prisma.lesson.update({ where: { id: grouped.id }, data: { groupId: group.id } });
-    await makeLesson(classroomId, "Ungrouped", DanceType.BACHATA);
+    await makeLesson(classroomId, "Ungrouped", S.BACHATA);
 
     const res = await GET(getRequest({ tab: "inProgress", sort: "name", groupId: "none" }));
     const body = await res.json();
@@ -180,8 +187,8 @@ describe("GET /api/lessons (list)", () => {
   });
 
   it("tab=all skips the status filter (both in-progress and finished lessons returned)", async () => {
-    await makeLesson(classroomId, "Still going", DanceType.BACHATA, [FUTURE]);
-    const finished = await makeLesson(classroomId, "Wrapped up", DanceType.BACHATA);
+    await makeLesson(classroomId, "Still going", S.BACHATA, [FUTURE]);
+    const finished = await makeLesson(classroomId, "Wrapped up", S.BACHATA);
     await prisma.lesson.update({ where: { id: finished.id }, data: { status: "finished" } });
 
     const res = await GET(getRequest({ tab: "all", sort: "name" }));
@@ -190,11 +197,11 @@ describe("GET /api/lessons (list)", () => {
   });
 
   it("sorts by next session ascending, sessionless lessons last", async () => {
-    await makeLesson(classroomId, "Later", DanceType.BACHATA, [
+    await makeLesson(classroomId, "Later", S.BACHATA, [
       { start: "2031-01-01T10:00:00Z", end: "2031-01-01T11:00:00Z" },
     ]);
-    await makeLesson(classroomId, "Sooner", DanceType.BACHATA, [FUTURE]);
-    await makeLesson(classroomId, "NoUpcoming", DanceType.BACHATA, [PAST]);
+    await makeLesson(classroomId, "Sooner", S.BACHATA, [FUTURE]);
+    await makeLesson(classroomId, "NoUpcoming", S.BACHATA, [PAST]);
 
     const res = await GET(getRequest({ tab: "inProgress", sort: "nextSession" }));
     const body = await res.json();

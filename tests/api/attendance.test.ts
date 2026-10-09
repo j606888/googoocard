@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DanceType } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
   resetDb,
@@ -10,6 +9,8 @@ import {
   createStudentCard,
   createPendingAttendance,
   routeParams,
+  createDanceStyles,
+  type DanceStyleIds,
 } from "../factories";
 
 // reset route 經過 decodeAuthToken 做 classroom 授權，需 mock auth；
@@ -37,6 +38,9 @@ async function getAttendance(lessonId: number, periodId: number) {
   return res.json();
 }
 
+// Dance style ids for the classroom under test, keyed by the old enum name.
+let S: DanceStyleIds;
+
 describe("GET attendance — uncheckedType 分類", () => {
   let classroomId: number;
 
@@ -44,6 +48,7 @@ describe("GET attendance — uncheckedType 分類", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
   });
 
@@ -52,10 +57,10 @@ describe("GET attendance — uncheckedType 分類", () => {
     const practice = await createCard(classroomId, {
       name: "Bachata 複習卡",
       isPracticeCard: true,
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
     });
     const { lesson, period } = await createLesson(classroomId, {
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
       cardIds: [general.id, practice.id],
       withPeriod: true,
     });
@@ -66,7 +71,7 @@ describe("GET attendance — uncheckedType 分類", () => {
     const { general, practice, lesson, period } =
       await setupBachataLessonWithBothCards();
     const student = await createStudent(classroomId, {
-      qualifications: [DanceType.BACHATA],
+      qualifications: [S.BACHATA],
     });
     await createStudentCard(student.id, general.id);
     const practiceSC = await createStudentCard(student.id, practice.id);
@@ -98,7 +103,7 @@ describe("GET attendance — uncheckedType 分類", () => {
     const extraPractice = await createCard(classroomId, {
       name: "Bachata 複習卡 2",
       isPracticeCard: true,
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
     });
     await prisma.lessonCard.create({
       data: { lessonId: lesson.id, cardId: extraPractice.id },
@@ -131,7 +136,7 @@ describe("GET attendance — uncheckedType 分類", () => {
     const { general, lesson, period } =
       await setupBachataLessonWithBothCards();
     const student = await createStudent(classroomId, {
-      qualifications: [DanceType.BACHATA],
+      qualifications: [S.BACHATA],
     });
     await createStudentCard(student.id, general.id);
     await createPendingAttendance(period.id, student.id);
@@ -155,16 +160,16 @@ describe("GET attendance — uncheckedType 分類", () => {
     const practice = await createCard(classroomId, {
       name: "Kizomba 複習卡",
       isPracticeCard: true,
-      danceType: DanceType.KIZOMBA,
+      danceStyleId: S.KIZOMBA,
     });
     const general = await createCard(classroomId, { name: "一般卡" });
     const { lesson, period } = await createLesson(classroomId, {
-      danceType: DanceType.KIZOMBA,
+      danceStyleId: S.KIZOMBA,
       cardIds: [general.id, practice.id],
       withPeriod: true,
     });
     const student = await createStudent(classroomId, {
-      qualifications: [DanceType.KIZOMBA],
+      qualifications: [S.KIZOMBA],
     });
     await createStudentCard(student.id, general.id);
     const practiceSC = await createStudentCard(student.id, practice.id);
@@ -182,15 +187,15 @@ describe("GET attendance — uncheckedType 分類", () => {
     const salsaPractice = await createCard(classroomId, {
       name: "Salsa 複習卡",
       isPracticeCard: true,
-      danceType: DanceType.SALSA,
+      danceStyleId: S.SALSA,
     });
     const { lesson, period } = await createLesson(classroomId, {
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
       cardIds: [salsaPractice.id],
       withPeriod: true,
     });
     const student = await createStudent(classroomId, {
-      qualifications: [DanceType.SALSA], // 即使有 Salsa 資格
+      qualifications: [S.SALSA], // 即使有 Salsa 資格
     });
     await createStudentCard(student.id, salsaPractice.id);
     await createPendingAttendance(period!.id, student.id);
@@ -208,6 +213,7 @@ describe("takeAttendance — 自動選卡與扣堂", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
   });
 
@@ -215,15 +221,15 @@ describe("takeAttendance — 自動選卡與扣堂", () => {
     const general = await createCard(classroomId, { name: "一般卡" });
     const practice = await createCard(classroomId, {
       isPracticeCard: true,
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
     });
     const { lesson, period } = await createLesson(classroomId, {
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
       cardIds: [general.id, practice.id],
       withPeriod: true,
     });
     const student = await createStudent(classroomId, {
-      qualifications: [DanceType.BACHATA],
+      qualifications: [S.BACHATA],
     });
     const generalSC = await createStudentCard(student.id, general.id);
     const practiceSC = await createStudentCard(student.id, practice.id);
@@ -253,10 +259,10 @@ describe("takeAttendance — 自動選卡與扣堂", () => {
     const general = await createCard(classroomId, { name: "一般卡" });
     const practice = await createCard(classroomId, {
       isPracticeCard: true,
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
     });
     const { lesson, period } = await createLesson(classroomId, {
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
       cardIds: [general.id, practice.id],
       withPeriod: true,
     });
@@ -284,10 +290,10 @@ describe("takeAttendance — 自動選卡與扣堂", () => {
   it("不符資格者只持複習卡 → 不自動扣卡（留待人工處理）", async () => {
     const practice = await createCard(classroomId, {
       isPracticeCard: true,
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
     });
     const { lesson, period } = await createLesson(classroomId, {
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
       cardIds: [practice.id],
       withPeriod: true,
     });
@@ -353,6 +359,7 @@ describe("updateAttendance — 定案後修改點名", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
   });
 
@@ -451,13 +458,14 @@ describe("selfCheckIn + takeAttendance — 學生自助簽到後老師定案", (
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
   });
 
   it("學生自助簽到後老師再點名同一人 → 不重複建紀錄、不重複扣卡", async () => {
     const general = await createCard(classroomId, { name: "一般卡" });
     const { lesson, period } = await createLesson(classroomId, {
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
       cardIds: [general.id],
       withPeriod: true,
     });
@@ -506,7 +514,7 @@ describe("selfCheckIn + takeAttendance — 學生自助簽到後老師定案", (
   it("老師定案時取消勾選已自助簽到者 → 移除紀錄並退還課卡，同時新增 walk-in", async () => {
     const general = await createCard(classroomId, { name: "一般卡" });
     const { lesson, period } = await createLesson(classroomId, {
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
       cardIds: [general.id],
       withPeriod: true,
     });
@@ -558,13 +566,14 @@ describe("selfCheckIn — 一次多時段的扣卡同步", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
   });
 
   // Two periods on one lesson, ordered by startTime.
   async function lessonWithTwoPeriods(cardId: number) {
     const { lesson } = await createLesson(classroomId, {
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
       cardIds: [cardId],
     });
     const p1 = await prisma.lessonPeriod.create({
@@ -659,6 +668,7 @@ describe("resetAttendance — 清除事件 (audit events)", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
   });
 
@@ -767,6 +777,7 @@ describe("階級 — 複習卡只能複習已完成階級以內的課", () => {
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
   });
 
@@ -774,16 +785,16 @@ describe("階級 — 複習卡只能複習已完成階級以內的課", () => {
     const general = await createCard(classroomId, { name: "一般卡" });
     const practice = await createCard(classroomId, {
       isPracticeCard: true,
-      danceType: DanceType.HUSTLE,
+      danceStyleId: S.HUSTLE,
     });
     const { lesson, period } = await createLesson(classroomId, {
-      danceType: DanceType.HUSTLE,
+      danceStyleId: S.HUSTLE,
       level: lessonLevel,
       cardIds: [general.id, practice.id],
       withPeriod: true,
     });
     const student = await createStudent(classroomId, {
-      levels: { HUSTLE: completedLevel },
+      levels: { [S.HUSTLE]: completedLevel },
     });
     return { general, practice, lesson, period: period!, student };
   }
@@ -851,6 +862,33 @@ describe("階級 — 複習卡只能複習已完成階級以內的課", () => {
 
     const record = await prisma.attendanceRecord.findFirstOrThrow({
       where: { lessonPeriodId: period.id, studentId: student.id },
+    });
+    expect(record.studentCardId).toBe(practiceSC.id);
+  });
+
+  it("舞種沒開分階 → 課程 level 不影響，只完成初階也能在「中階」課用複習卡", async () => {
+    const practice = await createCard(classroomId, {
+      isPracticeCard: true,
+      danceStyleId: S.BACHATA,
+    });
+    // A leftover level 2 from before levels were switched off for Bachata.
+    const { lesson, period } = await createLesson(classroomId, {
+      danceStyleId: S.BACHATA,
+      level: 2,
+      cardIds: [practice.id],
+      withPeriod: true,
+    });
+    const student = await createStudent(classroomId, { qualifications: [S.BACHATA] });
+    const practiceSC = await createStudentCard(student.id, practice.id);
+
+    await takeAttendance({
+      lessonId: lesson.id,
+      lessonPeriodId: period!.id,
+      studentIds: [student.id],
+    });
+
+    const record = await prisma.attendanceRecord.findFirstOrThrow({
+      where: { lessonPeriodId: period!.id, studentId: student.id },
     });
     expect(record.studentCardId).toBe(practiceSC.id);
   });

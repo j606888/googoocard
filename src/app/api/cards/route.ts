@@ -1,12 +1,15 @@
 import prisma from "@/lib/prisma";
 import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { cardSchema } from "@/lib/schemas";
+import { requireDanceStyleInClassroom } from "@/lib/authz";
+import { danceStyleSummarySelect } from "@/lib/danceStyles";
 
 export const GET = apiRoute(async ({ classroomId }) => {
   // 購買人次與營收只算真的有金流的卡：origin = CONVERSION 是舊卡轉換來的，
   // 錢已經在原始購買時認列過，計進來會讓同一筆錢在兩張卡各算一次。
   // activeHolders 則要含轉換卡 —— 那確實是有效持卡。
   const cardInclude = {
+    danceStyle: { select: danceStyleSummarySelect },
     _count: { select: { studentCards: { where: { origin: "PURCHASE" as const } } } },
     studentCards: {
       select: {
@@ -37,7 +40,8 @@ export const GET = apiRoute(async ({ classroomId }) => {
     price: card.price,
     sessions: card.sessions,
     isPracticeCard: card.isPracticeCard,
-    danceType: card.danceType,
+    danceStyleId: card.danceStyleId,
+    danceStyle: card.danceStyle,
     expiredAt: card.expiredAt,
     createdAt: card.createdAt,
     purchasedCount: card._count.studentCards,
@@ -56,10 +60,11 @@ export const GET = apiRoute(async ({ classroomId }) => {
 export const POST = apiRoute(async ({ request, classroomId }) => {
   // The practice-card-requires-a-dance-type rule now lives in the schema, so
   // POST and PATCH can't drift apart on it.
-  const { name, price, sessions, isPracticeCard, danceType } = await parseBody(
+  const { name, price, sessions, isPracticeCard, danceStyleId } = await parseBody(
     request,
     cardSchema
   );
+  if (danceStyleId) await requireDanceStyleInClassroom(danceStyleId, classroomId);
 
   return prisma.card.create({
     data: {
@@ -68,9 +73,10 @@ export const POST = apiRoute(async ({ request, classroomId }) => {
       sessions,
       classroomId,
       isPracticeCard,
-      // General cards may carry a danceType purely as a category label (it does
-      // not restrict usage — see cardMatchesLesson). Practice cards require it.
-      danceType: danceType ?? null,
+      // General cards may carry a dance style purely as a category label (it
+      // does not restrict usage — see cardMatchesLesson). Practice cards require it.
+      danceStyleId: danceStyleId ?? null,
     },
+    include: { danceStyle: { select: danceStyleSummarySelect } },
   });
 });

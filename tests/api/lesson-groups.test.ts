@@ -5,6 +5,7 @@ import {
   createClassroom,
   createLesson,
   createLessonGroup,
+  defaultDanceStyle,
   jsonRequest,
   routeParams,
 } from "../factories";
@@ -97,7 +98,7 @@ describe("/api/lesson-groups", () => {
         lessonName: "Sneaky",
         teacherIds: [],
         cardIds: [],
-        danceType: "BACHATA",
+        danceStyleId: (await defaultDanceStyle(classroomId)).id,
         groupId: foreignGroup.id,
       })
     );
@@ -120,7 +121,7 @@ describe("/api/lesson-groups", () => {
         lessonName: "Bachata Lv1",
         teacherIds: [],
         cardIds: [],
-        danceType: "BACHATA",
+        danceStyleId: (await defaultDanceStyle(classroomId)).id,
         groupId: foreignGroup.id,
       }),
       routeParams({ id: String(lesson.id) })

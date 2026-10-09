@@ -12,11 +12,13 @@ import {
   toDanceLevels,
   cardMatchesLesson,
   isQualified,
-  requiredDanceTypeFor,
+  requiredDanceStyleFor,
+  requiredLevelFor,
 } from "@/domains/qualification";
 
 type LessonWithCards = Prisma.LessonGetPayload<{
   include: {
+    danceStyle: true;
     cards: {
       include: {
         card: true,
@@ -104,6 +106,7 @@ export async function GET(
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonPeriod.lessonId },
     include: {
+      danceStyle: true,
       cards: {
         include: {
           card: true,
@@ -183,7 +186,7 @@ function findUncheckedType(lesson: LessonWithCards, student: StudentWithCards) {
   // actually pick — see attendance.service.ts.
   const qualifications = getQualifications(student);
   const usableCards = matchedCards.filter((studentCard) =>
-    canUseCard(studentCard.card, qualifications, lesson.danceType, lesson.level)
+    canUseCard(studentCard.card, qualifications, lesson)
   );
 
   if (usableCards.length === 0) {
@@ -221,11 +224,11 @@ function shouldUsePracticePriority(lesson: LessonWithCards, student: StudentWith
   // Practice priority applies when the lesson accepts a practice card the
   // student is qualified to use at this lesson's level.
   return lesson.cards.some(({ card }) => {
-    if (!card.isPracticeCard || !cardMatchesLesson(card, lesson.danceType)) {
+    if (!card.isPracticeCard || !cardMatchesLesson(card, lesson.danceStyleId)) {
       return false;
     }
-    const required = requiredDanceTypeFor(card, lesson.danceType);
-    return required !== null && isQualified(qualifications, required, lesson.level);
+    const required = requiredDanceStyleFor(card, lesson);
+    return required !== null && isQualified(qualifications, required, requiredLevelFor(lesson));
   });
 }
 
@@ -247,7 +250,7 @@ function getPracticePriorityCard(
   const practiceCards = matchedCards.filter(
     (studentCard) =>
       studentCard.card.isPracticeCard &&
-      canUseCard(studentCard.card, qualifications, lesson.danceType, lesson.level)
+      canUseCard(studentCard.card, qualifications, lesson)
   );
   return getRecommendedStudentCard(practiceCards) ?? null;
 }

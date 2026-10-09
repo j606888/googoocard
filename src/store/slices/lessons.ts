@@ -2,7 +2,7 @@ import { Student } from "./students";
 import { api } from "../api";
 import { Card } from "./cards";
 import { Teacher } from "./teachers";
-import { DanceType } from "@prisma/client";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
 import type { CardStatus } from "@/domains/attendance/rosterInsights";
 import type { DanceLevels } from "@/domains/qualification";
 
@@ -14,7 +14,9 @@ export interface Lesson {
   students: Student[];
   periods: Period[];
   teachers: Teacher[];
-  danceType: DanceType;
+  /** Null only on legacy rows until the contract migration makes it required. */
+  danceStyleId: number | null;
+  danceStyle: DanceStyleSummary | null;
   /** 1 = 初階, 2 = 中階, 3 = 進階 — see src/lib/danceLevels.ts. */
   level: number;
   cards: Card[];
@@ -34,7 +36,8 @@ export interface Period {
 export interface LessonSummary {
   id: number;
   name: string;
-  danceType: DanceType;
+  danceStyleId: number | null;
+  danceStyle: DanceStyleSummary | null;
   level: number;
   status: string;
   studentCount: number;
@@ -63,7 +66,8 @@ export interface CalendarPeriod {
   periodId: number;
   lessonId: number;
   lessonName: string;
-  danceType: DanceType;
+  danceStyleId: number | null;
+  danceStyle: DanceStyleSummary | null;
   lessonStatus: string;
   startTime: string;
   endTime: string;
@@ -75,7 +79,7 @@ export interface GetLessonsArgs {
   tab: string;
   sort: string;
   search?: string;
-  danceType?: DanceType | null;
+  danceStyleId?: number | null;
   /** Restrict to one LessonGroup's members — omit for the unfiltered list. */
   groupId?: number | null;
   page?: number;
@@ -93,7 +97,7 @@ export interface DraftLesson {
   lessonName: string;
   teacherIds: number[];
   cardIds: number[];
-  danceType: DanceType;
+  danceStyleId: number;
   /** 1 = 初階 (default), 2 = 中階, 3 = 進階. */
   level?: number;
   /** LessonGroup to file this lesson under — null means 未分類 (ungrouped). */
@@ -149,7 +153,8 @@ export interface LessonStudent {
    * classroom-wide "Needs Renewal" tag. See src/domains/attendance/rosterInsights.ts.
    */
   cardStatus: CardStatus;
-  danceQualifications: DanceType[];
+  /** Ids of the dance styles the student is qualified for. */
+  danceQualifications: number[];
   danceLevels: DanceLevels;
 }
 
@@ -160,14 +165,14 @@ const lessonsApi = api.injectEndpoints({
         lessons: LessonSummary[];
         tabsCount: { inProgress: number; finished: number };
         hasNextPage: boolean;
-        availableDanceTypes: DanceType[];
+        availableDanceStyleIds: number[];
       },
       GetLessonsArgs
     >({
-      query: ({ tab, sort, search, danceType, groupId, page }) => {
+      query: ({ tab, sort, search, danceStyleId, groupId, page }) => {
         const params = new URLSearchParams({ tab, sort });
         if (search) params.set("search", search);
-        if (danceType) params.set("danceType", danceType);
+        if (danceStyleId) params.set("danceStyleId", String(danceStyleId));
         // undefined = no group filter; null = the virtual 未分類 bucket; a
         // number = that one LessonGroup's members.
         if (groupId !== undefined) params.set("groupId", groupId === null ? "none" : String(groupId));

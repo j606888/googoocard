@@ -125,7 +125,7 @@ describe("API 輸入驗證層", () => {
           price: 1000,
           sessions: 8,
           isPracticeCard: true,
-          danceType: null,
+          danceStyleId: null,
         }),
         routeParams({})
       );

@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DanceType } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
   resetDb,
@@ -9,6 +8,8 @@ import {
   createStudentCard,
   jsonRequest,
   routeParams,
+  createDanceStyles,
+  type DanceStyleIds,
 } from "../factories";
 
 const auth = vi.hoisted(() => ({ userId: 0, classroomId: 0 }));
@@ -29,6 +30,9 @@ function convert(
   );
 }
 
+// Dance style ids for the classroom under test, keyed by the old enum name.
+let S: DanceStyleIds;
+
 describe("POST /api/students/[id]/student-cards/[studentCardId]/convert", () => {
   let classroomId: number;
 
@@ -36,6 +40,7 @@ describe("POST /api/students/[id]/student-cards/[studentCardId]/convert", () => 
     await resetDb();
     const classroom = await createClassroom();
     classroomId = classroom.id;
+    S = await createDanceStyles(classroomId);
     auth.classroomId = classroomId;
     auth.userId = classroom.ownerId;
   });
@@ -131,13 +136,13 @@ describe("POST /api/students/[id]/student-cards/[studentCardId]/convert", () => 
 
   it("複習卡折抵：指定較少堂數，剩餘價值仍全額帶走", async () => {
     const student = await createStudent(classroomId, {
-      qualifications: [DanceType.BACHATA],
+      qualifications: [S.BACHATA],
     });
     const practice = await createCard(classroomId, {
       name: "複習卡",
       sessions: 3,
       isPracticeCard: true,
-      danceType: DanceType.BACHATA,
+      danceStyleId: S.BACHATA,
     });
     const level2 = await createCard(classroomId, { name: "Level 2", price: 4000 });
     // 3 堂 900 元，全新未使用 → 剩餘價值 900
@@ -246,7 +251,7 @@ describe("POST /api/students/[id]/student-cards/[studentCardId]/convert", () => 
     const practice = await createCard(classroomId, {
       name: "複習卡",
       isPracticeCard: true,
-      danceType: DanceType.SALSA,
+      danceStyleId: S.SALSA,
     });
     const sc = await createStudentCard(student.id, from.id);
 

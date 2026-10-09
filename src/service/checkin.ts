@@ -1,4 +1,5 @@
-import { Classroom, DanceType } from "@prisma/client";
+import { Classroom } from "@prisma/client";
+import { danceStyleSummarySelect, type DanceStyleSummary } from "@/lib/danceStyles";
 import prisma from "@/lib/prisma";
 import { toTaipeiDateKey, parseTaipeiDateRange } from "@/lib/taipei-date";
 
@@ -12,7 +13,7 @@ export interface TodayPeriod {
 export interface TodayLesson {
   lessonId: number;
   lessonName: string;
-  danceType: DanceType;
+  danceStyle: DanceStyleSummary | null;
   periods: TodayPeriod[];
 }
 
@@ -61,6 +62,7 @@ export async function getTodayLessons(
       periods: { some: { startTime: { gte: start, lt: end } } },
     },
     include: {
+      danceStyle: { select: danceStyleSummarySelect },
       periods: {
         where: { startTime: { gte: start, lt: end } },
         orderBy: { startTime: "asc" },
@@ -82,7 +84,7 @@ export async function getTodayLessons(
   const today: TodayLesson[] = lessons.map((lesson) => ({
     lessonId: lesson.id,
     lessonName: lesson.name,
-    danceType: lesson.danceType,
+    danceStyle: lesson.danceStyle,
     periods: lesson.periods.map((period) => ({
       periodId: period.id,
       startTime: period.startTime,
