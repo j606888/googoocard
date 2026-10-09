@@ -78,7 +78,7 @@ export async function GET(
     const levels = toDanceLevels(student.danceQualifications);
     qualificationsByStudent.set(
       student.id,
-      student.danceQualifications.map((q) => q.danceType)
+      student.danceQualifications.flatMap((q) => (q.danceType ? [q.danceType] : []))
     );
     levelsByStudent.set(student.id, levels);
     cardStatusByStudent.set(

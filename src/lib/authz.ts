@@ -51,6 +51,14 @@ export async function findLessonGroupInClassroom(
   return prisma.lessonGroup.findFirst({ where: { id: groupId, classroomId } });
 }
 
+export async function findDanceStyleInClassroom(
+  danceStyleId: number,
+  classroomId: number | null | undefined
+) {
+  if (!classroomId || Number.isNaN(danceStyleId)) return null;
+  return prisma.danceStyle.findFirst({ where: { id: danceStyleId, classroomId } });
+}
+
 // ---------------------------------------------------------------------------
 // Membership guards.
 //

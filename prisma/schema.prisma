@@ -77,6 +77,7 @@ model Classroom {
   lessonGroups      LessonGroup[]
   inviteTokens      InviteToken[]
   tags              Tag[]
+  danceStyles       DanceStyle[]
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   teachers          Teacher[]
@@ -124,11 +125,14 @@ model Card {
   lessons        LessonCard[]
   isPracticeCard Boolean       @default(false)
   danceType      DanceType?
+  danceStyleId   Int?
+  danceStyle     DanceStyle?   @relation(fields: [danceStyleId], references: [id])
   classroom      Classroom     @relation(fields: [classroomId], references: [id])
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   @@index([classroomId])
+  @@index([danceStyleId])
 }
 
 model Student {
@@ -158,16 +162,22 @@ model Student {
 }
 
 model StudentDanceQualification {
-  id        Int       @id @default(autoincrement())
-  studentId Int
-  student   Student   @relation(fields: [studentId], references: [id])
-  danceType DanceType
+  id           Int         @id @default(autoincrement())
+  studentId    Int
+  student      Student     @relation(fields: [studentId], references: [id])
+  // Legacy enum column (expand/contract): new code writes danceStyleId only and
+  // leaves this null; it is dropped once every row has a danceStyleId.
+  danceType    DanceType?
+  danceStyleId Int?
+  danceStyle   DanceStyle? @relation(fields: [danceStyleId], references: [id])
   // Highest completed level (1 = 初階, 2 = 中階, 3 = 進階 — src/lib/danceLevels.ts).
   // Practice cards may be used in lessons whose level <= this.
-  level     Int       @default(1)
-  createdAt DateTime  @default(now())
+  level        Int         @default(1)
+  createdAt    DateTime    @default(now())
 
   @@unique([studentId, danceType])
+  @@unique([studentId, danceStyleId])
+  @@index([danceStyleId])
 }
 
 model StudentCard {
@@ -212,26 +222,58 @@ model StudentCard {
 }
 
 model Lesson {
-  id          Int             @id @default(autoincrement())
-  name        String
-  classroomId Int
-  classroom   Classroom       @relation(fields: [classroomId], references: [id])
-  status      String          @default("inProgress")
-  endAt       DateTime?
-  danceType   DanceType       @default(BACHATA)
+  id           Int             @id @default(autoincrement())
+  name         String
+  classroomId  Int
+  classroom    Classroom       @relation(fields: [classroomId], references: [id])
+  status       String          @default("inProgress")
+  endAt        DateTime?
+  danceType    DanceType       @default(BACHATA)
+  danceStyleId Int?
+  danceStyle   DanceStyle?     @relation(fields: [danceStyleId], references: [id])
   // Level taught (1 = 初階, 2 = 中階, 3 = 進階 — src/lib/danceLevels.ts).
-  level       Int             @default(1)
-  groupId     Int?
-  group       LessonGroup?    @relation(fields: [groupId], references: [id])
-  teachers    LessonTeacher[]
-  cards       LessonCard[]
-  periods     LessonPeriod[]
-  students    LessonStudent[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  level        Int             @default(1)
+  groupId      Int?
+  group        LessonGroup?    @relation(fields: [groupId], references: [id])
+  teachers     LessonTeacher[]
+  cards        LessonCard[]
+  periods      LessonPeriod[]
+  students     LessonStudent[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   @@index([classroomId])
   @@index([groupId])
+  @@index([danceStyleId])
+}
+
+// A dance style taught in one classroom (Bachata, Locking…). Classroom data,
+// replacing the hardcoded `DanceType` enum. Never deleted, only archived, so
+// old lessons and cards keep their style.
+model DanceStyle {
+  id              Int                         @id @default(autoincrement())
+  classroomId     Int
+  classroom       Classroom                   @relation(fields: [classroomId], references: [id])
+  name            String
+  // Palette key: green/orange/slate/stone/purple/blue/pink/teal/red/indigo.
+  color           String
+  // On: 初階/中階/進階 (src/lib/danceLevels.ts). Off: qualified or not — level is always 1.
+  hasLevels       Boolean                     @default(false)
+  sortOrder       Int                         @default(0)
+  archivedAt      DateTime?
+  // The enum value this style was backfilled from. Lets the backfill re-run
+  // (contract migration) match by origin rather than by a name the classroom
+  // may have since changed. Dropped together with the enum.
+  legacyDanceType DanceType?
+  lessons         Lesson[]
+  cards           Card[]
+  qualifications  StudentDanceQualification[]
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+
+  // Leads with classroomId, so it also serves classroom lookups.
+  @@unique([classroomId, name])
+  @@unique([classroomId, legacyDanceType])
 }
 
 // Bundles recurring lesson slots that share a schedule (e.g. "週日課" holding

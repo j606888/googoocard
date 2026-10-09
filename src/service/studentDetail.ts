@@ -227,7 +227,7 @@ export async function buildStudentDetailPayload(studentId: number) {
     attendancesByDate: sortedAttendancesByDate,
     attendancesByLesson,
     studentCards: studentCardsWithAttendances,
-    danceQualifications: danceQualifications.map((q) => q.danceType),
+    danceQualifications: danceQualifications.flatMap((q) => (q.danceType ? [q.danceType] : [])),
     danceLevels: toDanceLevels(danceQualifications),
     classroom: student.classroom,
     ...toStudentPayload(student),

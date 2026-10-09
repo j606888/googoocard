@@ -303,7 +303,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     attendancesByLesson,
     studentCards: studentCardsWithAttendances,
     tags,
-    danceQualifications: danceQualifications.map((q) => q.danceType),
+    danceQualifications: danceQualifications.flatMap((q) => (q.danceType ? [q.danceType] : [])),
     danceLevels: toDanceLevels(danceQualifications),
     classroom: student.classroom,
     // Teacher-facing, so the share-link token is included — but `lineBindKey`

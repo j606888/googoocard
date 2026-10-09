@@ -13,11 +13,12 @@ export type QualifiableCard = {
 export type DanceLevels = Partial<Record<DanceType, number>>;
 
 export function toDanceLevels(
-  rows: { danceType: DanceType; level: number }[]
+  rows: { danceType: DanceType | null; level: number }[]
 ): DanceLevels {
   const levels: DanceLevels = {};
   for (const row of rows) {
-    levels[row.danceType] = row.level;
+    // Null = a row written by the danceStyleId code path; it has no enum key.
+    if (row.danceType) levels[row.danceType] = row.level;
   }
   return levels;
 }

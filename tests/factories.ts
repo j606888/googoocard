@@ -8,7 +8,7 @@ export async function resetDb() {
   await prisma.$executeRawUnsafe(
     `TRUNCATE "AttendanceRecord", "LessonStudent", "LessonPeriod", "LessonTeacher",
       "LessonCard", "StudentDanceQualification", "StudentTag", "Tag", "Event",
-      "StudentCard", "Lesson", "LessonGroup", "Card", "Student", "Teacher", "InviteToken",
+      "StudentCard", "Lesson", "LessonGroup", "Card", "DanceStyle", "Student", "Teacher", "InviteToken",
       "Membership", "Classroom", "User", "LineAccount", "RenewalReminder" RESTART IDENTITY CASCADE`
   );
 }
@@ -101,6 +101,27 @@ export async function createCard(
 ) {
   return prisma.card.create({
     data: { name, price, sessions, classroomId, isPracticeCard, danceType },
+  });
+}
+
+export async function createDanceStyle(
+  classroomId: number,
+  {
+    name = "Bachata",
+    color = "green",
+    hasLevels = false,
+    sortOrder = 0,
+    archivedAt = null,
+  }: {
+    name?: string;
+    color?: string;
+    hasLevels?: boolean;
+    sortOrder?: number;
+    archivedAt?: Date | null;
+  } = {}
+) {
+  return prisma.danceStyle.create({
+    data: { classroomId, name, color, hasLevels, sortOrder, archivedAt },
   });
 }
 
