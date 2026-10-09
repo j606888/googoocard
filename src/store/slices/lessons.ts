@@ -14,9 +14,8 @@ export interface Lesson {
   students: Student[];
   periods: Period[];
   teachers: Teacher[];
-  /** Null only on legacy rows until the contract migration makes it required. */
-  danceStyleId: number | null;
-  danceStyle: DanceStyleSummary | null;
+  danceStyleId: number;
+  danceStyle: DanceStyleSummary;
   /** 1 = 初階, 2 = 中階, 3 = 進階 — see src/lib/danceLevels.ts. */
   level: number;
   cards: Card[];
@@ -36,8 +35,8 @@ export interface Period {
 export interface LessonSummary {
   id: number;
   name: string;
-  danceStyleId: number | null;
-  danceStyle: DanceStyleSummary | null;
+  danceStyleId: number;
+  danceStyle: DanceStyleSummary;
   level: number;
   status: string;
   studentCount: number;

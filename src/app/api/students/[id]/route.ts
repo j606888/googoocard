@@ -84,12 +84,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         await tx.studentDanceQualification.deleteMany({
           where: {
             studentId: student.id,
-            // Rows the backfill hasn't reached (null style) go too: the client
-            // only ever sees, and sends back, style ids.
-            OR: [
-              { danceStyleId: null },
-              { danceStyleId: { notIn: levels.map(([danceStyleId]) => danceStyleId) } },
-            ],
+            danceStyleId: { notIn: levels.map(([danceStyleId]) => danceStyleId) },
           },
         });
         for (const [danceStyleId, level] of levels) {

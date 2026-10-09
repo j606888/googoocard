@@ -72,7 +72,8 @@ src/
 └── lib/
     ├── auth.ts           # JWT generation/verification + decodeAuthToken()
     ├── prisma.ts         # Prisma singleton
-    ├── danceTypes.ts     # DANCE_TYPE_META: label + colors per dance type (single place to register a new dance type)
+    ├── danceStyles.ts    # DanceStyleSummary + danceStyleSummarySelect + palette keys (DANCE_STYLE_COLORS)
+    ├── danceStyleColors.ts # palette key → static Tailwind classes; danceStyleMeta(style)
     └── lessonDraftStorage.ts  # Local storage draft persistence
 tests/                    # Vitest integration tests (factories, test-DB setup) — unit tests live next to code (*.test.ts)
 ```
@@ -92,10 +93,11 @@ tests/                    # Vitest integration tests (factories, test-DB setup) 
 - `Classroom` — top-level container; all other entities belong to one. Users track a `currentClassroomId` for multi-classroom context switching. Deletion is a **soft delete** (`deletedAt`) — see "教室生命週期與角色" in `docs/architecture.md`.
 - `Membership` — (user, classroom, role) join. `role` is `"owner"` (creator) or `"assistant"` (joined via invite). Owners delete a classroom; assistants leave it. `decodeAuthToken()` re-reads this row on **every** request, so removals take effect immediately — don't bypass it.
 - `Student` — enrolled in a classroom
-- `StudentDanceQualification` — (studentId, danceType, level) rows: the highest level (1 初階 / 2 中階 / 3 進階, `src/lib/danceLevels.ts`) a student has completed in a dance type. Level ≥ 1 = may buy practice cards; a practice card is usable only in lessons with `Lesson.level` ≤ that level. APIs expose both `danceQualifications: DanceType[]` and `danceLevels: { [DanceType]: level }`.
-- `Card` — configurable card type (session limit, price). `isPracticeCard` + `danceType` define a practice (複習) card; `danceType` is required for practice cards, `null` on general cards (and on legacy practice cards, which fall back to the lesson's danceType).
+- `DanceStyle` — a classroom's own dance style (`name`, palette-key `color`, `hasLevels`, `sortOrder`, `archivedAt`), managed on `/dance-styles`. Replaced the old `DanceType` enum (2026-10). Archived, never deleted. Validate any incoming `danceStyleId` with `findDanceStyleInClassroom()` (`src/lib/authz.ts`).
+- `StudentDanceQualification` — (studentId, danceStyleId, level) rows: the highest level (1 初階 / 2 中階 / 3 進階, `src/lib/danceLevels.ts`) a student has completed in a dance style. Level ≥ 1 = may buy practice cards; a practice card is usable only in lessons with `Lesson.level` ≤ that level — **only when the style `hasLevels`**; otherwise every level counts as 1. APIs expose both `danceQualifications: number[]` (style ids) and `danceLevels: { [danceStyleId]: level }`.
+- `Card` — configurable card type (session limit, price). `isPracticeCard` + `danceStyleId` define a practice (複習) card; `danceStyleId` is required for practice cards, `null` on general cards (and on legacy practice cards, which fall back to the lesson's style).
 - `StudentCard` — a student's instance of a Card (tracks `remainingSessions`, `expiredAt`). `serialNumber` is a per-classroom sequence shown as `#A0001`…`#A9999` → `#B0001` (`src/lib/cardSerial.ts`); issue it only via `nextCardSerial(tx, classroomId)` inside the creating transaction — there is no DB unique constraint. Conversion rules (value-based default sessions, unpaid cards blocked) live in `src/domains/cardConversion` — see "課卡轉換" / "卡片編號" in `docs/architecture.md`.
-- `Lesson` — has `status` (`inProgress` / `finished`) and `danceType` (`BACHATA`, `SALSA`, `ZOUK`, `HUSTLE`, `KIZOMBA`). Status is computed by `refreshLesson()` in `src/service/lesson.ts` after each attendance operation.
+- `Lesson` — has `status` (`inProgress` / `finished`), a required `danceStyleId` and a `level`. Status is computed by `refreshLesson()` in `src/service/lesson.ts` after each attendance operation.
 - `LessonPeriod` — a time slot within a Lesson; `attendanceTakenAt` marks when attendance was recorded
 - `AttendanceRecord` — links a student + lessonPeriod + (optionally) a StudentCard; card session is decremented on creation, incremented on removal
 - `LessonStudent` — join table created/upserted when attendance is first taken for a student in a lesson
@@ -105,7 +107,7 @@ tests/                    # Vitest integration tests (factories, test-DB setup) 
 
 ### Practice-Card Qualification (複習卡資格)
 
-All qualification decisions go through **`src/domains/qualification/index.ts`** — pure functions shared by server and client (`isQualified`, `canUseCard`, `canBuyCard`, `cardMatchesLesson`). Never hardcode per-dance-type checks anywhere else. Core rule: a practice card's required dance type = `card.danceType ?? lesson.danceType ?? null`. Required level = `lesson.level` when a lesson is in context (using, or buying inside a lesson), otherwise 1.
+All qualification decisions go through **`src/domains/qualification/index.ts`** — pure functions shared by server and client (`isQualified`, `canUseCard`, `canBuyCard`, `cardMatchesLesson`). Never hardcode per-dance-type checks anywhere else. Core rule: a practice card's required dance style = `card.danceStyleId ?? lesson.danceStyleId ?? null`. Required level = `lesson.level` when a lesson is in context (using, or buying inside a lesson) **and its style `hasLevels`**, otherwise 1 (`requiredLevelFor`).
 
 Enforcement (full matrix in `docs/architecture.md`):
 - Unqualified student buying a practice card → **hard-blocked** (API 403 + UI disabled), in both the student-detail BuyCard and the in-lesson BuyAndUseForm.
@@ -113,7 +115,7 @@ Enforcement (full matrix in `docs/architecture.md`):
 - Attaching a practice card of another dance type to a lesson → API 400 + filtered out of the lesson card select.
 - Manual card consumption (consume route) is intentionally never blocked.
 
-**Adding a new dance type takes exactly 2 steps**: add the value to the `DanceType` enum in `prisma/schema.prisma` (+ migration), and add a label/colors entry to `DANCE_TYPE_META` in `src/lib/danceTypes.ts`. Everything else (qualification toggles, badges, filters, validation) is data-driven.
+**Dance styles are classroom data, not code**: a classroom adds/renames/archives its styles on `/dance-styles` (new classrooms start with none). Never hardcode a style name or id; everything (qualification toggles, badges, filters, validation) is data-driven. Embed styles in responses via `danceStyleSummarySelect` (`src/lib/danceStyles.ts`), and map colours only through `danceStyleMeta()` (`src/lib/danceStyleColors.ts`).
 
 ### Attendance Card Selection Logic
 

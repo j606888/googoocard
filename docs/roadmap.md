@@ -234,7 +234,8 @@ JWT 內嵌 `classroomId`、活 30 天、無法撤銷，而所有 handler 都只�
 | `AttendanceRecord.lessonPeriodId` | `@@unique([lessonPeriodId, studentId])` |
 | `StudentTag.studentId` | `@@unique([studentId, tagId])` |
 | `LessonStudent.lessonId` / `LessonCard.lessonId` / `LessonTeacher.lessonId` | 各自的 `@@unique` |
-| `StudentDanceQualification.studentId` | `@@unique([studentId, danceType])` |
+| `StudentDanceQualification.studentId` | `@@unique([studentId, danceStyleId])` |
+| `DanceStyle.classroomId` | `@@unique([classroomId, name])` |
 
 反之 `Tag.classroomId` 與 `LessonGroup.classroomId` **需要**獨立索引，
 因為它們的 unique 是 `[name, classroomId]`，前導是 `name`。

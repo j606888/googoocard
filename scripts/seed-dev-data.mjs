@@ -118,6 +118,31 @@ async function wipe(classroomId) {
   await prisma.teacher.deleteMany({ where: { classroomId } });
 }
 
+// 舞種是教室資料（DanceStyle）。腳本裡的 BACHATA… 只是 key；以名稱 upsert，
+// 教室自己改過顏色／分階的舞種不會被蓋掉，也不會重複建立。
+const DANCE_STYLE_SPECS = {
+  BACHATA: { name: "Bachata", color: "green" },
+  SALSA: { name: "Salsa", color: "orange" },
+  ZOUK: { name: "Zouk", color: "slate" },
+  HUSTLE: { name: "Hustle", color: "stone" },
+  KIZOMBA: { name: "Kizomba", color: "purple" },
+};
+
+async function ensureDanceStyles(classroomId) {
+  const ids = {};
+  let sortOrder = 0;
+  for (const [key, { name, color }] of Object.entries(DANCE_STYLE_SPECS)) {
+    const style = await prisma.danceStyle.upsert({
+      where: { classroomId_name: { classroomId, name } },
+      create: { classroomId, name, color, sortOrder: sortOrder },
+      update: {},
+    });
+    ids[key] = style.id;
+    sortOrder += 1;
+  }
+  return ids;
+}
+
 const TEACHERS = ["陳老師 Ariel", "林老師 Marco", "王老師 Sunny", "張老師 Diego", "李老師 Vivi"];
 
 const CARD_SPECS = [
@@ -125,9 +150,9 @@ const CARD_SPECS = [
   { key: "g8", name: "8 堂團體卡", price: 6400, sessions: 8 },
   { key: "g12", name: "12 堂團體卡", price: 8400, sessions: 12 },
   { key: "private4", name: "4 堂私人課", price: 6800, sessions: 4 },
-  { key: "pBachata", name: "Bachata Lv1 複習卡", price: 1800, sessions: 6, isPracticeCard: true, danceType: "BACHATA" },
-  { key: "pSalsa", name: "Salsa Lv1 複習卡", price: 1800, sessions: 6, isPracticeCard: true, danceType: "SALSA" },
-  { key: "pZouk", name: "Zouk Lv1 複習卡", price: 1800, sessions: 6, isPracticeCard: true, danceType: "ZOUK" },
+  { key: "pBachata", name: "Bachata Lv1 複習卡", price: 1800, sessions: 6, isPracticeCard: true, dance: "BACHATA" },
+  { key: "pSalsa", name: "Salsa Lv1 複習卡", price: 1800, sessions: 6, isPracticeCard: true, dance: "SALSA" },
+  { key: "pZouk", name: "Zouk Lv1 複習卡", price: 1800, sessions: 6, isPracticeCard: true, dance: "ZOUK" },
   // 已下架：不再出現在購買選單，但舊卡還在學生手上
   { key: "legacy10", name: "舊版 10 堂卡（已下架）", price: 7000, sessions: 10, retired: true },
 ];
@@ -181,6 +206,7 @@ async function main() {
   }
 
   const today = taipeiToday();
+  const danceStyleIds = await ensureDanceStyles(classroomId);
 
   // ── 老師 ─────────────────────────────────────────────────────────
   const teachers = [];
@@ -191,17 +217,18 @@ async function main() {
   // ── 課卡卡別 ─────────────────────────────────────────────────────
   const cards = {};
   for (const spec of CARD_SPECS) {
-    cards[spec.key] = await prisma.card.create({
+    const card = await prisma.card.create({
       data: {
         name: spec.name,
         price: spec.price,
         sessions: spec.sessions,
         classroomId,
         isPracticeCard: spec.isPracticeCard ?? false,
-        danceType: spec.danceType ?? null,
+        danceStyleId: spec.dance ? danceStyleIds[spec.dance] : null,
         expiredAt: spec.retired ? addDays(today, -60) : null,
       },
     });
+    cards[spec.key] = { ...card, dance: spec.dance ?? null };
   }
 
   // ── 過課資格：決定誰買得起／用得了複習卡 ─────────────────────────
@@ -211,9 +238,9 @@ async function main() {
     if (chance(0.55)) owned.push("BACHATA");
     if (chance(0.35)) owned.push("SALSA");
     if (chance(0.15)) owned.push("ZOUK");
-    for (const danceType of owned) {
+    for (const dance of owned) {
       await prisma.studentDanceQualification.create({
-        data: { studentId: student.id, danceType },
+        data: { studentId: student.id, danceStyleId: danceStyleIds[dance] },
       });
     }
     qualifications.set(student.id, owned);
@@ -240,7 +267,7 @@ async function main() {
       data: {
         name: spec.name,
         classroomId,
-        danceType: spec.dance,
+        danceStyleId: danceStyleIds[spec.dance],
         groupId: spec.group ? groups[spec.group].id : null,
         status: "inProgress",
       },
@@ -424,7 +451,7 @@ async function main() {
         ? held.find(
             (sc) =>
               sc.cardId === cards[practiceCardKey].id &&
-              quals.includes(cards[practiceCardKey].danceType)
+              quals.includes(cards[practiceCardKey].dance)
           )
         : null;
       const general = held

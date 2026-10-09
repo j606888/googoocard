@@ -66,6 +66,16 @@ async function main() {
     (await prisma.teacher.findFirst({ where: { classroomId } })) ??
     (await prisma.teacher.create({ data: { name: "示範老師", classroomId } }));
 
+  // Dance styles are classroom data: reuse by name, create when missing.
+  const styleNamed = (name, color, sortOrder) =>
+    prisma.danceStyle.upsert({
+      where: { classroomId_name: { classroomId, name } },
+      create: { classroomId, name, color, sortOrder },
+      update: {},
+    });
+  const bachata = await styleNamed("Bachata", "green", 0);
+  const salsa = await styleNamed("Salsa", "orange", 1);
+
   // Reuse existing cards: a general card and a Bachata practice card.
   const generalCard =
     (await prisma.card.findFirst({
@@ -77,7 +87,7 @@ async function main() {
     }));
   const practiceCard =
     (await prisma.card.findFirst({
-      where: { classroomId, isPracticeCard: true, danceType: "BACHATA" },
+      where: { classroomId, isPracticeCard: true, danceStyleId: bachata.id },
       orderBy: { id: "asc" },
     })) ??
     (await prisma.card.create({
@@ -87,7 +97,7 @@ async function main() {
         sessions: 6,
         classroomId,
         isPracticeCard: true,
-        danceType: "BACHATA",
+        danceStyleId: bachata.id,
       },
     }));
 
@@ -95,19 +105,19 @@ async function main() {
   const lessonSpecs = [
     {
       name: `早上 Bachata ${todayKey}`,
-      danceType: "BACHATA",
+      danceStyle: bachata,
       hour: 10,
       cardIds: [generalCard.id, practiceCard.id],
     },
     {
       name: `下午 Bachata 複習 ${todayKey}`,
-      danceType: "BACHATA",
+      danceStyle: bachata,
       hour: 13,
       cardIds: [practiceCard.id],
     },
     {
       name: `晚上 Salsa ${todayKey}`,
-      danceType: "SALSA",
+      danceStyle: salsa,
       hour: 19,
       cardIds: [generalCard.id],
     },
@@ -119,7 +129,7 @@ async function main() {
       data: {
         name: spec.name,
         classroomId,
-        danceType: spec.danceType,
+        danceStyleId: spec.danceStyle.id,
         status: "inProgress",
       },
     });
@@ -147,7 +157,7 @@ async function main() {
   console.log(`卡別：一般卡「${generalCard.name}」#${generalCard.id}、複習卡「${practiceCard.name}」#${practiceCard.id}`);
   console.log(`今日 (${todayKey}) 課程：`);
   for (const l of lessons) {
-    console.log(`  • ${l.hour}:00 ${l.name} [${l.danceType}] — 接受卡：${l.cardIds.join(",")}`);
+    console.log(`  • ${l.hour}:00 ${l.name} [${l.danceStyle.name}] — 接受卡：${l.cardIds.join(",")}`);
   }
   console.log("──────────────────────────────────────");
   console.log("👉 已綁定，直接開圖文選單的「上課簽到」即可測試；後台也可對這些課程點名。");

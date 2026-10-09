@@ -49,8 +49,6 @@ describe("Card danceStyleId as a category label for general cards", () => {
     const card = await prisma.card.findFirst({ where: { name: "Zouk 8堂" } });
     expect(card?.isPracticeCard).toBe(false);
     expect(card?.danceStyleId).toBe(zouk);
-    // New code never writes the legacy enum.
-    expect(card?.danceType).toBeNull();
   });
 
   it("POST general card without a dance style stays null", async () => {

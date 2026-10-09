@@ -26,7 +26,7 @@ const generalCard = { isPracticeCard: false, danceStyleId: null };
 const bachataPracticeCard = { isPracticeCard: true, danceStyleId: BACHATA };
 const salsaPracticeCard = { isPracticeCard: true, danceStyleId: SALSA };
 const hustlePracticeCard = { isPracticeCard: true, danceStyleId: HUSTLE };
-// Practice card created before Card.danceType existed
+// Practice card created before cards had a dance style
 const legacyPracticeCard = { isPracticeCard: true, danceStyleId: null };
 
 describe("isQualified", () => {
@@ -197,10 +197,6 @@ describe("toDanceLevels", () => {
       ])
     ).toEqual({ [HUSTLE]: 3, [BACHATA]: 1 });
   });
-
-  it("skips rows not yet backfilled", () => {
-    expect(toDanceLevels([{ danceStyleId: null, level: 2 }])).toEqual({});
-  });
 });
 
 describe("cardMatchesLesson", () => {
@@ -221,19 +217,5 @@ describe("cardMatchesLesson", () => {
 
   it("legacy practice cards (null dance style) match any lesson", () => {
     expect(cardMatchesLesson(legacyPracticeCard, ZOUK)).toBe(true);
-  });
-});
-
-describe("lesson without a dance style (pre-contract legacy row)", () => {
-  const unstyled: QualifyingLesson = { danceStyleId: null, level: 1, danceStyle: null };
-
-  it("fails closed for practice cards and stays open for general cards", () => {
-    expect(canUseCard(bachataPracticeCard, { [BACHATA]: 1 }, unstyled)).toBe(false);
-    expect(canUseCard(legacyPracticeCard, { [BACHATA]: 1 }, unstyled)).toBe(false);
-    expect(canUseCard(generalCard, {}, unstyled)).toBe(true);
-    expect(canBuyCard(legacyPracticeCard, { [BACHATA]: 1 }, unstyled)).toEqual({
-      allowed: false,
-      reason: "UNKNOWN_DANCE_TYPE",
-    });
   });
 });

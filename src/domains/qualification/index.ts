@@ -11,13 +11,11 @@ export type QualifiableCard = {
 };
 
 // The lesson a card is bought or used in. `danceStyle.hasLevels` decides
-// whether `level` means anything. The style is nullable only until the
-// contract migration makes Lesson.danceStyleId NOT NULL: a lesson without one
-// matches no practice card, so practice cards fail closed there.
+// whether `level` means anything.
 export type QualifyingLesson = {
-  danceStyleId: number | null;
+  danceStyleId: number;
   level: number;
-  danceStyle: { hasLevels: boolean } | null;
+  danceStyle: { hasLevels: boolean };
 };
 
 // Highest completed level per dance style id (1 = 初階, see src/lib/danceLevels.ts).
@@ -25,13 +23,10 @@ export type QualifyingLesson = {
 export type DanceLevels = Record<number, number>;
 
 export function toDanceLevels(
-  rows: { danceStyleId: number | null; level: number }[]
+  rows: { danceStyleId: number; level: number }[]
 ): DanceLevels {
   const levels: DanceLevels = {};
-  for (const row of rows) {
-    // Null only on legacy rows the backfill hasn't reached yet.
-    if (row.danceStyleId !== null) levels[row.danceStyleId] = row.level;
-  }
+  for (const row of rows) levels[row.danceStyleId] = row.level;
   return levels;
 }
 
@@ -42,7 +37,7 @@ export type BuyDecision =
 // The level a lesson asks of a practice card user: its own level when the
 // style is levelled, otherwise 1.
 export function requiredLevelFor(lesson: QualifyingLesson): number {
-  return lesson.danceStyle?.hasLevels ? lesson.level : 1;
+  return lesson.danceStyle.hasLevels ? lesson.level : 1;
 }
 
 // Qualified when the student has completed at least `requiredLevel` of the
@@ -56,7 +51,7 @@ export function isQualified(
 }
 
 // A practice card's required dance style: its own when set, otherwise the
-// lesson's (legacy cards created before Card.danceType existed).
+// lesson's (legacy practice cards created before cards had a dance style).
 export function requiredDanceStyleFor(
   card: QualifiableCard,
   lesson?: { danceStyleId: number | null } | null

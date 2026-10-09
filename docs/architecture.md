@@ -23,9 +23,10 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 │             ├── StudentDanceQualification（學生 × 舞種 + 已完成階級 level，可買/用複習卡）
 │             ├── StudentTag ── Tag（自由標籤；"Needs Renewal" 為系統自動維護）
 │             └── Event（學生事件日誌：簽到、買卡、課卡用完）
-├── Card（課卡種類：價格/堂數；isPracticeCard + danceType 定義複習卡）
+├── DanceStyle（教室自訂舞種：name / color 色盤 key / hasLevels 分階 / sortOrder / archivedAt）
+├── Card（課卡種類：價格/堂數；isPracticeCard + danceStyleId 定義複習卡）
 ├── Teacher（教室內的老師實體，不是 User）
-└── Lesson（danceType + level 初/中/進階 + status inProgress/finished）
+└── Lesson（danceStyleId + level 初/中/進階 + status inProgress/finished）
     ├── LessonCard（此課程接受哪些課卡）
     ├── LessonTeacher
     ├── LessonPeriod（單堂時段；attendanceTakenAt 標記已點名）
@@ -36,9 +37,21 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 要點：
 
 - `Lesson.status` 由 `refreshLesson()`（`src/service/lesson.ts`）在每次點名操作後重算。
-- `DanceType` enum：`BACHATA / SALSA / ZOUK / HUSTLE / KIZOMBA`（新增舞種見下節）。
-- `Card.danceType`：複習卡（`isPracticeCard=true`）必填；一般卡為 `null`。
-  重構前建立的複習卡可能是 `null`（legacy），系統各處有對應的 fallback 行為。
+- 舞種是**教室資料**（`DanceStyle`），不是 enum——見下節「舞種（DanceStyle）」。
+- `Lesson.danceStyleId`、`StudentDanceQualification.danceStyleId` 必填。
+- `Card.danceStyleId`：複習卡（`isPracticeCard=true`）必填；一般卡為 `null`（或當分類標籤用，不影響可用性）。
+  重構前建立的複習卡可能是 `null`（legacy），系統各處 fallback 到課程的舞種。
+
+## 舞種（DanceStyle）
+
+2026-10 起取代寫死的 `enum DanceType`（expand → contract 兩段 migration：`20261009120000_dance_styles` 建表回填、`20261010090000_dance_styles_contract` 移除 enum）。
+
+- 每間教室在 **`/dance-styles`** 管理自己的舞種：新增、改名（同教室不可重名，`@@unique([classroomId, name])` → 409）、色盤選色、「分階」開關、上下排序、封存／還原。**新教室清單是空的**，開課／建立複習卡時會引導過去。
+- **只封存不刪除**（沒有 DELETE API）：封存的舞種不出現在選單，但舊課、舊卡、學生資格照常顯示。
+- API：`GET/POST /api/dance-styles`、`PATCH /api/dance-styles/[id]`（含 `archived: boolean`）、`PUT /api/dance-styles/order`（`ids` 必須剛好是該教室全部舞種，含封存，一次重寫所有 `sortOrder`）。寫入其他資源時用 `findDanceStyleInClassroom()`（`src/lib/authz.ts`）驗證，別教室或不存在 → 400 `DANCE_STYLE_NOT_FOUND`；缺 → 400 `DANCE_STYLE_REQUIRED`。
+- 回應裡的舞種一律是 `DanceStyleSummary = { id, name, color, hasLevels }`，用 `danceStyleSummarySelect`（`src/lib/danceStyles.ts`）select，不要 `danceStyle: true`。
+- 顏色：`color` 存色盤 key（`DANCE_STYLE_COLORS`），對應的 Tailwind class 寫死在 `src/lib/danceStyleColors.ts`（`danceStyleMeta(style)`），因為 Tailwind 只認得靜態 class。
+- 前端：老師端用 `useDanceStyles()`（`styles` = 未封存、`byId` = 全部）；LIFF、QR 看板、公開學生頁讀 API 回應裡附帶的 `danceStyle`（它們沒有老師 session）。
 
 ## 複習卡資格系統
 
@@ -53,8 +66,10 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - `Lesson.level` = 這堂課教的階級，建課/編輯時手動選，預設 1。
 - **用**複習卡：`學生 level ≥ 課程 level`。已完成中階（正在上進階）→ 可複習初階、中階；已完成初階 → 只能複習初階。
 - **買**複習卡：學生頁 / LIFF（無課程）只要 level ≥ 1；課程內買卡（帶 `lessonId`）視為買來複習這堂，需達課程 level。
-- 階級定義集中在 `src/lib/danceLevels.ts`（全舞種共用 3 階）。舊資料全部 = 1，沒分階的教室行為完全不變（UI 只在 level ≥ 2 時才顯示階級）。
-- API：學生回應同時有 `danceQualifications: DanceType[]`（徽章/篩選用）與 `danceLevels: { [DanceType]: level }`（資格判斷用）；`PATCH /api/students/[id]` 收 `danceLevels`，舊的 `danceQualifications` 陣列仍接受：新增的舞種為初階，已存在的舞種**保留原階級**（避免舊分頁把中階學生降回初階）。
+- 階級定義集中在 `src/lib/danceLevels.ts`（全舞種共用 3 階）。
+- **只有 `DanceStyle.hasLevels` 開啟的舞種才分階**：關閉時課程與資格的 `level` 一律視為 1（資料保留，`requiredLevelFor()` 決定），UI 也不顯示階級選擇、星章與角標。
+- 編輯學生：每個舞種一列分段按鈕——分階舞種 `未完成｜初階｜中階｜進階`，不分階 `未完成｜已完成`（選「已完成」不會把既有高階級降回 1）。學生列表徽章在分階且 level ≥ 2 時右上角掛數字。
+- API：學生回應同時有 `danceQualifications: number[]`（舞種 id，徽章/篩選用）與 `danceLevels: { [danceStyleId]: level }`（資格判斷用）；`PATCH /api/students/[id]` 收 `danceLevels`，舊的 `danceQualifications` 陣列仍接受：新增的舞種為初階，已存在的舞種**保留原階級**（避免舊分頁把中階學生降回初階）。
 
 ### 單一真相：`src/domains/qualification/index.ts`
 
@@ -62,24 +77,19 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 | 函式 | 用途 |
 |---|---|
-| `isQualified(levels, danceType, requiredLevel = 1)` | 學生該舞種已完成階級是否 ≥ requiredLevel |
+| `isQualified(levels, danceStyleId, requiredLevel = 1)` | 學生該舞種已完成階級是否 ≥ requiredLevel |
 | `toDanceLevels(rows)` | prisma 資格列 → `DanceLevels` map（server 共用） |
-| `requiredDanceTypeFor(card, lessonDanceType?)` | 複習卡所需舞種 = `card.danceType ?? lesson.danceType ?? null` |
-| `canUseCard(card, levels, lessonDanceType, lessonLevel)` | 點名/扣堂情境（一定有課程上下文，需達課程階級） |
-| `canBuyCard(card, levels, lessonDanceType?, lessonLevel = 1)` | 購買情境；失敗回 `NOT_QUALIFIED` 或 `UNKNOWN_DANCE_TYPE` |
-| `cardMatchesLesson(card, lessonDanceType)` | 複習卡能否掛到課程（null = legacy 通用，可掛任何課程） |
+| `requiredDanceStyleFor(card, lesson?)` | 複習卡所需舞種 = `card.danceStyleId ?? lesson.danceStyleId ?? null` |
+| `requiredLevelFor(lesson)` | `lesson.danceStyle.hasLevels ? lesson.level : 1` |
+| `canUseCard(card, levels, lesson)` | 點名/扣堂情境（一定有課程上下文，需達課程階級） |
+| `canBuyCard(card, levels, lesson?)` | 購買情境；失敗回 `NOT_QUALIFIED` 或 `UNKNOWN_DANCE_TYPE` |
+| `cardMatchesLesson(card, lessonDanceStyleId)` | 複習卡能否掛到課程（null = legacy 通用，可掛任何課程） |
 
-### UI 集中設定：`src/lib/danceTypes.ts`
+`lesson` 參數是 `QualifyingLesson = { danceStyleId, level, danceStyle: { hasLevels } }`。
 
-`DANCE_TYPE_META`：每個舞種的 label 與 Tailwind 顏色（badge/dot/border…）。
-所有徽章、篩選 chip、選擇器都由 `ALL_DANCE_TYPES` 迴圈產生。
+### 新增舞種
 
-### ⭐ 新增舞種只需兩步
-
-1. `prisma/schema.prisma` 的 `DanceType` enum 加值 + 建 migration（`ALTER TYPE ... ADD VALUE`）
-2. `src/lib/danceTypes.ts` 的 `DANCE_TYPE_META` 加一筆 label + 顏色
-
-其餘（資格授予、買卡驗證、點名優先、UI 徽章與篩選）全部自動生效，零邏輯修改。
+不需要改程式：教室在 `/dance-styles` 新增即可。資格授予、買卡驗證、點名優先、UI 徽章與篩選全部由資料驅動。
 
 ### 驗證矩陣
 
@@ -171,7 +181,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 兩個入口，同一個 API（`POST /api/students/[id]/student-cards`）：
 
-1. **學生詳細頁** `BuyCard.tsx` — 無課程上下文，複習卡用 `card.danceType` 驗證
+1. **學生詳細頁** `BuyCard.tsx` — 無課程上下文，複習卡用 `card.danceStyleId` 驗證
 2. **點名頁「買卡並使用」** `BuyAndUseForm.tsx` — 帶 `lessonId`，legacy 卡 fallback 用課程舞種；買完立即 consume
 
 買卡會建立 `Event`（購買課卡）並刷新 Needs Renewal tag。
@@ -359,7 +369,7 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
   （`/api` 整段在 middleware 層是公開的，真正的把關在各 handler。）
 - 前端資料層全部走 RTK Query（`src/store/slices/`，一 resource 一檔），
   mutation 用 tag invalidation 同步 UI（`TAG_TYPES` 在 `store/api.ts`）。
-- 學生 API 回傳的 `danceQualifications` 是扁平的 `DanceType[]`（不是 join table 物件）。
+- 學生 API 回傳的 `danceQualifications` 是扁平的舞種 id 陣列 `number[]`（不是 join table 物件）。
 - PATCH student 時 `danceQualifications` 為 `undefined` → 不動資格（保護舊 client）；
   給陣列 → 整組同步（transaction 內 delete notIn + createMany skipDuplicates）。
 

@@ -147,13 +147,11 @@ export async function GET(request: Request) {
   // chips never offer a dead-end (0-result) option. Classroom-wide + unfiltered
   // so the set stays stable across tab/search/danceStyleId changes.
   const distinctDanceStyles = await prisma.lesson.findMany({
-    where: { classroomId, danceStyleId: { not: null } },
+    where: { classroomId },
     distinct: ["danceStyleId"],
     select: { danceStyleId: true },
   });
-  const availableDanceStyleIds = distinctDanceStyles.flatMap((d) =>
-    d.danceStyleId === null ? [] : [d.danceStyleId]
-  );
+  const availableDanceStyleIds = distinctDanceStyles.map((d) => d.danceStyleId);
 
   return NextResponse.json({
     lessons: summaries,
