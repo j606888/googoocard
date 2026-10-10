@@ -236,6 +236,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 **營收語意（改動這裡前務必看懂）**：
 
+- **課程月營收依舞種**（`income/session-monthly/[month]`）跟 `daily-summary` 用同一個 `periodRevenue`，各舞種加總必等於當月每日營收加總；收入頁的「依卡種」拆分則是前端從 `card-monthly/[month]` 的 `purchases` 推（`src/features/income/incomeInsights.ts`），不另開 API。
 - **課卡月營收**（`income/card-monthly`，依購買日認列全額）必須 `where: { origin: "PURCHASE" }`，
   否則同一筆錢會在原始購買月與轉換月各算一次。
 - **每日營收**（`periodRevenue` = `finalPrice / totalSessions`）照常攤提。因為新卡帶走的是
@@ -423,7 +424,7 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 右欄只放日常會看的三個分頁；轉換卡片、停用、備註、確認付款等深度操作維持在原本的三欄完整頁面（右上角「完整頁面」）。
 
-排序有四種（`SORT_OPTIONS`，`studentFilters.ts`）：姓名／編號／剩餘堂數（少到多）／最近上課（久到近）。**一律在前端排**——列表沒有分頁，而且後兩者不是 DB 單一欄位排得出來的。`GET /api/students` 為此多回一個 `lastAttendAt`（巢狀 `take: 1` 取最近一筆已點名的出席，靠 `AttendanceRecord @@index([studentId])`）。
+排序有四種（`SORT_OPTIONS`，`studentFilters.ts`）：姓名／編號／剩餘堂數（少到多）／最近上課（久到近）。**一律在前端排**——列表沒有分頁，而且後兩者不是 DB 單一欄位排得出來的。`GET /api/students` 為此多回 `lastAttendAt` / `lastAttendLessonName`（巢狀 `take: 1`，靠 `AttendanceRecord @@index([studentId])`）。「最近上課」= 最近一次出席**那堂課的上課時間**（`lessonPeriod.startTime`），不是點名時間；學生自助簽到、尚未定案的也算。三個出口（名單、學生詳情、LIFF／分享頁）共用 `src/service/studentDetail.ts` 的 `lastAttendanceQuery` / `findLastAttendance`，別再各寫一份。
 
 ## 測試
 

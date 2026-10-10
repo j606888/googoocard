@@ -501,6 +501,13 @@ import `renewalReminder` / `pushMessage` / `findExhaustedRenewableCard`），沒
 （後者服務 `/public-students` 與 LIFF）。應合併成**單一 builder + 不同欄位白名單**
 ——這也剛好是 P0-2 要做的事，兩者一起做。
 
+## [ ] P3-4 收入頁改用 RTK Query
+
+`src/features/income/IncomeCalendar.tsx` 用 `fetch` + `useState` 自己管四種資料與快取（每日列表、單日明細、
+課卡月列表／單月明細、舞種月拆分），違反「RTK Query 管所有 server state」的慣例：買卡、確認付款之後
+收入頁不會跟著失效重抓。2026-10 改版只在上面加功能、沒有搬遷。另外 `GET /api/income`（舊的課卡紀錄
+分頁列表）改版後已沒有前端使用者，可以一起移除。
+
 ## [ ] P3-2 其他
 
 - **`GET /api/students` 無分頁**，且對每位學生 include 全部未過期卡 + tags + lessons。

@@ -1,3 +1,5 @@
+import type { DanceStyleSummary } from "@/lib/danceStyles";
+
 export interface IncomeRecord {
   id: number;
   createdAt: string;
@@ -68,4 +70,10 @@ export interface CardMonthlyDetailResponse {
   totalRevenue: number;
   unpaidTotal: number;
   purchases: CardPurchase[];
+}
+
+export interface SessionMonthlyResponse {
+  month: string;
+  totalRevenue: number;
+  byDanceStyle: { danceStyle: DanceStyleSummary; revenue: number }[];
 }
