@@ -33,7 +33,7 @@ const SubNavbar = ({
       {subtitle && <p className="text-white/85 text-xs mt-0.5">{subtitle}</p>}
       {withUnpaidBell && (
         <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center justify-center">
-          <UnpaidBell />
+          <UnpaidBell className="" tone="onPrimary" />
         </div>
       )}
     </div>

@@ -21,6 +21,18 @@ export function danceLevelLabel(level: number): string {
   return DANCE_LEVELS.find((l) => l.value === level)?.label ?? `Lv${level}`;
 }
 
+/**
+ * The level a lesson teaches, as shown next to its style ("初階" / "中階" /
+ * "進階") — every level, 初階 included, but only for a style that has levels;
+ * null otherwise. The one rule for lesson lists and headers.
+ */
+export function lessonLevelLabel(
+  style: Pick<DanceStyleSummary, "hasLevels"> | null | undefined,
+  level: number
+): string | null {
+  return style?.hasLevels ? danceLevelLabel(level) : null;
+}
+
 // "Hustle" for 初階 or a style without levels, "Hustle 中階" above it.
 export function practiceQualificationLabel(
   style: Pick<DanceStyleSummary, "name" | "hasLevels">,

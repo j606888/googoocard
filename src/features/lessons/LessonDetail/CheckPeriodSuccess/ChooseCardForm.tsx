@@ -7,6 +7,7 @@ import CardSerial from "@/components/CardSerial";
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { formatMoney } from "@/lib/money";
 
 const ChooseCardForm = ({
   record,
@@ -126,7 +127,7 @@ const ChooseCardForm = ({
                 <div className="flex flex-col w-32 gap-1 font-normal text-neutral-700">
                   <div className="flex justify-between">
                     <span className="text-xs">價格：</span>
-                    <span className="text-xs">${studentCard.finalPrice}</span>
+                    <span className="text-xs">${formatMoney(studentCard.finalPrice)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-xs">購買日：</span>

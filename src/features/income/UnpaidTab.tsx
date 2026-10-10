@@ -7,6 +7,7 @@ import {
   useGetUnpaidStudentCardsQuery,
   useConfirmStudentCardPaymentMutation,
 } from "@/store/slices/students";
+import { formatMoney } from "@/lib/money";
 
 export default function UnpaidTab() {
   const { data: cards, isLoading } = useGetUnpaidStudentCardsQuery();
@@ -58,7 +59,7 @@ export default function UnpaidTab() {
               </p>
             </div>
             <div className="shrink-0 text-right text-base font-bold text-danger-600">
-              ${card.finalPrice}
+              ${formatMoney(card.finalPrice)}
             </div>
             <button
               className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-success-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-success-700 transition-colors disabled:opacity-50"

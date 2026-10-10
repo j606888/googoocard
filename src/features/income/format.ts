@@ -1,6 +1,4 @@
-export function formatMoney(amount: number): string {
-  return Math.round(amount).toLocaleString();
-}
+export { formatMoney } from "@/lib/money";
 
 // 吃 "2026-08" 或 "2026-08-01" 皆可 → "2026 年 8 月"
 export function monthLabel(dateOrMonth: string): string {

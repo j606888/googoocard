@@ -35,7 +35,7 @@ const ClassroomSwitcher = () => {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-white"
+        className="flex items-center gap-1.5 text-neutral-900"
       >
         <span className="text-xl font-bold">{currentClassroom.name}</span>
         <ChevronDown

@@ -21,19 +21,18 @@ const Navbar = () => {
     }
   }, [isLoading, data?.currentClassroomId, error]);
 
+  // Mobile only. On desktop the sidebar carries the classroom switcher and the
+  // bell, so the bar would be an empty strip — but the component stays mounted
+  // there for the login / onboarding redirect above.
   if (isLoading) return (
-    <div className="w-full h-15 bg-primary-500 flex items-center px-5 gap-3 sticky top-0 z-10">
-      <span className="text-white text-xl font-bold">
-        <RiseLoader color="#fff" size={8} />
-      </span>
+    <div className="lg:hidden w-full h-15 bg-white border-b border-neutral-200 flex items-center px-5 gap-3 sticky top-0 z-10">
+      <RiseLoader color="#2b8e6e" size={8} />
     </div>
   )
 
   return (
-    <div className="w-full h-15 bg-primary-500 flex items-center px-5 gap-3 sticky top-0 z-10">
-      <div className="lg:hidden">
-        <ClassroomSwitcher />
-      </div>
+    <div className="lg:hidden w-full h-15 bg-white border-b border-neutral-200 flex items-center px-5 gap-3 sticky top-0 z-10">
+      <ClassroomSwitcher />
       <UnpaidBell />
     </div>
   );

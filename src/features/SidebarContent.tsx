@@ -12,6 +12,7 @@ import { useLogoutMutation } from "@/store/slices/me";
 import { useGetStudentsQuery } from "@/store/slices/students";
 import Menu from "@/components/Menu";
 import { LINKS } from "./nav/navConfig";
+import UnpaidBell from "./UnpaidBell";
 
 interface SidebarContentProps {
   onClose?: () => void;
@@ -61,7 +62,9 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
         <h2 className="min-w-0 flex-1 truncate text-base font-medium">
           {currentClassroom?.name}
         </h2>
+        <UnpaidBell className="shrink-0" />
         <button
+          aria-label="切換教室"
           className="shrink-0 cursor-pointer"
           onClick={() => setSwitchClassroomOpen(!switchClassroomOpen)}
         >

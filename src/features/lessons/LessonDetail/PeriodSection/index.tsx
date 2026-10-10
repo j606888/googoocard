@@ -42,7 +42,7 @@ const PeriodSection = ({
     <div className="flex flex-col gap-4 px-5">
       <div className="flex justify-between items-center">
         <h3 className="text-base font-medium">
-          Total {periods.length} periods
+          時段 · 共 {periods.length} 堂
         </h3>
         <AddPeriodForm lessonId={lesson.id} periods={periods} />
       </div>

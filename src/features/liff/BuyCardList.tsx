@@ -9,6 +9,7 @@ import { LiffAuthContext } from "@/app/liff/LiffStudentGate";
 import { canBuyCard } from "@/domains/qualification";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import type { DanceStyleSummary } from "@/lib/danceStyles";
+import { formatMoney } from "@/lib/money";
 
 interface BuyableCard {
   id: number;
@@ -149,7 +150,7 @@ export default function BuyCardList({
           <div className="mt-2 flex items-center justify-between text-sm text-neutral-600">
             <span>{purchased.sessions} 堂</span>
             <span className="text-lg font-bold text-primary-600">
-              ${purchased.price}
+              ${formatMoney(purchased.price)}
             </span>
           </div>
         </div>
@@ -196,7 +197,7 @@ export default function BuyCardList({
                 <div className="mt-1 text-sm text-neutral-500">{card.sessions} 堂</div>
               </div>
               <div className="shrink-0 text-lg font-bold text-primary-600">
-                ${card.price}
+                ${formatMoney(card.price)}
               </div>
             </button>
           ))}
@@ -227,7 +228,7 @@ export default function BuyCardList({
               <div className="mt-2 flex items-center justify-between text-sm text-neutral-600">
                 <span>{selected.sessions} 堂</span>
                 <span className="text-lg font-bold text-primary-600">
-                  ${selected.price}
+                  ${formatMoney(selected.price)}
                 </span>
               </div>
             </div>

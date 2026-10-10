@@ -27,6 +27,7 @@ import ConvertCard from "./ConvertCard";
 import CardSerial from "@/components/CardSerial";
 import { formatCardSerial } from "@/lib/cardSerial";
 import type { DanceLevels } from "@/domains/qualification";
+import { formatMoney } from "@/lib/money";
 
 const StudentCard = ({
   studentCard,
@@ -387,7 +388,7 @@ const StudentCard = ({
       <ConfirmDialog
         open={confirmOpen}
         title="確認付款"
-        message={`確認已收到「${studentCard.card.name}」的款項 $${studentCard.finalPrice}？`}
+        message={`確認已收到「${studentCard.card.name}」的款項 $${formatMoney(studentCard.finalPrice)}？`}
         confirmLabel="確認付款"
         onConfirm={handleConfirmPayment}
         onCancel={() => setConfirmOpen(false)}

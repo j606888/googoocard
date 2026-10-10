@@ -4,8 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, Users, BookOpenText, GraduationCap, Settings } from "lucide-react";
 import { Lesson, LessonStudent } from "@/store/slices/lessons";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
-import { DEFAULT_DANCE_LEVEL, danceLevelLabel } from "@/lib/danceLevels";
-import UnpaidBell from "@/features/UnpaidBell";
+import { lessonLevelLabel } from "@/lib/danceLevels";
 import { lessonAttendanceRate } from "@/domains/attendance/rosterInsights";
 
 const LessonDetailHeader = ({
@@ -20,6 +19,7 @@ const LessonDetailHeader = ({
   onToggleSettings: () => void;
 }) => {
   const style = danceStyleMeta(lesson.danceStyle);
+  const levelLabel = lessonLevelLabel(lesson.danceStyle, lesson.level);
   const periods = lesson.periods || [];
   const attendedCount = periods.filter((p) => p.attendanceTakenAt).length;
   // Divides by periods that were actually taken, not by every scheduled one —
@@ -61,9 +61,9 @@ const LessonDetailHeader = ({
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${style.badge}`}>
               {style.label}
             </span>
-            {lesson.danceStyle?.hasLevels && lesson.level > DEFAULT_DANCE_LEVEL && (
+            {levelLabel && (
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${style.badge}`}>
-                {danceLevelLabel(lesson.level)}
+                {levelLabel}
               </span>
             )}
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isFinished ? "bg-neutral-100 text-neutral-600" : "bg-primary-100 text-primary-700"}`}>
@@ -83,7 +83,6 @@ const LessonDetailHeader = ({
             <Settings className="w-3.5 h-3.5" />
             編輯
           </button>
-          <UnpaidBell />
         </div>
       </div>
 

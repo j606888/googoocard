@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { IncomeRecord, IncomeResponse } from "./types";
+import { formatMoney } from "./format";
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -90,7 +91,7 @@ export default function RecordsTab() {
                 </p>
               </div>
               <div className="shrink-0 text-right text-base font-bold text-primary-700">
-                ${record.finalPrice}
+                ${formatMoney(record.finalPrice)}
               </div>
             </div>
           ))}

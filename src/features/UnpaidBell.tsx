@@ -9,7 +9,18 @@ import {
 import { useGetUnbindAttendanceRecordsQuery } from "@/store/slices/lessons";
 import { formatDate } from "@/lib/utils";
 
-const UnpaidBell = () => {
+/**
+ * Attendance records charged to no card (a student marked present with nothing
+ * to deduct) — not a general notification centre. Hidden when there are none.
+ */
+const UnpaidBell = ({
+  className = "ml-auto",
+  tone = "default",
+}: {
+  className?: string;
+  /** `onPrimary`: sits on the green mobile app-bar (SubNavbar). */
+  tone?: "default" | "onPrimary";
+}) => {
   const [open, setOpen] = useState(false);
   const { data: unbindRecords } = useGetUnbindAttendanceRecordsQuery();
 
@@ -17,9 +28,15 @@ const UnpaidBell = () => {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="ml-auto">
-        <div className="mr-1 flex items-center gap-2 ml-auto relative">
-          <Bell className="w-6 h-6 text-white" />
+      <PopoverTrigger
+        className={`${className} w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer ${
+          tone === "onPrimary" ? "hover:bg-white/15" : "hover:bg-neutral-100"
+        }`}
+        aria-label={`${unbindRecords.length} 筆出席還沒綁課卡`}
+        title={`${unbindRecords.length} 筆出席還沒綁課卡`}
+      >
+        <div className="flex items-center gap-2 relative">
+          <Bell className={`w-6 h-6 ${tone === "onPrimary" ? "text-white" : "text-neutral-700"}`} />
           <span className="absolute -right-1 -top-1 bg-danger-500 text-white text-xs font-medium rounded-full w-4 h-4 flex items-center justify-center">
             {unbindRecords?.length}
           </span>
