@@ -35,6 +35,7 @@ const okCards = (sessions: number): CardStatus => ({
   usableSessions: sessions,
   usableCardCount: sessions > 0 ? 1 : 0,
   blockedCardCount: 0,
+  otherSessions: 0,
   level: sessions === 0 ? "none" : sessions <= 1 ? "low" : "ok",
 });
 
@@ -137,6 +138,14 @@ describe("headcountByPeriod", () => {
   });
 });
 
+describe("attentionItems otherSessions", () => {
+  it("carries the sessions on cards this lesson does not accept", () => {
+    const status: CardStatus = { ...okCards(0), otherSessions: 3 };
+    const [item] = attentionItems([student(1, "小陶", cells(P, ["attended", "attended", "attended"]), status)]);
+    expect(item).toMatchObject({ kind: "no_card", otherSessions: 3 });
+  });
+});
+
 describe("cardStatusFor", () => {
   const BACHATA = 1;
   const bachataLesson = { danceStyleId: BACHATA, level: 1, danceStyle: { hasLevels: false } };
@@ -230,13 +239,14 @@ describe("attentionItems", () => {
       usableSessions: 0,
       usableCardCount: 0,
       blockedCardCount: 1,
+      otherSessions: 0,
       level: "none",
     };
     const items = attentionItems([student(1, "甲", cells(P, ["attended", "attended", "attended"]), blocked)]);
     expect(items[0]).toMatchObject({ kind: "no_card", blockedOnly: true });
 
     const empty = attentionItems([student(2, "乙", cells(P, ["attended", "attended", "attended"]), okCards(0))]);
-    expect(empty[0]).toMatchObject({ kind: "no_card", blockedOnly: false });
+    expect(empty[0]).toMatchObject({ kind: "no_card", blockedOnly: false, otherSessions: 0 });
   });
 
   it("orders no_card, then drift, then low sessions", () => {

@@ -20,6 +20,7 @@ vi.mock("@/lib/auth", () => ({
 import { GET as incomeGET } from "@/app/api/income/route";
 import { GET as studentsGET } from "@/app/api/students/route";
 import { GET as studentGET } from "@/app/api/students/[id]/route";
+import { GET as lessonStudentsGET } from "@/app/api/lessons/[id]/students/route";
 import { POST as consume } from "@/app/api/lessons/[id]/periods/[periodId]/attendance/[studentId]/consume/route";
 
 // Problems found in the 2026-10 UI review (docs/ui-review-2026-10.md).
@@ -181,5 +182,25 @@ describe("POST consume (手動扣卡)", () => {
     const res = await call(lesson.id, period.id, student.id, second.id);
     expect(res.status).toBe(409);
     expect(await remaining(second.id)).toBe(6);
+  });
+});
+
+describe("GET /api/lessons/[id]/students — cardStatus.otherSessions", () => {
+  it("counts live sessions on cards the lesson does not accept", async () => {
+    const trial = await createCard(classroomId, { name: "體驗課" });
+    const advanced = await createCard(classroomId, { name: "進階6堂" });
+    const { lesson } = await createLesson(classroomId, { cardIds: [trial.id] });
+    const student = await createStudent(classroomId, { name: "小陶" });
+    await prisma.lessonStudent.create({ data: { lessonId: lesson.id, studentId: student.id } });
+    await createStudentCard(student.id, advanced.id, { remainingSessions: 2 });
+    await createStudentCard(student.id, advanced.id, { remainingSessions: 1 });
+    // Neither an empty nor an expired card counts.
+    await createStudentCard(student.id, advanced.id, { remainingSessions: 0 });
+    const expired = await createStudentCard(student.id, advanced.id, { remainingSessions: 4 });
+    await prisma.studentCard.update({ where: { id: expired.id }, data: { expiredAt: new Date() } });
+
+    const res = await lessonStudentsGET(new Request("http://test.local"), routeParams({ id: String(lesson.id) }));
+    const [row] = await res.json();
+    expect(row.cardStatus).toMatchObject({ usableSessions: 0, level: "none", otherSessions: 3 });
   });
 });

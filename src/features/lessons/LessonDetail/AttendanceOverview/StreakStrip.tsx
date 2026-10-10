@@ -16,14 +16,38 @@ const SEGMENT_LABELS = {
   not_started: "尚未點名",
 } as const;
 
+const SEGMENT_SIZE = "flex-1 min-w-[6px] max-w-[26px]";
+
 const StreakStrip = ({ cells }: { cells: RosterRow["cells"] }) => (
   <div className="flex items-center gap-[3px] min-w-0">
+    {cells.map((cell) => {
+      const label = `${format(new Date(cell.startTime), "M/d")} ${SEGMENT_LABELS[cell.status]}`;
+      return (
+        <span
+          key={cell.periodId}
+          role="img"
+          aria-label={label}
+          title={label}
+          className={`${SEGMENT_SIZE} h-4 rounded-sm ${SEGMENT_STYLES[cell.status]}`}
+        />
+      );
+    })}
+  </div>
+);
+
+/**
+ * The dates above the strips — same segment sizing, so each date sits over its
+ * column. Only drawn when a date still fits its segment.
+ */
+export const StreakDates = ({ cells }: { cells: RosterRow["cells"] }) => (
+  <div className="flex items-end gap-[3px] min-w-0" aria-hidden="true">
     {cells.map((cell) => (
       <span
         key={cell.periodId}
-        title={`${format(new Date(cell.startTime), "M/d")} ${SEGMENT_LABELS[cell.status]}`}
-        className={`flex-1 min-w-[6px] max-w-[26px] h-4 rounded-sm ${SEGMENT_STYLES[cell.status]}`}
-      />
+        className={`${SEGMENT_SIZE} text-center text-[9px] leading-none text-neutral-400 tabular-nums overflow-hidden whitespace-nowrap`}
+      >
+        {format(new Date(cell.startTime), "M/d")}
+      </span>
     ))}
   </div>
 );

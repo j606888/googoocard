@@ -17,6 +17,7 @@ const EMPTY_CARD_STATUS: CardStatus = {
   usableSessions: 0,
   usableCardCount: 0,
   blockedCardCount: 0,
+  otherSessions: 0,
   level: "none",
 };
 
@@ -72,6 +73,23 @@ export async function GET(
     lesson.classroomId
   );
 
+  // Sessions on cards this lesson does NOT accept, one grouped query for the
+  // roster — only to word "no card" honestly, never to charge them here.
+  const otherCardSums = await prisma.studentCard.groupBy({
+    by: ["studentId"],
+    where: {
+      studentId: { in: rosterIds },
+      student: { classroomId: lesson.classroomId },
+      cardId: { notIn: validCardIds },
+      remainingSessions: { gt: 0 },
+      expiredAt: null,
+    },
+    _sum: { remainingSessions: true },
+  });
+  const otherSessionsByStudent = new Map(
+    otherCardSums.map((row) => [row.studentId, row._sum.remainingSessions ?? 0])
+  );
+
   const cardStatusByStudent = new Map<number, CardStatus>();
   const qualificationsByStudent = new Map<number, number[]>();
   const levelsByStudent = new Map<number, DanceLevels>();
@@ -84,7 +102,12 @@ export async function GET(
     levelsByStudent.set(student.id, levels);
     cardStatusByStudent.set(
       student.id,
-      cardStatusFor(student.studentCards, levels, lesson)
+      cardStatusFor(
+        student.studentCards,
+        levels,
+        lesson,
+        otherSessionsByStudent.get(student.id) ?? 0
+      )
     );
   }
 
@@ -115,7 +138,10 @@ export async function GET(
     return {
       ...toStudentPayload(student),
       attendances,
-      cardStatus: cardStatusByStudent.get(student.id) ?? EMPTY_CARD_STATUS,
+      cardStatus: cardStatusByStudent.get(student.id) ?? {
+        ...EMPTY_CARD_STATUS,
+        otherSessions: otherSessionsByStudent.get(student.id) ?? 0,
+      },
       danceQualifications: qualificationsByStudent.get(student.id) ?? [],
       danceLevels: levelsByStudent.get(student.id) ?? {},
     };

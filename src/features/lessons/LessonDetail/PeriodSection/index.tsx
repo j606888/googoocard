@@ -5,7 +5,7 @@ import {
 } from "@/store/slices/lessons";
 import AddPeriodForm from "./AddPeriodForm";
 import EditPeriodTimeForm from "./EditPeriodTimeForm";
-import { format, isToday } from "date-fns";
+import { differenceInCalendarDays, endOfDay, format, isToday } from "date-fns";
 import Menu from "@/components/Menu";
 import {
   EllipsisVertical,
@@ -82,6 +82,11 @@ const PeriodRow = ({
   const startTime = new Date(period.startTime);
   const endTime = new Date(period.endTime);
   const attended = Boolean(period.attendanceTakenAt);
+  // The orange 點名 call is for a class that has happened (or is today). A
+  // future first-pending period is just "the next one" — still checkable early
+  // (with the confirm below), but not shouted about.
+  const isDue = startTime.getTime() <= endOfDay(new Date()).getTime();
+  const daysUntil = differenceInCalendarDays(startTime, new Date());
   const date = format(startTime, "M/d");
   const weekday = WEEKDAYS[startTime.getDay()];
   const startHour = format(startTime, "HH:mm");
@@ -140,7 +145,11 @@ const PeriodRow = ({
             <Check className="w-3 h-3 text-white" strokeWidth={3} />
           </div>
         ) : canCheck ? (
-          <div className="w-5 h-5 rounded-full bg-white border-2 border-warning-500 shrink-0" />
+          <div
+            className={`w-5 h-5 rounded-full bg-white border-2 shrink-0 ${
+              isDue ? "border-warning-500" : "border-neutral-700"
+            }`}
+          />
         ) : (
           <div className="w-5 h-5 rounded-full bg-white border-2 border-neutral-300 shrink-0" />
         )}
@@ -171,7 +180,7 @@ const PeriodRow = ({
               <span className="text-xs font-semibold text-primary-600">
                 已點名
               </span>
-            ) : canCheck ? (
+            ) : canCheck && isDue ? (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -182,6 +191,21 @@ const PeriodRow = ({
                 <AlarmClock className="w-3.5 h-3.5" />
                 點名
               </button>
+            ) : canCheck ? (
+              <>
+                <span className="text-xs font-semibold text-neutral-600 bg-neutral-100 rounded-full px-2.5 py-1">
+                  下一堂 · {daysUntil === 1 ? "明天" : `${daysUntil} 天後`}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCheck();
+                  }}
+                  className="text-xs font-semibold text-neutral-600 border border-neutral-300 rounded-full px-3 py-1 cursor-pointer hover:bg-neutral-50"
+                >
+                  點名
+                </button>
+              </>
             ) : (
               <span className="flex items-center gap-1 text-xs text-neutral-400">
                 <Clock className="w-3.5 h-3.5" />

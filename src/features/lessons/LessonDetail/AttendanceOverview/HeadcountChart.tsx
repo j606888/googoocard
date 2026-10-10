@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import { endOfDay, format } from "date-fns";
 import type { PeriodHeadcount } from "@/domains/attendance/rosterInsights";
 
 // Headcount per session, as a column chart. It doubles as a period navigator:
 // a column goes wherever PeriodSection's row for the same period goes, so this
 // adds a faster entry point without introducing a second attendance flow.
+const COMPACT_MAX_PERIODS = 4;
+
 const HeadcountChart = ({
   lessonId,
   data,
@@ -23,11 +25,55 @@ const HeadcountChart = ({
   }
 
   const rosterSize = data[0].rosterSize;
+  const now = new Date();
+  // An un-taken period is only "overdue" once its day has come.
+  const isOverdue = (column: PeriodHeadcount) =>
+    !column.taken && new Date(column.startTime).getTime() <= endOfDay(now).getTime();
   const taken = data.filter((d) => d.taken);
   const average =
     taken.length > 0
       ? (taken.reduce((sum, d) => sum + d.attended, 0) / taken.length).toFixed(1)
       : null;
+
+  // A short course says little as a chart and pushes the roster below the fold:
+  // one line per period instead.
+  if (data.length <= COMPACT_MAX_PERIODS) {
+    return (
+      <section className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h3 className="text-sm font-bold text-neutral-700">到課</h3>
+        {data.map((column) => (
+          <button
+            key={column.periodId}
+            type="button"
+            onClick={() =>
+              router.push(
+                column.taken
+                  ? `/lessons/${lessonId}/periods/${column.periodId}/check-success`
+                  : `/lessons/${lessonId}/periods/${column.periodId}/check`
+              )
+            }
+            className={`text-xs rounded-full border px-2.5 py-1 cursor-pointer ${
+              column.taken
+                ? "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                : isOverdue(column)
+                  ? "border-warning-400 text-warning-700 bg-warning-50"
+                  : "border-dashed border-neutral-300 text-neutral-400"
+            }`}
+          >
+            {format(new Date(column.startTime), "M/d")}{" "}
+            <span className="font-semibold">
+              {column.taken ? `${column.attended} 人` : "–"}
+            </span>
+          </button>
+        ))}
+        {average && (
+          <span className="ml-auto text-xs text-neutral-500">
+            平均 <span className="font-bold text-neutral-900">{average}</span> / {rosterSize} 人
+          </span>
+        )}
+      </section>
+    );
+  }
 
   return (
     <section>
@@ -79,7 +125,9 @@ const HeadcountChart = ({
                 className={`w-full h-20 rounded-md flex flex-col justify-end overflow-hidden transition-colors ${
                   column.taken
                     ? "bg-neutral-100 group-hover:bg-primary-50"
-                    : "bg-warning-50 border border-dashed border-warning-400"
+                    : isOverdue(column)
+                      ? "bg-warning-50 border border-dashed border-warning-400"
+                      : "bg-white border border-dashed border-neutral-300"
                 }`}
               >
                 {column.taken && (
@@ -91,7 +139,9 @@ const HeadcountChart = ({
               </div>
               <span
                 className={`text-[10px] leading-none ${
-                  column.taken ? "text-neutral-500" : "text-warning-700 font-semibold"
+                  column.taken || !isOverdue(column)
+                    ? "text-neutral-500"
+                    : "text-warning-700 font-semibold"
                 }`}
               >
                 {format(new Date(column.startTime), "M/d")}

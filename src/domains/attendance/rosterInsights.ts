@@ -45,6 +45,12 @@ export type CardStatus = {
    * card" from "grant the qualification".
    */
   blockedCardCount: number;
+  /**
+   * Sessions left on the student's other live cards — ones this lesson does not
+   * accept. Turns "no card" into "no card *for this lesson*" so the teacher
+   * doesn't tell a student with sessions in hand that they have nothing.
+   */
+  otherSessions: number;
   level: "ok" | "low" | "none";
 };
 
@@ -65,7 +71,8 @@ export type InsightPeriod = {
 export function cardStatusFor(
   studentCards: { remainingSessions: number; card: QualifiableCard }[],
   levels: DanceLevels,
-  lesson: QualifyingLesson
+  lesson: QualifyingLesson,
+  otherSessions = 0
 ): CardStatus {
   const usable = studentCards.filter((studentCard) =>
     canUseCard(studentCard.card, levels, lesson)
@@ -79,6 +86,7 @@ export function cardStatusFor(
     usableSessions,
     usableCardCount: usable.length,
     blockedCardCount: studentCards.length - usable.length,
+    otherSessions,
     level:
       usableSessions === 0
         ? "none"
@@ -187,6 +195,8 @@ export type AttentionItem = {
   usableSessions: number;
   /** Has a lesson card they cannot spend — the fix is qualification, not a purchase. */
   blockedOnly: boolean;
+  /** See CardStatus.otherSessions. */
+  otherSessions: number;
 };
 
 // `no_card` outranks the retention signal because it blocks tonight's 點名,
@@ -209,7 +219,7 @@ export function attentionItems(students: RosterStudent[]): AttentionItem[] {
   for (const student of students) {
     const absenceRun = trailingAbsenceRun(student.attendances);
     const lastAttended = lastAttendedStartTime(student.attendances);
-    const { usableSessions, level, blockedCardCount } = student.cardStatus;
+    const { usableSessions, level, blockedCardCount, otherSessions } = student.cardStatus;
 
     // Drifting away presupposes having been here. A student who has never
     // attended is a roster-hygiene question (often someone added mid-course),
@@ -231,6 +241,7 @@ export function attentionItems(students: RosterStudent[]): AttentionItem[] {
       lastAttendedStartTime: lastAttended,
       usableSessions,
       blockedOnly: level === "none" && blockedCardCount > 0,
+      otherSessions,
     });
   }
 

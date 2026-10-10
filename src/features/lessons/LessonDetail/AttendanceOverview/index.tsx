@@ -43,9 +43,12 @@ const AttendanceOverview = ({
   );
 
   return (
-    <div className="flex flex-col gap-6 max-w-3xl">
+    <div className="flex flex-col gap-6 max-w-5xl">
       <HeadcountChart lessonId={lesson.id} data={headcounts} />
-      <AttentionList items={items} />
+      <AttentionList
+        items={items}
+        acceptedCardNames={(lesson.cards ?? []).map((card) => card.name)}
+      />
       <RosterList rows={rows} />
     </div>
   );

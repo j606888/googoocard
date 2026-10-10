@@ -14,7 +14,14 @@ import BuyCardDrawer from "../BuyCardDrawer";
 
 // The only rows on this screen that ask for a decision. Everything else is
 // reference — so this list stays short, and each row carries the action.
-const AttentionList = ({ items }: { items: AttentionItem[] }) => {
+const AttentionList = ({
+  items,
+  acceptedCardNames,
+}: {
+  items: AttentionItem[];
+  /** The lesson's cards — named in the「沒有這門課可用的卡」row. */
+  acceptedCardNames: string[];
+}) => {
   const pathname = usePathname();
 
   if (items.length === 0) return null;
@@ -33,7 +40,12 @@ const AttentionList = ({ items }: { items: AttentionItem[] }) => {
 
       <div className="flex flex-col gap-1.5">
         {shown.map((item) => (
-          <AttentionRow key={item.student.id} item={item} pathname={pathname} />
+          <AttentionRow
+            key={item.student.id}
+            item={item}
+            pathname={pathname}
+            acceptedCardNames={acceptedCardNames}
+          />
         ))}
         {overflow > 0 && (
           <p className="text-xs text-neutral-400 pl-1 pt-0.5">
@@ -48,18 +60,28 @@ const AttentionList = ({ items }: { items: AttentionItem[] }) => {
 const AttentionRow = ({
   item,
   pathname,
+  acceptedCardNames,
 }: {
   item: AttentionItem;
   pathname: string;
+  acceptedCardNames: string[];
 }) => {
   const { student, kind, severity } = item;
   const danger = severity === "danger";
 
+  // "No card" splits three ways: a lesson card they may not spend yet
+  // (qualification), sessions only on cards this lesson doesn't take, or
+  // genuinely nothing. The middle one used to read「今天沒有卡可以扣」and sent
+  // teachers to sell a card to students who had sessions in hand.
+  const hasOtherCards = item.otherSessions > 0;
+  const accepted = acceptedCardNames.join("、");
   const title =
     kind === "no_card"
       ? item.blockedOnly
         ? "課卡資格不符"
-        : "無可用課卡"
+        : hasOtherCards
+          ? "沒有這門課可用的卡"
+          : "沒有任何可用課卡"
       : kind === "consecutive_absence"
       ? `連續缺席 ${item.absenceRun} 堂`
       : `課卡剩 ${item.usableSessions} 堂`;
@@ -68,7 +90,9 @@ const AttentionRow = ({
     kind === "no_card"
       ? item.blockedOnly
         ? "手上的複習卡還缺這個舞種的資格"
-        : "今天沒有卡可以扣"
+        : hasOtherCards
+          ? `手上另有 ${item.otherSessions} 堂其他卡${accepted ? `，本課只接受：${accepted}` : ""}`
+          : "需要先買卡才能扣這門課"
       : kind === "consecutive_absence"
       ? item.lastAttendedStartTime
         ? `最後出席 ${format(new Date(item.lastAttendedStartTime), "M/d")}`
@@ -103,7 +127,7 @@ const AttentionRow = ({
           </span>
         </div>
         {detail && (
-          <p className="text-[11px] text-neutral-500 truncate">{detail}</p>
+          <p className="text-[11px] text-neutral-500 line-clamp-2">{detail}</p>
         )}
       </div>
 

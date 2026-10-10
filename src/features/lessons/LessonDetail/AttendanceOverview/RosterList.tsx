@@ -11,8 +11,11 @@ import {
   type RosterSort,
 } from "@/domains/attendance/rosterInsights";
 import { studentDetailHref } from "@/lib/studentNav";
-import StreakStrip from "./StreakStrip";
+import StreakStrip, { StreakDates } from "./StreakStrip";
 import CardStatusPill from "./CardStatusPill";
+
+/** Past this many periods the dates no longer fit; the per-cell tooltip remains. */
+const MAX_DATED_PERIODS = 12;
 
 const SORTS: { key: RosterSort; label: string }[] = [
   { key: "attention", label: "需要注意" },
@@ -66,6 +69,20 @@ const RosterList = ({ rows }: { rows: RosterRow[] }) => {
       </div>
 
       <div className="border border-neutral-200 rounded-xl overflow-hidden">
+        {/* Date header — only while every date fits over its segment. Mirrors a
+            row's layout so the columns line up. */}
+        {sorted[0].cells.length <= MAX_DATED_PERIODS && (
+          <div className="flex items-center gap-2.5 px-3 pt-2 pb-1 bg-neutral-50 border-b border-neutral-100">
+            <span className="w-[30px] shrink-0" />
+            <span className="w-16 shrink-0 text-[10px] text-neutral-400">學生</span>
+            <div className="flex-1 min-w-0">
+              <StreakDates cells={sorted[0].cells} />
+            </div>
+            <span className="w-11 shrink-0 text-right text-[10px] text-neutral-400">出席</span>
+            <span className="w-[72px] shrink-0 text-center text-[10px] text-neutral-400">本課課卡</span>
+            <span className="hidden sm:block w-11 shrink-0 text-right text-[10px] text-neutral-400">最後</span>
+          </div>
+        )}
         {sorted.map((row, index) => (
           <div
             key={row.student.id}

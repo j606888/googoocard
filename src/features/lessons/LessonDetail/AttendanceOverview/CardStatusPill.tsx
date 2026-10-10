@@ -4,6 +4,9 @@ import type { CardStatus } from "@/domains/attendance/rosterInsights";
 // never worded 需續約 — that is the classroom-wide tag from studentTag.ts and
 // two different rules wearing one word on the same screen is how they get
 // conflated.
+//
+// Fixed width so every roster row's streak strip is the same width and lines up
+// under the date header (RosterList).
 const CardStatusPill = ({ status }: { status: CardStatus }) => {
   const { level, usableSessions, blockedCardCount } = status;
 
@@ -28,7 +31,7 @@ const CardStatusPill = ({ status }: { status: CardStatus }) => {
           ? "有這堂課的複習卡，但學生還沒有該舞種的資格"
           : undefined
       }
-      className={`shrink-0 text-[10.5px] font-semibold px-2 py-0.5 rounded-full border ${style}`}
+      className={`shrink-0 w-[72px] text-center text-[10.5px] font-semibold px-2 py-0.5 rounded-full border ${style}`}
     >
       {label}
     </span>
