@@ -37,7 +37,7 @@ const UnpaidBell = ({
       >
         <div className="flex items-center gap-2 relative">
           <Bell className={`w-6 h-6 ${tone === "onPrimary" ? "text-white" : "text-neutral-700"}`} />
-          <span className="absolute -right-1 -top-1 bg-danger-500 text-white text-xs font-medium rounded-full w-4 h-4 flex items-center justify-center">
+          <span className="absolute -right-2 -top-1.5 bg-danger-500 text-white text-[10px] font-semibold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
             {unbindRecords?.length}
           </span>
         </div>

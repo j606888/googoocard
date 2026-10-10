@@ -27,12 +27,15 @@ const LessonGroupSection = ({
       <div className="flex items-center gap-2 lg:gap-2.5 min-h-11">
         <button
           onClick={onToggle}
-          aria-expanded={!collapsed}
+          disabled={count === 0}
+          aria-expanded={count > 0 && !collapsed}
           aria-controls={contentId}
-          className="flex items-center gap-2 lg:gap-2.5 min-w-0 py-1.5 pr-2 -ml-1 pl-1 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer"
+          className="flex items-center gap-2 lg:gap-2.5 min-w-0 py-1.5 pr-2 -ml-1 pl-1 rounded-lg hover:bg-neutral-100 disabled:hover:bg-transparent disabled:cursor-default transition-colors cursor-pointer"
         >
           <ChevronDown
-            className={`w-4 h-4 shrink-0 text-neutral-400 transition-transform ${collapsed ? "-rotate-90" : ""}`}
+            className={`w-4 h-4 shrink-0 text-neutral-400 transition-transform ${
+              collapsed || count === 0 ? "-rotate-90" : ""
+            } ${count === 0 ? "invisible" : ""}`}
           />
           <span
             className={`w-7 h-7 shrink-0 rounded-[9px] flex items-center justify-center ${
@@ -47,7 +50,9 @@ const LessonGroupSection = ({
             {section.name}
           </h3>
           <span className="text-xs text-neutral-500 shrink-0">
-            {count} 門課{section.studentCount > 0 && ` · ${section.studentCount} 位學生`}
+            {count === 0
+              ? "目前沒有進行中的課"
+              : `${count} 門課${section.studentCount > 0 ? ` · ${section.studentCount} 位學生` : ""}`}
           </span>
         </button>
         {!isUngrouped && (
@@ -61,15 +66,10 @@ const LessonGroupSection = ({
         )}
       </div>
 
-      {!collapsed && (
+      {/* 空的群組只留標題列（「在這組開課」還在），不再佔一整塊虛線框。 */}
+      {!collapsed && count > 0 && (
         <div id={contentId}>
-          {count > 0 ? (
-            <LessonTable lessons={section.lessons} />
-          ) : (
-            <p className="rounded-2xl border border-dashed border-neutral-200 px-4 py-3 text-sm text-neutral-400">
-              這組目前沒有進行中的課
-            </p>
-          )}
+          <LessonTable lessons={section.lessons} />
         </div>
       )}
     </section>

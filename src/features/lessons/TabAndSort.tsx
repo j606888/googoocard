@@ -127,7 +127,7 @@ const TabAndSort = ({
             >
               <span>{tab.label}</span>
               <span className={activeTab === tab.value ? "text-primary-400" : "text-neutral-400"}>
-                {tabsCount?.[tab.value as keyof typeof tabsCount] ?? 0}
+                {tabsCount ? tabsCount[tab.value as keyof typeof tabsCount] : "–"}
               </span>
             </button>
           ))}

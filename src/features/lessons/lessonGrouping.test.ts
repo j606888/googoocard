@@ -7,6 +7,9 @@ import {
   lessonRowAction,
   listAttention,
   nextPeriodDefault,
+  groupByEndMonth,
+  formatPeriodRange,
+  daysUntilLabel,
   UNGROUPED_ID,
 } from "./lessonGrouping";
 
@@ -181,5 +184,71 @@ describe("nextPeriodDefault", () => {
 
   it("沒有上一堂 → null", () => {
     expect(nextPeriodDefault(null, null, NOW)).toBeNull();
+  });
+});
+
+describe("groupByEndMonth", () => {
+  const now = new Date(2026, 9, 10);
+
+  it("依結束月份分段，新的在前、段內保留原順序", () => {
+    const sections = groupByEndMonth(
+      [
+        lesson({ id: 1, lastPeriodEnd: new Date(2026, 6, 26).toISOString() }),
+        lesson({ id: 2, lastPeriodEnd: new Date(2026, 9, 1).toISOString() }),
+        lesson({ id: 3, lastPeriodEnd: new Date(2026, 6, 5).toISOString() }),
+      ],
+      now
+    );
+    expect(sections.map((s) => s.label)).toEqual(["10 月", "7 月"]);
+    expect(sections[1].lessons.map((l) => l.id)).toEqual([1, 3]);
+  });
+
+  it("不是今年的段落帶年份", () => {
+    const [section] = groupByEndMonth(
+      [lesson({ id: 1, lastPeriodEnd: new Date(2025, 11, 21).toISOString() })],
+      now
+    );
+    expect(section.label).toBe("2025 年 12 月");
+  });
+
+  it("沒有時段時退回 endedAt；兩者都沒有的排最後", () => {
+    const sections = groupByEndMonth(
+      [
+        lesson({ id: 1, lastPeriodEnd: null, endedAt: null }),
+        lesson({ id: 2, lastPeriodEnd: null, endedAt: new Date(2026, 8, 3).toISOString() }),
+      ],
+      now
+    );
+    expect(sections.map((s) => s.label)).toEqual(["9 月", "沒有時段"]);
+  });
+});
+
+describe("formatPeriodRange", () => {
+  const now = new Date(2026, 9, 10);
+  const iso = (y: number, m: number, d: number) => new Date(y, m - 1, d, 19).toISOString();
+
+  it("今年內不帶年份", () => {
+    expect(formatPeriodRange(iso(2026, 6, 21), iso(2026, 7, 26), now)).toBe("6/21 – 7/26");
+  });
+
+  it("任一端不在今年就兩端都帶年份", () => {
+    expect(formatPeriodRange(iso(2025, 11, 16), iso(2026, 1, 4), now)).toBe(
+      "2025/11/16 – 2026/1/4"
+    );
+  });
+
+  it("只有一堂時只顯示那天；缺資料回 null", () => {
+    expect(formatPeriodRange(iso(2026, 9, 27), iso(2026, 9, 27), now)).toBe("9/27");
+    expect(formatPeriodRange(null, null, now)).toBeNull();
+  });
+});
+
+describe("daysUntilLabel", () => {
+  const now = new Date(2026, 9, 10, 9);
+
+  it("兩天以上才顯示 N 天後（今天、明天由日期本身表達）", () => {
+    expect(daysUntilLabel(new Date(2026, 9, 15, 19), now)).toBe("5 天後");
+    expect(daysUntilLabel(new Date(2026, 9, 11, 19), now)).toBeNull();
+    expect(daysUntilLabel(new Date(2026, 9, 10, 19), now)).toBeNull();
   });
 });

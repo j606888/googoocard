@@ -64,6 +64,8 @@ export interface LessonSummary {
   dueForAttendanceEndTime: string | null;
   /** CTA target is an older unchecked period, not today's — show its date, not just its time. */
   dueForAttendanceIsBacklog: boolean;
+  /** Start of the earliest period — with lastPeriodEnd, the lesson's 期間. */
+  firstPeriodStart: string | null;
   lastPeriodStart: string | null;
   lastPeriodEnd: string | null;
 }

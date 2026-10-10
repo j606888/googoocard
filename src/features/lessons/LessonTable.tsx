@@ -7,9 +7,9 @@ import { AlarmClock, Copy, Plus, Repeat, Users } from "lucide-react";
 import DataView, { DataViewColumn } from "@/components/DataView";
 import { LessonSummary } from "@/store/slices/lessons";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
-import { danceLevelLabel } from "@/lib/danceLevels";
+import { lessonLevelLabel } from "@/lib/danceLevels";
 import { setLessonCloneSource } from "@/lib/lessonDraftStorage";
-import { lessonRowAction } from "./lessonGrouping";
+import { daysUntilLabel, formatPeriodRange, lessonRowAction } from "./lessonGrouping";
 import NextPeriodDrawer from "./NextPeriodDrawer";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -35,10 +35,12 @@ const NextCell = ({ lesson }: { lesson: LessonSummary }) => {
   }
   if (lesson.nextSessionDate) {
     const next = new Date(lesson.nextSessionDate);
+    const until = daysUntilLabel(next, new Date());
     return (
       <>
         <span className="lg:hidden text-neutral-400 shrink-0">下一堂</span>
         <span className="truncate">{`${formatDay(next)} ${format(next, "HH:mm")}`}</span>
+        {until && <span className="text-neutral-500 shrink-0">· {until}</span>}
       </>
     );
   }
@@ -79,11 +81,29 @@ const ProgressCell = ({ lesson }: { lesson: LessonSummary }) => {
   );
 };
 
+/** 已結束的課：期間取代「下一堂」，同名的課才分得出是哪一期。 */
+const PeriodRangeCell = ({ lesson }: { lesson: LessonSummary }) => {
+  const range = formatPeriodRange(lesson.firstPeriodStart, lesson.lastPeriodEnd, new Date());
+  return (
+    <>
+      <span className="lg:hidden text-neutral-400 shrink-0">期間</span>
+      <span className="truncate text-neutral-600">{range ?? "—"}</span>
+    </>
+  );
+};
+
 /**
  * 課程列表（一個群組底下、或攤平的整份）。欄位定義給 `DataView`，
  * 手機是卡片、桌面是表格，共用同一份 DOM。
+ * `variant="finished"`：已結束分頁，最後一欄顯示期間而不是下一堂。
  */
-const LessonTable = ({ lessons }: { lessons: LessonSummary[] }) => {
+const LessonTable = ({
+  lessons,
+  variant = "active",
+}: {
+  lessons: LessonSummary[];
+  variant?: "active" | "finished";
+}) => {
   const router = useRouter();
   const [scheduling, setScheduling] = useState<LessonSummary | null>(null);
 
@@ -138,14 +158,13 @@ const LessonTable = ({ lessons }: { lessons: LessonSummary[] }) => {
       width: "minmax(0,1.1fr)",
       render: (lesson) => {
         const meta = danceStyleMeta(lesson.danceStyle);
+        const level = lessonLevelLabel(lesson.danceStyle, lesson.level);
         return (
           <>
             <span className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full ${meta.badge}`}>
               {meta.label}
             </span>
-            {lesson.danceStyle?.hasLevels && (
-              <span className="text-neutral-500 shrink-0">{danceLevelLabel(lesson.level)}</span>
-            )}
+            {level && <span className="text-neutral-500 shrink-0">{level}</span>}
           </>
         );
       },
@@ -167,12 +186,19 @@ const LessonTable = ({ lessons }: { lessons: LessonSummary[] }) => {
       width: "minmax(0,1.3fr)",
       render: (lesson) => <ProgressCell lesson={lesson} />,
     },
-    {
-      key: "next",
-      header: "下一堂",
-      width: "minmax(0,1.4fr)",
-      render: (lesson) => <NextCell lesson={lesson} />,
-    },
+    variant === "finished"
+      ? {
+          key: "range",
+          header: "期間",
+          width: "minmax(0,1.4fr)",
+          render: (lesson) => <PeriodRangeCell lesson={lesson} />,
+        }
+      : {
+          key: "next",
+          header: "下一堂",
+          width: "minmax(0,1.4fr)",
+          render: (lesson) => <NextCell lesson={lesson} />,
+        },
     {
       key: "action",
       header: "",
@@ -214,10 +240,12 @@ const LessonTable = ({ lessons }: { lessons: LessonSummary[] }) => {
               e.stopPropagation();
               handleClone(lesson);
             }}
-            className="lg:ml-auto p-2 text-neutral-300 hover:text-primary-500 hover:bg-primary-50 rounded-lg shrink-0 transition-colors cursor-pointer"
-            aria-label={`複製課程「${lesson.name}」`}
+            className="lg:ml-auto flex items-center gap-1.5 shrink-0 p-2 lg:px-3 lg:py-1.5 lg:border lg:border-neutral-200 text-neutral-500 hover:text-primary-700 hover:bg-primary-50 text-sm font-medium rounded-lg transition-colors cursor-pointer"
+            aria-label={`複製「${lesson.name}」開新一期`}
+            title="複製這門課的設定，開新一期"
           >
-            <Copy className="w-4 h-4" />
+            <Copy className="w-4 h-4 lg:hidden" />
+            <span className="max-lg:sr-only">複製開新期</span>
           </button>
         );
       },

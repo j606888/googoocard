@@ -2,7 +2,8 @@
 
 import { AlarmClock, BookOpenText, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { TableSkeleton } from "@/components/skeletons/ListSkeleton";
+import FinishedLessons from "./FinishedLessons";
 import TabAndSort from "./TabAndSort";
 import LessonTable from "./LessonTable";
 import LessonGroupSection from "./LessonGroupSection";
@@ -84,7 +85,7 @@ const LessonsList = () => {
       )}
 
       {isLoading ? (
-        <ListSkeleton />
+        <TableSkeleton />
       ) : lessons?.lessons.length === 0 && !useGroupedView ? (
         <div className="flex flex-col items-center justify-center p-8 gap-3 bg-primary-50 rounded-2xl">
           <div className="flex items-center justify-center w-12 h-12 bg-primary-500 rounded-full">
@@ -121,7 +122,14 @@ const LessonsList = () => {
         </div>
       ) : (
         <>
-          <LessonTable lessons={lessons?.lessons ?? []} />
+          {activeTab === "finished" && !isFiltering ? (
+            <FinishedLessons lessons={lessons?.lessons ?? []} />
+          ) : (
+            <LessonTable
+              lessons={lessons?.lessons ?? []}
+              variant={activeTab === "finished" ? "finished" : "active"}
+            />
+          )}
           {lessons?.hasNextPage && (
             <div className="flex justify-center mt-5">
               <button

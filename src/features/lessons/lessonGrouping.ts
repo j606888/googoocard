@@ -1,4 +1,4 @@
-import { addDays, isBefore, startOfDay } from "date-fns";
+import { addDays, differenceInCalendarDays, isBefore, startOfDay } from "date-fns";
 import { LessonSummary } from "@/store/slices/lessons";
 
 /**
@@ -122,4 +122,81 @@ export const nextPeriodDefault = (
     endTime = addDays(endTime, 7);
   } while (isBefore(startTime, today));
   return { startTime, endTime };
+};
+
+/** 已結束列表的一段：同一個結束月份的課。 */
+export interface FinishedSection {
+  /** "2026-07"；沒有任何時段的課歸到 "none"。 */
+  key: string;
+  label: string;
+  lessons: LessonSummary[];
+}
+
+/** 一次展開的月份段數，其餘收進「更早」。 */
+export const FINISHED_VISIBLE_SECTIONS = 3;
+
+/**
+ * 已結束分頁依「結束月份」分段，新的在前；段內維持 `lessons` 給的順序。
+ * 結束日取最後一堂的結束時間，被手動結束、沒有時段的課退回 `endedAt`。
+ * 今年的段落只寫月份，其他年份帶年份——「12/21」到底是哪一年不用再猜。
+ */
+export const groupByEndMonth = (
+  lessons: LessonSummary[],
+  now: Date
+): FinishedSection[] => {
+  const sections = new Map<string, FinishedSection>();
+  for (const lesson of lessons) {
+    const endIso = lesson.lastPeriodEnd ?? lesson.endedAt;
+    const end = endIso ? new Date(endIso) : null;
+    const key = end
+      ? `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}`
+      : "none";
+    let section = sections.get(key);
+    if (!section) {
+      const label = !end
+        ? "沒有時段"
+        : end.getFullYear() === now.getFullYear()
+          ? `${end.getMonth() + 1} 月`
+          : `${end.getFullYear()} 年 ${end.getMonth() + 1} 月`;
+      section = { key, label, lessons: [] };
+      sections.set(key, section);
+    }
+    section.lessons.push(lesson);
+  }
+  // "none" sorts last: "none" > any "YYYY-MM" in reverse would put it first.
+  return [...sections.values()].sort((a, b) => {
+    if (a.key === "none") return 1;
+    if (b.key === "none") return -1;
+    return b.key.localeCompare(a.key);
+  });
+};
+
+const ymd = (date: Date, withYear: boolean) =>
+  withYear
+    ? `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`
+    : `${date.getMonth() + 1}/${date.getDate()}`;
+
+/**
+ * 課程期間「6/21 – 7/26」。開始或結束不在今年時兩端都帶年份，
+ * 跨年的課也一樣。只有一堂時只顯示那一天。
+ */
+export const formatPeriodRange = (
+  firstStart: string | null,
+  lastEnd: string | null,
+  now: Date
+): string | null => {
+  if (!firstStart || !lastEnd) return null;
+  const start = new Date(firstStart);
+  const end = new Date(lastEnd);
+  const withYear =
+    start.getFullYear() !== now.getFullYear() || end.getFullYear() !== now.getFullYear();
+  const startLabel = ymd(start, withYear);
+  const endLabel = ymd(end, withYear);
+  return startLabel === endLabel ? startLabel : `${startLabel} – ${endLabel}`;
+};
+
+/** 「下一堂」旁邊的相對時間：今天、明天之外的未來日子顯示「N 天後」。 */
+export const daysUntilLabel = (date: Date, now: Date): string | null => {
+  const days = differenceInCalendarDays(date, now);
+  return days >= 2 ? `${days} 天後` : null;
 };

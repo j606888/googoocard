@@ -35,6 +35,8 @@ export interface LessonPeriodSummary {
   dueForAttendanceIsBacklog: boolean;
   /** End of the next upcoming period — paired with nextSessionDate. */
   nextSessionEndTime: Date | null;
+  /** Start of the earliest period — with lastPeriodEnd, the lesson's 期間. */
+  firstPeriodStart: Date | null;
   lastPeriodStart: Date | null;
   lastPeriodEnd: Date | null;
 }
@@ -89,6 +91,7 @@ export const summarizeLessonPeriods = (
     dueForAttendanceDate: dueTarget?.startTime ?? null,
     dueForAttendanceEndTime: dueTarget?.endTime ?? null,
     dueForAttendanceIsBacklog: dueTarget ? !isSameDay(dueTarget.startTime, now) : false,
+    firstPeriodStart: byStartAsc[0]?.startTime ?? null,
     lastPeriodStart: lastPeriod?.startTime ?? null,
     lastPeriodEnd: lastPeriod?.endTime ?? null,
   };
