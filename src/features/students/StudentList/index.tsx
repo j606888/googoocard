@@ -105,7 +105,10 @@ const StudentList = ({
 
   // roster：沒有選取時自動選第一位，右欄才不會開場就空著
   useEffect(() => {
-    if (!isRoster || selectedId != null || students.length === 0) return;
+    // Also when a search or filter leaves the selected student out — the pane
+    // must not keep showing someone the list no longer has.
+    if (!isRoster || students.length === 0) return;
+    if (selectedId != null && students.some((s) => s.id === selectedId)) return;
     onSelect?.(students[0]);
   }, [isRoster, selectedId, students, onSelect]);
 
@@ -201,7 +204,7 @@ const StudentList = ({
     },
     {
       key: "recent",
-      label: "近期上課",
+      label: `近 ${RECENT_ATTEND_DAYS} 天上課`,
       alert: false,
       count: allStudents.filter((s) => {
         const days = daysSinceLastAttend(s);
@@ -229,7 +232,7 @@ const StudentList = ({
       ? [
           {
             key: "recent",
-            label: "近期上課",
+            label: `近 ${RECENT_ATTEND_DAYS} 天上課`,
             onRemove: () => setFilters((f) => ({ ...f, recentlyAttended: false })),
           },
         ]

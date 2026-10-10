@@ -4,14 +4,16 @@ import { useState } from "react";
 import BasicSection from "./BasicSection";
 import CardsSection from "./CardsSection";
 import AttendSection from "./AttendSection";
+import EventTimeline from "./BasicSection/EventTimeline";
 import { StudentWithDetail } from "@/store/slices/students";
 import { useSearchParams } from "next/navigation";
 import { useSizeClass } from "@/hooks/useMediaQuery";
 
 const tabs = [
-  { label: "基本資料", query: "basic" },
+  { label: "概要", query: "basic" },
   { label: "課卡", query: "cards" },
   { label: "出席", query: "attend" },
+  { label: "動態", query: "events" },
 ];
 
 const StudentDetail = ({
@@ -44,17 +46,21 @@ const StudentDetail = ({
 
   const section = (
     <>
-      {activeTab === "basic" && <BasicSection student={student} isPublic={isPublic} />}
+      {activeTab === "basic" && (
+        <BasicSection student={student} isPublic={isPublic} withTimeline={false} />
+      )}
       {activeTab === "cards" && (
         <CardsSection
           key={student.id}
           student={student}
           studentCards={student.studentCards}
           isPublic={isPublic}
-          columns={isPane ? 2 : 1}
+          // 分割檢視的頁首已經有「購買課卡」。
+          showBuy={!isPane}
         />
       )}
       {activeTab === "attend" && <AttendSection key={student.id} student={student} />}
+      {activeTab === "events" && <EventTimeline key={student.id} studentId={student.id} />}
     </>
   );
 
@@ -108,6 +114,7 @@ const StudentDetail = ({
               student={student}
               studentCards={student.studentCards}
               isPublic={isPublic}
+              showBuy={false}
             />
           </div>
         </div>

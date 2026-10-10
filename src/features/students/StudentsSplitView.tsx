@@ -26,7 +26,9 @@ const StudentsSplitView = () => {
   const router = useRouter();
   const { selectedId, select } = useSelectionMirroredToUrl("sel");
 
-  const { data: student, isLoading } = useGetStudentQuery(
+  // `currentData`, not `data`: `data` keeps the PREVIOUS student while the next
+  // one loads, so the pane showed the wrong person and a click looked ignored.
+  const { currentData: student, isLoading } = useGetStudentQuery(
     { id: selectedId as number },
     { skip: selectedId == null }
   );

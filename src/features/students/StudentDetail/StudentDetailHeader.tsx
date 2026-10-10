@@ -13,7 +13,10 @@ import {
 import { StudentWithDetail } from "@/store/slices/students";
 import { format } from "date-fns";
 import EditStudent from "./BasicSection/EditStudent";
+import BuyCard from "./CardsSection/BuyCard";
 import { DEFAULT_DANCE_LEVEL, practiceQualificationLabel } from "@/lib/danceLevels";
+
+const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 const StudentDetailHeader = ({
   student,
@@ -34,9 +37,18 @@ const StudentDetailHeader = ({
   fullHref?: string;
 }) => {
   const isPane = variant === "pane";
-  const activeCards = student.studentCards.filter((c) => c.remainingSessions > 0);
-  const lastAttend = student.overview.lastAttendAt
-    ? format(new Date(student.overview.lastAttendAt), "yyyy年M月d日")
+  // Same rule as CardsSection's 有效課卡: sessions left AND not expired.
+  const activeCards = student.studentCards.filter(
+    (c) => c.remainingSessions > 0 && !c.expiredAt
+  );
+  // 上課那天（不是點名時間）＋ 課名，見 findLastAttendance。
+  const lastAttendDate = student.overview.lastAttendAt
+    ? new Date(student.overview.lastAttendAt)
+    : null;
+  const lastAttend = lastAttendDate
+    ? `${format(lastAttendDate, "yyyy/M/d")}（${WEEKDAYS[lastAttendDate.getDay()]}）${
+        student.overview.lastAttendLessonName ? ` · ${student.overview.lastAttendLessonName}` : ""
+      }`
     : "尚未上課";
 
   return (
@@ -113,6 +125,7 @@ const StudentDetailHeader = ({
               完整頁面
             </Link>
           )}
+          <BuyCard student={student} variant="header" />
         </div>
       </div>
 

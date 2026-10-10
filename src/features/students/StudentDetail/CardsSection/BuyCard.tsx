@@ -9,7 +9,17 @@ import { Card, useGetCardsQuery } from "@/store/slices/cards";
 import { canBuyCard } from "@/domains/qualification";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 
-const BuyCard = ({ student }: { student: Student }) => {
+const BuyCard = ({
+  student,
+  variant = "block",
+}: {
+  student: Student;
+  /**
+   * "block"  —— 手機課卡分頁頂端的滿寬按鈕。
+   * "header" —— 桌面學生頁首的動作按鈕群（滿寬大按鈕會搶走整個課卡區的焦點）。
+   */
+  variant?: "block" | "header";
+}) => {
   const { data: cards } = useGetCardsQuery();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
@@ -98,13 +108,17 @@ const BuyCard = ({ student }: { student: Student }) => {
   return (
     <>
       <button
-        className="w-full p-3 bg-primary-500 text-white rounded-sm font-semibold cursor-pointer hover:bg-primary-600"
+        className={
+          variant === "header"
+            ? "flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-500 text-white text-sm font-semibold cursor-pointer hover:bg-primary-600"
+            : "w-full p-3 bg-primary-500 text-white rounded-xl font-semibold cursor-pointer hover:bg-primary-600"
+        }
         onClick={() => {
           setIsPaid(true);
           setIsDrawerOpen(true);
         }}
       >
-        購買課卡
+        {variant === "header" ? "＋ 購買課卡" : "購買課卡"}
       </button>
       <Drawer
         title={`為 ${student.name} 買卡`}

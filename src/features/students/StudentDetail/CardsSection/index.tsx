@@ -5,19 +5,21 @@ import {
 import StudentCard from "./StudentCard";
 import BuyCard from "./BuyCard";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 const CardsSection = ({
   student,
   studentCards,
   isPublic,
-  columns = 1,
+  showBuy = true,
 }: {
   student: StudentWithDetail;
   studentCards: StudentCardWithCard[];
   isPublic?: boolean;
-  /** 分割檢視右欄有 ~800px，課卡排兩欄比較不浪費空間 */
-  columns?: 1 | 2;
+  /** 頁首已經有「購買課卡」時（桌面）就不再放滿寬按鈕。 */
+  showBuy?: boolean;
 }) => {
+  const [showHistory, setShowHistory] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("all");
   // 轉換鏈的跳轉目標：捲過去並短暫高亮。
   const [focusCardId, setFocusCardId] = useState<number | null>(null);
@@ -28,6 +30,10 @@ const CardsSection = ({
       // 目標卡被卡種篩選藏起來的話，先切回「全部」才捲得到。
       if (target && activeFilter !== "all" && target.card.name !== activeFilter) {
         setActiveFilter("all");
+      }
+      // 轉換鏈可能指向已用完的卡——先把收合的歷史區打開。
+      if (target && (target.remainingSessions === 0 || target.expiredAt)) {
+        setShowHistory(true);
       }
       setFocusCardId(studentCardId);
     },
@@ -42,8 +48,9 @@ const CardsSection = ({
     const timer = setTimeout(() => setFocusCardId(null), 1600);
     return () => clearTimeout(timer);
   }, [focusCardId]);
+  // 依自己的寬度排欄（手機一欄、分割檢視兩欄、寬螢幕更多），不靠呼叫端傳欄數。
   const cardListClass =
-    columns === 2 ? "grid grid-cols-2 gap-3 items-start" : "flex flex-col gap-3";
+    "grid gap-3 items-start grid-cols-[repeat(auto-fill,minmax(280px,1fr))]";
 
   const filterOptions = useMemo(() => {
     const cardNames = [...new Set(studentCards.map((card) => card.card.name))];
@@ -85,7 +92,7 @@ const CardsSection = ({
   if (studentCards.length === 0) {
     return (
       <div className="flex flex-col gap-3">
-        {!isPublic && <BuyCard student={student} />}
+        {!isPublic && showBuy && <BuyCard student={student} />}
         <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
           你尚未購買卡片
         </div>
@@ -95,7 +102,7 @@ const CardsSection = ({
 
   return (
     <div className="flex flex-col gap-3">
-      {!isPublic && <BuyCard student={student} />}
+      {!isPublic && showBuy && <BuyCard student={student} />}
       <div className="flex flex-wrap gap-2">
         {filterOptions.map((filter) => (
           <button
@@ -131,7 +138,18 @@ const CardsSection = ({
       )}
       {filteredHistoricalCards.length > 0 && (
         <div className="flex flex-col gap-3 pt-2 border-t border-neutral-200">
-          <p className="text-sm font-medium text-neutral-600">已結束/已過期課卡</p>
+          <button
+            type="button"
+            onClick={() => setShowHistory((v) => !v)}
+            aria-expanded={showHistory}
+            className="self-start flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-neutral-900 cursor-pointer"
+          >
+            <ChevronDown
+              className={`w-4 h-4 transition-transform ${showHistory ? "" : "-rotate-90"}`}
+            />
+            已用完 / 已過期 · {filteredHistoricalCards.length} 張
+          </button>
+          {showHistory && (
           <div className={cardListClass}>
           {filteredHistoricalCards.map((studentCard) => (
             <StudentCard
@@ -144,6 +162,7 @@ const CardsSection = ({
             />
           ))}
           </div>
+          )}
         </div>
       )}
     </div>

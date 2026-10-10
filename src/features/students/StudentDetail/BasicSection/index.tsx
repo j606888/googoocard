@@ -8,9 +8,12 @@ import EventTimeline from "./EventTimeline";
 const Basic = ({
   student,
   isPublic,
+  withTimeline = true,
 }: {
   student: StudentWithDetail;
   isPublic?: boolean;
+  /** 分頁版面把動態拆成自己的「動態」分頁，這裡就不再重複。 */
+  withTimeline?: boolean;
 }) => {
   return (
     <div className="flex flex-col gap-4">
@@ -26,7 +29,7 @@ const Basic = ({
         />
       )}
       {!isPublic && <StudentLineBind studentId={student.id} />}
-      <EventTimeline studentId={student.id} />
+      {withTimeline && <EventTimeline studentId={student.id} />}
     </div>
   );
 };
