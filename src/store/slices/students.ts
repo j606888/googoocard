@@ -26,8 +26,9 @@ export interface Student {
   danceQualifications: number[];
   /** 各舞種（以 danceStyleId 為 key）已完成階級（1=初階）；見 src/domains/qualification。 */
   danceLevels: DanceLevels;
-  /** 最近一次已點名的出席時間；從未上過課為 null。 */
+  /** 最近一次出席那堂課的上課時間（不是點名時間）；從未上過課為 null。 */
   lastAttendAt: string | null;
+  lastAttendLessonName: string | null;
 }
 
 export interface Event {
@@ -45,6 +46,7 @@ export interface StudentWithDetail extends Student {
   qualifiedDanceStyles: DanceStyleSummary[];
   overview: {
     lastAttendAt: string | null;
+    lastAttendLessonName: string | null;
     cardCount: number;
     attendLessonCount: number;
     totalSpend: number;

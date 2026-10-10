@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { decodeAuthToken } from "@/lib/auth";
 import { findStudentInClassroom } from "@/lib/authz";
-import { conversionLinksInclude, toStudentPayload } from "@/service/studentDetail";
+import { conversionLinksInclude, findLastAttendance, toStudentPayload } from "@/service/studentDetail";
 import { DEFAULT_DANCE_LEVEL, isValidDanceLevel } from "@/lib/danceLevels";
 import { toDanceLevels } from "@/domains/qualification";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
@@ -163,17 +163,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Student not found" }, { status: 404 });
   }
 
-  const lastAttendance = await prisma.attendanceRecord.findFirst({
-    where: {
-      studentId: parseInt(id),
-    },
-    include: {
-      lessonPeriod: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+  const lastAttendance = await findLastAttendance(student.id);
 
   const { attendanceRecords, studentCards, studentTags, danceQualifications } = student;
   const tags = studentTags.map((st) => ({ id: st.tag.id, name: st.tag.name }));
@@ -182,7 +172,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const purchasedCards = studentCards.filter((card) => card.origin === "PURCHASE");
 
   const overview = {
-    lastAttendAt: lastAttendance?.lessonPeriod.attendanceTakenAt,
+    ...lastAttendance,
     attendLessonCount: student.lessons.length,
     cardCount: purchasedCards.length,
     totalSpend: purchasedCards.reduce((acc, card) => acc + card.finalPrice, 0),

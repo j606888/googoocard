@@ -18,12 +18,23 @@ export async function POST(
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
     }
 
-    const lessonPeriod = await getLessonPeriod(periodId);
-    const studentCard = await getStudentCard(studentCardId);
+    // Every id below comes from the client, so each is pinned to the one before
+    // it: the period to this lesson, the card to this student (and so to this
+    // classroom). Qualification is deliberately NOT checked — manual
+    // consumption must always work for legacy and special cases.
+    const lessonPeriod = await getLessonPeriod(periodId, parseInt(id));
+    const studentCard = await getStudentCard(studentCardId, parseInt(studentId));
     const attendanceRecord = await getAttendanceRecord(
       lessonPeriod.id,
       studentId
     );
+    if (attendanceRecord.studentCardId !== null) {
+      // Re-binding would charge a second card without refunding the first.
+      throw new ApiError(409, "Attendance record already has a card");
+    }
+    if (studentCard.remainingSessions <= 0) {
+      throw new ApiError(400, "Student card has no sessions left");
+    }
 
     await prisma.$transaction(async (tx) => {
       const updatedStudentCard = await tx.studentCard.update({
@@ -73,10 +84,11 @@ export async function POST(
   }
 }
 
-async function getLessonPeriod(periodId: string) {
-  const lessonPeriod = await prisma.lessonPeriod.findUnique({
+async function getLessonPeriod(periodId: string, lessonId: number) {
+  const lessonPeriod = await prisma.lessonPeriod.findFirst({
     where: {
       id: parseInt(periodId),
+      lessonId,
     },
   });
 
@@ -87,10 +99,11 @@ async function getLessonPeriod(periodId: string) {
   return lessonPeriod;
 }
 
-async function getStudentCard(studentId: string) {
-  const studentCard = await prisma.studentCard.findUnique({
+async function getStudentCard(studentCardId: string, studentId: number) {
+  const studentCard = await prisma.studentCard.findFirst({
     where: {
-      id: parseInt(studentId),
+      id: parseInt(studentCardId),
+      studentId,
     },
   });
 

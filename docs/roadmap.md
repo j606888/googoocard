@@ -215,6 +215,23 @@ JWT 內嵌 `classroomId`、活 30 天、無法撤銷，而所有 handler 都只�
 
 > `npm run lint` → `npm run build` → `npx tsc --noEmit` → `npm test`（283 項）全綠。
 
+## [x] P0c UI 檢視時發現的三個資料缺口 ✅ 2026-10-10
+
+來源：`docs/ui-review-2026-10.md` 的正式環境瀏覽。回歸測試在 `tests/api/ui-review-data-fixes.test.ts`。
+
+- **`GET /api/income` 整列回傳 Student**（`include: { student: true }`）→ 帶出
+  `lineBindKey` / `randomKey` / `lineUserId`，教室內任何成員（含助教）都拿得到。
+  P0-2 的回歸測試沒掃到這支 route。**已修**：改 `select` 只取 `name`。
+- **「最近上課」三份實作都錯**（`api/students`、`api/students/[id]`、
+  `service/studentDetail` 給 LIFF／分享頁）：用 `attendanceTakenAt`（點名時間，
+  常落在隔天凌晨）而非上課日；詳情的兩份用 `createdAt` 排序。**已修**：統一走
+  `lastAttendanceQuery` / `findLastAttendance`，以 `lessonPeriod.startTime` 為準，
+  另回傳 `lastAttendLessonName`。學生自助簽到、尚未定案的紀錄也算（人到了、卡也扣了）。
+- **consume route（手動扣卡）** 只驗了課程屬於本教室：`periodId` 沒綁課程、
+  `studentCardId` 沒綁學生（→ 可扣別間教室的卡）、可扣到負數、已綁卡的紀錄可再綁一張
+  （重複扣、舊卡不退）。**已修**：period 綁 lesson、card 綁 student，剩 0 堂 400、
+  已綁卡 409。「不擋資格」的既定規則不變。
+
 ## [x] P1-1 Foreign key 全無索引 ✅ 2026-08-24
 
 全 schema 只有 3 個 `@@index`。**Postgres 不會自動為 FK 建索引，Prisma 也不會**——

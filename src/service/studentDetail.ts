@@ -65,6 +65,44 @@ export const conversionLinksInclude = {
 } as const;
 
 /**
+ * 「最近上課」= the latest class the student attended, dated by the class
+ * (`lessonPeriod.startTime`) — not by when the teacher took attendance, which
+ * can land after midnight, and not by the record's `createdAt`. Self check-ins
+ * still awaiting the teacher count too: the student was there and the card was
+ * already charged.
+ *
+ * Use as `attendanceRecords: lastAttendanceQuery` in a Student include, then
+ * read it with `toLastAttendance`.
+ */
+export const lastAttendanceQuery = {
+  orderBy: { lessonPeriod: { startTime: "desc" } },
+  take: 1,
+  select: {
+    lessonPeriod: {
+      select: { startTime: true, lesson: { select: { name: true } } },
+    },
+  },
+} as const;
+
+export function toLastAttendance(
+  records: { lessonPeriod: { startTime: Date; lesson: { name: string } } }[]
+) {
+  const last = records[0];
+  return {
+    lastAttendAt: last?.lessonPeriod.startTime ?? null,
+    lastAttendLessonName: last?.lessonPeriod.lesson.name ?? null,
+  };
+}
+
+export async function findLastAttendance(studentId: number) {
+  const records = await prisma.attendanceRecord.findMany({
+    where: { studentId },
+    ...lastAttendanceQuery,
+  });
+  return toLastAttendance(records);
+}
+
+/**
  * Assemble the full student-detail payload (overview, cards with their
  * attendance, attendance grouped by lesson and by date, dance qualifications)
  * for a single student. Shared by the public share page (`/public-students`)
@@ -105,16 +143,12 @@ export async function buildStudentDetailPayload(studentId: number) {
 
   if (!student) return null;
 
-  const lastAttendance = await prisma.attendanceRecord.findFirst({
-    where: { studentId: student.id },
-    include: { lessonPeriod: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const lastAttendance = await findLastAttendance(student.id);
 
   const { attendanceRecords, studentCards, danceQualifications } = student;
 
   const overview = {
-    lastAttendAt: lastAttendance?.lessonPeriod.attendanceTakenAt,
+    ...lastAttendance,
     attendLessonCount: student.lessons.length,
     cardCount: studentCards.length,
     totalSpend: studentCards.reduce((acc, card) => acc + card.finalPrice, 0),

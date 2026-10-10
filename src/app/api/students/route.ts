@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
 import { createStudent } from "@/service/student";
-import { toStudentPayload } from "@/service/studentDetail";
+import { lastAttendanceQuery, toLastAttendance, toStudentPayload } from "@/service/studentDetail";
 import { parseCardSerial } from "@/lib/cardSerial";
 
 export async function GET(request: Request) {
@@ -62,14 +62,9 @@ export async function GET(request: Request) {
           lesson: { select: { id: true, status: true } },
         },
       },
-      // 只取「最近一次已點名的出席」一列（`AttendanceRecord` 有 @@index([studentId])），
-      // 桌面版名單要靠它排序／顯示「最近上課」。刻意不拉整份出席史。
-      attendanceRecords: {
-        where: { lessonPeriod: { attendanceTakenAt: { not: null } } },
-        orderBy: { lessonPeriod: { attendanceTakenAt: "desc" } },
-        take: 1,
-        select: { lessonPeriod: { select: { attendanceTakenAt: true } } },
-      },
+      // 只取「最近一次出席」一列（`AttendanceRecord` 有 @@index([studentId])），
+      // 名單要靠它排序／顯示「最近上課」。刻意不拉整份出席史。
+      attendanceRecords: lastAttendanceQuery,
     },
   });
 
@@ -94,8 +89,7 @@ export async function GET(request: Request) {
       danceLevels: toDanceLevels(student.danceQualifications),
       isInActiveLesson,
       activeLessonIds,
-      lastAttendAt:
-        student.attendanceRecords[0]?.lessonPeriod.attendanceTakenAt ?? null,
+      ...toLastAttendance(student.attendanceRecords),
       studentCards: activeStudentCards.map((studentCard) => ({
         ...studentCard,
         card: studentCard.card,

@@ -16,9 +16,14 @@ export async function GET(request: Request) {
         classroomId: classroomId!,
       },
     },
-    include: {
-      student: true,
-      card: true,
+    // Select, never `student: true`: the row carries `lineBindKey` (a one-time
+    // LINE binding token), `randomKey` and `lineUserId`.
+    select: {
+      id: true,
+      createdAt: true,
+      finalPrice: true,
+      student: { select: { name: true } },
+      card: { select: { name: true } },
     },
     orderBy: {
       createdAt: "desc",
