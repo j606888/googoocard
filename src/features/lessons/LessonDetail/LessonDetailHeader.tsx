@@ -27,7 +27,8 @@ const LessonDetailHeader = ({
   // barely started reported a depressed rate.
   const { rate: attendanceRate } = lessonAttendanceRate(students);
 
-  const isFinished = periods.length > 0 && attendedCount === periods.length;
+  const isFinished = lesson.status === "finished";
+  const isOngoing = lesson.kind === "ongoing";
 
   return (
     <div className={`border-b border-neutral-200 px-8 py-5 ${style.light}`}>
@@ -66,7 +67,7 @@ const LessonDetailHeader = ({
               </span>
             )}
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isFinished ? "bg-neutral-100 text-neutral-600" : "bg-primary-100 text-primary-700"}`}>
-              {isFinished ? "已結束" : "上課中"}
+              {isFinished ? "已結束" : "進行中"}
             </span>
           </div>
         </div>
@@ -94,7 +95,9 @@ const LessonDetailHeader = ({
         </div>
         <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200 shadow-sm">
           <BookOpenText className="w-4 h-4" />
-          <span>{attendedCount} / {periods.length} 個時段</span>
+          <span>
+            {isOngoing ? `持續開課 · 已上 ${attendedCount} 堂` : `${attendedCount} / ${periods.length} 個時段`}
+          </span>
         </div>
         <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200 shadow-sm">
           <span className={`w-2 h-2 rounded-full ${attendanceRate >= 80 ? "bg-primary-500" : attendanceRate >= 50 ? "bg-warning-500" : "bg-neutral-400"}`} />

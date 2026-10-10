@@ -1,4 +1,5 @@
 import { DraftLesson } from "@/store/slices/lessons";
+import type { LessonKind } from "@/lib/lessonKind";
 
 const STORAGE_KEY = "lesson-draft";
 const CLONE_KEY = "lesson-clone-source";
@@ -42,6 +43,7 @@ export interface LessonCloneSource {
   cardIds: number[];
   danceStyleId: number | null;
   level?: number;
+  kind?: LessonKind;
   groupId?: number | null;
   initialPeriod?: { startTime: string; endTime: string };
 }
@@ -63,4 +65,24 @@ export const getLessonCloneSource = (): LessonCloneSource | null => {
 
 export const clearLessonCloneSource = () => {
   localStorage.removeItem(CLONE_KEY);
+};
+// The kind picked last time pre-selects the next new lesson — a classroom
+// tends to run all its lessons one way, so it is remembered per classroom.
+const kindKey = (classroomId: number) => `lesson-kind-last-used:${classroomId}`;
+
+export const getLastLessonKind = (classroomId: number): LessonKind | null => {
+  try {
+    const value = localStorage.getItem(kindKey(classroomId));
+    return value === "fixed" || value === "ongoing" ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+export const setLastLessonKind = (classroomId: number, kind: LessonKind) => {
+  try {
+    localStorage.setItem(kindKey(classroomId), kind);
+  } catch {
+    // Storage unavailable (private mode) — the default is fine.
+  }
 };

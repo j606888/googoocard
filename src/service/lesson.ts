@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { endOfDay, isSameDay } from "date-fns";
+import { deriveLessonStatus } from "@/lib/lessonKind";
 
 type SummarizablePeriod = {
   id: number;
@@ -108,13 +109,17 @@ export const refreshLesson = async (lessonId: number) => {
 
   const summary = summarizeLessonPeriods(periods, new Date());
 
-  if (summary.lastPeriodEnd) {
-    await prisma.lesson.update({
-      where: { id: lessonId },
-      data: {
-        endAt: summary.lastPeriodEnd,
-        status: summary.allAttendanceChecked ? "finished" : "inProgress",
-      },
-    });
-  }
+  // Status is rewritten even with no periods: switching kind or ending /
+  // reopening a lesson must take effect before anything is scheduled.
+  await prisma.lesson.update({
+    where: { id: lessonId },
+    data: {
+      ...(summary.lastPeriodEnd ? { endAt: summary.lastPeriodEnd } : {}),
+      status: deriveLessonStatus({
+        kind: lesson.kind,
+        endedAt: lesson.endedAt,
+        allAttendanceChecked: summary.allAttendanceChecked,
+      }),
+    },
+  });
 };

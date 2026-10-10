@@ -172,8 +172,10 @@ export async function createLesson(
     withPeriod = false,
     groupId = null,
     level = 1,
+    kind = "fixed",
   }: {
     name?: string;
+    kind?: "fixed" | "ongoing";
     /** Omitted: the classroom's default "Bachata" style (created on first use). */
     danceStyleId?: number;
     level?: number;
@@ -188,6 +190,7 @@ export async function createLesson(
       classroomId,
       danceStyleId: danceStyleId ?? (await defaultDanceStyle(classroomId)).id,
       level,
+      kind,
       status: "inProgress",
       groupId,
     },

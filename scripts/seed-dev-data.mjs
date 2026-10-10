@@ -11,6 +11,7 @@
 //
 // ⚠️ 這支腳本直接寫資料表，沒有走 API。兩條衍生規則是照抄的，改動時要同步：
 //    • lesson.status / endAt   ← src/service/lesson.ts   (summarizeLessonPeriods)
+//                                + src/lib/lessonKind.ts (deriveLessonStatus；這裡建的課都是 kind=fixed)
 //    • Needs Renewal 標籤      ← src/service/studentTag.ts (computeNeedsRenewal)
 
 import { PrismaClient } from "@prisma/client";

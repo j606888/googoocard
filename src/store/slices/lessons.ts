@@ -5,6 +5,7 @@ import { Teacher } from "./teachers";
 import type { DanceStyleSummary } from "@/lib/danceStyles";
 import type { CardStatus } from "@/domains/attendance/rosterInsights";
 import type { DanceLevels } from "@/domains/qualification";
+import type { LessonKind } from "@/lib/lessonKind";
 
 export interface Lesson {
   id: number;
@@ -18,6 +19,11 @@ export interface Lesson {
   danceStyle: DanceStyleSummary;
   /** 1 = 初階, 2 = 中階, 3 = 進階 — see src/lib/danceLevels.ts. */
   level: number;
+  status: string;
+  /** "fixed" | "ongoing" — see src/lib/lessonKind.ts. */
+  kind: LessonKind;
+  /** Set when ended by hand; finished regardless of kind. */
+  endedAt: string | null;
   cards: Card[];
   groupId: number | null;
   group: { id: number; name: string } | null;
@@ -39,6 +45,8 @@ export interface LessonSummary {
   danceStyle: DanceStyleSummary;
   level: number;
   status: string;
+  kind: LessonKind;
+  endedAt: string | null;
   studentCount: number;
   teachers: { id: number; name: string }[];
   cardIds: number[];
@@ -99,6 +107,8 @@ export interface DraftLesson {
   danceStyleId: number;
   /** 1 = 初階 (default), 2 = 中階, 3 = 進階. */
   level?: number;
+  /** Omitted on create = "fixed"; omitted on update = unchanged. */
+  kind?: LessonKind;
   /** LessonGroup to file this lesson under — null means 未分類 (ungrouped). */
   groupId?: number | null;
   periods?: {
@@ -289,6 +299,27 @@ const lessonsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Lesson"],
     }),
+    /** Several periods in one request (the list's "＋下一堂"); reopens an ended lesson. */
+    createPeriods: builder.mutation<
+      void,
+      { id: number; periods: { startTime: string; endTime: string }[] }
+    >({
+      query: ({ id, periods }) => ({
+        url: `lessons/${id}/periods`,
+        method: "POST",
+        body: { periods },
+      }),
+      invalidatesTags: ["Lesson"],
+    }),
+    /** End by hand (how an ongoing lesson reaches 已結束). */
+    endLesson: builder.mutation<void, number>({
+      query: (id) => ({ url: `lessons/${id}/end`, method: "POST" }),
+      invalidatesTags: ["Lesson"],
+    }),
+    reopenLesson: builder.mutation<void, number>({
+      query: (id) => ({ url: `lessons/${id}/end`, method: "DELETE" }),
+      invalidatesTags: ["Lesson"],
+    }),
     /** Re-date a period; its attendance records move with it (see the PATCH route). */
     updatePeriod: builder.mutation<
       void,
@@ -340,6 +371,9 @@ export const {
   useConsumeStudentCardMutation,
   useGetLessonStudentsQuery,
   useCreatePeriodMutation,
+  useCreatePeriodsMutation,
+  useEndLessonMutation,
+  useReopenLessonMutation,
   useUpdatePeriodMutation,
   useDeletePeriodMutation,
   useGetUnbindAttendanceRecordsQuery,

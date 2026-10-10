@@ -9,7 +9,7 @@ import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 
 const TABS = [
-  { label: "上課中", value: "inProgress" },
+  { label: "進行中", value: "inProgress" },
   { label: "已結束", value: "finished" },
 ];
 

@@ -217,6 +217,11 @@ model Lesson {
   classroom    Classroom       @relation(fields: [classroomId], references: [id])
   status       String          @default("inProgress")
   endAt        DateTime?
+  // "fixed" = a set run of dates, finished once every period is checked;
+  // "ongoing" = keeps adding periods, never auto-finishes (src/lib/lessonKind.ts).
+  kind         String          @default("fixed")
+  // Set when a teacher ends a lesson by hand — finished regardless of kind.
+  endedAt      DateTime?
   danceStyleId Int
   danceStyle   DanceStyle      @relation(fields: [danceStyleId], references: [id])
   // Level taught (1 = 初階, 2 = 中階, 3 = 進階 — src/lib/danceLevels.ts).

@@ -4,11 +4,18 @@ import InputField from "@/components/InputField";
 import DanceStyleSelect from "@/features/lessons/newLesson/DanceStyleSelect";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import LevelSelect from "@/features/lessons/newLesson/LevelSelect";
+import LessonKindSelect from "@/features/lessons/newLesson/LessonKindSelect";
+import type { LessonKind } from "@/lib/lessonKind";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
 import LessonGroupSelect from "@/features/lessons/newLesson/LessonGroupSelect";
 import { Button } from "@/components/ui/button";
-import { useUpdateLessonMutation, useDeleteLessonMutation } from "@/store/slices/lessons";
+import {
+  useUpdateLessonMutation,
+  useDeleteLessonMutation,
+  useEndLessonMutation,
+  useReopenLessonMutation,
+} from "@/store/slices/lessons";
 import { useRouter } from "next/navigation";
 
 const validationErrors = {
@@ -28,6 +35,19 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(lesson.teachers.map((teacher) => teacher.id));
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>(lesson.cards.map((card) => card.id));
   const [groupId, setGroupId] = useState<number | null>(lesson.groupId);
+  const [kind, setKind] = useState<LessonKind>(lesson.kind);
+  const [endLesson, { isLoading: isEnding }] = useEndLessonMutation();
+  const [reopenLesson, { isLoading: isReopening }] = useReopenLessonMutation();
+  const isEndedByHand = lesson.endedAt !== null;
+
+  const handleEndToggle = async () => {
+    if (isEndedByHand) {
+      await reopenLesson(lesson.id).unwrap();
+      return;
+    }
+    if (!confirm("確定要結束這門課程嗎？之後可以再重新開課。")) return;
+    await endLesson(lesson.id).unwrap();
+  };
   const [errors, setErrors] = useState<{
     lessonName?: string;
     teachers?: string;
@@ -82,7 +102,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
     });
     setErrors(errors);
     if (Object.keys(errors).length === 0 && danceStyleId !== null) {
-      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId, level, groupId } });
+      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId, level, kind, groupId } });
     }
   };
 
@@ -102,6 +122,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
             error={errors.danceStyle}
           />
           {hasLevels && <LevelSelect level={level} onChange={setLevel} />}
+          <LessonKindSelect kind={kind} onChange={setKind} />
           <LessonGroupSelect
             groupId={groupId}
             onChange={setGroupId}
@@ -120,6 +141,20 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
           <Button className="w-full" onClick={handleSubmit} isLoading={isLoading}>
             儲存
           </Button>
+          <div className="pt-4 border-t border-neutral-200 flex flex-col gap-1">
+            <button
+              onClick={handleEndToggle}
+              disabled={isEnding || isReopening}
+              className="w-full py-2 rounded font-semibold border border-neutral-300 text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 cursor-pointer"
+            >
+              {isEndedByHand ? "重新開課" : "結束課程"}
+            </button>
+            <p className="text-xs text-neutral-400 text-center">
+              {isEndedByHand
+                ? "這門課已手動結束；重新開課或排新時段都會回到「進行中」"
+                : "結束後移到「已結束」，紀錄都會保留"}
+            </p>
+          </div>
           <div className="pt-4 border-t border-neutral-200">
             <button
               onClick={handleDelete}

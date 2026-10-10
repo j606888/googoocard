@@ -1,11 +1,11 @@
 "use client";
 
-import { BookOpenText, Plus } from "lucide-react";
+import { AlarmClock, BookOpenText, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 import TabAndSort from "./TabAndSort";
-import LessonCard from "./LessonCard";
-import GroupTable from "./GroupRow";
+import LessonTable from "./LessonTable";
+import LessonGroupSection from "./LessonGroupSection";
 import Drawer from "@/components/Drawer";
 import { useState } from "react";
 import { useLessonsList } from "./useLessonsList";
@@ -17,8 +17,11 @@ const LessonsList = () => {
     lessons,
     isLoading,
     isFetching,
-    groupRows,
+    sections,
     useGroupedView,
+    attention,
+    isCollapsed,
+    toggleSection,
     isFiltering,
     activeTab,
     setActiveTab,
@@ -65,6 +68,21 @@ const LessonsList = () => {
         availableDanceStyleIds={lessons?.availableDanceStyleIds ?? []}
       />
 
+      {(attention.dueCount > 0 || attention.needsNextCount > 0) && (
+        <div className="flex items-center gap-2.5 mb-4 px-4 py-2.5 rounded-xl bg-warning-50 border border-warning-200 text-sm text-neutral-700">
+          <AlarmClock className="w-4 h-4 shrink-0 text-warning-700" />
+          <span>
+            {[
+              attention.dueCount > 0 && `${attention.dueCount} 堂待點名`,
+              attention.needsNextCount > 0 &&
+                `${attention.needsNextCount} 門持續開課的課還沒排下一堂`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        </div>
+      )}
+
       {isLoading ? (
         <ListSkeleton />
       ) : lessons?.lessons.length === 0 && !useGroupedView ? (
@@ -84,9 +102,15 @@ const LessonsList = () => {
           </div>
         </div>
       ) : useGroupedView ? (
-        <div className="flex flex-col gap-3">
-          {/* 同一份 DOM：手機是卡片、桌面是表格 */}
-          <GroupTable groups={groupRows} />
+        <div className="flex flex-col gap-5">
+          {sections.map((section) => (
+            <LessonGroupSection
+              key={section.id}
+              section={section}
+              collapsed={isCollapsed(section.id)}
+              onToggle={() => toggleSection(section.id)}
+            />
+          ))}
           <button
             onClick={() => setCreateGroupOpen(true)}
             className="flex items-center justify-center gap-2 border border-dashed border-neutral-300 rounded-2xl text-neutral-500 py-3 text-sm font-semibold cursor-pointer hover:border-neutral-400 hover:text-neutral-700"
@@ -97,11 +121,7 @@ const LessonsList = () => {
         </div>
       ) : (
         <>
-          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4 xl:grid-cols-3">
-            {lessons?.lessons.map((lesson) => (
-              <LessonCard key={lesson.id} lesson={lesson} />
-            ))}
-          </div>
+          <LessonTable lessons={lessons?.lessons ?? []} />
           {lessons?.hasNextPage && (
             <div className="flex justify-center mt-5">
               <button

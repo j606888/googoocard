@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { refreshLesson, summarizeLessonPeriods } from "@/service/lesson";
 import { cardMatchesLesson } from "@/domains/qualification";
 import { DEFAULT_DANCE_LEVEL, isValidDanceLevel } from "@/lib/danceLevels";
+import { DEFAULT_LESSON_KIND, isValidLessonKind } from "@/lib/lessonKind";
 import { findDanceStyleInClassroom, findLessonGroupInClassroom } from "@/lib/authz";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
 import { Prisma } from "@prisma/client";
@@ -93,6 +94,8 @@ export async function GET(request: Request) {
       danceStyle: lesson.danceStyle,
       level: lesson.level,
       status: lesson.status,
+      kind: lesson.kind,
+      endedAt: lesson.endedAt,
       studentCount: lesson._count.students,
       teachers: lesson.teachers.map((t) => t.teacher),
       cardIds: lesson.cards.map((c) => c.cardId),
@@ -168,6 +171,9 @@ export async function POST(request: Request) {
   if (draftLesson.level !== undefined && !isValidDanceLevel(draftLesson.level)) {
     return NextResponse.json({ error: "Invalid level" }, { status: 400 });
   }
+  if (draftLesson.kind !== undefined && !isValidLessonKind(draftLesson.kind)) {
+    return NextResponse.json({ error: "Invalid kind" }, { status: 400 });
+  }
 
   // A groupId is caller-controlled input — verify it names a group in this
   // classroom before attaching it (same IDOR guard as findLessonInClassroom),
@@ -213,6 +219,7 @@ export async function POST(request: Request) {
         status: "inProgress",
         danceStyleId: draftLesson.danceStyleId,
         level: draftLesson.level ?? DEFAULT_DANCE_LEVEL,
+        kind: draftLesson.kind ?? DEFAULT_LESSON_KIND,
         groupId: draftLesson.groupId ?? null,
       },
     });

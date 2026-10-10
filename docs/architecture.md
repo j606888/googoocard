@@ -26,7 +26,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 ├── DanceStyle（教室自訂舞種：name / color 色盤 key / hasLevels 分階 / sortOrder / archivedAt）
 ├── Card（課卡種類：價格/堂數；isPracticeCard + danceStyleId 定義複習卡）
 ├── Teacher（教室內的老師實體，不是 User）
-└── Lesson（danceStyleId + level 初/中/進階 + status inProgress/finished）
+└── Lesson（danceStyleId + level 初/中/進階 + kind fixed/ongoing + status inProgress/finished）
     ├── LessonCard（此課程接受哪些課卡）
     ├── LessonTeacher
     ├── LessonPeriod（單堂時段；attendanceTakenAt 標記已點名）
@@ -142,6 +142,30 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 「修改時間」）。**出席紀錄是跟著時段走的**——`AttendanceRecord` 以 id 指向
 `LessonPeriod`，所以改期不動紀錄也不動課卡，已點名的時段一樣能改。停課改期因此不必
 刪掉時段重建（那會連同出席一起丟掉）。
+
+## 課程型態與「進行中 / 已結束」（2026-10）
+
+`Lesson.status` 只由 `deriveLessonStatus()`（`src/lib/lessonKind.ts`）決定，`refreshLesson()`
+在每次點名、增刪改時段、改設定、結束/重開後重寫它：
+
+| 條件 | status |
+|---|---|
+| `endedAt` 有值（老師手動結束） | `finished`，不論型態 |
+| `kind = "ongoing"`（持續開課） | 永遠 `inProgress` |
+| `kind = "fixed"`（固定期數，預設） | 全部時段點完 → `finished`，否則 `inProgress`（原本的行為） |
+
+為什麼：有的教室一期先排好 5 堂（點完就該結束），有的教室一門課每週一直往下加
+（沒有結束日）。後者在舊規則下每點完一堂就掉進「已結束」，老師得去那裡找課再開時段。
+
+- **結束 / 重開**：`POST` / `DELETE /api/lessons/[id]/end`（課程設定頁、「＋下一堂」對話框）。
+  替手動結束的課**排新時段會自動重開**（`POST .../periods` 會清掉 `endedAt`）。
+- **一次排多堂**：`POST /api/lessons/[id]/periods` 接受 `{ startTime, endTime }` 或
+  `{ periods: [...] }`（最多 12 筆）。
+- **列表**（`features/lessons/`）：沒篩選的「進行中」依群組**直接展開**（`LessonGroupSection` +
+  `LessonTable`，不再點進群組頁；收合狀態存 localStorage，key 帶 classroomId）。
+  「已結束」與篩選中維持分頁的攤平列表。每列動作由 `lessonRowAction()` 決定：
+  待點名 > 持續開課且沒排下一堂（「＋下一堂」，預設沿用上一堂的星期與時間、推到今天以後）> 無。
+- 新增課程時選型態；上次選的型態依教室記在 localStorage 當預設。
 
 ## 學生自助簽到（兩個入口，同一顆引擎）
 

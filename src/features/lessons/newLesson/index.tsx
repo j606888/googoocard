@@ -11,11 +11,16 @@ import { useCreateLessonMutation } from "@/store/slices/lessons";
 import { useRouter, useSearchParams } from "next/navigation";
 import DanceStyleSelect from "./DanceStyleSelect";
 import LevelSelect from "./LevelSelect";
+import LessonKindSelect from "./LessonKindSelect";
+import { DEFAULT_LESSON_KIND, type LessonKind } from "@/lib/lessonKind";
+import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { DEFAULT_DANCE_LEVEL } from "@/lib/danceLevels";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import {
   getLessonCloneSource,
   clearLessonCloneSource,
+  getLastLessonKind,
+  setLastLessonKind,
 } from "@/lib/lessonDraftStorage";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -58,6 +63,15 @@ const NewLesson = () => {
   const [level, setLevel] = useState<number>(
     initialClone?.level ?? DEFAULT_DANCE_LEVEL
   );
+  // Clone > the classroom's last-used kind > "fixed". The last-used kind needs
+  // the classroom id, which may arrive after the first render.
+  const { data: classroomData } = useGetClassroomsQuery();
+  const classroomId = classroomData?.currentClassroomId ?? null;
+  const [pickedKind, setPickedKind] = useState<LessonKind | null>(initialClone?.kind ?? null);
+  const kind: LessonKind =
+    pickedKind ??
+    (classroomId != null ? getLastLessonKind(classroomId) : null) ??
+    DEFAULT_LESSON_KIND;
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(
     initialClone?.teacherIds ?? []
   );
@@ -141,9 +155,11 @@ const NewLesson = () => {
         danceStyleId,
         // A style without levels has no 階級 picker; its lessons are 初階.
         level: hasLevels ? level : DEFAULT_DANCE_LEVEL,
+        kind,
         groupId: selectedGroupId,
         periods,
       });
+      if (classroomId != null) setLastLessonKind(classroomId, kind);
 
       router.push("/lessons");
     }
@@ -191,6 +207,7 @@ const NewLesson = () => {
                   error={errors.danceStyle}
                 />
                 {hasLevels && <LevelSelect level={level} onChange={setLevel} />}
+                <LessonKindSelect kind={kind} onChange={setPickedKind} />
                 <LessonGroupSelect
                   groupId={selectedGroupId}
                   onChange={setSelectedGroupId}
