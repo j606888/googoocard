@@ -9,9 +9,10 @@ import SingleStudent from "./SingleStudent";
 import RosterRow from "./RosterRow";
 import Searchbar from "./Searchbar";
 import SortMenu from "@/components/SortMenu";
-import FilterDrawer from "./FilterDrawer";
+import FilterDrawer, { StatusFilterOption } from "./FilterDrawer";
+import ArchivedStudents from "./ArchivedStudents";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Users, SlidersHorizontal, X, CornerDownLeft } from "lucide-react";
+import { Users, SlidersHorizontal, CornerDownLeft } from "lucide-react";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import {
@@ -20,20 +21,20 @@ import {
   DEFAULT_SORT,
   SORT_OPTIONS,
   EMPTY_FILTERS,
+  LOW_REMAINING_SESSIONS,
+  NEEDS_RENEWAL_TAG,
   RECENT_ATTEND_DAYS,
   applyStudentFilters,
   countActiveFilters,
   daysSinceLastAttend,
+  isLowRemaining,
   loadStudentFilters,
   saveStudentFilters,
   loadStudentSort,
   saveStudentSort,
   remainingSessions,
   sortStudents,
-  tagLabel,
 } from "./studentFilters";
-
-const NEEDS_RENEWAL_TAG = "Needs Renewal";
 
 interface StudentListProps {
   /**
@@ -169,132 +170,119 @@ const StudentList = ({
 
   const activeCount = countActiveFilters(filters);
 
-  const lessonName = (id: number) => inProgressLessons.find((l) => l.id === id)?.name;
-
   const toggleTag = (name: string) =>
     setFilters((f) => ({
       ...f,
       tags: f.tags.includes(name) ? f.tags.filter((t) => t !== name) : [...f.tags, name],
     }));
 
+  const toggleFlag = (key: "inActiveLesson" | "recentlyAttended" | "noActiveCard" | "lowRemaining" | "unpaid") =>
+    setFilters((f) => ({ ...f, [key]: !f[key] }));
+
   const hasNeedsRenewalTag = tags.some((tag) => tag.name === NEEDS_RENEWAL_TAG);
 
-  // 快速條件：桌面版有空間，把最常用的四個從篩選抽屜拉到檯面上（各自獨立可疊加）
-  const quickFilters = [
+  // 狀態條件：前四個是名單上方的快篩 chip，全部都在篩選抽屜的「狀態」區。
+  // 數字一律對整份名單算（不受其他條件影響），按下去才知道會剩幾位。
+  const quickStatus: StatusFilterOption[] = [
     ...(hasNeedsRenewalTag
       ? [
           {
             key: "renewal",
             label: "需續約",
             alert: true,
-            count: allStudents.filter((s) =>
-              s.tags?.some((t) => t.name === NEEDS_RENEWAL_TAG)
-            ).length,
+            count: allStudents.filter((s) => s.tags?.some((t) => t.name === NEEDS_RENEWAL_TAG))
+              .length,
             active: filters.tags.includes(NEEDS_RENEWAL_TAG),
             toggle: () => toggleTag(NEEDS_RENEWAL_TAG),
           },
         ]
       : []),
     {
-      key: "inLesson",
-      label: "上課中",
-      alert: false,
-      count: allStudents.filter((s) => s.isInActiveLesson).length,
-      active: filters.inActiveLesson,
-      toggle: () => setFilters((f) => ({ ...f, inActiveLesson: !f.inActiveLesson })),
+      key: "low",
+      label: `剩 ≤${LOW_REMAINING_SESSIONS} 堂`,
+      count: allStudents.filter(isLowRemaining).length,
+      active: filters.lowRemaining,
+      toggle: () => toggleFlag("lowRemaining"),
+    },
+    {
+      key: "unpaid",
+      label: "未付款",
+      count: allStudents.filter((s) => s.hasUnpaidCard).length,
+      active: filters.unpaid,
+      toggle: () => toggleFlag("unpaid"),
     },
     {
       key: "recent",
-      label: `近 ${RECENT_ATTEND_DAYS} 天上課`,
-      alert: false,
+      label: `近 ${RECENT_ATTEND_DAYS} 天有上課`,
       count: allStudents.filter((s) => {
         const days = daysSinceLastAttend(s);
         return days !== null && days <= RECENT_ATTEND_DAYS;
       }).length,
       active: filters.recentlyAttended,
-      toggle: () => setFilters((f) => ({ ...f, recentlyAttended: !f.recentlyAttended })),
+      toggle: () => toggleFlag("recentlyAttended"),
+    },
+  ];
+
+  const statusOptions: StatusFilterOption[] = [
+    ...quickStatus,
+    {
+      key: "inLesson",
+      label: "上課中",
+      count: allStudents.filter((s) => s.isInActiveLesson).length,
+      active: filters.inActiveLesson,
+      toggle: () => toggleFlag("inActiveLesson"),
     },
     {
       key: "noCard",
-      label: "無課卡",
-      alert: false,
+      label: "沒有課卡",
       count: allStudents.filter((s) => remainingSessions(s) === 0).length,
       active: filters.noActiveCard,
-      toggle: () => setFilters((f) => ({ ...f, noActiveCard: !f.noActiveCard })),
+      toggle: () => toggleFlag("noActiveCard"),
     },
   ];
 
-  // 已選條件 pill（可單獨移除）
-  const activePills: { key: string; label: string; onRemove: () => void }[] = [
-    ...(filters.inActiveLesson
-      ? [{ key: "status", label: "上課中", onRemove: () => setFilters((f) => ({ ...f, inActiveLesson: false })) }]
-      : []),
-    ...(filters.recentlyAttended
-      ? [
-          {
-            key: "recent",
-            label: `近 ${RECENT_ATTEND_DAYS} 天上課`,
-            onRemove: () => setFilters((f) => ({ ...f, recentlyAttended: false })),
-          },
-        ]
-      : []),
-    ...(filters.noActiveCard
-      ? [
-          {
-            key: "noCard",
-            label: "無課卡",
-            onRemove: () => setFilters((f) => ({ ...f, noActiveCard: false })),
-          },
-        ]
-      : []),
-    ...filters.tags.map((name) => ({
-      key: `tag:${name}`,
-      label: tagLabel(name),
-      onRemove: () => setFilters((f) => ({ ...f, tags: f.tags.filter((t) => t !== name) })),
-    })),
-    ...filters.qualifications
-      .filter((styleId) => danceStylesById.has(styleId))
-      .map((styleId) => ({
-        key: `qual:${styleId}`,
-        label: `${danceStylesById.get(styleId)!.name} 過課`,
-        onRemove: () =>
-          setFilters((f) => ({
-            ...f,
-            qualifications: f.qualifications.filter((q) => q !== styleId),
-          })),
-      })),
-    ...filters.lessonIds
-      .filter((id) => lessonName(id))
-      .map((id) => ({
-        key: `lesson:${id}`,
-        label: lessonName(id) as string,
-        onRemove: () => setFilters((f) => ({ ...f, lessonIds: f.lessonIds.filter((l) => l !== id) })),
-      })),
-  ];
+  // 「更多篩選」上的數字：只算快篩 chip 看不到的條件，免得跟亮起來的 chip 重複計數
+  const quickActiveCount = quickStatus.filter((option) => option.active).length;
+  const hiddenActiveCount = activeCount - quickActiveCount;
 
-  const filterButton = (
-    <button
-      type="button"
-      onClick={() => setDrawerOpen(true)}
-      className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm transition-colors cursor-pointer ${
-        activeCount > 0
-          ? "bg-primary-50 border-primary-400 text-primary-700"
-          : "bg-white border-neutral-200 text-neutral-700 hover:border-primary-300"
-      }`}
-    >
-      <SlidersHorizontal className="w-4 h-4" />
-      篩選
-      {activeCount > 0 && (
-        <span className="ml-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-primary-500 text-white text-xs font-semibold">
-          {activeCount}
-        </span>
-      )}
-    </button>
+  const quickChips = (size: "sm" | "md") => (
+    <>
+      {quickStatus.map((quick) => (
+        <FilterChip
+          key={quick.key}
+          size={size}
+          active={quick.active}
+          alert={quick.alert}
+          count={quick.count}
+          onClick={quick.toggle}
+        >
+          {quick.label}
+        </FilterChip>
+      ))}
+    </>
   );
 
   // 搜尋是後端做的，所以 allStudents 空掉可能是「教室真的沒人」也可能是
   // 「這組關鍵字沒中」——用有沒有下條件來分辨，別對著搜不到的人喊「還沒有學生」。
   const isNarrowed = query.trim().length > 0 || activeCount > 0;
+
+  const resultBar = (
+    <div className="flex items-center justify-between gap-2 text-xs text-neutral-500">
+      <span>
+        {isNarrowed ? `符合 ${students.length} 位` : `共 ${students.length} 位`}
+        {activeCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setFilters(EMPTY_FILTERS)}
+            className="ml-2 font-semibold text-primary-700 hover:text-primary-900 cursor-pointer"
+          >
+            清除條件
+          </button>
+        )}
+      </span>
+      <SortMenu sort={sort} options={SORT_OPTIONS} onChange={setSort} />
+    </div>
+  );
 
   const emptyState = (
     <div className="flex flex-col items-center justify-center p-8 gap-3 bg-primary-50 rounded-2xl">
@@ -320,6 +308,9 @@ const StudentList = ({
       onClose={() => setDrawerOpen(false)}
       filters={filters}
       onChange={setFilters}
+      sort={sort}
+      onSortChange={setSort}
+      statusOptions={statusOptions}
       tags={tags}
       lessons={inProgressLessons}
       availableQualifications={availableQualifications}
@@ -335,7 +326,7 @@ const StudentList = ({
             <h2 className="text-xl font-semibold">
               學生
               <span className="ml-2 text-[13px] font-normal text-neutral-400">
-                {students.length} / {allStudents.length}
+                {allStudents.length} 位
               </span>
             </h2>
             <NewStudent />
@@ -343,25 +334,20 @@ const StudentList = ({
 
           <Searchbar onSearch={setQuery} inputRef={searchInputRef} compact />
 
-          <div className="flex items-center gap-2 mt-2.5">
-            <SortMenu sort={sort} options={SORT_OPTIONS} onChange={setSort} />
-            <div className="ml-auto">{filterButton}</div>
+          <div className="flex flex-wrap gap-1.5 mt-2.5">
+            {quickChips("sm")}
+            <FilterChip
+              size="sm"
+              active={hiddenActiveCount > 0}
+              count={hiddenActiveCount > 0 ? hiddenActiveCount : undefined}
+              onClick={() => setDrawerOpen(true)}
+            >
+              <SlidersHorizontal className="w-3 h-3" />
+              更多篩選
+            </FilterChip>
           </div>
 
-          <div className="flex flex-wrap gap-1.5 mt-2.5">
-            {quickFilters.map((quick) => (
-              <FilterChip
-                key={quick.key}
-                size="sm"
-                active={quick.active}
-                alert={quick.alert}
-                count={quick.count}
-                onClick={quick.toggle}
-              >
-                {quick.label}
-              </FilterChip>
-            ))}
-          </div>
+          <div className="mt-2">{resultBar}</div>
         </div>
 
         <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto">
@@ -377,6 +363,7 @@ const StudentList = ({
               />
             ))
           )}
+          <ArchivedStudents className="px-4 py-3" />
         </div>
 
         <div className="flex-none flex gap-4 px-4 py-2 border-t border-neutral-200 bg-neutral-50 text-[11px] text-neutral-400">
@@ -401,43 +388,56 @@ const StudentList = ({
   }
 
   return (
-    <div className="px-5 py-3">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold">學生</h2>
-        <NewStudent />
-      </div>
-
-      <Searchbar onSearch={setQuery} />
-
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <SortMenu sort={sort} options={SORT_OPTIONS} onChange={setSort} />
-        {filterButton}
-      </div>
-
-      {/* 已選條件 pills */}
-      {activePills.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {activePills.map((pill) => (
-            <button
-              key={pill.key}
-              type="button"
-              onClick={pill.onRemove}
-              className="flex items-center gap-1 pl-3 pr-2 py-1 rounded-full text-sm bg-primary-100 text-primary-700 hover:bg-primary-200 transition-colors cursor-pointer"
-            >
-              {pill.label}
-              <X className="w-3.5 h-3.5" />
-            </button>
-          ))}
+    <div className="py-3">
+      <div className="px-4 flex flex-col gap-2.5 pb-2.5 border-b border-neutral-200">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-semibold">
+            學生
+            <span className="ml-1.5 text-[13px] font-medium text-neutral-500">
+              {allStudents.length} 位
+            </span>
+          </h2>
+          <NewStudent />
         </div>
-      )}
 
-      {students.length === 0 && emptyState}
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0">
+            <Searchbar onSearch={setQuery} />
+          </div>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label={
+              activeCount > 0 ? `篩選與排序，已套用 ${activeCount} 個條件` : "篩選與排序"
+            }
+            className="relative shrink-0 w-11 h-11 grid place-items-center rounded-xl border border-neutral-200 bg-white text-neutral-700 hover:border-primary-300 cursor-pointer"
+          >
+            <SlidersHorizontal className="w-5 h-5" />
+            {activeCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full border-2 border-white bg-primary-700 text-white text-[11px] font-bold">
+                {activeCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* 快篩：一排橫向捲動，不換行，名單才不會被往下推 */}
+        <div className="-mx-4 px-4 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+          {quickChips("sm")}
+        </div>
+      </div>
+
+      <div className="px-4 py-1.5 bg-neutral-50 border-b border-neutral-100">{resultBar}</div>
+
+      {students.length === 0 && <div className="p-4">{emptyState}</div>}
 
       <div className="flex flex-col">
         {students.map((student) => (
           <SingleStudent key={student.id} student={student} />
         ))}
       </div>
+
+      <ArchivedStudents className="px-4 py-4" />
 
       {drawer}
     </div>

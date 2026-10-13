@@ -31,6 +31,8 @@ export interface Student {
   /** 最近一次出席那堂課的上課時間（不是點名時間）；從未上過課為 null。 */
   lastAttendAt: string | null;
   lastAttendLessonName: string | null;
+  /** 有任何未付款的課卡（含已用完、已停用的）。只有名單 API 會帶。 */
+  hasUnpaidCard?: boolean;
 }
 
 export interface Event {

@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import prisma from "@/lib/prisma";
-import { resetDb, createClassroom, createStudent, jsonRequest } from "../factories";
+import {
+  resetDb,
+  createClassroom,
+  createStudent,
+  createCard,
+  createStudentCard,
+  jsonRequest,
+} from "../factories";
 import { createStudent as createStudentService } from "@/service/student";
 
 const auth = vi.hoisted(() => ({ userId: 1, classroomId: 0 }));
@@ -112,5 +119,32 @@ describe("GET /api/students 排序", () => {
     const res = await GET(listRequest("sort=number"));
     const students = await res.json();
     expect(students.map((s: { name: string }) => s.name)).toEqual(["Charlie", "Amy"]);
+  });
+});
+
+describe("GET /api/students hasUnpaidCard", () => {
+  let classroomId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    const classroom = await createClassroom();
+    classroomId = classroom.id;
+    auth.classroomId = classroomId;
+  });
+
+  it("用完的未付款卡也算未付款；已付款的不算", async () => {
+    const card = await createCard(classroomId);
+    const owes = await createStudent(classroomId, { name: "Owes" });
+    const paid = await createStudent(classroomId, { name: "Paid" });
+    await createStudentCard(owes.id, card.id, { remainingSessions: 0, isPaid: false });
+    await createStudentCard(paid.id, card.id, { isPaid: true });
+
+    const res = await GET(listRequest());
+    const students: { name: string; hasUnpaidCard: boolean; studentCards: unknown[] }[] =
+      await res.json();
+    const byName = Object.fromEntries(students.map((s) => [s.name, s]));
+    expect(byName.Owes.hasUnpaidCard).toBe(true);
+    expect(byName.Owes.studentCards).toHaveLength(0);
+    expect(byName.Paid.hasUnpaidCard).toBe(false);
   });
 });

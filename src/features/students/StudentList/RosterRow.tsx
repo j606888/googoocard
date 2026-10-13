@@ -4,13 +4,13 @@ import { AlertCircle } from "lucide-react";
 import { Student } from "@/store/slices/students";
 import { DanceBadges } from "./DanceBadge";
 import {
+  LOW_REMAINING_SESSIONS,
+  NEEDS_RENEWAL_TAG,
   RECENT_ATTEND_DAYS,
   daysSinceLastAttend,
   remainingSessions,
   lastAttendLabel,
 } from "./studentFilters";
-
-const NEEDS_RENEWAL_TAG = "Needs Renewal";
 
 /**
  * 分割檢視左欄的一列。刻意比舊的桌面卡片密——一頁要塞得下十幾位學生，
@@ -71,12 +71,12 @@ const RosterRow = ({
               需續約
             </span>
           )}
-          {remaining > 0 && (
-            <span className={remaining <= 2 ? "text-danger-600 font-medium" : ""}>
-              剩 {remaining} 堂
-            </span>
-          )}
-          {remaining > 0 && <span className="text-neutral-300">·</span>}
+          <span
+            className={remaining <= LOW_REMAINING_SESSIONS ? "text-danger-600 font-medium" : ""}
+          >
+            剩 {remaining} 堂
+          </span>
+          <span className="text-neutral-300">·</span>
           <span
             className={days !== null && days > RECENT_ATTEND_DAYS ? "text-neutral-400" : ""}
           >

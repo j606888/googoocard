@@ -68,6 +68,9 @@ export async function GET(request: Request) {
       // 只取「最近一次出席」一列（`AttendanceRecord` 有 @@index([studentId])），
       // 名單要靠它排序／顯示「最近上課」。刻意不拉整份出席史。
       attendanceRecords: lastAttendanceQuery,
+      // 「未付款」快篩：上面的 studentCards 只帶有效卡，用完或停用的卡
+      // 照樣可能還沒付錢（跟 /api/student-cards/unpaid 同一個定義）。
+      _count: { select: { studentCards: { where: { isPaid: false } } } },
     },
   });
 
@@ -93,6 +96,7 @@ export async function GET(request: Request) {
       isInActiveLesson,
       activeLessonIds,
       ...toLastAttendance(student.attendanceRecords),
+      hasUnpaidCard: student._count.studentCards > 0,
       studentCards: activeStudentCards.map((studentCard) => ({
         ...studentCard,
         card: studentCard.card,

@@ -7,16 +7,30 @@ import { StudentTag } from "@/store/slices/students";
 import { LessonSummary } from "@/store/slices/lessons";
 import {
   EMPTY_FILTERS,
-  RECENT_ATTEND_DAYS,
+  NEEDS_RENEWAL_TAG,
+  SORT_OPTIONS,
   StudentFilters,
-  tagLabel,
+  StudentSort,
 } from "./studentFilters";
+
+/** 一個狀態條件——名單上方的快篩 chip 和抽屜的「狀態」區共用同一份。 */
+export interface StatusFilterOption {
+  key: string;
+  label: string;
+  count: number;
+  active: boolean;
+  alert?: boolean;
+  toggle: () => void;
+}
 
 interface FilterDrawerProps {
   open: boolean;
   onClose: () => void;
   filters: StudentFilters;
   onChange: (next: StudentFilters) => void;
+  sort: StudentSort;
+  onSortChange: (sort: StudentSort) => void;
+  statusOptions: StatusFilterOption[];
   tags: StudentTag[];
   lessons: Pick<LessonSummary, "id" | "name">[];
   availableQualifications: DanceStyleSummary[];
@@ -25,20 +39,6 @@ interface FilterDrawerProps {
 
 const toggle = <T,>(list: T[], value: T): T[] =>
   list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-
-const Chip = ({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) => (
-  <FilterChip active={active} onClick={onClick}>
-    {label}
-  </FilterChip>
-);
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="mb-5">
@@ -52,95 +52,114 @@ const FilterDrawer = ({
   onClose,
   filters,
   onChange,
+  sort,
+  onSortChange,
+  statusOptions,
   tags,
   lessons,
   availableQualifications,
   resultCount,
 }: FilterDrawerProps) => {
-  const hasAny =
-    tags.length > 0 || availableQualifications.length > 0 || lessons.length > 0;
+  // 需續約已經在「狀態」裡，標籤區不再重複一次
+  const otherTags = tags.filter((tag) => tag.name !== NEEDS_RENEWAL_TAG);
 
   return (
     <Drawer
       open={open}
-      title="篩選"
+      title="篩選與排序"
       onClose={onClose}
       onSubmit={onClose}
-      submitText={`查看 ${resultCount} 位學生`}
+      submitText={`顯示 ${resultCount} 位學生`}
     >
-      <div className="flex justify-end -mt-4 mb-2">
+      <div className="flex justify-end mb-1">
         <button
           type="button"
           onClick={() => onChange(EMPTY_FILTERS)}
-          className="text-sm text-neutral-500 hover:text-primary-600 cursor-pointer"
+          className="text-sm font-semibold text-primary-700 hover:text-primary-900 cursor-pointer"
         >
-          清除
+          清除全部
         </button>
       </div>
 
+      <div className="mb-5">
+        <h3 className="text-sm font-semibold text-neutral-500 mb-2">排序</h3>
+        <div className="flex flex-col rounded-xl border border-neutral-200 overflow-hidden">
+          {SORT_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className="flex items-center justify-between px-3.5 min-h-11 border-b border-neutral-100 last:border-b-0 text-sm cursor-pointer"
+            >
+              {option.label}
+              <input
+                type="radio"
+                name="student-sort"
+                checked={sort === option.value}
+                onChange={() => onSortChange(option.value)}
+                className="w-4 h-4 accent-primary-700"
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+
       <Section title="狀態">
-        <Chip
-          label="上課中"
-          active={filters.inActiveLesson}
-          onClick={() => onChange({ ...filters, inActiveLesson: !filters.inActiveLesson })}
-        />
-        <Chip
-          label={`近 ${RECENT_ATTEND_DAYS} 天有上課`}
-          active={filters.recentlyAttended}
-          onClick={() => onChange({ ...filters, recentlyAttended: !filters.recentlyAttended })}
-        />
-        <Chip
-          label="無有效課卡"
-          active={filters.noActiveCard}
-          onClick={() => onChange({ ...filters, noActiveCard: !filters.noActiveCard })}
-        />
+        {statusOptions.map((option) => (
+          <FilterChip
+            key={option.key}
+            active={option.active}
+            alert={option.alert}
+            count={option.count}
+            onClick={option.toggle}
+          >
+            {option.label}
+          </FilterChip>
+        ))}
       </Section>
 
-      {tags.length > 0 && (
-        <Section title="標籤">
-          {tags.map((tag) => (
-            <Chip
-              key={tag.id}
-              label={tagLabel(tag.name)}
-              active={filters.tags.includes(tag.name)}
-              onClick={() => onChange({ ...filters, tags: toggle(filters.tags, tag.name) })}
-            />
-          ))}
-        </Section>
-      )}
-
       {availableQualifications.length > 0 && (
-        <Section title="過課">
+        <Section title="舞種資格">
           {availableQualifications.map((style) => (
-            <Chip
+            <FilterChip
               key={style.id}
-              label={style.name}
               active={filters.qualifications.includes(style.id)}
               onClick={() =>
                 onChange({ ...filters, qualifications: toggle(filters.qualifications, style.id) })
               }
-            />
+            >
+              {style.name}
+            </FilterChip>
           ))}
         </Section>
       )}
 
       {lessons.length > 0 && (
-        <Section title="依課程">
+        <Section title="正在上的課">
           {lessons.map((lesson) => (
-            <Chip
+            <FilterChip
               key={lesson.id}
-              label={lesson.name}
               active={filters.lessonIds.includes(lesson.id)}
               onClick={() =>
                 onChange({ ...filters, lessonIds: toggle(filters.lessonIds, lesson.id) })
               }
-            />
+            >
+              {lesson.name}
+            </FilterChip>
           ))}
         </Section>
       )}
 
-      {!hasAny && (
-        <p className="text-sm text-neutral-400 text-center py-4">尚無可用的篩選條件</p>
+      {otherTags.length > 0 && (
+        <Section title="標籤">
+          {otherTags.map((tag) => (
+            <FilterChip
+              key={tag.id}
+              active={filters.tags.includes(tag.name)}
+              onClick={() => onChange({ ...filters, tags: toggle(filters.tags, tag.name) })}
+            >
+              {tag.name}
+            </FilterChip>
+          ))}
+        </Section>
       )}
     </Drawer>
   );

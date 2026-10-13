@@ -9,7 +9,7 @@ const Searchbar = ({
   onSearch: (search: string) => void;
   /** 給鍵盤捷徑（/）聚焦用 */
   inputRef?: React.Ref<HTMLInputElement>;
-  /** 分割檢視左欄用：不留下方外距、字級小一階 */
+  /** 分割檢視左欄用：字級小一階 */
   compact?: boolean;
 }) => {
   const [search, setSearch] = useState("");
@@ -20,7 +20,7 @@ const Searchbar = ({
   };
 
   return (
-    <div className={compact ? "" : "mb-4"}>
+    <div>
       <div
         className={`flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 focus-within:border-primary-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary-100 transition-colors ${
           compact ? "px-3.5 py-2 text-sm" : "px-4 py-2.5"
@@ -48,7 +48,8 @@ const Searchbar = ({
             <X className={compact ? "w-4 h-4" : "w-5 h-5"} />
           </button>
         ) : (
-          compact && (
+          // 只有接了鍵盤捷徑（分割檢視）才提示 /，手機沒有鍵盤
+          inputRef && (
             <kbd className="ml-auto shrink-0 px-1.5 py-px border border-neutral-200 rounded bg-white text-[11px] text-neutral-400">
               /
             </kbd>

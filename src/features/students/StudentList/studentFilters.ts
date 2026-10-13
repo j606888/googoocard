@@ -9,6 +9,8 @@ export interface StudentFilters {
   inActiveLesson: boolean;
   recentlyAttended: boolean; // 近 RECENT_ATTEND_DAYS 天內有上過課
   noActiveCard: boolean; // 手上沒有任何剩餘堂數
+  lowRemaining: boolean; // 還有堂數、但剩 ≤ LOW_REMAINING_SESSIONS
+  unpaid: boolean; // 有未付款的課卡
 }
 
 export const EMPTY_FILTERS: StudentFilters = {
@@ -18,12 +20,20 @@ export const EMPTY_FILTERS: StudentFilters = {
   inActiveLesson: false,
   recentlyAttended: false,
   noActiveCard: false,
+  lowRemaining: false,
+  unpaid: false,
 };
 
 /** 「近期上課」的界線；也是名單列上「N 天前」轉為提醒色的門檻。 */
 export const RECENT_ATTEND_DAYS = 7;
 
-const NEEDS_RENEWAL_TAG = "Needs Renewal";
+/**
+ * 「剩 ≤2 堂」快篩的門檻，也是名單上堂數轉紅的門檻。
+ * 只算還有堂數的人——剩 0 堂的歸「無課卡」，不然這顆 chip 會被沒買卡的人灌滿。
+ */
+export const LOW_REMAINING_SESSIONS = 2;
+
+export const NEEDS_RENEWAL_TAG = "Needs Renewal";
 
 /** 手上所有未過期卡的剩餘堂數總和。 */
 export const remainingSessions = (student: Student): number =>
@@ -31,6 +41,11 @@ export const remainingSessions = (student: Student): number =>
     (total, card) => total + Math.max(0, card.remainingSessions),
     0
   );
+
+export const isLowRemaining = (student: Student): boolean => {
+  const remaining = remainingSessions(student);
+  return remaining > 0 && remaining <= LOW_REMAINING_SESSIONS;
+};
 
 /** 「今天／昨天／N 天前／尚未上課」——名單列與學生頁首共用。 */
 export const lastAttendLabel = (days: number | null): string => {
@@ -64,6 +79,8 @@ export const loadStudentFilters = (classroomId: number): StudentFilters => {
       inActiveLesson: Boolean(parsed.inActiveLesson),
       recentlyAttended: Boolean(parsed.recentlyAttended),
       noActiveCard: Boolean(parsed.noActiveCard),
+      lowRemaining: Boolean(parsed.lowRemaining),
+      unpaid: Boolean(parsed.unpaid),
     };
   } catch {
     return EMPTY_FILTERS;
@@ -84,7 +101,9 @@ export const countActiveFilters = (f: StudentFilters): number =>
   f.lessonIds.length +
   (f.inActiveLesson ? 1 : 0) +
   (f.recentlyAttended ? 1 : 0) +
-  (f.noActiveCard ? 1 : 0);
+  (f.noActiveCard ? 1 : 0) +
+  (f.lowRemaining ? 1 : 0) +
+  (f.unpaid ? 1 : 0);
 
 export const applyStudentFilters = (
   students: Student[],
@@ -106,6 +125,8 @@ export const applyStudentFilters = (
       if (days === null || days > RECENT_ATTEND_DAYS) return false;
     }
     if (f.noActiveCard && remainingSessions(s) > 0) return false;
+    if (f.lowRemaining && !isLowRemaining(s)) return false;
+    if (f.unpaid && !s.hasUnpaidCard) return false;
     return true;
   });
 
