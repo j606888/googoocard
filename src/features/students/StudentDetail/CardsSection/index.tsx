@@ -4,7 +4,6 @@ import {
   StudentWithDetail,
 } from "@/store/slices/students";
 import StudentCard from "./StudentCard";
-import BuyCard from "./BuyCard";
 import CardDetailDialog from "./CardDetailDialog";
 import EndedCardsTable from "./EndedCardsTable";
 import EmptyCards from "./EmptyCards";
@@ -25,13 +24,10 @@ const CardsSection = ({
   student,
   studentCards,
   isPublic,
-  showBuy = true,
 }: {
   student: StudentWithDetail;
   studentCards: StudentCardWithCard[];
   isPublic?: boolean;
-  /** 頁首已經有「購買課卡」時（桌面）就不再放滿寬按鈕。 */
-  showBuy?: boolean;
 }) => {
   // 詳情對話框：記住選到的 id，從最新的 studentCards 找卡——mutation 後內容才會跟著更新。
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -65,7 +61,6 @@ const CardsSection = ({
   const activeCards = useMemo(() => studentCards.filter((card) => !isCardEnded(card)), [studentCards]);
   const endedCards = useMemo(() => studentCards.filter((card) => isCardEnded(card)), [studentCards]);
   const remaining = activeCards.reduce((sum, card) => sum + card.remainingSessions, 0);
-  const canBuy = !isPublic && showBuy && !student.archivedAt;
 
   if (studentCards.length === 0) {
     return (
@@ -77,8 +72,6 @@ const CardsSection = ({
 
   return (
     <div className="@container flex flex-col gap-6">
-      {canBuy && <BuyCard student={student} />}
-
       <section className="flex flex-col gap-3">
         <SectionHeading
           title="有效課卡"

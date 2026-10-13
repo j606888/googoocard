@@ -3,7 +3,7 @@
 import StudentDetail from "@/features/students/StudentDetail";
 import StudentDetailHeader from "@/features/students/StudentDetail/StudentDetailHeader";
 import { useGetStudentQuery } from "@/store/slices/students";
-import { ArrowLeftIcon } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
@@ -24,31 +24,35 @@ const StudentPage = () => {
     window.scrollTo(0, 0);
   }, [id]);
 
-  // 單樹：一次只掛一個頁首。桌面版頁首裡有 EditStudent 的狀態，
-  // 用 `hidden lg:block` 藏起來等於手機也照掛一份看不見的表單。
-  return (
-    <>
-      {sizeClass === "compact" && (
-        <div className="relative h-16 bg-primary-500 w-full flex items-center justify-center">
-          <div className="absolute left-5 top-1/2 -translate-y-1/2">
-            <Link href={backHref}>
-              <ArrowLeftIcon className="w-6 h-6 text-white" />
+  // 單樹：一次只掛一個頁首（桌面或手機），頁首裡有 EditStudent 的狀態，
+  // 用 `hidden lg:block` 藏起來等於另一邊也照掛一份看不見的表單。
+  if (isLoading || !student) {
+    return (
+      <>
+        {sizeClass === "compact" && (
+          <div className="px-2 py-1.5">
+            <Link
+              href={backHref}
+              aria-label="返回學生列表"
+              className="w-11 h-11 grid place-items-center rounded-xl text-neutral-900"
+            >
+              <ChevronLeft className="w-6 h-6" />
             </Link>
           </div>
-          <h2 className="text-white text-lg font-semibold">{student?.name}</h2>
-        </div>
-      )}
-
-      {isLoading || !student ? (
+        )}
         <ListSkeleton />
-      ) : (
-        <>
-          {sizeClass === "expanded" && (
-            <StudentDetailHeader student={student} backHref={backHref} />
-          )}
-          <StudentDetail student={student} />
-        </>
-      )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <StudentDetailHeader
+        student={student}
+        backHref={backHref}
+        variant={sizeClass === "compact" ? "compact" : "page"}
+      />
+      <StudentDetail student={student} />
     </>
   );
 };

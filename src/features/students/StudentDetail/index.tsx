@@ -13,10 +13,11 @@ import { useSearchParams } from "next/navigation";
 import { useSizeClass } from "@/hooks/useMediaQuery";
 import { useElementWidth } from "@/hooks/useElementWidth";
 import SegmentedTabs, { type SegmentedOption } from "@/components/SegmentedTabs";
+import BuyCard from "./CardsSection/BuyCard";
 
 type DetailTab = "basic" | "profile" | "cards" | "attend" | "events";
 
-/** 公開頁、LIFF、手機版老師端：概要 + 三個分頁（舊版面，第 7 階段換掉手機老師端）。 */
+/** 公開頁、LIFF：概要 + 三個分頁（學生看的，沒有老師的操作）。 */
 const LEGACY_TABS: SegmentedOption<DetailTab>[] = [
   { label: "概要", value: "basic" },
   { label: "課卡", value: "cards" },
@@ -62,8 +63,8 @@ const StudentDetail = ({
     window.history.replaceState({}, "", url);
   };
 
-  // 公開頁／LIFF／手機老師端：舊的分頁版面
-  if (isPublic || !isExpanded) {
+  // 公開頁／LIFF：舊的分頁版面
+  if (isPublic) {
     const legacyTab = activeTab === "profile" ? "basic" : activeTab;
     return (
       <div className="px-5 py-3">
@@ -85,9 +86,51 @@ const StudentDetail = ({
     );
   }
 
+  const activeCount = student.studentCards.filter((c) => c.remainingSessions > 0 && !c.expiredAt).length;
+
+  // 手機老師端：課卡／出席／動態／資料四個分頁，「資料」就是桌面的側欄。
+  if (!isExpanded) {
+    const mobileTabs: SegmentedOption<DetailTab>[] = [
+      { label: "課卡", value: "cards" },
+      { label: "出席", value: "attend" },
+      { label: "動態", value: "events" },
+      { label: "資料", value: "profile" },
+    ];
+    const mobileTab: DetailTab = activeTab === "basic" ? "cards" : activeTab;
+    // 沒有任何課卡時，課卡分頁的空狀態自己有「購買第一張課卡」，不再疊一顆。
+    const showBuyCta = mobileTab === "cards" && !student.archivedAt && student.studentCards.length > 0;
+    return (
+      <div className="flex flex-col flex-1 bg-neutral-50">
+        <div className="bg-white border-b border-neutral-200 pt-3">
+          <SegmentedTabs
+            variant="underline"
+            ariaLabel="學生資料分頁"
+            options={mobileTabs}
+            value={mobileTab}
+            onChange={handleTabClick}
+            fill
+          />
+        </div>
+        <div className="flex-1 px-4 py-4">
+          {mobileTab === "cards" && (
+            <CardsSection key={student.id} student={student} studentCards={student.studentCards} />
+          )}
+          {mobileTab === "attend" && <AttendSection key={student.id} student={student} summary />}
+          {mobileTab === "events" && <EventTimeline key={student.id} studentId={student.id} />}
+          {mobileTab === "profile" && <ProfilePanels student={student} />}
+        </div>
+        {showBuyCta && (
+          // 固定在底部導覽列上方（導覽列約 5rem 高，含外距）
+          <div className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] px-4 pt-2 pb-3">
+            <BuyCard student={student} variant="cta" />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // 桌面老師端：課卡／出席／動態，右邊側欄；窄的時候側欄收成「資料」分頁。
   const withSidePanel = width >= SIDE_PANEL_MIN_WIDTH;
-  const activeCount = student.studentCards.filter((c) => c.remainingSessions > 0 && !c.expiredAt).length;
   const tabs: SegmentedOption<DetailTab>[] = [
     { label: "課卡", value: "cards", hint: activeCount > 0 ? `${activeCount} 張有效` : undefined },
     { label: "出席", value: "attend", hint: student.overview.attendedCount || undefined },
@@ -116,13 +159,7 @@ const StudentDetail = ({
         >
           <div className="min-w-0">
             {shownTab === "cards" && (
-              <CardsSection
-                key={student.id}
-                student={student}
-                studentCards={student.studentCards}
-                // 頁首已經有「購買課卡」。
-                showBuy={false}
-              />
+              <CardsSection key={student.id} student={student} studentCards={student.studentCards} />
             )}
             {shownTab === "attend" && (
               <AttendSection key={student.id} student={student} summary={!withSidePanel} />

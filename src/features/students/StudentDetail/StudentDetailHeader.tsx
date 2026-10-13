@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Archive, SquarePen } from "lucide-react";
+import { ArrowLeft, Archive, ChevronLeft, SquarePen } from "lucide-react";
 import { toast } from "sonner";
 import { StudentWithDetail, useSetStudentArchivedMutation } from "@/store/slices/students";
 import EditStudent from "./BasicSection/EditStudent";
@@ -9,9 +9,8 @@ import BuyCard from "./CardsSection/BuyCard";
 import StudentStats from "./StudentStats";
 import StudentActionsMenu from "./StudentActionsMenu";
 import { DanceBadges } from "../StudentList/DanceBadge";
-import { tagLabel } from "../StudentList/studentFilters";
+import { NEEDS_RENEWAL_TAG, tagLabel } from "../StudentList/studentFilters";
 
-const NEEDS_RENEWAL_TAG = "Needs Renewal";
 
 const outlineButton =
   "h-10 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm font-semibold text-neutral-900 inline-flex items-center gap-1.5 hover:bg-neutral-50 cursor-pointer";
@@ -41,12 +40,91 @@ const ArchivedBanner = ({ student }: { student: StudentWithDetail }) => {
   );
 };
 
+const iconButton =
+  "w-11 h-11 grid place-items-center rounded-xl text-neutral-900 hover:bg-neutral-100 cursor-pointer";
+
+/** 舞種資格（全名）、需續約、其他標籤——三種頁首共用。 */
+const StudentBadges = ({ student }: { student: StudentWithDetail }) => {
+  const tags = student.tags ?? [];
+  const needsRenewal = tags.some((tag) => tag.name === NEEDS_RENEWAL_TAG);
+  const otherTags = tags.filter((tag) => tag.name !== NEEDS_RENEWAL_TAG);
+  return (
+    <>
+      <DanceBadges levels={student.danceLevels} variant="full" />
+      {needsRenewal && (
+        <span className="text-xs font-semibold bg-danger-100 text-danger-700 rounded-full px-2.5 py-0.5">
+          {tagLabel(NEEDS_RENEWAL_TAG)}
+        </span>
+      )}
+      {otherTags.map((tag) => (
+        <span
+          key={tag.id}
+          className="text-xs border border-neutral-300 text-neutral-700 rounded-full px-2.5 py-0.5"
+        >
+          {tag.name}
+        </span>
+      ))}
+    </>
+  );
+};
+
 /**
- * 學生詳情的頁首（桌面）：大頭貼、姓名、舞種資格與標籤、動作按鈕、四格統計。
+ * 手機版頁首：白色 app bar（返回／編輯／⋯）、大頭貼與姓名、三格數字。
+ * 購買課卡不在這裡——手機的課卡分頁底部有一顆固定的。
+ */
+const CompactHeader = ({
+  student,
+  backHref,
+}: {
+  student: StudentWithDetail;
+  backHref: string;
+}) => (
+  <div className="bg-white">
+    <div className="flex items-center justify-between px-2 py-1.5">
+      <Link href={backHref} aria-label="返回學生列表" className={iconButton}>
+        <ChevronLeft className="w-6 h-6" />
+      </Link>
+      <div className="flex">
+        <EditStudent
+          student={student}
+          trigger={(open) => (
+            <button type="button" aria-label="編輯學生" className={iconButton} onClick={open}>
+              <SquarePen className="w-5 h-5" />
+            </button>
+          )}
+        />
+        <StudentActionsMenu student={student} buttonClassName={iconButton} />
+      </div>
+    </div>
+    <div className="px-4 pt-1">
+      {student.archivedAt && <ArchivedBanner student={student} />}
+      <div className="flex items-center gap-3.5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={student.avatarUrl} alt="" className="w-14 h-14 rounded-full object-cover shrink-0" />
+        <div className="min-w-0">
+          <h1 className="text-[21px] font-bold text-neutral-900 flex items-baseline gap-2 flex-wrap">
+            {student.name}
+            <span className="text-xs font-mono font-medium text-neutral-500">#{student.number}</span>
+          </h1>
+          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+            <StudentBadges student={student} />
+          </div>
+        </div>
+      </div>
+      <div className="mt-3.5">
+        <StudentStats student={student} variant="compact" />
+      </div>
+    </div>
+  </div>
+);
+
+/**
+ * 學生詳情的頁首：大頭貼、姓名、舞種資格與標籤、動作按鈕、統計數字。
  * 分頁列接在它下面（StudentDetail），兩者合起來是一塊白色頁首。
  *
- * "page" —— 獨立學生頁，多一行返回名單的麵包屑。
- * "pane" —— 分割檢視右欄：左邊名單就是返回路徑。
+ * "page"    —— 桌面獨立學生頁，多一行返回名單的麵包屑。
+ * "pane"    —— 分割檢視右欄：左邊名單就是返回路徑。
+ * "compact" —— 手機：app bar ＋ 三格數字。
  */
 const StudentDetailHeader = ({
   student,
@@ -55,12 +133,10 @@ const StudentDetailHeader = ({
 }: {
   student: StudentWithDetail;
   backHref?: string;
-  variant?: "page" | "pane";
+  variant?: "page" | "pane" | "compact";
 }) => {
+  if (variant === "compact") return <CompactHeader student={student} backHref={backHref} />;
   const isPane = variant === "pane";
-  const tags = student.tags ?? [];
-  const needsRenewal = tags.some((tag) => tag.name === NEEDS_RENEWAL_TAG);
-  const otherTags = tags.filter((tag) => tag.name !== NEEDS_RENEWAL_TAG);
 
   return (
     <div className={`@container flex-none bg-white ${isPane ? "px-6 pt-5" : "px-8 pt-5"}`}>
@@ -89,20 +165,7 @@ const StudentDetailHeader = ({
             <span className="text-sm font-mono font-medium text-neutral-500">#{student.number}</span>
           </h1>
           <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-            <DanceBadges levels={student.danceLevels} variant="full" />
-            {needsRenewal && (
-              <span className="text-xs font-semibold bg-danger-100 text-danger-700 rounded-full px-2.5 py-0.5">
-                {tagLabel(NEEDS_RENEWAL_TAG)}
-              </span>
-            )}
-            {otherTags.map((tag) => (
-              <span
-                key={tag.id}
-                className="text-xs border border-neutral-300 text-neutral-700 rounded-full px-2.5 py-0.5"
-              >
-                {tag.name}
-              </span>
-            ))}
+            <StudentBadges student={student} />
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">

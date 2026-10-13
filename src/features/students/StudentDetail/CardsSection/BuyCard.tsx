@@ -217,28 +217,29 @@ export const BuyCardDialog = ({
 
 const BuyCard = ({
   student,
-  variant = "block",
+  variant = "header",
 }: {
   student: BuyableStudent;
   /**
-   * "block"  —— 手機課卡分頁頂端的滿寬按鈕。
-   * "header" —— 桌面學生頁首的動作按鈕群（滿寬大按鈕會搶走整個課卡區的焦點）。
+   * "header" —— 桌面學生頁首的動作按鈕群。
+   * "cta"    —— 手機課卡分頁底部固定的滿寬主按鈕。
    */
-  variant?: "block" | "header";
+  variant?: "header" | "cta";
 }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   return (
     <>
       <button
+        type="button"
         className={
           variant === "header"
             ? "flex items-center gap-1.5 h-10 px-4 rounded-xl bg-primary-900 text-white text-sm font-semibold cursor-pointer hover:bg-primary-700"
-            : "w-full p-3 bg-primary-500 text-white rounded-xl font-semibold cursor-pointer hover:bg-primary-600"
+            : "w-full h-[50px] rounded-2xl bg-primary-900 text-white text-base font-bold shadow-lg cursor-pointer hover:bg-primary-700"
         }
         onClick={() => setIsDrawerOpen(true)}
       >
-        {variant === "header" ? "＋ 購買課卡" : "購買課卡"}
+        ＋ 購買課卡
       </button>
       <BuyCardDialog student={student} open={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
     </>
