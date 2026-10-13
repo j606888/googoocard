@@ -20,6 +20,13 @@ interface BottomSheetDialogProps {
    */
   secondaryText?: string;
   onSecondary?: () => void;
+  /**
+   * Shown at the footer's left, before the buttons — a total (購買課卡的合計)
+   * or a quiet destructive link (封存學生).
+   */
+  footerStart?: React.ReactNode;
+  /** A line under the title, e.g. who this is for. */
+  subtitle?: string;
 }
 
 /**
@@ -38,6 +45,8 @@ const Drawer = ({
   variant = "primary",
   secondaryText,
   onSecondary,
+  footerStart,
+  subtitle,
 }: BottomSheetDialogProps) => {
   const submitColor =
     variant === "danger"
@@ -46,10 +55,11 @@ const Drawer = ({
 
   return (
     <ResponsiveDialog open={open} onClose={onClose}>
-      <div className="relative flex items-center justify-center mb-6 ">
+      <div className="relative flex flex-col items-center justify-center mb-6">
         <ResponsiveDialogTitle className="text-xl font-semibold">
           {title}
         </ResponsiveDialogTitle>
+        {subtitle && <p className="mt-0.5 text-xs text-neutral-500">{subtitle}</p>}
         <button
           className="text-neutral-500 absolute right-0 top-0 flex items-center gap-2 cursor-pointer"
           onClick={onClose}
@@ -59,7 +69,8 @@ const Drawer = ({
         </button>
       </div>
       <div className="max-h-[60vh] overflow-y-auto">{children}</div>
-      <div className="mt-auto w-full flex gap-2">
+      <div className="mt-auto w-full flex items-center gap-2">
+        {footerStart && <div className="shrink-0 mr-1">{footerStart}</div>}
         {secondaryText && (
           <button
             type="button"
@@ -72,7 +83,7 @@ const Drawer = ({
         <button
           disabled={disabled}
           type="submit"
-          className={`mt-auto ${secondaryText ? "flex-[2]" : "w-full"} ${submitColor} text-white font-semibold py-2 rounded flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`mt-auto ${secondaryText ? "flex-[2]" : footerStart ? "flex-1" : "w-full"} ${submitColor} text-white font-semibold py-2 rounded flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
             isLoading ? "opacity-50 cursor-not-allowed" : ""
           }`}
           onClick={() => !isLoading && onSubmit()}

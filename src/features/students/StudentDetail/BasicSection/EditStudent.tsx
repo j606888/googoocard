@@ -10,6 +10,8 @@ import { useUpdateStudentMutation, useGetTagsQuery, useAddStudentTagMutation, us
 import QualificationLevels, { applyLevelPick } from "../QualificationLevels";
 import type { DanceLevels } from "@/domains/qualification";
 import AvatarPicker from "@/features/students/AvatarPicker";
+import ArchiveStudentDialog from "../ArchiveStudentDialog";
+import { NEEDS_RENEWAL_TAG, tagLabel } from "../../StudentList/studentFilters";
 
 const EditStudent = ({
   student,
@@ -27,6 +29,7 @@ const EditStudent = ({
   const [danceLevels, setDanceLevels] = useState<DanceLevels>(student.danceLevels ?? {});
   const [errors, setErrors] = useState<{ name?: string }>({});
   const [tagInput, setTagInput] = useState("");
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const [updateStudent, { isLoading }] = useUpdateStudentMutation();
   const { data: allTags = [] } = useGetTagsQuery();
   const [addStudentTag] = useAddStudentTagMutation();
@@ -50,6 +53,7 @@ const EditStudent = ({
     }
     try {
       await updateStudent({ id: student.id, name, note, avatarUrl: selectedAvatarUrl, danceLevels }).unwrap();
+      toast.success("已儲存");
       setIsOpen(false);
     } catch (err) {
       const message = (err as { data?: { error?: string } })?.data?.error ?? "更新失敗，請稍後再試";
@@ -67,13 +71,27 @@ const EditStudent = ({
 
   const handleAddTag = async (tagName: string) => {
     if (!tagName.trim()) return;
-    await addStudentTag({ studentId: student.id, tagName: tagName.trim() });
-    setTagInput("");
+    try {
+      await addStudentTag({ studentId: student.id, tagName: tagName.trim() }).unwrap();
+      setTagInput("");
+    } catch {
+      toast.error("新增標籤失敗，請稍後再試");
+    }
   };
 
   const handleRemoveTag = async (tagId: number) => {
-    await removeStudentTag({ studentId: student.id, tagId });
+    try {
+      await removeStudentTag({ studentId: student.id, tagId }).unwrap();
+    } catch {
+      toast.error("移除標籤失敗，請稍後再試");
+    }
   };
+
+  // 「需續約」由系統依剩餘堂數維護（refreshNeedsRenewalTag），手動加減會被下一次刷新蓋掉。
+  const studentTags = student.tags ?? [];
+  const addableTags = allTags.filter(
+    (tag) => tag.name !== NEEDS_RENEWAL_TAG && !studentTags.some((st) => st.id === tag.id)
+  );
 
   return (
     <>
@@ -88,32 +106,41 @@ const EditStudent = ({
         open={isOpen}
         onClose={() => setIsOpen(false)}
         onSubmit={handleSubmit}
-        title={`編輯 ${student.name}`}
+        title="編輯學生"
+        subtitle={`${student.name} · #${student.number}`}
         isLoading={isLoading}
         disabled={avatarUploading}
         submitText="儲存"
+        secondaryText="取消"
+        footerStart={
+          !student.archivedAt && (
+            <button
+              type="button"
+              onClick={() => setConfirmArchive(true)}
+              className="text-sm font-semibold text-danger-700 hover:text-danger-900 cursor-pointer py-2"
+            >
+              封存學生
+            </button>
+          )
+        }
       >
-        <form className="mb-6 flex flex-col gap-4">
+        <form className="mb-6 flex flex-col gap-5" onSubmit={(e) => e.preventDefault()}>
+          <AvatarPicker
+            value={selectedAvatarUrl}
+            onChange={setSelectedAvatarUrl}
+            onUploadingChange={setAvatarUploading}
+          />
           <InputField
             label="姓名"
             value={name}
             onChange={handleNameChange}
             error={errors.name}
           />
-          <InputField
-            label="備註（學生看不到）"
-            value={note || ""}
-            onChange={(e) => setNote(e.target.value)}
-          />
-          <AvatarPicker
-            value={selectedAvatarUrl}
-            onChange={setSelectedAvatarUrl}
-            onUploadingChange={setAvatarUploading}
-          />
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium text-neutral-700">已完成（可使用複習卡）</span>
-              <span className="text-xs text-neutral-500">「未完成」＝沒有這個舞種的複習資格</span>
+
+          <section className="flex flex-col gap-3 border-t border-neutral-100 pt-4">
+            <div className="flex items-baseline justify-between gap-2">
+              <h3 className="text-sm font-bold text-neutral-700">舞種資格</h3>
+              <span className="text-xs text-neutral-500">決定能買哪些複習卡</span>
             </div>
             <QualificationLevels
               levels={danceLevels}
@@ -121,69 +148,98 @@ const EditStudent = ({
                 setDanceLevels((prev) => applyLevelPick(prev, styleId, level, hasLevels))
               }
             />
-          </div>
+          </section>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-neutral-700">標籤</label>
-            <div className="flex flex-wrap gap-2 min-h-8">
-              {student.tags?.map((tag) => (
-                <span
-                  key={tag.id}
-                  className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
-                    tag.name === "Needs Renewal"
-                      ? "text-danger-700 bg-danger-100"
-                      : "text-neutral-600 bg-neutral-100"
-                  }`}
-                >
-                  {tag.name}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveTag(tag.id)}
-                    className="ml-0.5 hover:text-danger-500 transition-colors"
+          <section className="flex flex-col gap-2 border-t border-neutral-100 pt-4">
+            <div className="flex items-baseline justify-between gap-2">
+              <h3 className="text-sm font-bold text-neutral-700">標籤</h3>
+              <span className="text-xs text-neutral-500">改了馬上生效</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {studentTags.map((tag) =>
+                tag.name === NEEDS_RENEWAL_TAG ? (
+                  <span
+                    key={tag.id}
+                    title="由系統依剩餘堂數自動標記"
+                    className="text-xs font-semibold px-2.5 py-1 rounded-full text-danger-700 bg-danger-100"
                   >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
+                    {tagLabel(tag.name)}
+                  </span>
+                ) : (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center gap-1 text-xs pl-2.5 pr-1.5 py-1 rounded-full border border-neutral-300 text-neutral-700"
+                  >
+                    {tag.name}
+                    <button
+                      type="button"
+                      aria-label={`移除 ${tag.name}`}
+                      onClick={() => handleRemoveTag(tag.id)}
+                      className="p-0.5 text-neutral-500 hover:text-danger-600 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )
+              )}
+              {addableTags.map((tag) => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => handleAddTag(tag.name)}
+                  className="inline-flex items-center gap-1 text-xs text-neutral-600 border border-dashed border-neutral-400 px-2.5 py-1 rounded-full hover:border-primary-500 hover:text-primary-700 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  {tag.name}
+                </button>
               ))}
             </div>
-            {allTags.filter((t) => !student.tags?.some((st) => st.id === t.id)).length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {allTags
-                  .filter((t) => !student.tags?.some((st) => st.id === t.id))
-                  .map((tag) => (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      onClick={() => handleAddTag(tag.name)}
-                      className="inline-flex items-center gap-1 text-xs text-neutral-500 border border-dashed border-neutral-300 px-2 py-0.5 rounded-full hover:border-primary-400 hover:text-primary-600 transition-colors"
-                    >
-                      <Plus className="w-3 h-3" />
-                      {tag.name}
-                    </button>
-                  ))}
-              </div>
-            )}
             <div className="flex gap-2">
               <input
                 type="text"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag(tagInput); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddTag(tagInput);
+                  }
+                }}
                 placeholder="新標籤名稱…"
-                className="flex-1 text-sm border border-neutral-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
+                aria-label="新標籤名稱"
+                className="flex-1 min-w-0 text-sm border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary-400"
               />
               <button
                 type="button"
                 onClick={() => handleAddTag(tagInput)}
                 disabled={!tagInput.trim()}
-                className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white disabled:opacity-40 hover:bg-primary-600 transition-colors"
+                className="text-sm px-3 py-2 rounded-lg border border-neutral-300 font-semibold text-neutral-800 disabled:opacity-40 hover:bg-neutral-50 cursor-pointer"
               >
                 新增
               </button>
             </div>
-          </div>
+            <p className="text-xs text-neutral-500">「需續約」由系統自動標記</p>
+          </section>
+
+          <label className="flex flex-col gap-1.5 border-t border-neutral-100 pt-4">
+            <span className="text-sm font-bold text-neutral-700">
+              備註 <span className="font-normal text-neutral-500">（學生看不到）</span>
+            </span>
+            <textarea
+              value={note || ""}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              className="w-full text-sm border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary-400"
+            />
+          </label>
         </form>
       </Drawer>
+      <ArchiveStudentDialog
+        student={student}
+        open={confirmArchive}
+        onClose={() => setConfirmArchive(false)}
+        onArchived={() => setIsOpen(false)}
+      />
     </>
   );
 };

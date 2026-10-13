@@ -59,8 +59,11 @@ const QualificationLevels = ({
   disabled?: boolean;
 }) => {
   const styles = useQualificationStyles(levels);
+  const { isLoading: stylesLoading } = useDanceStyles();
 
   if (styles.length === 0) {
+    // 還在載入時別先喊「沒有舞種」
+    if (stylesLoading) return <p className="text-sm text-neutral-400">載入中…</p>;
     return <p className="text-sm text-neutral-500">教室還沒有舞種。</p>;
   }
 

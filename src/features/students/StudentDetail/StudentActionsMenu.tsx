@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Archive, ArchiveRestore, Link2, MessageCircle, MoreHorizontal } from "lucide-react";
 import Menu from "@/components/Menu";
-import ConfirmDialog from "@/components/ConfirmDialog";
+import ArchiveStudentDialog from "./ArchiveStudentDialog";
 import {
   StudentWithDetail,
   useGetStudentLineBindLinkQuery,
@@ -26,18 +26,16 @@ const StudentActionsMenu = ({
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const { data: lineBind } = useGetStudentLineBindLinkQuery({ id: student.id });
-  const [setArchived, { isLoading }] = useSetStudentArchivedMutation();
+  const [setArchived] = useSetStudentArchivedMutation();
   const archived = !!student.archivedAt;
   const close = () => setAnchor(null);
 
-  const applyArchived = async (next: boolean) => {
+  const restore = async () => {
     try {
-      await setArchived({ id: student.id, archived: next }).unwrap();
-      toast.success(next ? `已封存 ${student.name}` : `已還原 ${student.name}`);
+      await setArchived({ id: student.id, archived: false }).unwrap();
+      toast.success(`已還原 ${student.name}`);
     } catch {
-      toast.error("操作失敗，請稍後再試");
-    } finally {
-      setConfirmArchive(false);
+      toast.error("還原失敗，請稍後再試");
     }
   };
 
@@ -90,7 +88,7 @@ const StudentActionsMenu = ({
             className={itemClass}
             onClick={() => {
               close();
-              applyArchived(false);
+              restore();
             }}
           >
             <ArchiveRestore className="w-4 h-4 text-neutral-500" />
@@ -110,14 +108,10 @@ const StudentActionsMenu = ({
           </button>
         )}
       </Menu>
-      <ConfirmDialog
+      <ArchiveStudentDialog
+        student={student}
         open={confirmArchive}
-        title={`封存 ${student.name}？`}
-        message="封存後不會出現在學生名單、自助簽到和 LINE。課卡、出席與收入紀錄都會保留，之後可以從名單底部的「已封存」還原。"
-        confirmLabel="封存"
-        isLoading={isLoading}
-        onConfirm={() => applyArchived(true)}
-        onCancel={() => setConfirmArchive(false)}
+        onClose={() => setConfirmArchive(false)}
       />
     </>
   );
