@@ -1,32 +1,83 @@
-import { isSameDay } from "date-fns";
-import { Bird, CircleDot, Database, SquareDashed } from "lucide-react";
+import { differenceInCalendarDays, format, isSameDay, isSameYear } from "date-fns";
+import {
+  Check,
+  CircleDollarSign,
+  CircleDot,
+  CreditCard,
+  Repeat2,
+  SquareDashed,
+  type LucideIcon,
+} from "lucide-react";
 import { Event } from "@/store/slices/students";
-import { formatDate } from "@/lib/utils";
 
-export type EventFilter = "all" | "checkin" | "card";
+/** 全部／課卡／上課。設計稿還有「資格」「帳號」，目前沒有對應的事件類型。 */
+export type EventFilter = "all" | "card" | "lesson";
 
 export const CHECKIN_TITLE = "簽到";
 export const EXHAUSTED_TITLE = "課卡使用完畢";
 const PURCHASE_TITLE = "購買課卡";
-const CARD_TITLES = new Set([PURCHASE_TITLE, EXHAUSTED_TITLE]);
+const PAYMENT_TITLE = "確認付款";
+const CONVERSION_TITLE = "課卡轉換";
+const CARD_TITLES = new Set([PURCHASE_TITLE, PAYMENT_TITLE, EXHAUSTED_TITLE, CONVERSION_TITLE]);
 
-// Shared by EventRow/EventSubRow so the timeline's icon/color vocabulary stays
-// in one place (moved from the old Event.tsx).
-export const IconMap: Record<string, typeof CircleDot> = {
-  [PURCHASE_TITLE]: Database,
-  [CHECKIN_TITLE]: Bird,
-  [EXHAUSTED_TITLE]: SquareDashed,
-};
+const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
-export const colorMap: Record<string, string> = {
-  [PURCHASE_TITLE]: "bg-primary-500",
-  [CHECKIN_TITLE]: "bg-warning-500",
-  [EXHAUSTED_TITLE]: "bg-neutral-400",
-};
+export interface EventPresentation {
+  icon: LucideIcon;
+  /** 圓形圖示底色與文字色 */
+  tone: string;
+  title: string;
+  description: string | null;
+}
+
+const TONE = {
+  green: "bg-primary-100 text-primary-900",
+  blue: "bg-sky-100 text-sky-800",
+  grey: "bg-neutral-100 text-neutral-700",
+  purple: "bg-purple-100 text-purple-700",
+} as const;
+
+/**
+ * 一筆事件要怎麼畫：圖示、底色、標題、說明。後端只存 title／description，
+ * 顯示用的標題在這裡從 description 推——「Bachata Lv2 簽到成功」→「上課：Bachata Lv2」。
+ */
+export function presentEvent(event: Event): EventPresentation {
+  switch (event.title) {
+    case CHECKIN_TITLE: {
+      const lesson = event.description.replace(/ ?簽到成功$/, "");
+      return { icon: Check, tone: TONE.blue, title: lesson ? `上課：${lesson}` : "上課", description: null };
+    }
+    case PURCHASE_TITLE:
+      return {
+        icon: CreditCard,
+        tone: TONE.green,
+        title: "購買課卡",
+        description: event.description.replace(/^購買新課卡 ?/, "").replace(/^學生自助購買課卡 ?/, "學生自購 ") || null,
+      };
+    case PAYMENT_TITLE:
+      return {
+        icon: CircleDollarSign,
+        tone: TONE.green,
+        title: "確認付款",
+        description: event.description.replace(/^確認付款 ?/, "") || null,
+      };
+    case EXHAUSTED_TITLE:
+      return {
+        icon: SquareDashed,
+        tone: TONE.grey,
+        title: "課卡用完",
+        description: event.description.replace(/^課卡 ?/, "").replace(/ ?使用完畢$/, "") || null,
+      };
+    case CONVERSION_TITLE:
+      return { icon: Repeat2, tone: TONE.purple, title: "課卡轉換", description: event.description || null };
+    default:
+      return { icon: CircleDot, tone: TONE.grey, title: event.title, description: event.description || null };
+  }
+}
 
 export function filterByCategory(events: Event[], filter: EventFilter): Event[] {
   if (filter === "all") return events;
-  if (filter === "checkin") return events.filter((e) => e.title === CHECKIN_TITLE);
+  if (filter === "lesson") return events.filter((e) => e.title === CHECKIN_TITLE);
   return events.filter((e) => CARD_TITLES.has(e.title));
 }
 
@@ -75,23 +126,47 @@ export function buildTimelineRows(events: Event[]): TimelineRow[] {
     });
 }
 
+/** 「10 月 8 日 週三」；不是今年的帶年份。 */
+export function dayLabel(value: Date | string | number, now = new Date()): string {
+  const date = new Date(value);
+  const base = `${format(date, "M 月 d 日")} 週${WEEKDAYS[date.getDay()]}`;
+  return isSameYear(date, now) ? base : `${format(date, "yyyy 年 ")}${base}`;
+}
+
+/** 「今天」「昨天」「5 天前」；超過 30 天不標。 */
+export function relativeDayLabel(value: Date | string | number, now = new Date()): string | null {
+  const days = differenceInCalendarDays(now, new Date(value));
+  if (days < 0 || days > 30) return null;
+  if (days === 0) return "今天";
+  if (days === 1) return "昨天";
+  return `${days} 天前`;
+}
+
 export interface TimelineGroup {
+  /** yyyy-MM-dd，分組用 */
+  key: string;
   dayLabel: string;
+  relative: string | null;
   rows: TimelineRow[];
 }
 
 // Rows arrive already desc-sorted, so same-day rows are always contiguous —
 // a single linear pass is enough to group them.
-export function groupByDay(rows: TimelineRow[]): TimelineGroup[] {
+export function groupByDay(rows: TimelineRow[], now = new Date()): TimelineGroup[] {
   const groups: TimelineGroup[] = [];
   rows.forEach((row) => {
     const anchorEvent = "checkin" in row ? row.checkin : row;
-    const dayLabel = formatDate(anchorEvent.createdAt);
+    const key = format(new Date(anchorEvent.createdAt), "yyyy-MM-dd");
     const lastGroup = groups[groups.length - 1];
-    if (lastGroup && lastGroup.dayLabel === dayLabel) {
+    if (lastGroup && lastGroup.key === key) {
       lastGroup.rows.push(row);
     } else {
-      groups.push({ dayLabel, rows: [row] });
+      groups.push({
+        key,
+        dayLabel: dayLabel(anchorEvent.createdAt, now),
+        relative: relativeDayLabel(anchorEvent.createdAt, now),
+        rows: [row],
+      });
     }
   });
   return groups;

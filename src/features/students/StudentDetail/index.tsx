@@ -5,7 +5,9 @@ import BasicSection from "./BasicSection";
 import CardsSection from "./CardsSection";
 import AttendSection from "./AttendSection";
 import EventTimeline from "./BasicSection/EventTimeline";
-import ProfilePanels from "./ProfilePanels";
+import ProfilePanels, { Panel } from "./ProfilePanels";
+import { StyleBars, WeeklyHeatGrid } from "./AttendSection/AttendInsights";
+import { INSIGHT_WEEKS, flattenAttendances } from "./AttendSection/attendanceInsights";
 import { StudentWithDetail } from "@/store/slices/students";
 import { useSearchParams } from "next/navigation";
 import { useSizeClass } from "@/hooks/useMediaQuery";
@@ -77,7 +79,7 @@ const StudentDetail = ({
         {legacyTab === "cards" && (
           <CardsSection key={student.id} student={student} studentCards={student.studentCards} isPublic={isPublic} />
         )}
-        {legacyTab === "attend" && <AttendSection key={student.id} student={student} />}
+        {legacyTab === "attend" && <AttendSection key={student.id} student={student} summary />}
         {legacyTab === "events" && <EventTimeline key={student.id} studentId={student.id} />}
       </div>
     );
@@ -122,17 +124,34 @@ const StudentDetail = ({
                 showBuy={false}
               />
             )}
-            {shownTab === "attend" && <AttendSection key={student.id} student={student} />}
+            {shownTab === "attend" && (
+              <AttendSection key={student.id} student={student} summary={!withSidePanel} />
+            )}
             {shownTab === "events" && <EventTimeline key={student.id} studentId={student.id} />}
             {shownTab === "profile" && <ProfilePanels student={student} />}
           </div>
           {withSidePanel && (
-            <aside aria-label="學生資料">
-              <ProfilePanels student={student} />
+            <aside aria-label={shownTab === "attend" ? "出席統計" : "學生資料"}>
+              {shownTab === "attend" ? <AttendInsightPanels student={student} /> : <ProfilePanels student={student} />}
             </aside>
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+/** 出席分頁的側欄：近 13 週出席方格、依舞種的長條。都從 attendancesByDate 在前端算。 */
+const AttendInsightPanels = ({ student }: { student: StudentWithDetail }) => {
+  const attendances = flattenAttendances(student.attendancesByDate);
+  return (
+    <div className="flex flex-col gap-4">
+      <Panel title={`近 ${INSIGHT_WEEKS} 週出席`}>
+        <WeeklyHeatGrid attendances={attendances} />
+      </Panel>
+      <Panel title="依舞種">
+        <StyleBars attendances={attendances} />
+      </Panel>
     </div>
   );
 };

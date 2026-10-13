@@ -1,20 +1,22 @@
 import { Event as EventType } from "@/store/slices/students";
 import { formatDate } from "@/lib/utils";
-import { CircleDot } from "lucide-react";
-import { IconMap, colorMap } from "./EventTimeline.helpers";
+import { presentEvent } from "./EventTimeline.helpers";
 
-// One line per event: icon + description only (the icon's color already
-// encodes the type, so a separate bold title line is redundant) + time.
+/** 一筆動態：圓形圖示、標題、說明、時間。 */
 const EventRow = ({ event }: { event: EventType }) => {
-  const Icon = IconMap[event.title] ?? CircleDot;
-  const color = colorMap[event.title] ?? "bg-neutral-400";
+  const { icon: Icon, tone, title, description } = presentEvent(event);
   return (
-    <div className="relative z-10 flex items-center gap-3 py-2">
-      <div className={`w-6 h-6 rounded-full ${color} text-white flex items-center justify-center shrink-0`}>
-        <Icon className="w-3.5 h-3.5" />
-      </div>
-      <p className="flex-1 min-w-0 text-sm text-neutral-700 truncate">{event.description}</p>
-      <span className="text-xs text-neutral-400 shrink-0">{formatDate(event.createdAt, "HH:mm")}</span>
+    <div className="grid grid-cols-[32px_minmax(0,1fr)_auto] gap-3 items-start py-2.5">
+      <span className={`w-8 h-8 rounded-full grid place-items-center ${tone}`} aria-hidden="true">
+        <Icon className="w-4 h-4" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-neutral-900">{title}</span>
+        {description && <span className="block text-[13px] text-neutral-600 mt-0.5">{description}</span>}
+      </span>
+      <time className="text-xs text-neutral-500 whitespace-nowrap pt-0.5 tabular-nums">
+        {formatDate(event.createdAt, "HH:mm")}
+      </time>
     </div>
   );
 };

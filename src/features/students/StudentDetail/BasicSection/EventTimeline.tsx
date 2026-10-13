@@ -1,5 +1,5 @@
 import { useState } from "react";
-import SegmentedTabs, { type SegmentedOption } from "@/components/SegmentedTabs";
+import FilterChip from "@/components/FilterChip";
 import { useGetStudentEventsQuery } from "@/store/slices/students";
 import {
   EventFilter,
@@ -10,43 +10,47 @@ import {
 import EventRow from "./EventRow";
 import EventSubRow from "./EventSubRow";
 
-const FILTERS: SegmentedOption<EventFilter>[] = [
+const FILTERS: { label: string; value: EventFilter }[] = [
   { label: "全部", value: "all" },
-  { label: "簽到", value: "checkin" },
   { label: "課卡", value: "card" },
+  { label: "上課", value: "lesson" },
 ];
 
+/** 動態分頁：全部／課卡／上課快篩，依日分段的事件列。 */
 const EventTimeline = ({ studentId }: { studentId: number }) => {
-  const { data: events } = useGetStudentEventsQuery({ id: studentId });
+  const { data: events, isLoading } = useGetStudentEventsQuery({ id: studentId });
   const [activeFilter, setActiveFilter] = useState<EventFilter>("all");
 
   const filtered = filterByCategory(events ?? [], activeFilter);
   const groups = groupByDay(buildTimelineRows(filtered));
 
   return (
-    <div className="flex flex-col gap-2">
-      <h4 className="text-sm font-semibold text-neutral-700">動態</h4>
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-1.5 flex-wrap">
+        {FILTERS.map((filter) => (
+          <FilterChip
+            key={filter.value}
+            size="sm"
+            active={activeFilter === filter.value}
+            onClick={() => setActiveFilter(filter.value)}
+          >
+            {filter.label}
+          </FilterChip>
+        ))}
+      </div>
 
-      <SegmentedTabs
-        ariaLabel="動態分類"
-        options={FILTERS}
-        value={activeFilter}
-        onChange={setActiveFilter}
-        fill
-      />
-
-      {groups.length === 0 && (
-        <p className="py-6 text-center text-sm text-neutral-400">這個分類還沒有紀錄。</p>
-      )}
-
-      <div className="flex flex-col gap-1">
-        {groups.map((group) => (
-          <div key={group.dayLabel} className="flex flex-col">
-            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider pl-9 pt-2 first:pt-0">
-              {group.dayLabel}
-            </p>
-            <div className="relative">
-              <div className="absolute left-3 top-0 bottom-0 w-px bg-neutral-200" />
+      {groups.length === 0 ? (
+        <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
+          {isLoading ? "載入中…" : "這個分類還沒有紀錄"}
+        </div>
+      ) : (
+        <div className="bg-white border border-neutral-200 rounded-2xl px-5 pt-1 pb-3">
+          {groups.map((group) => (
+            <section key={group.key}>
+              <h4 className="m-0 pt-3.5 pb-1 text-xs font-bold text-neutral-700 flex items-center gap-2">
+                {group.dayLabel}
+                {group.relative && <span className="font-medium text-neutral-500">· {group.relative}</span>}
+              </h4>
               {group.rows.map((row) =>
                 "checkin" in row ? (
                   <div key={row.checkin.id}>
@@ -57,10 +61,10 @@ const EventTimeline = ({ studentId }: { studentId: number }) => {
                   <EventRow key={row.id} event={row} />
                 )
               )}
-            </div>
-          </div>
-        ))}
-      </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

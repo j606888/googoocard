@@ -24,7 +24,7 @@ export const copyText = async (value: string, message = "已複製") => {
   }
 };
 
-const Panel = ({
+export const Panel = ({
   title,
   action,
   children,
