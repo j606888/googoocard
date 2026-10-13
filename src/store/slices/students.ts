@@ -197,6 +197,15 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Student"],
     }),
+    /** 只改舞種資格（詳情側欄點一下就存），不碰姓名、備註、頭像。 */
+    updateStudentDanceLevels: builder.mutation<Student, { id: number; danceLevels: DanceLevels }>({
+      query: ({ id, danceLevels }) => ({
+        url: `students/${id}`,
+        method: "PATCH",
+        body: { danceLevels },
+      }),
+      invalidatesTags: ["Student"],
+    }),
     /** 封存／還原學生（不刪資料）。學生沒有 DELETE。 */
     setStudentArchived: builder.mutation<Student, { id: number; archived: boolean }>({
       query: ({ id, archived }) => ({
@@ -303,6 +312,7 @@ export const {
   useCreateStudentMutation,
   useUpdateStudentMutation,
   useSetStudentArchivedMutation,
+  useUpdateStudentDanceLevelsMutation,
   useGetStudentCardsQuery,
   useCreateStudentCardMutation,
   useConfirmStudentCardPaymentMutation,

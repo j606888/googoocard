@@ -32,6 +32,14 @@ export const remainingSessions = (student: Student): number =>
     0
   );
 
+/** 「今天／昨天／N 天前／尚未上課」——名單列與學生頁首共用。 */
+export const lastAttendLabel = (days: number | null): string => {
+  if (days === null) return "尚未上課";
+  if (days <= 0) return "今天";
+  if (days === 1) return "昨天";
+  return `${days} 天前`;
+};
+
 /** 距離最近一次上課的天數；從未上過課回 null。 */
 export const daysSinceLastAttend = (student: Student): number | null =>
   student.lastAttendAt

@@ -19,8 +19,7 @@ const selHref = (studentId: number) => `/students?sel=${studentId}`;
  * 版面與「選取鏡射到網址」的行為都在 `SplitView`——為什麼 state 是真相、
  * 網址只是鏡射，理由寫在那裡。
  *
- * 右欄只放日常會看的三個分頁；轉換卡片、停用、備註這類深度操作維持在原本的
- * 三欄完整頁面（右上角「完整頁面」）。
+ * 右欄跟獨立學生頁是同一套頁首＋分頁＋側欄；Enter 仍可開獨立頁（可分享的網址）。
  */
 const StudentsSplitView = () => {
   const router = useRouter();
@@ -62,12 +61,8 @@ const StudentsSplitView = () => {
           <ListSkeleton />
         ) : (
           <>
-            <StudentDetailHeader
-              student={student}
-              variant="pane"
-              fullHref={studentDetailHref(student.id, selHref(student.id))}
-            />
-            <StudentDetail student={student} layout="tabs" />
+            <StudentDetailHeader student={student} variant="pane" />
+            <StudentDetail student={student} variant="pane" />
           </>
         )
       }

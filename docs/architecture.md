@@ -437,13 +437,18 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 `/students` 依寬度掛載**其中一棵樹**（`useIsWide()`，≥1024px）——不是用 CSS 藏，因為兩棵都掛的話兩份篩選狀態會各自寫 localStorage 而分岔。
 
 - **手機**：`StudentList`（`variant="page"`）維持原本的整頁列表，點學生跳 `/students/[id]`。
-- **桌面**：`StudentsSplitView` = 左欄 `StudentList variant="roster"`（密集列 `RosterRow`、搜尋、排序選單、快速條件、↑↓／`/`／Enter 鍵盤操作）+ 右欄 `StudentDetailHeader variant="pane"` 與 `StudentDetail layout="tabs"`。換人只換右欄，不換頁。
+- **桌面**：`StudentsSplitView` = 左欄 `StudentList variant="roster"`（密集列 `RosterRow`、搜尋、排序選單、快速條件、↑↓／`/`／Enter 鍵盤操作）+ 右欄 `StudentDetailHeader variant="pane"` 與 `StudentDetail variant="pane"`。換人只換右欄，不換頁。
 
 選取狀態同時活在 React state 與網址：**state 是畫面的真相**（`router.replace` 只改 query 時不會讓這頁的 `useSearchParams()` 重繪，靠網址驅動會整個選不動），**網址是可分享的鏡射**，用 `history.replaceState` 寫回，所以連續看十位學生不會在瀏覽紀錄堆十筆。
 
-右欄只放日常會看的三個分頁；轉換卡片、停用、備註、確認付款等深度操作維持在原本的三欄完整頁面（右上角「完整頁面」）。
+右欄與獨立學生頁 `/students/[id]`（桌面）是**同一套**版面（2026-10 改版，舊的三欄完整頁已移除）：
+頁首（大頭貼、舞種 pill、標籤、編輯／⋯／購買課卡、四格統計 `StudentStats`）＋ 底線分頁 課卡／出席／動態 ＋
+右側欄 `ProfilePanels`（舞種資格點一下就存、學生資料、公開頁）。側欄要內容寬度 ≥ `SIDE_PANEL_MIN_WIDTH`
+（1000px，`useElementWidth` 量的是詳情容器，不是 viewport）才擺在右邊；不夠寬就收成第四個「資料」分頁。
+⋯ 選單：複製公開頁連結、複製 LINE 綁定連結（未綁定時）、封存／還原學生。
+手機老師端、公開頁、LIFF 仍是舊的「概要／課卡／出席／動態」分頁（手機老師端會在改版第 7 階段換掉）。
 
-排序有四種（`SORT_OPTIONS`，`studentFilters.ts`）：姓名／編號／剩餘堂數（少到多）／最近上課（久到近）。**一律在前端排**——列表沒有分頁，而且後兩者不是 DB 單一欄位排得出來的。`GET /api/students` 為此多回 `lastAttendAt` / `lastAttendLessonName`（巢狀 `take: 1`，靠 `AttendanceRecord @@index([studentId])`）。「最近上課」= 最近一次出席**那堂課的上課時間**（`lessonPeriod.startTime`），不是點名時間；學生自助簽到、尚未定案的也算。三個出口（名單、學生詳情、LIFF／分享頁）共用 `src/service/studentDetail.ts` 的 `lastAttendanceQuery` / `findLastAttendance`，別再各寫一份。
+排序有四種（`SORT_OPTIONS`，`studentFilters.ts`）：姓名／編號／剩餘堂數（少到多）／最近上課（久到近）。**一律在前端排**——列表沒有分頁，而且後兩者不是 DB 單一欄位排得出來的。`GET /api/students` 為此多回 `lastAttendAt` / `lastAttendLessonName`（巢狀 `take: 1`，靠 `AttendanceRecord @@index([studentId])`）。「最近上課」= 最近一次出席**那堂課的上課時間**（`lessonPeriod.startTime`），不是點名時間；學生自助簽到、尚未定案的也算。三個出口（名單、學生詳情、LIFF／分享頁）共用 `src/service/studentDetail.ts` 的 `lastAttendanceQuery` / `toLastAttendance`，別再各寫一份。
 
 ## 測試
 

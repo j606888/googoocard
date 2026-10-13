@@ -75,7 +75,7 @@
 
 ### 3. 用 `variant` prop，不要平行元件樹
 
-同一個元件用 `variant` / `layout` 多工，是本專案已確立的慣例：`StudentList variant="page"|"roster"`、`StudentDetail layout="auto"|"tabs"`、`StudentDetailHeader variant="page"|"pane"`。
+同一個元件用 `variant` / `layout` 多工，是本專案已確立的慣例：`StudentList variant="page"|"roster"`、`StudentDetail variant="page"|"pane"`（2026-10 起，取代 `layout="auto"|"tabs"`）、`StudentDetailHeader variant="page"|"pane"`。
 
 但要小心別讓它變成「把 breakpoint 用 props 重新實作一遍」。判準：**prop 名稱描述的是「用途」（`roster` / `pane`）還是「寬度」（`isDesktop` / `columns`）？** 前者健康，後者是味道（曾經的例子：`CardsSection` 的 `columns={isPane ? 2 : 1}`，2026-10 改成課卡網格 `auto-fill minmax(280px,1fr)` 依自身寬度排欄後移除）。
 

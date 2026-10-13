@@ -110,7 +110,7 @@ const BuyCard = ({
       <button
         className={
           variant === "header"
-            ? "flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-500 text-white text-sm font-semibold cursor-pointer hover:bg-primary-600"
+            ? "flex items-center gap-1.5 h-10 px-4 rounded-xl bg-primary-900 text-white text-sm font-semibold cursor-pointer hover:bg-primary-700"
             : "w-full p-3 bg-primary-500 text-white rounded-xl font-semibold cursor-pointer hover:bg-primary-600"
         }
         onClick={() => {

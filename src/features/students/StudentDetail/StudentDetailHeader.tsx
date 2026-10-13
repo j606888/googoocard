@@ -1,151 +1,127 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ArrowLeft,
-  CreditCard,
-  BookOpenText,
-  Star,
-  AlertCircle,
-  Tag,
-  ExternalLink,
-} from "lucide-react";
-import { StudentWithDetail } from "@/store/slices/students";
-import { format } from "date-fns";
+import { ArrowLeft, Archive, SquarePen } from "lucide-react";
+import { toast } from "sonner";
+import { StudentWithDetail, useSetStudentArchivedMutation } from "@/store/slices/students";
 import EditStudent from "./BasicSection/EditStudent";
 import BuyCard from "./CardsSection/BuyCard";
-import { DEFAULT_DANCE_LEVEL, practiceQualificationLabel } from "@/lib/danceLevels";
+import StudentStats from "./StudentStats";
+import StudentActionsMenu from "./StudentActionsMenu";
+import { DanceBadges } from "../StudentList/DanceBadge";
+import { tagLabel } from "../StudentList/studentFilters";
 
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+const NEEDS_RENEWAL_TAG = "Needs Renewal";
 
+const outlineButton =
+  "h-10 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm font-semibold text-neutral-900 inline-flex items-center gap-1.5 hover:bg-neutral-50 cursor-pointer";
+
+const ArchivedBanner = ({ student }: { student: StudentWithDetail }) => {
+  const [setArchived, { isLoading }] = useSetStudentArchivedMutation();
+  return (
+    <div className="mb-4 flex items-center gap-3 rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm text-neutral-700">
+      <Archive className="w-4 h-4 shrink-0" />
+      <span className="flex-1">這位學生已封存，不會出現在名單、自助簽到和 LINE。</span>
+      <button
+        type="button"
+        disabled={isLoading}
+        className="font-semibold text-primary-900 hover:underline cursor-pointer disabled:opacity-50"
+        onClick={async () => {
+          try {
+            await setArchived({ id: student.id, archived: false }).unwrap();
+            toast.success(`已還原 ${student.name}`);
+          } catch {
+            toast.error("還原失敗，請稍後再試");
+          }
+        }}
+      >
+        還原
+      </button>
+    </div>
+  );
+};
+
+/**
+ * 學生詳情的頁首（桌面）：大頭貼、姓名、舞種資格與標籤、動作按鈕、四格統計。
+ * 分頁列接在它下面（StudentDetail），兩者合起來是一塊白色頁首。
+ *
+ * "page" —— 獨立學生頁，多一行返回名單的麵包屑。
+ * "pane" —— 分割檢視右欄：左邊名單就是返回路徑。
+ */
 const StudentDetailHeader = ({
   student,
   backHref = "/students",
   variant = "page",
-  fullHref,
 }: {
   student: StudentWithDetail;
   backHref?: string;
-  /**
-   * "page" —— 獨立學生頁的桌面頁首（含麵包屑）。要不要渲染由呼叫端的
-   *           size class 決定，這裡不再用 CSS 藏——裡面掛著 EditStudent 的狀態。
-   * "pane" —— 分割檢視右欄的頁首：沒有麵包屑（左邊名單一直在），
-   *           改成「完整頁面」出口，深度操作仍回到三欄頁。
-   */
   variant?: "page" | "pane";
-  /** variant="pane" 時「完整頁面」要去的網址 */
-  fullHref?: string;
 }) => {
   const isPane = variant === "pane";
-  // Same rule as CardsSection's 有效課卡: sessions left AND not expired.
-  const activeCards = student.studentCards.filter(
-    (c) => c.remainingSessions > 0 && !c.expiredAt
-  );
-  // 上課那天（不是點名時間）＋ 課名，見 toLastAttendance。
-  const lastAttendDate = student.overview.lastAttendAt
-    ? new Date(student.overview.lastAttendAt)
-    : null;
-  const lastAttend = lastAttendDate
-    ? `${format(lastAttendDate, "yyyy/M/d")}（${WEEKDAYS[lastAttendDate.getDay()]}）${
-        student.overview.lastAttendLessonName ? ` · ${student.overview.lastAttendLessonName}` : ""
-      }`
-    : "尚未上課";
+  const tags = student.tags ?? [];
+  const needsRenewal = tags.some((tag) => tag.name === NEEDS_RENEWAL_TAG);
+  const otherTags = tags.filter((tag) => tag.name !== NEEDS_RENEWAL_TAG);
 
   return (
-    <div
-      className={
-        isPane
-          ? "flex-none border-b border-neutral-200 px-6 py-4 bg-white"
-          : "border-b border-neutral-200 px-8 py-5 bg-white"
-      }
-    >
-      {/* Breadcrumb — 分割檢視不需要，左邊名單就是返回路徑 */}
+    <div className={`@container flex-none bg-white ${isPane ? "px-6 pt-5" : "px-8 pt-5"}`}>
       {!isPane && (
-        <div className="flex items-center gap-2 text-sm text-neutral-500 mb-3">
-          <Link href={backHref} className="flex items-center gap-1 hover:text-neutral-700">
-            <ArrowLeft className="w-4 h-4" />
-            <span>學生</span>
-          </Link>
-          <span>/</span>
-          <span className="text-neutral-700 font-medium">{student.name}</span>
-        </div>
+        <Link
+          href={backHref}
+          className="inline-flex items-center gap-1 text-sm text-neutral-600 hover:text-neutral-900 mb-3"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          學生
+        </Link>
       )}
 
-      {/* Title row */}
-      <div className={`flex items-center gap-4 ${isPane ? "mb-3" : "mb-4"}`}>
+      {student.archivedAt && <ArchivedBanner student={student} />}
+
+      <div className="flex items-start gap-4 flex-wrap">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={student.avatarUrl}
-          className="w-14 h-14 rounded-full object-cover ring-2 ring-primary-100 shrink-0"
+          alt=""
+          className="w-16 h-16 rounded-full object-cover ring-2 ring-primary-100 shrink-0"
         />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-neutral-900">{student.name}</h1>
-            <span className="text-sm font-mono text-neutral-400">#{student.number}</span>
-            {student.note && (
-              <span className="text-sm text-neutral-500">({student.note})</span>
+        <div className="flex-1 min-w-48">
+          <h1 className="text-2xl font-bold text-neutral-900 flex items-baseline gap-2.5 flex-wrap">
+            {student.name}
+            <span className="text-sm font-mono font-medium text-neutral-500">#{student.number}</span>
+          </h1>
+          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+            <DanceBadges levels={student.danceLevels} variant="full" />
+            {needsRenewal && (
+              <span className="text-xs font-semibold bg-danger-100 text-danger-700 rounded-full px-2.5 py-0.5">
+                {tagLabel(NEEDS_RENEWAL_TAG)}
+              </span>
             )}
-            {student.tags?.map((tag) => (
+            {otherTags.map((tag) => (
               <span
                 key={tag.id}
-                className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                  tag.name === "Needs Renewal"
-                    ? "text-danger-700 bg-danger-100"
-                    : "text-neutral-600 bg-neutral-100"
-                }`}
+                className="text-xs border border-neutral-300 text-neutral-700 rounded-full px-2.5 py-0.5"
               >
-                {tag.name === "Needs Renewal" ? (
-                  <AlertCircle className="w-3 h-3" />
-                ) : (
-                  <Tag className="w-3 h-3" />
-                )}
                 {tag.name}
               </span>
             ))}
           </div>
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {student.qualifiedDanceStyles?.map((style) => (
-              <span
-                key={style.id}
-                className="inline-flex items-center gap-1 text-xs font-medium bg-warning-100 text-warning-900 px-2.5 py-1 rounded-full"
-              >
-                <Star className="w-3 h-3" />
-                {practiceQualificationLabel(style, student.danceLevels?.[style.id] ?? DEFAULT_DANCE_LEVEL)}
-              </span>
-            ))}
-          </div>
         </div>
-        <div className="shrink-0 flex items-center gap-2">
-          <EditStudent student={student} />
-          {isPane && fullHref && (
-            <Link
-              href={fullHref}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-neutral-200 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
-            >
-              <ExternalLink className="w-4 h-4" />
-              完整頁面
-            </Link>
-          )}
-          <BuyCard student={student} variant="header" />
+        <div className="flex items-center gap-2 shrink-0">
+          <EditStudent
+            student={student}
+            trigger={(open) => (
+              <button type="button" className={outlineButton} onClick={open}>
+                <SquarePen className="w-4 h-4" />
+                編輯
+              </button>
+            )}
+          />
+          <StudentActionsMenu student={student} buttonClassName={`${outlineButton} px-2.5`} />
+          {!student.archivedAt && <BuyCard student={student} variant="header" />}
         </div>
       </div>
 
-      {/* Stats pills */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
-          <BookOpenText className="w-4 h-4" />
-          <span>上過 {student.overview.attendedCount} 堂課</span>
-        </div>
-        <div className="flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
-          <CreditCard className="w-4 h-4" />
-          <span>共 {student.overview.cardCount} 張課卡</span>
-          {activeCards.length > 0 && (
-            <span className="text-primary-600 font-semibold">（{activeCards.length} 張可用）</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${student.overview.lastAttendAt ? "bg-primary-500" : "bg-neutral-300"}`} />
-          <span>最近上課：{lastAttend}</span>
-        </div>
+      <div className="mt-5">
+        <StudentStats student={student} />
       </div>
     </div>
   );

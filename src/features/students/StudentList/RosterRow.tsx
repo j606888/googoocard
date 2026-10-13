@@ -7,16 +7,10 @@ import {
   RECENT_ATTEND_DAYS,
   daysSinceLastAttend,
   remainingSessions,
+  lastAttendLabel,
 } from "./studentFilters";
 
 const NEEDS_RENEWAL_TAG = "Needs Renewal";
-
-const lastAttendLabel = (days: number | null) => {
-  if (days === null) return "尚未上課";
-  if (days <= 0) return "今天";
-  if (days === 1) return "昨天";
-  return `${days} 天前`;
-};
 
 /**
  * 分割檢視左欄的一列。刻意比舊的桌面卡片密——一頁要塞得下十幾位學生，

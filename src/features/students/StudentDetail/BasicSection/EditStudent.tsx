@@ -1,23 +1,24 @@
 "use client";
 
 import { SquarePen, X, Plus } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import { StudentWithDetail } from "@/store/slices/students";
 import InputField from "@/components/InputField";
 import { useUpdateStudentMutation, useGetTagsQuery, useAddStudentTagMutation, useRemoveStudentTagMutation } from "@/store/slices/students";
-import { useDanceStyles } from "@/hooks/useDanceStyles";
-import { danceStyleMeta } from "@/lib/danceStyleColors";
-import { DANCE_LEVELS, DEFAULT_DANCE_LEVEL } from "@/lib/danceLevels";
+import QualificationLevels, { applyLevelPick } from "../QualificationLevels";
 import type { DanceLevels } from "@/domains/qualification";
 import AvatarPicker from "@/features/students/AvatarPicker";
 
-const NOT_DONE = { value: 0, label: "未完成" };
-const LEVELED_OPTIONS = [NOT_DONE, ...DANCE_LEVELS];
-const UNLEVELED_OPTIONS = [NOT_DONE, { value: DEFAULT_DANCE_LEVEL, label: "已完成" }];
-
-const EditStudent = ({ student }: { student: StudentWithDetail }) => {
+const EditStudent = ({
+  student,
+  trigger,
+}: {
+  student: StudentWithDetail;
+  /** Custom opener (e.g. the header's 「編輯」 button); default is a pen icon. */
+  trigger?: (open: () => void) => ReactNode;
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState(student.name);
   const [note, setNote] = useState(student.note);
@@ -30,16 +31,6 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
   const { data: allTags = [] } = useGetTagsQuery();
   const [addStudentTag] = useAddStudentTagMutation();
   const [removeStudentTag] = useRemoveStudentTagMutation();
-  const { styles, byId } = useDanceStyles();
-  // Archived styles aren't offered, but one the student already holds stays
-  // listed — the PATCH is authoritative, so it must be visible to be removable.
-  const styleChoices = [
-    ...styles,
-    ...[...byId.values()].filter(
-      (style) => style.archivedAt && danceLevels[style.id] !== undefined
-    ),
-  ];
-
   // 表單 state 只在掛載時初始化；分割畫面切換學生不會重新掛載，
   // 所以每次打開都從當下的 student 重設，避免沿用上一位學生的資料。
   const handleOpen = () => {
@@ -74,18 +65,6 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
     }
   };
 
-  // 0 = 未完成 (no qualification row). A style without levels only offers
-  // 已完成, which keeps whatever level is stored — picking it again must not
-  // downgrade a level set while the style still had levels.
-  const pickLevel = (styleId: number, level: number, hasLevels: boolean) => {
-    setDanceLevels((prev) => {
-      const next = { ...prev };
-      if (level === 0) delete next[styleId];
-      else if (hasLevels || next[styleId] === undefined) next[styleId] = level;
-      return next;
-    });
-  };
-
   const handleAddTag = async (tagName: string) => {
     if (!tagName.trim()) return;
     await addStudentTag({ studentId: student.id, tagName: tagName.trim() });
@@ -98,10 +77,13 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
 
   return (
     <>
-      <SquarePen
-        className="w-5 h-5 text-neutral-500 cursor-pointer"
-        onClick={handleOpen}
-      />
+      {trigger ? (
+        trigger(handleOpen)
+      ) : (
+        <button type="button" onClick={handleOpen} aria-label={`編輯 ${student.name}`} className="cursor-pointer">
+          <SquarePen className="w-5 h-5 text-neutral-500" />
+        </button>
+      )}
       <Drawer
         open={isOpen}
         onClose={() => setIsOpen(false)}
@@ -133,56 +115,12 @@ const EditStudent = ({ student }: { student: StudentWithDetail }) => {
               <span className="text-sm font-medium text-neutral-700">已完成（可使用複習卡）</span>
               <span className="text-xs text-neutral-500">「未完成」＝沒有這個舞種的複習資格</span>
             </div>
-            {styleChoices.length === 0 && (
-              <p className="text-sm text-neutral-500">教室還沒有舞種。</p>
-            )}
-            {styleChoices.map((danceStyle) => {
-              const meta = danceStyleMeta(danceStyle);
-              const current = danceLevels[danceStyle.id] ?? 0;
-              const options = danceStyle.hasLevels ? LEVELED_OPTIONS : UNLEVELED_OPTIONS;
-              return (
-                <div key={danceStyle.id} className="flex items-center gap-3">
-                  <div className="w-24 flex items-center gap-2 shrink-0 min-w-0">
-                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${meta.dot}`} />
-                    <span className="text-sm font-medium truncate">{meta.label}</span>
-                  </div>
-                  <div
-                    role="radiogroup"
-                    aria-label={`${meta.label} 已完成階級`}
-                    className="flex-1 grid gap-0 rounded-xl bg-neutral-100 p-0.5"
-                    style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
-                  >
-                    {options.map((option) => {
-                      // Without levels any stored level counts as 已完成.
-                      const checked =
-                        option.value === 0
-                          ? current === 0
-                          : danceStyle.hasLevels
-                            ? current === option.value
-                            : current > 0;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={checked}
-                          onClick={() => pickLevel(danceStyle.id, option.value, danceStyle.hasLevels)}
-                          className={`h-9 rounded-[10px] text-sm cursor-pointer transition-colors ${
-                            !checked
-                              ? "text-neutral-500"
-                              : option.value === 0
-                                ? "bg-white text-neutral-700 font-semibold shadow-sm"
-                                : "bg-primary-600 text-white font-semibold"
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+            <QualificationLevels
+              levels={danceLevels}
+              onPick={(styleId, level, hasLevels) =>
+                setDanceLevels((prev) => applyLevelPick(prev, styleId, level, hasLevels))
+              }
+            />
           </div>
 
           <div className="flex flex-col gap-2">
