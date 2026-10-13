@@ -272,6 +272,25 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 `PATCH /api/students/[id]/student-cards/[studentCardId]`（body：`note`，上限 500 字，
 空字串或 `null` 皆清除）。任何狀態的卡都能編輯，包含已停用的卡。
 轉換流程會自動寫入這個欄位，手動編輯會覆蓋系統文字 — 這是刻意的，老師有最終決定權。
+購買時也能直接帶 `note`（`buyStudentCardSchema`，同樣上限 500 字，空白視為沒填）。
+
+## 學生封存（Student.archivedAt）
+
+學生**沒有刪除**，只有封存：`PATCH /api/students/[id]` body `{ archived: true | false }`。
+封存不動任何課卡、出席、收入資料，隨時可還原。
+
+- 老師端名單 `GET /api/students` 預設只列在籍；`?archived=1` 只列封存的。詳情頁照常可開。
+- 學生端一律當作不存在：QR 看板名單與簽到（403）、LIFF（`resolveOwnedStudent`、`/api/liff/me`）、
+  LINE webhook 的「目前學生」、續卡提醒 cron。
+- 不擋：已在課程名單裡的點名、收入與歷史報表。
+
+## 學生詳情的出席統計
+
+`overview.attendedCount` = 出席過的**時段數**；`thisMonthCount` / `lastMonthCount` 依
+`lessonPeriod.startTime` 以台北時區分月（`attendanceCounts`，`src/service/studentDetail.ts`）。
+舊的 `attendLessonCount`（其實是報名門數）已移除。老師端與公開頁／LIFF 共用
+`buildAttendanceViews` 組 `attendancesByLesson` / `attendancesByDate`，後者每筆帶舞種、
+扣的卡（`studentCard`）、`source` 與 `pending`（自助簽到、老師尚未定案）。
 
 ## Tag 系統
 

@@ -32,7 +32,7 @@ export async function POST(
   const student = await prisma.student.findUnique({
     where: { id: Number(studentId) },
   });
-  if (!student || student.classroomId !== classroom.id) {
+  if (!student || student.classroomId !== classroom.id || student.archivedAt) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

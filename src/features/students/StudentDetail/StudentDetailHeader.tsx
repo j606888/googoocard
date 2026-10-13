@@ -41,7 +41,7 @@ const StudentDetailHeader = ({
   const activeCards = student.studentCards.filter(
     (c) => c.remainingSessions > 0 && !c.expiredAt
   );
-  // 上課那天（不是點名時間）＋ 課名，見 findLastAttendance。
+  // 上課那天（不是點名時間）＋ 課名，見 toLastAttendance。
   const lastAttendDate = student.overview.lastAttendAt
     ? new Date(student.overview.lastAttendAt)
     : null;
@@ -133,7 +133,7 @@ const StudentDetailHeader = ({
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
           <BookOpenText className="w-4 h-4" />
-          <span>上過 {student.overview.attendLessonCount} 堂課</span>
+          <span>上過 {student.overview.attendedCount} 堂課</span>
         </div>
         <div className="flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
           <CreditCard className="w-4 h-4" />

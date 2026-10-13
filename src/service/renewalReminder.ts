@@ -45,6 +45,7 @@ export async function collectRenewalCandidates(now: Date): Promise<RenewalCandid
     where: {
       classroomId: { in: classroomIds },
       classroom: { deletedAt: null },
+      archivedAt: null,
       lineUserId: { not: null },
       studentTags: {
         some: { tag: { name: NEEDS_RENEWAL_TAG } },

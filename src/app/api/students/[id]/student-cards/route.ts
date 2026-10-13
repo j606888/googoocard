@@ -22,7 +22,7 @@ export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
 
 export const POST = apiRoute<Params>(async ({ request, params, userId, classroomId }) => {
   const studentId = parseId(params.id, "student id");
-  const { cardId, sessions, price, lessonId, isPaid } = await parseBody(
+  const { cardId, sessions, price, lessonId, isPaid, note } = await parseBody(
     request,
     buyStudentCardSchema
   );
@@ -80,6 +80,7 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
         // When paid at point of sale, the seller is also the payment confirmer.
         paidAt: isPaid ? new Date() : null,
         paidByUserId: isPaid ? userId : null,
+        note: note?.trim() || null,
       },
     });
 

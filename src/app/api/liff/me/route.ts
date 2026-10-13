@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   }
 
   const students = await prisma.student.findMany({
-    where: { lineUserId: verified.userId },
+    where: { lineUserId: verified.userId, archivedAt: null },
     select: {
       id: true,
       name: true,

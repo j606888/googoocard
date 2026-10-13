@@ -1,7 +1,8 @@
 import { toDanceLevels } from "@/domains/qualification";
 import prisma from "@/lib/prisma";
-import { formatDate } from "@/lib/utils";
-import { danceStyleSummarySelect } from "@/lib/danceStyles";
+import type { AttendanceSource, Prisma } from "@prisma/client";
+import { danceStyleSummarySelect, type DanceStyleSummary } from "@/lib/danceStyles";
+import { parseTaipeiMonthRange, toTaipeiDateKey, toTaipeiMonthKey } from "@/lib/taipei-date";
 
 /**
  * The Student columns an API response may carry.
@@ -25,6 +26,7 @@ type StudentRow = {
   avatarUrl: string;
   note: string | null;
   randomKey: string | null;
+  archivedAt?: Date | null;
   classroomId: number;
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +42,7 @@ export function toStudentPayload(
     name: student.name,
     avatarUrl: student.avatarUrl,
     note: student.note,
+    archivedAt: student.archivedAt ?? null,
     classroomId: student.classroomId,
     createdAt: student.createdAt,
     updatedAt: student.updatedAt,
@@ -94,12 +97,127 @@ export function toLastAttendance(
   };
 }
 
-export async function findLastAttendance(studentId: number) {
-  const records = await prisma.attendanceRecord.findMany({
-    where: { studentId },
-    ...lastAttendanceQuery,
+/**
+ * Attendance history include for the student-detail payloads: each record
+ * with its period, the lesson's name and dance style, and the card it charged.
+ */
+export const attendanceHistoryInclude = {
+  include: {
+    lessonPeriod: {
+      include: {
+        lesson: { select: { id: true, name: true, danceStyle: { select: danceStyleSummarySelect } } },
+      },
+    },
+    studentCard: { select: { id: true, serialNumber: true, card: { select: { name: true } } } },
+  },
+  orderBy: { lessonPeriod: { startTime: "desc" } },
+} as const;
+
+type AttendanceHistoryRecord = Prisma.AttendanceRecordGetPayload<typeof attendanceHistoryInclude>;
+
+/**
+ * 出席統計：全部以上課日（`lessonPeriod.startTime`）、台北時區分月。
+ * `attendedCount` 是出席過的時段數 —— 不是報名過幾門課（舊的 attendLessonCount）。
+ */
+export function attendanceCounts(records: { lessonPeriod: { startTime: Date } }[], now = new Date()) {
+  const thisMonth = toTaipeiMonthKey(now);
+  const { start: thisMonthStart } = parseTaipeiMonthRange(thisMonth);
+  const lastMonth = toTaipeiMonthKey(new Date(thisMonthStart.getTime() - 1));
+  let thisMonthCount = 0;
+  let lastMonthCount = 0;
+  for (const record of records) {
+    const month = toTaipeiMonthKey(record.lessonPeriod.startTime);
+    if (month === thisMonth) thisMonthCount++;
+    else if (month === lastMonth) lastMonthCount++;
+  }
+  return { attendedCount: records.length, thisMonthCount, lastMonthCount };
+}
+
+/**
+ * The attendance views shared by the teacher detail and the public / LIFF
+ * payload: by lesson (every period, attended or not), by Taipei date (each
+ * attendance with its style, card and source), and each card's usage.
+ */
+export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryRecord[]) {
+  const attendLessonIds = [...new Set(attendanceRecords.map((record) => record.lessonPeriod.lessonId))];
+  const lessons = await prisma.lesson.findMany({
+    where: { id: { in: attendLessonIds } },
+    include: { periods: { orderBy: { startTime: "asc" } } },
   });
-  return toLastAttendance(records);
+  const lessonById = new Map(lessons.map((lesson) => [lesson.id, lesson]));
+
+  const attendancesByLesson = lessons.map((lesson) => ({
+    lessonId: lesson.id,
+    lessonName: lesson.name,
+    totalPeriods: lesson.periods.length,
+    lessonPeriodIds: lesson.periods.map((period) => period.id),
+    studentAttendances: lesson.periods.map((period) => ({
+      studentAttend: false,
+      periodId: period.id,
+      periodStartTime: period.startTime,
+      periodAttendantCheck: !!period.attendanceTakenAt,
+    })),
+  }));
+
+  const byDate = new Map<
+    string,
+    {
+      date: number;
+      attendances: {
+        lessonId: number;
+        lessonName: string;
+        periodNumber: number;
+        totalPeriods: number;
+        startTime: Date;
+        danceStyle: DanceStyleSummary | null;
+        studentCard: { id: number; serialNumber: number; name: string } | null;
+        source: AttendanceSource;
+        // 學生自助簽到、老師還沒定案這個時段
+        pending: boolean;
+      }[];
+    }
+  >();
+  const studentCardAttendances = new Map<number, { lessonName: string; periodStartTime: Date }[]>();
+
+  // Records arrive newest class first, so every list below is newest first too.
+  for (const record of attendanceRecords) {
+    const { lessonPeriod } = record;
+    const lesson = lessonById.get(lessonPeriod.lessonId);
+    if (!lesson) throw new Error(`Lesson ${lessonPeriod.lessonId} not found`);
+
+    const byLesson = attendancesByLesson.find((entry) => entry.lessonId === lesson.id);
+    const slot = byLesson?.studentAttendances.find((entry) => entry.periodId === lessonPeriod.id);
+    if (slot) slot.studentAttend = true;
+
+    const dateKey = toTaipeiDateKey(lessonPeriod.startTime);
+    const day = byDate.get(dateKey) ?? { date: lessonPeriod.startTime.getTime(), attendances: [] };
+    day.attendances.push({
+      lessonId: lesson.id,
+      lessonName: lessonPeriod.lesson.name,
+      periodNumber: lesson.periods.findIndex((period) => period.id === lessonPeriod.id) + 1,
+      totalPeriods: lesson.periods.length,
+      startTime: lessonPeriod.startTime,
+      danceStyle: lessonPeriod.lesson.danceStyle,
+      studentCard: record.studentCard
+        ? { id: record.studentCard.id, serialNumber: record.studentCard.serialNumber, name: record.studentCard.card.name }
+        : null,
+      source: record.source,
+      pending: record.source === "STUDENT" && !lessonPeriod.attendanceTakenAt,
+    });
+    byDate.set(dateKey, day);
+
+    if (record.studentCardId) {
+      const usage = studentCardAttendances.get(record.studentCardId) ?? [];
+      usage.push({ lessonName: lesson.name, periodStartTime: lessonPeriod.startTime });
+      studentCardAttendances.set(record.studentCardId, usage);
+    }
+  }
+
+  return {
+    attendancesByLesson,
+    attendancesByDate: [...byDate.values()],
+    studentCardAttendances,
+  };
 }
 
 /**
@@ -117,7 +235,6 @@ export async function buildStudentDetailPayload(studentId: number) {
   const student = await prisma.student.findUnique({
     where: { id: studentId },
     include: {
-      lessons: true,
       // NOT `classroom: true` — the full row carries `checkinKey`, the
       // walk-in QR self check-in secret for the whole classroom.
       classroom: { select: { id: true, name: true } },
@@ -134,140 +251,33 @@ export async function buildStudentDetailPayload(studentId: number) {
         },
         orderBy: { createdAt: "desc" },
       },
-      attendanceRecords: {
-        include: { lessonPeriod: true, studentCard: true },
-        orderBy: { createdAt: "desc" },
-      },
+      attendanceRecords: attendanceHistoryInclude,
     },
   });
 
   if (!student) return null;
 
-  const lastAttendance = await findLastAttendance(student.id);
-
   const { attendanceRecords, studentCards, danceQualifications } = student;
 
   const overview = {
-    ...lastAttendance,
-    attendLessonCount: student.lessons.length,
+    ...toLastAttendance(attendanceRecords),
+    ...attendanceCounts(attendanceRecords),
     cardCount: studentCards.length,
     totalSpend: studentCards.reduce((acc, card) => acc + card.finalPrice, 0),
     totalSaved: studentCards.reduce((acc, card) => acc + (card.basePrice - card.finalPrice), 0),
   };
 
-  const attendLessonIds = [...new Set(attendanceRecords.map((record) => record.lessonPeriod.lessonId))];
-  const lessons = await prisma.lesson.findMany({
-    where: { id: { in: attendLessonIds } },
-    include: {
-      periods: { orderBy: { startTime: "asc" } },
-    },
-  });
+  const { attendancesByLesson, attendancesByDate, studentCardAttendances } =
+    await buildAttendanceViews(attendanceRecords);
 
-  const attendancesByLesson = lessons.map((lesson) => {
-    return {
-      lessonId: lesson.id,
-      lessonName: lesson.name,
-      totalPeriods: lesson.periods.length,
-      lessonPeriodIds: lesson.periods.map((period) => period.id),
-      studentAttendances: lesson.periods.map((period) => {
-        return {
-          studentAttend: false,
-          periodId: period.id,
-          periodStartTime: period.startTime,
-          periodAttendantCheck: !!period.attendanceTakenAt,
-        };
-      }),
-      attendances: [] as {
-        periodStartTime: Date;
-        periodNumber: number;
-        totalPeriods: number;
-      }[],
-    };
-  });
-
-  const attendancesByDate = {} as {
-    [dateKey: string]: {
-      date: number;
-      attendances: {
-        lessonName: string;
-        periodNumber: number;
-        totalPeriods: number;
-      }[];
-    };
-  };
-
-  // Create a map to group attendance records by student card
-  const studentCardAttendances = new Map<number, Array<{ lessonName: string; periodStartTime: Date }>>();
-
-  attendanceRecords.forEach((record) => {
-    const lessonId = record.lessonPeriod.lessonId;
-    const lessonPeriodId = record.lessonPeriod.id;
-    const periodStartTime = record.lessonPeriod.startTime;
-
-    const lesson = lessons.find((lesson) => lesson.id === lessonId);
-    if (!lesson) {
-      throw new Error(`Lesson ${lessonId} not found`);
-    }
-
-    const attendanceData = {
-      periodStartTime,
-      periodNumber: lesson.periods.findIndex((period) => period.id === lessonPeriodId) + 1,
-      totalPeriods: lesson.periods.length,
-    };
-    attendancesByLesson.find((lesson) => lesson.lessonId === lessonId)?.attendances.push(attendanceData);
-    const studentAttendance = attendancesByLesson
-      .find((lesson) => lesson.lessonId === lessonId)
-      ?.studentAttendances.find((attendance) => attendance.periodId === lessonPeriodId);
-    if (studentAttendance) {
-      studentAttendance.studentAttend = true;
-    }
-
-    // Group attendance records by student card
-    if (record.studentCardId) {
-      const cardAttendances = studentCardAttendances.get(record.studentCardId) || [];
-      cardAttendances.push({
-        lessonName: lesson.name,
-        periodStartTime,
-      });
-      studentCardAttendances.set(record.studentCardId, cardAttendances);
-    }
-  });
-
-  // Create enhanced student cards with attendance records
   const studentCardsWithAttendances = studentCards.map((card) => ({
     ...card,
-    attendanceRecords: studentCardAttendances.get(card.id) || [],
+    attendanceRecords: studentCardAttendances.get(card.id) ?? [],
   }));
-
-  attendancesByLesson.forEach((lesson) => {
-    lesson.attendances.forEach((attendance) => {
-      const dateKey = formatDate(attendance.periodStartTime.getTime());
-      if (!attendancesByDate[dateKey]) {
-        attendancesByDate[dateKey] = {
-          date: attendance.periodStartTime.getTime(),
-          attendances: [
-            {
-              lessonName: lesson.lessonName,
-              periodNumber: attendance.periodNumber,
-              totalPeriods: lesson.totalPeriods,
-            },
-          ],
-        };
-      } else {
-        attendancesByDate[dateKey].attendances.push({
-          lessonName: lesson.lessonName,
-          periodNumber: attendance.periodNumber,
-          totalPeriods: lesson.totalPeriods,
-        });
-      }
-    });
-  });
-
-  const sortedAttendancesByDate = Object.values(attendancesByDate).sort((a, b) => b.date - a.date);
 
   return {
     overview,
-    attendancesByDate: sortedAttendancesByDate,
+    attendancesByDate,
     attendancesByLesson,
     studentCards: studentCardsWithAttendances,
     danceQualifications: danceQualifications.flatMap((q) => (q.danceStyleId === null ? [] : [q.danceStyleId])),

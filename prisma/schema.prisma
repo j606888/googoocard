@@ -146,6 +146,8 @@ model Student {
   events              Event[]
   danceQualifications StudentDanceQualification[]
   renewalReminders    RenewalReminder[]
+  // 封存（不是刪除）：名單、自助簽到、LIFF、續卡提醒都看不到；課卡、出席、收入照留，可還原。
+  archivedAt          DateTime?
   createdAt           DateTime                    @default(now())
   updatedAt           DateTime                    @updatedAt
 

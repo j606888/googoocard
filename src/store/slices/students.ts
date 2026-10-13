@@ -16,6 +16,8 @@ export interface Student {
   note?: string;
   randomKey: string;
   avatarUrl: string;
+  /** 封存時間；null = 在籍 */
+  archivedAt: string | null;
   createdAt: string;
   classroom: Classroom;
   studentCards: StudentCardWithCard[];
@@ -48,7 +50,11 @@ export interface StudentWithDetail extends Student {
     lastAttendAt: string | null;
     lastAttendLessonName: string | null;
     cardCount: number;
-    attendLessonCount: number;
+    /** 出席過的時段數（依上課日） */
+    attendedCount: number;
+    /** 本月／上月出席時段數，台北時區分月 */
+    thisMonthCount: number;
+    lastMonthCount: number;
     totalSpend: number;
     totalSaved: number;
   }
@@ -57,10 +63,6 @@ export interface StudentWithDetail extends Student {
     lessonName: string;
     totalPeriods: number;
     lessonPeriodIds: number[];
-    attendances: {
-      periodNumber: number;
-      periodStartTime: number;
-    }[]
     studentAttendances: {
       periodId: number;
       periodStartTime: string;
@@ -70,12 +72,23 @@ export interface StudentWithDetail extends Student {
   }[]
   attendancesByDate: {
     date: number;
-    attendances: {
-      lessonName: string;
-      periodNumber: number;
-      totalPeriods: number;
-    }[]
+    attendances: StudentAttendance[]
   }[]
+}
+
+/** 學生某一次出席（依上課日分組後的一筆）。 */
+export interface StudentAttendance {
+  lessonId: number;
+  lessonName: string;
+  periodNumber: number;
+  totalPeriods: number;
+  startTime: string;
+  danceStyle: DanceStyleSummary | null;
+  /** 扣的那張卡；null = 還沒綁卡 */
+  studentCard: { id: number; serialNumber: number; name: string } | null;
+  source: "TEACHER" | "STUDENT";
+  /** 學生自助簽到、老師還沒定案這個時段 */
+  pending: boolean;
 }
 
 export interface StudentCardWithCard extends StudentCard {
@@ -133,10 +146,13 @@ const studentsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getStudents: builder.query<
       Student[],
-      { query?: string; needsRenewal?: boolean; sort?: "name" | "number" } | void
+      { query?: string; needsRenewal?: boolean; sort?: "name" | "number"; archived?: boolean } | void
     >({
-      query: ({ query, needsRenewal, sort } = {}) => {
+      query: ({ query, needsRenewal, sort, archived } = {}) => {
         const searchParams = new URLSearchParams();
+        if (archived) {
+          searchParams.set("archived", "1");
+        }
         if (query) {
           searchParams.set("query", query);
         }
@@ -181,10 +197,12 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Student"],
     }),
-    deleteStudent: builder.mutation<Student, { id: string }>({
-      query: ({ id }) => ({
+    /** 封存／還原學生（不刪資料）。學生沒有 DELETE。 */
+    setStudentArchived: builder.mutation<Student, { id: number; archived: boolean }>({
+      query: ({ id, archived }) => ({
         url: `students/${id}`,
-        method: "DELETE",
+        method: "PATCH",
+        body: { archived },
       }),
       invalidatesTags: ["Student"],
     }),
@@ -192,11 +210,11 @@ const studentsApi = api.injectEndpoints({
       query: ({ id }) => `students/${id}/student-cards`,
       providesTags: ["StudentCard"],
     }),
-    createStudentCard: builder.mutation<StudentCard, { id: number; cardId: number; sessions: number; price: number; lessonId?: number; isPaid?: boolean }>({
-      query: ({ id, cardId, sessions, price, lessonId, isPaid }) => ({
+    createStudentCard: builder.mutation<StudentCard, { id: number; cardId: number; sessions: number; price: number; lessonId?: number; isPaid?: boolean; note?: string }>({
+      query: ({ id, cardId, sessions, price, lessonId, isPaid, note }) => ({
         url: `students/${id}/student-cards`,
         method: "POST",
-        body: { cardId, sessions, price, lessonId, isPaid },
+        body: { cardId, sessions, price, lessonId, isPaid, note },
       }),
       invalidatesTags: ["StudentCard", "Student"],
     }),
@@ -284,7 +302,7 @@ export const {
   useGetStudentLineBindLinkQuery,
   useCreateStudentMutation,
   useUpdateStudentMutation,
-  useDeleteStudentMutation,
+  useSetStudentArchivedMutation,
   useGetStudentCardsQuery,
   useCreateStudentCardMutation,
   useConfirmStudentCardPaymentMutation,

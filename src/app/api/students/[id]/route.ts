@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { formatDate } from "@/lib/utils";
 import { decodeAuthToken } from "@/lib/auth";
 import { findStudentInClassroom } from "@/lib/authz";
-import { conversionLinksInclude, findLastAttendance, toStudentPayload } from "@/service/studentDetail";
+import {
+  attendanceCounts,
+  attendanceHistoryInclude,
+  buildAttendanceViews,
+  conversionLinksInclude,
+  toLastAttendance,
+  toStudentPayload,
+} from "@/service/studentDetail";
 import { DEFAULT_DANCE_LEVEL, isValidDanceLevel } from "@/lib/danceLevels";
 import { toDanceLevels } from "@/domains/qualification";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { name, note, avatarUrl, danceQualifications, danceLevels } = await request.json();
+  const { name, note, avatarUrl, danceQualifications, danceLevels, archived } = await request.json();
   const { classroomId } = await decodeAuthToken();
 
   // The duplicate-name check below is classroom-scoped, but the update itself
@@ -26,6 +32,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // so a stale tab can't silently downgrade a 中階 student.
   // Either way it is authoritative: dance styles left out lose the qualification.
   // A `null` level = keep the existing level (初階 when newly created).
+  if (archived !== undefined && typeof archived !== "boolean") {
+    return NextResponse.json({ error: "Invalid archived" }, { status: 400 });
+  }
+
   let levels: [number, number | null][] | undefined;
   if (danceLevels !== undefined) {
     if (
@@ -59,7 +69,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
   }
 
-  const existingStudent = await prisma.student.findFirst({
+  // 只改封存狀態（「封存學生」／「還原」）時不帶 name，跳過改名的重名檢查。
+  const existingStudent = name === undefined ? null : await prisma.student.findFirst({
     where: {
       name,
       classroomId,
@@ -77,7 +88,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const student = await prisma.$transaction(async (tx) => {
       const student = await tx.student.update({
         where: { id: parseInt(id) },
-        data: { name, note, avatarUrl },
+        data: {
+          name,
+          note,
+          avatarUrl,
+          ...(archived === undefined ? {} : { archivedAt: archived ? new Date() : null }),
+        },
       });
 
       if (levels !== undefined) {
@@ -122,7 +138,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     // at all, exposing every student's full profile by incrementing the id.
     where: { id: parseInt(id), classroomId },
     include: {
-      lessons: true,
       // NOT `classroom: true` — that row carries `checkinKey`, the classroom's
       // walk-in QR self check-in secret.
       classroom: { select: { id: true, name: true } },
@@ -147,23 +162,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           createdAt: "desc",
         },
       },
-      attendanceRecords: {
-        include: {
-          lessonPeriod: true,
-          studentCard: true,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-      }
+      attendanceRecords: attendanceHistoryInclude,
     }
   });
 
   if (!student) {
     return NextResponse.json({ error: "Student not found" }, { status: 404 });
   }
-
-  const lastAttendance = await findLastAttendance(student.id);
 
   const { attendanceRecords, studentCards, studentTags, danceQualifications } = student;
   const tags = studentTags.map((st) => ({ id: st.tag.id, name: st.tag.name }));
@@ -172,137 +177,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const purchasedCards = studentCards.filter((card) => card.origin === "PURCHASE");
 
   const overview = {
-    ...lastAttendance,
-    attendLessonCount: student.lessons.length,
+    ...toLastAttendance(attendanceRecords),
+    ...attendanceCounts(attendanceRecords),
     cardCount: purchasedCards.length,
     totalSpend: purchasedCards.reduce((acc, card) => acc + card.finalPrice, 0),
     totalSaved: purchasedCards.reduce((acc, card) => acc + (card.basePrice - card.finalPrice), 0),
-  }
+  };
 
+  const { attendancesByLesson, attendancesByDate, studentCardAttendances } =
+    await buildAttendanceViews(attendanceRecords);
 
-
-  const attendLessonIds = [...new Set(attendanceRecords.map((record) => record.lessonPeriod.lessonId))]
-  const lessons = await prisma.lesson.findMany({
-    where: {
-      id: {
-        in: attendLessonIds,
-      },
-    },
-    include: {
-      periods: {
-        orderBy: {
-          startTime: "asc",
-        },
-      }
-    }
-  })
-
-  const attendancesByLesson = lessons.map((lesson) => {
-    return {
-      lessonId: lesson.id,
-      lessonName: lesson.name,
-      totalPeriods: lesson.periods.length,
-      lessonPeriodIds: lesson.periods.map((period) => period.id),
-      studentAttendances: lesson.periods.map((period) => {
-        return {
-          studentAttend: false,
-          periodId: period.id,
-          periodStartTime: period.startTime,
-          periodAttendantCheck: !!period.attendanceTakenAt
-        }
-      }),
-      attendances: [] as {
-        periodStartTime: Date;
-        periodNumber: number;
-        totalPeriods: number;
-      }[],
-    }
-  })
-
-  const attendancesByDate = {} as {
-    [dateKey: string]: {
-      date: number;
-      attendances: {
-        lessonName: string;
-        periodNumber: number;
-        totalPeriods: number
-      }[]
-    }
-  }
-
-  // Create a map to group attendance records by student card
-  const studentCardAttendances = new Map<
-    number,
-    Array<{ lessonName: string; periodStartTime: Date }>
-  >()
-
-  attendanceRecords.forEach((record) => {
-    const lessonId = record.lessonPeriod.lessonId;
-    const lessonPeriodId = record.lessonPeriod.id;
-    const periodStartTime = record.lessonPeriod.startTime;
-
-    const lesson = lessons.find((lesson) => lesson.id === lessonId);
-    if (!lesson) {
-      throw new Error(`Lesson ${lessonId} not found`);
-    }
-
-    const attendanceData = {
-      periodStartTime,
-      periodNumber: lesson.periods.findIndex((period) => period.id === lessonPeriodId) + 1,
-      totalPeriods: lesson.periods.length,
-    }
-    attendancesByLesson.find((lesson) => lesson.lessonId === lessonId)?.attendances.push(attendanceData);
-    const studentAttendance = attendancesByLesson.find((lesson) => lesson.lessonId === lessonId)?.studentAttendances.find((attendance) => attendance.periodId === lessonPeriodId);
-    if (studentAttendance) {
-      studentAttendance.studentAttend = true
-    }
-
-    // Group attendance records by student card
-    if (record.studentCardId) {
-      const cardAttendances = studentCardAttendances.get(record.studentCardId) || [];
-      cardAttendances.push({
-        lessonName: lesson.name,
-        periodStartTime,
-      });
-      studentCardAttendances.set(record.studentCardId, cardAttendances);
-    }
-  })
-
-  // Create enhanced student cards with attendance records
-  const studentCardsWithAttendances = studentCards.map(card => ({
+  const studentCardsWithAttendances = studentCards.map((card) => ({
     ...card,
-    attendanceRecords: studentCardAttendances.get(card.id) || []
-  }))
-
-  attendancesByLesson.forEach((lesson) => {
-    lesson.attendances.forEach((attendance) => {
-      const dateKey = formatDate(attendance.periodStartTime.getTime());
-      if (!attendancesByDate[dateKey]) {
-        attendancesByDate[dateKey] = {
-          date: attendance.periodStartTime.getTime(),
-          attendances: [
-            {
-              lessonName: lesson.lessonName,
-              periodNumber: attendance.periodNumber,
-              totalPeriods: lesson.totalPeriods,
-            }
-          ],
-        }
-      } else {
-        attendancesByDate[dateKey].attendances.push({
-          lessonName: lesson.lessonName,
-          periodNumber: attendance.periodNumber,
-          totalPeriods: lesson.totalPeriods,
-        })
-      }
-    })
-  })
-
-  const sortedAttendancesByDate = Object.values(attendancesByDate).sort((a, b) => b.date - a.date);
+    attendanceRecords: studentCardAttendances.get(card.id) ?? [],
+  }));
 
   return NextResponse.json({
     overview,
-    attendancesByDate: sortedAttendancesByDate,
+    attendancesByDate,
     attendancesByLesson,
     studentCards: studentCardsWithAttendances,
     tags,

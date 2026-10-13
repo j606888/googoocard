@@ -15,10 +15,13 @@ export async function GET(request: Request) {
   const filterNeedsRenewal = needsRenewalParam === "true";
   const sort = searchParams.get("sort") === "number" ? "number" : "name";
   const serialNumber = query ? parseCardSerial(query) : null;
+  // 預設只列在籍學生；`?archived=1` 反過來只列封存的（名單底部的「已封存」）。
+  const archived = searchParams.get("archived") === "1";
 
   const students = await prisma.student.findMany({
     where: {
       classroomId,
+      archivedAt: archived ? { not: null } : null,
       ...(query
         ? {
             OR: [

@@ -27,6 +27,8 @@ export const buyStudentCardSchema = z.object({
   price: money,
   lessonId: positiveInt.optional(),
   isPaid: z.boolean().optional().default(true),
+  // 卡片備註（學生看不到），跟事後 PATCH 改的是同一欄；空白 = 不填。
+  note: z.string().max(500).nullish(),
 });
 
 export const convertStudentCardSchema = z.object({

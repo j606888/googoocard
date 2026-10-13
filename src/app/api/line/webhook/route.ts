@@ -40,11 +40,11 @@ async function currentStudent(lineUserId: string) {
   const account = await prisma.lineAccount.findUnique({ where: { lineUserId } });
   if (account?.selectedStudentId != null) {
     const selected = await prisma.student.findFirst({
-      where: { id: account.selectedStudentId, lineUserId },
+      where: { id: account.selectedStudentId, lineUserId, archivedAt: null },
     });
     if (selected) return selected;
   }
-  return prisma.student.findFirst({ where: { lineUserId }, orderBy: { id: "asc" } });
+  return prisma.student.findFirst({ where: { lineUserId, archivedAt: null }, orderBy: { id: "asc" } });
 }
 
 // LINE's webhook verification (and real events) are POST requests.

@@ -29,7 +29,8 @@ export async function resolveOwnedStudent(
   if (!studentId) return { ok: false, status: 400, error: "missing_studentId" };
 
   const student = await prisma.student.findUnique({ where: { id: studentId } });
-  if (!student || student.lineUserId !== verified.userId) {
+  // 封存的學生從 LINE 端看起來就像沒綁定。
+  if (!student || student.lineUserId !== verified.userId || student.archivedAt) {
     return { ok: false, status: 403, error: "forbidden" };
   }
   return { ok: true, student };

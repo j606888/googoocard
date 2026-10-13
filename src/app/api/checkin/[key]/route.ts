@@ -25,9 +25,9 @@ export async function GET(
   if (studentId) {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
-      select: { classroomId: true },
+      select: { classroomId: true, archivedAt: true },
     });
-    if (student?.classroomId === classroom.id) scopedStudentId = studentId;
+    if (student?.classroomId === classroom.id && !student.archivedAt) scopedStudentId = studentId;
   }
 
   const data = await getTodayLessons(classroom.id, scopedStudentId);
