@@ -1,5 +1,6 @@
 "use client";
 
+import FilterChip from "@/components/FilterChip";
 import Drawer from "@/components/Drawer";
 import type { DanceStyleSummary } from "@/lib/danceStyles";
 import { StudentTag } from "@/store/slices/students";
@@ -34,17 +35,9 @@ const Chip = ({
   active: boolean;
   onClick: () => void;
 }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`px-3.5 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${
-      active
-        ? "bg-primary-500 border-primary-500 text-white shadow-sm"
-        : "bg-white border-neutral-300 text-neutral-700 hover:border-primary-300"
-    }`}
-  >
+  <FilterChip active={active} onClick={onClick}>
     {label}
-  </button>
+  </FilterChip>
 );
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (

@@ -14,6 +14,12 @@ interface BottomSheetDialogProps {
   disabled?: boolean;
   /** "danger" paints the submit button red — for destructive confirmations. */
   variant?: "primary" | "danger";
+  /**
+   * A second, outlined button left of submit — usually 取消. Without it the
+   * submit button stays full width, as before.
+   */
+  secondaryText?: string;
+  onSecondary?: () => void;
 }
 
 /**
@@ -30,6 +36,8 @@ const Drawer = ({
   disabled = false,
   submitText = "建立",
   variant = "primary",
+  secondaryText,
+  onSecondary,
 }: BottomSheetDialogProps) => {
   const submitColor =
     variant === "danger"
@@ -51,11 +59,20 @@ const Drawer = ({
         </button>
       </div>
       <div className="max-h-[60vh] overflow-y-auto">{children}</div>
-      <div className="mt-auto w-full">
+      <div className="mt-auto w-full flex gap-2">
+        {secondaryText && (
+          <button
+            type="button"
+            className="flex-1 border border-neutral-300 bg-white text-neutral-800 font-semibold py-2 rounded hover:bg-neutral-50 cursor-pointer"
+            onClick={onSecondary ?? onClose}
+          >
+            {secondaryText}
+          </button>
+        )}
         <button
           disabled={disabled}
           type="submit"
-          className={`mt-auto w-full ${submitColor} text-white font-semibold py-2 rounded flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`mt-auto ${secondaryText ? "flex-[2]" : "w-full"} ${submitColor} text-white font-semibold py-2 rounded flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
             isLoading ? "opacity-50 cursor-not-allowed" : ""
           }`}
           onClick={() => !isLoading && onSubmit()}

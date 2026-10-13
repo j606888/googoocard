@@ -90,7 +90,7 @@ const RosterRow = ({
           </span>
         </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1 shrink-0">
         <DanceBadges levels={student.danceLevels} />
       </div>
     </button>

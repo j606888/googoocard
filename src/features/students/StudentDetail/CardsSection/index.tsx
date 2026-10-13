@@ -1,3 +1,4 @@
+import FilterChip from "@/components/FilterChip";
 import {
   StudentCardWithCard,
   StudentWithDetail,
@@ -105,17 +106,13 @@ const CardsSection = ({
       {!isPublic && showBuy && <BuyCard student={student} />}
       <div className="flex flex-wrap gap-2">
         {filterOptions.map((filter) => (
-          <button
+          <FilterChip
             key={filter}
-            className={`px-3.5 py-1.5 rounded-full text-sm border transition-colors cursor-pointer ${
-              activeFilter === filter
-                ? "bg-primary-500 border-primary-500 text-white shadow-sm"
-                : "bg-white border-neutral-300 text-neutral-700 hover:border-primary-300"
-            }`}
+            active={activeFilter === filter}
             onClick={() => setActiveFilter(filter)}
           >
             {filter === "all" ? "全部" : filter}
-          </button>
+          </FilterChip>
         ))}
       </div>
       {filteredActiveCards.length > 0 ? (

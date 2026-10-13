@@ -1,4 +1,5 @@
 import { useState } from "react";
+import SegmentedTabs, { type SegmentedOption } from "@/components/SegmentedTabs";
 import { useGetStudentEventsQuery } from "@/store/slices/students";
 import {
   EventFilter,
@@ -9,7 +10,7 @@ import {
 import EventRow from "./EventRow";
 import EventSubRow from "./EventSubRow";
 
-const FILTERS: { label: string; value: EventFilter }[] = [
+const FILTERS: SegmentedOption<EventFilter>[] = [
   { label: "全部", value: "all" },
   { label: "簽到", value: "checkin" },
   { label: "課卡", value: "card" },
@@ -26,21 +27,13 @@ const EventTimeline = ({ studentId }: { studentId: number }) => {
     <div className="flex flex-col gap-2">
       <h4 className="text-sm font-semibold text-neutral-700">動態</h4>
 
-      <div className="flex bg-neutral-100 p-1 rounded-xl">
-        {FILTERS.map((filter) => (
-          <div
-            key={filter.value}
-            className={`flex-1 text-center px-2 py-1.5 text-xs font-medium cursor-pointer transition-colors rounded-lg ${
-              activeFilter === filter.value
-                ? "bg-white text-neutral-900 shadow-sm"
-                : "text-neutral-500 hover:text-neutral-700"
-            }`}
-            onClick={() => setActiveFilter(filter.value)}
-          >
-            {filter.label}
-          </div>
-        ))}
-      </div>
+      <SegmentedTabs
+        ariaLabel="動態分類"
+        options={FILTERS}
+        value={activeFilter}
+        onChange={setActiveFilter}
+        fill
+      />
 
       {groups.length === 0 && (
         <p className="py-6 text-center text-sm text-neutral-400">這個分類還沒有紀錄。</p>

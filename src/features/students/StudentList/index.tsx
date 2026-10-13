@@ -1,5 +1,6 @@
 "use client";
 
+import FilterChip from "@/components/FilterChip";
 import NewStudent from "./NewStudent";
 import { Student, useGetStudentsQuery, useGetTagsQuery } from "@/store/slices/students";
 import { useGetLessonsQuery } from "@/store/slices/lessons";
@@ -349,25 +350,16 @@ const StudentList = ({
 
           <div className="flex flex-wrap gap-1.5 mt-2.5">
             {quickFilters.map((quick) => (
-              <button
+              <FilterChip
                 key={quick.key}
-                type="button"
+                size="sm"
+                active={quick.active}
+                alert={quick.alert}
+                count={quick.count}
                 onClick={quick.toggle}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs transition-colors cursor-pointer ${
-                  quick.active
-                    ? "bg-primary-500 border-primary-500 text-white font-medium"
-                    : "bg-white border-neutral-300 text-neutral-700 hover:border-primary-300"
-                }`}
               >
-                {quick.alert && (
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      quick.active ? "bg-white" : "bg-danger-500"
-                    }`}
-                  />
-                )}
-                {quick.label} {quick.count}
-              </button>
+                {quick.label}
+              </FilterChip>
             ))}
           </div>
         </div>

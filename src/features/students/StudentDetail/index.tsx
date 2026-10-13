@@ -8,13 +8,19 @@ import EventTimeline from "./BasicSection/EventTimeline";
 import { StudentWithDetail } from "@/store/slices/students";
 import { useSearchParams } from "next/navigation";
 import { useSizeClass } from "@/hooks/useMediaQuery";
+import SegmentedTabs, { type SegmentedOption } from "@/components/SegmentedTabs";
 
-const tabs = [
-  { label: "概要", query: "basic" },
-  { label: "課卡", query: "cards" },
-  { label: "出席", query: "attend" },
-  { label: "動態", query: "events" },
+type DetailTab = "basic" | "cards" | "attend" | "events";
+
+const tabOptions: SegmentedOption<DetailTab>[] = [
+  { label: "概要", value: "basic" },
+  { label: "課卡", value: "cards" },
+  { label: "出席", value: "attend" },
+  { label: "動態", value: "events" },
 ];
+
+const isDetailTab = (value: string | null): value is DetailTab =>
+  tabOptions.some((option) => option.value === value);
 
 const StudentDetail = ({
   student,
@@ -31,13 +37,13 @@ const StudentDetail = ({
 }) => {
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState(tab || "cards");
+  const [activeTab, setActiveTab] = useState<DetailTab>(isDetailTab(tab) ? tab : "cards");
   const isPane = layout === "tabs";
   // 只掛一棵樹：兩棵都掛的話 BasicSection / CardsSection / AttendSection
   // 在手機上也會全部被 mount（見 docs/ui-responsive.md 的「代價一」）。
   const isExpanded = useSizeClass() === "expanded";
 
-  const handleTabClick = (tab: string) => {
+  const handleTabClick = (tab: DetailTab) => {
     setActiveTab(tab);
     const url = new URL(window.location.href);
     url.searchParams.set("tab", tab);
@@ -69,21 +75,12 @@ const StudentDetail = ({
     return (
       <div className="flex flex-col h-full min-h-0">
         <div className="flex-none px-6 py-3 border-b border-neutral-200">
-          <div className="inline-flex gap-1 bg-neutral-100 rounded-xl p-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.query}
-                className={`px-5 py-1.5 text-sm rounded-lg cursor-pointer transition-colors ${
-                  activeTab === tab.query
-                    ? "bg-white text-neutral-900 font-semibold shadow-sm"
-                    : "text-neutral-500 hover:text-neutral-700"
-                }`}
-                onClick={() => handleTabClick(tab.query)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs
+            ariaLabel="學生資料分頁"
+            options={tabOptions}
+            value={activeTab}
+            onChange={handleTabClick}
+          />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">{section}</div>
       </div>
@@ -135,21 +132,14 @@ const StudentDetail = ({
   // 獨立學生頁：手機分頁
   return (
     <div className="px-5 py-3">
-      <div className="flex w-full gap-1 mb-4 bg-neutral-100 rounded-full p-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.query}
-            className={`flex-1 text-center py-2 text-sm rounded-full cursor-pointer transition-colors ${
-              activeTab === tab.query
-                ? "bg-white text-primary-700 font-semibold shadow-sm"
-                : "text-neutral-500"
-            }`}
-            onClick={() => handleTabClick(tab.query)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        ariaLabel="學生資料分頁"
+        options={tabOptions}
+        value={activeTab}
+        onChange={handleTabClick}
+        fill
+        className="mb-4"
+      />
       {section}
     </div>
   );

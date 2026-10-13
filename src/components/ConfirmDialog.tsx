@@ -16,7 +16,7 @@ const ConfirmDialog = ({
   open,
   title,
   message,
-  confirmLabel = "Confirm",
+  confirmLabel = "確認",
   onConfirm,
   onCancel,
   isLoading,

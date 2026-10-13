@@ -1,22 +1,19 @@
 import { StudentWithDetail } from "@/store/slices/students";
 import { useState } from "react";
+import SegmentedTabs, { type SegmentedOption } from "@/components/SegmentedTabs";
 import AttendanceByLesson from "./AttendanceByLesson";
 import AttendanceByDate from "./AttendanceByDate";
 
-const TABS = [
-  {
-    label: "依課程",
-    value: "group_by_lesson",
-  },
-  {
-    label: "依日期",
-    value: "group_by_date",
-  },
+type AttendView = "group_by_lesson" | "group_by_date";
+
+const TABS: SegmentedOption<AttendView>[] = [
+  { label: "依課程", value: "group_by_lesson" },
+  { label: "依日期", value: "group_by_date" },
 ];
 
 const AttendSection = ({ student }: { student: StudentWithDetail }) => {
   const { attendancesByLesson, attendancesByDate } = student;
-  const [activeTab, setActiveTab] = useState(TABS[0].value);
+  const [activeTab, setActiveTab] = useState<AttendView>(TABS[0].value);
 
   if (attendancesByLesson.length === 0) {
     return (
@@ -30,21 +27,13 @@ const AttendSection = ({ student }: { student: StudentWithDetail }) => {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex bg-neutral-100 p-1 rounded-xl">
-        {TABS.map((tab) => (
-          <div
-            key={tab.value}
-            className={`w-full text-center px-2 py-1.5 text-sm font-medium cursor-pointer transition-colors rounded-lg ${
-              activeTab === tab.value
-                ? "bg-white text-neutral-900 shadow-sm"
-                : "text-neutral-500 hover:text-neutral-700"
-            }`}
-            onClick={() => setActiveTab(tab.value)}
-          >
-            {tab.label}
-          </div>
-        ))}
-      </div>
+      <SegmentedTabs
+        ariaLabel="出席紀錄的顯示方式"
+        options={TABS}
+        value={activeTab}
+        onChange={setActiveTab}
+        fill
+      />
       {activeTab === "group_by_lesson" ? (
         <AttendanceByLesson attendancesByLesson={attendancesByLesson} />
       ) : (
