@@ -111,6 +111,7 @@ describe("學生詳情 API 的新欄位", () => {
 
     const usage = body.studentCards.find((c: { id: number }) => c.id === studentCard.id).attendanceRecords;
     expect(usage).toHaveLength(1);
+    expect(usage[0]).toMatchObject({ lessonName: "Bachata Lv2", source: "TEACHER", pending: false });
   });
 
   it("購買課卡時可以一起寫備註，空白當作沒填", async () => {

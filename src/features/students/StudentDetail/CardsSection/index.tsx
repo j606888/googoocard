@@ -1,13 +1,26 @@
-import FilterChip from "@/components/FilterChip";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   StudentCardWithCard,
   StudentWithDetail,
 } from "@/store/slices/students";
 import StudentCard from "./StudentCard";
 import BuyCard from "./BuyCard";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import CardDetailDialog from "./CardDetailDialog";
+import EndedCardsTable from "./EndedCardsTable";
+import EmptyCards from "./EmptyCards";
+import { isCardEnded } from "./cardStatus";
 
+const SectionHeading = ({ title, hint }: { title: string; hint: string }) => (
+  <h3 className="m-0 text-[15px] font-bold text-neutral-900">
+    {title}
+    <span className="ml-1.5 text-[13px] font-medium text-neutral-600">{hint}</span>
+  </h3>
+);
+
+/**
+ * 課卡分頁：有效課卡的摘要卡網格、已結束的卡的表格、一份詳情對話框。
+ * 網格依自己的寬度排欄（手機一欄、分割檢視兩欄、寬螢幕更多），不靠呼叫端傳欄數。
+ */
 const CardsSection = ({
   student,
   studentCards,
@@ -20,148 +33,91 @@ const CardsSection = ({
   /** 頁首已經有「購買課卡」時（桌面）就不再放滿寬按鈕。 */
   showBuy?: boolean;
 }) => {
-  const [showHistory, setShowHistory] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<string>("all");
+  // 詳情對話框：記住選到的 id，從最新的 studentCards 找卡——mutation 後內容才會跟著更新。
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   // 轉換鏈的跳轉目標：捲過去並短暫高亮。
   const [focusCardId, setFocusCardId] = useState<number | null>(null);
 
-  const jumpToCard = useCallback(
-    (studentCardId: number) => {
-      const target = studentCards.find((card) => card.id === studentCardId);
-      // 目標卡被卡種篩選藏起來的話，先切回「全部」才捲得到。
-      if (target && activeFilter !== "all" && target.card.name !== activeFilter) {
-        setActiveFilter("all");
-      }
-      // 轉換鏈可能指向已用完的卡——先把收合的歷史區打開。
-      if (target && (target.remainingSessions === 0 || target.expiredAt)) {
-        setShowHistory(true);
-      }
-      setFocusCardId(studentCardId);
-    },
-    [studentCards, activeFilter]
+  const selectedCard = useMemo(
+    () => studentCards.find((card) => card.id === selectedId) ?? null,
+    [studentCards, selectedId]
   );
+
+  const openCard = useCallback((card: StudentCardWithCard) => {
+    setSelectedId(card.id);
+    setDialogOpen(true);
+  }, []);
+
+  const jumpToCard = useCallback((studentCardId: number) => {
+    setFocusCardId(studentCardId);
+  }, []);
 
   useEffect(() => {
     if (focusCardId === null) return;
     document
       .getElementById(`student-card-${focusCardId}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
     const timer = setTimeout(() => setFocusCardId(null), 1600);
     return () => clearTimeout(timer);
   }, [focusCardId]);
-  // 依自己的寬度排欄（手機一欄、分割檢視兩欄、寬螢幕更多），不靠呼叫端傳欄數。
-  const cardListClass =
-    "grid gap-3 items-start grid-cols-[repeat(auto-fill,minmax(280px,1fr))]";
 
-  const filterOptions = useMemo(() => {
-    const cardNames = [...new Set(studentCards.map((card) => card.card.name))];
-    return ["all", ...cardNames];
-  }, [studentCards]);
-
-  const activeCards = useMemo(
-    () =>
-      studentCards.filter(
-        (card) => card.remainingSessions > 0 && !card.expiredAt
-      ),
-    [studentCards]
-  );
-
-  const historicalCards = useMemo(
-    () =>
-      studentCards.filter(
-        (card) => card.remainingSessions === 0 || !!card.expiredAt
-      ),
-    [studentCards]
-  );
-
-  const filteredActiveCards = useMemo(
-    () =>
-      activeCards.filter((card) =>
-        activeFilter === "all" ? true : card.card.name === activeFilter
-      ),
-    [activeCards, activeFilter]
-  );
-
-  const filteredHistoricalCards = useMemo(
-    () =>
-      historicalCards.filter((card) =>
-        activeFilter === "all" ? true : card.card.name === activeFilter
-      ),
-    [historicalCards, activeFilter]
-  );
+  const activeCards = useMemo(() => studentCards.filter((card) => !isCardEnded(card)), [studentCards]);
+  const endedCards = useMemo(() => studentCards.filter((card) => isCardEnded(card)), [studentCards]);
+  const remaining = activeCards.reduce((sum, card) => sum + card.remainingSessions, 0);
+  const canBuy = !isPublic && showBuy && !student.archivedAt;
 
   if (studentCards.length === 0) {
     return (
-      <div className="flex flex-col gap-3">
-        {!isPublic && showBuy && <BuyCard student={student} />}
-        <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
-          你尚未購買卡片
-        </div>
+      <div className="@container">
+        <EmptyCards student={student} isPublic={isPublic} />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {!isPublic && showBuy && <BuyCard student={student} />}
-      <div className="flex flex-wrap gap-2">
-        {filterOptions.map((filter) => (
-          <FilterChip
-            key={filter}
-            active={activeFilter === filter}
-            onClick={() => setActiveFilter(filter)}
-          >
-            {filter === "all" ? "全部" : filter}
-          </FilterChip>
-        ))}
-      </div>
-      {filteredActiveCards.length > 0 ? (
-        <div className={cardListClass}>
-          {filteredActiveCards.map((studentCard) => (
-            <StudentCard
-              key={studentCard.id}
-              studentCard={studentCard}
-              danceLevels={student.danceLevels}
-              isPublic={isPublic}
-              highlighted={focusCardId === studentCard.id}
-              onJumpToCard={isPublic ? undefined : jumpToCard}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
-          目前沒有符合條件的有效課卡
-        </div>
-      )}
-      {filteredHistoricalCards.length > 0 && (
-        <div className="flex flex-col gap-3 pt-2 border-t border-neutral-200">
-          <button
-            type="button"
-            onClick={() => setShowHistory((v) => !v)}
-            aria-expanded={showHistory}
-            className="self-start flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-neutral-900 cursor-pointer"
-          >
-            <ChevronDown
-              className={`w-4 h-4 transition-transform ${showHistory ? "" : "-rotate-90"}`}
-            />
-            已用完 / 已過期 · {filteredHistoricalCards.length} 張
-          </button>
-          {showHistory && (
-          <div className={cardListClass}>
-          {filteredHistoricalCards.map((studentCard) => (
-            <StudentCard
-              key={studentCard.id}
-              studentCard={studentCard}
-              danceLevels={student.danceLevels}
-              isPublic={isPublic}
-              highlighted={focusCardId === studentCard.id}
-              onJumpToCard={isPublic ? undefined : jumpToCard}
-            />
-          ))}
+    <div className="@container flex flex-col gap-6">
+      {canBuy && <BuyCard student={student} />}
+
+      <section className="flex flex-col gap-3">
+        <SectionHeading
+          title="有效課卡"
+          hint={activeCards.length === 0 ? "沒有" : `${activeCards.length} 張 · 剩 ${remaining} 堂`}
+        />
+        {activeCards.length > 0 ? (
+          <div className="grid gap-3 items-start grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
+            {activeCards.map((studentCard) => (
+              <StudentCard
+                key={studentCard.id}
+                studentCard={studentCard}
+                highlighted={focusCardId === studentCard.id}
+                onOpen={openCard}
+              />
+            ))}
           </div>
-          )}
-        </div>
+        ) : (
+          <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
+            課卡都用完了{isPublic ? "" : "，可以幫學生續卡"}
+          </div>
+        )}
+      </section>
+
+      {endedCards.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <SectionHeading title="已結束" hint={`${endedCards.length} 張`} />
+          <EndedCardsTable studentCards={endedCards} highlightedId={focusCardId} onOpen={openCard} />
+        </section>
       )}
+
+      <CardDetailDialog
+        studentCard={selectedCard}
+        studentName={student.name}
+        danceLevels={student.danceLevels}
+        open={dialogOpen && selectedCard !== null}
+        onClose={() => setDialogOpen(false)}
+        isPublic={isPublic}
+        onJumpToCard={isPublic ? undefined : jumpToCard}
+      />
     </div>
   );
 };

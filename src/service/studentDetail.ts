@@ -177,7 +177,10 @@ export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryR
       }[];
     }
   >();
-  const studentCardAttendances = new Map<number, { lessonName: string; periodStartTime: Date }[]>();
+  const studentCardAttendances = new Map<
+    number,
+    { lessonName: string; periodStartTime: Date; source: AttendanceSource; pending: boolean }[]
+  >();
 
   // Records arrive newest class first, so every list below is newest first too.
   for (const record of attendanceRecords) {
@@ -208,7 +211,12 @@ export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryR
 
     if (record.studentCardId) {
       const usage = studentCardAttendances.get(record.studentCardId) ?? [];
-      usage.push({ lessonName: lesson.name, periodStartTime: lessonPeriod.startTime });
+      usage.push({
+        lessonName: lesson.name,
+        periodStartTime: lessonPeriod.startTime,
+        source: record.source,
+        pending: record.source === "STUDENT" && !lessonPeriod.attendanceTakenAt,
+      });
       studentCardAttendances.set(record.studentCardId, usage);
     }
   }

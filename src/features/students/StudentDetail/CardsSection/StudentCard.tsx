@@ -1,480 +1,79 @@
-import {
-  StudentCardWithCard,
-  useExpireStudentCardMutation,
-  useDeleteStudentCardMutation,
-  useConfirmStudentCardPaymentMutation,
-  useUpdateStudentCardNoteMutation,
-} from "@/store/slices/students";
-import { formatDate } from "@/lib/utils";
-import {
-  ArrowRightToLine,
-  ChevronDown,
-  ChevronRight,
-  CircleDollarSign,
-  EllipsisVertical,
-  Hourglass,
-  NotebookPen,
-  Repeat2,
-  Trash2,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "sonner";
-import { useMemo, useRef, useState } from "react";
-import ConfirmDialog from "@/components/ConfirmDialog";
-import Menu from "@/components/Menu";
-import Drawer from "@/components/Drawer";
-import ConvertCard from "./ConvertCard";
-import CardSerial from "@/components/CardSerial";
-import { formatCardSerial } from "@/lib/cardSerial";
-import type { DanceLevels } from "@/domains/qualification";
+import type { StudentCardWithCard } from "@/store/slices/students";
 import { formatMoney } from "@/lib/money";
+import { formatCardSerial } from "@/lib/cardSerial";
+import CardStatusPills from "./CardStatusPills";
+import { isCardEnded, isLowRemaining, shortDate } from "./cardStatus";
 
+/**
+ * 有效課卡的摘要卡：卡名、編號與購買日、狀態 pill、大字剩餘堂數、進度條、金額。
+ * 整張是一顆按鈕，點了開 CardDetailDialog 看使用紀錄和操作——卡片本身不再展開。
+ */
 const StudentCard = ({
   studentCard,
-  danceLevels = {},
-  isPublic,
   highlighted = false,
-  onJumpToCard,
+  onOpen,
 }: {
   studentCard: StudentCardWithCard;
-  danceLevels?: DanceLevels;
-  isPublic?: boolean;
   /** 從轉換鏈另一端跳過來時短暫高亮 */
   highlighted?: boolean;
-  /** 點「來自 #A0412」/「已轉換為 #A0873」時捲到那張卡；不給就只顯示不跳轉 */
-  onJumpToCard?: (studentCardId: number) => void;
+  onOpen: (studentCard: StudentCardWithCard) => void;
 }) => {
-  const [expireStudentCard] = useExpireStudentCardMutation();
-  const [deleteStudentCard, { isLoading: isDeleting }] =
-    useDeleteStudentCardMutation();
-  const [confirmPayment, { isLoading: isConfirming }] =
-    useConfirmStudentCardPaymentMutation();
-  const [updateNote, { isLoading: isSavingNote }] =
-    useUpdateStudentCardNoteMutation();
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [cardAction, setCardAction] = useState<"expire" | "delete" | null>(null);
-  const [convertOpen, setConvertOpen] = useState(false);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [noteDraft, setNoteDraft] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const [expanded, setExpanded] = useState(false);
-  const isUnpaid = studentCard.isPaid === false;
-  const isFinished = studentCard.remainingSessions === 0 || !!studentCard.expiredAt;
-  const usedSessions = studentCard.attendanceRecords.length;
-  // Expire keeps the (used) card but locks its remaining sessions; delete is a
-  // hard remove for buy-mistakes, only safe while nothing has been consumed.
-  const canExpire = !isFinished;
-  const canDelete = usedSessions === 0;
-  // 轉換只對「還有剩餘堂數、還沒轉換過」的卡開放 — 用完的卡沒有價值可以帶走。
-  // 未付款的卡要先確認付款：新卡一律視為已付清，不擋的話那筆欠款會消失。
-  const isConvertedAway = !!studentCard.convertedToId;
-  const showConvert = !isFinished && !isConvertedAway;
-  const canConvert = showConvert && !isUnpaid;
-  const isConverted = studentCard.origin === "CONVERSION";
+  const ended = isCardEnded(studentCard);
+  const low = !ended && isLowRemaining(studentCard);
+  const ratio =
+    studentCard.totalSessions > 0
+      ? Math.min(100, Math.round((studentCard.remainingSessions / studentCard.totalSessions) * 100))
+      : 0;
   const convertedFrom = studentCard.convertedFrom ?? [];
-  const convertedTo = studentCard.convertedTo ?? null;
-  // 備註在任何狀態都能編輯（含已停用的卡），所以後台一律顯示選單。
-  const hasActions = !isPublic;
-  const progress = Math.min(100, Math.round((usedSessions / studentCard.totalSessions) * 100));
-  const isPractice = studentCard.card.isPracticeCard;
-  const remainingTone = isFinished ? "text-neutral-400" : "text-primary-700";
-  const sessionRows = useMemo(
-    () =>
-      Array.from({ length: studentCard.totalSessions }, (_, index) => {
-        const record = studentCard.attendanceRecords[index];
-        return {
-          slot: index + 1,
-          record,
-        };
-      }),
-    [studentCard.attendanceRecords, studentCard.totalSessions]
-  );
-
-  const handleExpire = async () => {
-    try {
-      await expireStudentCard({
-        id: studentCard.studentId,
-        studentCardId: studentCard.id,
-      }).unwrap();
-      toast.success("已停用卡片");
-    } catch {
-      toast.error("停用失敗");
-    } finally {
-      setCardAction(null);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await deleteStudentCard({
-        id: studentCard.studentId,
-        studentCardId: studentCard.id,
-      }).unwrap();
-      toast.success("已刪除卡片");
-    } catch {
-      toast.error("刪除失敗");
-    } finally {
-      setCardAction(null);
-    }
-  };
-
-  const handleSaveNote = async () => {
-    try {
-      await updateNote({
-        id: studentCard.studentId,
-        studentCardId: studentCard.id,
-        note: noteDraft.trim() || null,
-      }).unwrap();
-      toast.success("已更新備註");
-      setNoteOpen(false);
-    } catch {
-      toast.error("更新備註失敗");
-    }
-  };
-
-  const handleConfirmPayment = async () => {
-    try {
-      await confirmPayment({
-        id: studentCard.studentId,
-        studentCardId: studentCard.id,
-      }).unwrap();
-      toast.success("已確認付款");
-    } catch {
-      toast.error("確認付款失敗");
-    } finally {
-      setConfirmOpen(false);
-    }
-  };
 
   return (
-    <div
-      key={studentCard.id}
+    <button
+      type="button"
       id={`student-card-${studentCard.id}`}
-      className={`relative flex flex-col rounded-2xl border bg-white shadow-sm scroll-mt-4 transition-shadow duration-500 ${
+      onClick={() => onOpen(studentCard)}
+      aria-label={`${studentCard.card.name} ${formatCardSerial(studentCard.serialNumber)}，剩 ${studentCard.remainingSessions} 堂，查看詳情`}
+      className={`flex flex-col gap-2.5 w-full p-4 rounded-2xl border bg-white text-left shadow-sm scroll-mt-4 cursor-pointer transition-[box-shadow,border-color] duration-300 hover:border-primary-400 hover:shadow-md ${
         highlighted ? "border-primary-500 ring-4 ring-primary-100" : "border-neutral-200"
       }`}
     >
-      {/* Compact summary — click to expand */}
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center gap-3 p-4 text-left cursor-pointer"
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[15px] font-bold text-neutral-900 truncate">{studentCard.card.name}</div>
+          <div className="text-xs text-neutral-500 tabular-nums mt-0.5">
+            {formatCardSerial(studentCard.serialNumber)} · {shortDate(studentCard.createdAt)} 購買
+          </div>
+        </div>
+        <CardStatusPills studentCard={studentCard} />
+      </div>
+
+      <div className={`leading-none font-bold tabular-nums ${low ? "text-danger-600" : "text-neutral-900"}`}>
+        <span className="text-[28px]">{studentCard.remainingSessions}</span>
+        <span className="text-sm font-medium text-neutral-600"> / {studentCard.totalSessions} 堂</span>
+      </div>
+
+      <div
+        className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={studentCard.totalSessions}
+        aria-valuenow={studentCard.remainingSessions}
+        aria-label="剩餘堂數"
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <CardSerial serialNumber={studentCard.serialNumber} muted={isFinished} />
-            <h4 className="text-base font-semibold text-neutral-900 truncate">
-              {studentCard.card.name}
-            </h4>
-            {isPractice && (
-              <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-warning-100 text-warning-900">
-                複習卡
-              </span>
-            )}
-            {isConverted && (
-              <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-primary-100 text-primary-900">
-                轉換卡
-              </span>
-            )}
-            {isConvertedAway && (
-              <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600">
-                已轉換
-              </span>
-            )}
-            {isUnpaid && (
-              <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-danger-100 text-danger-700">
-                未付款
-              </span>
-            )}
-          </div>
-          <div className="mt-2 w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
-            <div
-              className={`h-full ${isFinished ? "bg-neutral-300" : "bg-primary-500"}`}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <p className="text-xs text-neutral-500 mt-1">
-            購買日 {formatDate(studentCard.createdAt)}
-          </p>
-          {studentCard.note && (
-            <p className="text-xs text-neutral-600 mt-1 whitespace-pre-line line-clamp-3 bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1">
-              {studentCard.note}
-            </p>
-          )}
-        </div>
-
-        {/* Remaining sessions, emphasized */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="text-right leading-none">
-            <div className="flex items-baseline gap-0.5 justify-end">
-              <span className={`text-2xl font-bold ${remainingTone}`}>
-                {studentCard.remainingSessions}
-              </span>
-              <span className="text-sm text-neutral-400">/{studentCard.totalSessions}</span>
-            </div>
-            <div className="text-[11px] text-neutral-500 mt-1">
-              {isConvertedAway ? "轉出堂數" : "剩餘堂數"}
-            </div>
-          </div>
-          <ChevronDown
-            className={`w-5 h-5 text-neutral-400 transition-transform ${expanded ? "rotate-180" : ""}`}
-          />
-        </div>
-      </button>
-
-      {/* 轉換鏈：新卡「來自」、舊卡「已轉換為」—— 放在摘要按鈕外面（按鈕裡不能再放按鈕） */}
-      {(convertedFrom.length > 0 || convertedTo) && (
-        <div className="px-4 pb-3 -mt-1 flex flex-col gap-1.5">
-          {convertedFrom.map((from) => (
-            <ConversionLink
-              key={from.id}
-              tone="from"
-              onClick={onJumpToCard && (() => onJumpToCard(from.id))}
-            >
-              來自 <strong className="tabular-nums">{formatCardSerial(from.serialNumber)}</strong>{" "}
-              {from.card.name} · 剩 {from.remainingSessions} 堂轉入
-            </ConversionLink>
-          ))}
-          {convertedTo && (
-            <ConversionLink tone="to" onClick={onJumpToCard && (() => onJumpToCard(convertedTo.id))}>
-              已轉換為 <strong className="tabular-nums">{formatCardSerial(convertedTo.serialNumber)}</strong>{" "}
-              {convertedTo.card.name} · {convertedTo.totalSessions} 堂
-            </ConversionLink>
-          )}
-        </div>
-      )}
-
-      {/* Expandable detail */}
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4 flex flex-col gap-3">
-              <div className="border-t border-neutral-100 pt-3">
-                <div className="flex items-center px-2 py-1 text-xs font-medium">
-                  <span className="w-12 text-neutral-400">堂次</span>
-                  <span className="w-24 text-neutral-500">日期</span>
-                  <span className="flex-1 text-neutral-400">課程</span>
-                </div>
-                <div className="flex flex-col">
-                  {sessionRows.map(({ slot, record }) => (
-                    <div
-                      key={slot}
-                      className="flex items-center px-2 py-2 text-xs border-b border-neutral-100"
-                    >
-                      <span className="w-12 text-neutral-400">#{slot}</span>
-                      <span className="w-24 font-medium text-neutral-900">
-                        {record ? formatDate(record.periodStartTime) : "未使用"}
-                      </span>
-                      <span className="flex-1 text-neutral-700">{record?.lessonName || "未使用"}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {!isPublic && (
-                <div className="flex items-center justify-between gap-2 border-t border-neutral-100 pt-3">
-                  <div className="flex flex-col gap-0.5 text-xs text-neutral-500">
-                    <span>
-                      {studentCard.purchaseSource === "STUDENT"
-                        ? "學生自購"
-                        : `由 ${studentCard.purchasedBy?.name ?? "後台"} 購買`}
-                    </span>
-                    {isUnpaid ? (
-                      <span className="text-danger-600 font-medium">尚未付款</span>
-                    ) : (
-                      <span className="text-success-600">
-                        已收款
-                        {studentCard.paidBy?.name ? ` · ${studentCard.paidBy.name}` : ""}
-                        {studentCard.paidAt ? ` · ${formatDate(studentCard.paidAt)}` : ""}
-                      </span>
-                    )}
-                  </div>
-                  {isUnpaid && (
-                    <button
-                      className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-success-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-success-700 transition-colors"
-                      onClick={() => setConfirmOpen(true)}
-                    >
-                      <CircleDollarSign className="w-3.5 h-3.5" />
-                      <span>確認付款</span>
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {hasActions && (
-                <div className="flex justify-end border-t border-neutral-100 pt-3">
-                  <button
-                    type="button"
-                    ref={menuButtonRef}
-                    onClick={() => setMenuOpen((v) => !v)}
-                    className="inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-600 cursor-pointer transition-colors"
-                  >
-                    <EllipsisVertical className="w-4 h-4" />
-                    <span>更多</span>
-                  </button>
-                  <Menu
-                    open={menuOpen}
-                    anchorEl={menuButtonRef.current}
-                    onClose={() => setMenuOpen(false)}
-                  >
-                    <button
-                      type="button"
-                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100 rounded-sm cursor-pointer whitespace-nowrap"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setNoteDraft(studentCard.note ?? "");
-                        setNoteOpen(true);
-                      }}
-                    >
-                      <NotebookPen className="w-4 h-4" />
-                      <span>{studentCard.note ? "編輯備註" : "新增備註"}</span>
-                    </button>
-                    {showConvert && (
-                      <button
-                        type="button"
-                        disabled={!canConvert}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100 rounded-sm cursor-pointer whitespace-nowrap disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:text-neutral-400"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          setConvertOpen(true);
-                        }}
-                      >
-                        <Repeat2 className="w-4 h-4" />
-                        <span>轉換卡片</span>
-                        {isUnpaid && <span className="text-xs">（請先確認付款）</span>}
-                      </button>
-                    )}
-                    {canExpire && (
-                      <button
-                        type="button"
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-100 rounded-sm cursor-pointer whitespace-nowrap"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          setCardAction("expire");
-                        }}
-                      >
-                        <Hourglass className="w-4 h-4" />
-                        <span>停用卡片</span>
-                      </button>
-                    )}
-                    {canDelete && (
-                      <button
-                        type="button"
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-danger-600 hover:bg-danger-50 rounded-sm cursor-pointer whitespace-nowrap"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          setCardAction("delete");
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>刪除卡片</span>
-                      </button>
-                    )}
-                  </Menu>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <ConfirmDialog
-        open={confirmOpen}
-        title="確認付款"
-        message={`確認已收到「${studentCard.card.name}」的款項 $${formatMoney(studentCard.finalPrice)}？`}
-        confirmLabel="確認付款"
-        onConfirm={handleConfirmPayment}
-        onCancel={() => setConfirmOpen(false)}
-        isLoading={isConfirming}
-      />
-
-      <ConfirmDialog
-        open={cardAction === "expire"}
-        title="停用卡片"
-        message={`確定要停用「${studentCard.card.name}」嗎？停用後剩餘的 ${studentCard.remainingSessions} 堂將無法再使用。`}
-        confirmLabel="停用"
-        onConfirm={handleExpire}
-        onCancel={() => setCardAction(null)}
-      />
-
-      <ConvertCard
-        studentCard={studentCard}
-        danceLevels={danceLevels}
-        open={convertOpen}
-        onClose={() => setConvertOpen(false)}
-      />
-
-      <Drawer
-        title="卡片備註"
-        open={noteOpen}
-        onClose={() => setNoteOpen(false)}
-        onSubmit={handleSaveNote}
-        submitText="儲存"
-        isLoading={isSavingNote}
-      >
-        <textarea
-          className="w-full p-2 rounded bg-neutral-100 focus:outline-primary-500 text-sm"
-          rows={4}
-          maxLength={500}
-          value={noteDraft}
-          placeholder="例：已轉換為 Level 2 卡，故停用"
-          onChange={(e) => setNoteDraft(e.target.value)}
+        <div
+          className={`h-full rounded-full ${low ? "bg-danger-500" : "bg-primary-500"}`}
+          style={{ width: `${ratio}%` }}
         />
-        <p className="text-xs text-neutral-500 mt-1">留白即清除備註。</p>
-      </Drawer>
+      </div>
 
-      <ConfirmDialog
-        open={cardAction === "delete"}
-        title="刪除卡片"
-        message={`確定要刪除「${studentCard.card.name}」嗎？此操作無法復原，通常用於買錯卡片的情況。`}
-        confirmLabel="刪除"
-        onConfirm={handleDelete}
-        onCancel={() => setCardAction(null)}
-        isLoading={isDeleting}
-      />
-    </div>
-  );
-};
-
-const ConversionLink = ({
-  tone,
-  onClick,
-  children,
-}: {
-  tone: "from" | "to";
-  onClick?: () => void;
-  children: React.ReactNode;
-}) => {
-  const className = `flex items-center gap-2 w-full rounded-xl px-3 py-2 text-left text-xs ${
-    tone === "from"
-      ? "bg-primary-50 border border-primary-300 text-primary-900"
-      : "bg-neutral-50 border border-dashed border-neutral-300 text-neutral-700"
-  }`;
-  const content = (
-    <>
-      {tone === "from" ? (
-        <ArrowRightToLine className="w-4 h-4 shrink-0" aria-hidden />
-      ) : (
-        <Repeat2 className="w-4 h-4 shrink-0" aria-hidden />
-      )}
-      <span className="flex-1 min-w-0">{children}</span>
-      {onClick && <ChevronRight className="w-4 h-4 shrink-0" aria-hidden />}
-    </>
-  );
-  // 公開頁／LIFF 不給 onClick：只顯示，不做成看起來能點的按鈕。
-  return onClick ? (
-    <button type="button" onClick={onClick} className={`${className} cursor-pointer hover:brightness-[0.98]`}>
-      {content}
+      <div className="flex items-center justify-between gap-2 text-xs text-neutral-600">
+        <span className="min-w-0 truncate">
+          {convertedFrom.length > 0
+            ? `來自 ${convertedFrom.map((from) => formatCardSerial(from.serialNumber)).join("、")}`
+            : studentCard.note ?? ""}
+        </span>
+        <span className="shrink-0 tabular-nums">${formatMoney(studentCard.finalPrice)}</span>
+      </div>
     </button>
-  ) : (
-    <div className={className}>{content}</div>
   );
 };
 

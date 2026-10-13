@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { Check } from "lucide-react";
 import type { ReactNode } from "react";
 import {
   StudentWithDetail,
@@ -147,17 +148,110 @@ const PublicPagePanel = ({ student }: { student: StudentWithDetail }) => (
   </Panel>
 );
 
+const SetupStep = ({
+  index,
+  done,
+  title,
+  hint,
+  action,
+}: {
+  index: number;
+  done: boolean;
+  title: string;
+  hint?: string;
+  action?: ReactNode;
+}) => (
+  <li className="grid grid-cols-[24px_1fr] gap-2.5 items-start text-[13px]">
+    <span
+      aria-hidden="true"
+      className={`w-[22px] h-[22px] rounded-full border-2 grid place-items-center text-xs ${
+        done ? "bg-primary-700 border-primary-700 text-white" : "border-neutral-300 text-neutral-600"
+      }`}
+    >
+      {done ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : index}
+    </span>
+    <div className="min-w-0">
+      <div className={done ? "text-neutral-500 line-through" : "font-semibold text-neutral-900"}>
+        {title}
+        {done && <span className="sr-only">（已完成）</span>}
+      </div>
+      {!done && hint && <div className="text-xs text-neutral-600 mt-0.5">{hint}</div>}
+      {!done && action && <div className="mt-1 -ml-1">{action}</div>}
+    </div>
+  </li>
+);
+
+/**
+ * 新學生設定：還沒有任何課卡的學生，側欄最上面放一張依實際狀態打勾的清單——
+ * 建立資料（永遠完成）、買第一張卡、綁 LINE、設定舞種資格。
+ */
+const SetupPanel = ({ student }: { student: StudentWithDetail }) => {
+  const { data: lineBind } = useGetStudentLineBindLinkQuery({ id: student.id });
+  const hasQualification = Object.keys(student.danceLevels ?? {}).length > 0;
+  return (
+    <Panel title="新學生設定">
+      <ol className="m-0 p-0 list-none flex flex-col gap-3">
+        <SetupStep index={1} done title="建立學生資料" />
+        <SetupStep
+          index={2}
+          done={student.studentCards.length > 0}
+          title="購買第一張課卡"
+          hint="也可以等到點名時再買"
+        />
+        <SetupStep
+          index={3}
+          done={!!lineBind?.bound}
+          title="綁定 LINE"
+          hint="綁定後可以自助簽到、收續卡提醒"
+          action={
+            lineBind?.deepLink ? (
+              <button
+                type="button"
+                className={linkButton}
+                onClick={() => copyText(lineBind.deepLink!, "已複製 LINE 綁定連結")}
+              >
+                複製綁定連結
+              </button>
+            ) : undefined
+          }
+        />
+        <SetupStep
+          index={4}
+          done={hasQualification}
+          title="舞種資格"
+          hint="上過課的舞種，才能買複習卡"
+          action={
+            <EditStudent
+              student={student}
+              trigger={(open) => (
+                <button type="button" className={linkButton} onClick={open}>
+                  設定
+                </button>
+              )}
+            />
+          }
+        />
+      </ol>
+    </Panel>
+  );
+};
+
 /**
  * The teacher-facing side panels: 舞種資格／學生資料／公開頁. Shown as the
  * detail page's right column when the pane is wide enough, otherwise as its
- * own 「資料」 tab (see StudentDetail).
+ * own 「資料」 tab (see StudentDetail). A student with no cards yet gets the
+ * 新學生設定 checklist in place of the qualification panel (its step 4 opens
+ * the edit form, which has the same level picker).
  */
-const ProfilePanels = ({ student }: { student: StudentWithDetail }) => (
-  <div className="flex flex-col gap-4">
-    <QualificationPanel student={student} />
-    <InfoPanel student={student} />
-    <PublicPagePanel student={student} />
-  </div>
-);
+const ProfilePanels = ({ student }: { student: StudentWithDetail }) => {
+  const isNew = student.studentCards.length === 0;
+  return (
+    <div className="flex flex-col gap-4">
+      {isNew ? <SetupPanel student={student} /> : <QualificationPanel student={student} />}
+      <InfoPanel student={student} />
+      <PublicPagePanel student={student} />
+    </div>
+  );
+};
 
 export default ProfilePanels;

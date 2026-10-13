@@ -93,10 +93,14 @@ export interface StudentAttendance {
 
 export interface StudentCardWithCard extends StudentCard {
   card: Card;
+  /** 這張卡扣過的時段，新的在前。 */
   attendanceRecords: {
     lessonName: string;
     periodStartTime: number;
-  }[]
+    source: "TEACHER" | "STUDENT";
+    /** 學生自助簽到、老師還沒定案這個時段 */
+    pending: boolean;
+  }[];
 }
 
 /** 轉換鏈另一端的卡 —— 只帶顯示「來自 #A0412」/「已轉換為 #A0873」需要的欄位。 */
