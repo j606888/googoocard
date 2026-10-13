@@ -13,6 +13,8 @@ export function middleware(req: NextRequest) {
     pathname.startsWith('/checkin/') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/images') ||
+    pathname.startsWith('/icons/') ||
+    pathname === '/manifest.webmanifest' ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/public-students')
 

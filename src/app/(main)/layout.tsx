@@ -1,5 +1,6 @@
 import DesktopSidebar from "@/features/DesktopSidebar";
 import BottomNav from "@/features/nav/BottomNav";
+import InstallBanner from "@/features/installGuide/InstallBanner";
 
 export default function MainLayout({
   children,
@@ -12,6 +13,7 @@ export default function MainLayout({
         <DesktopSidebar />
       </aside>
       <div className="flex flex-col flex-1 min-w-0 pb-24 lg:pb-0">
+        <InstallBanner />
         {children}
       </div>
       <BottomNav />
