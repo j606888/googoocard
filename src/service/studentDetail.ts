@@ -142,22 +142,35 @@ export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryR
   const attendLessonIds = [...new Set(attendanceRecords.map((record) => record.lessonPeriod.lessonId))];
   const lessons = await prisma.lesson.findMany({
     where: { id: { in: attendLessonIds } },
-    include: { periods: { orderBy: { startTime: "asc" } } },
+    include: {
+      periods: { orderBy: { startTime: "asc" } },
+      danceStyle: { select: danceStyleSummarySelect },
+    },
   });
   const lessonById = new Map(lessons.map((lesson) => [lesson.id, lesson]));
 
+  // 依課程：該課的每個時段都列出來（出席與否），第 N 堂 = 時段依時間排序的序號。
   const attendancesByLesson = lessons.map((lesson) => ({
     lessonId: lesson.id,
     lessonName: lesson.name,
+    danceStyle: lesson.danceStyle,
+    level: lesson.level,
+    status: lesson.status,
     totalPeriods: lesson.periods.length,
     lessonPeriodIds: lesson.periods.map((period) => period.id),
-    studentAttendances: lesson.periods.map((period) => ({
-      studentAttend: false,
+    studentAttendances: lesson.periods.map((period, index) => ({
       periodId: period.id,
+      periodNumber: index + 1,
       periodStartTime: period.startTime,
       periodAttendantCheck: !!period.attendanceTakenAt,
+      studentAttend: false,
+      studentCard: null as { id: number; serialNumber: number; name: string } | null,
+      pending: false,
     })),
   }));
+  const slotByPeriodId = new Map(
+    attendancesByLesson.flatMap((entry) => entry.studentAttendances.map((slot) => [slot.periodId, slot] as const))
+  );
 
   const byDate = new Map<
     string,
@@ -188,24 +201,30 @@ export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryR
     const lesson = lessonById.get(lessonPeriod.lessonId);
     if (!lesson) throw new Error(`Lesson ${lessonPeriod.lessonId} not found`);
 
-    const byLesson = attendancesByLesson.find((entry) => entry.lessonId === lesson.id);
-    const slot = byLesson?.studentAttendances.find((entry) => entry.periodId === lessonPeriod.id);
-    if (slot) slot.studentAttend = true;
+    const studentCard = record.studentCard
+      ? { id: record.studentCard.id, serialNumber: record.studentCard.serialNumber, name: record.studentCard.card.name }
+      : null;
+    const pending = record.source === "STUDENT" && !lessonPeriod.attendanceTakenAt;
+
+    const slot = slotByPeriodId.get(lessonPeriod.id);
+    if (slot) {
+      slot.studentAttend = true;
+      slot.studentCard = studentCard;
+      slot.pending = pending;
+    }
 
     const dateKey = toTaipeiDateKey(lessonPeriod.startTime);
     const day = byDate.get(dateKey) ?? { date: lessonPeriod.startTime.getTime(), attendances: [] };
     day.attendances.push({
       lessonId: lesson.id,
       lessonName: lessonPeriod.lesson.name,
-      periodNumber: lesson.periods.findIndex((period) => period.id === lessonPeriod.id) + 1,
+      periodNumber: slot?.periodNumber ?? 0,
       totalPeriods: lesson.periods.length,
       startTime: lessonPeriod.startTime,
       danceStyle: lessonPeriod.lesson.danceStyle,
-      studentCard: record.studentCard
-        ? { id: record.studentCard.id, serialNumber: record.studentCard.serialNumber, name: record.studentCard.card.name }
-        : null,
+      studentCard,
       source: record.source,
-      pending: record.source === "STUDENT" && !lessonPeriod.attendanceTakenAt,
+      pending,
     });
     byDate.set(dateKey, day);
 
@@ -215,7 +234,7 @@ export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryR
         lessonName: lesson.name,
         periodStartTime: lessonPeriod.startTime,
         source: record.source,
-        pending: record.source === "STUDENT" && !lessonPeriod.attendanceTakenAt,
+        pending,
       });
       studentCardAttendances.set(record.studentCardId, usage);
     }

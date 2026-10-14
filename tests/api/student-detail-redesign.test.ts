@@ -112,6 +112,22 @@ describe("學生詳情 API 的新欄位", () => {
     const usage = body.studentCards.find((c: { id: number }) => c.id === studentCard.id).attendanceRecords;
     expect(usage).toHaveLength(1);
     expect(usage[0]).toMatchObject({ lessonName: "Bachata Lv2", source: "TEACHER", pending: false });
+
+    // 依課程：課的舞種／階級／狀態，每個時段帶第 N 堂、扣的卡與 pending
+    const [byLesson] = body.attendancesByLesson;
+    expect(byLesson).toMatchObject({ lessonId: lesson.id, level: lesson.level, status: "inProgress", totalPeriods: 2 });
+    expect(byLesson.danceStyle.name).toBe("Bachata");
+    expect(byLesson.studentAttendances).toMatchObject([
+      {
+        periodId: p1.id,
+        periodNumber: 1,
+        periodAttendantCheck: true,
+        studentAttend: true,
+        pending: false,
+        studentCard: { id: studentCard.id, serialNumber: studentCard.serialNumber, name: "8 堂卡" },
+      },
+      { periodId: p2.id, periodNumber: 2, periodAttendantCheck: false, studentAttend: true, pending: true, studentCard: null },
+    ]);
   });
 
   it("購買課卡時可以一起寫備註，空白當作沒填", async () => {

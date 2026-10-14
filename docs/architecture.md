@@ -291,6 +291,9 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 舊的 `attendLessonCount`（其實是報名門數）已移除。老師端與公開頁／LIFF 共用
 `buildAttendanceViews` 組 `attendancesByLesson` / `attendancesByDate`，後者每筆帶舞種、
 扣的卡（`studentCard`）、`source` 與 `pending`（自助簽到、老師尚未定案）。
+`attendancesByLesson` 每門課帶 `danceStyle` / `level` / `status`，每個時段帶 `periodNumber`
+（第 N 堂）、`studentCard`、`pending`；前端「依課程」把所有課畫在同一條週軸上
+（`AttendSection/lessonTimeline.ts`：缺席＝老師點過名但沒來，同週有缺就算缺，最多 36 週）。
 
 ## Tag 系統
 

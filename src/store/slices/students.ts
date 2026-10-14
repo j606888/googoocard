@@ -60,22 +60,36 @@ export interface StudentWithDetail extends Student {
     totalSpend: number;
     totalSaved: number;
   }
-  attendancesByLesson: {
-    lessonId: number;
-    lessonName: string;
-    totalPeriods: number;
-    lessonPeriodIds: number[];
-    studentAttendances: {
-      periodId: number;
-      periodStartTime: string;
-      periodAttendantCheck: boolean;
-      studentAttend: boolean;
-    }[]
-  }[]
+  attendancesByLesson: LessonAttendance[]
   attendancesByDate: {
     date: number;
     attendances: StudentAttendance[]
   }[]
+}
+
+/** 依課程：學生上過的一門課，連同該課的每個時段（出席與否）。 */
+export interface LessonAttendance {
+  lessonId: number;
+  lessonName: string;
+  danceStyle: DanceStyleSummary | null;
+  level: number;
+  status: "inProgress" | "finished";
+  totalPeriods: number;
+  lessonPeriodIds: number[];
+  /** 依上課時間排序，舊的在前 */
+  studentAttendances: {
+    periodId: number;
+    /** 第 N 堂 */
+    periodNumber: number;
+    periodStartTime: string;
+    /** 老師已點名這個時段 */
+    periodAttendantCheck: boolean;
+    studentAttend: boolean;
+    /** 扣的那張卡；沒出席或還沒綁卡是 null */
+    studentCard: { id: number; serialNumber: number; name: string } | null;
+    /** 學生自助簽到、老師還沒定案這個時段 */
+    pending: boolean;
+  }[];
 }
 
 /** 學生某一次出席（依上課日分組後的一筆）。 */
