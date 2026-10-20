@@ -2,6 +2,7 @@ import { AttendanceSource, Prisma, StudentCard } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { refreshLesson } from "@/service/lesson";
 import { refreshNeedsRenewalTags } from "@/service/studentTag";
+import { notifyClassroom } from "@/service/push";
 import { canUseCard, cardMatchesLesson, isQualified, requiredDanceStyleFor, requiredLevelFor, toDanceLevels } from "@/domains/qualification";
 import {
   fetchStudentsWithValidCards,
@@ -591,6 +592,18 @@ export async function selfCheckIn({
   }
 
   await refreshNeedsRenewalTags([studentId], lesson.classroomId);
+
+  // 簽到了但沒卡可扣：出席紀錄會掛在「待處理」等老師綁卡，推一則提醒。
+  // 多個時段一起簽到也只推一次。
+  const unbound = results.find((r) => r.status === "no_card");
+  if (unbound) {
+    await notifyClassroom(lesson.classroomId, {
+      type: "UNBOUND_ATTENDANCE",
+      title: "出席沒有課卡",
+      body: `${student.name} 自助簽到了「${lesson.name}」，但沒有可用的課卡`,
+      path: `/lessons/${lesson.id}/periods/${unbound.periodId}/check-success`,
+    });
+  }
 
   return results;
 }

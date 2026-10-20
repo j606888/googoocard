@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { TodoType } from "@prisma/client";
 import { DANCE_STYLE_COLORS } from "@/lib/danceStyles";
+import { isExpoPushToken } from "@/lib/expoPush";
 
 /**
  * Request schemas for the routes with money or card-balance semantics.
@@ -117,4 +119,20 @@ export const updateDanceStyleSchema = z.object({
   hasLevels: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
   archived: z.boolean().optional(),
+});
+
+// ── App 推播 ────────────────────────────────────────────────────────────────
+
+export const pushTokenSchema = z.object({
+  token: z.string().refine(isExpoPushToken, { message: "Not an Expo push token" }),
+  platform: z.enum(["ios", "android"]),
+});
+
+export const deletePushTokenSchema = z.object({
+  token: z.string().min(1),
+});
+
+export const notificationPreferenceSchema = z.object({
+  type: z.enum(TodoType),
+  enabled: z.boolean(),
 });

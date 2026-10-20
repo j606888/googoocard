@@ -39,7 +39,7 @@ const LessonDetail = () => {
           title={lesson?.name || ""}
           subtitle={lesson?.group?.name}
           backUrl="/lessons"
-          withUnpaidBell
+          withTodoBell
         />
       )}
       {isLessonLoading || isStudentsLoading || !lesson ? (

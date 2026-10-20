@@ -307,7 +307,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 判定的**唯一出處**是 `src/service/studentTag.ts` 的 **`findExhaustedRenewableCard(studentId)`**：
 未過期、非單堂卡（`totalSessions > 1`）、同卡種中最新的一張，且剩餘堂數為 0 → 回傳那張卡。
-`computeNeedsRenewal()`（"Needs Renewal" tag）與續卡推播都建立在它之上。
+`refreshNeedsRenewalTag()`（"Needs Renewal" tag）、續卡推播與老師端「需續約」App 推播都建立在它之上。
 **要改續卡規則就改這個函式，不要在別處另寫一套。**
 
 | 環節 | 位置 |
@@ -361,6 +361,33 @@ build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
 3. `npm run db:deploy` 套用 `RenewalReminder` 的 migration。
 
 在那之前部署是安全的：route 存在但沒有排程會呼叫它，而且 `CRON_SECRET` 未設 → 一律 401。
+
+## 待處理與老師端 App 推播（2026-10）
+
+「待處理」是老師需要動手處理的事，**是狀態不是訊息紀錄**：每一類直接從現有資料查，處理完就自動消失，
+沒有通知表。唯一定義在 `src/service/todos.ts`（`getTodos()` / `countTodos()`），網頁鈴鐺
+（`src/features/TodoBell.tsx`）、App（`mobile/`，S3 起）的待處理分頁、推播的 App 圖示數字都讀它。
+
+| 類別（`TodoType`） | 怎麼算 | 處理完 | 推播觸發點 |
+|---|---|---|---|
+| `UNPAID_CARD` 待確認收款 | `StudentCard.isPaid = false`（封存學生照列，欠款還是欠款） | 確認付款 | 學生在 LIFF 自助買卡（`POST /api/liff/student-cards`） |
+| `NEEDS_RENEWAL` 需續約 | 「Needs Renewal」tag，排除封存學生 | 買新卡 → tag 移除 | `refreshNeedsRenewalTag()` 裡 tag **這次才加上**（`createMany skipDuplicates` 的 count = 1） |
+| `UNBOUND_ATTENDANCE` 出席沒綁課卡 | `AttendanceRecord.studentCardId = null` | 綁上課卡 | `selfCheckIn()` 有時段是 `no_card`（多時段只推一次；LIFF 與 QR 看板兩個入口都會） |
+
+老師自己在後台建未付款卡、點名時沒卡，**不推**（人就在現場），但一樣會出現在待處理。
+
+**推播**：`src/service/push.ts` 的 `notifyClassroom()` → 教室所有 membership（owner + 助教）
+扣掉 `NotificationPreference` 關掉該類的人 → 他們的 `PushToken` → `src/lib/expoPush.ts` 發給
+Expo Push Service（iOS 轉 APNs，日後 Android 轉 FCM）。
+- **永遠不 throw**，一律在交易 commit 之後呼叫——推播失敗不能讓學生買卡／簽到失敗。
+- **教室白名單 `PUSH_CLASSROOM_IDS`**（逗號分隔），**未設定 = 一間都不發**，跟續卡提醒同一套 fail-closed；
+  本機與測試永遠打不到 Expo。封存教室自己擋。
+- Expo 回 `DeviceNotRegistered` 的 token 直接刪掉。
+- `EXPO_ACCESS_TOKEN` 只有在 Expo 後台開了 Enhanced push security 才需要。
+- 測試一律 `vi.mock("@/lib/expoPush")`（`tests/api/todos-push.test.ts`）。
+
+**API**：`GET /api/todos`（apiRoute）、`POST/DELETE /api/push-tokens`（sessionRoute；token 掛在人身上，
+同一支手機換帳號登入會改掛）、`GET/PUT /api/notification-preferences`（apiRoute，目前教室；沒存過 = 開）。
 
 ## 教室生命週期與角色
 

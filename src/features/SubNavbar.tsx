@@ -1,19 +1,19 @@
 import { ArrowLeftIcon } from "lucide-react";
 import Link from "next/link";
-import UnpaidBell from "./UnpaidBell";
+import TodoBell from "./TodoBell";
 
 const SubNavbar = ({
   title,
   subtitle,
   backUrl,
-  withUnpaidBell,
+  withTodoBell,
   className,
 }: {
   title: string;
   /** Optional secondary line under the title — e.g. "週日課 · 14:00–15:00". */
   subtitle?: string;
   backUrl?: string;
-  withUnpaidBell?: boolean;
+  withTodoBell?: boolean;
   className?: string;
 }) => {
   return (
@@ -31,9 +31,9 @@ const SubNavbar = ({
       </div>
       <h2 className="text-white text-lg font-semibold">{title}</h2>
       {subtitle && <p className="text-white/85 text-xs mt-0.5">{subtitle}</p>}
-      {withUnpaidBell && (
+      {withTodoBell && (
         <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center justify-center">
-          <UnpaidBell className="" tone="onPrimary" />
+          <TodoBell className="" tone="onPrimary" />
         </div>
       )}
     </div>

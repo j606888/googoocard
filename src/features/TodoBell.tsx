@@ -1,0 +1,159 @@
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { Bell } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import CardSerial from "@/components/CardSerial";
+import { useGetTodosQuery, type TodoStudent } from "@/store/slices/todos";
+import { formatDate } from "@/lib/utils";
+import { formatMoney } from "@/lib/money";
+import { studentDetailHref } from "@/lib/studentNav";
+
+/**
+ * 「待處理」：待確認收款、需續約、出席沒綁課卡（src/service/todos.ts）。
+ * 跟 App 的待處理分頁與推播 badge 同一份資料。沒有事項時整個隱藏。
+ */
+const TodoBell = ({
+  className = "ml-auto",
+  tone = "default",
+}: {
+  className?: string;
+  /** `onPrimary`: sits on the green mobile app-bar (SubNavbar). */
+  tone?: "default" | "onPrimary";
+}) => {
+  const [open, setOpen] = useState(false);
+  const { data: todos } = useGetTodosQuery(undefined, { refetchOnFocus: true });
+
+  if (!todos || todos.total === 0) return null;
+
+  const close = () => setOpen(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        className={`${className} w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer ${
+          tone === "onPrimary" ? "hover:bg-white/15" : "hover:bg-neutral-100"
+        }`}
+        aria-label={`${todos.total} 件待處理`}
+        title={`${todos.total} 件待處理`}
+      >
+        <div className="flex items-center gap-2 relative">
+          <Bell className={`w-6 h-6 ${tone === "onPrimary" ? "text-white" : "text-neutral-700"}`} />
+          <span className="absolute -right-2 -top-1.5 bg-danger-500 text-white text-[10px] font-semibold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
+            {todos.total}
+          </span>
+        </div>
+      </PopoverTrigger>
+      <PopoverContent className="mr-3 mt-2 w-80 p-0">
+        <div className="flex flex-col max-h-[400px] overflow-y-auto py-2">
+          <TodoSection title="待確認收款" count={todos.unpaidCards.length}>
+            {todos.unpaidCards.map((item) => (
+              <TodoRow
+                key={`unpaid-${item.id}`}
+                href={studentDetailHref(item.student.id)}
+                student={item.student}
+                onNavigate={close}
+                meta={formatDate(item.createdAt)}
+              >
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className="truncate">{item.cardName}</span>
+                  <CardSerial serialNumber={item.serialNumber} />
+                  <span className="shrink-0">NT${formatMoney(item.finalPrice)}</span>
+                </span>
+              </TodoRow>
+            ))}
+          </TodoSection>
+
+          <TodoSection title="需續約" count={todos.needsRenewal.length}>
+            {todos.needsRenewal.map((item) => (
+              <TodoRow
+                key={`renewal-${item.student.id}`}
+                href={studentDetailHref(item.student.id)}
+                student={item.student}
+                onNavigate={close}
+                meta={formatDate(item.since)}
+              >
+                課卡已用完
+              </TodoRow>
+            ))}
+          </TodoSection>
+
+          <TodoSection title="出席沒綁課卡" count={todos.unboundAttendance.length}>
+            {todos.unboundAttendance.map((item) => (
+              <TodoRow
+                key={`unbound-${item.id}`}
+                href={`/lessons/${item.lessonId}/periods/${item.lessonPeriodId}/check-success`}
+                student={item.student}
+                onNavigate={close}
+                meta={formatDate(item.lessonPeriodStartTime)}
+              >
+                <span className="truncate">
+                  {item.lessonName}
+                  {item.source === "STUDENT" && "（自助簽到）"}
+                </span>
+              </TodoRow>
+            ))}
+          </TodoSection>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+const TodoSection = ({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count: number;
+  children: ReactNode;
+}) => {
+  if (count === 0) return null;
+  return (
+    <section className="flex flex-col">
+      <h3 className="px-4 pt-2 pb-1 text-xs font-semibold text-neutral-500">
+        {title}（{count}）
+      </h3>
+      {children}
+    </section>
+  );
+};
+
+const TodoRow = ({
+  href,
+  student,
+  meta,
+  onNavigate,
+  children,
+}: {
+  href: string;
+  student: TodoStudent;
+  meta: string;
+  onNavigate: () => void;
+  children: ReactNode;
+}) => (
+  <Link
+    href={href}
+    onClick={onNavigate}
+    className="flex gap-3 items-center px-4 py-2 hover:bg-neutral-50"
+  >
+    <img
+      src={student.avatarUrl}
+      alt=""
+      className="w-8 h-8 rounded-full object-cover shrink-0"
+    />
+    <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-semibold truncate">{student.name}</span>
+        <span className="text-xs text-neutral-500 shrink-0">{meta}</span>
+      </div>
+      <span className="text-sm text-neutral-500 min-w-0">{children}</span>
+    </div>
+  </Link>
+);
+
+export default TodoBell;

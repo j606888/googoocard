@@ -3,7 +3,7 @@ import { RiseLoader } from "react-spinners";
 import { useRouter } from "next/navigation";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import ClassroomSwitcher from "./nav/ClassroomSwitcher";
-import UnpaidBell from "./UnpaidBell";
+import TodoBell from "./TodoBell";
 
 const Navbar = () => {
   const { data, isLoading, error } = useGetClassroomsQuery();
@@ -33,7 +33,7 @@ const Navbar = () => {
   return (
     <div className="lg:hidden w-full h-15 bg-white border-b border-neutral-200 flex items-center px-5 gap-3 sticky top-0 z-10">
       <ClassroomSwitcher />
-      <UnpaidBell />
+      <TodoBell />
     </div>
   );
 };

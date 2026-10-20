@@ -25,6 +25,8 @@ Required env vars: `DATABASE_URL`, `JWT_SECRET`. For custom student avatar uploa
 
 For the renewal-reminder cron route (⚠️ built but **not scheduled yet** — no `vercel.ts`; see "續卡提醒推播" in `docs/architecture.md`): `CRON_SECRET` (the route refuses everything when it's unset) and `RENEWAL_REMINDER_CLASSROOM_IDS` (comma-separated classroom ids; **unset = no classroom gets pushes**). Leave the allowlist empty locally — a real `LINE_CHANNEL_ACCESS_TOKEN` plus a non-empty allowlist means the cron sends real messages to real students. Use `?dryRun=1` to inspect the list without sending.
 
+For teacher App push (see "待處理與老師端 App 推播" in `docs/architecture.md`): `PUSH_CLASSROOM_IDS` (comma-separated classroom ids; **unset = no pushes**, same fail-closed design as the renewal allowlist) and optionally `EXPO_ACCESS_TOKEN`.
+
 **Env layout is fail-safe — local is the default, production is opt-in:**
 - `.env` — local only (docker Postgres on `:54330`). Never put production credentials here.
 - `.env.production` — production RDS `DATABASE_URL` (gitignored); used **only** by `npm run db:deploy`.
@@ -103,6 +105,7 @@ tests/                    # Vitest integration tests (factories, test-DB setup) 
 - `LessonStudent` — join table created/upserted when attendance is first taken for a student in a lesson
 - `Teacher` — a named instructor entity within a classroom (not a `User`)
 - `Event` — audit log for student milestones (sign-in, card exhausted); `resourceType`/`resourceId` reference the source record
+- `PushToken` / `NotificationPreference` — teacher App push. The "待處理" list itself has no table: it's derived live by `src/service/todos.ts` (unpaid cards, Needs Renewal tag, attendance with no card).
 - `Tag` / `StudentTag` — classroom-scoped free-form student tags. The "Needs Renewal" tag is system-maintained by `refreshNeedsRenewalTag()` (`src/service/studentTag.ts`), refreshed on attendance/purchase/expire — don't add/remove it manually.
 
 ### Practice-Card Qualification (複習卡資格)

@@ -28,52 +28,62 @@ enum AttendanceSource {
   STUDENT // self check-in by the student via LIFF
 }
 
+// 「待處理」的三類事項，也是老師端推播的種類（見 src/service/todos.ts、src/service/push.ts）。
+enum TodoType {
+  UNPAID_CARD // 學生自助買卡，待確認收款
+  NEEDS_RENEWAL // 學生被加上「Needs Renewal」tag
+  UNBOUND_ATTENDANCE // 出席紀錄沒有綁課卡
+}
+
 enum LineMenuMode {
   TEACHER
   STUDENT
 }
 
 model User {
-  id                    Int           @id @default(autoincrement())
-  email                 String        @unique
-  name                  String
-  password              String
-  randomKey             String?       @unique // one-time key shown on the website; sent to the LINE bot to bind
-  lineUserId            String?       @unique // bound LINE userId; used for LIFF auto-login
-  classrooms            Classroom[]   @relation("OwnedClassrooms")
-  memberships           Membership[]
-  purchasedStudentCards StudentCard[] @relation("PurchasedStudentCards")
-  confirmedStudentCards StudentCard[] @relation("ConfirmedStudentCards")
-  currentClassroomId    Int?
-  currentClassroom      Classroom?    @relation(fields: [currentClassroomId], references: [id])
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  id                      Int                      @id @default(autoincrement())
+  email                   String                   @unique
+  name                    String
+  password                String
+  randomKey               String?                  @unique // one-time key shown on the website; sent to the LINE bot to bind
+  lineUserId              String?                  @unique // bound LINE userId; used for LIFF auto-login
+  classrooms              Classroom[]              @relation("OwnedClassrooms")
+  memberships             Membership[]
+  purchasedStudentCards   StudentCard[]            @relation("PurchasedStudentCards")
+  confirmedStudentCards   StudentCard[]            @relation("ConfirmedStudentCards")
+  currentClassroomId      Int?
+  currentClassroom        Classroom?               @relation(fields: [currentClassroomId], references: [id])
+  pushTokens              PushToken[]
+  notificationPreferences NotificationPreference[]
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 }
 
 model Classroom {
-  id                Int           @id @default(autoincrement())
-  ownerId           Int
-  owner             User          @relation("OwnedClassrooms", fields: [ownerId], references: [id])
-  name              String
-  checkinKey        String?       @unique // 現場 QR 自助簽到金鑰（貼在教室看板）；可重新產生以作廢舊看板
-  nextStudentNumber Int           @default(1) // 下一個要指派的學生編號（每教室各自從 1 開始，遞增不回收）
-  nextCardSerial    Int           @default(1) // 下一個要指派的課卡流水號（每教室各自從 1 開始；顯示格式見 src/lib/cardSerial.ts）
+  id                      Int                      @id @default(autoincrement())
+  ownerId                 Int
+  owner                   User                     @relation("OwnedClassrooms", fields: [ownerId], references: [id])
+  name                    String
+  checkinKey              String?                  @unique // 現場 QR 自助簽到金鑰（貼在教室看板）；可重新產生以作廢舊看板
+  nextStudentNumber       Int                      @default(1) // 下一個要指派的學生編號（每教室各自從 1 開始，遞增不回收）
+  nextCardSerial          Int                      @default(1) // 下一個要指派的課卡流水號（每教室各自從 1 開始；顯示格式見 src/lib/cardSerial.ts）
   // 軟刪除／封存。非 null = 教室已收掉：從切換選單消失、無法再切進去、
   // 成員的舊 JWT 也進不來（apiRoute 每次請求會重查 membership 並 join 這個條件）。
   // 資料完整保留以便救回；真正清資料留給日後的 purge script。
-  deletedAt         DateTime?
-  memberships       Membership[]
-  cards             Card[]
-  students          Student[]
-  lessons           Lesson[]
-  lessonGroups      LessonGroup[]
-  inviteTokens      InviteToken[]
-  tags              Tag[]
-  danceStyles       DanceStyle[]
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  teachers          Teacher[]
-  User              User[]
+  deletedAt               DateTime?
+  memberships             Membership[]
+  cards                   Card[]
+  students                Student[]
+  lessons                 Lesson[]
+  lessonGroups            LessonGroup[]
+  inviteTokens            InviteToken[]
+  tags                    Tag[]
+  danceStyles             DanceStyle[]
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  teachers                Teacher[]
+  User                    User[]
+  notificationPreferences NotificationPreference[]
 }
 
 model Membership {
@@ -438,4 +448,34 @@ model RenewalReminder {
   // 冷卻查的是「這位學生最近一次推播是什麼時候」，排序欄位跟著進索引，
   // 和 Event 的 [studentId, createdAt] 同一個道理。
   @@index([studentId, sentAt])
+}
+
+// App（mobile/）註冊的 Expo push token。token 是裝置層級的：同一支手機換帳號登入時，
+// 這列改掛到新的 user 身上，不會兩個帳號收到同一支手機的通知。
+model PushToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  platform  String // "ios" | "android"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // App 每次啟動都會重新註冊，等於「最後一次看到」
+
+  @@index([userId])
+}
+
+// 老師對某間教室某類推播的開關。沒有這列 = 預設開啟，所以只存「關掉」或改過的。
+model NotificationPreference {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  type        TodoType
+  enabled     Boolean
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, classroomId, type])
+  @@index([classroomId])
 }

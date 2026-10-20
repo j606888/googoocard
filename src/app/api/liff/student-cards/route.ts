@@ -4,6 +4,9 @@ import { bearerToken, resolveOwnedStudent } from "@/lib/liffAuth";
 import { canBuyCard, toDanceLevels } from "@/domains/qualification";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { nextCardSerial } from "@/service/studentCardSerial";
+import { notifyClassroom } from "@/service/push";
+import { formatCardSerial } from "@/lib/cardSerial";
+import { formatMoney } from "@/lib/money";
 
 // Student self-service card purchase from the LIFF「購買課卡」page (trust-open):
 // creates a real, immediately-usable StudentCard marked unpaid
@@ -73,6 +76,13 @@ export async function POST(request: Request) {
   });
 
   await refreshNeedsRenewalTag(student.id, card.classroomId);
+
+  await notifyClassroom(card.classroomId, {
+    type: "UNPAID_CARD",
+    title: "待確認收款",
+    body: `${student.name} 自助購買了「${card.name}」${formatCardSerial(studentCard.serialNumber)}，NT$${formatMoney(card.price)}`,
+    path: `/students/${student.id}`,
+  });
 
   return NextResponse.json(studentCard);
 }
