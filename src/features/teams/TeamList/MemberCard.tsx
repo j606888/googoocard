@@ -5,11 +5,14 @@ const MemberCard = ({
   membership,
   isMe,
   onRemove,
+  onTransfer,
 }: {
   membership: Membership;
   isMe: boolean;
   /** Passed only when the viewer may remove this member (owner, and not self). */
   onRemove?: (membership: Membership) => void;
+  /** Passed only when the viewer may hand the classroom to this member (owner, and not self). */
+  onTransfer?: (membership: Membership) => void;
 }) => {
   const isOwner = membership.role === "owner";
 
@@ -30,6 +33,14 @@ const MemberCard = ({
             <Crown className="w-4 h-4 text-warning-900" />
             <span className="text-xs text-warning-900 font-medium">擁有者</span>
           </div>
+        )}
+        {onTransfer && !isMe && !isOwner && (
+          <button
+            className="cursor-pointer rounded-full border border-neutral-300 px-2 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+            onClick={() => onTransfer(membership)}
+          >
+            轉為擁有者
+          </button>
         )}
         {onRemove && !isMe && !isOwner && (
           <button

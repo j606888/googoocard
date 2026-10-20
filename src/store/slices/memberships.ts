@@ -55,6 +55,15 @@ const membershipsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Membership"],
     }),
+    // The caller drops to assistant and the target becomes owner; the classroom
+    // list shows the owner too, hence "Classroom".
+    transferOwnership: builder.mutation<void, { id: number }>({
+      query: ({ id }) => ({
+        url: `memberships/${id}/transfer-ownership`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Membership", "Classroom"],
+    }),
     deleteInviteToken: builder.mutation<void, { id: number }>({
       query: ({ id }) => ({
         url: `invite-tokens/${id}`,
@@ -73,6 +82,7 @@ const membershipsApi = api.injectEndpoints({
 
 export const {
   useGetMembershipsQuery,
+  useTransferOwnershipMutation,
   useRemoveMembershipMutation,
   useCreateInviteTokenMutation,
   useGetInviteTokensQuery,

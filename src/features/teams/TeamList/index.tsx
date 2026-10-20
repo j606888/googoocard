@@ -11,6 +11,7 @@ import {
   useGetInviteTokensQuery,
   useGetMembershipsQuery,
   useRemoveMembershipMutation,
+  useTransferOwnershipMutation,
 } from "@/store/slices/memberships";
 import { useGetMeQuery } from "@/store/slices/me";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
@@ -32,6 +33,7 @@ const TeamList = () => {
   const { data: inviteTokens, isLoading: isInviteTokensLoading } = useGetInviteTokensQuery();
   const { data: me } = useGetMeQuery();
   const [removeMembership] = useRemoveMembershipMutation();
+  const [transferOwnership] = useTransferOwnershipMutation();
   const [maxUses, setMaxUses] = useState(1);
 
   // The viewer's own role in the current classroom — the same list already
@@ -44,6 +46,17 @@ const TeamList = () => {
       return;
     }
     await removeMembership({ id: membership.id });
+  };
+
+  const handleTransferOwnership = async (membership: Membership) => {
+    if (
+      !confirm(
+        `確定要把教室交給 ${membership.user.name} 嗎？\n你會變成助教，之後就不能再刪除教室或移除成員。`
+      )
+    ) {
+      return;
+    }
+    await transferOwnership({ id: membership.id });
   };
 
   const handleCreateInviteToken = async () => {
@@ -99,6 +112,7 @@ const TeamList = () => {
                 membership={membership}
                 isMe={membership.userId === me?.id}
                 onRemove={isOwner ? handleRemoveMember : undefined}
+                onTransfer={isOwner ? handleTransferOwnership : undefined}
               />
             ))}
             {myRole && <DangerZone role={myRole} />}

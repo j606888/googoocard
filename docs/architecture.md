@@ -395,11 +395,25 @@ Expo Push Service（iOS 轉 APNs，日後 Android 轉 FCM）。
 
 | 角色 | 可做 | 不可做 |
 |---|---|---|
-| `owner` | 封存教室、移除 assistant | 退出教室 |
+| `owner` | 封存教室、移除 assistant、把教室轉給 assistant | 退出教室（要先轉出去） |
 | `assistant` | 退出教室 | 封存教室、移除任何人 |
 
 owner 不能「退出」——教室會變成沒有 owner，而 `Classroom.ownerId` 仍指向一個非成員。
-要走就封存教室。**轉移所有權目前沒有實作**（見 `docs/roadmap.md` backlog）。
+要走就先**轉移擁有權**（`POST /api/memberships/[id]/transfer-ownership`，`/teams` 成員卡上的「轉為擁有者」）：
+目標助教變 owner、原 owner 變助教、`Classroom.ownerId` 跟著換，三筆寫入同一個交易，教室永遠恰好一位 owner。
+之後原 owner 就能像助教一樣退出。不想交給別人就封存教室。
+
+### 刪除帳號（`DELETE /api/me`，`/account` 頁）
+
+App Store Guideline 5.1.1(v) 要求 App 內能刪帳號。規則：
+- 還擁有**未封存**的教室 → 409 `OWNS_CLASSROOMS`（附教室清單），要先轉出去或封存。
+- `User` **匿名化而不是刪除**：`StudentCard.purchasedBy` / `paidBy`、封存教室的 `ownerId` 都還指著它，那是營收歷史。
+  清掉名稱、email（改成 `deleted-{id}@deleted.invalid`，原 email 可以重新註冊）、密碼、LINE 綁定、`currentClassroomId`，
+  刪掉所有 membership、push token、通知偏好，設 `deletedAt`。
+- **`User.deletedAt` 讓舊 JWT 失效**：JWT 30 天且無法撤銷，刪除後其他裝置上的 token 還在。
+  刪掉的人沒有 membership，請求一定落在 `decodeAuthToken()` 的「沒有教室」分支，那裡多查一次
+  `deletedAt`（`isDeletedUser`），是的話連 `userId` 都不回——`sessionRoute` 也就 401。有教室的一般請求不多花查詢。
+- UI 要輸入「我確認要刪除」才能送出（照 dance-note 的做法）。
 
 **刪除教室 = 軟刪除（封存）**，`Classroom.deletedAt`。整個 domain 沒有任何
 `onDelete: Cascade`，真刪要依序拆掉約 16 張表，還會連營收與出席歷史一起銷毀。

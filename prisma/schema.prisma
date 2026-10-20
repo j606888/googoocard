@@ -53,6 +53,9 @@ model User {
   confirmedStudentCards   StudentCard[]            @relation("ConfirmedStudentCards")
   currentClassroomId      Int?
   currentClassroom        Classroom?               @relation(fields: [currentClassroomId], references: [id])
+  // 帳號已刪除（匿名化）。非 null = decodeAuthToken 把這個人當成沒登入，
+  // 其他裝置上還沒過期的 JWT 也就跟著失效（見 DELETE /api/me）。
+  deletedAt               DateTime?
   pushTokens              PushToken[]
   notificationPreferences NotificationPreference[]
   createdAt               DateTime                 @default(now())

@@ -8,6 +8,7 @@ import {
   DollarSign,
   QrCode,
   Music,
+  UserCog,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,6 +34,7 @@ export const SECONDARY_LINKS: NavLink[] = [
   { name: "老師", icon: GraduationCap, href: "/teachers" },
   { name: "舞種", icon: Music, href: "/dance-styles" },
   { name: "團隊", icon: Boxes, href: "/teams" },
+  { name: "帳號", icon: UserCog, href: "/account" },
 ];
 
 /** Full list for the desktop sidebar — priority items first, then the rest. */

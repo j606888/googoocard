@@ -89,7 +89,9 @@ export const decodeAuthToken = async (): Promise<{
   }
 
   if (!classroomId) {
-    return { userId, classroomId: NO_CLASSROOM };
+    return (await isDeletedUser(userId))
+      ? { classroomId: NO_CLASSROOM }
+      : { userId, classroomId: NO_CLASSROOM };
   }
 
   const membership = await prisma.membership.findFirst({
@@ -98,8 +100,24 @@ export const decodeAuthToken = async (): Promise<{
   });
 
   if (!membership) {
-    return { userId, classroomId: NO_CLASSROOM };
+    return (await isDeletedUser(userId))
+      ? { classroomId: NO_CLASSROOM }
+      : { userId, classroomId: NO_CLASSROOM };
   }
 
   return { userId, classroomId, role: membership.role };
 };
+/**
+ * A deleted account has no memberships left (DELETE /api/me removes them), so
+ * every one of its requests lands on the classroom-less paths above — the only
+ * place this extra lookup runs. Without it, a JWT still sitting on another
+ * device would keep working for the `sessionRoute` endpoints (create a
+ * classroom, accept an invite, register a push token) for up to 30 days.
+ */
+async function isDeletedUser(userId: number): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { deletedAt: true },
+  });
+  return !user || user.deletedAt !== null;
+}

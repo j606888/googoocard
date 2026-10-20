@@ -11,8 +11,8 @@ type Params = { id: string };
  *
  * The owner can't use this — the classroom would be left without one, and
  * `Classroom.ownerId` would still point at someone who is no longer a member.
- * They archive it instead (`DELETE /api/classrooms/[id]`); transferring
- * ownership is backlog.
+ * They hand it to an assistant first (`POST /api/memberships/[id]/transfer-ownership`)
+ * or archive it (`DELETE /api/classrooms/[id]`).
  */
 export const POST = sessionRoute<Params>(async ({ params, userId }) => {
   const classroomId = parseId(params.id, "classroom id");

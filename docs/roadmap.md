@@ -472,8 +472,6 @@ import `renewalReminder` / `pushMessage` / `findExhaustedRenewableCard`），沒
   `CRON_SECRET` 驗證抄一份），但排程設定檔還沒接上，見 P2-1 的「排程檔待補」。
 - **營收 CSV 匯出** — 老師報稅／對帳用。
 - **課程模板／重複排課** — 現在每期課要手動建所有 periods。
-- **轉移教室所有權** — 目前 owner 唯一的出場方式是封存教室。要能把 `Membership.role`
-  與 `Classroom.ownerId` 一起交棒，之後 owner 才能像 assistant 一樣退出。
 - **已封存教室的還原 UI** — 現在只能手動 `UPDATE "Classroom" SET "deletedAt" = NULL`。
   一併考慮 purge job（真正清資料）；cron route 的寫法見 P2-1，排程設定檔仍待補。
 - **續卡提醒的教室開關欄位化** — `Classroom.renewalReminderEnabled` + 冷卻天數 +

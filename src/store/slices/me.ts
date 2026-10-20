@@ -6,6 +6,9 @@ export interface Me {
   email: string;
 }
 
+export type TodoType = "UNPAID_CARD" | "NEEDS_RENEWAL" | "UNBOUND_ATTENDANCE";
+export type NotificationPreferences = Record<TodoType, boolean>;
+
 const meApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getMe: builder.query<Me, void>({
@@ -39,6 +42,41 @@ const meApi = api.injectEndpoints({
       }),
       invalidatesTags: TAG_TYPES,
     }),
+    // 409 OWNS_CLASSROOMS (with `classrooms`) while the user still owns a live
+    // classroom — the account page shows which ones to hand over first.
+    deleteAccount: builder.mutation<void, void>({
+      query: () => ({
+        url: "me",
+        method: "DELETE",
+      }),
+    }),
+    getNotificationPreferences: builder.query<NotificationPreferences, void>({
+      query: () => "notification-preferences",
+      providesTags: ["Classroom"],
+    }),
+    updateNotificationPreference: builder.mutation<
+      void,
+      { type: TodoType; enabled: boolean }
+    >({
+      query: (body) => ({
+        url: "notification-preferences",
+        method: "PUT",
+        body,
+      }),
+      // Optimistic: a switch that lags behind the tap feels broken.
+      async onQueryStarted({ type, enabled }, { dispatch, queryFulfilled }) {
+        const patch = dispatch(
+          meApi.util.updateQueryData("getNotificationPreferences", undefined, (draft) => {
+            draft[type] = enabled;
+          })
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+    }),
     logout: builder.mutation<void, void>({
       query: () => ({
         url: "logout",
@@ -55,4 +93,7 @@ export const {
   useLoginMutation,
   useSignupMutation,
   useLogoutMutation,
+  useDeleteAccountMutation,
+  useGetNotificationPreferencesQuery,
+  useUpdateNotificationPreferenceMutation,
 } = meApi;
