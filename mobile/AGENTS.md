@@ -9,7 +9,8 @@ Expo 混合式 App：原生畫面是登入、待處理（`src/app/(tabs)/index.t
 - 打 API 一律走 `src/lib/api.ts`（帶 bearer 和 `X-Googoocard-Client: app`）。不要在 App 裡用 cookie。
 - 網站和 App 的「目前教室」是同一個（`User.currentClassroomId`）。App 這邊換教室用 `switchClassroom()`，它會 bump `epoch` 讓 WebView 重新進站。
 - 本機開發：`mobile/.env.local` 設 `EXPO_PUBLIC_API_URL=http://localhost:3000`（模擬器）或電腦的區網 IP（實機），再 `npx expo run:ios`。正式網址在 `eas.json`。
-- 推播要實機加 development build 才收得到；伺服器還要把教室列進 `PUSH_CLASSROOM_IDS`。
+- 推播要實機加 development build 才收得到（伺服器對所有教室都發，沒有白名單了）。
+- 出新版：只改 JS（畫面、文字、邏輯）→ `npx eas-cli@latest update --channel production --message "…"`，約一分鐘，App 重開後套用。改到原生（新套件、權限、圖示、`app.json` 外掛）→ 一定要 `eas build --platform ios --profile production --auto-submit` 走 TestFlight。`runtimeVersion` 用 fingerprint：原生一變，舊 build 就收不到新的 OTA，不會裝到不相容的 JS。頻道：production／preview／development 對應 `eas.json` 的 profile。網頁分頁（WebView）只要部署網站就好。
 
 ## Expo has changed — do not trust your training data
 

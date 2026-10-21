@@ -48,6 +48,12 @@
         "projectId": "4d422512-2122-456a-9b47-33cfd1e307b3"
       }
     },
-    "owner": "j606888"
+    "owner": "j606888",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/4d422512-2122-456a-9b47-33cfd1e307b3"
+    }
   }
 }
