@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { decodeAuthToken } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sessionRoute } from "@/lib/apiRoute";
+import { revokeAppleToken } from "@/lib/appleAuth";
 
 export async function GET() {
   const { userId } = await decodeAuthToken();
@@ -51,6 +52,11 @@ export const DELETE = sessionRoute(async ({ userId }) => {
     );
   }
 
+  const apple = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { appleRefreshToken: true, appleClientId: true },
+  });
+
   await prisma.$transaction([
     prisma.membership.deleteMany({ where: { userId } }),
     prisma.pushToken.deleteMany({ where: { userId } }),
@@ -68,11 +74,19 @@ export const DELETE = sessionRoute(async ({ userId }) => {
         // 再用同一個 Google／Apple 帳號登入時，要變成全新的帳號
         googleSub: null,
         appleSub: null,
+        appleRefreshToken: null,
+        appleClientId: null,
         currentClassroomId: null,
         deletedAt: new Date(),
       },
     }),
   ]);
+
+  // Signed in with Apple: revoke the app's access too (Guideline 5.1.1(v)).
+  // Best effort — the account is already gone either way.
+  if (apple?.appleRefreshToken && apple.appleClientId) {
+    await revokeAppleToken(apple.appleRefreshToken, apple.appleClientId);
+  }
 
   const response = NextResponse.json({ ok: true });
   response.cookies.set({

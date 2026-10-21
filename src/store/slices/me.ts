@@ -34,7 +34,7 @@ const meApi = api.injectEndpoints({
     // Google／Apple 登入（也會順便註冊）。`name` 只有 Apple 第一次授權時拿得到
     oauthLogin: builder.mutation<
       void,
-      { provider: "google" | "apple"; idToken: string; name?: string; token?: string }
+      { provider: "google" | "apple"; idToken: string; name?: string; code?: string; token?: string }
     >({
       query: (body) => ({ url: "auth/oauth", method: "POST", body }),
       invalidatesTags: TAG_TYPES,

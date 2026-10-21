@@ -14,7 +14,7 @@ type GoogleId = {
   renderButton: (el: HTMLElement, opts: Record<string, unknown>) => void;
 };
 type AppleSignInResponse = {
-  authorization: { id_token: string };
+  authorization: { id_token: string; code: string };
   user?: { name?: { firstName?: string; lastName?: string } };
 };
 type AppleIdAuth = {
@@ -59,11 +59,11 @@ export default function SocialLogin({
   const [loading, setLoading] = useState(false);
   const googleRef = useRef<HTMLDivElement>(null);
 
-  const submit = async (provider: "google" | "apple", idToken: string, name?: string) => {
+  const submit = async (provider: "google" | "apple", idToken: string, name?: string, code?: string) => {
     setError("");
     setLoading(true);
     try {
-      await oauthLogin({ provider, idToken, name, token: inviteToken ?? undefined }).unwrap();
+      await oauthLogin({ provider, idToken, name, code, token: inviteToken ?? undefined }).unwrap();
       router.push(redirect || "/redirect");
     } catch (e) {
       console.error("OAuth login error:", e);
@@ -124,7 +124,7 @@ export default function SocialLogin({
       const res = await window.AppleID.auth.signIn();
       const n = res.user?.name;
       const name = [n?.lastName, n?.firstName].filter(Boolean).join("") || undefined;
-      await submit("apple", res.authorization.id_token, name);
+      await submit("apple", res.authorization.id_token, name, res.authorization.code);
     } catch (e) {
       // 使用者自己關掉視窗不算錯
       if ((e as { error?: string })?.error !== "popup_closed_by_user") {

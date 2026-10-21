@@ -49,6 +49,9 @@ model User {
   lineUserId              String?                  @unique // bound LINE userId; used for LIFF auto-login
   googleSub               String?                  @unique // Google 帳號的 sub（Google 登入）
   appleSub                String?                  @unique // Apple 帳號的 sub（Sign in with Apple）
+  // 刪帳號時要拿它向 Apple 撤銷授權（App Store 5.1.1(v)）。秘密：永遠不要放進 API 回應
+  appleRefreshToken       String?
+  appleClientId           String? // 拿到 refresh token 的 client（App 的 bundle ID 或網頁的 Services ID）
   classrooms              Classroom[]              @relation("OwnedClassrooms")
   memberships             Membership[]
   purchasedStudentCards   StudentCard[]            @relation("PurchasedStudentCards")

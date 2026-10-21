@@ -121,11 +121,12 @@ async function oauthSignIn(
   provider: 'google' | 'apple',
   idToken: string,
   name?: string,
+  code?: string,
 ): Promise<LoginError | null> {
   try {
     const { token } = await api<{ token: string }>('/api/auth/oauth', {
       method: 'POST',
-      body: JSON.stringify({ provider, idToken, name }),
+      body: JSON.stringify({ provider, idToken, name, code }),
     });
     await setToken(token);
     return null;
@@ -146,7 +147,8 @@ export async function signInWithApple(): Promise<LoginError | 'CANCELED' | null>
     // 名字只有第一次授權時給
     const n = credential.fullName;
     const name = [n?.familyName, n?.givenName].filter(Boolean).join('') || undefined;
-    return await oauthSignIn('apple', credential.identityToken, name);
+    // authorizationCode：伺服器換成 refresh token，刪帳號時拿去撤銷 Apple 授權
+    return await oauthSignIn('apple', credential.identityToken, name, credential.authorizationCode ?? undefined);
   } catch (e) {
     if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return 'CANCELED';
     return 'UNKNOWN';

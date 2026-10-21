@@ -7,6 +7,8 @@ export type OAuthProvider = "google" | "apple";
 export type OAuthIdentity = {
   sub: string;
   email: string;
+  /** The client the token was issued to (Apple: bundle ID or Services ID). */
+  audience: string;
 };
 
 const PROVIDERS = {
@@ -45,7 +47,8 @@ export async function verifyIdToken(
     // Apple 的 email_verified 是字串 "true"；Google 是布林
     const verified = payload.email_verified === true || payload.email_verified === "true";
     if (!payload.sub || !email || !verified) return null;
-    return { sub: payload.sub, email };
+    const aud = Array.isArray(payload.aud) ? payload.aud[0] : payload.aud;
+    return { sub: payload.sub, email, audience: aud ?? "" };
   } catch {
     return null;
   }
