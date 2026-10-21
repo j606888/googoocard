@@ -44,7 +44,7 @@ const LessonsList = () => {
   };
 
   return (
-    <div className="px-5 py-3 lg:px-8 lg:py-6 w-full max-w-[1240px] mx-auto">
+    <div className="px-5 py-3 lg:px-8 lg:py-6 w-full max-w-[1120px]">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">課程</h2>
         <button

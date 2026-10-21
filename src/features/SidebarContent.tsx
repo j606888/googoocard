@@ -92,44 +92,26 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           aria-busy={!data}
           disabled={!data}
           onClick={() => setSwitchClassroomOpen(!switchClassroomOpen)}
-          className="relative flex w-full cursor-pointer flex-col gap-3.5 overflow-hidden rounded-[18px] bg-primary-900 p-3.5 text-left text-white shadow-[0_10px_28px_-14px_rgba(27,94,74,0.8)] transition-colors hover:bg-[#17523F]"
+          className="relative flex w-full cursor-pointer items-center gap-3 overflow-hidden rounded-2xl bg-primary-900 p-3 text-left text-white shadow-[0_10px_28px_-14px_rgba(27,94,74,0.8)] transition-colors hover:bg-[#17523F]"
         >
-          <KiwiLogo className="pointer-events-none absolute -right-1 -bottom-[18px] h-[94px] w-[120px] text-white/10" />
-          <div className="flex items-center justify-between">
-            <div className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-white/15 font-bold">
-              {data ? (
-                currentClassroom?.name.slice(0, 1)
-              ) : (
-                <Skeleton className="h-full w-full rounded-[10px] bg-white/15" />
-              )}
-            </div>
-            <span className="flex items-center gap-1 rounded-full bg-white/10 py-1 pl-2.5 pr-2 text-xs font-medium text-primary-100">
-              切換
-              <ChevronsUpDown className="h-3.5 w-3.5" />
-            </span>
-          </div>
-          <div className="relative flex flex-col gap-0.5">
+          <KiwiLogo className="pointer-events-none absolute right-[22px] -bottom-3.5 h-[50px] w-16 text-white/[0.08]" />
+          <div className="relative flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-white/15 font-bold">
             {data ? (
-              <>
-                <span className="line-clamp-2 text-[17px] font-semibold leading-snug">
-                  {currentClassroom?.name}
-                </span>
-                <span className="text-xs text-primary-300">
-                  {currentClassroom?.role === "owner" ? "擁有者" : "助教"}
-                </span>
-              </>
+              currentClassroom?.name.slice(0, 1)
             ) : (
-              <>
-                {/* Same line heights as the name (17px snug) and role (xs). */}
-                <span className="flex h-[23px] items-center">
-                  <Skeleton className="h-[17px] w-28 bg-white/15" />
-                </span>
-                <span className="flex h-4 items-center">
-                  <Skeleton className="h-3 w-10 bg-white/15" />
-                </span>
-              </>
+              <Skeleton className="h-full w-full rounded-[10px] bg-white/15" />
             )}
           </div>
+          {data ? (
+            <span className="relative line-clamp-2 min-w-0 flex-1 text-base font-semibold leading-snug">
+              {currentClassroom?.name}
+            </span>
+          ) : (
+            <span className="relative flex h-[22px] min-w-0 flex-1 items-center">
+              <Skeleton className="h-4 w-28 bg-white/15" />
+            </span>
+          )}
+          <ChevronsUpDown className="relative h-4 w-4 shrink-0 text-primary-300" />
         </button>
       </div>
       <Menu

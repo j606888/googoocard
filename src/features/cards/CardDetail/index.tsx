@@ -74,7 +74,7 @@ const CardDetail = ({ detail }: { detail: CardDetailType }) => {
     ];
 
   return (
-    <div className="px-5 py-3 lg:px-8 lg:py-6">
+    <div className="w-full max-w-[1120px] px-5 py-3 lg:px-8 lg:py-6">
       {/* Desktop back link */}
       <Link
         href="/cards"

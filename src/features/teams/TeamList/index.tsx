@@ -101,7 +101,7 @@ const TeamList = () => {
 
   return (
     <>
-      <div className="px-5 py-3">
+      <div className="px-5 py-3 lg:px-8">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-2xl font-semibold">團隊</h2>
           <button className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600">

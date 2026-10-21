@@ -56,7 +56,7 @@ const DanceStyleList = () => {
 
   return (
     <>
-      <div className="px-5 py-3 w-full lg:max-w-2xl">
+      <div className="w-full px-5 py-3 lg:max-w-[720px] lg:px-8 lg:py-6">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-2xl font-semibold">舞種</h2>
           <button

@@ -114,7 +114,7 @@ const CalendarView = () => {
     startOfMonth(new Date()).getTime() === viewMonth.getTime();
 
   return (
-    <div className="px-5 py-3 lg:px-8 lg:py-6">
+    <div className="w-full max-w-[1120px] px-5 py-3 lg:px-8 lg:py-6">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3 lg:mb-4">
         <h2 className="text-2xl font-semibold">行事曆</h2>
         <div className="flex items-center gap-1">

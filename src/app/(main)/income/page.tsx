@@ -15,7 +15,7 @@ const IncomePage = () => {
   return (
     <>
       <Navbar />
-      <div className="px-5 py-3 lg:px-8 lg:py-6 w-full max-w-[1240px] mx-auto">
+      <div className="px-5 py-3 lg:px-8 lg:py-6 w-full max-w-[1120px]">
         <IncomeCalendar
           unpaidCount={unpaidCount}
           unpaidLoading={unpaidLoading}
