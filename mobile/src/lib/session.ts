@@ -1,10 +1,12 @@
 // 登入狀態。token 存在 Keychain（expo-secure-store）；App 跟它的 WebView 共用伺服器上的
 // User.currentClassroomId 當「目前的教室」，切換教室後 bump `epoch` 讓所有 WebView 重新進站。
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 import * as SecureStore from 'expo-secure-store';
 import { useSyncExternalStore } from 'react';
 
 import { api, apiFetch, ApiError, setApiToken } from './api';
-import { API_URL } from './config';
+import { API_URL, GOOGLE_IOS_CLIENT_ID } from './config';
 
 const TOKEN_KEY = 'auth-token';
 
@@ -81,7 +83,13 @@ export async function restoreSession(): Promise<void> {
   }
 }
 
-export type LoginError = 'EMAIL_NOT_FOUND' | 'INVALID_PASSWORD' | 'RATE_LIMITED' | 'NETWORK' | 'UNKNOWN';
+export type LoginError =
+  | 'EMAIL_NOT_FOUND'
+  | 'INVALID_PASSWORD'
+  | 'SOCIAL_ONLY'
+  | 'RATE_LIMITED'
+  | 'NETWORK'
+  | 'UNKNOWN';
 
 export async function signIn(email: string, password: string): Promise<LoginError | null> {
   try {
@@ -94,10 +102,67 @@ export async function signIn(email: string, password: string): Promise<LoginErro
   } catch (e) {
     if (e instanceof ApiError) {
       const code = (e.body as { code?: string } | null)?.code;
-      if (code === 'EMAIL_NOT_FOUND' || code === 'INVALID_PASSWORD' || code === 'RATE_LIMITED') return code;
+      if (
+        code === 'EMAIL_NOT_FOUND' ||
+        code === 'INVALID_PASSWORD' ||
+        code === 'SOCIAL_ONLY' ||
+        code === 'RATE_LIMITED'
+      )
+        return code;
       return 'UNKNOWN';
     }
     return 'NETWORK';
+  }
+}
+
+// Google／Apple 登入：拿到 ID token 交給 /api/auth/oauth（沒有帳號會直接建一個）。
+// 使用者自己取消回 'CANCELED'，畫面不用顯示錯誤
+async function oauthSignIn(
+  provider: 'google' | 'apple',
+  idToken: string,
+  name?: string,
+): Promise<LoginError | null> {
+  try {
+    const { token } = await api<{ token: string }>('/api/auth/oauth', {
+      method: 'POST',
+      body: JSON.stringify({ provider, idToken, name }),
+    });
+    await setToken(token);
+    return null;
+  } catch (e) {
+    return e instanceof ApiError ? 'UNKNOWN' : 'NETWORK';
+  }
+}
+
+export async function signInWithApple(): Promise<LoginError | 'CANCELED' | null> {
+  try {
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+    if (!credential.identityToken) return 'UNKNOWN';
+    // 名字只有第一次授權時給
+    const n = credential.fullName;
+    const name = [n?.familyName, n?.givenName].filter(Boolean).join('') || undefined;
+    return await oauthSignIn('apple', credential.identityToken, name);
+  } catch (e) {
+    if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return 'CANCELED';
+    return 'UNKNOWN';
+  }
+}
+
+GoogleSignin.configure({ iosClientId: GOOGLE_IOS_CLIENT_ID });
+
+export async function signInWithGoogle(): Promise<LoginError | 'CANCELED' | null> {
+  try {
+    const res = await GoogleSignin.signIn();
+    if (res.type !== 'success' || !res.data.idToken) return 'CANCELED';
+    return await oauthSignIn('google', res.data.idToken);
+  } catch (e) {
+    if (isErrorWithCode(e) && e.code === statusCodes.IN_PROGRESS) return 'CANCELED';
+    return 'UNKNOWN';
   }
 }
 
@@ -113,6 +178,8 @@ export async function signOut(): Promise<void> {
   try {
     await Promise.all([...signOutHooks].map((h) => h().catch(() => {})));
     await SecureStore.deleteItemAsync(TOKEN_KEY);
+    // 下次按 Google 登入時要能選別的帳號
+    await GoogleSignin.signOut().catch(() => {});
     setApiToken(null);
     setState({ status: 'signedOut', token: null, epoch: state.epoch + 1 });
   } finally {

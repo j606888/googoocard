@@ -7,6 +7,7 @@ import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { validateForm, ValidationErrors } from "@/lib/validation";
 import { useSignupMutation } from "@/store/slices/me";
 import AuthScaffold from "../AuthScaffold";
+import SocialLogin from "../SocialLogin";
 
 function SignupForm() {
   const [name, setName] = useState("");
@@ -139,6 +140,7 @@ function SignupForm() {
         >
           註冊
         </button>
+        <SocialLogin inviteToken={token} redirect={redirect} />
         <p className="text-sm text-neutral-500 text-center mt-3">
           已經有帳號了嗎？{" "}
           <Link href="/login" className="text-primary-500 underline">

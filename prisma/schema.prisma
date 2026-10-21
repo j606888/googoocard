@@ -47,6 +47,8 @@ model User {
   password                String
   randomKey               String?                  @unique // one-time key shown on the website; sent to the LINE bot to bind
   lineUserId              String?                  @unique // bound LINE userId; used for LIFF auto-login
+  googleSub               String?                  @unique // Google 帳號的 sub（Google 登入）
+  appleSub                String?                  @unique // Apple 帳號的 sub（Sign in with Apple）
   classrooms              Classroom[]              @relation("OwnedClassrooms")
   memberships             Membership[]
   purchasedStudentCards   StudentCard[]            @relation("PurchasedStudentCards")

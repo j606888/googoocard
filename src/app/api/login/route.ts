@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { createAuthSession, generateAppToken } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { joinClassroom } from "@/service/classroom";
+import { completeLogin } from "@/service/login";
 import { hit, reset, clientIp } from "@/lib/rateLimit";
 
 // This endpoint distinguishes "email not found" from "wrong password" (a
@@ -27,21 +26,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        // Archived classrooms must not be a landing spot — every consumer of
-        // this list treats it as "classrooms this user can enter".
-        memberships: {
-          where: { classroom: { deletedAt: null } },
-          orderBy: { id: "asc" },
-        },
-      }
-    });
+    const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
       return NextResponse.json(
         { error: "Email not found", code: "EMAIL_NOT_FOUND" },
+        { status: 401 }
+      );
+    }
+
+    // Created by Google／Apple sign-in, so there's no password to check.
+    if (user.password === "!") {
+      return NextResponse.json(
+        { error: "Use Google or Apple to sign in", code: "SOCIAL_ONLY" },
         { status: 401 }
       );
     }
@@ -58,50 +55,7 @@ export async function POST(request: Request) {
     // Succeeded — don't let earlier typos count against the next login.
     reset(limitKey);
 
-    let classroomId: number | null = null;
-
-    if (token) {
-      classroomId = await joinClassroom({ userId: user.id, token });
-    }
-
-    // `memberships[0]` used to be read unguarded, so a user with no live
-    // membership (signed up via an invite-less flow, or just left their last
-    // classroom) got a 500 instead of being sent to onboarding.
-    const stillAMember = user.memberships.some(
-      (m) => m.classroomId === user.currentClassroomId
-    );
-    const currentClassroomId =
-      classroomId ??
-      (stillAMember ? user.currentClassroomId : null) ??
-      user.memberships[0]?.classroomId ??
-      undefined;
-
-    // The iOS App gets a bearer token in the body instead of a cookie. Its
-    // token has no classroom of its own — it follows `currentClassroomId`
-    // (see generateAppToken) — so persist the landing classroom there.
-    if (request.headers.get("x-googoocard-client") === "app") {
-      if ((currentClassroomId ?? null) !== user.currentClassroomId) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { currentClassroomId: currentClassroomId ?? null },
-        });
-      }
-      return NextResponse.json({
-        message: "Login successful",
-        user: { id: user.id, email: user.email },
-        token: generateAppToken(user.id),
-      });
-    }
-
-    await createAuthSession(user.id, currentClassroomId);
-
-    return NextResponse.json({
-      message: "Login successful",
-      user: {
-        id: user.id,
-        email: user.email,
-      },
-    });
+    return completeLogin(request, user.id, token);
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(

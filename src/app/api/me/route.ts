@@ -65,6 +65,9 @@ export const DELETE = sessionRoute(async ({ userId }) => {
         password: "!",
         randomKey: null,
         lineUserId: null,
+        // 再用同一個 Google／Apple 帳號登入時，要變成全新的帳號
+        googleSub: null,
+        appleSub: null,
         currentClassroomId: null,
         deletedAt: new Date(),
       },
