@@ -105,7 +105,7 @@ const NewCard = ({ selectedCardIds, onChange, danceStyleId, error }: { selectedC
         options={cardOptions}
         values={selectedCardIds}
         placeholder="選擇課卡"
-        newOptionLabel="New card"
+        newOptionLabel="新增課卡"
         newOptionOnClick={() => {
           setOpen(true);
         }}
@@ -125,7 +125,7 @@ const NewCard = ({ selectedCardIds, onChange, danceStyleId, error }: { selectedC
           <InputField
             label="課卡名稱"
             value={cardName}
-            placeholder="E.g. 初階6堂"
+            placeholder="例如：初階 6 堂"
             onChange={handleCardNameChange}
             error={errors.cardName}
           />

@@ -49,7 +49,7 @@ const CardFormFields = ({
       <InputField
         label="課卡名稱"
         value={cardName}
-        placeholder="E.g. 初階6堂"
+        placeholder="例如：初階 6 堂"
         onChange={(e) => {
           onChange("cardName", e.target.value);
           if (errors.cardName) onErrorClear("cardName");

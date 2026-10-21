@@ -123,7 +123,7 @@ const CreateStudent = ({
           <InputField
             label="備註（學生看不到）"
             value={note}
-            placeholder="E.g. 紅色頭髮那個"
+            placeholder="例如：紅色頭髮那個"
             onChange={(e) => setNote(e.target.value)}
           />
           <AvatarPicker

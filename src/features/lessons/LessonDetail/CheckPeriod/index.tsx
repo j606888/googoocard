@@ -36,7 +36,7 @@ const CheckPeriod = () => {
 
   const handleSubmit = async (studentIds: number[]) => {
     if (studentIds.length === 0) {
-      setError("Please select at least one student");
+      setError("請至少選一位學生");
       return;
     }
 
@@ -57,7 +57,7 @@ const CheckPeriod = () => {
         defaultSelectedIds={defaultSelectedIds}
         selfCheckInStudentIds={selfCheckInStudentIds}
         onSubmit={handleSubmit}
-        submitLabel="Take Attendance"
+        submitLabel="完成點名"
         error={error}
         isLoading={isLoading}
         isRecordsLoading={isRecordsLoading}

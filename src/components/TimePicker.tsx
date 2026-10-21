@@ -91,7 +91,7 @@ const TimePicker = ({
       <PopoverTrigger>
         <input
           className={`text-sm bg-neutral-100 rounded-md p-2 w-full cursor-pointer ${selectedTime?.label ? "" : "text-neutral-400"}`}
-          value={selectedTime?.label || "Pick time"}
+          value={selectedTime?.label || "選擇時間"}
           readOnly
         />
       </PopoverTrigger>

@@ -15,7 +15,7 @@ const Searchbar = ({ onSearch, selectedStudents, error, onCreateStudent }: { onS
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-neutral-700">Selected ({selectedStudents.length})</p>
+          <p className="text-sm font-medium text-neutral-700">已選 {selectedStudents.length} 人</p>
           {error && <p className="text-sm text-danger-500">{error}</p>}
         </div>
         <CreateStudent

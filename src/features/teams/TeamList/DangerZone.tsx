@@ -60,7 +60,7 @@ const DangerZone = ({ role }: { role: string }) => {
       // next; with none left the user has to create one before anything works.
       router.push(nextClassroomId ? "/lessons" : "/onboarding");
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("發生錯誤，請再試一次");
     }
   };
 

@@ -1,13 +1,19 @@
 // 「待處理」：事情沒處理完就一直列著，處理完自動消失（不是通知紀錄）
 import { router } from 'expo-router';
-import { Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SymbolView } from 'expo-symbols';
+
 import { ApiError } from '../../lib/api';
+import { API_URL } from '../../lib/config';
 import { formatCardSerial, formatMoney, useTodos } from '../../lib/todos';
 import { colors } from '../../theme';
 
-type Row = { key: string; title: string; detail: string; path: string };
+type Row = { key: string; title: string; avatarUrl: string; detail: string; amount?: string; path: string };
+
+// 預設頭像是網站上的相對路徑（/images/avatars/…），上傳的照片是 Cloudinary 的完整網址
+const avatarSource = (url: string) => ({ uri: url.startsWith('/') ? `${API_URL}${url}` : url });
 
 const openWeb = (path: string) => router.push({ pathname: '/web', params: { path } });
 
@@ -26,17 +32,10 @@ export default function TodosScreen() {
           data: todos.unpaidCards.map<Row>((c) => ({
             key: `unpaid-${c.id}`,
             title: c.student.name,
-            detail: `${c.cardName} ${formatCardSerial(c.serialNumber)}・NT$${formatMoney(c.finalPrice)}`,
+            avatarUrl: c.student.avatarUrl,
+            detail: `${c.cardName} ${formatCardSerial(c.serialNumber)}`,
+            amount: `NT$${formatMoney(c.finalPrice)}`,
             path: `/students/${c.student.id}`,
-          })),
-        },
-        {
-          title: '需續約',
-          data: todos.needsRenewal.map<Row>((r) => ({
-            key: `renewal-${r.student.id}`,
-            title: r.student.name,
-            detail: `課卡在 ${formatDate(r.since)} 用完`,
-            path: `/students/${r.student.id}`,
           })),
         },
         {
@@ -44,8 +43,19 @@ export default function TodosScreen() {
           data: todos.unboundAttendance.map<Row>((a) => ({
             key: `unbound-${a.id}`,
             title: a.student.name,
+            avatarUrl: a.student.avatarUrl,
             detail: `${a.lessonName}・${formatDate(a.lessonPeriodStartTime)}`,
             path: `/lessons/${a.lessonId}/periods/${a.lessonPeriodId}/check-success`,
+          })),
+        },
+        {
+          title: '需續約',
+          data: todos.needsRenewal.map<Row>((r) => ({
+            key: `renewal-${r.student.id}`,
+            title: r.student.name,
+            avatarUrl: r.student.avatarUrl,
+            detail: `課卡在 ${formatDate(r.since)} 用完`,
+            path: `/students/${r.student.id}`,
           })),
         },
       ].filter((s) => s.data.length > 0)
@@ -67,8 +77,17 @@ export default function TodosScreen() {
         )}
         renderItem={({ item }) => (
           <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={() => openWeb(item.path)}>
-            <Text style={styles.rowTitle}>{item.title}</Text>
-            <Text style={styles.rowDetail}>{item.detail}</Text>
+            <Image source={avatarSource(item.avatarUrl)} style={styles.avatar} />
+            <View style={styles.rowText}>
+              <Text style={styles.rowTitle} numberOfLines={1}>
+                {item.title}
+              </Text>
+              <Text style={styles.rowDetail} numberOfLines={1}>
+                {item.detail}
+              </Text>
+            </View>
+            {item.amount && <Text style={styles.amount}>{item.amount}</Text>}
+            <SymbolView name="chevron.right" tintColor="#A3A3A3" size={14} />
           </Pressable>
         )}
         stickySectionHeadersEnabled={false}
@@ -109,10 +128,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
     borderRadius: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    gap: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgMuted },
+  rowText: { flex: 1, gap: 2 },
+  amount: { fontSize: 15, fontWeight: '700', color: colors.warning },
   rowPressed: { opacity: 0.6 },
   rowTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
   rowDetail: { fontSize: 14, color: colors.textMuted },

@@ -40,7 +40,7 @@ const LessonGroupSelect = ({
       <MultiSelect
         options={groupOptions}
         values={groupId !== null ? [groupId] : []}
-        newOptionLabel="New group"
+        newOptionLabel="新增群組"
         placeholder="未分類（不加入群組）"
         newOptionOnClick={() => setNewGroupModalOpen(true)}
         onChange={(values) => {

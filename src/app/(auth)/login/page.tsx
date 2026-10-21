@@ -49,16 +49,16 @@ function LoginForm() {
       console.error("Login error:", error);
       const code = (error as { data?: { code?: string } })?.data?.code;
       if (code === "EMAIL_NOT_FOUND") {
-        setError("This email is not registered");
+        setError("這個 Email 還沒註冊");
         setErrorField("email");
       } else if (code === "SOCIAL_ONLY") {
         setError("這個帳號是用 Google 或 Apple 註冊的，請用下方按鈕登入");
         setErrorField("password");
       } else if (code === "INVALID_PASSWORD") {
-        setError("Incorrect password");
+        setError("密碼不正確");
         setErrorField("password");
       } else {
-        setError("Something went wrong. Please try again");
+        setError("發生錯誤，請再試一次");
         setErrorField("password");
       }
     } finally {

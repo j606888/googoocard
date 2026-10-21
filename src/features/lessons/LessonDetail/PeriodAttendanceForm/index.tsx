@@ -26,7 +26,7 @@ const PeriodAttendanceForm = ({
   defaultSelectedIds = [],
   selfCheckInStudentIds = [],
   onSubmit,
-  submitLabel = "Take Attendance",
+  submitLabel = "完成點名",
   error,
   isLoading,
   isRecordsLoading = false,
@@ -112,7 +112,7 @@ const PeriodAttendanceForm = ({
       className="w-full rounded-xl shadow-[0_6px_18px_-6px_rgba(43,142,110,0.7)]"
     >
       {submitLabel}
-      {selectedStudents.length > 0 && ` (${selectedStudents.length})`}
+      {selectedStudents.length > 0 && `（${selectedStudents.length} 人）`}
     </Button>
   );
 
@@ -150,8 +150,9 @@ const PeriodAttendanceForm = ({
           <div className="flex flex-col gap-4 pb-4 ">{roster}</div>
         </div>
         {/* Lifted above the mobile BottomNav (floating pill, fixed bottom-0
-            z-40) so the button stays tappable. */}
-        <div className="fixed left-0 right-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] bg-white/90 backdrop-blur-md border-t border-neutral-100 flex gap-4 px-5 py-4 z-30">
+            z-40) so the button stays tappable. In the iOS App that nav is
+            hidden (the tabs are native), so `flush-bottom` drops it to 0. */}
+        <div data-in-app="flush-bottom" className="fixed left-0 right-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] bg-white/90 backdrop-blur-md border-t border-neutral-100 flex gap-4 px-5 py-4 z-30">
           {submitButton}
         </div>
       </div>

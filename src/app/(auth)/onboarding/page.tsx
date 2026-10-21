@@ -17,7 +17,7 @@ export default function OnboardingPage() {
     e.preventDefault();
 
     if (!classroomName.trim()) {
-      setError("Classroom name is required");
+      setError("請輸入教室名稱");
       return;
     }
 

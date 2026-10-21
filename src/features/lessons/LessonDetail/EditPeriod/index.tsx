@@ -22,7 +22,7 @@ const EditPeriod = () => {
 
   const handleSubmit = async (studentIds: number[]) => {
     if (studentIds.length === 0) {
-      setError("Please select at least one student");
+      setError("請至少選一位學生");
       return;
     }
 
@@ -39,7 +39,7 @@ const EditPeriod = () => {
       <PeriodAttendanceForm
         defaultSelectedIds={defaultSelectedIds}
         onSubmit={handleSubmit}
-        submitLabel="Update Period"
+        submitLabel="更新點名"
         error={error}
         isLoading={isLoading}
         isRecordsLoading={isRecordsLoading}

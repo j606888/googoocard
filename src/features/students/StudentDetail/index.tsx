@@ -120,8 +120,8 @@ const StudentDetail = ({
           {mobileTab === "profile" && <ProfilePanels student={student} />}
         </div>
         {showBuyCta && (
-          // 固定在底部導覽列上方（導覽列約 5rem 高，含外距）
-          <div className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] px-4 pt-2 pb-3">
+          // 固定在底部導覽列上方（導覽列約 5rem 高，含外距）；App 裡沒有網頁的導覽列，貼底（flush-bottom）
+          <div data-in-app="flush-bottom" className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] px-4 pt-2 pb-3">
             <BuyCard student={student} variant="cta" />
           </div>
         )}

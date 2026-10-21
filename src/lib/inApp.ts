@@ -7,4 +7,6 @@ export const APP_USER_AGENT_MARKER = "GoogoocardApp";
 // nav, the to-do bell, the classroom switcher — all native there) are hidden
 // by a stylesheet the App injects before the page loads (mobile/src/lib/web.ts),
 // so the page needs no client-side check and renders the same HTML.
+// `data-in-app="flush-bottom"` drops a bar that is lifted above the web bottom
+// nav back to `bottom: 0`, and `no-bottom-pad` removes the room kept for it.
 export const isInApp = (userAgent: string) => userAgent.includes(APP_USER_AGENT_MARKER);

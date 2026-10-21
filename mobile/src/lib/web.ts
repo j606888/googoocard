@@ -13,11 +13,12 @@ export function webSessionSource(token: string, path: string) {
   };
 }
 
-// 網頁上標了 data-in-app 的元素：底部導覽、鈴鐺、切換教室在 App 裡是原生的，藏起來
+// 網頁上標了 data-in-app 的元素：底部導覽、鈴鐺、切換教室在 App 裡是原生的，藏起來；
+// 原本墊在網頁底部導覽上方的按鈕列（flush-bottom）改成貼齊底部
 // 另外：網頁按返回（router.back()）但已經沒有上一頁時，通知 App 關掉這一頁（WebScreen 的 onLeave）
 export const INJECT_BEFORE_LOAD = `(function () {
   var style = document.createElement('style');
-  style.textContent = '[data-in-app="hide"]{display:none!important}[data-in-app="no-bottom-pad"]{padding-bottom:0!important}';
+  style.textContent = '[data-in-app="hide"]{display:none!important}[data-in-app="no-bottom-pad"]{padding-bottom:0!important}[data-in-app="flush-bottom"]{bottom:0!important}';
   document.documentElement.appendChild(style);
   var back = history.back.bind(history);
   history.back = function () {
