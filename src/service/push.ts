@@ -4,20 +4,6 @@ import { sendExpoPush } from "@/lib/expoPush";
 import { sendWebPush, webPushConfigured } from "@/lib/webPush";
 import { countTodos } from "@/service/todos";
 
-/**
- * 哪些教室會真的發出推播（App 與網頁）——opt-in 白名單，逗號分隔的教室 id。
- *
- * **未設定 = 一間都不發**（fail-closed），跟續卡提醒的
- * `RENEWAL_REMINDER_CLASSROOM_IDS` 同一個設計：本機與測試永遠不會打到 Expo，
- * 正式站也要明確打開才會發。
- */
-export function pushEnabledClassroomIds(): number[] {
-  return (process.env.PUSH_CLASSROOM_IDS ?? "")
-    .split(",")
-    .map((s) => Number(s.trim()))
-    .filter((n) => Number.isInteger(n) && n > 0);
-}
-
 export type TodoPush = {
   type: TodoType;
   title: string;
@@ -28,14 +14,14 @@ export type TodoPush = {
 
 /**
  * 有新的待處理事項時，推給教室所有成員（owner + 助教），排除把這類關掉的人。
+ * 所有教室都會發（2026-10 拿掉了教室白名單）：真正的開關在老師自己——
+ * 沒裝 App、沒在瀏覽器開啟通知的人本來就收不到。
  *
  * **永遠不 throw**：呼叫端是學生買卡、點名這些主流程，推播失敗只能記 log，
  * 不能讓主流程跟著失敗。呼叫時機一律在交易 commit 之後。
  */
 export async function notifyClassroom(classroomId: number, push: TodoPush): Promise<void> {
   try {
-    if (!pushEnabledClassroomIds().includes(classroomId)) return;
-
     const [members, optedOut] = await Promise.all([
       prisma.membership.findMany({
         // 封存的教室沒有 apiRoute 幫忙擋，要自己排除。
@@ -52,8 +38,10 @@ export async function notifyClassroom(classroomId: number, push: TodoPush): Prom
     if (userIds.length === 0) return;
 
     // 圖示數字 = 這間教室的待處理總數。屬於多間教室的人只會看到觸發這次推播的
-    // 那一間，打開後會用自己目前的教室重新算。
-    const badge = await countTodos(classroomId);
+    // 那一間，打開後會用自己目前的教室重新算。只在真的有裝置要發時才算
+    // （每間教室都會走到這裡，大多數老師沒開通知）。
+    let counting: Promise<number> | undefined;
+    const badge = () => (counting ??= countTodos(classroomId));
 
     // 兩個管道各自吞錯，一邊壞了不影響另一邊。
     await Promise.all([
@@ -69,19 +57,25 @@ export async function notifyClassroom(classroomId: number, push: TodoPush): Prom
   }
 }
 
-async function sendToApps(userIds: number[], classroomId: number, push: TodoPush, badge: number) {
+async function sendToApps(
+  userIds: number[],
+  classroomId: number,
+  push: TodoPush,
+  badge: () => Promise<number>
+) {
   const tokens = await prisma.pushToken.findMany({
     where: { userId: { in: userIds } },
     select: { id: true, token: true },
   });
   if (tokens.length === 0) return;
 
+  const count = await badge();
   const tickets = await sendExpoPush(
     tokens.map((t) => ({
       to: t.token,
       title: push.title,
       body: push.body,
-      badge,
+      badge: count,
       sound: "default" as const,
       data: { classroomId, type: push.type, path: push.path },
     }))
@@ -99,19 +93,25 @@ async function sendToApps(userIds: number[], classroomId: number, push: TodoPush
   }
 }
 
-async function sendToBrowsers(userIds: number[], classroomId: number, push: TodoPush, badge: number) {
+async function sendToBrowsers(
+  userIds: number[],
+  classroomId: number,
+  push: TodoPush,
+  badge: () => Promise<number>
+) {
   if (!webPushConfigured()) return;
   const subscriptions = await prisma.webPushSubscription.findMany({
     where: { userId: { in: userIds } },
     select: { id: true, endpoint: true, p256dh: true, auth: true },
   });
   if (subscriptions.length === 0) return;
+  const count = await badge();
 
   // 先切到通知所屬的教室再開頁面（src/app/notification/page.tsx）。
   const url = `/notification?classroomId=${classroomId}&next=${encodeURIComponent(push.path)}`;
   const results = await Promise.all(
     subscriptions.map((sub) =>
-      sendWebPush(sub, { title: push.title, body: push.body, url, badge, tag: `${push.type}:${push.path}` })
+      sendWebPush(sub, { title: push.title, body: push.body, url, badge: count, tag: `${push.type}:${push.path}` })
     )
   );
 

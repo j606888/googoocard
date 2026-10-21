@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import prisma from "@/lib/prisma";
 import {
   resetDb,
@@ -62,14 +62,9 @@ const TOKEN_A = "ExponentPushToken[aaa]";
 const TOKEN_B = "ExponentPushToken[bbb]";
 
 let classroomId: number;
-let prevAllowlist: string | undefined;
 
 async function registerToken(userId: number, token: string) {
   await prisma.pushToken.create({ data: { userId, token, platform: "ios" } });
-}
-
-function enablePush(...ids: number[]) {
-  process.env.PUSH_CLASSROOM_IDS = ids.join(",");
 }
 
 beforeEach(async () => {
@@ -81,13 +76,6 @@ beforeEach(async () => {
   expo.sent.length = 0;
   expo.deadTokens.clear();
   expo.fail = false;
-  prevAllowlist = process.env.PUSH_CLASSROOM_IDS;
-  delete process.env.PUSH_CLASSROOM_IDS;
-});
-
-afterEach(() => {
-  if (prevAllowlist === undefined) delete process.env.PUSH_CLASSROOM_IDS;
-  else process.env.PUSH_CLASSROOM_IDS = prevAllowlist;
 });
 
 describe("GET /api/todos", () => {
@@ -214,14 +202,7 @@ describe("/api/notification-preferences", () => {
 describe("notifyClassroom", () => {
   const push = { type: "UNPAID_CARD" as const, title: "t", body: "b", path: "/x" };
 
-  it("白名單沒設 → 一則都不發", async () => {
-    await registerToken(1, TOKEN_A);
-    await notifyClassroom(classroomId, push);
-    expect(expo.sent).toHaveLength(0);
-  });
-
   it("推給 owner 與助教，不推給其他教室的人；badge = 待處理總數", async () => {
-    enablePush(classroomId);
     const assistant = await createMember(classroomId);
     const other = await createClassroom({ name: "別間", email: "other@test.local" });
     const outsider = await prisma.membership.findFirstOrThrow({ where: { classroomId: other.id } });
@@ -242,7 +223,6 @@ describe("notifyClassroom", () => {
   });
 
   it("關掉這一類的人不收", async () => {
-    enablePush(classroomId);
     const assistant = await createMember(classroomId);
     await registerToken(1, TOKEN_A);
     await registerToken(assistant.id, TOKEN_B);
@@ -255,7 +235,6 @@ describe("notifyClassroom", () => {
   });
 
   it("封存的教室不發", async () => {
-    enablePush(classroomId);
     await registerToken(1, TOKEN_A);
     await prisma.classroom.update({ where: { id: classroomId }, data: { deletedAt: new Date() } });
 
@@ -264,7 +243,6 @@ describe("notifyClassroom", () => {
   });
 
   it("DeviceNotRegistered 的 token 會被刪掉", async () => {
-    enablePush(classroomId);
     await registerToken(1, TOKEN_A);
     await registerToken(1, TOKEN_B);
     expo.deadTokens.add(TOKEN_B);
@@ -274,7 +252,6 @@ describe("notifyClassroom", () => {
   });
 
   it("Expo 掛掉不會 throw", async () => {
-    enablePush(classroomId);
     await registerToken(1, TOKEN_A);
     expo.fail = true;
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -286,7 +263,6 @@ describe("notifyClassroom", () => {
 
 describe("觸發點", () => {
   beforeEach(async () => {
-    enablePush(classroomId);
     await registerToken(1, TOKEN_A);
   });
 

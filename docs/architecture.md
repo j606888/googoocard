@@ -386,8 +386,9 @@ build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
   - 點通知 → `/notification?classroomId=&next=`（`src/app/notification/page.tsx`）先切教室再整頁跳過去。
   - 主畫面圖示數字：推播時 sw.js 設、`TodoBell` 載入時也設（Badging API）。
 - **永遠不 throw**，一律在交易 commit 之後呼叫——推播失敗不能讓學生買卡／簽到失敗。
-- **教室白名單 `PUSH_CLASSROOM_IDS`**（逗號分隔），**未設定 = 一間都不發**，跟續卡提醒同一套 fail-closed；
-  本機與測試永遠打不到 Expo。封存教室自己擋。
+- **所有教室都發**（原本的教室白名單 `PUSH_CLASSROOM_IDS` 在 2026-10 拿掉了）：收不收由老師自己決定——
+  要裝 App 或在 `/account` 開啟這個裝置的通知，再依類別關。封存教室自己擋。
+  本機會發給本機資料庫裡的訂閱（就是開發者自己的瀏覽器）；測試一律 mock 兩個管道。
 - Expo 回 `DeviceNotRegistered` 的 token 直接刪掉。
 - `EXPO_ACCESS_TOKEN` 只有在 Expo 後台開了 Enhanced push security 才需要。
 - 測試一律 `vi.mock("@/lib/expoPush")`（`tests/api/todos-push.test.ts`）。

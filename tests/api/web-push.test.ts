@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import prisma from "@/lib/prisma";
 import { resetDb, createClassroom, createMember, jsonRequest } from "../factories";
 
@@ -42,7 +42,6 @@ const ENDPOINT_B = "https://push.example/b";
 const push = { type: "NEEDS_RENEWAL" as const, title: "需續約", body: "小明 的卡用完了", path: "/students/5" };
 
 let classroomId: number;
-let prevAllowlist: string | undefined;
 
 const subscribe = (endpoint: string) =>
   POST(
@@ -64,13 +63,6 @@ beforeEach(async () => {
   web.results.clear();
   expo.fail = false;
   expo.sent = 0;
-  prevAllowlist = process.env.PUSH_CLASSROOM_IDS;
-  process.env.PUSH_CLASSROOM_IDS = String(classroomId);
-});
-
-afterEach(() => {
-  if (prevAllowlist === undefined) delete process.env.PUSH_CLASSROOM_IDS;
-  else process.env.PUSH_CLASSROOM_IDS = prevAllowlist;
 });
 
 describe("/api/web-push-subscriptions", () => {
@@ -124,13 +116,6 @@ describe("notifyClassroom → 網頁推播", () => {
       url: `/notification?classroomId=${classroomId}&next=%2Fstudents%2F5`,
       badge: 0,
     });
-  });
-
-  it("白名單沒有這間教室 → 不發", async () => {
-    delete process.env.PUSH_CLASSROOM_IDS;
-    await addSubscription(1, ENDPOINT_A);
-    await notifyClassroom(classroomId, push);
-    expect(web.sent).toHaveLength(0);
   });
 
   it("沒設 VAPID 金鑰 → 不發", async () => {
