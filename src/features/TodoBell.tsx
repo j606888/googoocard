@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/popover";
 import CardSerial from "@/components/CardSerial";
 import { useGetTodosQuery, type TodoStudent } from "@/store/slices/todos";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/utils";
 import { formatMoney } from "@/lib/money";
 import { studentDetailHref } from "@/lib/studentNav";
@@ -25,7 +26,9 @@ const TodoBell = ({
   tone?: "default" | "onPrimary";
 }) => {
   const [open, setOpen] = useState(false);
-  const { data: todos } = useGetTodosQuery(undefined, { refetchOnFocus: true });
+  const { data: todos, isLoading } = useGetTodosQuery(undefined, {
+    refetchOnFocus: true,
+  });
 
   // 加到主畫面的網站：圖示上的數字跟著待處理總數（推播來時 public/sw.js 也會設）。
   const total = todos?.total;
@@ -33,6 +36,18 @@ const TodoBell = ({
     if (total === undefined || !("setAppBadge" in navigator)) return;
     navigator.setAppBadge(total).catch(() => {});
   }, [total]);
+
+  // 載入中先佔位，免得鈴鐺晚一拍才跳出來；載完確定 0 件才隱藏。
+  if (isLoading) {
+    return (
+      <Skeleton
+        data-in-app="hide"
+        className={`${className} w-10 h-10 rounded-xl ${
+          tone === "onPrimary" ? "bg-white/20" : ""
+        }`}
+      />
+    );
+  }
 
   if (!todos || todos.total === 0) return null;
 
@@ -50,7 +65,11 @@ const TodoBell = ({
       >
         <div className="flex items-center gap-2 relative">
           <Bell className={`w-6 h-6 ${tone === "onPrimary" ? "text-white" : "text-neutral-700"}`} />
-          <span className="absolute -right-2 -top-1.5 bg-danger-500 text-white text-[10px] font-semibold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
+          <span
+            className={`absolute -right-2.5 -top-2 bg-danger-500 text-white text-[10px] font-semibold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ring-2 ${
+              tone === "onPrimary" ? "ring-primary-500" : "ring-white"
+            }`}
+          >
             {todos.total}
           </span>
         </div>
