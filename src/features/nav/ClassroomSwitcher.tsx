@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Plus } from "lucide-react";
@@ -9,12 +9,18 @@ import {
   useGetClassroomsQuery,
   useSwitchClassroomMutation,
 } from "@/store/slices/classrooms";
+import { isInApp } from "@/lib/inApp";
 
 const ClassroomSwitcher = () => {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const [switchClassroom] = useSwitchClassroomMutation();
   const { data } = useGetClassroomsQuery();
+  // In the iOS App switching lives on the native 更多 tab (it reloads every
+  // tab's WebView), so here the name is shown read-only. Read after mount so
+  // the server render and the first client render match.
+  const [inApp, setInApp] = useState(false);
+  useEffect(() => setInApp(isInApp(navigator.userAgent)), []);
 
   const currentClassroom = data?.classrooms.find(
     (c) => c.id === data.currentClassroomId
@@ -31,14 +37,20 @@ const ClassroomSwitcher = () => {
 
   if (!currentClassroom) return null;
 
+  if (inApp) {
+    return <span className="text-xl font-bold text-neutral-900 truncate">{currentClassroom.name}</span>;
+  }
+
   return (
-    <div className="relative" data-in-app="hide">
+    <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1.5 text-neutral-900"
       >
         <span className="text-xl font-bold">{currentClassroom.name}</span>
+        {/* Hidden in the App even before the effect above runs, so the name doesn't jump. */}
         <ChevronDown
+          data-in-app="hide"
           className={`h-5 w-5 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
