@@ -12,7 +12,7 @@ export default function MainLayout({
       <aside className="hidden lg:flex lg:w-64 lg:flex-shrink-0 lg:flex-col lg:sticky lg:top-0 lg:h-screen lg:border-r lg:border-neutral-200 bg-white">
         <DesktopSidebar />
       </aside>
-      <div className="flex flex-col flex-1 min-w-0 pb-24 lg:pb-0">
+      <div className="flex flex-col flex-1 min-w-0 pb-24 lg:pb-0" data-in-app="no-bottom-pad">
         <InstallBanner />
         {children}
       </div>

@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { isInApp } from "@/lib/inApp";
 
 /**
  * 「加入主畫面」的狀態。iOS 不會自己跳安裝提示，只能靠我們引導。
  *
- * - `installed`   — 已經從主畫面開啟（standalone）
+ * - `installed`   — 已經從主畫面開啟（standalone），或在老師端 iOS App 裡
  * - `ios-browser` — iPhone / iPad 的瀏覽器分頁，可以照步驟加入主畫面
  * - `ios-in-app`  — LINE / FB / IG 內建瀏覽器：沒有「加入主畫面」，要先換 Safari
  * - `other`       — 其他平台，不引導
@@ -23,7 +24,7 @@ export function detectInstallState(env: {
   maxTouchPoints: number;
   standalone: boolean;
 }): InstallState {
-  if (env.standalone) return "installed";
+  if (env.standalone || isInApp(env.userAgent)) return "installed";
   const ua = env.userAgent;
   // iPadOS 13+ 預設回報桌面版 Mac UA，只能靠觸控點判斷
   const isIOS =

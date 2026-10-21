@@ -32,7 +32,7 @@ const ClassroomSwitcher = () => {
   if (!currentClassroom) return null;
 
   return (
-    <div className="relative">
+    <div className="relative" data-in-app="hide">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1.5 text-neutral-900"

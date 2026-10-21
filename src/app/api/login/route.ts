@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAuthSession } from "@/lib/auth";
+import { createAuthSession, generateAppToken } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { joinClassroom } from "@/service/classroom";
@@ -75,6 +75,23 @@ export async function POST(request: Request) {
       (stillAMember ? user.currentClassroomId : null) ??
       user.memberships[0]?.classroomId ??
       undefined;
+
+    // The iOS App gets a bearer token in the body instead of a cookie. Its
+    // token has no classroom of its own — it follows `currentClassroomId`
+    // (see generateAppToken) — so persist the landing classroom there.
+    if (request.headers.get("x-googoocard-client") === "app") {
+      if ((currentClassroomId ?? null) !== user.currentClassroomId) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { currentClassroomId: currentClassroomId ?? null },
+        });
+      }
+      return NextResponse.json({
+        message: "Login successful",
+        user: { id: user.id, email: user.email },
+        token: generateAppToken(user.id),
+      });
+    }
 
     await createAuthSession(user.id, currentClassroomId);
 
