@@ -3,16 +3,19 @@
 import { Check, Loader2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 
-export const PRESET_AVATARS = [
-  "/images/avatar_1.png",
-  "/images/avatar_2.png",
-  "/images/avatar_3.png",
-  "/images/avatar_4.png",
-  "/images/avatar_5.png",
-  "/images/avatar_6.png",
-  "/images/avatar_7.png",
-  "/images/avatar_8.png",
+// 預設頭像：奇異鳥 × 學生在雙人舞裡的身分。圖由 scripts/generate-avatars.mjs 產生。
+const PRESETS = [
+  { url: "/images/avatars/leader.png", label: "Leader" },
+  { url: "/images/avatars/follower.png", label: "Follower" },
+  { url: "/images/avatars/both.png", label: "Both" },
+  { url: "/images/avatars/not-sure.png", label: "Not Sure" },
+  { url: "/images/avatars/staff.png", label: "工作人員" },
 ];
+
+export const PRESET_AVATARS = PRESETS.map((p) => p.url);
+
+/** 新學生還不知道帶還是跟，先用 Not Sure。 */
+export const DEFAULT_AVATAR = "/images/avatars/not-sure.png";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // Cloudinary 免費方案單張上限 10MB
 
@@ -85,30 +88,41 @@ const AvatarPicker = ({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex px-3 gap-3 items-center justify-center flex-wrap">
+      <div className="flex px-3 gap-3 items-start justify-center flex-wrap">
         {/* 自訂上傳的頭像（若有）顯示在最前面 */}
         {isCustom && (
-          <div className={`${tileBase}`}>
-            <img src={value} className="w-full h-full object-cover" />
-            <div className="absolute bg-primary-500 flex items-center justify-center w-6 h-6 right-0 top-0 rounded-full">
-              <Check className="w-3 h-3 text-white" />
-            </div>
-          </div>
-        )}
-
-        {PRESET_AVATARS.map((avatarUrl) => (
-          <div
-            key={avatarUrl}
-            className={`${tileBase} ${value === avatarUrl ? "" : "brightness-75"}`}
-            onClick={() => onChange(avatarUrl)}
-          >
-            <img src={avatarUrl} className="w-full h-full object-cover" />
-            {value === avatarUrl && (
+          <div className="flex flex-col items-center gap-1">
+            <div className={`${tileBase}`}>
+              <img src={value} alt="" className="w-full h-full object-cover" />
               <div className="absolute bg-primary-500 flex items-center justify-center w-6 h-6 right-0 top-0 rounded-full">
                 <Check className="w-3 h-3 text-white" />
               </div>
-            )}
+            </div>
+            <span className="text-[11px] font-semibold text-primary-900">自訂</span>
           </div>
+        )}
+
+        {PRESETS.map(({ url: avatarUrl, label }) => (
+          <button
+            type="button"
+            key={avatarUrl}
+            aria-label={label}
+            aria-pressed={value === avatarUrl}
+            className="flex cursor-pointer flex-col items-center gap-1"
+            onClick={() => onChange(avatarUrl)}
+          >
+            <div className={`${tileBase} ${value === avatarUrl ? "" : "brightness-75"}`}>
+              <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+              {value === avatarUrl && (
+                <div className="absolute bg-primary-500 flex items-center justify-center w-6 h-6 right-0 top-0 rounded-full">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+              )}
+            </div>
+            <span className={`text-[11px] ${value === avatarUrl ? "font-semibold text-primary-900" : "text-neutral-500"}`}>
+              {label}
+            </span>
+          </button>
         ))}
 
         {/* 上傳格子 */}
@@ -116,16 +130,12 @@ const AvatarPicker = ({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="w-16 h-16 rounded-full border-2 border-dashed border-neutral-300 flex flex-col items-center justify-center text-neutral-400 hover:border-primary-400 hover:text-primary-500 transition-colors disabled:opacity-60"
+          className="group flex cursor-pointer flex-col items-center gap-1 disabled:opacity-60"
         >
-          {uploading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <>
-              <Upload className="w-4 h-4" />
-              <span className="text-[10px] mt-0.5">上傳</span>
-            </>
-          )}
+          <span className="w-16 h-16 rounded-full border-2 border-dashed border-neutral-300 flex items-center justify-center text-neutral-400 group-hover:border-primary-400 group-hover:text-primary-500 transition-colors">
+            {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+          </span>
+          <span className="text-[11px] text-neutral-500">上傳照片</span>
         </button>
 
         <input

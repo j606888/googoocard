@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import { useCreateStudentMutation } from "@/store/slices/students";
 import InputField from "@/components/InputField";
-import AvatarPicker, { PRESET_AVATARS } from "@/features/students/AvatarPicker";
+import AvatarPicker, { DEFAULT_AVATAR } from "@/features/students/AvatarPicker";
 
 const validationErrors = {
   name: "請輸入姓名",
@@ -19,7 +19,7 @@ const validateForm = (data: { name: string }) => {
 };
 
 const NewStudent = () => {
-  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(PRESET_AVATARS[0]);
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(DEFAULT_AVATAR);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
@@ -41,7 +41,7 @@ const NewStudent = () => {
       toast.success(`已新增 ${trimmed}`);
       setName("");
       setNote("");
-      setSelectedAvatarUrl(PRESET_AVATARS[0]);
+      setSelectedAvatarUrl(DEFAULT_AVATAR);
       setOpen(false);
     } catch (error) {
       // 後端唯一會擋的是同教室同名（400 "Student already exists"）

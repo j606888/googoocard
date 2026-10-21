@@ -42,7 +42,7 @@ describe("PATCH /api/students/[id] (資格同步)", () => {
   const baseBody = (overrides: Record<string, unknown> = {}) => ({
     name: "Amy",
     note: "",
-    avatarUrl: "/images/avatar_1.png",
+    avatarUrl: "/images/avatars/not-sure.png",
     ...overrides,
   });
 

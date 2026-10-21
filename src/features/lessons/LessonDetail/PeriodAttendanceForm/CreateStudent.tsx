@@ -8,7 +8,7 @@ import {
   useAddStudentTagMutation,
 } from "@/store/slices/students";
 import InputField from "@/components/InputField";
-import AvatarPicker, { PRESET_AVATARS } from "@/features/students/AvatarPicker";
+import AvatarPicker, { DEFAULT_AVATAR } from "@/features/students/AvatarPicker";
 
 const validationErrors = {
   name: "請輸入姓名",
@@ -29,7 +29,7 @@ const CreateStudent = ({
   defaultName: string;
   onCreate: (student: Student) => void;
 }) => {
-  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(PRESET_AVATARS[0]);
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(DEFAULT_AVATAR);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState("");
   const [note, setNote] = useState("");
@@ -76,7 +76,7 @@ const CreateStudent = ({
       setNote("");
       setPendingTags([]);
       setTagInput("");
-      setSelectedAvatarUrl(PRESET_AVATARS[0]);
+      setSelectedAvatarUrl(DEFAULT_AVATAR);
       setIsDrawerOpen(false);
     } catch (error) {
       setErrors({ name: "學生已存在" });

@@ -470,9 +470,11 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 ## 學生頭像（Student Avatars）
 
-`Student.avatarUrl` 只是一個字串，可以是內建預設圖（`/images/avatar_*.png`），也可以是上傳到 Cloudinary 後的 URL——DB schema 不區分兩者。
+`Student.avatarUrl` 只是一個字串，可以是內建預設圖（`/images/avatars/*.png`），也可以是上傳到 Cloudinary 後的 URL——DB schema 不區分兩者。
 
-- **選圖 UI**：`src/features/students/AvatarPicker.tsx`（可重用），由 NewStudent 與 EditStudent 共用。內含 8 張預設 + 一個「上傳」格子，預設清單在同檔的 `PRESET_AVATARS`。
+**預設頭像**（2026-10 起）：奇異鳥 × 學生在雙人舞裡的身分——Leader、Follower、Both、Not Sure、工作人員，新學生預設 Not Sure。圖是自己畫的，由 `scripts/generate-avatars.mjs` 從 `public/kiwi-bird.svg` 產生 PNG，要改圖就改腳本再重跑。原本 8 張預設圖不是自己的，已刪除，還在用的學生由 migration 改成 Not Sure。只是頭像，**不是**學生資料欄位（沒有「這位學生是 Leader」的資料可以篩選）。
+
+- **選圖 UI**：`src/features/students/AvatarPicker.tsx`（可重用），由 NewStudent 與 EditStudent 共用。內含 5 張預設（下面有名稱）+ 一個「上傳」格子，預設清單在同檔的 `PRESET_AVATARS`。
 - **上傳流程**：signed direct upload。前端先 `POST /api/upload-signature`（`decodeAuthToken` 把關，登入才給簽章），拿到簽章後把檔案**直接** POST 到 Cloudinary，避開 Vercel serverless 4.5MB body 限制、也讓 Cloudinary 處理 HEIC。回傳的 `secure_url` 存回 `avatarUrl`。
 - **裁切設定**寫死在 `src/app/api/upload-signature/route.ts`（`c_fill,g_auto,256×256,q_auto`），且**必須與前端送出的 `transformation` 完全一致**，否則簽章驗證失敗。
 - **環境變數**：`CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET`（cloud name 與 api key 會回給前端，api secret 只留伺服器端）。沒設定時上傳會回 500，但預設頭像照常運作。不需要在 Cloudinary 後台建 upload preset。

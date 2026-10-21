@@ -68,7 +68,7 @@ export async function createStudent(
 ) {
   const student = await createStudentWithNumber(classroomId, {
     name,
-    avatarUrl: "/images/avatar_1.png",
+    avatarUrl: "/images/avatars/not-sure.png",
   });
   const rows = [
     ...qualifications.map((danceStyleId) => ({ danceStyleId, level: 1 })),

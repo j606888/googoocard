@@ -74,7 +74,7 @@ describe("學生編號 (每教室從 1 開始)", () => {
 
   it("POST /api/students 回傳內容含 number", async () => {
     const res = await POST(
-      jsonRequest("POST", { name: "Amy", avatarUrl: "/images/avatar_1.png" })
+      jsonRequest("POST", { name: "Amy", avatarUrl: "/images/avatars/not-sure.png" })
     );
     expect(res.status).toBe(200);
     const body = await res.json();
