@@ -16,7 +16,13 @@ interface DayCellProps {
 }
 
 const MAX_DOTS = 3;
+const MAX_CHIPS = 3;
 
+/**
+ * One day of the month grid. Phone: number + dance-style dots (the day's list
+ * sits below the grid). Desktop (`lg:`): a taller cell that lists the sessions
+ * themselves as chips, so the month reads without clicking each day.
+ */
 const DayCell = ({
   day,
   viewMonth,
@@ -29,33 +35,43 @@ const DayCell = ({
   const inMonth = isSameMonth(day, viewMonth);
   const hasDue = periods.some((p) => sessionState(p, now) === "due");
   const dots = periods.slice(0, MAX_DOTS);
-  const extra = periods.length - dots.length;
+  const extraDots = periods.length - dots.length;
+  const chips = periods.slice(0, MAX_CHIPS);
+  const extraChips = periods.length - chips.length;
+
+  const cellTone = selected
+    ? "bg-primary-500 text-white lg:bg-primary-50 lg:text-neutral-800 lg:ring-2 lg:ring-inset lg:ring-primary-400"
+    : isToday
+    ? "bg-primary-50 hover:bg-primary-100 lg:bg-white lg:hover:bg-neutral-50"
+    : "hover:bg-neutral-100 lg:hover:bg-neutral-50";
+
+  const numberTone = isToday
+    ? selected
+      ? "text-white lg:bg-primary-600"
+      : "text-primary-700 font-bold lg:bg-primary-600 lg:text-white"
+    : selected
+    ? "text-white lg:text-neutral-800"
+    : "text-neutral-700";
 
   return (
     <button
       onClick={() => onSelect(day)}
-      className={`relative flex flex-col items-center gap-1 min-h-14 pb-1.5 rounded-lg pt-1.5 transition-colors ${
-        selected
-          ? "bg-primary-500 text-white"
-          : isToday
-          ? "bg-primary-50 hover:bg-primary-100"
-          : "hover:bg-neutral-100"
-      } ${inMonth ? "" : "opacity-40"}`}
+      aria-label={`${format(day, "M 月 d 日")}，${periods.length} 堂課${hasDue ? "，有待點名" : ""}`}
+      aria-pressed={selected}
+      className={`relative flex flex-col items-center gap-1 min-h-14 pb-1.5 rounded-lg pt-1.5 transition-colors lg:items-stretch lg:min-h-28 lg:rounded-none lg:p-2 lg:text-left lg:border-b lg:border-r lg:border-neutral-100 lg:[&:nth-child(7n)]:border-r-0 lg:[&:nth-last-child(-n+7)]:border-b-0 ${cellTone} ${
+        inMonth ? "" : "opacity-40 lg:opacity-100 lg:bg-neutral-50/70 lg:text-neutral-400"
+      }`}
     >
       <span
-        className={`text-xs font-medium leading-none ${
-          selected
-            ? "text-white"
-            : isToday
-            ? "text-primary-700 font-bold"
-            : "text-neutral-700"
+        className={`text-xs font-medium leading-none lg:self-start lg:flex lg:items-center lg:justify-center lg:min-w-6 lg:h-6 lg:px-1.5 lg:rounded-full lg:text-[13px] lg:font-semibold ${numberTone} ${
+          inMonth ? "" : "lg:text-neutral-400"
         }`}
       >
         {format(day, "d")}
       </span>
 
-      {/* Dance-type dots + due marker */}
-      <div className="flex items-center gap-0.5 h-2">
+      {/* Phone: dance-style dots */}
+      <div className="flex items-center gap-0.5 h-2 lg:hidden">
         {dots.map((p) => (
           <span
             key={p.periodId}
@@ -64,25 +80,51 @@ const DayCell = ({
             }`}
           />
         ))}
-        {extra > 0 && (
+        {extraDots > 0 && (
           <span
             className={`text-[9px] leading-none ${
               selected ? "text-white/90" : "text-neutral-400"
             }`}
           >
-            +{extra}
+            +{extraDots}
           </span>
         )}
       </div>
 
       {hasDue && (
         <span
-          className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
-            selected ? "bg-white" : "bg-warning-500"
+          className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ring-[1.5px] lg:hidden ${
+            selected ? "bg-white ring-primary-500" : "bg-warning-500 ring-white"
           }`}
-          aria-label="待點名"
         />
       )}
+
+      {/* Desktop: the sessions themselves */}
+      <div className="hidden lg:flex flex-col gap-1 min-w-0">
+        {chips.map((p) => {
+          const style = danceStyleMeta(p.danceStyle);
+          const state = sessionState(p, now);
+          return (
+            <span
+              key={p.periodId}
+              className={`flex items-center gap-1.5 min-w-0 rounded-md px-1.5 py-0.5 text-[11.5px] leading-snug ${
+                state === "due"
+                  ? "bg-white text-warning-900 ring-[1.5px] ring-inset ring-warning-400"
+                  : `${style.badge} ${state === "taken" ? "opacity-60" : ""}`
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${style.dot}`} />
+              <span className="shrink-0 tabular-nums opacity-80">
+                {format(new Date(p.startTime), "HH:mm")}
+              </span>
+              <span className="truncate font-medium">{p.lessonName}</span>
+            </span>
+          );
+        })}
+        {extraChips > 0 && (
+          <span className="px-1.5 text-[11px] text-neutral-500">+{extraChips} 堂</span>
+        )}
+      </div>
     </button>
   );
 };
