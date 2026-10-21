@@ -4,10 +4,12 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 
 import { signOut, useSession } from '../lib/session';
-import { INJECT_BEFORE_LOAD, USER_AGENT_SUFFIX, isSameSite, pathOf, webSessionSource } from '../lib/web';
+import { INJECT_BEFORE_LOAD, TAB_ROOTS, USER_AGENT_SUFFIX, isSameSite, pathOf, webSessionSource } from '../lib/web';
 import { colors } from '../theme';
 
-export function WebScreen({ path }: { path: string }) {
+// onLeave：推進來的網頁（app/web.tsx）才有。網頁要回到分頁首頁、或按返回已經沒有上一頁時呼叫，
+// 讓 App 關掉這一頁，不會在推進來的畫面裡又開一份列表、也不會疊兩個返回鍵
+export function WebScreen({ path, onLeave }: { path: string; onLeave?: (tabRoot: string | null) => void }) {
   const { token, epoch } = useSession();
   if (!token) return null;
 
@@ -15,6 +17,8 @@ export function WebScreen({ path }: { path: string }) {
     const p = pathOf(nav.url);
     // 在網頁裡按了登出：App 也一起登出，不然會卡在網頁的登入頁
     if (p.startsWith('/login') || p.startsWith('/signup')) void signOut();
+    const pathname = p.split(/[?#]/)[0];
+    if (onLeave && (TAB_ROOTS as readonly string[]).includes(pathname)) onLeave(pathname);
   };
 
   return (
@@ -31,8 +35,12 @@ export function WebScreen({ path }: { path: string }) {
         void Linking.openURL(req.url);
         return false;
       }}
+      onMessage={(e) => {
+        if (e.nativeEvent.data === 'app:back') onLeave?.(null);
+      }}
       pullToRefreshEnabled
-      allowsBackForwardNavigationGestures
+      // 推進來的頁面用 App 的左緣滑動返回，兩個手勢不要打架
+      allowsBackForwardNavigationGestures={!onLeave}
       startInLoadingState
       renderLoading={() => (
         <View style={styles.loading}>
