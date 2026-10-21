@@ -2,31 +2,17 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Check } from "lucide-react";
 import Drawer from "@/components/Drawer";
 import InputField from "@/components/InputField";
 import { Switch } from "@/components/ui/switch";
 import { DANCE_STYLE_COLORS, type DanceStyleColor } from "@/lib/danceStyles";
-import { DANCE_STYLE_PALETTE } from "@/lib/danceStyleColors";
 import { DANCE_LEVELS } from "@/lib/danceLevels";
+import PaletteColorPicker from "./PaletteColorPicker";
 import {
   useCreateDanceStyleMutation,
   useUpdateDanceStyleMutation,
   type DanceStyle,
 } from "@/store/slices/danceStyles";
-
-const COLOR_NAMES: Record<DanceStyleColor, string> = {
-  green: "綠",
-  orange: "橘",
-  slate: "灰藍",
-  stone: "岩灰",
-  purple: "紫",
-  blue: "藍",
-  pink: "粉紅",
-  teal: "青綠",
-  red: "紅",
-  indigo: "靛藍",
-};
 
 const LEVEL_NAMES = DANCE_LEVELS.map((level) => level.label).join("／");
 
@@ -114,28 +100,7 @@ const DanceStyleForm = ({
           }}
         />
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 font-medium">顏色</legend>
-          <div className="grid grid-cols-5 gap-2">
-            {DANCE_STYLE_COLORS.map((key) => {
-              const selected = key === color;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  aria-label={COLOR_NAMES[key]}
-                  aria-pressed={selected}
-                  onClick={() => setColor(key)}
-                  className={`h-11 rounded-lg flex items-center justify-center cursor-pointer ${
-                    DANCE_STYLE_PALETTE[key].bg
-                  } ${selected ? "ring-2 ring-offset-2 ring-neutral-800" : ""}`}
-                >
-                  {selected && <Check className="w-5 h-5 text-white" />}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
+        <PaletteColorPicker value={color} onChange={setColor} />
 
         <div className="flex flex-col gap-1.5">
           <label className="flex items-center gap-2 cursor-pointer">

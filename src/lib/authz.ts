@@ -59,6 +59,26 @@ export async function findDanceStyleInClassroom(
   return prisma.danceStyle.findFirst({ where: { id: danceStyleId, classroomId } });
 }
 
+export async function findTeacherInClassroom(
+  teacherId: number,
+  classroomId: number | null | undefined
+) {
+  if (!classroomId || Number.isNaN(teacherId)) return null;
+  return prisma.teacher.findFirst({ where: { id: teacherId, classroomId } });
+}
+
+/**
+ * Whether every id names a teacher of this classroom — for the lesson writes,
+ * whose `teacherIds` are caller-controlled. Archived teachers count: an old
+ * lesson keeps its archived teacher when it's edited.
+ */
+export async function allTeachersInClassroom(teacherIds: number[], classroomId: number) {
+  const unique = [...new Set(teacherIds)];
+  if (unique.some((id) => !Number.isInteger(id))) return false;
+  const count = await prisma.teacher.count({ where: { id: { in: unique }, classroomId } });
+  return count === unique.length;
+}
+
 /**
  * For writes that point a lesson / card / qualification at a dance style the
  * client chose. Unlike the finders above this answers 400, not 404: the

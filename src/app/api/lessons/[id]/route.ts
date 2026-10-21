@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
 import {
+  allTeachersInClassroom,
   findDanceStyleInClassroom,
   findLessonInClassroom,
   findLessonGroupInClassroom,
 } from "@/lib/authz";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
+import { teacherSummarySelect } from "@/lib/teachers";
 import { DraftLesson } from "@/store/slices/lessons";
 import { toStudentPayload } from "@/service/studentDetail";
 import { cardMatchesLesson } from "@/domains/qualification";
@@ -41,7 +43,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       },
       teachers: {
         include: {
-          teacher: true,
+          teacher: { select: teacherSummarySelect },
         },
       },
       cards: {
@@ -90,6 +92,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
   if (!(await findDanceStyleInClassroom(draftLesson.danceStyleId, classroomId))) {
     return NextResponse.json({ error: "DANCE_STYLE_NOT_FOUND" }, { status: 400 });
+  }
+  // teacherIds are caller-controlled too — another classroom's teacher must not
+  // be attachable (or show up on that teacher's page).
+  if (
+    !Array.isArray(draftLesson.teacherIds) ||
+    !(await allTeachersInClassroom(draftLesson.teacherIds, classroomId))
+  ) {
+    return NextResponse.json({ error: "TEACHER_NOT_FOUND" }, { status: 400 });
   }
 
   if (

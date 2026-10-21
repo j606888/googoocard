@@ -1,29 +1,20 @@
 import { useState } from "react";
-import Drawer from "@/components/Drawer";
-import { useCreateTeacherMutation } from "@/store/slices/teachers";
 import MultiSelect from "@/components/MultiSelect";
+import TeacherForm from "@/features/teachers/TeacherForm";
 import { useGetTeachersQuery } from "@/store/slices/teachers";
 
 const TeacherSelect = ({ selectedTeacherIds, onChange, error }: { selectedTeacherIds: number[], onChange: (value: number[]) => void, error?: string }) => {
   const { data: teachers } = useGetTeachersQuery();
-  const [newTeacherModalOpen, setNewTeacherModalOpen] = useState(false);
-  const [newTeacherName, setNewTeacherName] = useState("");
-  const [createTeacher, { isLoading }] = useCreateTeacherMutation();
+  const [formKey, setFormKey] = useState<number | null>(null);
 
-  const teacherOptions = teachers?.map((teacher) => ({
-    label: teacher.name,
-    value: teacher.id,
-  })) || [];
-
-  const handleCreateTeacher = async () => {
-    const teacher = await createTeacher({ name: newTeacherName, classroomId: 1 });
-
-    if (teacher.data) {
-      onChange([...selectedTeacherIds, teacher.data.id]);
-    }
-    setNewTeacherModalOpen(false);
-    setNewTeacherName("");
-  };
+  // Archived teachers aren't offered for new picks, but a lesson that already
+  // has one keeps showing them.
+  const teacherOptions = teachers
+    ?.filter((teacher) => !teacher.archivedAt || selectedTeacherIds.includes(teacher.id))
+    .map((teacher) => ({
+      label: teacher.name,
+      value: teacher.id,
+    })) || [];
 
   return (
     <div className="flex flex-col gap-1">
@@ -31,33 +22,24 @@ const TeacherSelect = ({ selectedTeacherIds, onChange, error }: { selectedTeache
       <MultiSelect
         options={teacherOptions}
         values={selectedTeacherIds}
-        newOptionLabel="New teacher"
+        newOptionLabel="新增老師"
         placeholder="選擇老師"
         newOptionOnClick={() => {
-          setNewTeacherModalOpen(true);
+          setFormKey(Date.now());
         }}
         onChange={(values) => {
           onChange(values as number[]);
         }}
         error={error}
       />
-       <Drawer
-        title="新增老師"
-        open={newTeacherModalOpen}
-        onClose={() => setNewTeacherModalOpen(false)}
-        onSubmit={handleCreateTeacher}
-        isLoading={isLoading}
-      >
-        <form>
-          <label className="block mb-2 font-medium">姓名</label>
-          <input
-            className="w-full mb-4 p-2 rounded bg-neutral-100 focus:outline-primary-500"
-            placeholder="輸入姓名"
-            value={newTeacherName}
-            onChange={(e) => setNewTeacherName(e.target.value)}
-          />
-        </form>
-      </Drawer>
+      {formKey !== null && (
+        <TeacherForm
+          key={formKey}
+          open
+          onClose={() => setFormKey(null)}
+          onCreated={(teacher) => onChange([...selectedTeacherIds, teacher.id])}
+        />
+      )}
     </div>
   );
 };

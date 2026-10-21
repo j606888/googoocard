@@ -111,6 +111,11 @@ model Membership {
 model Teacher {
   id          Int             @id @default(autoincrement())
   name        String
+  // Palette key (DANCE_STYLE_COLORS, src/lib/danceStyles.ts) for the avatar.
+  color       String          @default("blue")
+  note        String?
+  // Archived, not deleted, once a teacher has lessons — old lessons keep them.
+  archivedAt  DateTime?
   classroomId Int
   classroom   Classroom       @relation(fields: [classroomId], references: [id])
   lessons     LessonTeacher[]

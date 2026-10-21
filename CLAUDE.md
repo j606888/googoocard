@@ -104,7 +104,7 @@ mobile/                   # Teacher iOS App (Expo) — own package.json/tsconfig
 - `LessonPeriod` — a time slot within a Lesson; `attendanceTakenAt` marks when attendance was recorded
 - `AttendanceRecord` — links a student + lessonPeriod + (optionally) a StudentCard; card session is decremented on creation, incremented on removal
 - `LessonStudent` — join table created/upserted when attendance is first taken for a student in a lesson
-- `Teacher` — a named instructor entity within a classroom (not a `User`)
+- `Teacher` — a named instructor entity within a classroom (not a `User`), with a palette-key `color`, `note`, `archivedAt`. Archived, deleted only if it never had a lesson. Stats on `/teachers` count only attendance-taken periods — see "老師頁" in `docs/architecture.md`.
 - `Event` — audit log for student milestones (sign-in, card exhausted); `resourceType`/`resourceId` reference the source record
 - `PushToken` / `WebPushSubscription` / `NotificationPreference` — teacher push (App via Expo, browsers via Web Push). The "待處理" list itself has no table: it's derived live by `src/service/todos.ts` (unpaid cards, Needs Renewal tag, attendance with no card).
 - `Tag` / `StudentTag` — classroom-scoped free-form student tags. The "Needs Renewal" tag is system-maintained by `refreshNeedsRenewalTag()` (`src/service/studentTag.ts`), refreshed on attendance/purchase/expire — don't add/remove it manually.

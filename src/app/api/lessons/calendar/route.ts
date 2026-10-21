@@ -36,6 +36,10 @@ export async function GET(request: Request) {
           danceStyleId: true,
           danceStyle: { select: danceStyleSummarySelect },
           status: true,
+          teachers: {
+            select: { teacher: { select: { name: true } } },
+            orderBy: { id: "asc" },
+          },
         },
       },
       _count: { select: { attendanceRecords: true } },
@@ -54,6 +58,7 @@ export async function GET(request: Request) {
     endTime: period.endTime,
     attendanceTaken: Boolean(period.attendanceTakenAt),
     attendeeCount: period._count.attendanceRecords,
+    teacherNames: period.lesson.teachers.map((t) => t.teacher.name),
   }));
 
   return NextResponse.json(result);

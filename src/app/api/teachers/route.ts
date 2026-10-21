@@ -1,39 +1,47 @@
-import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { decodeAuthToken } from "@/lib/auth";
+import { apiRoute, parseBody } from "@/lib/apiRoute";
+import { createTeacherSchema } from "@/lib/schemas";
+import { firstFreeTeacherColor, teacherPayloadSelect } from "@/lib/teachers";
 
-export async function GET() {
-  const { classroomId } = await decodeAuthToken();
-
+// The plain list, archived included — the lesson teacher picker filters
+// archived ones itself (an old lesson still shows its archived teacher).
+// The teachers page reads /api/teachers/overview instead.
+export const GET = apiRoute(async ({ classroomId }) => {
   const teachers = await prisma.teacher.findMany({
-    where: {
-      classroomId,
+    where: { classroomId },
+    select: {
+      ...teacherPayloadSelect,
+      _count: { select: { lessons: true } },
     },
-    include: {
-      lessons: {
-        include: {
-          lesson: true,
-        },
-      },
-    },
+    orderBy: { id: "asc" },
   });
 
-  const result = teachers.map((teacher) => ({
+  const active = await prisma.lessonTeacher.groupBy({
+    by: ["teacherId"],
+    where: { teacher: { classroomId }, lesson: { status: "inProgress" } },
+    _count: { _all: true },
+  });
+  const activeById = new Map(active.map((row) => [row.teacherId, row._count._all]));
+
+  return teachers.map(({ _count, ...teacher }) => ({
     ...teacher,
-    lessonCount: teacher.lessons.length,
-    activeLessonCount: teacher.lessons.filter((lesson) => lesson.lesson.status === "inProgress").length,
+    lessonCount: _count.lessons,
+    activeLessonCount: activeById.get(teacher.id) ?? 0,
   }));
+});
 
-  return NextResponse.json(result);
-}
+export const POST = apiRoute(async ({ request, classroomId }) => {
+  const { name, color, note } = await parseBody(request, createTeacherSchema);
 
-export async function POST(request: Request) {
-  const { name } = await request.json();
-  const { classroomId } = await decodeAuthToken();
+  const taken = color
+    ? []
+    : await prisma.teacher.findMany({
+        where: { classroomId, archivedAt: null },
+        select: { color: true },
+      });
 
-  const teacher = await prisma.teacher.create({
-    data: { name, classroomId: classroomId! },
+  return prisma.teacher.create({
+    data: { classroomId, name, color: color ?? firstFreeTeacherColor(taken), note: note ?? null },
+    select: teacherPayloadSelect,
   });
-
-  return NextResponse.json(teacher);
-}
+});
