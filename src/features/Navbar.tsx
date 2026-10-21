@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { RiseLoader } from "react-spinners";
 import { useRouter } from "next/navigation";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
+import { Skeleton } from "@/components/ui/skeleton";
 import ClassroomSwitcher from "./nav/ClassroomSwitcher";
 import TodoBell from "./TodoBell";
 
@@ -26,7 +26,12 @@ const Navbar = () => {
   // there for the login / onboarding redirect above.
   if (isLoading) return (
     <div className="lg:hidden w-full h-15 bg-white border-b border-neutral-200 flex items-center px-5 gap-3 sticky top-0 z-10">
-      <RiseLoader color="#2b8e6e" size={8} />
+      {/* Same shape as ClassroomSwitcher: name (text-xl) + chevron. */}
+      <div className="flex items-center gap-1.5">
+        <Skeleton className="h-6 w-32" />
+        <div className="h-5 w-5" />
+      </div>
+      <TodoBell />
     </div>
   )
 
