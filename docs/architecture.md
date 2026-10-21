@@ -396,6 +396,31 @@ build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
 **API**：`GET /api/todos`（apiRoute）、`POST/DELETE /api/push-tokens`（sessionRoute；token 掛在人身上，
 同一支手機換帳號登入會改掛）、`GET/PUT /api/notification-preferences`（apiRoute，目前教室；沒存過 = 開）。
 
+### 老師端 iOS App（`mobile/`）
+
+Expo（SDK 57、Expo Router、EAS），架構照 `../dance-note/mobile`，開發規則見 `mobile/AGENTS.md`。
+分頁：**待處理**（原生，`GET /api/todos`）、課程／學生／收入（WebView 開網站）、**更多**（原生：切換教室、
+網站其他頁、通知開關、登出、刪除帳號）。登入畫面也是原生的；只有 email 登入，不需要 Sign in with Apple。
+
+**登入**：App 不用 cookie，用 bearer token。
+- `POST /api/login` 帶 `X-Googoocard-Client: app` → body 回 `token`（`generateAppToken`，JWT 有 `app: true`、**沒有 classroomId**），不設 cookie。
+- `readAuthSession()` 先讀 `Authorization: Bearer`，只接受 `app: true` 的 JWT（網頁 cookie 的 JWT 拿來當 bearer → 401）。
+- App token 的「目前教室」= `User.currentClassroomId`，每個請求在 `decodeAuthToken()` 讀一次（順便擋已刪除帳號）。
+  所以在 WebView 裡切換教室（會寫這個欄位），App 的原生畫面也跟著切；membership 照樣每次重驗。
+- `POST /api/app/token`：只收 bearer，換一張新 token（App 每次啟動換，一個月內打開過就不會被登出）。
+  只收 bearer 是故意的：網頁上的程式拿著 cookie 不能換到 App token。
+
+**WebView 的登入**：WebView 的第一個請求是 `POST /api/app/web-session?next=/path`（帶 bearer），
+伺服器發一張綁目前教室的網頁 cookie、303 到 `next`（只接受站內路徑）。不用原生同步 cookie。
+App 換教室時重新走一次（`epoch` 當 WebView 的 key）。
+
+**網頁在 App 裡**：WebView 的 user agent 尾巴是 `GoogoocardApp/1.0`（`src/lib/inApp.ts`），並在載入前注入一段 CSS：
+`data-in-app="hide"` 的元素（底部導覽、鈴鐺、切換教室——App 裡都是原生的）藏起來，
+`data-in-app="no-bottom-pad"` 拿掉底部留白。「加到主畫面」引導在 App 裡當作已安裝，不出現。
+網頁裡按登出 → WebView 到 `/login` → App 也登出。
+
+**App 內不能出現價格、方案、升級**（App Store 3.1.3(f)）——WebView 顯示的是整個網站，網站上要賣東西時記得用 `isInApp` 藏起來。
+
 ## 教室生命週期與角色
 
 `Membership.role` 只有兩個值：`"owner"`（建立教室的人）與 `"assistant"`（用邀請連結加入的人）。

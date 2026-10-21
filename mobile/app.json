@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Googoocard",
+    "slug": "googoocard",
+    "version": "1.0",
+    "platforms": [
+      "ios"
+    ],
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FFFFFF",
+    "ios": {
+      "bundleIdentifier": "com.googoocard.app",
+      "appleTeamId": "MU75KPDK26",
+      "supportsTablet": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "backgroundColor": "#55BD95"
+        }
+      ],
+      "expo-notifications",
+      "expo-font"
+    ],
+    "scheme": "googoocard",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4d422512-2122-456a-9b47-33cfd1e307b3"
+      }
+    },
+    "owner": "j606888"
+  }
+}

@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
 import prisma from "@/lib/prisma";
 import { NO_CLASSROOM } from "@/lib/authz";
@@ -20,6 +20,16 @@ export const setAuthCookie = async (token: string) => {
   });
 };
 
+/**
+ * The iOS App's token (`Authorization: Bearer`). Carries no `classroomId`: the
+ * App and its WebView share one "current classroom", so `decodeAuthToken` reads
+ * `User.currentClassroomId` instead — switching classroom inside the WebView
+ * (which updates that column) is then seen by the App's native screens too.
+ */
+export const generateAppToken = (userId: number) => {
+  return jwt.sign({ userId, app: true }, JWT_SECRET, { expiresIn: "30d" });
+};
+
 export const createAuthSession = async (userId: number, classroomId?: number) => {
   const token = generateAuthToken(userId, classroomId);
   await setAuthCookie(token);
@@ -30,6 +40,15 @@ type AuthSession = {
   userId?: number;
   classroomId?: number;
   exp?: number;
+  /** Came from the App's bearer token rather than the web cookie. */
+  app?: boolean;
+};
+
+/** The bearer token, if this request sent one (the iOS App does; browsers don't). */
+export const readBearerToken = async (): Promise<string | undefined> => {
+  const authorization = (await headers()).get("authorization");
+  const match = authorization?.match(/^Bearer (.+)$/);
+  return match?.[1];
 };
 
 /**
@@ -38,20 +57,24 @@ type AuthSession = {
  * re-set the cookie — writing cookies during render throws in Next 15).
  */
 export const readAuthSession = async (): Promise<AuthSession> => {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token")?.value;
+  const bearer = await readBearerToken();
+  const token = bearer ?? (await cookies()).get("auth_token")?.value;
 
   if (!token) {
     return {};
   }
 
   try {
-    const { userId, classroomId, exp } = jwt.verify(token, JWT_SECRET) as {
+    const { userId, classroomId, exp, app } = jwt.verify(token, JWT_SECRET) as {
       userId: number;
       classroomId?: number;
       exp: number;
+      app?: boolean;
     };
-    return { userId, classroomId, exp };
+    // Only an App token may arrive as a bearer: a web cookie's JWT pinned to
+    // a classroom shouldn't be replayable from outside the browser either.
+    if (bearer && !app) return {};
+    return { userId, classroomId, exp, app: bearer ? true : undefined };
   } catch {
     console.error("Error decoding auth token");
     return {};
@@ -77,15 +100,27 @@ export const decodeAuthToken = async (): Promise<{
   classroomId: number;
   role?: string;
 }> => {
-  const { userId, classroomId, exp } = await readAuthSession();
+  const session = await readAuthSession();
+  const { userId, exp } = session;
+  let { classroomId } = session;
 
   if (!userId) {
     return { classroomId: NO_CLASSROOM };
   }
 
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  if (exp! - nowSeconds < TWO_WEEKS_SECONDS) {
-    await createAuthSession(userId, classroomId);
+  if (session.app) {
+    // The App refreshes its own token (POST /api/app/token), so no cookie here.
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { currentClassroomId: true, deletedAt: true },
+    });
+    if (!user || user.deletedAt) return { classroomId: NO_CLASSROOM };
+    classroomId = user.currentClassroomId ?? undefined;
+  } else {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (exp! - nowSeconds < TWO_WEEKS_SECONDS) {
+      await createAuthSession(userId, classroomId);
+    }
   }
 
   if (!classroomId) {

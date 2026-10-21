@@ -14,6 +14,7 @@ vi.mock("next/headers", () => ({
       if (name === "auth_token") jar.token = value;
     },
   }),
+  headers: async () => new Headers(),
 }));
 
 import { generateAuthToken } from "@/lib/auth";

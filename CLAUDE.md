@@ -78,11 +78,12 @@ src/
     ├── danceStyleColors.ts # palette key → static Tailwind classes; danceStyleMeta(style)
     └── lessonDraftStorage.ts  # Local storage draft persistence
 tests/                    # Vitest integration tests (factories, test-DB setup) — unit tests live next to code (*.test.ts)
+mobile/                   # Teacher iOS App (Expo) — own package.json/tsconfig/lint; read mobile/AGENTS.md first
 ```
 
 ### Data Flow
 
-1. **Auth**: Middleware (`src/middleware.ts`) guards all routes except `/`, `/login`, `/signup`, `/invitations`, `/api`, `/public-students`. Token decoded in every API handler via `decodeAuthToken()`, which also re-verifies membership and returns `NO_CLASSROOM` (`-1`, from `src/lib/authz.ts`) when there is none — **never `undefined`**, because Prisma reads `where: { classroomId: undefined }` as "no filter" and would return every classroom's rows. Route wrappers in `src/lib/apiRoute.ts`: `apiRoute` (needs a live membership), `sessionRoute` (login only — for the classroom-management routes), `publicApiRoute` (no auth).
+1. **Auth**: Middleware (`src/middleware.ts`) guards all routes except `/`, `/login`, `/signup`, `/invitations`, `/api`, `/public-students`, `/privacy`, `/terms`. Token decoded in every API handler via `decodeAuthToken()`, which also re-verifies membership and returns `NO_CLASSROOM` (`-1`, from `src/lib/authz.ts`) when there is none — **never `undefined`**, because Prisma reads `where: { classroomId: undefined }` as "no filter" and would return every classroom's rows. The iOS App sends `Authorization: Bearer` instead of the cookie (App-only JWT whose classroom is `User.currentClassroomId` — see "老師端 iOS App" in `docs/architecture.md`). Route wrappers in `src/lib/apiRoute.ts`: `apiRoute` (needs a live membership), `sessionRoute` (login only — for the classroom-management routes), `publicApiRoute` (no auth).
 
 2. **API**: Each resource has REST endpoints under `src/app/api/`. Handlers call Prisma directly or delegate to `src/service/`.
 

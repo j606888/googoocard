@@ -41,6 +41,7 @@ const TodoBell = ({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
+        data-in-app="hide"
         className={`${className} w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer ${
           tone === "onPrimary" ? "hover:bg-white/15" : "hover:bg-neutral-100"
         }`}

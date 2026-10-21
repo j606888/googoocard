@@ -22,6 +22,10 @@ describe("detectInstallState", () => {
     expect(detect(IPHONE_SAFARI, { standalone: true })).toBe("installed");
   });
 
+  it("treats the Googoocard iOS App's WebView as installed", () => {
+    expect(detect(`${IPHONE_SAFARI} GoogoocardApp/1.0`)).toBe("installed");
+  });
+
   it("guides iPhone Safari", () => {
     expect(detect(IPHONE_SAFARI)).toBe("ios-browser");
   });
