@@ -26,18 +26,22 @@ const MonthGrid = ({
   const now = new Date();
 
   return (
-    <div className={loading ? "opacity-60 transition-opacity" : ""}>
-      <div className="grid grid-cols-7 mb-1">
+    <div
+      className={`lg:min-w-0 lg:rounded-2xl lg:border lg:border-neutral-200 lg:overflow-hidden ${
+        loading ? "opacity-60 transition-opacity" : ""
+      }`}
+    >
+      <div className="grid grid-cols-7 mb-1 lg:mb-0 lg:bg-neutral-50 lg:border-b lg:border-neutral-200">
         {WEEKDAYS.map((d) => (
           <div
             key={d}
-            className="text-center text-xs font-medium text-neutral-400 py-1"
+            className="text-center text-xs font-medium text-neutral-400 py-1 lg:text-left lg:px-3 lg:py-2.5 lg:text-neutral-500"
           >
             {d}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-0.5">
+      <div className="grid grid-cols-7 gap-0.5 lg:gap-0">
         {days.map((day) => (
           <DayCell
             key={day.toISOString()}
