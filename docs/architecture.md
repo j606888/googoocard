@@ -25,7 +25,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 │             └── Event（學生事件日誌：簽到、買卡、課卡用完）
 ├── DanceStyle（教室自訂舞種：name / color 色盤 key / hasLevels 分階 / sortOrder / archivedAt）
 ├── Card（課卡種類：價格/堂數；isPracticeCard + danceStyleId 定義複習卡）
-├── Teacher（教室內的老師實體，不是 User）
+├── Teacher（教室內的老師實體，不是 User：name / color 色盤 key / note / archivedAt）
 └── Lesson（danceStyleId + level 初/中/進階 + kind fixed/ongoing + status inProgress/finished）
     ├── LessonCard（此課程接受哪些課卡）
     ├── LessonTeacher
@@ -52,6 +52,19 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - 回應裡的舞種一律是 `DanceStyleSummary = { id, name, color, hasLevels }`，用 `danceStyleSummarySelect`（`src/lib/danceStyles.ts`）select，不要 `danceStyle: true`。
 - 顏色：`color` 存色盤 key（`DANCE_STYLE_COLORS`），對應的 Tailwind class 寫死在 `src/lib/danceStyleColors.ts`（`danceStyleMeta(style)`），因為 Tailwind 只認得靜態 class。
 - 前端：老師端用 `useDanceStyles()`（`styles` = 未封存、`byId` = 全部）；LIFF、QR 看板、公開學生頁讀 API 回應裡附帶的 `danceStyle`（它們沒有老師 session）。
+
+## 老師頁（2026-10）
+
+`/teachers` 是總覽（`GET /api/teachers/overview?month=`）、`/teachers/[id]` 是詳情（`GET /api/teachers/[id]?month=`），
+彙總都在 `src/service/teachers.ts`，純計算在 `src/lib/teacherStats.ts`（有單元測試）。`GET /api/teachers` 維持輕量清單給開課的老師選單用。
+
+- **只算已點名的時段**（`attendanceTakenAt` 有值）——跟收入頁同一條規則。學生自助簽到在老師定案前不算；時段結束了還沒點名的算「待點名」。月份以台北時間切。
+- 一堂課有兩位老師時，**兩位都各算一堂**；總覽最上面的教室合計（`totals`）則是一個時段只算一次。
+- 老師「教的舞種」**從老師教過的課推導**，不存資料表——不用維護，也不會跟實際排課不一致。
+- 代表色沿用舞種的色盤 key（`DANCE_STYLE_COLORS`），新老師預設取第一個沒被在職老師用掉的顏色（`firstFreeTeacherColor`）。
+- **刪除只限沒教過課的老師**（409 `TEACHER_HAS_LESSONS`），其他一律封存。封存的老師不出現在開課選單，但已經掛著這位老師的課照常顯示。
+- 開課 / 改課的 `teacherIds` 會驗證都是本教室的老師（400 `TEACHER_NOT_FOUND`），封存的也算數。
+- 數字會被別處的點名改變，而點名的 mutation 不會 invalidate `Teacher` tag，所以兩頁的 query 都用 `refetchOnMountOrArgChange`。
 
 ## 複習卡資格系統
 

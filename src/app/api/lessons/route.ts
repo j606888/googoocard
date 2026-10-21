@@ -6,7 +6,12 @@ import { refreshLesson, summarizeLessonPeriods } from "@/service/lesson";
 import { cardMatchesLesson } from "@/domains/qualification";
 import { DEFAULT_DANCE_LEVEL, isValidDanceLevel } from "@/lib/danceLevels";
 import { DEFAULT_LESSON_KIND, isValidLessonKind } from "@/lib/lessonKind";
-import { findDanceStyleInClassroom, findLessonGroupInClassroom } from "@/lib/authz";
+import {
+  allTeachersInClassroom,
+  findDanceStyleInClassroom,
+  findLessonGroupInClassroom,
+} from "@/lib/authz";
+import { teacherSummarySelect } from "@/lib/teachers";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
 import { Prisma } from "@prisma/client";
 
@@ -64,7 +69,7 @@ export async function GET(request: Request) {
     include: {
       danceStyle: { select: danceStyleSummarySelect },
       periods: true,
-      teachers: { include: { teacher: { select: { id: true, name: true } } } },
+      teachers: { include: { teacher: { select: teacherSummarySelect } } },
       cards: { select: { cardId: true } },
       _count: { select: { students: true } },
     },
@@ -188,6 +193,14 @@ export async function POST(request: Request) {
   }
   if (!(await findDanceStyleInClassroom(draftLesson.danceStyleId, classroomId))) {
     return NextResponse.json({ error: "DANCE_STYLE_NOT_FOUND" }, { status: 400 });
+  }
+  // teacherIds are caller-controlled too — another classroom's teacher must not
+  // be attachable (or show up on that teacher's page).
+  if (
+    !Array.isArray(draftLesson.teacherIds) ||
+    !(await allTeachersInClassroom(draftLesson.teacherIds, classroomId))
+  ) {
+    return NextResponse.json({ error: "TEACHER_NOT_FOUND" }, { status: 400 });
   }
 
   if (

@@ -121,6 +121,38 @@ export const updateDanceStyleSchema = z.object({
   archived: z.boolean().optional(),
 });
 
+// ── 老師 ────────────────────────────────────────────────────────────────────
+
+const teacherName = z.string().trim().min(1, "請輸入老師名字").max(30);
+/** Blank clears the note. */
+const teacherNote = z
+  .string()
+  .trim()
+  .max(500)
+  .transform((note) => note || null);
+
+export const createTeacherSchema = z.object({
+  name: teacherName,
+  /** Omitted: the first palette colour no active teacher uses. */
+  color: danceStyleColor.optional(),
+  note: teacherNote.nullish(),
+});
+
+export const updateTeacherSchema = z.object({
+  name: teacherName.optional(),
+  color: danceStyleColor.optional(),
+  note: teacherNote.nullish(),
+  archived: z.boolean().optional(),
+});
+
+/** `?month=YYYY-MM` on the teacher stats routes; omitted = this Taipei month. */
+export const teacherMonthQuerySchema = z.object({
+  month: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+    .optional(),
+});
+
 // ── App 推播 ────────────────────────────────────────────────────────────────
 
 export const pushTokenSchema = z.object({

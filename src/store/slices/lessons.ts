@@ -1,7 +1,7 @@
 import { Student } from "./students";
 import { api } from "../api";
 import { Card } from "./cards";
-import { Teacher } from "./teachers";
+import type { TeacherSummary } from "./teachers";
 import type { DanceStyleSummary } from "@/lib/danceStyles";
 import type { CardStatus } from "@/domains/attendance/rosterInsights";
 import type { DanceLevels } from "@/domains/qualification";
@@ -14,7 +14,7 @@ export interface Lesson {
   updatedAt: string;
   students: Student[];
   periods: Period[];
-  teachers: Teacher[];
+  teachers: TeacherSummary[];
   danceStyleId: number;
   danceStyle: DanceStyleSummary;
   /** 1 = 初階, 2 = 中階, 3 = 進階 — see src/lib/danceLevels.ts. */
@@ -48,7 +48,7 @@ export interface LessonSummary {
   kind: LessonKind;
   endedAt: string | null;
   studentCount: number;
-  teachers: { id: number; name: string }[];
+  teachers: TeacherSummary[];
   cardIds: number[];
   groupId: number | null;
   totalPeriods: number;
@@ -82,6 +82,7 @@ export interface CalendarPeriod {
   endTime: string;
   attendanceTaken: boolean;
   attendeeCount: number;
+  teacherNames: string[];
 }
 
 export interface GetLessonsArgs {
