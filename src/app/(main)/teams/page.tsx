@@ -8,10 +8,12 @@ const TeamsPage = () => {
   return (
     <>
       <Navbar />
-      <div className="px-4 pt-4">
-        <LineBindButton />
+      <div className="w-full max-w-[720px]">
+        <div className="px-5 pt-4 lg:px-8 lg:pt-6">
+          <LineBindButton />
+        </div>
+        <TeamList />
       </div>
-      <TeamList />
     </>
   );
 };

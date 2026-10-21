@@ -48,7 +48,7 @@ const CheckinQr = () => {
 
   if (isLoading) {
     return (
-      <div className="mx-auto flex w-full max-w-[480px] flex-col gap-5 px-5 py-6">
+      <div className="mx-auto flex w-full max-w-[480px] flex-col gap-5 px-5 py-6 lg:mx-0 lg:px-8 print:mx-auto">
         <PageHeader />
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-neutral-200 p-6">
           <Skeleton className="h-7 w-32" />
@@ -74,7 +74,7 @@ const CheckinQr = () => {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[480px] flex-col gap-5 px-5 py-6">
+    <div className="mx-auto flex w-full max-w-[480px] flex-col gap-5 px-5 py-6 lg:mx-0 lg:px-8 print:mx-auto">
       <style>{`
         @media print {
           body * { visibility: hidden; }

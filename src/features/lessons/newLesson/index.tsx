@@ -175,7 +175,7 @@ const NewLesson = () => {
     <>
       {isExpanded ? (
         /* 桌面：頁內 header */
-        <div className="flex items-center gap-3 px-8 pt-6 pb-2">
+        <div className="flex w-full max-w-[1120px] items-center gap-3 px-8 pt-6 pb-2">
           <Link href="/lessons" className="text-neutral-400 hover:text-neutral-600 transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
@@ -187,6 +187,7 @@ const NewLesson = () => {
 
       <StepFlow
         columns="3fr 2fr"
+        className="max-w-[1120px]"
         submit={submitButton}
         steps={[
           {

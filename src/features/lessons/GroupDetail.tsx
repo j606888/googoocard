@@ -35,7 +35,7 @@ const GroupDetail = () => {
       <SubNavbar title={title} backUrl="/lessons" className="lg:hidden" />
 
       {/* Desktop: inline page header, matching NewLesson's lightweight treatment */}
-      <div className="hidden lg:flex items-center gap-3 px-8 pt-6 pb-2">
+      <div className="hidden lg:flex w-full max-w-[1120px] items-center gap-3 px-8 pt-6 pb-2">
         <Link href="/lessons" className="text-neutral-400 hover:text-neutral-600 transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
@@ -45,7 +45,7 @@ const GroupDetail = () => {
       {isLoading ? (
         <ListSkeleton />
       ) : (
-        <div className="px-5 py-3 lg:px-8 lg:py-6 flex flex-col gap-4">
+        <div className="w-full max-w-[1120px] px-5 py-3 lg:px-8 lg:py-6 flex flex-col gap-4">
           <div className="flex flex-wrap gap-2">
             <div className="flex items-center gap-1.5 bg-white border border-neutral-200 rounded-full px-3 py-1.5 text-xs text-neutral-600">
               <BookOpenText className="w-3.5 h-3.5" />

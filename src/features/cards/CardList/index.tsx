@@ -59,7 +59,7 @@ const CardList = () => {
   const showGroupHeadings = typeFilter === "all";
 
   return (
-    <div className="px-5 py-3 lg:px-8 lg:py-6">
+    <div className="w-full max-w-[1120px] px-5 py-3 lg:px-8 lg:py-6">
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex flex-col gap-1.5">
           <h2 className="text-2xl font-semibold">課卡</h2>

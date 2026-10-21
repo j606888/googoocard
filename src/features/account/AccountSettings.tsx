@@ -31,7 +31,7 @@ const AccountSettings = () => {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 py-4">
+    <div className="flex w-full max-w-[720px] flex-col gap-6 px-5 py-4 lg:px-8 lg:py-6">
       <h2 className="text-2xl font-semibold">帳號</h2>
 
       <section className="rounded-xl border border-neutral-200 bg-white p-4">

@@ -44,7 +44,7 @@ const TeacherList = () => {
 
   return (
     <>
-      <div className="w-full max-w-6xl px-5 py-4 lg:px-8 lg:py-8 flex flex-col gap-5">
+      <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-8 flex flex-col gap-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex flex-col gap-1">
             <h2 className="text-2xl font-semibold">老師</h2>

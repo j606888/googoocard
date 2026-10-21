@@ -108,7 +108,7 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
 
   return (
     <>
-      <div className="w-full max-w-6xl px-5 py-4 lg:px-8 lg:py-8 flex flex-col gap-5">
+      <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-8 flex flex-col gap-5">
         <Link
           href="/teachers"
           className="self-start -ml-1 flex items-center gap-0.5 text-sm text-neutral-500 hover:text-neutral-800"
