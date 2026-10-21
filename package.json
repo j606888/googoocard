@@ -36,6 +36,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "jose": "^6.2.13",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.514.0",
     "motion": "^12.18.1",

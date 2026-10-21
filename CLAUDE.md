@@ -27,6 +27,8 @@ For the renewal-reminder cron route (⚠️ built but **not scheduled yet** — 
 
 For teacher push (see "待處理與老師端 App 推播" in `docs/architecture.md`) — sent for **every** classroom, to whoever turned notifications on (no classroom allowlist): optionally `EXPO_ACCESS_TOKEN`. Web push needs a VAPID pair, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (`npx web-push generate-vapid-keys`; local and production use **different** pairs — changing production's pair silently orphans every browser subscription).
 
+For Google／Apple sign-in (web + App, `POST /api/auth/oauth`, `src/lib/oauth.ts`): `GOOGLE_CLIENT_IDS` / `APPLE_CLIENT_IDS` (comma-separated accepted ID-token audiences — web + iOS client for Google, `com.googoocard.app` + Services ID `com.googoocard.web` for Apple) and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` / `NEXT_PUBLIC_APPLE_SERVICE_ID` (the web buttons; a provider whose var is unset shows no button). All are public IDs, not secrets. Google Cloud project `googoocard`; Apple web sign-in only works on `https://googoocard.vercel.app` (its registered return URL is `/login`). Accounts created this way have `password: "!"` (no password).
+
 **Env layout is fail-safe — local is the default, production is opt-in:**
 - `.env` — local only (docker Postgres on `:54330`). Never put production credentials here.
 - `.env.production` — production RDS `DATABASE_URL` (gitignored); used **only** by `npm run db:deploy`.

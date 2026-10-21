@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useLoginMutation } from "@/store/slices/me";
 import AuthScaffold from "../AuthScaffold";
+import SocialLogin from "../SocialLogin";
 
 const HERO_TITLE = (
   <>
@@ -50,6 +51,9 @@ function LoginForm() {
       if (code === "EMAIL_NOT_FOUND") {
         setError("This email is not registered");
         setErrorField("email");
+      } else if (code === "SOCIAL_ONLY") {
+        setError("這個帳號是用 Google 或 Apple 註冊的，請用下方按鈕登入");
+        setErrorField("password");
       } else if (code === "INVALID_PASSWORD") {
         setError("Incorrect password");
         setErrorField("password");
@@ -139,6 +143,7 @@ function LoginForm() {
         >
           登入
         </button>
+        <SocialLogin inviteToken={token} redirect={redirect} />
         <p className="text-sm text-neutral-500 text-center mt-3">
           還沒有帳號嗎？{" "}
           <Link href="/signup" className="text-primary-500 underline">

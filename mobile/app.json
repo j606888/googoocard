@@ -16,7 +16,8 @@
       "supportsTablet": false,
       "config": {
         "usesNonExemptEncryption": false
-      }
+      },
+      "usesAppleSignIn": true
     },
     "plugins": [
       "expo-router",
@@ -31,7 +32,14 @@
         }
       ],
       "expo-notifications",
-      "expo-font"
+      "expo-font",
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.29973208530-efa918o4ilaqbtbvgkj7a54hiahpv4se"
+        }
+      ]
     ],
     "scheme": "googoocard",
     "extra": {
