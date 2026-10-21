@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import {
@@ -26,6 +26,13 @@ const TodoBell = ({
 }) => {
   const [open, setOpen] = useState(false);
   const { data: todos } = useGetTodosQuery(undefined, { refetchOnFocus: true });
+
+  // 加到主畫面的網站：圖示上的數字跟著待處理總數（推播來時 public/sw.js 也會設）。
+  const total = todos?.total;
+  useEffect(() => {
+    if (total === undefined || !("setAppBadge" in navigator)) return;
+    navigator.setAppBadge(total).catch(() => {});
+  }, [total]);
 
   if (!todos || todos.total === 0) return null;
 

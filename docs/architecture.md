@@ -377,8 +377,14 @@ build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
 老師自己在後台建未付款卡、點名時沒卡，**不推**（人就在現場），但一樣會出現在待處理。
 
 **推播**：`src/service/push.ts` 的 `notifyClassroom()` → 教室所有 membership（owner + 助教）
-扣掉 `NotificationPreference` 關掉該類的人 → 他們的 `PushToken` → `src/lib/expoPush.ts` 發給
-Expo Push Service（iOS 轉 APNs，日後 Android 轉 FCM）。
+扣掉 `NotificationPreference` 關掉該類的人 → 兩個管道同時發、各自吞錯：
+- **App**：他們的 `PushToken` → `src/lib/expoPush.ts` → Expo Push Service（iOS 轉 APNs，日後 Android 轉 FCM）。
+- **網頁**：他們的 `WebPushSubscription` → `src/lib/webPush.ts`（`web-push` 套件，標準 VAPID，瀏覽器自己的推播服務送達，
+  不用第三方帳號）。404/410 的訂閱刪掉。沒設 `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` 就不發。
+  - 瀏覽器端：`/account` 的「這個裝置」開關（`src/hooks/useWebPush.ts`）註冊 `public/sw.js`、訂閱、`POST /api/web-push-subscriptions`；
+    登出時 `disableWebPushOnLogout()` 退訂。**iPhone 要先加到主畫面（iOS 16.4+）才收得到**，瀏覽器分頁會顯示提示。
+  - 點通知 → `/notification?classroomId=&next=`（`src/app/notification/page.tsx`）先切教室再整頁跳過去。
+  - 主畫面圖示數字：推播時 sw.js 設、`TodoBell` 載入時也設（Badging API）。
 - **永遠不 throw**，一律在交易 commit 之後呼叫——推播失敗不能讓學生買卡／簽到失敗。
 - **教室白名單 `PUSH_CLASSROOM_IDS`**（逗號分隔），**未設定 = 一間都不發**，跟續卡提醒同一套 fail-closed；
   本機與測試永遠打不到 Expo。封存教室自己擋。

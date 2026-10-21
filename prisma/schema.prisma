@@ -57,6 +57,7 @@ model User {
   // 其他裝置上還沒過期的 JWT 也就跟著失效（見 DELETE /api/me）。
   deletedAt               DateTime?
   pushTokens              PushToken[]
+  webPushSubscriptions    WebPushSubscription[]
   notificationPreferences NotificationPreference[]
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
@@ -463,6 +464,22 @@ model PushToken {
   platform  String // "ios" | "android"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt // App 每次啟動都會重新註冊，等於「最後一次看到」
+
+  @@index([userId])
+}
+
+// 瀏覽器的 Web Push 訂閱（網頁版推播；App 走上面的 PushToken）。一個瀏覽器一列，
+// endpoint 是瀏覽器推播服務給的網址，p256dh/auth 是加密用的金鑰，見 src/lib/webPush.ts。
+model WebPushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }

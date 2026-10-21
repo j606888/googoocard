@@ -132,6 +132,16 @@ export const deletePushTokenSchema = z.object({
   token: z.string().min(1),
 });
 
+// 瀏覽器 PushSubscription.toJSON() 的形狀。
+export const webPushSubscriptionSchema = z.object({
+  endpoint: z.url().startsWith("https://"),
+  keys: z.object({ p256dh: z.string().min(1), auth: z.string().min(1) }),
+});
+
+export const deleteWebPushSubscriptionSchema = z.object({
+  endpoint: z.string().min(1),
+});
+
 export const notificationPreferenceSchema = z.object({
   type: z.enum(TodoType),
   enabled: z.boolean(),

@@ -1,10 +1,11 @@
 import type { TodoType } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { sendExpoPush } from "@/lib/expoPush";
+import { sendWebPush, webPushConfigured } from "@/lib/webPush";
 import { countTodos } from "@/service/todos";
 
 /**
- * 哪些教室會真的發出 App 推播——opt-in 白名單，逗號分隔的教室 id。
+ * 哪些教室會真的發出推播（App 與網頁）——opt-in 白名單，逗號分隔的教室 id。
  *
  * **未設定 = 一間都不發**（fail-closed），跟續卡提醒的
  * `RENEWAL_REMINDER_CLASSROOM_IDS` 同一個設計：本機與測試永遠不會打到 Expo，
@@ -21,7 +22,7 @@ export type TodoPush = {
   type: TodoType;
   title: string;
   body: string;
-  /** App 點開通知後在 WebView 裡開的站內路徑。 */
+  /** 點開通知後開的站內路徑（App 在 WebView 裡開，網頁由 service worker 開）。 */
   path: string;
 };
 
@@ -50,37 +51,72 @@ export async function notifyClassroom(classroomId: number, push: TodoPush): Prom
     const userIds = members.map((m) => m.userId).filter((id) => !optedOutIds.has(id));
     if (userIds.length === 0) return;
 
-    const tokens = await prisma.pushToken.findMany({
-      where: { userId: { in: userIds } },
-      select: { id: true, token: true },
-    });
-    if (tokens.length === 0) return;
-
-    // App 圖示數字 = 這間教室的待處理總數。屬於多間教室的人只會看到觸發這次推播的
-    // 那一間，App 打開後會用自己目前的教室重新算。
+    // 圖示數字 = 這間教室的待處理總數。屬於多間教室的人只會看到觸發這次推播的
+    // 那一間，打開後會用自己目前的教室重新算。
     const badge = await countTodos(classroomId);
-    const tickets = await sendExpoPush(
-      tokens.map((t) => ({
-        to: t.token,
-        title: push.title,
-        body: push.body,
-        badge,
-        sound: "default" as const,
-        data: { classroomId, type: push.type, path: push.path },
-      }))
-    );
 
-    // App 被刪掉或關掉通知後，Expo 會回 DeviceNotRegistered——這種 token 不會再好了。
-    const deadIds = tokens
-      .filter((_, i) => {
-        const ticket = tickets[i];
-        return ticket?.status === "error" && ticket.details?.error === "DeviceNotRegistered";
-      })
-      .map((t) => t.id);
-    if (deadIds.length > 0) {
-      await prisma.pushToken.deleteMany({ where: { id: { in: deadIds } } });
-    }
+    // 兩個管道各自吞錯，一邊壞了不影響另一邊。
+    await Promise.all([
+      sendToApps(userIds, classroomId, push, badge).catch((error) =>
+        console.error("[push] app push failed", error)
+      ),
+      sendToBrowsers(userIds, classroomId, push, badge).catch((error) =>
+        console.error("[push] web push failed", error)
+      ),
+    ]);
   } catch (error) {
     console.error("[push] notifyClassroom failed", error);
+  }
+}
+
+async function sendToApps(userIds: number[], classroomId: number, push: TodoPush, badge: number) {
+  const tokens = await prisma.pushToken.findMany({
+    where: { userId: { in: userIds } },
+    select: { id: true, token: true },
+  });
+  if (tokens.length === 0) return;
+
+  const tickets = await sendExpoPush(
+    tokens.map((t) => ({
+      to: t.token,
+      title: push.title,
+      body: push.body,
+      badge,
+      sound: "default" as const,
+      data: { classroomId, type: push.type, path: push.path },
+    }))
+  );
+
+  // App 被刪掉或關掉通知後，Expo 會回 DeviceNotRegistered——這種 token 不會再好了。
+  const deadIds = tokens
+    .filter((_, i) => {
+      const ticket = tickets[i];
+      return ticket?.status === "error" && ticket.details?.error === "DeviceNotRegistered";
+    })
+    .map((t) => t.id);
+  if (deadIds.length > 0) {
+    await prisma.pushToken.deleteMany({ where: { id: { in: deadIds } } });
+  }
+}
+
+async function sendToBrowsers(userIds: number[], classroomId: number, push: TodoPush, badge: number) {
+  if (!webPushConfigured()) return;
+  const subscriptions = await prisma.webPushSubscription.findMany({
+    where: { userId: { in: userIds } },
+    select: { id: true, endpoint: true, p256dh: true, auth: true },
+  });
+  if (subscriptions.length === 0) return;
+
+  // 先切到通知所屬的教室再開頁面（src/app/notification/page.tsx）。
+  const url = `/notification?classroomId=${classroomId}&next=${encodeURIComponent(push.path)}`;
+  const results = await Promise.all(
+    subscriptions.map((sub) =>
+      sendWebPush(sub, { title: push.title, body: push.body, url, badge, tag: `${push.type}:${push.path}` })
+    )
+  );
+
+  const goneIds = subscriptions.filter((_, i) => results[i] === "gone").map((s) => s.id);
+  if (goneIds.length > 0) {
+    await prisma.webPushSubscription.deleteMany({ where: { id: { in: goneIds } } });
   }
 }

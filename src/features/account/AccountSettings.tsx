@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, BellRing } from "lucide-react";
 import Drawer from "@/components/Drawer";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -11,6 +11,7 @@ import {
   useUpdateNotificationPreferenceMutation,
 } from "@/store/slices/me";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
+import { useWebPush } from "@/hooks/useWebPush";
 
 const NOTIFICATION_TYPES: { type: TodoType; label: string; hint: string }[] = [
   { type: "UNPAID_CARD", label: "待確認收款", hint: "學生在 LINE 自助購買課卡時" },
@@ -63,8 +64,9 @@ const NotificationSettings = ({ classroomName }: { classroomName?: string }) => 
       <h3 className="font-semibold">通知</h3>
       <p className="mt-1 text-sm text-neutral-500">
         {classroomName ? `「${classroomName}」` : "這間教室"}
-        有事情需要處理時，推播到已安裝 App 的手機。每間教室分開設定。
+        有事情需要處理時，推播到你開啟通知的裝置。每間教室分開設定。
       </p>
+      <ThisDevice />
       <ul className="mt-3 divide-y divide-neutral-100">
         {NOTIFICATION_TYPES.map(({ type, label, hint }) => (
           <li key={type} className="flex items-center justify-between gap-4 py-3">
@@ -82,6 +84,45 @@ const NotificationSettings = ({ classroomName }: { classroomName?: string }) => 
         ))}
       </ul>
     </section>
+  );
+};
+
+// 這個瀏覽器收不收得到。App 裡用原生的推播，這塊藏起來（data-in-app）。
+const ThisDevice = () => {
+  const { status, busy, enable, disable } = useWebPush();
+  if (status === "loading" || status === "unsupported") return null;
+
+  return (
+    <div
+      data-in-app="hide"
+      className="mt-3 flex items-center gap-3 rounded-lg bg-primary-50 px-3 py-2.5 text-sm"
+    >
+      <BellRing className="h-4 w-4 shrink-0 text-primary-700" />
+      <div className="flex-1 text-primary-900">
+        {status === "on" && "這個裝置會收到通知"}
+        {status === "off" && "這個裝置還沒開啟通知"}
+        {status === "denied" && "通知被瀏覽器封鎖了，請到瀏覽器的網站設定打開"}
+        {status === "needs-install" && "iPhone 要先把 Googoocard 加到主畫面，從主畫面打開後才能開啟通知"}
+      </div>
+      {status === "off" && (
+        <button
+          onClick={enable}
+          disabled={busy}
+          className="shrink-0 cursor-pointer rounded-md bg-primary-700 px-3 py-1.5 font-semibold text-white disabled:opacity-50"
+        >
+          開啟
+        </button>
+      )}
+      {status === "on" && (
+        <button
+          onClick={disable}
+          disabled={busy}
+          className="shrink-0 cursor-pointer rounded-md border border-primary-200 px-3 py-1.5 font-medium text-primary-900 disabled:opacity-50"
+        >
+          關閉
+        </button>
+      )}
+    </div>
   );
 };
 

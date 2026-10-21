@@ -54,6 +54,7 @@ export const DELETE = sessionRoute(async ({ userId }) => {
   await prisma.$transaction([
     prisma.membership.deleteMany({ where: { userId } }),
     prisma.pushToken.deleteMany({ where: { userId } }),
+    prisma.webPushSubscription.deleteMany({ where: { userId } }),
     prisma.notificationPreference.deleteMany({ where: { userId } }),
     prisma.user.update({
       where: { id: userId },

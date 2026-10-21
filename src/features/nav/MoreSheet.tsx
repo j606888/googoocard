@@ -7,6 +7,7 @@ import { useState } from "react";
 import { LogOut, Smartphone } from "lucide-react";
 import { SECONDARY_LINKS } from "./navConfig";
 import { useLogoutMutation } from "@/store/slices/me";
+import { disableWebPushOnLogout } from "@/hooks/useWebPush";
 import { useInstallState } from "@/hooks/useInstallState";
 import InstallGuideDialog from "@/features/installGuide/InstallGuideDialog";
 
@@ -23,6 +24,7 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
   const [installGuideOpen, setInstallGuideOpen] = useState(false);
 
   const handleLogout = async () => {
+    await disableWebPushOnLogout();
     await logout();
     onClose();
     router.push("/login");

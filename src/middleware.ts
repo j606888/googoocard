@@ -15,6 +15,7 @@ export function middleware(req: NextRequest) {
     pathname.startsWith('/images') ||
     pathname.startsWith('/icons/') ||
     pathname === '/manifest.webmanifest' ||
+    pathname === '/sw.js' ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/public-students') ||
     pathname === '/privacy' ||

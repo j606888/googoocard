@@ -9,6 +9,7 @@ import {
   useSwitchClassroomMutation,
 } from "@/store/slices/classrooms";
 import { useLogoutMutation } from "@/store/slices/me";
+import { disableWebPushOnLogout } from "@/hooks/useWebPush";
 import { useGetStudentsQuery } from "@/store/slices/students";
 import Menu from "@/components/Menu";
 import { LINKS } from "./nav/navConfig";
@@ -37,6 +38,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
   );
 
   const handleLogout = async () => {
+    await disableWebPushOnLogout();
     await logout();
     router.push("/login");
   };
