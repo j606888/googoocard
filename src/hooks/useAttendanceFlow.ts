@@ -26,8 +26,8 @@ export const useAttendanceFlow = ({
   periodId: number;
   defaultSelectedIds?: number[];
 }) => {
-  const { data: students } = useGetStudentsQuery();
-  const { data: lesson } = useGetLessonQuery(lessonId);
+  const { data: students, isLoading: isStudentsLoading } = useGetStudentsQuery();
+  const { data: lesson, isLoading: isLessonLoading } = useGetLessonQuery(lessonId);
 
   const [selectedIds, setSelectedIds] = useState<number[]>(defaultSelectedIds);
   const [keyword, setKeyword] = useState("");
@@ -60,6 +60,8 @@ export const useAttendanceFlow = ({
   return {
     /** 這次要點名的時段；undefined 代表 lesson 還沒載入或時段不屬於這堂課。 */
     period,
+    /** 名單或課程還在第一次載入——外殼用來顯示骨架，免得名單先空白再跳出來。 */
+    isLoading: isStudentsLoading || isLessonLoading,
     /** 已在課程名冊上的學生 id。 */
     attendStudentIds,
     /** 目前勾選的學生（維持 students 的原始順序）。 */

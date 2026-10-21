@@ -9,14 +9,18 @@ import { useGetUnpaidStudentCardsQuery } from "@/store/slices/students";
 
 const IncomePage = () => {
   const [unpaidOpen, setUnpaidOpen] = useState(false);
-  const { data: unpaidCards } = useGetUnpaidStudentCardsQuery();
+  const { data: unpaidCards, isLoading: unpaidLoading } = useGetUnpaidStudentCardsQuery();
   const unpaidCount = unpaidCards?.length ?? 0;
 
   return (
     <>
       <Navbar />
       <div className="px-5 py-3 lg:px-8 lg:py-6 w-full max-w-[1240px] mx-auto">
-        <IncomeCalendar unpaidCount={unpaidCount} onOpenUnpaid={() => setUnpaidOpen(true)} />
+        <IncomeCalendar
+          unpaidCount={unpaidCount}
+          unpaidLoading={unpaidLoading}
+          onOpenUnpaid={() => setUnpaidOpen(true)}
+        />
       </div>
 
       <Drawer

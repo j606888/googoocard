@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Check, Clock, PencilLine } from "lucide-react";
 import SubNavbar from "@/features/SubNavbar";
-import { PulseLoader } from "react-spinners";
+import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import {
   useGetAttendanceQuery,
@@ -31,7 +31,8 @@ const CheckPeriodSuccess = () => {
     periodId: Number(periodId),
   });
   const { data: lesson } = useGetLessonQuery(id as string);
-  const { data: rosterStudents } = useGetLessonStudentsQuery({ id: Number(id) });
+  const { data: rosterStudents, isLoading: isRosterLoading } =
+    useGetLessonStudentsQuery({ id: Number(id) });
   const period = lesson?.periods.find(
     (period) => period.id === Number(periodId)
   );
@@ -65,14 +66,53 @@ const CheckPeriodSuccess = () => {
     .at(-1)?.id;
   const isLastAttend = period?.id === lastAttendPeriodId;
 
-  if (!attendanceRecords || !lesson) {
+  // 名冊也要等：不然「缺席」先顯示 0、缺席名單晚一拍才跳出來。
+  if (!attendanceRecords || !lesson || isRosterLoading) {
     return (
       <>
         {!isExpanded && (
           <SubNavbar title={lesson?.name || ""} backUrl={`/lessons/${id}`} />
         )}
-        <div className="h-[calc(100vh-64px)] flex items-center justify-center">
-          <PulseLoader color="#55BD95" size={20} />
+        <div className="px-5 py-6 lg:px-8 flex flex-col items-center gap-5 max-w-md lg:max-w-3xl mx-auto w-full">
+          {justSubmitted ? (
+            <>
+              <div className="flex justify-center items-center rounded-full bg-primary-100 w-20 h-20 ring-8 ring-primary-50">
+                <Check className="w-11 h-11 text-primary-600" strokeWidth={2.5} />
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <h3 className="text-lg font-bold text-neutral-900">課程簽到成功</h3>
+                <Skeleton className="h-4 w-36" />
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-1">
+              <h3 className="text-lg font-bold text-neutral-900">點名紀錄</h3>
+              <Skeleton className="h-4 w-44" />
+            </div>
+          )}
+
+          <Skeleton className="h-12 w-full rounded-2xl" />
+
+          <div className="flex gap-2 w-full">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="flex-1 h-[58px] rounded-xl" />
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-3 w-full">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div className="flex gap-2 items-center" key={index}>
+                <Skeleton className="w-6 h-6 rounded-full shrink-0" />
+                <Skeleton className="h-5 w-24 mr-auto" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-2.5 w-full mt-2">
+            <Skeleton className="h-12 w-full rounded-xl" />
+            <Skeleton className="h-12 w-full rounded-xl" />
+          </div>
         </div>
       </>
     );

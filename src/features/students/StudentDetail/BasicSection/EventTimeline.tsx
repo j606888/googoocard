@@ -9,6 +9,26 @@ import {
 } from "./EventTimeline.helpers";
 import EventRow from "./EventRow";
 import EventSubRow from "./EventSubRow";
+import { Skeleton } from "@/components/ui/skeleton";
+
+/** Mirrors the loaded timeline: one day heading + a few EventRows. */
+const EventTimelineSkeleton = () => (
+  <div className="bg-white border border-neutral-200 rounded-2xl px-5 pt-1 pb-3" aria-hidden="true">
+    <div className="pt-3.5 pb-1">
+      <Skeleton className="h-4 w-24" />
+    </div>
+    {[0, 1, 2, 3].map((i) => (
+      <div key={i} className="grid grid-cols-[32px_minmax(0,1fr)_auto] gap-3 items-start py-2.5">
+        <Skeleton className="w-8 h-8 rounded-full" />
+        <div className="flex flex-col gap-1.5 pt-0.5">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-3.5 w-48 max-w-full" />
+        </div>
+        <Skeleton className="h-3.5 w-10" />
+      </div>
+    ))}
+  </div>
+);
 
 const FILTERS: { label: string; value: EventFilter }[] = [
   { label: "全部", value: "all" },
@@ -39,9 +59,11 @@ const EventTimeline = ({ studentId }: { studentId: number }) => {
         ))}
       </div>
 
-      {groups.length === 0 ? (
+      {isLoading ? (
+        <EventTimelineSkeleton />
+      ) : groups.length === 0 ? (
         <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
-          {isLoading ? "載入中…" : "這個分類還沒有紀錄"}
+          這個分類還沒有紀錄
         </div>
       ) : (
         <div className="bg-white border border-neutral-200 rounded-2xl px-5 pt-1 pb-3">

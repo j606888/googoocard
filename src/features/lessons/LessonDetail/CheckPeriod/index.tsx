@@ -15,7 +15,7 @@ const CheckPeriod = () => {
   // Students may have self-checked-in via LIFF before the teacher finalizes —
   // those already have an AttendanceRecord. Pre-select them and badge the ones
   // the student checked in themselves (source = STUDENT).
-  const { data: existingRecords } = useGetAttendanceQuery({
+  const { data: existingRecords, isLoading: isRecordsLoading } = useGetAttendanceQuery({
     id: Number(id),
     periodId: Number(periodId),
   });
@@ -60,6 +60,7 @@ const CheckPeriod = () => {
         submitLabel="Take Attendance"
         error={error}
         isLoading={isLoading}
+        isRecordsLoading={isRecordsLoading}
       />
     </>
   );

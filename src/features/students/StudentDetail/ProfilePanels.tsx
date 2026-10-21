@@ -11,6 +11,7 @@ import {
 } from "@/store/slices/students";
 import EditStudent from "./BasicSection/EditStudent";
 import QualificationLevels, { applyLevelPick } from "./QualificationLevels";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const publicPageUrl = (student: StudentWithDetail) =>
   `${window.location.origin}/public-students/${student.randomKey}`;
@@ -181,12 +182,26 @@ const SetupStep = ({
   </li>
 );
 
+/** Placeholder for a SetupStep whose done state is still being fetched. */
+const SetupStepSkeleton = () => (
+  <li className="grid grid-cols-[24px_1fr] gap-2.5 items-start" aria-hidden="true">
+    <Skeleton className="w-[22px] h-[22px] rounded-full" />
+    <div className="flex flex-col gap-1.5 pt-0.5">
+      <Skeleton className="h-4 w-20" />
+      <Skeleton className="h-3.5 w-44" />
+      <Skeleton className="h-5 w-24" />
+    </div>
+  </li>
+);
+
 /**
  * 新學生設定：還沒有任何課卡的學生，側欄最上面放一張依實際狀態打勾的清單——
  * 建立資料（永遠完成）、買第一張卡、綁 LINE、設定舞種資格。
  */
 const SetupPanel = ({ student }: { student: StudentWithDetail }) => {
-  const { data: lineBind } = useGetStudentLineBindLinkQuery({ id: student.id });
+  const { data: lineBind, isLoading: isLineBindLoading } = useGetStudentLineBindLinkQuery({
+    id: student.id,
+  });
   const hasQualification = Object.keys(student.danceLevels ?? {}).length > 0;
   return (
     <Panel title="新學生設定">
@@ -198,23 +213,27 @@ const SetupPanel = ({ student }: { student: StudentWithDetail }) => {
           title="購買第一張課卡"
           hint="也可以等到點名時再買"
         />
-        <SetupStep
-          index={3}
-          done={!!lineBind?.bound}
-          title="綁定 LINE"
-          hint="綁定後可以自助簽到、收續卡提醒"
-          action={
-            lineBind?.deepLink ? (
-              <button
-                type="button"
-                className={linkButton}
-                onClick={() => copyText(lineBind.deepLink!, "已複製 LINE 綁定連結")}
-              >
-                複製綁定連結
-              </button>
-            ) : undefined
-          }
-        />
+        {isLineBindLoading ? (
+          <SetupStepSkeleton />
+        ) : (
+          <SetupStep
+            index={3}
+            done={!!lineBind?.bound}
+            title="綁定 LINE"
+            hint="綁定後可以自助簽到、收續卡提醒"
+            action={
+              lineBind?.deepLink ? (
+                <button
+                  type="button"
+                  className={linkButton}
+                  onClick={() => copyText(lineBind.deepLink!, "已複製 LINE 綁定連結")}
+                >
+                  複製綁定連結
+                </button>
+              ) : undefined
+            }
+          />
+        )}
         <SetupStep
           index={4}
           done={hasQualification}

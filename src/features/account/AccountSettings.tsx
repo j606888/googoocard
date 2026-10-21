@@ -12,6 +12,7 @@ import {
 } from "@/store/slices/me";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { useWebPush } from "@/hooks/useWebPush";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const NOTIFICATION_TYPES: { type: TodoType; label: string; hint: string }[] = [
   { type: "UNPAID_CARD", label: "待確認收款", hint: "學生在 LINE 自助購買課卡時" },
@@ -23,8 +24,8 @@ const NOTIFICATION_TYPES: { type: TodoType; label: string; hint: string }[] = [
 const CONFIRM_TEXT = "我確認要刪除";
 
 const AccountSettings = () => {
-  const { data: me } = useGetMeQuery();
-  const { data: classrooms } = useGetClassroomsQuery();
+  const { data: me, isLoading: isMeLoading } = useGetMeQuery();
+  const { data: classrooms, isLoading: isClassroomsLoading } = useGetClassroomsQuery();
   const currentClassroom = classrooms?.classrooms.find(
     (c) => c.id === classrooms.currentClassroomId
   );
@@ -37,13 +38,18 @@ const AccountSettings = () => {
         <h3 className="font-semibold">基本資料</h3>
         <dl className="mt-3 grid grid-cols-[4rem_1fr] gap-y-2 text-sm">
           <dt className="text-neutral-500">名稱</dt>
-          <dd>{me?.name}</dd>
+          <dd>{isMeLoading ? <Skeleton className="h-5 w-24" /> : me?.name}</dd>
           <dt className="text-neutral-500">Email</dt>
-          <dd className="break-all">{me?.email}</dd>
+          <dd className="break-all">
+            {isMeLoading ? <Skeleton className="h-5 w-48" /> : me?.email}
+          </dd>
         </dl>
       </section>
 
-      <NotificationSettings classroomName={currentClassroom?.name} />
+      <NotificationSettings
+        classroomName={currentClassroom?.name}
+        isClassroomLoading={isClassroomsLoading}
+      />
 
       <DeleteAccount />
 
@@ -55,15 +61,29 @@ const AccountSettings = () => {
   );
 };
 
-const NotificationSettings = ({ classroomName }: { classroomName?: string }) => {
-  const { data: preferences } = useGetNotificationPreferencesQuery();
+const NotificationSettings = ({
+  classroomName,
+  isClassroomLoading,
+}: {
+  classroomName?: string;
+  isClassroomLoading: boolean;
+}) => {
+  const { data: preferences, isLoading: isPreferencesLoading } =
+    useGetNotificationPreferencesQuery();
   const [updatePreference] = useUpdateNotificationPreferenceMutation();
 
   return (
     <section className="rounded-xl border border-neutral-200 bg-white p-4">
       <h3 className="font-semibold">通知</h3>
       <p className="mt-1 text-sm text-neutral-500">
-        {classroomName ? `「${classroomName}」` : "這間教室"}
+        {isClassroomLoading ? (
+          // A <span>, not <Skeleton> (a div), so it can sit inside the <p>.
+          <span className="mr-1 inline-block h-4 w-20 animate-pulse rounded-md bg-accent align-middle" />
+        ) : classroomName ? (
+          `「${classroomName}」`
+        ) : (
+          "這間教室"
+        )}
         有事情需要處理時，推播到你開啟通知的裝置。每間教室分開設定。
       </p>
       <ThisDevice />
@@ -74,12 +94,17 @@ const NotificationSettings = ({ classroomName }: { classroomName?: string }) => 
               <span className="text-sm font-medium">{label}</span>
               <span className="text-xs text-neutral-500">{hint}</span>
             </div>
-            <Switch
-              aria-label={label}
-              checked={preferences?.[type] ?? true}
-              disabled={!preferences}
-              onCheckedChange={(enabled) => updatePreference({ type, enabled })}
-            />
+            {isPreferencesLoading ? (
+              // Not a disabled "on" switch — that reads as a real setting.
+              <Skeleton className="h-[1.15rem] w-8 shrink-0 rounded-full" />
+            ) : (
+              <Switch
+                aria-label={label}
+                checked={preferences?.[type] ?? true}
+                disabled={!preferences}
+                onCheckedChange={(enabled) => updatePreference({ type, enabled })}
+              />
+            )}
           </li>
         ))}
       </ul>
@@ -90,7 +115,10 @@ const NotificationSettings = ({ classroomName }: { classroomName?: string }) => 
 // 這個瀏覽器收不收得到。App 裡用原生的推播，這塊藏起來（data-in-app）。
 const ThisDevice = () => {
   const { status, busy, enable, disable } = useWebPush();
-  if (status === "loading" || status === "unsupported") return null;
+  if (status === "loading") {
+    return <Skeleton data-in-app="hide" className="mt-3 h-10 w-full rounded-lg" />;
+  }
+  if (status === "unsupported") return null;
 
   return (
     <div
