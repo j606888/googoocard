@@ -60,7 +60,8 @@ const SplitView = ({
   listWidth?: string;
   className?: string;
 }) => (
-  <div className={cn("flex h-[calc(100vh-60px)] min-h-0", className)}>
+  // 只在桌面版（lg 以上）出現，而桌面版的 Navbar 是 lg:hidden——上面沒東西要扣，佔滿整個視窗高
+  <div className={cn("flex h-screen min-h-0", className)}>
     <aside
       className="shrink-0 border-r border-neutral-200 min-h-0"
       style={{ width: listWidth }}
