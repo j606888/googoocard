@@ -16,7 +16,9 @@ export function middleware(req: NextRequest) {
     pathname.startsWith('/icons/') ||
     pathname === '/manifest.webmanifest' ||
     pathname.startsWith('/api') ||
-    pathname.startsWith('/public-students')
+    pathname.startsWith('/public-students') ||
+    pathname === '/privacy' ||
+    pathname === '/terms'
 
   const token = req.cookies.get('auth_token');
 

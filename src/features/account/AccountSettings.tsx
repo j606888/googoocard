@@ -45,6 +45,11 @@ const AccountSettings = () => {
       <NotificationSettings classroomName={currentClassroom?.name} />
 
       <DeleteAccount />
+
+      <nav className="flex justify-center gap-4 text-sm text-neutral-500">
+        <Link href="/privacy">隱私權政策</Link>
+        <Link href="/terms">服務條款</Link>
+      </nav>
     </div>
   );
 };

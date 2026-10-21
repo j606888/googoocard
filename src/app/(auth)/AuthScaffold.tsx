@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 /**
  * Full-screen responsive shell for the auth pages (login / signup / onboarding).
@@ -29,6 +30,10 @@ export default function AuthScaffold({
         <div className="w-full max-w-[400px] flex flex-1 flex-col lg:flex-none lg:my-auto">
           {children}
         </div>
+        <nav className="mt-6 flex gap-4 text-xs text-neutral-400">
+          <Link href="/privacy">隱私權政策</Link>
+          <Link href="/terms">服務條款</Link>
+        </nav>
       </section>
     </div>
   );
