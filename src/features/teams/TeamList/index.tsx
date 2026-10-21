@@ -14,7 +14,30 @@ import {
   useTransferOwnershipMutation,
 } from "@/store/slices/memberships";
 import { useGetMeQuery } from "@/store/slices/me";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Mirrors MemberCard: name + email on the left, a role pill on the right.
+const MemberCardSkeleton = () => (
+  <div className="flex items-center justify-between px-3 py-2 bg-white rounded-sm shadow-sm">
+    <div className="flex flex-col gap-1">
+      <Skeleton className="h-7 w-24" />
+      <Skeleton className="h-5 w-40" />
+    </div>
+    <Skeleton className="h-6 w-16 rounded-full" />
+  </div>
+);
+
+// Mirrors InvitationCard: usage line, URL pill, copy button.
+const InvitationCardSkeleton = () => (
+  <div className="border border-neutral-200 rounded-sm p-3 flex flex-col gap-2">
+    <div className="flex items-center justify-between">
+      <Skeleton className="h-5 w-24" />
+      <Skeleton className="h-4 w-4" />
+    </div>
+    <Skeleton className="h-9 w-full rounded-sm" />
+    <Skeleton className="h-10 w-full rounded-sm" />
+  </div>
+);
 
 // Label is display text; `value` stays the identifier the panels switch on.
 const TABS = [
@@ -31,7 +54,7 @@ const TeamList = () => {
   const [createInviteToken] = useCreateInviteTokenMutation();
   const [deleteInviteToken] = useDeleteInviteTokenMutation();
   const { data: inviteTokens, isLoading: isInviteTokensLoading } = useGetInviteTokensQuery();
-  const { data: me } = useGetMeQuery();
+  const { data: me, isLoading: isMeLoading } = useGetMeQuery();
   const [removeMembership] = useRemoveMembershipMutation();
   const [transferOwnership] = useTransferOwnershipMutation();
   const [maxUses, setMaxUses] = useState(1);
@@ -72,7 +95,9 @@ const TeamList = () => {
     await deleteInviteToken({ id });
   };
 
-  if (isMembershipsLoading || isInviteTokensLoading) return <ListSkeleton />;
+  // The owner actions, the "You" pill and the danger zone all depend on `me`,
+  // so the member list waits for it too rather than popping those in late.
+  const isMembersLoading = isMembershipsLoading || isMeLoading;
 
   return (
     <>
@@ -106,7 +131,9 @@ const TeamList = () => {
         </div>
         {activeTab === "Members" && (
           <div className="flex flex-col gap-3">
-            {memberships?.map((membership) => (
+            {isMembersLoading &&
+              Array.from({ length: 3 }, (_, i) => <MemberCardSkeleton key={i} />)}
+            {!isMembersLoading && memberships?.map((membership) => (
               <MemberCard
                 key={membership.id}
                 membership={membership}
@@ -115,11 +142,13 @@ const TeamList = () => {
                 onTransfer={isOwner ? handleTransferOwnership : undefined}
               />
             ))}
-            {myRole && <DangerZone role={myRole} />}
+            {!isMembersLoading && myRole && <DangerZone role={myRole} />}
           </div>
         )}
         {activeTab === "Invitations" && (
           <div className="flex flex-col gap-3">
+            {isInviteTokensLoading &&
+              Array.from({ length: 2 }, (_, i) => <InvitationCardSkeleton key={i} />)}
             {inviteTokens?.map((inviteToken) => (
               <InvitationCard
                 key={inviteToken.id}

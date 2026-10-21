@@ -8,6 +8,17 @@ import {
   useGetCheckinKeyQuery,
   useRotateCheckinKeyMutation,
 } from "@/store/slices/classrooms";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const PageHeader = () => (
+  <div className="print:hidden">
+    <h1 className="text-xl font-semibold">簽到 QR Code</h1>
+    <p className="mt-1 text-sm leading-relaxed text-neutral-500">
+      印出來貼在教室看板上。學生掃描後選擇自己、勾選今天要上的課即可簽到；
+      助教仍需在點名畫面確認後才會定案。
+    </p>
+  </div>
+);
 
 // Teacher-facing page for the studio's wall poster. Renders the classroom's
 // permanent check-in QR code plus the plain URL, a copy button, a print-friendly
@@ -36,7 +47,23 @@ const CheckinQr = () => {
   };
 
   if (isLoading) {
-    return <p className="px-5 py-8 text-center text-sm text-neutral-500">載入中…</p>;
+    return (
+      <div className="mx-auto flex w-full max-w-[480px] flex-col gap-5 px-5 py-6">
+        <PageHeader />
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-neutral-200 p-6">
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-5 w-16" />
+          <Skeleton className="aspect-square w-full max-w-[256px]" />
+          <Skeleton className="h-5 w-56" />
+        </div>
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-9 w-full rounded-lg" />
+          <Skeleton className="h-11 w-full rounded-lg" />
+          <Skeleton className="h-11 w-full rounded-lg" />
+          <Skeleton className="mx-auto h-11 w-40 rounded-lg" />
+        </div>
+      </div>
+    );
   }
   if (error || !data) {
     return (
@@ -69,13 +96,7 @@ const CheckinQr = () => {
         }
       `}</style>
 
-      <div className="print:hidden">
-        <h1 className="text-xl font-semibold">簽到 QR Code</h1>
-        <p className="mt-1 text-sm leading-relaxed text-neutral-500">
-          印出來貼在教室看板上。學生掃描後選擇自己、勾選今天要上的課即可簽到；
-          助教仍需在點名畫面確認後才會定案。
-        </p>
-      </div>
+      <PageHeader />
 
       {/* The printable poster. */}
       <div

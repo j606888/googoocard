@@ -8,6 +8,7 @@ import {
   useGetClassroomsQuery,
   useLeaveClassroomMutation,
 } from "@/store/slices/classrooms";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * The two ways out of a classroom, kept together at the bottom of the Members
@@ -23,7 +24,7 @@ const DangerZone = ({ role }: { role: string }) => {
   const [confirmName, setConfirmName] = useState("");
   const [error, setError] = useState("");
 
-  const { data } = useGetClassroomsQuery();
+  const { data, isLoading: isClassroomsLoading } = useGetClassroomsQuery();
   const classroom = data?.classrooms.find((c) => c.id === data.currentClassroomId);
   const isOwner = role === "owner";
 
@@ -36,6 +37,9 @@ const DangerZone = ({ role }: { role: string }) => {
   const [deleteClassroom, { isLoading: isDeleting }] = useDeleteClassroomMutation();
   const [leaveClassroom, { isLoading: isLeaving }] = useLeaveClassroomMutation();
 
+  if (isClassroomsLoading) {
+    return <Skeleton className="mt-8 h-[140px] w-full rounded-xl" />;
+  }
   if (!classroom) return null;
 
   const close = () => {

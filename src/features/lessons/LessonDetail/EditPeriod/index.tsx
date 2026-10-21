@@ -9,7 +9,7 @@ import PeriodAttendanceForm from "../PeriodAttendanceForm";
 const EditPeriod = () => {
   const { id, periodId } = useParams();
   const [updateAttendance, { isLoading }] = useUpdateAttendanceMutation();
-  const { data: attendanceRecords } = useGetAttendanceQuery({
+  const { data: attendanceRecords, isLoading: isRecordsLoading } = useGetAttendanceQuery({
     id: Number(id),
     periodId: Number(periodId),
   });
@@ -42,6 +42,7 @@ const EditPeriod = () => {
         submitLabel="Update Period"
         error={error}
         isLoading={isLoading}
+        isRecordsLoading={isRecordsLoading}
       />
     </>
   );

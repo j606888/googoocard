@@ -5,6 +5,7 @@ import type { DanceStyleSummary } from "@/lib/danceStyles";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { DANCE_LEVELS, DEFAULT_DANCE_LEVEL } from "@/lib/danceLevels";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const NOT_DONE = { value: 0, label: "未完成" };
 const LEVELED_OPTIONS = [NOT_DONE, ...DANCE_LEVELS];
@@ -63,7 +64,21 @@ const QualificationLevels = ({
 
   if (styles.length === 0) {
     // 還在載入時別先喊「沒有舞種」
-    if (stylesLoading) return <p className="text-sm text-neutral-400">載入中…</p>;
+    if (stylesLoading) {
+      return (
+        <div className="flex flex-col gap-2.5" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3">
+              <div className={`${dense ? "w-20" : "w-24"} flex items-center gap-2 shrink-0`}>
+                <Skeleton className="w-2.5 h-2.5 rounded-full shrink-0" />
+                <Skeleton className="h-4 flex-1" />
+              </div>
+              <Skeleton className={`flex-1 rounded-xl ${dense ? "h-9" : "h-10"}`} />
+            </div>
+          ))}
+        </div>
+      );
+    }
     return <p className="text-sm text-neutral-500">教室還沒有舞種。</p>;
   }
 

@@ -1,5 +1,6 @@
 import { useGetStudentLineBindLinkQuery } from "@/store/slices/students";
 import CopyLinkRow from "./CopyLinkRow";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Teacher-facing: shows a LINE binding deep link for this student that the
 // teacher copies and sends to the student. The student taps it, sends the
@@ -7,7 +8,20 @@ import CopyLinkRow from "./CopyLinkRow";
 const StudentLineBind = ({ studentId }: { studentId: number }) => {
   const { data, isLoading } = useGetStudentLineBindLinkQuery({ id: studentId });
 
-  if (isLoading || !data) return null;
+  if (isLoading) {
+    // Same footprint as CopyLinkRow: icon, label, copy pill + chevron.
+    return (
+      <div className="flex items-center gap-2">
+        <Skeleton className="w-4 h-4 shrink-0" />
+        <Skeleton className="h-5 w-28" />
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          <Skeleton className="h-7 w-[88px] rounded-full" />
+          <Skeleton className="w-7 h-7 rounded-full" />
+        </div>
+      </div>
+    );
+  }
+  if (!data) return null;
 
   if (data.bound) {
     return (

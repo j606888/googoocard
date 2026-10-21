@@ -7,6 +7,7 @@ import StudentSelectList from "./StudentSelectList";
 import Searchbar from "./Searchbar";
 import SelectedStudents from "./SelectedStudents";
 import PeriodInfo from "./PeriodInfo";
+import PeriodAttendanceSkeleton from "./PeriodAttendanceSkeleton";
 import { useAttendanceFlow } from "@/hooks/useAttendanceFlow";
 import { useSizeClass } from "@/hooks/useMediaQuery";
 
@@ -17,6 +18,8 @@ type PeriodAttendanceFormProps = {
   submitLabel?: string;
   error?: string | null;
   isLoading?: boolean;
+  /** 既有點名紀錄（預設勾選用）還在載入；載完前顯示骨架，勾選才不會晚一拍跳出來。 */
+  isRecordsLoading?: boolean;
 };
 
 const PeriodAttendanceForm = ({
@@ -26,11 +29,13 @@ const PeriodAttendanceForm = ({
   submitLabel = "Take Attendance",
   error,
   isLoading,
+  isRecordsLoading = false,
 }: PeriodAttendanceFormProps) => {
   const { id, periodId } = useParams();
   const isExpanded = useSizeClass() === "expanded";
   const {
     period,
+    isLoading: isFlowLoading,
     attendStudentIds,
     selectedStudents,
     selectedIds,
@@ -45,7 +50,30 @@ const PeriodAttendanceForm = ({
     defaultSelectedIds,
   });
 
-  if (!period) return <div>載入中…</div>;
+  const desktopHeader = (
+    <div className="flex items-center gap-3 px-8 pt-6 pb-4">
+      <Link
+        href={`/lessons/${id}`}
+        className="text-neutral-400 hover:text-neutral-600 transition-colors"
+      >
+        <ArrowLeft className="w-5 h-5" />
+      </Link>
+      <h1 className="text-xl font-bold text-neutral-900">點名</h1>
+    </div>
+  );
+
+  if (isFlowLoading || isRecordsLoading || !period) {
+    return (
+      <>
+        {isExpanded ? (
+          desktopHeader
+        ) : (
+          <SubNavbar title={"點名"} backUrl={`/lessons/${id}`} />
+        )}
+        <PeriodAttendanceSkeleton variant={isExpanded ? "expanded" : "compact"} />
+      </>
+    );
+  }
 
   const searchbar = (
     <Searchbar
@@ -93,15 +121,7 @@ const PeriodAttendanceForm = ({
   if (isExpanded) {
     return (
       <>
-        <div className="flex items-center gap-3 px-8 pt-6 pb-4">
-          <Link
-            href={`/lessons/${id}`}
-            className="text-neutral-400 hover:text-neutral-600 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-xl font-bold text-neutral-900">點名</h1>
-        </div>
+        {desktopHeader}
         <div className="px-8 pb-8 grid grid-cols-[minmax(0,1fr)_360px] gap-8 items-start">
           <div className="flex flex-col gap-4 min-w-0">
             <PeriodInfo period={period} />

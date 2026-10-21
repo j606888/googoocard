@@ -1,6 +1,7 @@
 "use client";
 
 import { useGetLineBindLinkQuery } from "@/store/slices/me";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Shown on the teams/settings page. Lets a logged-in teacher bind their LINE
 // account: tapping the button opens the official-account chat with a one-time
@@ -8,7 +9,7 @@ import { useGetLineBindLinkQuery } from "@/store/slices/me";
 export default function LineBindButton() {
   const { data, isLoading } = useGetLineBindLinkQuery();
 
-  if (isLoading) return null;
+  if (isLoading) return <Skeleton className="h-12 w-full rounded-lg" />;
 
   if (data?.bound) {
     return (

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
+import { Skeleton } from "@/components/ui/skeleton";
 import type {
   CardMonthlyDetailResponse,
   CardMonthlyListResponse,
@@ -68,9 +69,11 @@ const fetchCardMonth = (month: string) =>
  */
 export default function IncomeCalendar({
   unpaidCount,
+  unpaidLoading = false,
   onOpenUnpaid,
 }: {
   unpaidCount: number;
+  unpaidLoading?: boolean;
   onOpenUnpaid: () => void;
 }) {
   const [type, setType] = useState<RevenueType>("session");
@@ -284,9 +287,15 @@ export default function IncomeCalendar({
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="text-base font-semibold text-neutral-800 min-w-[128px] text-center">
-          {monthKey ? monthLabel(monthKey) : ""}
-        </span>
+        {monthKey ? (
+          <span className="text-base font-semibold text-neutral-800 min-w-[128px] text-center">
+            {monthLabel(monthKey)}
+          </span>
+        ) : (
+          <div className="min-w-[128px] flex justify-center">
+            <Skeleton className="h-5 w-24" />
+          </div>
+        )}
         <button
           onClick={handleNextMonth}
           disabled={nextDisabled}
@@ -304,6 +313,7 @@ export default function IncomeCalendar({
           active={type === "session"}
           onClick={() => handleSetType("session")}
           label="課程收入"
+          loading={isLoading}
           value={sessionTotal}
           note={
             prevMonth
@@ -315,6 +325,7 @@ export default function IncomeCalendar({
           active={type === "card"}
           onClick={() => handleSetType("card")}
           label="課卡收入"
+          loading={isLoading}
           value={cardTotal}
           note={`${cardCount} 張${
             prevMonth ? ` · ${shortMonth(prevMonth)}全月 $${formatMoney(cardMonthTotal(cardMonths, prevMonth))}` : ""
@@ -323,31 +334,43 @@ export default function IncomeCalendar({
         <button
           type="button"
           onClick={onOpenUnpaid}
+          aria-busy={unpaidLoading || undefined}
           className={cn(
             "col-span-2 lg:col-span-1 flex items-center gap-3 rounded-2xl border px-4 py-3 text-left cursor-pointer transition-colors",
-            unpaidCount > 0
-              ? "bg-warning-50 border-warning-200 hover:bg-warning-100"
-              : "bg-primary-50 border-primary-100 hover:bg-primary-100"
+            unpaidLoading
+              ? "bg-white border-neutral-200 hover:bg-neutral-50"
+              : unpaidCount > 0
+                ? "bg-warning-50 border-warning-200 hover:bg-warning-100"
+                : "bg-primary-50 border-primary-100 hover:bg-primary-100"
           )}
         >
-          {unpaidCount > 0 ? (
+          {unpaidLoading ? (
+            <Skeleton className="w-5 h-5 rounded-full shrink-0" />
+          ) : unpaidCount > 0 ? (
             <CircleDollarSign className="w-5 h-5 text-warning-700 shrink-0" />
           ) : (
             <CircleCheck className="w-5 h-5 text-primary-700 shrink-0" />
           )}
-          <span className="flex-1 min-w-0">
-            <span className={cn("block text-xs", unpaidCount > 0 ? "text-warning-900" : "text-primary-700")}>
-              未付款課卡
+          {unpaidLoading ? (
+            <div className="flex-1 min-w-0">
+              <span className="block text-xs text-neutral-500">未付款課卡</span>
+              <Skeleton className="h-6 w-24 mt-0.5" />
+            </div>
+          ) : (
+            <span className="flex-1 min-w-0">
+              <span className={cn("block text-xs", unpaidCount > 0 ? "text-warning-900" : "text-primary-700")}>
+                未付款課卡
+              </span>
+              <span
+                className={cn(
+                  "block text-lg font-bold",
+                  unpaidCount > 0 ? "text-warning-900" : "text-primary-700"
+                )}
+              >
+                {unpaidCount > 0 ? `${unpaidCount} 張待收款` : "全部已收款"}
+              </span>
             </span>
-            <span
-              className={cn(
-                "block text-lg font-bold",
-                unpaidCount > 0 ? "text-warning-900" : "text-primary-700"
-              )}
-            >
-              {unpaidCount > 0 ? `${unpaidCount} 張待收款` : "全部已收款"}
-            </span>
-          </span>
+          )}
         </button>
       </div>
 
@@ -363,6 +386,10 @@ export default function IncomeCalendar({
           </div>
 
           <div className="grid grid-cols-7 gap-1">
+            {isLoading &&
+              Array.from({ length: 35 }, (_, i) => (
+                <Skeleton key={`skeleton-${i}`} className="aspect-square" />
+              ))}
             {cells.map((cell, i) => {
               if (!cell.date) return <div key={`blank-${i}`} />;
               const revenue = monthDayTotals[cell.date] ?? 0;
@@ -434,7 +461,15 @@ export default function IncomeCalendar({
 
           {/* 明細 */}
           <div className="border border-neutral-200 rounded-2xl bg-white p-3 lg:p-4">
-            {isLoading && <p className="text-sm text-neutral-500">載入中...</p>}
+            {isLoading && (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <Skeleton className="h-5 w-28" />
+                  <Skeleton className="h-6 w-20" />
+                </div>
+                <DetailRowsSkeleton />
+              </>
+            )}
 
             {!isLoading && type === "session" && selectedDate && (
               <>
@@ -444,9 +479,7 @@ export default function IncomeCalendar({
                     ${formatMoney(monthDayTotals[selectedDate] ?? 0)}
                   </span>
                 </div>
-                {loadingSessionDate === selectedDate && !sessionDetail && (
-                  <p className="text-sm text-neutral-500">載入細節中...</p>
-                )}
+                {loadingSessionDate === selectedDate && !sessionDetail && <DetailRowsSkeleton />}
                 {sessionDetail && sessionDetail.periods.length === 0 && (
                   <p className="text-sm text-neutral-500">當日無課堂明細。</p>
                 )}
@@ -489,7 +522,11 @@ export default function IncomeCalendar({
                   <span className="text-sm font-semibold">
                     {selectedDate ? formatDayLabel(selectedDate) : `${monthKey ? shortMonth(monthKey) : ""}課卡明細`}
                   </span>
-                  <span className="text-xs text-neutral-500">{shownPurchases.length} 筆</span>
+                  {loadingCardMonth === monthKey && monthPurchases.length === 0 ? (
+                    <Skeleton className="h-3.5 w-8" />
+                  ) : (
+                    <span className="text-xs text-neutral-500">{shownPurchases.length} 筆</span>
+                  )}
                   {selectedDate && (
                     <button
                       type="button"
@@ -512,7 +549,7 @@ export default function IncomeCalendar({
                   )}
                 </div>
                 {loadingCardMonth === monthKey && monthPurchases.length === 0 && (
-                  <p className="text-sm text-neutral-500">載入細節中...</p>
+                  <DetailRowsSkeleton />
                 )}
                 {loadingCardMonth !== monthKey && shownPurchases.length === 0 && (
                   <p className="text-sm text-neutral-500 py-6 text-center">這段期間沒有購買紀錄。</p>
@@ -576,12 +613,14 @@ const KpiButton = ({
   active,
   onClick,
   label,
+  loading,
   value,
   note,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
+  loading: boolean;
   value: number;
   note: string;
 }) => (
@@ -599,9 +638,31 @@ const KpiButton = ({
     <span className={cn("text-xs", active ? "text-primary-700 font-semibold" : "text-neutral-500")}>
       {label}
     </span>
-    <span className="text-xl lg:text-2xl font-bold text-neutral-900">${formatMoney(value)}</span>
-    {note && <span className="text-[11px] text-neutral-500 mt-0.5">{note}</span>}
+    {loading ? (
+      <>
+        <Skeleton className="h-7 lg:h-8 w-24 my-0.5" />
+        <Skeleton className="h-3 w-28 mt-1" />
+      </>
+    ) : (
+      <>
+        <span className="text-xl lg:text-2xl font-bold text-neutral-900">${formatMoney(value)}</span>
+        {note && <span className="text-[11px] text-neutral-500 mt-0.5">{note}</span>}
+      </>
+    )}
   </button>
+);
+
+/** 明細列的骨架：名稱 · 次要資訊 · 金額，對齊載入後的 divide-y 清單。 */
+const DetailRowsSkeleton = () => (
+  <div className="divide-y divide-neutral-100" aria-busy="true" aria-label="載入細節中">
+    {[0, 1, 2, 3].map((i) => (
+      <div key={i} className="flex items-center gap-2 py-2.5">
+        <Skeleton className="h-5 w-28" />
+        <Skeleton className="h-3.5 w-14" />
+        <Skeleton className="h-5 w-16 ml-auto" />
+      </div>
+    ))}
+  </div>
 );
 
 const Breakdown = ({
