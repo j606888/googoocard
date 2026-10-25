@@ -210,6 +210,14 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 `/api/liff/today` 帶學生時，每堂課多回 `cardStatus = { usable, autoPickId, buyable }`（`src/service/checkin.ts` 的 `lessonCardStatus()`，跟引擎同一套規則），LIFF 畫面據此顯示「使用 X（剩 n 堂）」／多張卡讓學生選／「還沒有能用的課卡，下一步選一張」。`POST /api/liff/checkin` 回 `{ results, purchased, amountDue, unpaidCards }`，完成畫面寫「下課請找小幫手付款 $X」並提醒舊的未付卡。**不另外推播**。
 
+### LINE 模擬器（`/dev/line`，測試環境限定）
+
+不用手機、不用 LINE Developers 就能用不同 LINE 身分走 LIFF。`NEXT_PUBLIC_LINE_MOCK=1` 開啟；`VERCEL_ENV=production` 時一律關閉（`isLineMockEnabled()`，有單元測試）。
+- 前端：所有 LIFF SDK 呼叫都經過 `src/lib/liffClient.ts` 的 `loadLiff()` / `getLiffId()`。模擬器的「手機」是 iframe，身分 JSON 放在 iframe 的 `name`（換頁也跟著走、每支手機各自一份），`loadLiff()` 看到就換成假 LIFF：永遠已登入、`getIDToken()` 回 `mock.<base64url>`、`closeWindow()` 通知模擬器顯示「已關閉」。
+- 後端：`verifyIdToken` 看到 `mock.` 前綴就只在模擬模式解開，不打 LINE API；關閉時一律無效。其餘 LIFF API 完全不知道自己被模擬。
+- `GET /api/dev/line-sim`（模擬模式外 404）：教室簽到 key、以 LINE 帳號分組的已綁學生（舊生／可用卡／未付）、未綁學生；`POST` 「模擬綁定」給未綁學生一個 `Umock…` LINE（代替綁定碼 webhook）。**會回 lineUserId**——這是它只能在模擬模式存在的原因。
+- 模擬不到：LINE 內建瀏覽器、`liff.state` 轉址、綁定碼 webhook。上線前仍要用真 LINE 走一次。
+
 ### 體驗課（`Card.isTrial`）——老師登記，不在自助簽到賣
 
 體驗課是一般的課程，`lesson.cards` 掛一張 `isTrial` 的卡。報名多半來自 Google 表單或現場、**上課前就收費**，所以 2026-10-25 起體驗一律由**老師在課程頁的「體驗名單」登記**（`src/service/trialRoster.ts`、`GET/POST /api/lessons/[id]/trials`），學生端不賣：

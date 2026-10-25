@@ -10,6 +10,7 @@ import { LiffAuthContext } from "@/app/liff/LiffStudentGate";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
+import { loadLiff } from "@/lib/liffClient";
 import {
   CheckinResponse,
   TodayLesson,
@@ -461,7 +462,7 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
 
   const handleClose = async () => {
     try {
-      const liff = (await import("@line/liff")).default;
+      const liff = await loadLiff();
       if (liff.isInClient()) {
         liff.closeWindow();
         return;

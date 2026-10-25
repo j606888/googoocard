@@ -29,6 +29,8 @@ For teacher push (see "待處理與老師端 App 推播" in `docs/architecture.m
 
 For Google／Apple sign-in (web + App, `POST /api/auth/oauth`, `src/lib/oauth.ts`): `GOOGLE_CLIENT_IDS` / `APPLE_CLIENT_IDS` (comma-separated accepted ID-token audiences — web + iOS client for Google, `com.googoocard.app` + Services ID `com.googoocard.web` for Apple) and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` / `NEXT_PUBLIC_APPLE_SERVICE_ID` (the web buttons; a provider whose var is unset shows no button). All are public IDs, not secrets. Google Cloud project `googoocard`; Apple web sign-in only works on `https://googoocard.vercel.app` (its registered return URL is `/login`). Accounts created this way have `password: "!"` (no password). Deleting an account revokes Sign in with Apple (`src/lib/appleAuth.ts`, App Store 5.1.1(v)) when `APPLE_TEAM_ID` / `APPLE_KEY_ID` / `APPLE_PRIVATE_KEY` (the .p8, a **secret**) are set; `User.appleRefreshToken` is a secret too — never return it.
 
+For the LINE simulator (`/dev/line`, `src/lib/lineMock.ts`): `NEXT_PUBLIC_LINE_MOCK=1` swaps in a fake LIFF inside the simulator's phone frame and makes `verifyIdToken` accept `mock.` tokens — no LINE Developers setup, switch personas (new LINE / bound student / simulate-bind an unbound one). Forced off when `VERCEL_ENV=production` regardless of the var; set it only locally or on a preview with its own DB. Still test real LINE once before launch (in-app browser, `liff.state`, the 綁定碼 webhook).
+
 **Env layout is fail-safe — local is the default, production is opt-in:**
 - `.env` — local only (docker Postgres on `:54330`). Never put production credentials here.
 - `.env.production` — production RDS `DATABASE_URL` (gitignored); used **only** by `npm run db:deploy`.

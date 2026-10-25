@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getLiffId, loadLiff } from "@/lib/liffClient";
 
 // Entry point opened from the LINE menu's "進入網站" button.
 // Uses LIFF + LINE Login to authenticate, then starts a googoocard session —
@@ -14,14 +15,14 @@ export default function LiffPage() {
     let cancelled = false;
 
     (async () => {
-      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      const liffId = getLiffId();
       if (!liffId) {
         setStatus("尚未設定 LIFF ID");
         return;
       }
 
       try {
-        const liff = (await import("@line/liff")).default;
+        const liff = await loadLiff();
         await liff.init({ liffId });
 
         if (!liff.isLoggedIn()) {

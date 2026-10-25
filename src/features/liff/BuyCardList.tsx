@@ -10,6 +10,7 @@ import { canBuyCard } from "@/domains/qualification";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import type { DanceStyleSummary } from "@/lib/danceStyles";
 import { formatMoney } from "@/lib/money";
+import { loadLiff } from "@/lib/liffClient";
 
 interface BuyableCard {
   id: number;
@@ -102,7 +103,7 @@ export default function BuyCardList({
   // for desktop/testing where the LIFF SDK isn't running in a client.
   const handleClose = async () => {
     try {
-      const liff = (await import("@line/liff")).default;
+      const liff = await loadLiff();
       if (liff.isInClient()) {
         liff.closeWindow();
         return;

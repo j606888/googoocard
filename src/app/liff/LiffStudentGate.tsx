@@ -4,6 +4,7 @@ import { ReactNode, useCallback, useEffect, useState } from "react";
 import { StudentWithDetail } from "@/store/slices/students";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 import FirstTimeGate, { FirstTimePrefill } from "@/features/liff/FirstTimeGate";
+import { getLiffId, loadLiff } from "@/lib/liffClient";
 
 // Shared identity gate for student LIFF pages. Authenticates with LIFF (ID
 // token, no cookie), resolves the bound student via /api/liff/me, and only
@@ -116,13 +117,13 @@ export default function LiffStudentGate({
     let cancelled = false;
 
     (async () => {
-      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      const liffId = getLiffId();
       if (!liffId) {
         setStatus("尚未設定 LIFF ID");
         return;
       }
       try {
-        const liff = (await import("@line/liff")).default;
+        const liff = await loadLiff();
         await liff.init({ liffId });
         if (!liff.isLoggedIn()) {
           liff.login();

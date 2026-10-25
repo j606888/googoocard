@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { decodeMockToken, isLineMockEnabled, MOCK_TOKEN_PREFIX } from "@/lib/lineMock";
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET ?? "";
 const CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN ?? "";
@@ -323,6 +324,10 @@ export async function pushMessage(
 export async function verifyIdToken(
   idToken: string
 ): Promise<{ userId: string; name?: string; picture?: string } | null> {
+  // /dev/line simulator tokens: accepted only in mock mode, never sent to LINE.
+  if (idToken?.startsWith(MOCK_TOKEN_PREFIX)) {
+    return isLineMockEnabled() ? decodeMockToken(idToken) : null;
+  }
   if (!idToken || !LOGIN_CHANNEL_ID) return null;
   const res = await fetch("https://api.line.me/oauth2/v2.1/verify", {
     method: "POST",
