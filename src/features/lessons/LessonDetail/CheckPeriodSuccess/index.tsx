@@ -14,6 +14,8 @@ import { periodInfo } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import StudentInfo from "@/components/StudentInfo";
 import PendingStudents from "./PendingStudents";
+import DayCollections from "./DayCollections";
+import { toTaipeiDateKey } from "@/lib/taipei-date";
 import { useSizeClass } from "@/hooks/useMediaQuery";
 
 const CheckPeriodSuccess = () => {
@@ -235,6 +237,8 @@ const CheckPeriodSuccess = () => {
             ))}
           </div>
         )}
+
+        {period && <DayCollections date={toTaipeiDateKey(new Date(period.startTime))} />}
 
         <div className="flex flex-col gap-2.5 w-full mt-2">
           {isLastAttend && (

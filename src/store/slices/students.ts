@@ -174,6 +174,27 @@ export interface UnpaidStudentCard {
   purchasedBy?: { name: string } | null;
 }
 
+/** 下課對帳：某天（台北）誰收了多少、哪些今天來的學生還欠款。 */
+export interface DayCollections {
+  date: string;
+  collected: {
+    receiverUserId: number | null;
+    receiverName: string | null;
+    paymentMethod: PaymentMethod | null;
+    total: number;
+    count: number;
+  }[];
+  unpaid: {
+    studentCardId: number;
+    serialNumber: number;
+    cardName: string;
+    finalPrice: number;
+    usedSessions: number;
+    createdAt: string;
+    student: { id: number; name: string; avatarUrl: string };
+  }[];
+}
+
 export interface LineInviteStudent {
   id: number;
   number: number;
@@ -301,6 +322,10 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["StudentCard", "Student"],
     }),
+    getDayCollections: builder.query<DayCollections, { date: string }>({
+      query: ({ date }) => `student-cards/collections?date=${date}`,
+      providesTags: ["StudentCard"],
+    }),
     getUnpaidStudentCards: builder.query<UnpaidStudentCard[], void>({
       query: () => "student-cards/unpaid",
       providesTags: ["StudentCard"],
@@ -386,6 +411,7 @@ export const {
   useCreateStudentCardMutation,
   useConfirmStudentCardPaymentMutation,
   useGetUnpaidStudentCardsQuery,
+  useGetDayCollectionsQuery,
   useGetStudentQuery,
   useExpireStudentCardMutation,
   useUpdateStudentCardNoteMutation,
