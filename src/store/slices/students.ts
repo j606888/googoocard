@@ -170,6 +170,23 @@ export interface UnpaidStudentCard {
   purchasedBy?: { name: string } | null;
 }
 
+export interface LineInviteStudent {
+  id: number;
+  number: number;
+  name: string;
+  avatarUrl: string;
+  lineInviteSentAt: string | null;
+  lastAttendAt: string | null;
+  /** 貼到 LINE 的邀請文字；教室沒設官方帳號 ID 時是 null */
+  inviteMessage: string | null;
+}
+
+export interface LineInviteList {
+  boundCount: number;
+  totalCount: number;
+  students: LineInviteStudent[];
+}
+
 const studentsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getStudents: builder.query<
@@ -205,6 +222,14 @@ const studentsApi = api.injectEndpoints({
     >({
       query: ({ id }) => `students/${id}/line-bind-link`,
       providesTags: ["Student"],
+    }),
+    getLineInvites: builder.query<LineInviteList, void>({
+      query: () => "students/line-invites",
+      providesTags: ["Student"],
+    }),
+    markLineInviteSent: builder.mutation<{ id: number; lineInviteSentAt: string }, { id: number }>({
+      query: ({ id }) => ({ url: `students/${id}/line-invite`, method: "POST" }),
+      invalidatesTags: ["Student"],
     }),
     createStudent: builder.mutation<
       Student,
@@ -347,6 +372,8 @@ export const {
   useGetStudentsQuery,
   useGetPublicStudentQuery,
   useGetStudentLineBindLinkQuery,
+  useGetLineInvitesQuery,
+  useMarkLineInviteSentMutation,
   useCreateStudentMutation,
   useUpdateStudentMutation,
   useSetStudentArchivedMutation,

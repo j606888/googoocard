@@ -11,6 +11,7 @@ import Searchbar from "./Searchbar";
 import SortMenu from "@/components/SortMenu";
 import FilterDrawer, { StatusFilterOption } from "./FilterDrawer";
 import ArchivedStudents from "./ArchivedStudents";
+import UnboundLineEntry from "./UnboundLineEntry";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Users, SlidersHorizontal, CornerDownLeft } from "lucide-react";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
@@ -363,6 +364,7 @@ const StudentList = ({
               />
             ))
           )}
+          <UnboundLineEntry className="px-4 pt-3" />
           <ArchivedStudents className="px-4 py-3" />
         </div>
 
@@ -437,6 +439,7 @@ const StudentList = ({
         ))}
       </div>
 
+      <UnboundLineEntry className="px-4 pt-4" />
       <ArchivedStudents className="px-4 py-4" />
 
       {drawer}

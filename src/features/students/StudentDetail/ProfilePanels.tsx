@@ -10,6 +10,7 @@ import {
   useUpdateStudentDanceLevelsMutation,
 } from "@/store/slices/students";
 import EditStudent from "./BasicSection/EditStudent";
+import LineBindQrButton from "./LineBindQrButton";
 import QualificationLevels, { applyLevelPick } from "./QualificationLevels";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -68,7 +69,7 @@ const QualificationPanel = ({ student }: { student: StudentWithDetail }) => {
   );
 };
 
-const LineStatus = ({ studentId }: { studentId: number }) => {
+const LineStatus = ({ studentId, studentName }: { studentId: number; studentName: string }) => {
   const { data, isLoading } = useGetStudentLineBindLinkQuery({ id: studentId });
   if (isLoading || !data) return <span className="text-neutral-500">—</span>;
   if (data.bound) return <span>已綁定 · 收得到續卡提醒</span>;
@@ -83,6 +84,7 @@ const LineStatus = ({ studentId }: { studentId: number }) => {
       >
         複製綁定連結
       </button>
+      <LineBindQrButton deepLink={data.deepLink} studentName={studentName} className={linkButton} />
     </span>
   );
 };
@@ -108,7 +110,7 @@ const InfoPanel = ({ student }: { student: StudentWithDetail }) => {
         <dd className="m-0">{format(new Date(student.createdAt), "yyyy/MM/dd")}</dd>
         <dt className="text-neutral-600">LINE</dt>
         <dd className="m-0">
-          <LineStatus studentId={student.id} />
+          <LineStatus studentId={student.id} studentName={student.name} />
         </dd>
         {tags.length > 0 && (
           <>
