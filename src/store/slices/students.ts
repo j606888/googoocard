@@ -33,6 +33,10 @@ export interface Student {
   lastAttendLessonName: string | null;
   /** 有任何未付款的課卡（含已用完、已停用的）。只有名單 API 會帶。 */
   hasUnpaidCard?: boolean;
+  /** 未付款課卡的金額合計。只有名單 API 會帶。 */
+  unpaidAmount?: number;
+  /** 沒買過任何非體驗課的卡（新同學）。只有名單 API 會帶。 */
+  isNewStudent?: boolean;
 }
 
 export interface Event {

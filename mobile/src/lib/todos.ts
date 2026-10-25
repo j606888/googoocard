@@ -15,6 +15,8 @@ export type Todos = {
     cardName: string;
     finalPrice: number;
     purchaseSource: string;
+    usedSessions?: number;
+    totalSessions?: number;
     createdAt: string;
     student: StudentRef;
   }[];
@@ -27,6 +29,11 @@ export type Todos = {
     lessonName: string;
     lessonPeriodId: number;
     lessonPeriodStartTime: string;
+  }[];
+  /** 同名的在籍學生組（多半是自助登記的新同學 ↔ 沒綁 LINE 的舊生） */
+  possibleDuplicates?: {
+    name: string;
+    students: (StudentRef & { lineBound: boolean; createdAt: string })[];
   }[];
   total: number;
 };

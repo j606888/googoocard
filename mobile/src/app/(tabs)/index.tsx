@@ -33,7 +33,9 @@ export default function TodosScreen() {
             key: `unpaid-${c.id}`,
             title: c.student.name,
             avatarUrl: c.student.avatarUrl,
-            detail: `${c.cardName} ${formatCardSerial(c.serialNumber)}`,
+            detail: `${c.cardName} ${formatCardSerial(c.serialNumber)}${
+              c.usedSessions ? `・已用 ${c.usedSessions} 堂` : ''
+            }`,
             amount: `NT$${formatMoney(c.finalPrice)}`,
             path: `/students/${c.student.id}`,
           })),
@@ -57,6 +59,21 @@ export default function TodosScreen() {
             detail: `課卡在 ${formatDate(r.since)} 用完`,
             path: `/students/${r.student.id}`,
           })),
+        },
+        {
+          title: '可能重複',
+          data: (todos.possibleDuplicates ?? []).map<Row>((group) => {
+            // 最新的那位多半是門口自助登記的，打開它、預選最早那位當合併對象
+            const newest = group.students[group.students.length - 1];
+            const oldest = group.students[0];
+            return {
+              key: `dup-${newest.id}`,
+              title: newest.name,
+              avatarUrl: newest.avatarUrl,
+              detail: `${group.students.length} 位同名，確認後合併`,
+              path: `/students/${newest.id}?mergeInto=${oldest.id}`,
+            };
+          }),
         },
       ].filter((s) => s.data.length > 0)
     : [];

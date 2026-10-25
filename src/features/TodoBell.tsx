@@ -14,7 +14,7 @@ import { formatMoney } from "@/lib/money";
 import { studentDetailHref } from "@/lib/studentNav";
 
 /**
- * 「待處理」：待確認收款、需續約、出席沒綁課卡（src/service/todos.ts）。
+ * 「待處理」：待確認收款、需續約、出席沒綁課卡、可能重複（src/service/todos.ts）。
  * 跟 App 的待處理分頁與推播 badge 同一份資料。沒有事項時整個隱藏。
  */
 const TodoBell = ({
@@ -83,13 +83,16 @@ const TodoBell = ({
                 href={studentDetailHref(item.student.id)}
                 student={item.student}
                 onNavigate={close}
-                meta={formatDate(item.createdAt)}
+                meta={`未付 ${daysSince(item.createdAt)} 天`}
               >
                 <span className="flex items-center gap-1.5 min-w-0">
                   <span className="truncate">{item.cardName}</span>
                   <CardSerial serialNumber={item.serialNumber} />
                   <span className="shrink-0">NT${formatMoney(item.finalPrice)}</span>
                 </span>
+                {item.usedSessions > 0 && (
+                  <span className="block text-xs">已用 {item.usedSessions} / {item.totalSessions} 堂</span>
+                )}
               </TodoRow>
             ))}
           </TodoSection>
@@ -106,6 +109,26 @@ const TodoBell = ({
                 課卡已用完
               </TodoRow>
             ))}
+          </TodoSection>
+
+          <TodoSection title="可能重複" count={todos.possibleDuplicates.length}>
+            {todos.possibleDuplicates.map((group) => {
+              // Newest is usually the one that registered itself at the door;
+              // open it with the oldest preselected as the merge target.
+              const newest = group.students[group.students.length - 1];
+              const oldest = group.students[0];
+              return (
+                <TodoRow
+                  key={`dup-${newest.id}`}
+                  href={`${studentDetailHref(newest.id)}?mergeInto=${oldest.id}`}
+                  student={newest}
+                  onNavigate={close}
+                  meta={`${group.students.length} 位同名`}
+                >
+                  <span className="truncate">可能跟既有的學員是同一人，確認後合併</span>
+                </TodoRow>
+              );
+            })}
           </TodoSection>
 
           <TodoSection title="出席沒綁課卡" count={todos.unboundAttendance.length}>
@@ -129,6 +152,9 @@ const TodoBell = ({
     </Popover>
   );
 };
+
+const daysSince = (iso: string) =>
+  Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
 
 const TodoSection = ({
   title,

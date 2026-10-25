@@ -74,6 +74,23 @@ export async function GET(request: Request) {
     },
   });
 
+  // 點名名單要標「未付 $X」和「新學員」：未付款合計、和買過非體驗卡的學生
+  // （舊生，src/service/trial.ts）。各一個 groupBy，不必把整份卡拉回來。
+  const studentIds = students.map((s) => s.id);
+  const [unpaidSums, returningRows] = await Promise.all([
+    prisma.studentCard.groupBy({
+      by: ["studentId"],
+      where: { studentId: { in: studentIds }, isPaid: false },
+      _sum: { finalPrice: true },
+    }),
+    prisma.studentCard.groupBy({
+      by: ["studentId"],
+      where: { studentId: { in: studentIds }, card: { isTrial: false } },
+    }),
+  ]);
+  const unpaidByStudent = new Map(unpaidSums.map((r) => [r.studentId, r._sum.finalPrice ?? 0]));
+  const returningIds = new Set(returningRows.map((r) => r.studentId));
+
   const results = students.map((student) => {
     const activeStudentCards = student.studentCards.filter(
       (studentCard) => studentCard.remainingSessions > 0
@@ -97,6 +114,8 @@ export async function GET(request: Request) {
       activeLessonIds,
       ...toLastAttendance(student.attendanceRecords),
       hasUnpaidCard: student._count.studentCards > 0,
+      unpaidAmount: unpaidByStudent.get(student.id) ?? 0,
+      isNewStudent: !returningIds.has(student.id),
       studentCards: activeStudentCards.map((studentCard) => ({
         ...studentCard,
         card: studentCard.card,

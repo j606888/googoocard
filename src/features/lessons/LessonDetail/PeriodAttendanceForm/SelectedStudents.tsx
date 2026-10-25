@@ -1,5 +1,6 @@
 import { Student } from "@/store/slices/students";
 import { X } from "lucide-react";
+import { formatMoney } from "@/lib/money";
 
 const SelectedStudents = ({
   selectedStudents,
@@ -33,6 +34,11 @@ const SelectedStudents = ({
           {selfCheckInStudentIds.includes(student.id) && (
             <span className="rounded-full bg-success-100 px-1.5 text-[10px] font-medium text-success-700">
               自助簽到
+            </span>
+          )}
+          {(student.unpaidAmount ?? 0) > 0 && (
+            <span className="rounded-full bg-warning-100 px-1.5 text-[10px] font-bold text-warning-800">
+              未付 ${formatMoney(student.unpaidAmount!)}
             </span>
           )}
           <div className="absolute top-0 right-0 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-2xl">

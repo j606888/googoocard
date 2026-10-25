@@ -139,6 +139,44 @@ describe("GET /api/todos", () => {
   });
 });
 
+describe("GET /api/todos（追帳與可能重複）", () => {
+  const getTodos = async () =>
+    (await GET_TODOS(new Request("http://test.local/api/todos"), { params: Promise.resolve({}) })).json();
+
+  it("未付款依拖欠時間排序（最久的在前），帶已用堂數", async () => {
+    const card = await createCard(classroomId);
+    const a = await createStudent(classroomId, { name: "新欠" });
+    const b = await createStudent(classroomId, { name: "舊欠" });
+    await createStudentCard(a.id, card.id, { isPaid: false, createdAt: new Date("2026-10-20") });
+    await createStudentCard(b.id, card.id, {
+      isPaid: false,
+      createdAt: new Date("2026-10-01"),
+      totalSessions: 10,
+      remainingSessions: 2,
+    });
+
+    const body = await getTodos();
+    expect(body.unpaidCards.map((c: { student: { name: string } }) => c.student.name)).toEqual(["舊欠", "新欠"]);
+    expect(body.unpaidCards[0]).toMatchObject({ usedSessions: 8, totalSessions: 10 });
+  });
+
+  it("同名（不分大小寫、去空白）的在籍學生列為可能重複，封存的不算，計入總數", async () => {
+    const old = await createStudent(classroomId, { name: "Mei" });
+    const fresh = await createStudent(classroomId, { name: " mei " });
+    await prisma.student.update({ where: { id: fresh.id }, data: { lineUserId: "U1" } });
+    const gone = await createStudent(classroomId, { name: "Ben" });
+    await createStudent(classroomId, { name: "Ben" });
+    await prisma.student.update({ where: { id: gone.id }, data: { archivedAt: new Date() } });
+
+    const body = await getTodos();
+    expect(body.possibleDuplicates).toHaveLength(1);
+    expect(body.possibleDuplicates[0].students.map((s: { id: number }) => s.id)).toEqual([old.id, fresh.id]);
+    expect(body.possibleDuplicates[0].students[1]).toMatchObject({ lineBound: true });
+    expect(body.possibleDuplicates[0].students[1]).not.toHaveProperty("lineUserId");
+    expect(body.total).toBe(1);
+  });
+});
+
 describe("/api/push-tokens", () => {
   it("註冊 token；不是 Expo token → 400", async () => {
     const bad = await POST_TOKEN(jsonRequest("POST", { token: "abc", platform: "ios" }), {

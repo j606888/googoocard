@@ -13,6 +13,8 @@ export interface Todos {
     cardName: string;
     finalPrice: number;
     purchaseSource: "STAFF" | "STUDENT";
+    usedSessions: number;
+    totalSessions: number;
     createdAt: string;
     student: TodoStudent;
   }[];
@@ -25,6 +27,11 @@ export interface Todos {
     lessonName: string;
     lessonPeriodId: number;
     lessonPeriodStartTime: string;
+  }[];
+  /** 同名的在籍學生組（多半是自助登記的新同學 ↔ 沒綁 LINE 的舊生） */
+  possibleDuplicates: {
+    name: string;
+    students: (TodoStudent & { lineBound: boolean; createdAt: string })[];
   }[];
   total: number;
 }

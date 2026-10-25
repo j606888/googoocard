@@ -19,7 +19,8 @@ export async function GET() {
       card: { select: { name: true } },
       purchasedBy: { select: { name: true } },
     },
-    orderBy: { createdAt: "desc" },
+    // 拖越久的排越前面（同待處理）。
+    orderBy: { createdAt: "asc" },
   });
 
   return NextResponse.json(cards);

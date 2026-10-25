@@ -2,6 +2,7 @@ import { Student } from "@/store/slices/students";
 import RoundCheckbox from "@/components/RoundCheckbox";
 import Image from "next/image";
 import { MdInfo } from "react-icons/md";
+import { formatMoney } from "@/lib/money";
 
 const StudentOption = ({
   student,
@@ -48,13 +49,27 @@ const StudentOption = ({
               自助簽到
             </span>
           )}
+          {student.isNewStudent && (
+            <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+              新學員
+            </span>
+          )}
           {student.note && (
             <p className={`text-sm truncate ${isGray ? "text-neutral-300" : "text-neutral-500"}`}>
               ({student.note})
             </p>
           )}
         </div>
-        <RoundCheckbox isChecked={isChecked} className="ml-auto shrink-0" />
+        {(student.unpaidAmount ?? 0) > 0 && (
+          // 當堂就知道要收誰的錢（未付款永遠不擋點名）
+          <span className="ml-auto shrink-0 rounded-full bg-warning-100 px-2 py-0.5 text-xs font-bold text-warning-800">
+            未付 ${formatMoney(student.unpaidAmount!)}
+          </span>
+        )}
+        <RoundCheckbox
+          isChecked={isChecked}
+          className={`${(student.unpaidAmount ?? 0) > 0 ? "" : "ml-auto"} shrink-0`}
+        />
       </div>
       {isFirstTime && (
         <div className="flex items-center gap-1 pl-12">
