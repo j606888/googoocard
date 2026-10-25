@@ -1,0 +1,13 @@
+{
+  "name": "googoocard-main",
+  "chatBarText": "選單",
+  "size": { "width": 2500, "height": 1686 },
+  "areas": [
+    { "label": "上課簽到", "action": "liff:checkin", "bounds": { "x": 0, "y": 0, "width": 833, "height": 843 } },
+    { "label": "我的課卡", "action": "postback:mycards", "bounds": { "x": 833, "y": 0, "width": 834, "height": 843 } },
+    { "label": "課表", "action": "postback:schedule", "bounds": { "x": 1667, "y": 0, "width": 833, "height": 843 } },
+    { "label": "價目表", "action": "postback:prices", "bounds": { "x": 0, "y": 843, "width": 833, "height": 843 } },
+    { "label": "購買課卡", "action": "liff:buy", "bounds": { "x": 833, "y": 843, "width": 834, "height": 843 } },
+    { "label": "更多", "action": "postback:more", "bounds": { "x": 1667, "y": 843, "width": 833, "height": 843 } }
+  ]
+}

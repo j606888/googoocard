@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, X } from "lucide-react";
 import { formatMoney } from "@/lib/money";
+import ChatPane from "./ChatPane";
 import {
   MOCK_CLOSE_MESSAGE,
   MOCK_FRAME_PREFIX,
@@ -33,6 +34,9 @@ const PAGES = [
   { key: "buy", label: "買卡" },
 ] as const;
 type PageKey = (typeof PAGES)[number]["key"];
+// A LIFF path under /liff — one of PAGES, or anything a chat button opens
+// (e.g. "cards?switch=1").
+type LiffPath = PageKey | (string & {});
 
 // Same key LiffStudentGate remembers the picked student under — cleared on
 // every persona switch so one persona's choice doesn't leak into the next.
@@ -66,7 +70,7 @@ const LineSimulator = () => {
   const [data, setData] = useState<SimData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [persona, setPersona] = useState<MockLineUser | null>(null);
-  const [page, setPage] = useState<PageKey>("checkin");
+  const [page, setPage] = useState<LiffPath>("checkin");
   const [newName, setNewName] = useState("新同學");
   const [closed, setClosed] = useState(false);
   const [isFriend, setIsFriend] = useState(false);
@@ -96,7 +100,7 @@ const LineSimulator = () => {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  const open = (next: MockLineUser, nextPage: PageKey = page) => {
+  const open = (next: MockLineUser, nextPage: LiffPath = page) => {
     try {
       localStorage.removeItem(LAST_STUDENT_KEY);
     } catch {}
@@ -141,6 +145,7 @@ const LineSimulator = () => {
 
   const src = useMemo(() => {
     if (!data) return null;
+    // Self check-in is opened from the wall QR, which carries the classroom key.
     return page === "checkin"
       ? `/liff/checkin?key=${encodeURIComponent(data.checkinKey)}`
       : `/liff/${page}`;
@@ -166,7 +171,7 @@ const LineSimulator = () => {
       {error && <p className="p-6 text-center text-neutral-600">{error}</p>}
 
       {data && (
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 lg:flex-row lg:items-start">
+        <div className="mx-auto flex max-w-[1600px] flex-col flex-wrap gap-6 p-4 lg:flex-row lg:items-start">
           {/* ---------- Personas ---------- */}
           <aside className="flex w-full flex-col gap-4 lg:w-80 lg:shrink-0">
             <section className="flex flex-col gap-2 rounded-xl bg-white p-3">
@@ -257,7 +262,7 @@ const LineSimulator = () => {
                   disabled={!persona}
                   onClick={() => persona && open(persona, p.key)}
                   className={`rounded-md px-3 py-1.5 text-sm cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
-                    page === p.key ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"
+                    page.split("?")[0] === p.key ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"
                   }`}
                 >
                   {p.label}
@@ -323,6 +328,18 @@ const LineSimulator = () => {
               </div>
             </div>
           </main>
+
+          {/* ---------- Chat with the official account ---------- */}
+          <section className="flex flex-col items-center gap-3">
+            <p className="flex h-[38px] items-center text-sm font-medium text-neutral-600">聊天室（Rich Menu）</p>
+            {persona ? (
+              <ChatPane key={persona.userId} persona={persona} onOpenLiff={(path) => open(persona, path)} />
+            ) : (
+              <p className="w-[395px] rounded-xl bg-white p-6 text-center text-sm text-neutral-500">
+                從左邊挑一個 LINE 身分
+              </p>
+            )}
+          </section>
 
           {/* ---------- Teacher side ---------- */}
           <aside className="flex w-full flex-col gap-2 rounded-xl bg-white p-3 text-sm lg:w-64 lg:shrink-0">

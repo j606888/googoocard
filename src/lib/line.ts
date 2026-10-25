@@ -63,12 +63,15 @@ export function textMessage(text: string): LineMessage {
 export const SWITCH_TO_STUDENT = "switch=student";
 export const SWITCH_TO_TEACHER = "switch=teacher";
 
-// Brand palette for the flex menus.
-const BRAND = "#7c3aed"; // primary purple (header background)
-const BRAND_SUBTLE = "#e9d5ff"; // light purple for header subtitle on dark bg
-const TEXT_MAIN = "#333333";
-const TEXT_MUTED = "#9ca3af";
-const ROW_DIVIDER = "#f0f0f0";
+// Brand palette for the flex messages — the site's primary green
+// (globals.css --color-primary-*), same as LIFF and the rich menu.
+export const BRAND = "#2B8E6E"; // primary-700 (header background)
+export const BRAND_SUBTLE = "#E3F7F0"; // primary-100, header subtitle on dark bg
+export const BRAND_DARK = "#1B5E4A"; // primary-900
+export const TEXT_MAIN = "#333333";
+export const TEXT_MUTED = "#9ca3af";
+export const ROW_DIVIDER = "#f0f0f0";
+export const WARNING = "#C96C1E"; // warning-800
 
 /**
  * A single tappable menu entry. Rendered as an icon-row (emoji + label + ›) with
@@ -230,6 +233,32 @@ export function buildStudentMenuFlex(
     type: "flex",
     altText: "googoocard 學生選單",
     contents: menuBubble(opts.name ? `${opts.name} 的學生選單` : "學生選單", items),
+  };
+}
+
+/**
+ * Rich menu「更多」: the less-used entries. Each is optional — only what applies
+ * to this LINE account is shown.
+ */
+export function buildMoreMenuFlex(opts: {
+  /** Bound to more than one student → the LIFF picker. */
+  studentSwitch?: boolean;
+  /** Bound to a teacher → the website. */
+  teacher?: boolean;
+  /** Not a bound student and several classrooms are public → choose one. */
+  classroomSwitch?: boolean;
+}): LineMessage {
+  const items: MenuItem[] = [];
+  if (opts.studentSwitch) items.push(liffItem("🔁", "切換學生", "cards?switch=1"));
+  if (opts.classroomSwitch) {
+    items.push({ icon: "🏫", label: "切換教室", action: { type: "postback", label: "切換教室", data: "a=classrooms", displayText: "切換教室" } });
+  }
+  items.push({ icon: "🔗", label: "怎麼綁定學生身分", action: { type: "postback", label: "怎麼綁定", data: "a=bindhelp", displayText: "怎麼綁定學生身分？" } });
+  if (opts.teacher) items.push(websiteItem());
+  return {
+    type: "flex",
+    altText: "googoocard 更多",
+    contents: menuBubble("更多", items),
   };
 }
 

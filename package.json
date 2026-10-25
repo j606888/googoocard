@@ -17,6 +17,8 @@
     "db:studio": "prisma studio",
     "seed:liff": "node scripts/seed-liff-test.mjs",
     "seed:dev": "node scripts/seed-dev-data.mjs",
+    "richmenu:image": "node scripts/generate-richmenu.mjs",
+    "richmenu:provision": "node --env-file=.env scripts/provision-line-richmenu.mjs",
     "//": [
       "⚠️  不要直接用 prisma db push — 不產生 migration 檔，會造成 schema drift",
       "⚠️  不要直接用 prisma migrate reset — 會清空所有資料"

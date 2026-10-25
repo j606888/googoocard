@@ -31,6 +31,8 @@ For Google／Apple sign-in (web + App, `POST /api/auth/oauth`, `src/lib/oauth.ts
 
 For the LINE simulator (`/dev/line`, `src/lib/lineMock.ts`): `NEXT_PUBLIC_LINE_MOCK=1` swaps in a fake LIFF inside the simulator's phone frame and makes `verifyIdToken` accept `mock.` tokens — no LINE Developers setup, switch personas (new LINE / bound student / simulate-bind an unbound one). Forced off when `VERCEL_ENV=production` regardless of the var; set it only locally or on a preview with its own DB. Still test real LINE once before launch (in-app browser, `liff.state`, the 綁定碼 webhook).
 
+LINE bot & rich menu: the webhook is a thin wrapper over `handleLineEvent()` (`src/service/lineBot.ts`) — postback `a=schedule|prices|mycards|more…` answer in the chat (replies only, no push quota). One shared rich menu, defined in `src/lib/lineRichMenu.json`; `npm run richmenu:image` regenerates the PNG, `npm run richmenu:provision` previews and `-- --yes` uploads it to whichever OA `LINE_CHANNEL_ACCESS_TOKEN` points at (⚠️ local `.env` currently holds the real Googoocard OA token — don't pass `--yes` casually). See "LINE Bot" in `docs/architecture.md`.
+
 **Env layout is fail-safe — local is the default, production is opt-in:**
 - `.env` — local only (docker Postgres on `:54330`). Never put production credentials here.
 - `.env.production` — production RDS `DATABASE_URL` (gitignored); used **only** by `npm run db:deploy`.
@@ -108,6 +110,7 @@ mobile/                   # Teacher iOS App (Expo) — own package.json/tsconfig
 - `LessonPeriod` — a time slot within a Lesson; `attendanceTakenAt` marks when attendance was recorded
 - `AttendanceRecord` — links a student + lessonPeriod + (optionally) a StudentCard; card session is decremented on creation, incremented on removal
 - `LessonStudent` — join table created/upserted when attendance is first taken for a student in a lesson
+- `Location` — a classroom's 分部 (台南／高雄…): `name`, optional `address`, `sortOrder`, `archivedAt`, managed on `/locations` like dance styles. `Lesson.locationId` is optional; embed via `locationSummarySelect` (`src/lib/locations.ts`). Cards are **not** location-bound. `Classroom.lineListed` = schedule/prices public on the LINE bot. See "分部" in `docs/architecture.md`.
 - `Teacher` — a named instructor entity within a classroom (not a `User`), with a palette-key `color`, `note`, `archivedAt`. Archived, deleted only if it never had a lesson. Stats on `/teachers` count only attendance-taken periods — see "老師頁" in `docs/architecture.md`.
 - `Event` — audit log for student milestones (sign-in, card exhausted); `resourceType`/`resourceId` reference the source record
 - `PushToken` / `WebPushSubscription` / `NotificationPreference` — teacher push (App via Expo, browsers via Web Push). The "待處理" list itself has no table: it's derived live by `src/service/todos.ts` (unpaid cards, Needs Renewal tag, attendance with no card).

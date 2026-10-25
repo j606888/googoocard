@@ -220,7 +220,8 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - `GET /api/dev/line-sim`（模擬模式外 404）：教室簽到 key、以 LINE 帳號分組的已綁學生（舊生／可用卡／未付）、未綁學生；`POST` 「模擬綁定」給未綁學生一個 `Umock…` LINE（代替綁定碼 webhook）。**會回 lineUserId**——這是它只能在模擬模式存在的原因。
 - `POST /api/dev/line-sim/today-lesson`：「建一堂今天的測試課」——這個整點起兩個時段（跨過台北午夜的那段不建），掛一般卡＋體驗課卡，沒有就建測試卡（沒有舞種就建「測試舞種」）。
 - 「已加好友」開關決定假 LIFF 的 `getFriendship()`，用來看簽到完成後的加好友提示。
-- 模擬不到：LINE 內建瀏覽器、`liff.state` 轉址、綁定碼 webhook。上線前仍要用真 LINE 走一次。
+- **聊天室**：手機旁另一支是跟官方帳號的對話，下方是真的 Rich Menu 圖（`RICH_MENU` 的區塊疊在圖上）。訊息／postback 送 `POST /api/dev/line-sim/bot`，交給真正的 `handleLineEvent()`、回覆收下來直接回傳，不打 LINE API；`FlexPreview.tsx` 只畫我們會用到的 Flex 子集。Bot 卡片上的 LIFF 按鈕等於在旁邊那支手機開頁。也可以直接打字測關鍵字或貼綁定碼。
+- 模擬不到：LINE 內建瀏覽器、`liff.state` 轉址、LINE 對 Flex 的實際排版。上線前仍要用真 LINE 走一次。
 
 ### 體驗課（`Card.isTrial`）——老師登記，不在自助簽到賣
 
@@ -237,6 +238,27 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - `Classroom.checkinKey`（`nanoid(10)`）：只說明「哪間教室」，不證明是誰——身分永遠來自 LINE ID Token。老師第一次開 `/checkin-qr` 時 lazy 產生，外流時「重新產生」（`POST /api/checkin-key`）。
 - `checkinEntryUrl()`（`src/service/checkin.ts`）：有 `NEXT_PUBLIC_LIFF_ID` 就是 LIFF 網址，否則退回 `/checkin/<key>`。
 - 「今天有哪些課」：`getTodayLessons()`（台北時區，walk-in 制：當天所有課程都可簽，不限已報名的）。
+
+## 分部（Location，2026-10）
+
+同一間教室的不同上課地點（台南、高雄…）。照舞種的做法：教室自己在 `/locations` 管理（名稱、地址、排序、封存不刪），`GET/POST /api/locations`、`PATCH /api/locations/[id]`、`PUT /api/locations/order`。
+- `Lesson.locationId` 選填（`ON DELETE SET NULL`），開課／編輯課程用 `LocationSelect`（chip，教室沒有分部就不顯示；記住上次選的，`getLastLessonLocation`）。課程寫入要驗分部屬於本教室（`LOCATION_NOT_FOUND` 400）。
+- 嵌在課程回應裡只用 `locationSummarySelect`（id、name）。課程列表、詳情、行事曆、LIFF 簽到都顯示 `LocationBadge`；課程列表有 ≥2 個分部有課時多一排分部篩選（`availableLocationIds`）。
+- `POST /api/locations/assign { locationId, weekdays }`：把**還沒設定分部**、第一個時段落在那幾個星期（台北）的課一次標上——舊資料的批次整理，已設定的不動。
+- **課卡不分部限定**：點名、選卡、購卡規則完全沒變。
+- `Classroom.lineListed`（分部頁上的開關，`PATCH /api/locations/settings`）＝在 LINE 官方帳號公開課表與價目表，見下一節。
+
+## LINE Bot（聊天室直接看課表／價目表／我的課卡，2026-10）
+
+webhook（`src/app/api/line/webhook/route.ts`）只驗簽章，每個事件交給 `handleLineEvent(event, reply)`（`src/service/lineBot.ts`）。**全部是 reply、不是 push，不占官方帳號的訊息額度。**
+- **Rich Menu**：一張、所有人共用、設成官方帳號預設選單。區塊定義 `src/lib/lineRichMenu.json`（3×2：上課簽到／我的課卡／課表／價目表／購買課卡／更多），`liff:<path>` 開 LIFF、`postback:<action>` 送 `a=<action>` 給 bot。圖由 `npm run richmenu:image`（`scripts/generate-richmenu.mjs`，sharp＋lucide＋PingFang TC）產生到 `public/images/richmenu/main.png`；`npm run richmenu:provision` 預覽、加 `-- --yes` 才真的上傳並設成預設（用 env 的 `LINE_CHANNEL_ACCESS_TOKEN` 決定哪個官方帳號，重跑會刪掉同名舊選單）。內容依「這個 LINE 是誰」在 webhook 決定，所以不用逐人 link、沒有資料表。
+- **看哪間教室**（官方帳號將來會給多間教室共用）——`resolveLineClassroom()`：綁定學生的教室 → 綁定老師的目前教室 → 之前選過的公開教室（`LineAccount.browseClassroomId`）→ 唯一一間 `lineListed` 的教室；多間公開就 quick reply 讓他選（`a=pick`），零間回「目前還沒有公開的課表」。
+- `a=schedule`：教室有 ≥2 個分部先問哪一個（含「全部」），再回未來 7 天（台北）的 carousel，一天一張、超過 8 堂顯示「還有 N 堂」；手動結束的課不列；選了有地址的分部附「地圖」按鈕。
+- `a=prices`：`expiredAt = null` 的卡，分「課卡（各分部通用）」「<舞種> 複習卡」「體驗課」三組；綁定的學生多一個購買按鈕。
+- `a=mycards`：目前學生（`currentStudent()`，LIFF 選的那位）還能用或未付的卡＋未付合計；未綁定回綁定說明。
+- `a=more`：切換學生（綁多位時）、切換教室（未綁定且多間公開時）、怎麼綁定、進入網站（老師）。
+- 打字「課表」「價目表」「我的課卡」等關鍵字同上；綁定碼永遠優先。未綁定的人傳其他訊息回說明＋quick reply（不再是「無法辨識此綁定碼」）。舊的老師／學生 Flex 選單照舊保留。
+- Flex builder 是純函式（`src/lib/lineFlex.ts`，有單元測試），配色跟網站一致改成品牌綠（`src/lib/line.ts` 的 `BRAND`）。
 
 ## 買卡流程（StudentCard 建立）
 

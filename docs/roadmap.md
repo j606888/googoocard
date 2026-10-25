@@ -472,6 +472,10 @@ import `renewalReminder` / `pushMessage` / `findExhaustedRenewableCard`），沒
 - **課卡到期自動處理** — `StudentCard.expiredAt` 有欄位但沒有定期 job 去掃。
   route 這一半 P2-1 已備好（照 `src/app/api/cron/renewal-reminders/route.ts` 的
   `CRON_SECRET` 驗證抄一份），但排程設定檔還沒接上，見 P2-1 的「排程檔待補」。
+- [x] **分部＋LINE 聊天室看課表／價目表／我的課卡＋Rich Menu** ✅ 2026-10-26。已知取捨：
+  課卡不分部限定（使用者決定兩地通用）；Rich Menu 只有一張、所有人共用（內容由 webhook 依身分決定，
+  不逐人 link、不建表）；沒綁定的人看哪間教室靠 `Classroom.lineListed` + 選過的 `browseClassroomId`，
+  多間教室共用官方帳號時用 quick reply 選。舊的老師／學生 Flex 選單仍保留當備案，之後可以拿掉。
 - **營收 CSV 匯出** — 老師報稅／對帳用。
 - **課程模板／重複排課** — 現在每期課要手動建所有 periods。
 - **已封存教室的還原 UI** — 現在只能手動 `UPDATE "Classroom" SET "deletedAt" = NULL`。
