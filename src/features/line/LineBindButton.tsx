@@ -3,7 +3,7 @@
 import { useGetLineBindLinkQuery } from "@/store/slices/me";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Shown on the teams/settings page. Lets a logged-in teacher bind their LINE
+// Shown on the account page. Lets a logged-in teacher bind their LINE
 // account: tapping the button opens the official-account chat with a one-time
 // key pre-filled — they just send it, and the webhook completes the binding.
 export default function LineBindButton() {

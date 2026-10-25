@@ -13,6 +13,7 @@ import {
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { useWebPush } from "@/hooks/useWebPush";
 import { Skeleton } from "@/components/ui/skeleton";
+import LineBindButton from "@/features/line/LineBindButton";
 
 const NOTIFICATION_TYPES: { type: TodoType; label: string; hint: string }[] = [
   { type: "UNPAID_CARD", label: "待確認收款", hint: "學生在 LINE 自助購買課卡時" },
@@ -44,6 +45,11 @@ const AccountSettings = () => {
             {isMeLoading ? <Skeleton className="h-5 w-48" /> : me?.email}
           </dd>
         </dl>
+      </section>
+
+      <section className="rounded-xl border border-neutral-200 bg-white p-4">
+        <h3 className="mb-3 font-semibold">LINE</h3>
+        <LineBindButton />
       </section>
 
       <NotificationSettings

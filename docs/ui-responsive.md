@@ -228,7 +228,7 @@ hook——正好落在下面「已知取捨」寫的界線內：小塊靜態內�
 ## 已知取捨（刻意不做，別再重複討論）
 
 - **不做兩套 app／`m.` 子網域。** 14,450 行翻倍成 ~29,000 行，路由、auth、狀態、QA 全部翻倍然後開始 drift，換到的只是「不用想清楚規則」。web 上這條路已被業界淘汰。
-- **不追求每頁桌面對等。** `teams`、`invitations` 維持窄欄居中，它們不是每天用的畫面。（`teachers` 2026-10 改版後走 L1：卡片網格 `auto-fill minmax(300px,1fr)`、詳情頁 `flex-wrap` 兩欄，單一元件樹。）
+- **不追求每頁桌面對等。** `teams`、`invitations` 維持窄欄（`teams` 2026-10 改版：最寬 760px 單欄、單一元件樹，只用 `lg:` 把手機的分段卡片併成桌面的整張卡片），它們不是每天用的畫面。（`teachers` 2026-10 改版後走 L1：卡片網格 `auto-fill minmax(300px,1fr)`、詳情頁 `flex-wrap` 兩欄，單一元件樹。）
 - **學生端維持純手機 480px。** `liff/*`、`checkin/[key]`、`public-students/[randomKey]` 本來就只在手機開，不是技術債。`checkin-qr` 刻意窄（現場投影用）。
 - **平板直立（768–1024）歸手機體驗。** 這是第 1 項的代價，明確接受。真的出現 iPad 使用者再加第三個 size class。（業界完整做法是多個 size class——Material 3 定義五個：compact <600 / medium 600–840 / expanded 840–1200 / large / extra-large；簡化成兩個是小型工具的合理取捨，但要知道自己在簡化。）
 - **小塊靜態內容用 `hidden lg:` 是可以的**（例如 `CardDetail:80` 的桌面返回連結、`GroupRow:65-76` 的桌面表頭）。界線是：**裡面有沒有 hook 或狀態。**

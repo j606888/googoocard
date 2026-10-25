@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle } from "lucide-react";
 import Drawer from "@/components/Drawer";
 import {
   useDeleteClassroomMutation,
@@ -11,8 +10,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * The two ways out of a classroom, kept together at the bottom of the Members
- * tab and behind a confirmation each.
+ * The two ways out of a classroom, kept together at the bottom of the team page
+ * and behind a confirmation each.
  *
  * Which one you get is decided by role: an assistant leaves, an owner deletes.
  * An owner can't leave — the classroom would be left without one — so they see
@@ -38,7 +37,7 @@ const DangerZone = ({ role }: { role: string }) => {
   const [leaveClassroom, { isLoading: isLeaving }] = useLeaveClassroomMutation();
 
   if (isClassroomsLoading) {
-    return <Skeleton className="mt-8 h-[140px] w-full rounded-xl" />;
+    return <Skeleton className="mt-4 h-[110px] w-full rounded-2xl lg:mt-6" />;
   }
   if (!classroom) return null;
 
@@ -66,23 +65,26 @@ const DangerZone = ({ role }: { role: string }) => {
 
   return (
     <>
-      <div className="mt-8 rounded-xl border border-danger-200 bg-danger-50 p-4">
-        <div className="flex items-center gap-2 text-danger-700">
-          <AlertTriangle className="h-4 w-4" />
-          <h3 className="font-semibold">危險操作區</h3>
+      <section className="mt-4 flex flex-col gap-2 lg:mt-6">
+        <h3 className="mx-1 text-[13px] font-medium text-danger-700 lg:mx-0">危險操作</h3>
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-danger-200 bg-white p-3.5 lg:gap-4 lg:px-5 lg:py-4">
+          <div className="flex min-w-[min(100%,16rem)] flex-1 flex-col gap-0.5">
+            <span className="font-medium">{isOwner ? "刪除教室" : "退出教室"}</span>
+            <span className="text-[13px] leading-relaxed text-neutral-500">
+              {isOwner
+                ? "整間教室會被封存：所有成員都看不到它，牆上的簽到 QR 也會失效。"
+                : `你將失去 ${classroom.name} 的存取權，之後可以請擁有者再邀請你回來。`}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="h-11 shrink-0 cursor-pointer rounded-lg border border-danger-400 bg-white px-4 text-sm font-medium text-danger-700 hover:bg-danger-50 lg:h-10"
+          >
+            {isOwner ? "刪除教室…" : "退出…"}
+          </button>
         </div>
-        <p className="mt-1.5 text-sm text-neutral-600">
-          {isOwner
-            ? "刪除會把整間教室封存：所有成員的教室清單都會看不到它，牆上的簽到 QR 看板也會失效。"
-            : `你將失去 ${classroom.name} 的存取權，之後可以再請教室擁有者邀請你回來。`}
-        </p>
-        <button
-          onClick={() => setOpen(true)}
-          className="mt-3 w-full cursor-pointer rounded-lg border border-danger-500 py-2 font-semibold text-danger-600 hover:bg-danger-100"
-        >
-          {isOwner ? "刪除教室" : "退出教室"}
-        </button>
-      </div>
+      </section>
 
       <Drawer
         title={isOwner ? "刪除教室" : "退出教室"}
