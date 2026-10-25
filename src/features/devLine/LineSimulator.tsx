@@ -69,6 +69,8 @@ const LineSimulator = () => {
   const [page, setPage] = useState<PageKey>("checkin");
   const [newName, setNewName] = useState("新同學");
   const [closed, setClosed] = useState(false);
+  const [isFriend, setIsFriend] = useState(false);
+  const [lessonNote, setLessonNote] = useState<string | null>(null);
   // Bumped to remount the iframe (re-open the LIFF page from scratch).
   const [openCount, setOpenCount] = useState(0);
 
@@ -98,7 +100,7 @@ const LineSimulator = () => {
     try {
       localStorage.removeItem(LAST_STUDENT_KEY);
     } catch {}
-    setPersona(next);
+    setPersona({ ...next, isFriend });
     setPage(nextPage);
     setClosed(false);
     setOpenCount((n) => n + 1);
@@ -114,6 +116,27 @@ const LineSimulator = () => {
     const { lineUserId } = await res.json();
     await load();
     open({ userId: lineUserId, name: s.name });
+  };
+
+  const createTodayLesson = async () => {
+    setLessonNote("建立中…");
+    const res = await fetch("/api/dev/line-sim/today-lesson", { method: "POST" });
+    if (!res.ok) {
+      setLessonNote("建立失敗");
+      return;
+    }
+    const lesson: { id: number; name: string } = await res.json();
+    setLessonNote(`已建立「${lesson.name}」`);
+    if (persona) open(persona);
+  };
+
+  const toggleFriend = (next: boolean) => {
+    setIsFriend(next);
+    if (persona) {
+      setPersona({ ...persona, isFriend: next });
+      setClosed(false);
+      setOpenCount((n) => n + 1);
+    }
   };
 
   const src = useMemo(() => {
@@ -242,6 +265,16 @@ const LineSimulator = () => {
               ))}
             </div>
 
+            <label className="flex items-center gap-2 text-sm text-neutral-600">
+              <input
+                type="checkbox"
+                checked={isFriend}
+                onChange={(e) => toggleFriend(e.target.checked)}
+                className="h-4 w-4 accent-primary-700"
+              />
+              這個 LINE 已加官方帳號好友（關掉可看簽到完成後的「加好友」提示）
+            </label>
+
             <div className="overflow-hidden rounded-[2.5rem] border-[10px] border-neutral-900 bg-white shadow-xl">
               {/* LINE's LIFF header bar */}
               <div className="flex h-11 w-[375px] items-center gap-2 border-b border-neutral-200 bg-white px-3">
@@ -293,7 +326,20 @@ const LineSimulator = () => {
 
           {/* ---------- Teacher side ---------- */}
           <aside className="flex w-full flex-col gap-2 rounded-xl bg-white p-3 text-sm lg:w-64 lg:shrink-0">
-            <h2 className="font-semibold">對照老師端</h2>
+            <h2 className="font-semibold">測試資料</h2>
+            <p className="text-xs leading-relaxed text-neutral-500">
+              一堂今天的課：這個整點起兩個時段，掛一般卡和體驗課卡（沒有就建測試卡）。
+            </p>
+            <button
+              type="button"
+              onClick={createTodayLesson}
+              className="rounded-lg bg-primary-700 px-3 py-1.5 text-sm font-medium text-white cursor-pointer"
+            >
+              建一堂今天的測試課
+            </button>
+            {lessonNote && <p className="text-xs text-neutral-600">{lessonNote}</p>}
+
+            <h2 className="mt-3 font-semibold">對照老師端</h2>
             <p className="text-xs leading-relaxed text-neutral-500">
               另開分頁看自助簽到、新學員、未付的徽章，點名完成後的「今日收款」，以及待處理的「可能重複」。
             </p>

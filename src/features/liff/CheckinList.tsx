@@ -11,6 +11,7 @@ import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
 import { loadLiff } from "@/lib/liffClient";
+import AddFriendPrompt from "@/features/liff/AddFriendPrompt";
 import {
   CheckinResponse,
   TodayLesson,
@@ -547,6 +548,8 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
           </Link>
         </div>
       )}
+
+      <AddFriendPrompt />
 
       <button
         type="button"

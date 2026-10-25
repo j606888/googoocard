@@ -14,6 +14,8 @@ export type LiffClient = {
   getIDToken: () => string | null;
   isInClient: () => boolean;
   closeWindow: () => void;
+  /** Whether this user has added the linked official account as a friend. */
+  getFriendship: () => Promise<{ friendFlag: boolean }>;
 };
 
 // The persona the /dev/line simulator put on this frame, if any.
@@ -36,7 +38,13 @@ function mockLiff(user: MockLineUser): LiffClient {
     isInClient: () => true,
     // The simulator shows a "closed" screen instead of a real window close.
     closeWindow: () => window.parent.postMessage({ type: MOCK_CLOSE_MESSAGE }, window.location.origin),
+    getFriendship: async () => ({ friendFlag: user.isFriend ?? false }),
   };
+}
+
+/** True inside the /dev/line simulator's phone frame. */
+export function isMockLiff() {
+  return mockPersona() !== null;
 }
 
 /** The LIFF ID to init with — inside the simulator any value works. */

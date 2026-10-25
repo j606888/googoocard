@@ -18,7 +18,13 @@ export const MOCK_TOKEN_PREFIX = "mock.";
 export const MOCK_FRAME_PREFIX = "line-mock:";
 export const MOCK_CLOSE_MESSAGE = "line-mock:close";
 
-export type MockLineUser = { userId: string; name: string; picture?: string };
+export type MockLineUser = {
+  userId: string;
+  name: string;
+  picture?: string;
+  /** Simulator-only: what liff.getFriendship() answers. Not part of the token. */
+  isFriend?: boolean;
+};
 
 export function isLineMockEnabled() {
   return (
