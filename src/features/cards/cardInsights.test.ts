@@ -2,8 +2,11 @@ import { describe, it, expect } from "vitest";
 import { Card, CardHolder } from "@/store/slices/cards";
 import {
   perSessionPrice,
-  sortCards,
-  splitByType,
+  cardKind,
+  kindFlags,
+  groupByDanceStyle,
+  perSessionSavings,
+  autoCardName,
   cardsSummary,
   isRunningOut,
   RENEWAL_SOON_SESSIONS,
@@ -49,62 +52,71 @@ describe("perSessionPrice", () => {
   });
 });
 
-describe("sortCards", () => {
-  const newest = card({ id: 1, name: "新卡", createdAt: "2026-06-01T00:00:00.000Z" });
-  const rich = card({
-    id: 2,
-    name: "團體卡",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    totalRevenue: 184800,
-    activeHolders: 18,
-    price: 8400,
-    sessions: 12,
-  });
-  const cheap = card({
-    id: 3,
-    name: "體驗卡",
-    createdAt: "2026-03-01T00:00:00.000Z",
-    totalRevenue: 6000,
-    activeHolders: 1,
-    price: 500,
-    sessions: 1,
-  });
-  const all = [rich, cheap, newest];
-
-  it("defaults to newest first", () => {
-    expect(sortCards(all, "newest").map((c) => c.id)).toEqual([1, 3, 2]);
+describe("cardKind", () => {
+  it("maps the two flags to one of three kinds, practice winning a legacy clash", () => {
+    expect(cardKind({ isPracticeCard: false, isTrial: false })).toBe("general");
+    expect(cardKind({ isPracticeCard: true, isTrial: false })).toBe("practice");
+    expect(cardKind({ isPracticeCard: false, isTrial: true })).toBe("trial");
+    expect(cardKind({ isPracticeCard: true, isTrial: true })).toBe("practice");
   });
 
-  it("sorts by revenue, holders and per-session price", () => {
-    expect(sortCards(all, "revenue").map((c) => c.id)).toEqual([2, 3, 1]);
-    expect(sortCards(all, "holders").map((c) => c.id)).toEqual([2, 3, 1]);
-    // newest: 1200/6 = 200, rich: 700, cheap: 500
-    expect(sortCards(all, "perSession").map((c) => c.id)).toEqual([1, 3, 2]);
-  });
-
-  it("breaks ties by name and never mutates the input", () => {
-    const a = card({ id: 10, name: "B 卡" });
-    const b = card({ id: 11, name: "A 卡" });
-    const input = [a, b];
-    expect(sortCards(input, "revenue").map((c) => c.id)).toEqual([11, 10]);
-    expect(input.map((c) => c.id)).toEqual([10, 11]);
+  it("round-trips through kindFlags", () => {
+    for (const kind of ["general", "practice", "trial"] as const) {
+      expect(cardKind(kindFlags(kind))).toBe(kind);
+    }
   });
 });
 
-describe("splitByType", () => {
-  it("separates practice cards and keeps the incoming order within each group", () => {
-    const general1 = card({ id: 1, name: "團體卡" });
-    const practice = card({
-      id: 2,
-      name: "複習卡",
-      isPracticeCard: true,
-      danceStyleId: 1,
-    });
-    const general2 = card({ id: 3, name: "私人課" });
+describe("groupByDanceStyle", () => {
+  const hustle8 = card({ id: 1, name: "Hustle 8", danceStyleId: 10, sessions: 8 });
+  const hustle4 = card({ id: 2, name: "Hustle 4", danceStyleId: 10, sessions: 4 });
+  const hustleTrial = card({ id: 3, name: "體驗", danceStyleId: 10, sessions: 1, isTrial: true });
+  const hustlePractice = card({ id: 4, name: "複習", danceStyleId: 10, sessions: 4, isPracticeCard: true });
+  const swing = card({ id: 5, name: "WCS 8", danceStyleId: 20, sessions: 8 });
+  const any = card({ id: 6, name: "全舞種", danceStyleId: null, sessions: 10 });
 
-    const { general, practice: practiceCards } = splitByType([general1, practice, general2]);
-    expect(general.map((c) => c.id)).toEqual([1, 3]);
-    expect(practiceCards.map((c) => c.id)).toEqual([2]);
+  it("orders groups by the classroom's style order, unstyled cards last", () => {
+    const groups = groupByDanceStyle([any, swing, hustle8], [20, 10]);
+    expect(groups.map((g) => g.danceStyleId)).toEqual([20, 10, null]);
+  });
+
+  it("lists general → practice → trial, then by sessions, inside a group", () => {
+    const [group] = groupByDanceStyle([hustleTrial, hustle8, hustlePractice, hustle4], [10]);
+    expect(group.cards.map((c) => c.id)).toEqual([2, 1, 4, 3]);
+  });
+
+  it("puts a style missing from the order after the known ones but before unstyled", () => {
+    const groups = groupByDanceStyle([any, swing, hustle8], [10]);
+    expect(groups.map((g) => g.danceStyleId)).toEqual([10, 20, null]);
+  });
+});
+
+describe("perSessionSavings", () => {
+  const four = card({ id: 1, name: "4 堂", price: 2000, sessions: 4 }); // 500
+  const eight = card({ id: 2, name: "8 堂", price: 3600, sessions: 8 }); // 450
+  const practice = card({ id: 3, name: "複習", price: 1200, sessions: 4, isPracticeCard: true });
+  const group = [four, eight, practice];
+
+  it("compares a general card with the group's priciest general per-session price", () => {
+    expect(perSessionSavings(eight, group)).toBe(50);
+    expect(perSessionSavings(four, group)).toBe(0);
+  });
+
+  it("never shows savings on practice or trial cards", () => {
+    expect(perSessionSavings(practice, group)).toBe(0);
+  });
+});
+
+describe("autoCardName", () => {
+  it("names each kind the way a teacher would", () => {
+    expect(autoCardName({ styleName: "Hustle", kind: "general", sessions: 8 })).toBe("Hustle 8 堂");
+    expect(autoCardName({ styleName: "Hustle", kind: "practice", sessions: 4 })).toBe("Hustle 複習 4 堂");
+    expect(autoCardName({ styleName: "Hustle", kind: "trial", sessions: 1 })).toBe("Hustle 體驗課");
+  });
+
+  it("drops the style when the card isn't tied to one", () => {
+    expect(autoCardName({ styleName: null, kind: "general", sessions: 10 })).toBe("10 堂");
+    expect(autoCardName({ styleName: null, kind: "trial", sessions: 1 })).toBe("體驗課");
   });
 });
 

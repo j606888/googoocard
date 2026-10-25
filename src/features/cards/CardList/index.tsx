@@ -1,214 +1,292 @@
 "use client";
 
-import { useState } from "react";
-import { useGetCardsQuery, Card } from "@/store/slices/cards";
-import { CreditCard, ChevronDown, Ban } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { ChevronRight, CreditCard, Plus } from "lucide-react";
+import { Card, useGetCardsQuery } from "@/store/slices/cards";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
-import SortMenu from "@/components/SortMenu";
-import NewCard from "./NewCard";
-import SingleCard from "./SingleCard";
+import { useSizeClass } from "@/hooks/useMediaQuery";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
+import SegmentedTabs from "@/components/SegmentedTabs";
 import CardListSkeleton from "./CardListSkeleton";
-import EditCard from "./EditCard";
-import CardFilters, { CardTypeFilter } from "./CardFilters";
+import CardSheet, { CardSheetView } from "../CardSheet";
+import CardFormDrawer from "../CardForm/CardFormDrawer";
+import type { CardFormTarget } from "../CardForm/useCardForm";
+import { CardKindBadge } from "../CardKindBadge";
 import {
-  CARD_SORT_OPTIONS,
-  CardSort,
-  DEFAULT_CARD_SORT,
+  cardKind,
   cardsSummary,
-  sortCards,
-  splitByType,
+  groupByDanceStyle,
+  perSessionPrice,
+  perSessionSavings,
 } from "../cardInsights";
 
+type Tab = "open" | "archived";
+/** `"all"` 全部、數字 = 某個舞種、`"none"` = 不限舞種的方案。 */
+type StyleFilter = "all" | "none" | number;
+
+/** 桌面抽屜開著哪個方案，鏡射到網址（`?card=12`），重新整理或分享連結還是同一個。 */
+const CARD_PARAM = "card";
+
+const readCardParam = (): number | null => {
+  const value = new URLSearchParams(window.location.search).get(CARD_PARAM);
+  return value && /^\d+$/.test(value) ? Number(value) : null;
+};
+
+const writeCardParam = (id: number | null) => {
+  const url = new URL(window.location.href);
+  if (id === null) url.searchParams.delete(CARD_PARAM);
+  else url.searchParams.set(CARD_PARAM, String(id));
+  if (url.href !== window.location.href) window.history.replaceState(null, "", url);
+};
+
+/**
+ * 課卡頁：一張依舞種分組的價目表。點方案才看得到詳情——桌面從右邊滑出抽屜
+ * （背景調暗、列表還看得到），手機進整頁（`/cards/[id]`）。
+ */
 const CardList = () => {
   const { data, isLoading } = useGetCardsQuery();
-  const { activeCards, expiredCards } = data || {
-    activeCards: [],
-    expiredCards: [],
-  };
-  const [showExpiredCards, setShowExpiredCards] = useState(false);
-  const [editCardId, setEditCardId] = useState<number | null>(null);
-  const [typeFilter, setTypeFilter] = useState<CardTypeFilter>("all");
-  const [danceFilter, setDanceFilter] = useState<number | null>(null);
-  const [sort, setSort] = useState<CardSort>(DEFAULT_CARD_SORT);
   const { byId } = useDanceStyles();
+  const isExpanded = useSizeClass() === "expanded";
+  const [tab, setTab] = useState<Tab>("open");
+  const [styleFilter, setStyleFilter] = useState<StyleFilter>("all");
+  const [sheet, setSheetState] = useState<CardSheetView | null>(null);
+  const [mobileForm, setMobileForm] = useState<CardFormTarget | null>(null);
 
-  if (isLoading) return <CardListSkeleton />;
+  const setSheet = useCallback((view: CardSheetView | null) => {
+    setSheetState(view);
+    writeCardParam(view?.type === "detail" ? view.id : null);
+  }, []);
 
-  // Dance styles with at least one card (active or disabled), in the classroom's order.
-  const availableDanceStyles = [...byId.values()].filter((style) =>
-    [...activeCards, ...expiredCards].some((c) => c.danceStyleId === style.id)
+  // 帶著 ?card= 進來（分享連結、桌面打開 /cards/[id] 被導回來）就直接打開那個方案。
+  useEffect(() => {
+    if (!isExpanded) return;
+    const id = readCardParam();
+    if (id !== null) setSheetState((prev) => prev ?? { type: "detail", id });
+  }, [isExpanded]);
+
+  if (isLoading || !data) return <CardListSkeleton />;
+
+  const { activeCards, expiredCards } = data;
+  const hasAnyCard = activeCards.length > 0 || expiredCards.length > 0;
+  const summary = cardsSummary(activeCards);
+  const styleOrder = [...byId.keys()];
+
+  const tabCards = tab === "open" ? activeCards : expiredCards;
+  const allGroups = groupByDanceStyle(tabCards, styleOrder);
+  const groups = allGroups.filter(
+    (group) =>
+      styleFilter === "all" ||
+      (styleFilter === "none" ? group.danceStyleId === null : group.danceStyleId === styleFilter)
   );
+  // 抽屜的上一個／下一個照畫面上的順序走。
+  const order = groups.flatMap((group) => group.cards.map((card) => card.id));
 
-  const matchesFilters = (card: Card) => {
-    const typeOk =
-      typeFilter === "all" ||
-      (typeFilter === "practice" ? card.isPracticeCard : !card.isPracticeCard);
-    const danceOk = danceFilter === null || card.danceStyleId === danceFilter;
-    return typeOk && danceOk;
+  const openCard = (card: Card) => (event: React.MouseEvent) => {
+    // 手機走連結進整頁；桌面攔下來開抽屜（⌘／Ctrl 點擊還是照常開新分頁）。
+    if (!isExpanded || event.metaKey || event.ctrlKey || event.shiftKey) return;
+    event.preventDefault();
+    setSheet({ type: "detail", id: card.id });
   };
 
-  const hasAnyCard = activeCards.length > 0 || expiredCards.length > 0;
-  const filteredActive = activeCards.filter(matchesFilters);
-  const filteredExpired = expiredCards.filter(matchesFilters);
-  const hasFilteredMatch = filteredActive.length > 0 || filteredExpired.length > 0;
+  const newPlan = (danceStyleId?: number | null) => {
+    const target: CardFormTarget = { mode: "new", danceStyleId };
+    if (isExpanded) setSheet({ type: "form", target, returnTo: null });
+    else setMobileForm(target);
+  };
 
-  const summary = cardsSummary(activeCards);
-  // 分組固定（一般卡在上、複習卡在下），排序只改變組內順序。
-  const { general, practice } = splitByType(sortCards(filteredActive, sort));
-  // 已經用「類型」篩到單一組時就不必再多一層組標題。
-  const showGroupHeadings = typeFilter === "all";
+  const styleChips: { value: StyleFilter; label: string; dot: string }[] = [
+    { value: "all", label: "全部舞種", dot: "" },
+    ...allGroups.map((group) => {
+      const style = group.danceStyleId !== null ? byId.get(group.danceStyleId) : undefined;
+      return group.danceStyleId === null
+        ? { value: "none" as const, label: "不限舞種", dot: "bg-neutral-400" }
+        : { value: group.danceStyleId, label: style?.name ?? "舞種", dot: danceStyleMeta(style).dot };
+    }),
+  ];
 
   return (
-    <div className="w-full max-w-[1120px] px-5 py-3 lg:px-8 lg:py-6">
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <div className="flex flex-col gap-1.5">
-          <h2 className="text-2xl font-semibold">課卡</h2>
-          {/* 用間距而不是「·」分隔——換行時分隔點會落在行尾。 */}
+    <div className="w-full max-w-[1080px] mx-auto px-5 py-4 lg:px-10 lg:py-10 flex flex-col gap-5 lg:gap-6">
+      <div className="flex items-end justify-between gap-4">
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <h1 className="text-2xl lg:text-[28px] font-bold">課卡</h1>
           {hasAnyCard && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[13px] text-neutral-500">
-              <span>
-                啟用中 <b className="font-semibold text-neutral-900">{summary.kinds}</b> 種
-              </span>
-              <span>
-                使用中的課卡{" "}
-                <b className="font-semibold text-neutral-900">
-                  {summary.activeStudentCards}
-                </b>{" "}
-                張
-              </span>
-              <span>
-                累積課卡收入{" "}
-                <b className="font-semibold text-neutral-900">
-                  ${summary.totalRevenue.toLocaleString()}
-                </b>
-              </span>
-            </div>
+            <p className="text-sm text-neutral-600">
+              開放購買 {activeCards.length} 種方案・學生手上 {summary.activeStudentCards} 張還沒用完
+            </p>
           )}
         </div>
-        <NewCard />
+        <button
+          type="button"
+          onClick={() => newPlan()}
+          className="shrink-0 flex items-center gap-2 min-h-11 px-4 rounded-lg bg-primary-900 text-white text-sm font-semibold hover:opacity-90 cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          新增方案
+        </button>
       </div>
 
-      {hasAnyCard && (
-        <CardFilters
-          typeFilter={typeFilter}
-          setTypeFilter={setTypeFilter}
-          danceFilter={danceFilter}
-          setDanceFilter={setDanceFilter}
-          availableDanceStyles={availableDanceStyles}
-          sortMenu={
-            <SortMenu sort={sort} options={CARD_SORT_OPTIONS} onChange={setSort} />
-          }
-        />
-      )}
-
-      {!hasAnyCard && (
-        <div className="flex flex-col items-center justify-center p-6 gap-3 bg-primary-50 rounded-sm">
+      {!hasAnyCard ? (
+        <div className="flex flex-col items-center justify-center p-8 gap-3 bg-primary-50 rounded-xl">
           <div className="flex items-center justify-center w-12 h-12 bg-primary-500 rounded-full">
             <CreditCard className="w-6 h-6 text-white" />
           </div>
-          <div className="flex flex-col items-center justify-center">
-            <p className="text-lg font-bold">還沒有課卡</p>
-            <p className="text-sm text-neutral-500 text-center">
-              建立第一張課卡就可以開始了。
-            </p>
-          </div>
+          <p className="text-lg font-bold">還沒有課卡方案</p>
+          <p className="text-sm text-neutral-600 text-center">建立第一個方案，學生就可以買了。</p>
         </div>
-      )}
-
-      {hasAnyCard && !hasFilteredMatch && (
-        <div className="flex flex-col items-center justify-center p-8 gap-1 bg-neutral-50 rounded-xl">
-          <p className="text-base font-semibold text-neutral-700">沒有符合的課卡</p>
-          <p className="text-sm text-neutral-500 text-center">
-            換個類型或舞種篩選再試試。
-          </p>
-        </div>
-      )}
-
-      {general.length > 0 && (
-        <CardGroup
-          cards={general}
-          onEdit={setEditCardId}
-          heading={showGroupHeadings ? "一般課卡" : undefined}
-          dotClass="bg-primary-500"
-        />
-      )}
-
-      {practice.length > 0 && (
-        <CardGroup
-          cards={practice}
-          onEdit={setEditCardId}
-          heading={showGroupHeadings ? "複習卡" : undefined}
-          hint="僅限有該舞種複習資格的學生購買"
-          dotClass="bg-warning-500"
-        />
-      )}
-
-      {filteredExpired.length > 0 && (
+      ) : (
         <>
-          <hr className="border-neutral-100 my-6" />
-          <button
-            className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-neutral-50 hover:bg-neutral-100 transition-colors mb-3 cursor-pointer"
-            onClick={() => setShowExpiredCards(!showExpiredCards)}
-          >
-            <span className="flex items-center gap-2 min-w-0 text-left">
-              <Ban className="w-4 h-4 shrink-0 text-neutral-400" />
-              <span className="text-sm font-medium text-neutral-600 shrink-0">
-                已停用的課卡 {filteredExpired.length} 種
-              </span>
-              <span className="hidden sm:inline text-xs text-neutral-400 truncate">
-                不能再購買，已發出的學生課卡不受影響
-              </span>
-            </span>
-            <ChevronDown
-              className={`w-4 h-4 shrink-0 text-neutral-400 transition-transform duration-200 ${
-                showExpiredCards ? "rotate-180" : ""
-              }`}
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-neutral-200">
+            <SegmentedTabs
+              variant="underline"
+              ariaLabel="方案狀態"
+              value={tab}
+              onChange={(next) => {
+                setTab(next);
+                setStyleFilter("all");
+              }}
+              options={[
+                { value: "open", label: "開放購買", hint: activeCards.length },
+                { value: "archived", label: "已下架", hint: expiredCards.length },
+              ]}
             />
-          </button>
-          {showExpiredCards && (
-            <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-4 xl:grid-cols-3">
-              {filteredExpired.map((card) => (
-                <SingleCard key={card.id} card={card} />
-              ))}
-            </div>
+            {styleChips.length > 2 && (
+              <div className="flex gap-2 pb-2 overflow-x-auto max-w-full [scrollbar-width:none]">
+                {styleChips.map((chip) => {
+                  const active = styleFilter === chip.value;
+                  return (
+                    <button
+                      key={String(chip.value)}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setStyleFilter(chip.value)}
+                      className={`shrink-0 flex items-center gap-1.5 min-h-9 px-3 rounded-full border text-[13px] font-medium cursor-pointer ${
+                        active
+                          ? "bg-neutral-900 border-neutral-900 text-white"
+                          : "bg-white border-neutral-200 text-neutral-700 hover:border-neutral-300"
+                      }`}
+                    >
+                      {chip.dot && <span className={`w-2 h-2 rounded-full ${chip.dot}`} />}
+                      {chip.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {tab === "archived" && (
+            <p className="text-[13px] text-neutral-600 leading-relaxed">
+              已下架的方案學生買不到，但已發出的卡照常扣堂。點開方案可以重新開放。
+            </p>
           )}
+
+          {groups.length === 0 && (
+            <p className="rounded-xl bg-neutral-50 p-8 text-center text-sm text-neutral-600">
+              {tab === "archived" ? "沒有已下架的方案。" : "沒有開放購買的方案。"}
+            </p>
+          )}
+
+          {groups.map((group) => {
+            const style = group.danceStyleId !== null ? byId.get(group.danceStyleId) : undefined;
+            const meta = danceStyleMeta(style);
+            return (
+              <section key={group.danceStyleId ?? "none"} className="flex flex-col gap-2.5">
+                <div className="flex items-center justify-between gap-2 px-1">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${style ? meta.dot : "bg-neutral-400"}`} />
+                    <h2 className="text-base font-bold truncate">{style?.name ?? "不限舞種"}</h2>
+                    <span className="text-[13px] text-neutral-500 shrink-0">
+                      {!style ? "任何舞種的課都能用" : style.hasLevels ? "分初階・中階・進階" : "不分級"}
+                    </span>
+                  </div>
+                  {tab === "open" && (
+                    <button
+                      type="button"
+                      onClick={() => newPlan(group.danceStyleId)}
+                      className="shrink-0 min-h-8 text-[13px] font-semibold text-primary-900 cursor-pointer"
+                    >
+                      ＋ 加一個方案
+                    </button>
+                  )}
+                </div>
+                <ul className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
+                  {group.cards.map((card) => (
+                    <CardRow
+                      key={card.id}
+                      card={card}
+                      // 不限舞種那組常常混著私人課之類的不同產品，比單堂價沒意義。
+                      savings={group.danceStyleId === null ? 0 : perSessionSavings(card, group.cards)}
+                      selected={sheet?.type === "detail" && sheet.id === card.id}
+                      onOpen={openCard(card)}
+                    />
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
         </>
       )}
 
-      {editCardId && <EditCard cardId={editCardId} onClose={() => setEditCardId(null)} />}
+      {isExpanded && (
+        <CardSheet view={sheet} order={order} onChange={setSheet} onClose={() => setSheet(null)} />
+      )}
+      {!isExpanded && mobileForm && (
+        <CardFormDrawer target={mobileForm} onClose={() => setMobileForm(null)} />
+      )}
     </div>
   );
 };
 
-const CardGroup = ({
-  cards,
-  heading,
-  hint,
-  dotClass,
-  onEdit,
+/**
+ * 價目表的一列。單一元件樹：手機兩行（名稱／價格摘要），桌面攤成欄位——
+ * 兩邊不同的只有幾個沒有狀態的文字片段（docs/ui-responsive.md 允許的 `hidden lg:`）。
+ */
+const CardRow = ({
+  card,
+  savings,
+  selected,
+  onOpen,
 }: {
-  cards: Card[];
-  heading?: string;
-  hint?: string;
-  dotClass: string;
-  onEdit: (id: number) => void;
-}) => (
-  <div className="mb-6">
-    {heading && (
-      <div className="flex items-baseline flex-wrap gap-2 mb-3">
-        <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-        <h3 className="text-sm font-semibold text-neutral-700">{heading}</h3>
-        <span className="text-[13px] text-neutral-400">
-          {cards.length} 種{hint ? ` · ${hint}` : ""}
+  card: Card;
+  savings: number;
+  selected: boolean;
+  onOpen: (event: React.MouseEvent) => void;
+}) => {
+  const kind = cardKind(card);
+  const perSession = perSessionPrice(card);
+  return (
+    <li className="border-b border-neutral-100 last:border-b-0">
+      <Link
+        href={`/cards/${card.id}`}
+        onClick={onOpen}
+        aria-current={selected ? "true" : undefined}
+        className={`grid grid-cols-[minmax(0,1fr)_auto_16px] lg:grid-cols-[minmax(0,1fr)_64px_96px_128px_96px_16px] items-center gap-x-3 lg:gap-x-4 gap-y-1 px-4 lg:px-5 py-3.5 lg:py-4 transition-colors ${
+          selected ? "bg-primary-50" : "hover:bg-neutral-50"
+        }`}
+      >
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="text-[15px] lg:text-sm font-semibold truncate">{card.name}</span>
+          {kind !== "general" && <CardKindBadge kind={kind} />}
         </span>
-      </div>
-    )}
-    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-4 xl:grid-cols-3">
-      {cards.map((card) => (
-        <SingleCard key={card.id} card={card} onEdit={() => onEdit(card.id)} />
-      ))}
-    </div>
-  </div>
-);
+        <span className="hidden lg:block text-sm text-neutral-600">{card.sessions} 堂</span>
+        <span className="hidden lg:block text-sm font-semibold">${card.price.toLocaleString()}</span>
+        <span className="hidden lg:flex flex-col text-sm text-neutral-600">
+          單堂 ${perSession.toLocaleString()}
+          {savings > 0 && (
+            <span className="text-xs text-primary-900">每堂省 ${savings.toLocaleString()}</span>
+          )}
+        </span>
+        <span className="row-span-2 lg:row-span-1 text-[13px] lg:text-sm text-neutral-600 text-right lg:text-left">
+          {card.activeHolders > 0 ? `${card.activeHolders} 人持卡` : "—"}
+        </span>
+        <ChevronRight className="row-span-2 lg:row-span-1 w-4 h-4 text-neutral-400" aria-hidden />
+        <span className="lg:hidden col-start-1 text-[13px] text-neutral-600">
+          ${card.price.toLocaleString()}・{card.sessions} 堂・單堂 ${perSession.toLocaleString()}
+        </span>
+      </Link>
+    </li>
+  );
+};
 
 export default CardList;

@@ -78,6 +78,27 @@ describe("卡片統計排除轉換卡", () => {
     expect(body.holders).toHaveLength(2);
   });
 
+  it("明細頁：issuedPrices 依當時牌價分組，張數多的在前，排除轉換卡", async () => {
+    const student = await createStudent(classroomId);
+    const card = await createCard(classroomId, { name: "8 堂", price: 3600 });
+    // factory 的 basePrice = finalPrice，正好模擬「改價前後」各發出的卡
+    await createStudentCard(student.id, card.id, { finalPrice: 3400 });
+    await createStudentCard(student.id, card.id, { finalPrice: 3400 });
+    await createStudentCard(student.id, card.id, { finalPrice: 3600 });
+    await createStudentCard(student.id, card.id, { finalPrice: 999, origin: "CONVERSION" });
+
+    const res = await detailGET(
+      new Request("http://test.local/api/cards/1"),
+      routeParams({ id: String(card.id) })
+    );
+    const body = await res.json();
+
+    expect(body.issuedPrices).toEqual([
+      { price: 3400, count: 2 },
+      { price: 3600, count: 1 },
+    ]);
+  });
+
   it("沒有轉換卡時，統計與過去完全相同（修正為 no-op）", async () => {
     const student = await createStudent(classroomId);
     const card = await createCard(classroomId, { name: "一般卡", price: 3000 });

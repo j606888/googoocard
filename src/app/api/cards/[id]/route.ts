@@ -15,7 +15,7 @@ export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
       // 與卡片列表同口徑：購買人次/營收排除轉換卡（origin = CONVERSION），
       // 因為那筆錢在原始購買時已經認列過。
       _count: { select: { studentCards: { where: { origin: "PURCHASE" } } } },
-      studentCards: { where: { origin: "PURCHASE" }, select: { finalPrice: true } },
+      studentCards: { where: { origin: "PURCHASE" }, select: { finalPrice: true, basePrice: true } },
     },
   });
 
@@ -40,7 +40,7 @@ export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
       price: card.price,
       sessions: card.sessions,
       isPracticeCard: card.isPracticeCard,
-    isTrial: card.isTrial,
+      isTrial: card.isTrial,
       danceStyleId: card.danceStyleId,
       danceStyle: card.danceStyle,
       expiredAt: card.expiredAt,
@@ -51,6 +51,7 @@ export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
     purchasedCount: card._count.studentCards,
     activeHolderCount: holderCards.length,
     totalRevenue: card.studentCards.reduce((sum, sc) => sum + sc.finalPrice, 0),
+    issuedPrices: issuedPrices(card.studentCards),
     holders: holderCards.map((sc) => ({
       id: sc.id,
       serialNumber: sc.serialNumber,
@@ -66,6 +67,21 @@ export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
     })),
   };
 });
+
+/**
+ * 已發出的卡依「當時的牌價」（basePrice）分組——改價只影響之後的購買，
+ * 這份清單讓老師看得到手上那些卡還是照舊價算的。轉換卡不算（同營收口徑）。
+ * 張數多的在前，同張數時新價（較高）在前。
+ */
+function issuedPrices(studentCards: { basePrice: number }[]) {
+  const counts = new Map<number, number>();
+  for (const { basePrice } of studentCards) {
+    counts.set(basePrice, (counts.get(basePrice) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([price, count]) => ({ price, count }))
+    .sort((a, b) => b.count - a.count || b.price - a.price);
+}
 
 export const DELETE = apiRoute<Params>(async ({ params, classroomId }) => {
   return prisma.card.delete({

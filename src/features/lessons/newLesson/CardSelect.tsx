@@ -3,7 +3,7 @@ import Drawer from "@/components/Drawer";
 import { useCreateCardMutation, useGetCardsQuery } from "@/store/slices/cards";
 import InputField from "@/components/InputField";
 import MultiSelect from "@/components/MultiSelect";
-import { cardValidationForm } from "@/features/cards/CardList/NewCard";
+import { cardValidationForm } from "@/features/cards/cardValidation";
 import { cardMatchesLesson } from "@/domains/qualification";
 import { toast } from "sonner";
 

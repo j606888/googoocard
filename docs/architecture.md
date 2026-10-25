@@ -112,7 +112,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 | legacy 複習卡（無舞種）在學生頁購買 | 擋：API 422 `CARD_MISSING_DANCE_TYPE`（無課程上下文無法驗證）；課程內買卡帶 `lessonId` 則用課程舞種驗證 | 同上 |
 | 符合資格者在複習課買/用一般卡 | **軟擋**：UI 預設鎖定一般卡，老師可點「手動切換覆蓋」放行 | `BuyAndUseForm.tsx`、`ChooseCardForm.tsx` |
 | 課程掛上舞種不符的複習卡 | 擋：API 400 `PRACTICE_CARD_DANCE_TYPE_MISMATCH`（含卡名）+ UI 選單過濾 | `api/lessons` POST/PUT、`CardSelect.tsx` |
-| 建/改複習卡未填舞種 | 擋：API 400 `PRACTICE_CARD_REQUIRES_DANCE_TYPE` + UI 必填驗證 | `api/cards` POST/PATCH、`NewCard/EditCard.tsx` |
+| 建/改複習卡未填舞種 | 擋：API 400 `PRACTICE_CARD_REQUIRES_DANCE_TYPE` + UI 必填驗證 | `api/cards` POST/PATCH、`cards/CardForm/useCardForm.ts` |
 | 階級不足用複習卡（例：已完成初階，上中階課） | 點名不自動扣複習卡（`not_qualified`，UI 顯示「未具備中階複習資格」）；課程內買複習卡同樣硬擋 | `attendance.service.ts`、attendance route、`BuyAndUseForm.tsx`、`BuyCardDrawer.tsx` |
 | 手動消耗任意卡（consume） | **不擋**——老師永遠可手動消耗，確保 legacy/特殊情況可處理 | consume route |
 
@@ -257,6 +257,16 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 ## 未綁定 LINE 的學員（上課前先綁好）
 
 `/students/line-invites`（入口：學生名單底部「未綁定 LINE N 位」）：在籍、`lineUserId IS NULL` 的學生，依最近出席排序。`GET /api/students/line-invites` 每列附好可以貼到 LINE 的邀請文字（內含綁定 deep link，`src/service/lineInvite.ts`；**先在 GET 拿到文字，點擊時同步寫剪貼簿**——iOS Safari 擋 await 之後的寫入），複製後 `POST /api/students/[id]/line-invite` 記 `Student.lineInviteSentAt` 顯示「已邀請」。系統無法主動傳訊息給還沒加官方帳號的人，所以由老師傳。
+
+## 課卡頁（價目表，2026-10）
+
+`/cards` 是一張**依舞種分組的價目表**（`features/cards/CardList`）：組順序照教室的舞種排序、不限舞種排最後；組內一般 → 複習 → 體驗、再依堂數（`groupByDanceStyle`，`cardInsights.ts`）。分頁「開放購買／已下架」取代舊的「停用」摺疊區。
+
+- **詳情點了才出現**：桌面是右側抽屜（`components/SideSheet.tsx`，背景調暗不模糊、有上一個／下一個），選取鏡射到 `?card=<id>`；手機是整頁 `/cards/[id]`。桌面打開 `/cards/[id]` 會導回 `/cards?card=<id>`——桌面只有一種呈現。
+- **編輯／複製在同一個抽屜裡換成表單**，不疊第二層彈窗；手機用底部 `Drawer`。兩個外殼共用 `CardForm/useCardForm.ts`。
+- **「這張卡給誰買」是三選一**（一般／複習／體驗），存回 `isPracticeCard` / `isTrial` 兩個布林（`cardKind` / `kindFlags`）；舊資料兩個都開時以複習卡為準。
+- **改價只影響之後的購買**：表單上直接寫明；詳情列出 `issuedPrices`（`GET /api/cards/[id]`，依 `basePrice` 分組、不含轉換卡），看得到手上的卡照哪個價算。
+- 「每堂省 $X」與表單的單堂價比較**只在同舞種的一般方案之間**——不限舞種那組常混著私人課，比了會誤導。
 
 ## 課卡轉換（StudentCard 轉換 / 淘汰舊卡種）
 

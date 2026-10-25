@@ -42,10 +42,13 @@ export interface CardDetail {
     danceStyleId: number | null;
     danceStyle: DanceStyleSummary | null;
     expiredAt: string | null;
+    createdAt: string;
   };
   purchasedCount: number;
   activeHolderCount: number;
   totalRevenue: number;
+  /** 已發出的卡依當時牌價分組（不含轉換卡），張數多的在前。 */
+  issuedPrices: { price: number; count: number }[];
   holders: CardHolder[];
 }
 

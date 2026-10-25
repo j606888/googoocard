@@ -29,6 +29,9 @@
     to { opacity: 0; transform: translate(-50%, -50%) scale(0.96) }
 }
 
+@keyframes rd-side-in { from { transform: translateX(100%) } to { transform: translateX(0) } }
+@keyframes rd-side-out { from { transform: translateX(0) } to { transform: translateX(100%) } }
+
 .rd-overlay[data-state="open"] { animation: rd-fade-in 0.2s ease-in-out }
 .rd-overlay[data-state="closed"] { animation: rd-fade-out 0.2s ease-in-out }
 
@@ -42,8 +45,12 @@
 .rd-panel[data-state="open"] { animation: rd-panel-in 0.2s ease-in-out }
 .rd-panel[data-state="closed"] { animation: rd-panel-out 0.2s ease-in-out }
 
+/* 桌面右側抽屜（SideSheet） */
+.rd-side[data-state="open"] { animation: rd-side-in 0.25s ease-out }
+.rd-side[data-state="closed"] { animation: rd-side-out 0.2s ease-in }
+
 @media (prefers-reduced-motion: reduce) {
-    .rd-overlay, .rd-sheet, .rd-panel { animation: none !important }
+    .rd-overlay, .rd-sheet, .rd-panel, .rd-side { animation: none !important }
 }
 
 @theme {
