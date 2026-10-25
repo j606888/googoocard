@@ -174,6 +174,33 @@ export interface UnpaidStudentCard {
   purchasedBy?: { name: string } | null;
 }
 
+export interface MergeSide {
+  id: number;
+  number: number;
+  name: string;
+  avatarUrl: string;
+  lineBound: boolean;
+  createdAt: string;
+  cardCount: number;
+  attendanceCount: number;
+}
+
+/** 合併學員的預覽：source 併入 target（source 封存）。 */
+export interface MergePreview {
+  source: MergeSide;
+  target: MergeSide;
+  /** 同一堂兩邊都有點名；只留一筆 */
+  clashes: {
+    lessonName: string;
+    startTime: string;
+    keepFrom: "source" | "target";
+    refundCardName: string | null;
+    refundCardSerial: number | null;
+  }[];
+  /** 兩邊綁了不同的 LINE，要選留哪一個 */
+  lineConflict: boolean;
+}
+
 /** 下課對帳：某天（台北）誰收了多少、哪些今天來的學生還欠款。 */
 export interface DayCollections {
   date: string;
@@ -247,6 +274,17 @@ const studentsApi = api.injectEndpoints({
     >({
       query: ({ id }) => `students/${id}/line-bind-link`,
       providesTags: ["Student"],
+    }),
+    getMergePreview: builder.query<MergePreview, { id: number; targetId: number }>({
+      query: ({ id, targetId }) => `students/${id}/merge-preview?targetId=${targetId}`,
+      providesTags: ["Student", "StudentCard", "AttendanceRecord"],
+    }),
+    mergeStudent: builder.mutation<
+      { mergedInto: number },
+      { id: number; targetId: number; keepLineFrom?: "source" | "target" }
+    >({
+      query: ({ id, ...body }) => ({ url: `students/${id}/merge`, method: "POST", body }),
+      invalidatesTags: ["Student", "StudentCard", "AttendanceRecord", "Lesson", "Tag"],
     }),
     getLineInvites: builder.query<LineInviteList, void>({
       query: () => "students/line-invites",
@@ -412,6 +450,8 @@ export const {
   useConfirmStudentCardPaymentMutation,
   useGetUnpaidStudentCardsQuery,
   useGetDayCollectionsQuery,
+  useGetMergePreviewQuery,
+  useMergeStudentMutation,
   useGetStudentQuery,
   useExpireStudentCardMutation,
   useUpdateStudentCardNoteMutation,

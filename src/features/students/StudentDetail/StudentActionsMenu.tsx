@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Archive, ArchiveRestore, Link2, MessageCircle, MoreHorizontal } from "lucide-react";
+import { Archive, ArchiveRestore, Link2, Merge, MessageCircle, MoreHorizontal } from "lucide-react";
 import Menu from "@/components/Menu";
 import ArchiveStudentDialog from "./ArchiveStudentDialog";
+import MergeStudentDialog from "./MergeStudentDialog";
 import {
   StudentWithDetail,
   useGetStudentLineBindLinkQuery,
@@ -15,7 +17,10 @@ import { copyText, publicPageUrl } from "./ProfilePanels";
 const itemClass =
   "flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-left hover:bg-neutral-50 cursor-pointer";
 
-/** The header's ⋯: 複製公開頁連結／複製 LINE 綁定連結／封存（或還原）學生. */
+/**
+ * The header's ⋯: 複製公開頁連結／複製 LINE 綁定連結／合併到另一位學員／封存（或還原）學生.
+ * `?mergeInto=<id>` (from 待處理「可能重複」) opens the merge dialog with that target.
+ */
 const StudentActionsMenu = ({
   student,
   buttonClassName,
@@ -25,6 +30,12 @@ const StudentActionsMenu = ({
 }) => {
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const searchParams = useSearchParams();
+  const mergeInto = Number(searchParams.get("mergeInto")) || null;
+  const [mergeOpen, setMergeOpen] = useState(false);
+  useEffect(() => {
+    if (mergeInto) setMergeOpen(true);
+  }, [mergeInto]);
   const { data: lineBind } = useGetStudentLineBindLinkQuery({ id: student.id });
   const [setArchived] = useSetStudentArchivedMutation();
   const archived = !!student.archivedAt;
@@ -81,6 +92,19 @@ const StudentActionsMenu = ({
             複製 LINE 綁定連結
           </button>
         )}
+        {!archived && (
+          <button
+            type="button"
+            className={itemClass}
+            onClick={() => {
+              close();
+              setMergeOpen(true);
+            }}
+          >
+            <Merge className="w-4 h-4 text-neutral-500" />
+            合併到另一位學員
+          </button>
+        )}
         <div className="h-px bg-neutral-100 my-1" />
         {archived ? (
           <button
@@ -113,6 +137,14 @@ const StudentActionsMenu = ({
         open={confirmArchive}
         onClose={() => setConfirmArchive(false)}
       />
+      {!archived && (
+        <MergeStudentDialog
+          student={student}
+          open={mergeOpen}
+          initialTargetId={mergeInto}
+          onClose={() => setMergeOpen(false)}
+        />
+      )}
     </>
   );
 };
