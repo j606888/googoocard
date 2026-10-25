@@ -6,6 +6,7 @@ export interface Card {
   name: string;
   price: number;
   isPracticeCard: boolean;
+  isTrial: boolean;
   danceStyleId: number | null;
   danceStyle?: DanceStyleSummary | null;
   sessions: number;
@@ -37,6 +38,7 @@ export interface CardDetail {
     price: number;
     sessions: number;
     isPracticeCard: boolean;
+    isTrial: boolean;
     danceStyleId: number | null;
     danceStyle: DanceStyleSummary | null;
     expiredAt: string | null;
@@ -57,7 +59,7 @@ const cardsApi = api.injectEndpoints({
       query: ({ id }) => `cards/${id}`,
       providesTags: ["Card", "StudentCard"],
     }),
-    createCard: builder.mutation<Card, { name: string; price: number; sessions: number; isPracticeCard: boolean; danceStyleId: number | null }>({
+    createCard: builder.mutation<Card, { name: string; price: number; sessions: number; isPracticeCard: boolean; isTrial: boolean; danceStyleId: number | null }>({
       query: (card) => ({
         url: "cards",
         method: "POST",
@@ -86,11 +88,11 @@ const cardsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Card", "Attendance"],
     }),
-    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number; isPracticeCard: boolean; danceStyleId: number | null }>({
-      query: ({ id, name, price, sessions, isPracticeCard, danceStyleId }) => ({
+    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number; isPracticeCard: boolean; isTrial: boolean; danceStyleId: number | null }>({
+      query: ({ id, name, price, sessions, isPracticeCard, isTrial, danceStyleId }) => ({
         url: `cards/${id}`,
         method: "PATCH",
-        body: { name, price, sessions, isPracticeCard, danceStyleId },
+        body: { name, price, sessions, isPracticeCard, isTrial, danceStyleId },
       }),
       invalidatesTags: ["Card", "Attendance"],
     }),

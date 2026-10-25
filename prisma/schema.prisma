@@ -35,6 +35,12 @@ enum TodoType {
   UNBOUND_ATTENDANCE // 出席紀錄沒有綁課卡
 }
 
+// 收款方式（確認付款時記錄；見 confirm-payment route）。
+enum PaymentMethod {
+  CASH
+  TRANSFER
+}
+
 enum LineMenuMode {
   TEACHER
   STUDENT
@@ -144,6 +150,8 @@ model Card {
   // cards, which fall back to the lesson's style.
   danceStyleId   Int?
   danceStyle     DanceStyle?   @relation(fields: [danceStyleId], references: [id])
+  // 體驗課卡：自助點名時新同學照價、舊生（買過非體驗卡）預設 $0（src/service/trial.ts）。
+  isTrial        Boolean       @default(false)
   classroom      Classroom     @relation(fields: [classroomId], references: [id])
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -172,6 +180,10 @@ model Student {
   renewalReminders    RenewalReminder[]
   // 封存（不是刪除）：名單、自助簽到、LIFF、續卡提醒都看不到；課卡、出席、收入照留，可還原。
   archivedAt          DateTime?
+  // 合併學員時，被併掉（封存）的那筆指向保留的學員。純 Int、沒有 FK，只供追查。
+  mergedIntoId        Int?
+  // 老師最後一次複製 LINE 綁定邀請的時間（未綁定 LINE 清單用）。
+  lineInviteSentAt    DateTime?
   createdAt           DateTime                    @default(now())
   updatedAt           DateTime                    @updatedAt
 
@@ -213,8 +225,11 @@ model StudentCard {
   purchasedBy       User?              @relation("PurchasedStudentCards", fields: [purchasedByUserId], references: [id])
   isPaid            Boolean            @default(true) // existing rows treated as paid
   paidAt            DateTime?
+  // 收款人：錢現在在誰手上（確認付款時可改選其他老師）。
   paidByUserId      Int?
   paidBy            User?              @relation("ConfirmedStudentCards", fields: [paidByUserId], references: [id])
+  paymentMethod     PaymentMethod?
+  paymentReference  String? // 轉帳末五碼，選填
   attendanceRecords AttendanceRecord[]
   note              String?
   origin            StudentCardOrigin  @default(PURCHASE)

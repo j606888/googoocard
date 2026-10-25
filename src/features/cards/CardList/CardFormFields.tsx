@@ -15,6 +15,7 @@ export interface CardFormValues {
   price: string;
   sessions: string;
   isPracticeCard: boolean;
+  isTrial: boolean;
   danceStyleId: number | null;
 }
 
@@ -33,7 +34,7 @@ const CardFormFields = ({
   onChange: <K extends keyof CardFormValues>(key: K, value: CardFormValues[K]) => void;
   onErrorClear: (key: keyof CardFormErrors) => void;
 }) => {
-  const { cardName, price, sessions, isPracticeCard, danceStyleId } = values;
+  const { cardName, price, sessions, isPracticeCard, isTrial, danceStyleId } = values;
 
   const digitsOnly = (value: string) => value.replace(/\D/g, "");
 
@@ -102,6 +103,16 @@ const CardFormFields = ({
         </div>
         <p className="text-xs text-neutral-500 leading-relaxed pl-[52px]">
           只有取得該舞種複習資格的學生才買得到，也只能用在同舞種、且不超過學生已完成階級的課。
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <Switch checked={isTrial} onCheckedChange={(checked) => onChange("isTrial", checked)} />
+          <span>設為體驗課卡</span>
+        </div>
+        <p className="text-xs text-neutral-500 leading-relaxed pl-[52px]">
+          掛在體驗課上，學生自助點名時當場選用：新同學照這個價格，舊生（買過其他課卡）預設免費。不會出現在學生的「購買課卡」。
         </p>
       </div>
 

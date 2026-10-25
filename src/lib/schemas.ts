@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TodoType } from "@prisma/client";
+import { PaymentMethod, TodoType } from "@prisma/client";
 import { DANCE_STYLE_COLORS } from "@/lib/danceStyles";
 import { isExpoPushToken } from "@/lib/expoPush";
 
@@ -31,6 +31,16 @@ export const buyStudentCardSchema = z.object({
   isPaid: z.boolean().optional().default(true),
   // 卡片備註（學生看不到），跟事後 PATCH 改的是同一欄；空白 = 不填。
   note: z.string().max(500).nullish(),
+});
+
+/**
+ * 確認收款（POST .../confirm-payment）。全部選填：舊版 App 不帶 body 也能確認。
+ * `receiverUserId` = 收款人（錢現在在誰手上），預設是確認的人；必須是本教室成員。
+ */
+export const confirmPaymentSchema = z.object({
+  paymentMethod: z.enum(PaymentMethod).optional(),
+  paymentReference: z.string().trim().max(20).nullish(),
+  receiverUserId: positiveInt.optional(),
 });
 
 export const convertStudentCardSchema = z.object({
@@ -69,6 +79,8 @@ export const cardSchema = z
     price: money,
     sessions,
     isPracticeCard: z.boolean().optional().default(false),
+    // 體驗課卡：自助點名時新同學照價、舊生預設 $0（src/service/trial.ts）。
+    isTrial: z.boolean().optional().default(false),
     danceStyleId: positiveInt.nullish(),
   })
   // Mirrors the rule in docs/architecture.md: a practice card's dance type is

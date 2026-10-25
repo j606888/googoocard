@@ -40,6 +40,7 @@ const EMPTY_FORM: CardFormValues = {
   price: "",
   sessions: "",
   isPracticeCard: false,
+  isTrial: false,
   danceStyleId: null,
 };
 
@@ -57,7 +58,7 @@ const NewCard = () => {
     setErrors((prev) => ({ ...prev, [key]: undefined }));
 
   const handleSubmit = async () => {
-    const { cardName, price, sessions, isPracticeCard, danceStyleId } = values;
+    const { cardName, price, sessions, isPracticeCard, isTrial, danceStyleId } = values;
     const nextErrors: CardFormErrors = cardValidationForm({ cardName, price, sessions });
     if (isPracticeCard && !danceStyleId) {
       nextErrors.danceStyleId = DANCE_TYPE_REQUIRED;
@@ -71,6 +72,7 @@ const NewCard = () => {
       price: Number(price),
       sessions: Number(sessions),
       isPracticeCard,
+      isTrial,
       danceStyleId,
     });
     setValues(EMPTY_FORM);

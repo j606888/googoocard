@@ -1,28 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { CircleDollarSign } from "lucide-react";
-import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
-import {
-  useGetUnpaidStudentCardsQuery,
-  useConfirmStudentCardPaymentMutation,
-} from "@/store/slices/students";
+import { useGetUnpaidStudentCardsQuery } from "@/store/slices/students";
 import { formatMoney } from "@/lib/money";
 import { Skeleton } from "@/components/ui/skeleton";
+import ConfirmPaymentDrawer, {
+  ConfirmPaymentTarget,
+} from "@/features/students/ConfirmPaymentDrawer";
 
 export default function UnpaidTab() {
   const { data: cards, isLoading } = useGetUnpaidStudentCardsQuery();
-  const [confirmPayment, { isLoading: isConfirming }] =
-    useConfirmStudentCardPaymentMutation();
-
-  const handleConfirm = async (studentId: number, studentCardId: number) => {
-    try {
-      await confirmPayment({ id: studentId, studentCardId }).unwrap();
-      toast.success("已確認付款");
-    } catch {
-      toast.error("確認付款失敗");
-    }
-  };
+  const [paying, setPaying] = useState<ConfirmPaymentTarget | null>(null);
 
   if (isLoading) {
     return (
@@ -84,8 +74,16 @@ export default function UnpaidTab() {
             </div>
             <button
               className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-success-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-success-700 transition-colors disabled:opacity-50"
-              disabled={isConfirming}
-              onClick={() => handleConfirm(card.studentId, card.id)}
+              onClick={() =>
+                setPaying({
+                  studentId: card.studentId,
+                  studentCardId: card.id,
+                  studentName: card.student.name,
+                  cardName: card.card.name,
+                  serialNumber: card.serialNumber,
+                  finalPrice: card.finalPrice,
+                })
+              }
             >
               <CircleDollarSign className="w-3.5 h-3.5" />
               <span>確認付款</span>
@@ -93,6 +91,7 @@ export default function UnpaidTab() {
           </div>
         ))}
       </div>
+      <ConfirmPaymentDrawer target={paying} onClose={() => setPaying(null)} />
     </div>
   );
 }

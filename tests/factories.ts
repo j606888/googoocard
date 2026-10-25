@@ -92,17 +92,19 @@ export async function createCard(
     price = 3000,
     sessions = 6,
     isPracticeCard = false,
+    isTrial = false,
     danceStyleId = null,
   }: {
     name?: string;
     price?: number;
     sessions?: number;
     isPracticeCard?: boolean;
+    isTrial?: boolean;
     danceStyleId?: number | null;
   } = {}
 ) {
   return prisma.card.create({
-    data: { name, price, sessions, classroomId, isPracticeCard, danceStyleId },
+    data: { name, price, sessions, classroomId, isPracticeCard, isTrial, danceStyleId },
   });
 }
 

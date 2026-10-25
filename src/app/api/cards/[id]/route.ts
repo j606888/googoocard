@@ -40,6 +40,7 @@ export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
       price: card.price,
       sessions: card.sessions,
       isPracticeCard: card.isPracticeCard,
+    isTrial: card.isTrial,
       danceStyleId: card.danceStyleId,
       danceStyle: card.danceStyle,
       expiredAt: card.expiredAt,
@@ -74,7 +75,7 @@ export const DELETE = apiRoute<Params>(async ({ params, classroomId }) => {
 
 export const PATCH = apiRoute<Params>(async ({ request, params, classroomId }) => {
   const cardId = parseId(params.id, "card id");
-  const { name, price, sessions, isPracticeCard, danceStyleId } = await parseBody(
+  const { name, price, sessions, isPracticeCard, isTrial, danceStyleId } = await parseBody(
     request,
     cardSchema
   );
@@ -95,6 +96,7 @@ export const PATCH = apiRoute<Params>(async ({ request, params, classroomId }) =
       price,
       sessions,
       isPracticeCard,
+      isTrial,
       // General cards may carry a dance style as a category label (does not
       // restrict usage). Practice cards require it (guarded by the schema).
       danceStyleId: danceStyleId ?? null,

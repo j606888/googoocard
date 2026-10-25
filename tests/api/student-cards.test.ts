@@ -311,3 +311,84 @@ describe("POST .../confirm-payment", () => {
     expect((await res.json()).error).toBe("ALREADY_PAID");
   });
 });
+
+describe("POST .../confirm-payment（付款方式與收款人）", () => {
+  let classroomId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    const classroom = await createClassroom();
+    classroomId = classroom.id;
+    auth.classroomId = classroomId;
+    auth.userId = 1;
+  });
+
+  const unpaidCard = async () => {
+    const student = await createStudent(classroomId);
+    const card = await createCard(classroomId, { name: "10 堂卡" });
+    const sc = await createStudentCard(student.id, card.id, { isPaid: false, finalPrice: 2000 });
+    return { student, sc };
+  };
+
+  it("記錄付款方式、末五碼，收款人可改選其他成員", async () => {
+    const { student, sc } = await unpaidCard();
+    const teacher = await createMember(classroomId, { email: "t@test.local", name: "林老師" });
+
+    const res = await CONFIRM_PAYMENT(
+      jsonRequest("POST", {
+        paymentMethod: "TRANSFER",
+        paymentReference: " 38215 ",
+        receiverUserId: teacher.id,
+      }),
+      routeParams({ id: String(student.id), studentCardId: String(sc.id) })
+    );
+    expect(res.status).toBe(200);
+
+    const updated = await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } });
+    expect(updated.paymentMethod).toBe("TRANSFER");
+    expect(updated.paymentReference).toBe("38215");
+    expect(updated.paidByUserId).toBe(teacher.id);
+
+    const event = await prisma.event.findFirstOrThrow({
+      where: { studentId: student.id, title: "確認付款" },
+    });
+    expect(event.description).toContain("轉帳");
+    expect(event.description).toContain("38215");
+  });
+
+  it("不帶 body（舊版 App）→ 照樣確認，收款人是自己、方式留空", async () => {
+    const { student, sc } = await unpaidCard();
+    const res = await CONFIRM_PAYMENT(
+      new Request("http://localhost/test", { method: "POST" }),
+      routeParams({ id: String(student.id), studentCardId: String(sc.id) })
+    );
+    expect(res.status).toBe(200);
+    const updated = await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } });
+    expect(updated.isPaid).toBe(true);
+    expect(updated.paidByUserId).toBe(1);
+    expect(updated.paymentMethod).toBeNull();
+  });
+
+  it("收款人不是本教室成員 → 400，不改動", async () => {
+    const { student, sc } = await unpaidCard();
+    const outsider = await prisma.user.create({
+      data: { email: "out@test.local", name: "Out", password: "x" },
+    });
+    const res = await CONFIRM_PAYMENT(
+      jsonRequest("POST", { paymentMethod: "CASH", receiverUserId: outsider.id }),
+      routeParams({ id: String(student.id), studentCardId: String(sc.id) })
+    );
+    expect(res.status).toBe(400);
+    const untouched = await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } });
+    expect(untouched.isPaid).toBe(false);
+  });
+
+  it("付款方式不合法 → 400", async () => {
+    const { student, sc } = await unpaidCard();
+    const res = await CONFIRM_PAYMENT(
+      jsonRequest("POST", { paymentMethod: "LINE_PAY" }),
+      routeParams({ id: String(student.id), studentCardId: String(sc.id) })
+    );
+    expect(res.status).toBe(400);
+  });
+});

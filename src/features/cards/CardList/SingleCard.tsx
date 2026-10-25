@@ -72,6 +72,11 @@ const SingleCard = ({ card, onEdit }: { card: Card; onEdit?: () => void }) => {
                   一般卡
                 </span>
               )}
+              {card.isTrial && (
+                <span className="text-xs text-primary-800 bg-primary-50 border border-primary-200 rounded-full px-2.5 py-0.5 w-fit">
+                  體驗課
+                </span>
+              )}
               {card.danceStyle ? (
                 <span className={`text-xs rounded-full px-2.5 py-0.5 w-fit ${danceStyleMeta(card.danceStyle).badge}`}>
                   {card.danceStyle.name}

@@ -40,6 +40,7 @@ export const GET = apiRoute(async ({ classroomId }) => {
     price: card.price,
     sessions: card.sessions,
     isPracticeCard: card.isPracticeCard,
+    isTrial: card.isTrial,
     danceStyleId: card.danceStyleId,
     danceStyle: card.danceStyle,
     expiredAt: card.expiredAt,
@@ -60,7 +61,7 @@ export const GET = apiRoute(async ({ classroomId }) => {
 export const POST = apiRoute(async ({ request, classroomId }) => {
   // The practice-card-requires-a-dance-type rule now lives in the schema, so
   // POST and PATCH can't drift apart on it.
-  const { name, price, sessions, isPracticeCard, danceStyleId } = await parseBody(
+  const { name, price, sessions, isPracticeCard, isTrial, danceStyleId } = await parseBody(
     request,
     cardSchema
   );
@@ -73,6 +74,7 @@ export const POST = apiRoute(async ({ request, classroomId }) => {
       sessions,
       classroomId,
       isPracticeCard,
+      isTrial,
       // General cards may carry a dance style purely as a category label (it
       // does not restrict usage — see cardMatchesLesson). Practice cards require it.
       danceStyleId: danceStyleId ?? null,

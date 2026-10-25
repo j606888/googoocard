@@ -14,9 +14,9 @@ import {
 import ResponsiveDialog, { ResponsiveDialogTitle } from "@/components/ResponsiveDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Drawer from "@/components/Drawer";
+import ConfirmPaymentDrawer from "@/features/students/ConfirmPaymentDrawer";
 import {
   StudentCardWithCard,
-  useConfirmStudentCardPaymentMutation,
   useDeleteStudentCardMutation,
   useExpireStudentCardMutation,
   useUpdateStudentCardNoteMutation,
@@ -80,7 +80,6 @@ const CardDetailDialog = ({
 }) => {
   const [expireStudentCard, { isLoading: isExpiring }] = useExpireStudentCardMutation();
   const [deleteStudentCard, { isLoading: isDeleting }] = useDeleteStudentCardMutation();
-  const [confirmPayment, { isLoading: isConfirming }] = useConfirmStudentCardPaymentMutation();
   const [updateNote, { isLoading: isSavingNote }] = useUpdateStudentCardNoteMutation();
   const [pendingAction, setPendingAction] = useState<"pay" | "expire" | "delete" | null>(null);
   const [convertOpen, setConvertOpen] = useState(false);
@@ -234,7 +233,11 @@ const CardDetailDialog = ({
               ) : (
                 <span className="text-neutral-600">
                   已收款 ${formatMoney(studentCard.finalPrice)}
-                  {studentCard.paidBy?.name ? ` · ${studentCard.paidBy.name}` : ""}
+                  {studentCard.paymentMethod
+                    ? ` · ${studentCard.paymentMethod === "TRANSFER" ? "轉帳" : "現金"}`
+                    : ""}
+                  {studentCard.paymentReference ? ` 末五碼 ${studentCard.paymentReference}` : ""}
+                  {studentCard.paidBy?.name ? ` · ${studentCard.paidBy.name} 收` : ""}
                   {studentCard.paidAt ? ` · ${shortDate(studentCard.paidAt)}` : ""}
                 </span>
               )}
@@ -335,14 +338,20 @@ const CardDetailDialog = ({
         )}
       </ResponsiveDialog>
 
-      <ConfirmDialog
-        open={pendingAction === "pay"}
-        title="確認付款"
-        message={`確認已收到「${studentCard.card.name}」的款項 $${formatMoney(studentCard.finalPrice)}？`}
-        confirmLabel="確認付款"
-        isLoading={isConfirming}
-        onConfirm={() => run(() => confirmPayment(ids).unwrap(), "已確認付款", "確認付款失敗")}
-        onCancel={() => setPendingAction(null)}
+      <ConfirmPaymentDrawer
+        target={
+          pendingAction === "pay"
+            ? {
+                studentId: studentCard.studentId,
+                studentCardId: studentCard.id,
+                studentName,
+                cardName: studentCard.card.name,
+                serialNumber: studentCard.serialNumber,
+                finalPrice: studentCard.finalPrice,
+              }
+            : null
+        }
+        onClose={() => setPendingAction(null)}
       />
       <ConfirmDialog
         open={pendingAction === "expire"}

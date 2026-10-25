@@ -126,6 +126,8 @@ export interface ConversionLinkCard {
   card: { name: string };
 }
 
+export type PaymentMethod = "CASH" | "TRANSFER";
+
 export interface StudentCard {
   id: number;
   /** 教室內流水號；顯示用 formatCardSerial()（src/lib/cardSerial.ts） */
@@ -145,7 +147,10 @@ export interface StudentCard {
   convertedFrom?: (ConversionLinkCard & { remainingSessions: number })[];
   isPaid: boolean;
   paidAt: string | null;
+  paymentMethod?: PaymentMethod | null;
+  paymentReference?: string | null;
   purchasedBy?: { name: string } | null;
+  /** 收款人：錢現在在誰手上 */
   paidBy?: { name: string } | null;
   createdAt: string;
   updatedAt: string;
@@ -154,8 +159,11 @@ export interface StudentCard {
 
 export interface UnpaidStudentCard {
   id: number;
+  serialNumber: number;
   studentId: number;
   finalPrice: number;
+  totalSessions: number;
+  remainingSessions: number;
   createdAt: string;
   student: { id: number; name: string; avatarUrl: string };
   card: { name: string };
@@ -247,10 +255,20 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["StudentCard", "Student"],
     }),
-    confirmStudentCardPayment: builder.mutation<StudentCard, { id: number; studentCardId: number }>({
-      query: ({ id, studentCardId }) => ({
+    confirmStudentCardPayment: builder.mutation<
+      StudentCard,
+      {
+        id: number;
+        studentCardId: number;
+        paymentMethod?: PaymentMethod;
+        paymentReference?: string | null;
+        receiverUserId?: number;
+      }
+    >({
+      query: ({ id, studentCardId, ...body }) => ({
         url: `students/${id}/student-cards/${studentCardId}/confirm-payment`,
         method: "POST",
+        body,
       }),
       invalidatesTags: ["StudentCard", "Student"],
     }),
