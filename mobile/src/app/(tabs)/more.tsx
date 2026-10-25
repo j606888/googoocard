@@ -22,6 +22,7 @@ const PAGES: { title: string; path: string; icon: SFSymbol }[] = [
   { title: '簽到 QR', path: '/checkin-qr', icon: 'qrcode' },
   { title: '老師', path: '/teachers', icon: 'graduationcap' },
   { title: '舞種', path: '/dance-styles', icon: 'music.note' },
+  { title: '分部', path: '/locations', icon: 'mappin.and.ellipse' },
   { title: '團隊', path: '/teams', icon: 'person.3' },
 ];
 

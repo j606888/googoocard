@@ -11,6 +11,7 @@ import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
 import { loadLiff } from "@/lib/liffClient";
+import LocationBadge from "@/components/LocationBadge";
 import AddFriendPrompt from "@/features/liff/AddFriendPrompt";
 import {
   CheckinResponse,
@@ -363,6 +364,7 @@ function LessonBlock({
         >
           {danceStyleMeta(lesson.danceStyle).label}
         </span>
+        <LocationBadge location={lesson.location} />
       </div>
 
       <div className="flex flex-col gap-2">

@@ -10,9 +10,11 @@ import {
   allTeachersInClassroom,
   findDanceStyleInClassroom,
   findLessonGroupInClassroom,
+  findLocationInClassroom,
 } from "@/lib/authz";
 import { teacherSummarySelect } from "@/lib/teachers";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
+import { locationSummarySelect } from "@/lib/locations";
 import { Prisma } from "@prisma/client";
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -25,6 +27,7 @@ export async function GET(request: Request) {
   const search = searchParams.get("search")?.trim() ?? "";
   const danceStyleIdParam = searchParams.get("danceStyleId");
   const groupIdParam = searchParams.get("groupId");
+  const locationIdParam = searchParams.get("locationId");
   const pageParam = searchParams.get("page");
 
   if (!classroomId) {
@@ -37,13 +40,16 @@ export async function GET(request: Request) {
   const groupId =
     groupIdParam === "none" ? null : groupIdParam !== null ? parseInt(groupIdParam, 10) : undefined;
 
-  // Shared filter (search + danceStyleId + groupId) applied to both the listing
+  const locationId = locationIdParam ? parseInt(locationIdParam, 10) : undefined;
+
+  // Shared filter (search + danceStyleId + groupId + locationId) applied to both the listing
   // and tabsCount, so the tab counts reflect what the user is currently
   // filtering by (including "just this group"'s lessons).
   const filterWhere: Prisma.LessonWhereInput = {
     classroomId,
     ...(danceStyleId && !Number.isNaN(danceStyleId) ? { danceStyleId } : {}),
     ...(groupId !== undefined && !Number.isNaN(groupId as number) ? { groupId } : {}),
+    ...(locationId && !Number.isNaN(locationId) ? { locationId } : {}),
     ...(search
       ? {
           OR: [
@@ -68,6 +74,7 @@ export async function GET(request: Request) {
     orderBy,
     include: {
       danceStyle: { select: danceStyleSummarySelect },
+      location: { select: locationSummarySelect },
       periods: true,
       teachers: { include: { teacher: { select: teacherSummarySelect } } },
       cards: { select: { cardId: true } },
@@ -106,6 +113,7 @@ export async function GET(request: Request) {
       teachers: lesson.teachers.map((t) => t.teacher),
       cardIds: lesson.cards.map((c) => c.cardId),
       groupId: lesson.groupId,
+      location: lesson.location,
       totalPeriods,
       attendedCount,
       nextSessionDate,
@@ -162,12 +170,20 @@ export async function GET(request: Request) {
     select: { danceStyleId: true },
   });
   const availableDanceStyleIds = distinctDanceStyles.map((d) => d.danceStyleId);
+  // Same for the 分部 chips.
+  const distinctLocations = await prisma.lesson.findMany({
+    where: { classroomId, locationId: { not: null } },
+    distinct: ["locationId"],
+    select: { locationId: true },
+  });
+  const availableLocationIds = distinctLocations.map((d) => d.locationId!);
 
   return NextResponse.json({
     lessons: summaries,
     tabsCount,
     hasNextPage,
     availableDanceStyleIds,
+    availableLocationIds,
   });
 }
 
@@ -210,6 +226,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
 
+  if (
+    draftLesson.locationId != null &&
+    !(await findLocationInClassroom(draftLesson.locationId, classroomId))
+  ) {
+    return NextResponse.json({ error: "LOCATION_NOT_FOUND" }, { status: 400 });
+  }
+
   const cards = await prisma.card.findMany({
     where: { id: { in: draftLesson.cardIds } },
   });
@@ -236,6 +259,7 @@ export async function POST(request: Request) {
         level: draftLesson.level ?? DEFAULT_DANCE_LEVEL,
         kind: draftLesson.kind ?? DEFAULT_LESSON_KIND,
         groupId: draftLesson.groupId ?? null,
+        locationId: draftLesson.locationId ?? null,
       },
     });
 

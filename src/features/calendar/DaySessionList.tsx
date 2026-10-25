@@ -1,4 +1,5 @@
 "use client";
+import LocationBadge from "@/components/LocationBadge";
 
 import { differenceInMinutes, format, isToday } from "date-fns";
 import { useRouter } from "next/navigation";
@@ -105,8 +106,9 @@ const DaySessionList = ({ day, periods, loading }: DaySessionListProps) => {
                     {minutes > 0 && (
                       <span className="text-xs text-neutral-500">{minutes} 分</span>
                     )}
+                    <LocationBadge location={p.location} className="ml-auto" />
                     <span
-                      className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${style.badge}`}
+                      className={`${p.location ? "" : "ml-auto "}text-xs font-medium px-2 py-0.5 rounded-full ${style.badge}`}
                     >
                       {style.label}
                     </span>

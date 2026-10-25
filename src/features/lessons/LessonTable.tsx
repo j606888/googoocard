@@ -1,4 +1,5 @@
 "use client";
+import LocationBadge from "@/components/LocationBadge";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -123,6 +124,7 @@ const LessonTable = ({
       level: lesson.level,
       kind: lesson.kind,
       groupId: lesson.groupId,
+      locationId: lesson.location?.id ?? null,
       initialPeriod,
     });
     router.push("/lessons/new");
@@ -165,6 +167,7 @@ const LessonTable = ({
               {meta.label}
             </span>
             {level && <span className="text-neutral-500 shrink-0">{level}</span>}
+            <LocationBadge location={lesson.location} className="text-[11px]" />
           </>
         );
       },

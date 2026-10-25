@@ -45,6 +45,7 @@ export interface LessonCloneSource {
   level?: number;
   kind?: LessonKind;
   groupId?: number | null;
+  locationId?: number | null;
   initialPeriod?: { startTime: string; endTime: string };
 }
 
@@ -84,5 +85,26 @@ export const setLastLessonKind = (classroomId: number, kind: LessonKind) => {
     localStorage.setItem(kindKey(classroomId), kind);
   } catch {
     // Storage unavailable (private mode) — the default is fine.
+  }
+};
+
+// Same for 分部: a teacher usually adds several lessons for one location in a row.
+const locationKey = (classroomId: number) => `lesson-location-last-used:${classroomId}`;
+
+export const getLastLessonLocation = (classroomId: number): number | null => {
+  try {
+    const value = Number(localStorage.getItem(locationKey(classroomId)));
+    return Number.isInteger(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+export const setLastLessonLocation = (classroomId: number, locationId: number | null) => {
+  try {
+    if (locationId === null) localStorage.removeItem(locationKey(classroomId));
+    else localStorage.setItem(locationKey(classroomId), String(locationId));
+  } catch {
+    // Storage unavailable (private mode) — no default is fine.
   }
 };

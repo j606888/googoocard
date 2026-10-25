@@ -153,6 +153,43 @@ export const updateDanceStyleSchema = z.object({
   archived: z.boolean().optional(),
 });
 
+// ── 分部 ────────────────────────────────────────────────────────────────────
+
+const locationName = z.string().trim().min(1, "請輸入分部名稱").max(30);
+/** Blank clears the address. */
+const locationAddress = z
+  .string()
+  .trim()
+  .max(200)
+  .transform((v) => v || null)
+  .nullable();
+
+export const createLocationSchema = z.object({
+  name: locationName,
+  address: locationAddress.optional(),
+});
+
+export const updateLocationSchema = z.object({
+  name: locationName.optional(),
+  address: locationAddress.optional(),
+  archived: z.boolean().optional(),
+});
+
+/** The classroom's full location list in its new order (archived included). */
+export const reorderLocationsSchema = z.object({
+  ids: z.array(positiveInt).min(1),
+});
+
+/** 套用到既有課程：未設定分部、且第一個時段落在這幾個星期（0 = 週日，台北時間）的課。 */
+export const assignLocationSchema = z.object({
+  locationId: positiveInt,
+  weekdays: z.array(z.number().int().min(0).max(6)).min(1),
+});
+
+export const locationSettingsSchema = z.object({
+  lineListed: z.boolean(),
+});
+
 // ── 老師 ────────────────────────────────────────────────────────────────────
 
 const teacherName = z.string().trim().min(1, "請輸入老師名字").max(30);

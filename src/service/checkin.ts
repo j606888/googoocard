@@ -1,3 +1,4 @@
+import { locationSummarySelect } from "@/lib/locations";
 import { Classroom } from "@prisma/client";
 import type { DanceStyleSummary } from "@/lib/danceStyles";
 import prisma from "@/lib/prisma";
@@ -107,6 +108,7 @@ export async function getTodayLessons(
     },
     include: {
       danceStyle: true,
+      location: { select: locationSummarySelect },
       cards: { include: { card: true } },
       periods: {
         where: { startTime: { gte: start, lt: end } },
@@ -131,6 +133,7 @@ export async function getTodayLessons(
       lessonId: lesson.id,
       lessonName: lesson.name,
       danceStyle: pickSummary(lesson.danceStyle),
+      location: lesson.location,
       periods: lesson.periods.map((period) => ({
         periodId: period.id,
         startTime: period.startTime,

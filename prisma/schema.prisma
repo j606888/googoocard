@@ -94,6 +94,9 @@ model Classroom {
   inviteTokens            InviteToken[]
   tags                    Tag[]
   danceStyles             DanceStyle[]
+  locations               Location[]
+  // 在 LINE 官方帳號公開課表與價目表——沒綁定的人也看得到（src/service/lineBot.ts）。
+  lineListed              Boolean                  @default(false)
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   teachers                Teacher[]
@@ -267,6 +270,9 @@ model Lesson {
   danceStyle   DanceStyle      @relation(fields: [danceStyleId], references: [id])
   // Level taught (1 = 初階, 2 = 中階, 3 = 進階 — src/lib/danceLevels.ts).
   level        Int             @default(1)
+  // 分部（台南／高雄…）。選填；課卡不分部限定。
+  locationId   Int?
+  location     Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
   groupId      Int?
   group        LessonGroup?    @relation(fields: [groupId], references: [id])
   teachers     LessonTeacher[]
@@ -279,6 +285,7 @@ model Lesson {
   @@index([classroomId])
   @@index([groupId])
   @@index([danceStyleId])
+  @@index([locationId])
 }
 
 // A dance style taught in one classroom (Bachata, Locking…). Classroom data,
@@ -300,6 +307,24 @@ model DanceStyle {
   qualifications StudentDanceQualification[]
   createdAt      DateTime                    @default(now())
   updatedAt      DateTime                    @updatedAt
+
+  // Leads with classroomId, so it also serves classroom lookups.
+  @@unique([classroomId, name])
+}
+
+// 分部：同一間教室的不同上課地點（台南、高雄…）。Classroom data managed on
+// /locations; archived, never deleted. Cards are NOT location-bound.
+model Location {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  name        String
+  address     String?
+  sortOrder   Int       @default(0)
+  archivedAt  DateTime?
+  lessons     Lesson[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Leads with classroomId, so it also serves classroom lookups.
   @@unique([classroomId, name])
@@ -460,6 +485,9 @@ model LineAccount {
   // The student the account last selected in LIFF, so the LINE bot's menu shows
   // the same one. Plain id (no FK) — webhook re-validates ownership before use.
   selectedStudentId Int?
+  // 沒綁定的人在 LINE 選過要看哪間公開教室的課表／價目（多間教室共用官方帳號時）。
+  // Plain id (no FK) — lineBot re-checks it's still listed before use.
+  browseClassroomId Int?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 }

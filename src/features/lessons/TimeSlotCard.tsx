@@ -1,4 +1,5 @@
 "use client";
+import LocationBadge from "@/components/LocationBadge";
 
 import { AlarmClock, Check, Clock } from "lucide-react";
 import { format } from "date-fns";
@@ -45,6 +46,7 @@ const TimeSlotCard = ({ lesson }: { lesson: LessonSummary }) => {
             )}
             <span className="font-semibold text-neutral-900 truncate">{lesson.name}</span>
           </div>
+          <LocationBadge location={lesson.location} />
           {!titleHasDance && (
             <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${style.badge}`}>
               {style.label}

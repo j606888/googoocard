@@ -14,6 +14,7 @@ const period = (overrides: Partial<CalendarPeriod>): CalendarPeriod => ({
   attendanceTaken: false,
   attendeeCount: 0,
   teacherNames: [],
+  location: null,
   ...overrides,
 });
 

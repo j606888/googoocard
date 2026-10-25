@@ -10,6 +10,7 @@ import {
   Music,
   UserCog,
   type LucideIcon,
+  MapPin,
 } from "lucide-react";
 
 export interface NavLink {
@@ -33,6 +34,7 @@ export const SECONDARY_LINKS: NavLink[] = [
   { name: "簽到 QR", icon: QrCode, href: "/checkin-qr" },
   { name: "老師", icon: GraduationCap, href: "/teachers" },
   { name: "舞種", icon: Music, href: "/dance-styles" },
+  { name: "分部", icon: MapPin, href: "/locations" },
   { name: "團隊", icon: Boxes, href: "/teams" },
   { name: "帳號", icon: UserCog, href: "/account" },
 ];

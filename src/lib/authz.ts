@@ -59,6 +59,14 @@ export async function findDanceStyleInClassroom(
   return prisma.danceStyle.findFirst({ where: { id: danceStyleId, classroomId } });
 }
 
+export async function findLocationInClassroom(
+  locationId: number,
+  classroomId: number | null | undefined
+) {
+  if (!classroomId || Number.isNaN(locationId)) return null;
+  return prisma.location.findFirst({ where: { id: locationId, classroomId } });
+}
+
 export async function findTeacherInClassroom(
   teacherId: number,
   classroomId: number | null | undefined
@@ -95,6 +103,15 @@ export async function requireDanceStyleInClassroom(
     throw new ApiError(400, "DANCE_STYLE_NOT_FOUND", "Dance style not found");
   }
   return style;
+}
+
+/** Same as above for a lesson's 分部 — 400, archived accepted. */
+export async function requireLocationInClassroom(locationId: number, classroomId: number) {
+  const location = await findLocationInClassroom(locationId, classroomId);
+  if (!location) {
+    throw new ApiError(400, "LOCATION_NOT_FOUND", "Location not found");
+  }
+  return location;
 }
 
 // ---------------------------------------------------------------------------

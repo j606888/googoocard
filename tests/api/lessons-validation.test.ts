@@ -5,6 +5,7 @@ import {
   createClassroom,
   createCard,
   createLesson,
+  createLocation,
   jsonRequest,
   routeParams,
   createDanceStyles,
@@ -103,6 +104,20 @@ describe("課程掛卡的舞種驗證", () => {
       expect(res.status).toBe(400);
       expect((await res.json()).error).toBe("DANCE_STYLE_NOT_FOUND");
       expect(await prisma.lesson.count()).toBe(0);
+    });
+
+    it("別間教室的分部 → 400 LOCATION_NOT_FOUND；本教室的分部照寫", async () => {
+      const other = await createClassroom({ name: "Other", email: "other@test.local" });
+      const foreign = await createLocation(other.id);
+      const res = await POST(jsonRequest("POST", { ...draft(S.SALSA, []), locationId: foreign.id }));
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe("LOCATION_NOT_FOUND");
+      expect(await prisma.lesson.count()).toBe(0);
+
+      const own = await createLocation(classroomId);
+      const ok = await POST(jsonRequest("POST", { ...draft(S.SALSA, []), locationId: own.id }));
+      expect(ok.status).toBe(200);
+      expect((await prisma.lesson.findFirstOrThrow()).locationId).toBe(own.id);
     });
 
     it("建立的課程寫入 danceStyleId", async () => {

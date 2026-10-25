@@ -43,6 +43,7 @@ export const useLessonsList = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [danceStyleId, setDanceStyleId] = useState<number | null>(null);
+  const [locationId, setLocationId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [newGroupName, setNewGroupName] = useState("");
   const [collapsed, setCollapsed] = useState<SectionId[]>([]);
@@ -63,12 +64,13 @@ export const useLessonsList = () => {
   // Any filter change restarts pagination from the first page.
   useEffect(() => {
     setPage(1);
-  }, [activeTab, sort, debouncedSearch, danceStyleId]);
+  }, [activeTab, sort, debouncedSearch, danceStyleId, locationId]);
 
   const { data: groups, isLoading: isGroupsLoading } = useGetLessonGroupsQuery();
   const useGroupedView = shouldUseGroupedView(
     debouncedSearch,
-    danceStyleId,
+    // Any chip filter flattens the grouped view the same way.
+    danceStyleId ?? locationId,
     groups?.length ?? 0,
     activeTab
   );
@@ -80,6 +82,7 @@ export const useLessonsList = () => {
     sort,
     search: debouncedSearch,
     danceStyleId,
+    locationId,
     page: useGroupedView ? undefined : page,
   }, {
     // Wait for the groups: they decide paged vs. unpaged, so fetching early
@@ -131,7 +134,7 @@ export const useLessonsList = () => {
     isCollapsed: (id: SectionId) => collapsed.includes(id),
     toggleSection,
     /** 有在篩選（關鍵字或舞種）——空狀態的文案靠它分岔。 */
-    isFiltering: Boolean(debouncedSearch || danceStyleId),
+    isFiltering: Boolean(debouncedSearch || danceStyleId || locationId),
     activeTab,
     setActiveTab,
     sort,
@@ -140,6 +143,8 @@ export const useLessonsList = () => {
     setSearch,
     danceStyleId,
     setDanceStyleId,
+    locationId,
+    setLocationId,
     loadMore: () => setPage((p) => p + 1),
     newGroupName,
     setNewGroupName,

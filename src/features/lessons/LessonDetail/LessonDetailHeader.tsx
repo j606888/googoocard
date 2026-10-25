@@ -1,4 +1,5 @@
 "use client";
+import LocationBadge from "@/components/LocationBadge";
 
 import Link from "next/link";
 import { ArrowLeft, Users, BookOpenText, GraduationCap, Settings } from "lucide-react";
@@ -66,6 +67,7 @@ const LessonDetailHeader = ({
                 {levelLabel}
               </span>
             )}
+            <LocationBadge location={lesson.location} className="px-2.5 py-1 font-semibold" />
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isFinished ? "bg-neutral-100 text-neutral-600" : "bg-primary-100 text-primary-700"}`}>
               {isFinished ? "已結束" : "進行中"}
             </span>

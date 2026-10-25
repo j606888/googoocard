@@ -9,6 +9,7 @@ import type { LessonKind } from "@/lib/lessonKind";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
 import LessonGroupSelect from "@/features/lessons/newLesson/LessonGroupSelect";
+import LocationSelect from "@/features/lessons/newLesson/LocationSelect";
 import { Button } from "@/components/ui/button";
 import {
   useUpdateLessonMutation,
@@ -35,6 +36,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(lesson.teachers.map((teacher) => teacher.id));
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>(lesson.cards.map((card) => card.id));
   const [groupId, setGroupId] = useState<number | null>(lesson.groupId);
+  const [locationId, setLocationId] = useState<number | null>(lesson.location?.id ?? null);
   const [kind, setKind] = useState<LessonKind>(lesson.kind);
   const [endLesson, { isLoading: isEnding }] = useEndLessonMutation();
   const [reopenLesson, { isLoading: isReopening }] = useReopenLessonMutation();
@@ -102,7 +104,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
     });
     setErrors(errors);
     if (Object.keys(errors).length === 0 && danceStyleId !== null) {
-      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId, level, kind, groupId } });
+      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId, level, kind, groupId, locationId } });
     }
   };
 
@@ -123,6 +125,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
           />
           {hasLevels && <LevelSelect level={level} onChange={setLevel} />}
           <LessonKindSelect kind={kind} onChange={setKind} />
+          <LocationSelect locationId={locationId} onChange={setLocationId} />
           <LessonGroupSelect
             groupId={groupId}
             onChange={setGroupId}

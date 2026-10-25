@@ -1,3 +1,4 @@
+import type { LocationSummary } from "@/lib/locations";
 import type { DanceStyleSummary } from "@/lib/danceStyles";
 
 /** Wire shapes of the LIFF check-in page (src/service/checkin.ts, /api/liff/checkin). */
@@ -35,6 +36,8 @@ export interface TodayLesson {
   lessonId: number;
   lessonName: string;
   danceStyle: DanceStyleSummary | null;
+  /** 分部 — null when the lesson has none. */
+  location: LocationSummary | null;
   periods: TodayPeriod[];
   cardStatus?: LessonCardStatus;
 }

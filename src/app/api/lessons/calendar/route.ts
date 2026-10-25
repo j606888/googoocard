@@ -2,6 +2,7 @@ import { decodeAuthToken } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
+import { locationSummarySelect } from "@/lib/locations";
 
 // Returns every LessonPeriod (session) whose startTime falls in [from, to) for
 // the current classroom, flattened for the calendar month grid. Unlike
@@ -35,6 +36,7 @@ export async function GET(request: Request) {
           name: true,
           danceStyleId: true,
           danceStyle: { select: danceStyleSummarySelect },
+          location: { select: locationSummarySelect },
           status: true,
           teachers: {
             select: { teacher: { select: { name: true } } },
@@ -59,6 +61,7 @@ export async function GET(request: Request) {
     attendanceTaken: Boolean(period.attendanceTakenAt),
     attendeeCount: period._count.attendanceRecords,
     teacherNames: period.lesson.teachers.map((t) => t.teacher.name),
+    location: period.lesson.location,
   }));
 
   return NextResponse.json(result);

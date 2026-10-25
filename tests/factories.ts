@@ -8,7 +8,7 @@ export async function resetDb() {
   await prisma.$executeRawUnsafe(
     `TRUNCATE "AttendanceRecord", "LessonStudent", "LessonPeriod", "LessonTeacher",
       "LessonCard", "StudentDanceQualification", "StudentTag", "Tag", "Event",
-      "StudentCard", "Lesson", "LessonGroup", "Card", "DanceStyle", "Student", "Teacher", "InviteToken",
+      "StudentCard", "Lesson", "LessonGroup", "Location", "Card", "DanceStyle", "Student", "Teacher", "InviteToken",
       "Membership", "Classroom", "User", "LineAccount", "RenewalReminder", "PushToken", "WebPushSubscription",
       "NotificationPreference" RESTART IDENTITY CASCADE`
   );
@@ -162,6 +162,18 @@ export async function defaultDanceStyle(classroomId: number) {
   });
 }
 
+export async function createLocation(
+  classroomId: number,
+  {
+    name = "台南",
+    address = null,
+    sortOrder = 0,
+    archivedAt = null,
+  }: { name?: string; address?: string | null; sortOrder?: number; archivedAt?: Date | null } = {}
+) {
+  return prisma.location.create({ data: { classroomId, name, address, sortOrder, archivedAt } });
+}
+
 export async function createLessonGroup(classroomId: number, name = "Group") {
   return prisma.lessonGroup.create({ data: { name, classroomId } });
 }
@@ -174,6 +186,7 @@ export async function createLesson(
     cardIds = [],
     withPeriod = false,
     groupId = null,
+    locationId = null,
     level = 1,
     kind = "fixed",
   }: {
@@ -185,6 +198,7 @@ export async function createLesson(
     cardIds?: number[];
     withPeriod?: boolean;
     groupId?: number | null;
+    locationId?: number | null;
   } = {}
 ) {
   const lesson = await prisma.lesson.create({
@@ -196,6 +210,7 @@ export async function createLesson(
       kind,
       status: "inProgress",
       groupId,
+      locationId,
     },
   });
   if (cardIds.length > 0) {

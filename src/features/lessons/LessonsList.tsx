@@ -32,6 +32,8 @@ const LessonsList = () => {
     setSearch,
     danceStyleId,
     setDanceStyleId,
+    locationId,
+    setLocationId,
     loadMore,
     newGroupName,
     setNewGroupName,
@@ -67,6 +69,9 @@ const LessonsList = () => {
         danceStyleId={danceStyleId}
         setDanceStyleId={setDanceStyleId}
         availableDanceStyleIds={lessons?.availableDanceStyleIds ?? []}
+        locationId={locationId}
+        setLocationId={setLocationId}
+        availableLocationIds={lessons?.availableLocationIds ?? []}
       />
 
       {(attention.dueCount > 0 || attention.needsNextCount > 0) && (

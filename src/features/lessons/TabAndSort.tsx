@@ -1,4 +1,4 @@
-import { ArrowDownUp, Check, Search, X } from "lucide-react";
+import { ArrowDownUp, Check, MapPin, Search, X } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -7,6 +7,7 @@ import {
 import { useState } from "react";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
+import { useLocations } from "@/hooks/useLocations";
 
 const TABS = [
   { label: "進行中", value: "inProgress" },
@@ -30,6 +31,9 @@ const TabAndSort = ({
   danceStyleId,
   setDanceStyleId,
   availableDanceStyleIds,
+  locationId,
+  setLocationId,
+  availableLocationIds,
 }: {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -41,6 +45,9 @@ const TabAndSort = ({
   danceStyleId: number | null;
   setDanceStyleId: (danceStyleId: number | null) => void;
   availableDanceStyleIds: number[];
+  locationId: number | null;
+  setLocationId: (locationId: number | null) => void;
+  availableLocationIds: number[];
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -52,6 +59,10 @@ const TabAndSort = ({
     availableDanceStyleIds.includes(style.id)
   );
   const showDanceFilter = danceChips.length > 1;
+  // 分部 chips: same rule — only locations that have lessons, only when ≥2.
+  const { all: allLocations } = useLocations();
+  const locationChips = allLocations.filter((l) => availableLocationIds.includes(l.id));
+  const showLocationFilter = locationChips.length > 1;
 
   const handleSort = (value: string) => {
     setSort(value);
@@ -106,6 +117,37 @@ const TabAndSort = ({
                 }`}
               >
                 {meta.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 分部 filter chips */}
+      {showLocationFilter && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-0.5 -mx-1 px-1">
+          <button
+            onClick={() => setLocationId(null)}
+            className={`shrink-0 text-xs font-medium px-3 py-1 rounded-full transition-colors ${
+              locationId === null
+                ? "bg-neutral-800 text-white"
+                : "bg-neutral-100 text-neutral-500 hover:text-neutral-700"
+            }`}
+          >
+            所有分部
+          </button>
+          {locationChips.map((location) => {
+            const active = locationId === location.id;
+            return (
+              <button
+                key={location.id}
+                onClick={() => setLocationId(active ? null : location.id)}
+                className={`flex shrink-0 items-center gap-0.5 text-xs font-medium px-3 py-1 rounded-full transition-colors ${
+                  active ? "bg-neutral-800 text-white" : "bg-neutral-100 text-neutral-500 hover:text-neutral-700"
+                }`}
+              >
+                <MapPin className="w-3 h-3" />
+                {location.name}
               </button>
             );
           })}

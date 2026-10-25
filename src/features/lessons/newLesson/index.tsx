@@ -4,6 +4,8 @@ import CardSelect from "./CardSelect";
 import { Button } from "@/components/ui/button";
 import TeacherSelect from "./TeacherSelect";
 import LessonGroupSelect from "./LessonGroupSelect";
+import LocationSelect from "./LocationSelect";
+import { useLocations } from "@/hooks/useLocations";
 import SubNavbar from "@/features/SubNavbar";
 import PeriodList from "./PeriodList";
 import AddPeriodForm from "./AddPeriodForm";
@@ -20,6 +22,8 @@ import {
   getLessonCloneSource,
   clearLessonCloneSource,
   getLastLessonKind,
+  getLastLessonLocation,
+  setLastLessonLocation,
   setLastLessonKind,
 } from "@/lib/lessonDraftStorage";
 import Link from "next/link";
@@ -81,6 +85,19 @@ const NewLesson = () => {
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(
     initialClone?.groupId ?? (groupIdParam ? Number(groupIdParam) : null)
   );
+  // 分部: clone > the classroom's last-used one (if still active) > none.
+  // `undefined` = not touched yet, so an explicit「不指定」sticks.
+  const { locations } = useLocations();
+  const [pickedLocationId, setPickedLocationId] = useState<number | null | undefined>(
+    initialClone ? (initialClone.locationId ?? null) : undefined
+  );
+  const lastLocationId = classroomId != null ? getLastLessonLocation(classroomId) : null;
+  const locationId =
+    pickedLocationId !== undefined
+      ? pickedLocationId
+      : locations.some((l) => l.id === lastLocationId)
+        ? lastLocationId
+        : null;
 
   const cloneInitialPeriod = initialClone?.initialPeriod;
   const [periods, setPeriods] = useState<
@@ -157,9 +174,13 @@ const NewLesson = () => {
         level: hasLevels ? level : DEFAULT_DANCE_LEVEL,
         kind,
         groupId: selectedGroupId,
+        locationId,
         periods,
       });
-      if (classroomId != null) setLastLessonKind(classroomId, kind);
+      if (classroomId != null) {
+        setLastLessonKind(classroomId, kind);
+        setLastLessonLocation(classroomId, locationId);
+      }
 
       router.push("/lessons");
     }
@@ -209,6 +230,7 @@ const NewLesson = () => {
                 />
                 {hasLevels && <LevelSelect level={level} onChange={setLevel} />}
                 <LessonKindSelect kind={kind} onChange={setPickedKind} />
+                <LocationSelect locationId={locationId} onChange={setPickedLocationId} />
                 <LessonGroupSelect
                   groupId={selectedGroupId}
                   onChange={setSelectedGroupId}

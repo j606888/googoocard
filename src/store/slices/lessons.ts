@@ -3,6 +3,7 @@ import { api } from "../api";
 import { Card } from "./cards";
 import type { TeacherSummary } from "./teachers";
 import type { DanceStyleSummary } from "@/lib/danceStyles";
+import type { LocationSummary } from "@/lib/locations";
 import type { CardStatus } from "@/domains/attendance/rosterInsights";
 import type { DanceLevels } from "@/domains/qualification";
 import type { LessonKind } from "@/lib/lessonKind";
@@ -27,6 +28,9 @@ export interface Lesson {
   cards: Card[];
   groupId: number | null;
   group: { id: number; name: string } | null;
+  /** 分部 — null when not set. */
+  locationId: number | null;
+  location: LocationSummary | null;
 }
 
 export interface Period {
@@ -51,6 +55,7 @@ export interface LessonSummary {
   teachers: TeacherSummary[];
   cardIds: number[];
   groupId: number | null;
+  location: LocationSummary | null;
   totalPeriods: number;
   attendedCount: number;
   /** Earliest upcoming session start (ISO), or null — informational "next class". */
@@ -83,6 +88,7 @@ export interface CalendarPeriod {
   attendanceTaken: boolean;
   attendeeCount: number;
   teacherNames: string[];
+  location: LocationSummary | null;
 }
 
 export interface GetLessonsArgs {
@@ -92,6 +98,8 @@ export interface GetLessonsArgs {
   danceStyleId?: number | null;
   /** Restrict to one LessonGroup's members — omit for the unfiltered list. */
   groupId?: number | null;
+  /** Restrict to one 分部. */
+  locationId?: number | null;
   page?: number;
 }
 
@@ -114,6 +122,8 @@ export interface DraftLesson {
   kind?: LessonKind;
   /** LessonGroup to file this lesson under — null means 未分類 (ungrouped). */
   groupId?: number | null;
+  /** 分部 — null/omitted = not set (PUT clears it when omitted). */
+  locationId?: number | null;
   periods?: {
     startTime: string;
     endTime: string;
@@ -208,13 +218,15 @@ const lessonsApi = api.injectEndpoints({
         tabsCount: { inProgress: number; finished: number };
         hasNextPage: boolean;
         availableDanceStyleIds: number[];
+        availableLocationIds: number[];
       },
       GetLessonsArgs
     >({
-      query: ({ tab, sort, search, danceStyleId, groupId, page }) => {
+      query: ({ tab, sort, search, danceStyleId, groupId, locationId, page }) => {
         const params = new URLSearchParams({ tab, sort });
         if (search) params.set("search", search);
         if (danceStyleId) params.set("danceStyleId", String(danceStyleId));
+        if (locationId) params.set("locationId", String(locationId));
         // undefined = no group filter; null = the virtual 未分類 bucket; a
         // number = that one LessonGroup's members.
         if (groupId !== undefined) params.set("groupId", groupId === null ? "none" : String(groupId));
