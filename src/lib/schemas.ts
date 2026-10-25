@@ -43,6 +43,26 @@ export const confirmPaymentSchema = z.object({
   receiverUserId: positiveInt.optional(),
 });
 
+/**
+ * 登記體驗課（POST /api/lessons/[id]/trials）：選既有學生（`studentId`）或
+ * 直接打名字建新學生（`newStudentName`），二擇一。`finalPrice` 省略 = 依
+ * 新舊生帶預設價（src/lib/trialPrice.ts）；$0 一律視為已付。
+ */
+export const registerTrialSchema = z
+  .object({
+    studentId: positiveInt.optional(),
+    newStudentName: z.string().trim().min(1).max(50).optional(),
+    cardId: positiveInt,
+    finalPrice: money.optional(),
+    isPaid: z.boolean(),
+    paymentMethod: z.enum(PaymentMethod).nullish(),
+    paymentReference: z.string().trim().max(20).nullish(),
+  })
+  .refine((data) => (data.studentId === undefined) !== (data.newStudentName === undefined), {
+    message: "Pass exactly one of studentId / newStudentName",
+    path: ["studentId"],
+  });
+
 export const convertStudentCardSchema = z.object({
   targetCardId: positiveInt,
   // Omitted means "the residual value converted at the target card's price,
@@ -79,7 +99,7 @@ export const cardSchema = z
     price: money,
     sessions,
     isPracticeCard: z.boolean().optional().default(false),
-    // 體驗課卡：自助點名時新同學照價、舊生預設 $0（src/service/trial.ts）。
+    // 體驗課卡：老師在課程頁登記體驗時用，舊生預設 $0（src/lib/trialPrice.ts）。
     isTrial: z.boolean().optional().default(false),
     danceStyleId: positiveInt.nullish(),
   })

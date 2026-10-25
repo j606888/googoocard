@@ -6,10 +6,12 @@ const SelectedStudents = ({
   selectedStudents,
   onRemoveStudent,
   selfCheckInStudentIds = [],
+  trialStudentIds = [],
 }: {
   selectedStudents: Student[];
   onRemoveStudent: (studentId: number) => void;
   selfCheckInStudentIds?: number[];
+  trialStudentIds?: number[];
 }) => {
   return (
     <div
@@ -34,6 +36,11 @@ const SelectedStudents = ({
           {selfCheckInStudentIds.includes(student.id) && (
             <span className="rounded-full bg-success-100 px-1.5 text-[10px] font-medium text-success-700">
               自助簽到
+            </span>
+          )}
+          {trialStudentIds.includes(student.id) && (
+            <span className="rounded-full bg-primary-100 px-1.5 text-[10px] font-medium text-primary-900">
+              體驗報名
             </span>
           )}
           {(student.unpaidAmount ?? 0) > 0 && (

@@ -204,19 +204,21 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 每個時段各開一個 transaction、`source = STUDENT`、**不設 `attendanceTakenAt`**（定案權留給老師）、`@@unique([lessonPeriodId, studentId])` 保證冪等。卡怎麼付：
 
 - `card: { studentCardId }` —— 必須在 `cardOptionsFor(student, lesson).usable` 內（否則 `card_not_usable` 400）。
-- `card: { buyCardId }` —— 卡必須掛在這堂課（`lesson.cards`，否則 `card_not_offered` 400）且 `canBuyCard(card, levels, lesson)`（否則 `not_qualified` 403）。只有真的會用到時才建卡：`createStudentCardInTx()`（`src/service/studentCard.ts`，老師開卡、LIFF 購卡共用）、`purchaseSource STUDENT`、價格 = `selfServicePrice()`。
+- `card: { buyCardId }` —— 卡必須掛在這堂課（`lesson.cards`，否則 `card_not_offered` 400）且 `canBuyCard(card, levels, lesson)`（否則 `not_qualified` 403）。只有真的會用到時才建卡：`createStudentCardInTx()`（`src/service/studentCard.ts`，老師開卡、LIFF 購卡共用）、`purchaseSource STUDENT`、照牌價、未付款（體驗卡不在這裡賣，見下方「體驗課」）。
 - 沒指定 → 引擎自己挑（`cardOptionsFor().autoPick`：practice 優先時挑推薦的那張；否則只有唯一一張才自動挑）。
 - **`requireCard`（LIFF 一律開）**：寫入前先用 `planPeriodCards()` 在卡片副本上模擬每個時段扣哪張（選定的卡用完就換引擎自動挑），任何一個時段會沒卡 → `card_required` 400，**什麼都不寫**（也不買卡）。所以自助點名不再產生「沒綁卡」的出席；`UNBOUND_ATTENDANCE` 只剩老師端點名。
 
 `/api/liff/today` 帶學生時，每堂課多回 `cardStatus = { usable, autoPickId, buyable }`（`src/service/checkin.ts` 的 `lessonCardStatus()`，跟引擎同一套規則），LIFF 畫面據此顯示「使用 X（剩 n 堂）」／多張卡讓學生選／「還沒有能用的課卡，下一步選一張」。`POST /api/liff/checkin` 回 `{ results, purchased, amountDue, unpaidCards }`，完成畫面寫「下課請找小幫手付款 $X」並提醒舊的未付卡。**不另外推播**。
 
-### 體驗課（`Card.isTrial`）
+### 體驗課（`Card.isTrial`）——老師登記，不在自助簽到賣
 
-體驗課是一般的課程，`lesson.cards` 掛一張 `isTrial` 的卡。`src/service/trial.ts`：
+體驗課是一般的課程，`lesson.cards` 掛一張 `isTrial` 的卡。報名多半來自 Google 表單或現場、**上課前就收費**，所以 2026-10-25 起體驗一律由**老師在課程頁的「體驗名單」登記**（`src/service/trialRoster.ts`、`GET/POST /api/lessons/[id]/trials`），學生端不賣：
 
-- `isReturningStudent()`：這間教室買過任何**非體驗**卡 = 舊生（只上過體驗課的人下次來還是新同學）。
-- `selfServicePrice()`：體驗卡對舊生 $0（直接 `isPaid: true`、`paidByUserId: null`，不推「待確認收款」），其他一律照牌價、未付款。工作人員事後照舊可以改。
-- 體驗卡**不會**出現在 `/liff/buy` 和 `/api/liff/cards`（也不能直接買），只在點名流程選。
+- **一筆報名 = 一張這堂課收的體驗卡的 `StudentCard`**，沒有另外的表。還沒用掉（剩餘 > 0）= 已報名；用在這堂課的時段 = 已上課（只列最近 30 筆）。
+- 登記可以選既有學生或直接打名字（`createStudent`，同名不擋，交給「可能重複」）。收費預設 `defaultTrialPrice()`（`src/lib/trialPrice.ts`，前後端共用）：舊生 $0、新同學照牌價，可當場改；收了錢就一起記 `paymentMethod`／末五碼，收款人是登記的人；沒收就是一般的待確認收款。同一張體驗卡還沒用掉時不能重複登記（`ALREADY_REGISTERED`）。
+- **點名**：`CheckPeriod` 把已報名的人跟既有紀錄一起預設勾選、標「體驗報名」；引擎 `cardOptionsFor()` 對手上有這堂課體驗卡的人**優先扣體驗卡**（舊生同時有一般卡也不會變成「多張卡待選」）。
+- `isReturningStudent()`（`src/service/trial.ts`）：這間教室買過任何**非體驗**卡 = 舊生。
+- 自助簽到：`buyable` 不含體驗卡、`buyCardId` 指體驗卡回 `card_not_offered`；但已登記的體驗卡學生自己簽到時照樣能用。體驗卡也**不會**出現在 `/liff/buy` 和 `/api/liff/cards`。
 
 ### 金鑰與 QR 看板
 

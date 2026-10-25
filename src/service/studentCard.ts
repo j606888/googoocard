@@ -1,4 +1,4 @@
-import { CardPurchaseSource, Prisma } from "@prisma/client";
+import { CardPurchaseSource, PaymentMethod, Prisma } from "@prisma/client";
 import { nextCardSerial } from "@/service/studentCardSerial";
 
 type CardForPurchase = { id: number; name: string; price: number; classroomId: number };
@@ -23,6 +23,8 @@ export async function createStudentCardInTx(
     purchasedByUserId = null,
     isPaid,
     paidByUserId = null,
+    paymentMethod = null,
+    paymentReference = null,
     note = null,
     eventDescription,
   }: {
@@ -34,6 +36,9 @@ export async function createStudentCardInTx(
     purchasedByUserId?: number | null;
     isPaid: boolean;
     paidByUserId?: number | null;
+    /** 建卡當下就收了錢時（例如登記體驗課）一起記下怎麼付的。 */
+    paymentMethod?: PaymentMethod | null;
+    paymentReference?: string | null;
     note?: string | null;
     eventDescription: string;
   }
@@ -53,6 +58,8 @@ export async function createStudentCardInTx(
       isPaid,
       paidAt: isPaid ? new Date() : null,
       paidByUserId: isPaid ? paidByUserId : null,
+      paymentMethod: isPaid ? paymentMethod : null,
+      paymentReference: isPaid ? paymentReference : null,
       note,
     },
   });

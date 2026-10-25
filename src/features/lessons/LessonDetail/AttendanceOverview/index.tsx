@@ -10,6 +10,7 @@ import {
 import HeadcountChart from "./HeadcountChart";
 import AttentionList from "./AttentionList";
 import RosterList from "./RosterList";
+import TrialRoster from "../TrialRoster";
 
 /**
  * Replaces the old student × period dot matrix.
@@ -44,6 +45,7 @@ const AttendanceOverview = ({
 
   return (
     <div className="flex flex-col gap-6 max-w-5xl">
+      <TrialRoster lesson={lesson} />
       <HeadcountChart lessonId={lesson.id} data={headcounts} />
       <AttentionList
         items={items}

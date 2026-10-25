@@ -14,6 +14,8 @@ import { useSizeClass } from "@/hooks/useMediaQuery";
 type PeriodAttendanceFormProps = {
   defaultSelectedIds?: number[];
   selfCheckInStudentIds?: number[];
+  /** 在課程頁體驗名單上登記、還沒上過的人——預設勾好並標「體驗報名」。 */
+  trialStudentIds?: number[];
   onSubmit: (studentIds: number[]) => Promise<void>;
   submitLabel?: string;
   error?: string | null;
@@ -25,6 +27,7 @@ type PeriodAttendanceFormProps = {
 const PeriodAttendanceForm = ({
   defaultSelectedIds = [],
   selfCheckInStudentIds = [],
+  trialStudentIds = [],
   onSubmit,
   submitLabel = "完成點名",
   error,
@@ -90,6 +93,7 @@ const PeriodAttendanceForm = ({
       attendStudentIds={attendStudentIds}
       selectedStudents={selectedStudents}
       selfCheckInStudentIds={selfCheckInStudentIds}
+      trialStudentIds={trialStudentIds}
       setSelectedStudents={(students) => {
         setSelectedIds(students.map((student) => student.id));
       }}
@@ -101,6 +105,7 @@ const PeriodAttendanceForm = ({
       selectedStudents={selectedStudents}
       onRemoveStudent={removeStudent}
       selfCheckInStudentIds={selfCheckInStudentIds}
+      trialStudentIds={trialStudentIds}
     />
   );
 

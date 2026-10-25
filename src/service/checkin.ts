@@ -5,7 +5,6 @@ import { toTaipeiDateKey, parseTaipeiDateRange } from "@/lib/taipei-date";
 import { canBuyCard, toDanceLevels } from "@/domains/qualification";
 import { cardOptionsFor } from "@/domains/attendance/attendance.service";
 import { fetchStudentsWithValidCards } from "@/service/lessonCards";
-import { isReturningStudent, selfServicePrice } from "@/service/trial";
 
 export interface TodayPeriod {
   periodId: number;
@@ -23,14 +22,15 @@ export interface UsableCardOption {
   isPracticeCard: boolean;
 }
 
-/** One of the lesson's cards the student may buy on the spot, at their price. */
+/**
+ * One of the lesson's cards the student may buy on the spot. Never a trial
+ * card — trials are registered by the teacher on the lesson page.
+ */
 export interface BuyableCardOption {
   cardId: number;
   name: string;
   sessions: number;
-  /** What this student pays (trial cards are free for 舊生). */
   price: number;
-  isTrial: boolean;
   isPracticeCard: boolean;
 }
 
@@ -126,8 +126,6 @@ export async function getTodayLessons(
       : [];
   const checkedIds = new Set(checkedRecords.map((r) => r.lessonPeriodId));
 
-  const returning = studentId ? await isReturningStudent(studentId) : false;
-
   const today: TodayLesson[] = await Promise.all(
     lessons.map(async (lesson) => ({
       lessonId: lesson.id,
@@ -140,7 +138,7 @@ export async function getTodayLessons(
         alreadyChecked: checkedIds.has(period.id),
       })),
       ...(studentId
-        ? { cardStatus: await lessonCardStatus(lesson, studentId, classroomId, returning) }
+        ? { cardStatus: await lessonCardStatus(lesson, studentId, classroomId) }
         : {}),
     }))
   );
@@ -174,8 +172,7 @@ type LessonForCardStatus = Parameters<typeof cardOptionsFor>[1];
 async function lessonCardStatus(
   lesson: LessonForCardStatus,
   studentId: number,
-  classroomId: number,
-  returning: boolean
+  classroomId: number
 ): Promise<LessonCardStatus> {
   const [student] = await fetchStudentsWithValidCards(
     [studentId],
@@ -198,15 +195,15 @@ async function lessonCardStatus(
     autoPickId: autoPick?.id ?? null,
     buyable: lesson.cards
       .map((lc) => lc.card)
-      .filter((card) => !card.expiredAt && canBuyCard(card, levels, lesson).allowed)
-      // Trial first (the obvious choice for a newcomer), then cheapest.
-      .sort((a, b) => Number(b.isTrial) - Number(a.isTrial) || a.price - b.price)
+      .filter(
+        (card) => !card.expiredAt && !card.isTrial && canBuyCard(card, levels, lesson).allowed
+      )
+      .sort((a, b) => a.price - b.price)
       .map((card) => ({
         cardId: card.id,
         name: card.name,
         sessions: card.sessions,
-        price: selfServicePrice(card, returning),
-        isTrial: card.isTrial,
+        price: card.price,
         isPracticeCard: card.isPracticeCard,
       })),
   };

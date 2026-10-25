@@ -125,7 +125,7 @@ export default function CheckinList({
       submit();
       return;
     }
-    // Default each lesson to its first offer (trial first, then cheapest).
+    // Default each lesson to its first offer (cheapest).
     setBuyChoice((prev) => {
       const next = { ...prev };
       lessonsToBuy.forEach((l) => {
@@ -249,14 +249,7 @@ export default function CheckinList({
                       className="h-5 w-5 accent-primary-700"
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5">
-                        <span className="font-semibold">{card.name}</span>
-                        {card.isTrial && (
-                          <span className="rounded-full bg-primary-50 px-2 py-0.5 text-xs text-primary-900">
-                            體驗課
-                          </span>
-                        )}
-                      </span>
+                      <span className="block font-semibold">{card.name}</span>
                       <span className="block text-sm text-neutral-500">
                         {card.sessions} 堂{card.sessions > 1 ? " · 今天先扣 1 堂" : ""}
                       </span>

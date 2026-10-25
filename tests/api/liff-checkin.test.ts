@@ -169,29 +169,29 @@ describe("POST /api/liff/checkin (self check-in)", () => {
     expect(record.studentCardId).toBe(sc.id);
   });
 
-  it("體驗卡：新同學照價未付；舊生（買過一般卡）$0 已付", async () => {
+  it("體驗卡不在自助簽到賣：buyCardId 指體驗卡 → 400 card_not_offered，什麼都不寫", async () => {
     const trial = await createCard(classroomId, { name: "體驗課", price: 400, sessions: 1, isTrial: true });
     await prisma.lessonCard.create({ data: { lessonId, cardId: trial.id } });
 
     const res = await checkin(
       checkinRequest("lineAmy", { studentId, lessonId, periodIds: [periodId], buyCardId: trial.id })
     );
-    const body = await res.json();
-    expect(body.amountDue).toBe(400);
-    expect(body.purchased).toMatchObject({ isPaid: false, finalPrice: 400 });
+    expect(res.status).toBe(400);
+    expect(await prisma.studentCard.count({ where: { studentId, cardId: trial.id } })).toBe(0);
+    expect(await prisma.attendanceRecord.count({ where: { studentId } })).toBe(0);
+  });
 
-    // 舊生
-    const old = await createStudent(classroomId, { name: "Old" });
-    await prisma.student.update({ where: { id: old.id }, data: { lineUserId: "lineOld" } });
-    await createStudentCard(old.id, cardId, { remainingSessions: 0, totalSessions: 10 });
-    const res2 = await checkin(
-      checkinRequest("lineOld", { studentId: old.id, lessonId, periodIds: [periodId], buyCardId: trial.id })
+  it("老師已登記的體驗卡，學生自己簽到時照樣能用", async () => {
+    const trial = await createCard(classroomId, { name: "體驗課", price: 400, sessions: 1, isTrial: true });
+    await prisma.lessonCard.create({ data: { lessonId, cardId: trial.id } });
+    const sc = await createStudentCard(studentId, trial.id, { remainingSessions: 1, totalSessions: 1, finalPrice: 400 });
+
+    const res = await checkin(
+      checkinRequest("lineAmy", { studentId, lessonId, periodIds: [periodId], studentCardId: sc.id })
     );
-    const body2 = await res2.json();
-    expect(res2.status).toBe(200);
-    expect(body2.amountDue).toBe(0);
-    const oldTrial = await prisma.studentCard.findFirstOrThrow({ where: { studentId: old.id, cardId: trial.id } });
-    expect(oldTrial).toMatchObject({ finalPrice: 0, isPaid: true, paidByUserId: null });
+    expect(res.status).toBe(200);
+    const record = await prisma.attendanceRecord.findFirstOrThrow({ where: { studentId } });
+    expect(record.studentCardId).toBe(sc.id);
   });
 
   it("買沒掛在這堂課的卡 → 400 card_not_offered；不合格的複習卡 → 403", async () => {
@@ -301,7 +301,7 @@ describe("GET /api/liff/today", () => {
     expect(body.nextLesson).toBeNull();
   });
 
-  it("帶學生時回每堂課的卡況：可用卡、自動挑的卡、可買的卡（體驗卡依新舊生定價）", async () => {
+  it("帶學生時回每堂課的卡況：可用卡、自動挑的卡、可買的卡（不含體驗卡）", async () => {
     const card = await createCard(classroomId, { name: "10 堂卡", price: 2000, sessions: 10 });
     const trial = await createCard(classroomId, { name: "體驗課", price: 400, sessions: 1, isTrial: true });
     const { lesson } = await createLesson(classroomId, { cardIds: [card.id, trial.id] });
@@ -311,7 +311,6 @@ describe("GET /api/liff/today", () => {
     let body = await (await today(todayRequest("lineAmy", studentId))).json();
     expect(body.today[0].cardStatus).toMatchObject({ usable: [], autoPickId: null });
     expect(body.today[0].cardStatus.buyable.map((c: { name: string; price: number }) => [c.name, c.price])).toEqual([
-      ["體驗課", 400],
       ["10 堂卡", 2000],
     ]);
 
@@ -319,8 +318,6 @@ describe("GET /api/liff/today", () => {
     body = await (await today(todayRequest("lineAmy", studentId))).json();
     expect(body.today[0].cardStatus.autoPickId).toBe(sc.id);
     expect(body.today[0].cardStatus.usable[0]).toMatchObject({ studentCardId: sc.id, remainingSessions: 3 });
-    // 舊生 → 體驗卡 $0
-    expect(body.today[0].cardStatus.buyable[0]).toMatchObject({ name: "體驗課", price: 0 });
   });
 
   it("今天沒課 → today 空、回 nextLesson", async () => {

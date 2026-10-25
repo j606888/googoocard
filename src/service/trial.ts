@@ -14,12 +14,3 @@ export async function isReturningStudent(studentId: number, db: Db = prisma) {
   });
   return count > 0;
 }
-
-/**
- * What a student pays for a card picked at self check-in: a trial card is free
- * for 舊生 (they're tagging along, not trying the studio), list price for
- * everyone else. Staff can still change `finalPrice` by hand afterwards.
- */
-export function selfServicePrice(card: { price: number; isTrial: boolean }, returning: boolean) {
-  return card.isTrial && returning ? 0 : card.price;
-}

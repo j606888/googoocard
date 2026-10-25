@@ -150,7 +150,7 @@ model Card {
   // cards, which fall back to the lesson's style.
   danceStyleId   Int?
   danceStyle     DanceStyle?   @relation(fields: [danceStyleId], references: [id])
-  // 體驗課卡：自助點名時新同學照價、舊生（買過非體驗卡）預設 $0（src/service/trial.ts）。
+  // 體驗課卡：老師在課程頁的體驗名單登記時用，舊生（買過非體驗卡）預設 $0（src/lib/trialPrice.ts）。
   isTrial        Boolean       @default(false)
   classroom      Classroom     @relation(fields: [classroomId], references: [id])
   createdAt      DateTime      @default(now())

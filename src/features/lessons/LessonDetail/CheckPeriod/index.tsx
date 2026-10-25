@@ -2,6 +2,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   useGetAttendanceQuery,
+  useGetLessonTrialsQuery,
   useTakeAttendanceMutation,
 } from "@/store/slices/lessons";
 import PeriodAttendanceForm from "../PeriodAttendanceForm";
@@ -22,9 +23,18 @@ const CheckPeriod = () => {
   // Memoize so the array refs stay stable across renders — PeriodAttendanceForm
   // syncs its selection off defaultSelectedIds in an effect, and a fresh array
   // each render would re-fire that effect and wipe the teacher's manual edits.
+  // 課程頁體驗名單上已登記、還沒上過的人也預設勾好——他們上課前就報名收費了。
+  const { data: trials, isLoading: isTrialsLoading } = useGetLessonTrialsQuery({ id: Number(id) });
+  const trialStudentIds = useMemo(
+    () =>
+      (trials?.entries ?? [])
+        .filter((entry) => entry.status === "registered")
+        .map((entry) => entry.student.id),
+    [trials]
+  );
   const defaultSelectedIds = useMemo(
-    () => (existingRecords ?? []).map((r) => r.studentId),
-    [existingRecords]
+    () => [...new Set([...(existingRecords ?? []).map((r) => r.studentId), ...trialStudentIds])],
+    [existingRecords, trialStudentIds]
   );
   const selfCheckInStudentIds = useMemo(
     () =>
@@ -56,11 +66,12 @@ const CheckPeriod = () => {
       <PeriodAttendanceForm
         defaultSelectedIds={defaultSelectedIds}
         selfCheckInStudentIds={selfCheckInStudentIds}
+        trialStudentIds={trialStudentIds}
         onSubmit={handleSubmit}
         submitLabel="完成點名"
         error={error}
         isLoading={isLoading}
-        isRecordsLoading={isRecordsLoading}
+        isRecordsLoading={isRecordsLoading || isTrialsLoading}
       />
     </>
   );

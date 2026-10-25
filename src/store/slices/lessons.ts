@@ -170,6 +170,36 @@ export interface LessonStudent {
   danceLevels: DanceLevels;
 }
 
+/** 課程頁的體驗名單（GET /api/lessons/[id]/trials）。 */
+export interface TrialEntry {
+  studentCardId: number;
+  serialNumber: number;
+  /** registered = 已登記、還沒上；attended = 這張體驗卡已用在這堂課。 */
+  status: "registered" | "attended";
+  student: { id: number; name: string; avatarUrl: string };
+  cardName: string;
+  finalPrice: number;
+  isPaid: boolean;
+  paymentMethod: "CASH" | "TRANSFER" | null;
+  registeredAt: string;
+  attendedAt: string | null;
+}
+
+export interface TrialRoster {
+  trialCards: { id: number; name: string; price: number }[];
+  entries: TrialEntry[];
+}
+
+export interface RegisterTrialBody {
+  studentId?: number;
+  newStudentName?: string;
+  cardId: number;
+  finalPrice?: number;
+  isPaid: boolean;
+  paymentMethod?: "CASH" | "TRANSFER" | null;
+  paymentReference?: string | null;
+}
+
 const lessonsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getLessons: builder.query<
@@ -281,6 +311,18 @@ const lessonsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Lesson", "StudentCard", "Card", "Attendance", "AttendanceRecord"],
     }),
+    getLessonTrials: builder.query<TrialRoster, { id: number }>({
+      query: ({ id }) => `lessons/${id}/trials`,
+      // 點名（Attendance）會把「已登記」變成「已上課」，買卡／刪卡也會動到名單。
+      providesTags: ["Lesson", "StudentCard", "Attendance"],
+    }),
+    registerTrial: builder.mutation<
+      { studentCardId: number; studentId: number },
+      { id: number } & RegisterTrialBody
+    >({
+      query: ({ id, ...body }) => ({ url: `lessons/${id}/trials`, method: "POST", body }),
+      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card"],
+    }),
     getLessonStudents: builder.query<LessonStudent[], { id: number }>({
       query: ({ id }) => ({
         url: `lessons/${id}/students`,
@@ -373,6 +415,8 @@ export const {
   useResetAttendanceMutation,
   useConsumeStudentCardMutation,
   useGetLessonStudentsQuery,
+  useGetLessonTrialsQuery,
+  useRegisterTrialMutation,
   useCreatePeriodMutation,
   useCreatePeriodsMutation,
   useEndLessonMutation,

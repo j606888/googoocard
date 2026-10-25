@@ -5,7 +5,6 @@ import { refreshNeedsRenewalTags } from "@/service/studentTag";
 import { notifyClassroom } from "@/service/push";
 import { canBuyCard, canUseCard, cardMatchesLesson, isQualified, requiredDanceStyleFor, requiredLevelFor, toDanceLevels } from "@/domains/qualification";
 import { createStudentCardInTx } from "@/service/studentCard";
-import { isReturningStudent, selfServicePrice } from "@/service/trial";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
 import {
@@ -113,6 +112,23 @@ export function cardOptionsFor(
   lesson: LessonWithCards
 ): { usable: CandidateCard[]; autoPick: CandidateCard | null } {
   const levels = toDanceLevels(student.danceQualifications);
+
+  // 手上有這堂課收的體驗卡 = 老師幫他登記了體驗（課程頁的體驗名單），
+  // 那張就是這次要用的——舊生同時有一般卡時也不該變成「多張卡待選」。
+  // 候選卡本來就只含這堂課收的卡（fetchStudentsWithValidCards）。
+  const trialCards = sortRecommended(
+    student.studentCards.filter(
+      (studentCard) => studentCard.card.isTrial && canUseCard(studentCard.card, levels, lesson)
+    )
+  );
+  if (trialCards.length > 0) {
+    const others = sortRecommended(
+      student.studentCards.filter(
+        (studentCard) => !studentCard.card.isTrial && canUseCard(studentCard.card, levels, lesson)
+      )
+    );
+    return { usable: [...trialCards, ...others], autoPick: trialCards[0] };
+  }
 
   if (shouldUsePracticePriority(lesson, student)) {
     const practiceCards = sortRecommended(
@@ -550,8 +566,8 @@ const BUYING = -1;
  *   - is idempotent per (student, period) — an existing record is left untouched
  *     and reported as `already_checked` (no double-charge),
  *   - lets the student pick which card pays (`card.studentCardId`) or buy one of
- *     the lesson's cards on the spot (`card.buyCardId` — unpaid, except a trial
- *     card for 舊生, which is $0 and paid; src/service/trial.ts),
+ *     the lesson's cards on the spot (`card.buyCardId` — unpaid; never a trial
+ *     card, those are registered by the teacher on the lesson page),
  *   - with `requireCard`, refuses (SelfCheckInError, nothing written) rather than
  *     leave any period unbound.
  */
@@ -613,7 +629,11 @@ export async function selfCheckIn({
     }
     chosenId = choice.studentCardId;
   } else if (choice && "buyCardId" in choice) {
-    buying = lesson.cards.find((lc) => lc.cardId === choice.buyCardId && !lc.card.expiredAt)?.card ?? null;
+    // 體驗卡不在自助簽到賣——體驗一律由老師在課程頁登記、上課前收費。
+    buying =
+      lesson.cards.find(
+        (lc) => lc.cardId === choice.buyCardId && !lc.card.expiredAt && !lc.card.isTrial
+      )?.card ?? null;
     if (!buying) throw new SelfCheckInError("card_not_offered", 400);
     if (!canBuyCard(buying, toDanceLevels(student.danceQualifications), lesson).allowed) {
       throw new SelfCheckInError("not_qualified", 403);
@@ -636,9 +656,9 @@ export async function selfCheckIn({
   let purchased: SelfCheckInOutcome["purchased"] = null;
   if (buying && plan.includes(BUYING)) {
     const card = buying;
-    const returning = await isReturningStudent(student.id);
-    const finalPrice = selfServicePrice(card, returning);
-    const isPaid = finalPrice === 0;
+    // 自助點名當場買的卡一律照牌價、下課付款。
+    const finalPrice = card.price;
+    const isPaid = false;
     const created = await prisma.$transaction((tx) =>
       createStudentCardInTx(tx, {
         studentId: student.id,
@@ -647,9 +667,7 @@ export async function selfCheckIn({
         sessions: card.sessions,
         purchaseSource: "STUDENT",
         isPaid,
-        eventDescription: isPaid
-          ? `自助點名時選用 ${card.name}（舊生體驗免費）`
-          : `自助點名時購買 ${card.name}（待付款）`,
+        eventDescription: `自助點名時購買 ${card.name}（待付款）`,
       })
     );
     purchased = {
@@ -663,14 +681,12 @@ export async function selfCheckIn({
     if (placeholder) Object.assign(placeholder, created, { card });
     for (let i = 0; i < plan.length; i++) if (plan[i] === BUYING) plan[i] = created.id;
 
-    if (!isPaid) {
-      await notifyClassroom(lesson.classroomId, {
-        type: "UNPAID_CARD",
-        title: "待確認收款",
-        body: `${student.name} 自助點名時買了「${card.name}」${formatCardSerial(created.serialNumber)}，NT$${formatMoney(finalPrice)}`,
-        path: `/students/${student.id}`,
-      });
-    }
+    await notifyClassroom(lesson.classroomId, {
+      type: "UNPAID_CARD",
+      title: "待確認收款",
+      body: `${student.name} 自助點名時買了「${card.name}」${formatCardSerial(created.serialNumber)}，NT$${formatMoney(finalPrice)}`,
+      path: `/students/${student.id}`,
+    });
   }
   student.studentCards = student.studentCards.filter((c) => c.id !== BUYING);
 

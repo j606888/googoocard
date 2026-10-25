@@ -11,12 +11,14 @@ const StudentOption = ({
   isAttended,
   isFirstTime = false,
   isSelfCheckIn = false,
+  isTrial = false,
 }: {
   student: Student;
   isAttended: boolean;
   isChecked: boolean;
   isFirstTime?: boolean;
   isSelfCheckIn?: boolean;
+  isTrial?: boolean;
   onClick: (student: Student) => void;
 }) => {
   const isGray = !isAttended && !isChecked;
@@ -47,6 +49,11 @@ const StudentOption = ({
           {isSelfCheckIn && (
             <span className="shrink-0 rounded-full bg-success-100 px-2 py-0.5 text-xs font-medium text-success-700">
               自助簽到
+            </span>
+          )}
+          {isTrial && (
+            <span className="shrink-0 rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-900">
+              體驗報名
             </span>
           )}
           {student.isNewStudent && (

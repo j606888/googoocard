@@ -21,9 +21,7 @@ export interface BuyableCardOption {
   cardId: number;
   name: string;
   sessions: number;
-  /** What this student pays (trial cards are free for 舊生). */
   price: number;
-  isTrial: boolean;
   isPracticeCard: boolean;
 }
 

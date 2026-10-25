@@ -7,12 +7,14 @@ const StudentSelectList = ({
   setSelectedStudents,
   attendStudentIds,
   selfCheckInStudentIds = [],
+  trialStudentIds = [],
 }: {
   students: Student[];
   selectedStudents: Student[];
   setSelectedStudents: (students: Student[]) => void;
   attendStudentIds: number[];
   selfCheckInStudentIds?: number[];
+  trialStudentIds?: number[];
 }) => {
   const handleCheckboxClick = (student: Student) => {
     if (selectedStudents.includes(student)) {
@@ -45,6 +47,7 @@ const StudentSelectList = ({
             onClick={handleCheckboxClick}
             isFirstTime={!isAttended && isChecked}
             isSelfCheckIn={isSelfCheckIn}
+            isTrial={trialStudentIds.includes(student.id)}
           />
         );
       })}
