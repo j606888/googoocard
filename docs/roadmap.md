@@ -12,7 +12,8 @@
 | **本文** | 系統**還缺什麼、下一步做什麼**——技術債、安全缺口、功能藍圖 |
 | [`design-system-audit.md`](design-system-audit.md) | 色彩 token 與元件收斂（**已全部完成**，保留作為決策紀錄） |
 | [`ui-responsive.md`](ui-responsive.md) | 手機／桌面版型**該用哪種機制**——五種並存機制的現況、決策規則、收斂待辦 |
-| [`student-login-checkin-payment-plan.md`](student-login-checkin-payment-plan.md) | LINE 綁定 → 自助簽到 → 購卡對帳的原始規劃稿（Phase 1–2 已上線，Phase 3 未做） |
+| [`student-login-checkin-payment-plan.md`](student-login-checkin-payment-plan.md) | LINE 綁定 → 自助簽到 → 購卡對帳的原始規劃稿（Phase 1–2 已上線，Phase 3 由下一份取代） |
+| [`onsite-checkin-newcomer-plan.md`](onsite-checkin-newcomer-plan.md) | 門口 QR 走 LIFF、新同學自助登記、點名必綁卡、體驗課、收款欄位、合併學員（**已實作**，2026-10-25） |
 
 **動手改任何區塊前，先在本文搜尋該檔名**，確認沒有已知未修的安全或效能問題會被你的改動放大。
 
@@ -135,8 +136,9 @@ key 為 `email + IP`（單一攻擊者無法從別的 IP 把真正的使用者�
 綽綽有餘，不值得為此引入 Redis。真的需要精確節流時，把 `hit()` 的實作換成
 Upstash Redis 即可，呼叫端不用改。
 
-**尚未處理**：`/api/checkin/[key]/*` 仍無節流（`nanoid(10)` 難猜，
-且該端點的信任模型本來就靠助教複核，見「已知取捨」）。
+~~**尚未處理**：`/api/checkin/[key]/*` 仍無節流~~ ✅ 2026-10-25 兩支公開 API 已刪除
+（自助簽到只走 LIFF，見 architecture.md「學生自助簽到」）。`POST /api/liff/register`
+不需節流：要先有 LINE ID Token，且同一個 LINE 在同一教室只會建一位。
 
 ---
 
@@ -464,9 +466,9 @@ import `renewalReminder` / `pushMessage` / `findExhaustedRenewableCard`），沒
   教室最常見的營運需求，但會動到 `AttendanceRecord` 的語意，要想清楚。
 - **課前報名（預約制）** — 現在是純 walk-in（`getTodayLessons()` 回傳當天所有課），
   老師無法預估人數。改動較大，會牽動 `LessonStudent` 與整個簽到流程。
-- **自助購卡對帳 Phase 3** — `CardOrder` model + 轉帳末五碼 + 後台核銷。
-  規劃已寫在 `student-login-checkin-payment-plan.md` 末段，目前只做到 `isPaid` 布林值
-  與未付款清單（`/api/student-cards/unpaid`、`UnpaidBell.tsx`）。
+- [x] **自助購卡對帳 Phase 3** ✅ 2026-10-25 以 `onsite-checkin-newcomer-plan.md` 取代：不做
+  `CardOrder`，改在確認收款時記 `paymentMethod` / `paymentReference`（末五碼）/ 收款人
+  （`paidByUserId`），加上下課對帳與追帳排序。未付款照算營收。
 - **課卡到期自動處理** — `StudentCard.expiredAt` 有欄位但沒有定期 job 去掃。
   route 這一半 P2-1 已備好（照 `src/app/api/cron/renewal-reminders/route.ts` 的
   `CRON_SECRET` 驗證抄一份），但排程設定檔還沒接上，見 P2-1 的「排程檔待補」。
@@ -566,9 +568,13 @@ framer-motion `AnimatePresence` + Radix `forceMount` 模式寫，**在這個專�
 - **轉卡堂數不設上限，只提醒**（2026-10-02 定案）。預設堂數改成依剩餘價值換算（四捨五入），
   老師手動調高時 UI 以紅字顯示「以牌價計多 $X」，但 API 不擋——補償／加碼是正當情境。
   未付款的卡則**禁止**轉換（否則欠款消失）。見 `docs/architecture.md`「課卡轉換」。
-- **`/api/checkin/[key]` 不驗身分** — 現場 QR 看板的信任模型就是「教室相信學生只幫自己
-  簽到」，助教稍後複核才定案。防護是教室邊界 + 日期邊界 + 金鑰可輪替。
-  詳見 `architecture.md`「現場 QR 簽到」。
+- ~~`/api/checkin/[key]` 不驗身分~~ — 2026-10-25 已退役（門口 QR 改走 LIFF，每筆都有 LINE 身分）。
+  **不保留「工作人員用的名單點名」備案**：老師端點名頁本來就能現場加人，備案是重複的。
+- **「可能重複」不是 `TodoType`**（2026-10-25）— 待處理本來就是即時算的，同名學生組直接從
+  `Student` 算出來、不推播，所以不加 enum（免得動 `NotificationPreference` 與 App 原生設定頁）。
+- **自助登記同名不擋**（2026-10-25）— 新同學不可能知道名單上有誰；擋了只會讓人卡在門口。
+  重複交給待處理「可能重複」＋合併學員。「我來上過課」刻意不提供從名單認領（會被冒用）。
+- **「舊生」= 買過任何非體驗卡**（2026-10-25）— 不是「出席過」。只上過體驗課的人下次來還是收體驗價。
 - **手動消耗課卡（consume route）永不阻擋** — 老師必須永遠有能力處理 legacy 與特殊情況。
 - **`StudentCard.remainingSessions` 在轉換/停用時不歸零** — 與一般停用行為一致。
 - **`prisma db push` 與 `migrate reset` 全面禁用** — 見 `architecture.md`「環境與部署注意」。

@@ -180,39 +180,49 @@ Classroom（頂層容器，所有實體都屬於一間教室）
   待點名 > 持續開課且沒排下一堂（「＋下一堂」，預設沿用上一堂的星期與時間、推到今天以後）> 無。
 - 新增課程時選型態；上次選的型態依教室記在 localStorage 當預設。
 
-## 學生自助簽到（兩個入口，同一顆引擎）
+## 學生自助簽到（LIFF 單一入口、點名一定綁卡）
 
-學生自助簽到一律走 `selfCheckIn()`（`src/domains/attendance/attendance.service.ts`）：
-每個時段各開一個 transaction（其中一段因 unique 衝突失敗不會拖垮其他段）、
-`source = STUDENT`、**不設 `attendanceTakenAt`**（定案權留給老師）、依 `selectStudentCard`
-自動扣卡、`@@unique([lessonPeriodId, studentId])` 保證冪等、連續多時段簽到會同步更新
-記憶體中的卡片餘額避免重複挑到已用完的卡。
+2026-10 起自助簽到**只走 LINE LIFF**，每一筆都知道是誰本人。兩種進來的方式、同一個頁面 `/liff/checkin`：
 
-「今天有哪些課」的定義集中在 `src/service/checkin.ts` 的 `getTodayLessons()`
-（台北時區，walk-in 制：當天所有課程都可簽，不限已報名的），兩個入口共用。
-
-| 入口 | 身分驗證 | 路由 |
+| 進來的方式 | 網址 | 差別 |
 |---|---|---|
-| LINE LIFF「上課簽到」 | LINE ID Token → `Student.lineUserId`（`src/lib/liffAuth.ts`） | `/liff/checkin`、`/api/liff/today`、`/api/liff/checkin` |
-| 教室現場 QR 看板 | **無**（只有網址中的教室金鑰） | `/checkin/[key]`、`/api/checkin/[key]{,/students,/checkin}` |
+| LINE 選單「上課簽到」 | `liff.line.me/{LIFF_ID}/checkin` | 沒綁 LINE → 擋下（請用老師給的綁定連結） |
+| 門口海報 QR（手機相機掃） | `liff.line.me/{LIFF_ID}/checkin?key=<Classroom.checkinKey>` | 限定該教室；這個 LINE 在該教室沒有學生 →「第一次來嗎？」 |
 
-### 現場 QR 簽到（`Classroom.checkinKey`）
+舊的 `/checkin/[key]`（從名單點自己、不驗身分）已退役：頁面只會 redirect 到上面的 LIFF 網址（已印出的海報照常可用），兩支公開 API 已刪除。工作人員的備案是老師端點名頁本來就能現場加人。
 
-貼在教室看板上的固定 QR Code，掃進去 → 從名單選自己 → 勾選今天要簽的時段 → 送出。
-**這是刻意的信任模型**：教室相信學生只幫自己報名，助教稍後在點名畫面複核後才定案。
+### 身分（`LiffStudentGate acceptCheckinKey`）
 
-- 金鑰是 `Classroom.checkinKey`（`nanoid(10)`，nullable、unique），老師第一次開
-  `/checkin-qr` 時 lazy 產生；看板外流的補救手段是同頁的「重新產生」（`POST /api/checkin-key`），
-  舊網址立刻 404。
-- 公開頁與 API 不驗身分，但**強制教室邊界與日期邊界**：學生／課程必須屬於金鑰的教室
-  （否則 403 / 404），`periodIds` 必須是今天的時段（否則 400 `period_not_today`），
-  避免拿金鑰補簽或預簽別天。
-- 名單端點只回 `id / name / avatarUrl`，且**教室今天沒課時回空陣列**，降低名單外流價值。
-- 課卡不足**不擋簽到**，只在結果頁提醒學生找助教買卡（公開頁不提供自助購卡，
-  那需要身分驗證，走 LIFF）。
-- 已知取捨：沒有 rate limit；知道金鑰的人可以代簽他人。這由助教複核與金鑰輪替來承擔。
-- UI：`src/features/checkin/`（`PeriodSelectList` / `CheckinResultList` 與 LIFF 共用），
-  老師端看板頁 `src/features/checkinQr/`（`qrcode.react` 輸出 SVG，含 `@media print` 版面）。
+- 帶 `?key=` 時 gate 在 `liff.init()` 之後才讀網址（LIFF 會先把 `liff.state` 還原成真網址），呼叫 `/api/liff/me?key=`：只看該教室的學生。
+- 該教室沒有學生 → 403 `not_bound`，附 `classroomName`、`lineName`、`linePicture`（`verifyIdToken` 從 LINE verify 回應取 `name` / `picture`，要 LIFF 有 `profile` scope）→ `FirstTimeGate`：
+  - 「是，第一次來」→ 填暱稱（預填 LINE 名稱）→ `POST /api/liff/register { key, name }` → `registerLineStudent()`（`src/service/student.ts`）。先 `SELECT … FOR UPDATE` 鎖教室列，所以重複送出／並發只會建一位、學號不會跳號；頭像用 LINE 頭像（`next.config.ts` 已允許 `profile.line-scdn.net`），寫 Event「自助登記」、`LineAccount` 切到 STUDENT。
+  - **同名不擋**（跟老師端建立學生不同），交給待處理「可能重複」＋合併學員。
+  - 「我來上過課」→ 不提供從名單認領自己（會被冒用），請小幫手在學生資料頁打開「顯示 QR」讓學生用 LINE 掃綁定。
+
+### 引擎（`selfCheckIn()`，`src/domains/attendance/attendance.service.ts`）
+
+每個時段各開一個 transaction、`source = STUDENT`、**不設 `attendanceTakenAt`**（定案權留給老師）、`@@unique([lessonPeriodId, studentId])` 保證冪等。卡怎麼付：
+
+- `card: { studentCardId }` —— 必須在 `cardOptionsFor(student, lesson).usable` 內（否則 `card_not_usable` 400）。
+- `card: { buyCardId }` —— 卡必須掛在這堂課（`lesson.cards`，否則 `card_not_offered` 400）且 `canBuyCard(card, levels, lesson)`（否則 `not_qualified` 403）。只有真的會用到時才建卡：`createStudentCardInTx()`（`src/service/studentCard.ts`，老師開卡、LIFF 購卡共用）、`purchaseSource STUDENT`、價格 = `selfServicePrice()`。
+- 沒指定 → 引擎自己挑（`cardOptionsFor().autoPick`：practice 優先時挑推薦的那張；否則只有唯一一張才自動挑）。
+- **`requireCard`（LIFF 一律開）**：寫入前先用 `planPeriodCards()` 在卡片副本上模擬每個時段扣哪張（選定的卡用完就換引擎自動挑），任何一個時段會沒卡 → `card_required` 400，**什麼都不寫**（也不買卡）。所以自助點名不再產生「沒綁卡」的出席；`UNBOUND_ATTENDANCE` 只剩老師端點名。
+
+`/api/liff/today` 帶學生時，每堂課多回 `cardStatus = { usable, autoPickId, buyable }`（`src/service/checkin.ts` 的 `lessonCardStatus()`，跟引擎同一套規則），LIFF 畫面據此顯示「使用 X（剩 n 堂）」／多張卡讓學生選／「還沒有能用的課卡，下一步選一張」。`POST /api/liff/checkin` 回 `{ results, purchased, amountDue, unpaidCards }`，完成畫面寫「下課請找小幫手付款 $X」並提醒舊的未付卡。**不另外推播**。
+
+### 體驗課（`Card.isTrial`）
+
+體驗課是一般的課程，`lesson.cards` 掛一張 `isTrial` 的卡。`src/service/trial.ts`：
+
+- `isReturningStudent()`：這間教室買過任何**非體驗**卡 = 舊生（只上過體驗課的人下次來還是新同學）。
+- `selfServicePrice()`：體驗卡對舊生 $0（直接 `isPaid: true`、`paidByUserId: null`，不推「待確認收款」），其他一律照牌價、未付款。工作人員事後照舊可以改。
+- 體驗卡**不會**出現在 `/liff/buy` 和 `/api/liff/cards`（也不能直接買），只在點名流程選。
+
+### 金鑰與 QR 看板
+
+- `Classroom.checkinKey`（`nanoid(10)`）：只說明「哪間教室」，不證明是誰——身分永遠來自 LINE ID Token。老師第一次開 `/checkin-qr` 時 lazy 產生，外流時「重新產生」（`POST /api/checkin-key`）。
+- `checkinEntryUrl()`（`src/service/checkin.ts`）：有 `NEXT_PUBLIC_LIFF_ID` 就是 LIFF 網址，否則退回 `/checkin/<key>`。
+- 「今天有哪些課」：`getTodayLessons()`（台北時區，walk-in 制：當天所有課程都可簽，不限已報名的）。
 
 ## 買卡流程（StudentCard 建立）
 
@@ -221,7 +231,32 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 1. **學生詳細頁** `BuyCard.tsx` — 無課程上下文，複習卡用 `card.danceStyleId` 驗證
 2. **點名頁「買卡並使用」** `BuyAndUseForm.tsx` — 帶 `lessonId`，legacy 卡 fallback 用課程舞種；買完立即 consume
 
-買卡會建立 `Event`（購買課卡）並刷新 Needs Renewal tag。
+買卡會建立 `Event`（購買課卡）並刷新 Needs Renewal tag。三個寫入點（老師開卡、LIFF「購買課卡」、自助點名時當場選卡）都走 `createStudentCardInTx()`（`src/service/studentCard.ts`）。
+
+## 收款（確認付款）
+
+`POST /api/students/[id]/student-cards/[studentCardId]/confirm-payment`，body **全部選填**（不帶 body 的舊版 App 照常可確認）：
+
+- `paymentMethod`：`CASH` / `TRANSFER`；`paymentReference`：轉帳末五碼。
+- `receiverUserId`：**收款人＝錢現在在誰手上**，寫進 `paidByUserId`，預設是確認的人，必須是本教室成員（否則 400 `RECEIVER_NOT_MEMBER`）。這三個欄位是水庫（`~/projects/water-tank`）對帳要的資料。
+- UI：`src/features/students/ConfirmPaymentDrawer.tsx`（卡片詳情、收入頁未付款、點名完成頁的「今日收款」共用）。
+- 未付款**照算營收**（`periodRevenue` 本來就不看 `isPaid`），未付只是應收。
+
+**下課對帳**：`GET /api/student-cards/collections?date=YYYY-MM-DD`（台北）回當天 `paidAt` 的卡依「收款人 × 方式」加總，以及當天有出席、還有未付卡的學生；顯示在點名完成頁（`CheckPeriodSuccess/DayCollections.tsx`）。點名名單（`StudentOption`）另標「未付 $X」「新學員」（`GET /api/students` 的 `unpaidAmount` / `isNewStudent`）。
+
+## 合併學員
+
+同一個人兩筆資料（多半是門口自助登記的新同學 ↔ 沒綁 LINE 的舊生）：學生詳情 ⋯「合併到另一位學員」，或待處理「可能重複」（帶 `?mergeInto=<id>` 直接開）。
+
+- `GET /api/students/[id]/merge-preview?targetId=` / `POST /api/students/[id]/merge { targetId, keepLineFrom? }`，`src/service/studentMerge.ts`，單一 transaction（先鎖兩列）。
+- `[id]` 是**被併掉**的（source），`targetId` 是保留的。課卡、出席、Event、續卡提醒紀錄直接搬；`LessonStudent`、`StudentTag` 去重後搬；舞種資格同舞種取較高 level。
+- 同一時段兩邊都有出席（`@@unique([lessonPeriodId, studentId])`）：保留有綁卡的那筆（都有就保留 target 的），刪掉的那筆若有扣堂就退回它的卡。
+- LINE：target 沒綁就移過去；兩邊綁了不同 LINE 必須帶 `keepLineFrom`（否則 400 `LINE_CONFLICT`）。`LineAccount.selectedStudentId` 跟著改指 target。
+- source 封存（`archivedAt`）並記 `mergedIntoId`（純 Int、無 FK），不硬刪。
+
+## 未綁定 LINE 的學員（上課前先綁好）
+
+`/students/line-invites`（入口：學生名單底部「未綁定 LINE N 位」）：在籍、`lineUserId IS NULL` 的學生，依最近出席排序。`GET /api/students/line-invites` 每列附好可以貼到 LINE 的邀請文字（內含綁定 deep link，`src/service/lineInvite.ts`；**先在 GET 拿到文字，點擊時同步寫剪貼簿**——iOS Safari 擋 await 之後的寫入），複製後 `POST /api/students/[id]/line-invite` 記 `Student.lineInviteSentAt` 顯示「已邀請」。系統無法主動傳訊息給還沒加官方帳號的人，所以由老師傳。
 
 ## 課卡轉換（StudentCard 轉換 / 淘汰舊卡種）
 
@@ -293,7 +328,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 封存不動任何課卡、出席、收入資料，隨時可還原。
 
 - 老師端名單 `GET /api/students` 預設只列在籍；`?archived=1` 只列封存的。詳情頁照常可開。
-- 學生端一律當作不存在：QR 看板名單與簽到（403）、LIFF（`resolveOwnedStudent`、`/api/liff/me`）、
+- 學生端一律當作不存在：LIFF（`resolveOwnedStudent`、`/api/liff/me`、自助登記會當作這個 LINE 在該教室沒有學生）、
   LINE webhook 的「目前學生」、續卡提醒 cron。
 - 不擋：已在課程名單裡的點名、收入與歷史報表。
 
@@ -383,9 +418,10 @@ build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
 
 | 類別（`TodoType`） | 怎麼算 | 處理完 | 推播觸發點 |
 |---|---|---|---|
-| `UNPAID_CARD` 待確認收款 | `StudentCard.isPaid = false`（封存學生照列，欠款還是欠款） | 確認付款 | 學生在 LIFF 自助買卡（`POST /api/liff/student-cards`） |
+| `UNPAID_CARD` 待確認收款 | `StudentCard.isPaid = false`（封存學生照列，欠款還是欠款），**拖越久排越前**，附已用堂數 | 確認付款 | 學生在 LIFF 自助買卡、或自助點名時當場選卡（$0 的舊生體驗卡不推） |
 | `NEEDS_RENEWAL` 需續約 | 「Needs Renewal」tag，排除封存學生 | 買新卡 → tag 移除 | `refreshNeedsRenewalTag()` 裡 tag **這次才加上**（`createMany skipDuplicates` 的 count = 1） |
-| `UNBOUND_ATTENDANCE` 出席沒綁課卡 | `AttendanceRecord.studentCardId = null` | 綁上課卡 | `selfCheckIn()` 有時段是 `no_card`（多時段只推一次；LIFF 與 QR 看板兩個入口都會） |
+| `UNBOUND_ATTENDANCE` 出席沒綁課卡 | `AttendanceRecord.studentCardId = null` | 綁上課卡 | `selfCheckIn()` 有時段是 `no_card`（LIFF 開了 `requireCard`，實際上只剩不帶 `requireCard` 的呼叫會發生） |
+| 可能重複（**不是** `TodoType`、不推播） | 同教室、在籍、名字相同（trim、不分大小寫）的學生組，`findPossibleDuplicates()` | 合併學員或改名 | 無 |
 
 老師自己在後台建未付款卡、點名時沒卡，**不推**（人就在現場），但一樣會出現在待處理。
 
