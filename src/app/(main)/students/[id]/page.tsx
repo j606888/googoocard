@@ -2,6 +2,7 @@
 
 import StudentDetail from "@/features/students/StudentDetail";
 import StudentDetailHeader from "@/features/students/StudentDetail/StudentDetailHeader";
+import AttentionBar from "@/features/students/StudentDetail/AttentionBar";
 import { useGetStudentQuery } from "@/store/slices/students";
 import { ChevronLeft } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -51,6 +52,10 @@ const StudentPage = () => {
         student={student}
         backHref={backHref}
         variant={sizeClass === "compact" ? "compact" : "page"}
+      />
+      <AttentionBar
+        student={student}
+        className={sizeClass === "compact" ? "px-4 pt-3 bg-white" : "px-8 pt-4 bg-white"}
       />
       <StudentDetail student={student} />
     </>

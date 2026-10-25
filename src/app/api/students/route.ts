@@ -5,6 +5,13 @@ import { decodeAuthToken } from "@/lib/auth";
 import { createStudent } from "@/service/student";
 import { lastAttendanceQuery, toLastAttendance, toStudentPayload } from "@/service/studentDetail";
 import { parseCardSerial } from "@/lib/cardSerial";
+import { subDays } from "date-fns";
+
+/**
+ * 名單的「近 8 週出席」方格要的出席時間往回取幾天。比 8 週多抓一週：
+ * 週在前端依瀏覽器時區切（同 `weeklyCounts`），伺服器這邊只要確定不漏。
+ */
+const RECENT_ATTEND_LOOKBACK_DAYS = 63;
 
 export async function GET(request: Request) {
   const { classroomId } = await decodeAuthToken();
@@ -77,7 +84,7 @@ export async function GET(request: Request) {
   // 點名名單要標「未付 $X」和「新學員」：未付款合計、和買過非體驗卡的學生
   // （舊生，src/service/trial.ts）。各一個 groupBy，不必把整份卡拉回來。
   const studentIds = students.map((s) => s.id);
-  const [unpaidSums, returningRows] = await Promise.all([
+  const [unpaidSums, returningRows, recentRecords] = await Promise.all([
     prisma.studentCard.groupBy({
       by: ["studentId"],
       where: { studentId: { in: studentIds }, isPaid: false },
@@ -87,9 +94,23 @@ export async function GET(request: Request) {
       by: ["studentId"],
       where: { studentId: { in: studentIds }, card: { isTrial: false } },
     }),
+    // 名單的「近 8 週出席」：只拉時間，不拉整份出席史。
+    prisma.attendanceRecord.findMany({
+      where: {
+        studentId: { in: studentIds },
+        lessonPeriod: { startTime: { gte: subDays(new Date(), RECENT_ATTEND_LOOKBACK_DAYS) } },
+      },
+      select: { studentId: true, lessonPeriod: { select: { startTime: true } } },
+    }),
   ]);
   const unpaidByStudent = new Map(unpaidSums.map((r) => [r.studentId, r._sum.finalPrice ?? 0]));
   const returningIds = new Set(returningRows.map((r) => r.studentId));
+  const recentAttendByStudent = new Map<number, Date[]>();
+  for (const record of recentRecords) {
+    const list = recentAttendByStudent.get(record.studentId) ?? [];
+    list.push(record.lessonPeriod.startTime);
+    recentAttendByStudent.set(record.studentId, list);
+  }
 
   const results = students.map((student) => {
     const activeStudentCards = student.studentCards.filter(
@@ -116,6 +137,7 @@ export async function GET(request: Request) {
       hasUnpaidCard: student._count.studentCards > 0,
       unpaidAmount: unpaidByStudent.get(student.id) ?? 0,
       isNewStudent: !returningIds.has(student.id),
+      recentAttendAt: recentAttendByStudent.get(student.id) ?? [],
       studentCards: activeStudentCards.map((studentCard) => ({
         ...studentCard,
         card: studentCard.card,

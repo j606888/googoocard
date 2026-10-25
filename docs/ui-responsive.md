@@ -16,7 +16,7 @@
 |---|---|---|---|
 | ① `hidden lg:` **雙樹並掛** | `features/lessons/LessonDetail/index.tsx:44-82`、`features/students/StudentDetail/index.tsx:86,106`、`features/lessons/newLesson/index.tsx:175,198`（submit 按鈕寫兩份） | 小塊靜態內容可以，整個畫面不行 | ⚠️ 已造成 bug |
 | ② 純 CSS，單一樹 | `features/cards/CardList/index.tsx:208`、`features/lessons/GroupRow.tsx:18-20`（`GROUP_ROW_COLS` + `lg:contents`） | 同一份資訊、換排列 | ✅ 最乾淨 |
-| ③ JS size class 切換，只掛一棵 | `app/(main)/students/page.tsx:10,15` + `features/students/StudentsSplitView.tsx` | 資訊架構真的不同 | ✅ 正解 |
+| ③ JS size class 切換，只掛一棵 | `app/(main)/students/page.tsx` + `features/students/StudentsTableView.tsx`（2026-10-26 前是 `StudentsSplitView`） | 資訊架構真的不同 | ✅ 正解 |
 | ④ adaptive 元件 | `components/Drawer.tsx:31,38-54`（桌面 centered dialog／手機 bottom sheet，22 個呼叫點） | 同一顆邏輯，換呈現外殼 | ✅ 全專案只有這一個 |
 | ⑤ 手機 only，桌面沒設計 | 點名全流程 `PeriodAttendanceForm`（只有 3 個 `md:` padding）、`CheckPeriodSuccess/index.tsx:80`、`teachers`、`teams`、`invitations` | 學生端對，老師後台不對 | ⚠️ 桌面破口 |
 
@@ -71,11 +71,11 @@
 
 每個畫面一個 hook：資料抓取、選取狀態、驗證、衍生推導。外殼只排版與轉發事件，**不含業務規則**。
 
-判準：**兩個外殼共用超過七成狀態機，就把狀態機抽出來。** 抽完之後第二個外殼通常 100 行左右（`StudentsSplitView` 就是 101 行）。
+判準：**兩個外殼共用超過七成狀態機，就把狀態機抽出來。** 抽完之後第二個外殼通常 100 行左右（當年的 `StudentsSplitView` 就是 101 行）。
 
 ### 3. 用 `variant` prop，不要平行元件樹
 
-同一個元件用 `variant` / `layout` 多工，是本專案已確立的慣例：`StudentList variant="page"|"roster"`、`StudentDetail variant="page"|"pane"`（2026-10 起，取代 `layout="auto"|"tabs"`）、`StudentDetailHeader variant="page"|"pane"`。
+同一個元件用 `variant` / `layout` 多工，是本專案已確立的慣例：`StudentList variant="page"|"table"`（2026-10-26 起名單列改由 `DataView` 同一份 DOM 畫，兩個 variant 只差「點了進整頁」還是「開抽屜」）、`StudentDetail variant="page"|"pane"`（2026-10 起，取代 `layout="auto"|"tabs"`）、`StudentDetailHeader variant="page"|"pane"`。
 
 但要小心別讓它變成「把 breakpoint 用 props 重新實作一遍」。判準：**prop 名稱描述的是「用途」（`roster` / `pane`）還是「寬度」（`isDesktop` / `columns`）？** 前者健康，後者是味道（曾經的例子：`CardsSection` 的 `columns={isPane ? 2 : 1}`，2026-10 改成課卡網格 `auto-fill minmax(280px,1fr)` 依自身寬度排欄後移除）。
 

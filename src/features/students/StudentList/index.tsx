@@ -5,20 +5,25 @@ import NewStudent from "./NewStudent";
 import { Student, useGetStudentsQuery, useGetTagsQuery } from "@/store/slices/students";
 import { useGetLessonsQuery } from "@/store/slices/lessons";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
-import SingleStudent from "./SingleStudent";
-import RosterRow from "./RosterRow";
+import StudentTable from "./StudentTable";
+import ActivityTabs, { ACTIVITY_META } from "./ActivityTabs";
 import Searchbar from "./Searchbar";
 import SortMenu from "@/components/SortMenu";
 import FilterDrawer, { StatusFilterOption } from "./FilterDrawer";
 import ArchivedStudents from "./ArchivedStudents";
 import UnboundLineEntry from "./UnboundLineEntry";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Users, SlidersHorizontal, CornerDownLeft } from "lucide-react";
+import { Users, SlidersHorizontal } from "lucide-react";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import {
   StudentFilters,
   StudentSort,
+  StudentActivity,
+  ActivityView,
+  activityOf,
+  loadActivityView,
+  saveActivityView,
   DEFAULT_SORT,
   SORT_OPTIONS,
   EMPTY_FILTERS,
@@ -39,30 +44,26 @@ import {
 
 interface StudentListProps {
   /**
-   * "page" —— 手機版整頁列表（原本的樣子）。
-   * "roster" —— 桌面分割檢視的左欄：密集列、鍵盤操作、選取狀態由外部持有。
+   * "page"  —— 手機：卡片式名單，點了進整頁學生詳情。
+   * "table" —— 桌面：全寬表格，點了開右側抽屜；選取狀態由外部持有。
    */
-  variant?: "page" | "roster";
+  variant?: "page" | "table";
   selectedId?: number | null;
   onSelect?: (student: Student) => void;
-  /** roster 模式按 Enter 時開啟完整頁面 */
-  onOpenFull?: (student: Student) => void;
 }
 
-const StudentList = ({
-  variant = "page",
-  selectedId = null,
-  onSelect,
-  onOpenFull,
-}: StudentListProps) => {
-  const isRoster = variant === "roster";
+const ACTIVITY_ORDER: StudentActivity[] = ["active", "idle", "gone"];
+
+const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentListProps) => {
+  const isTable = variant === "table";
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<StudentFilters>(EMPTY_FILTERS);
   const [sort, setSort] = useState<StudentSort>(DEFAULT_SORT);
+  const [activityView, setActivityView] = useState<ActivityView>("all");
+  const [showGone, setShowGone] = useState(false);
   const [hydratedClassroomId, setHydratedClassroomId] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
 
   const { data: allStudents = [], isLoading } = useGetStudentsQuery({ query });
   const { data: lessonsData } = useGetLessonsQuery({ tab: "inProgress", sort: "createdAt" });
@@ -87,6 +88,7 @@ const StudentList = ({
     if (classroomId == null) return;
     setFilters(loadStudentFilters(classroomId));
     setSort(loadStudentSort(classroomId));
+    setActivityView(loadActivityView(classroomId));
     setHydratedClassroomId(classroomId);
   }, [classroomId]);
 
@@ -101,23 +103,42 @@ const StudentList = ({
     saveStudentSort(classroomId, sort);
   }, [classroomId, hydratedClassroomId, sort]);
 
+  useEffect(() => {
+    if (classroomId == null || hydratedClassroomId !== classroomId) return;
+    saveActivityView(classroomId, activityView);
+  }, [classroomId, hydratedClassroomId, activityView]);
+
   const students = useMemo(
     () => sortStudents(applyStudentFilters(allStudents, filters), sort),
     [allStudents, filters, sort]
   );
 
-  // roster：沒有選取時自動選第一位，右欄才不會開場就空著
-  useEffect(() => {
-    // Also when a search or filter leaves the selected student out — the pane
-    // must not keep showing someone the list no longer has.
-    if (!isRoster || students.length === 0) return;
-    if (selectedId != null && students.some((s) => s.id === selectedId)) return;
-    onSelect?.(students[0]);
-  }, [isRoster, selectedId, students, onSelect]);
+  // 分區：篩選、排序之後才切。有搜尋字時不分區——找人就是找人，不該被藏在收起來的區裡。
+  const isSearching = query.trim().length > 0;
+  const byActivity = useMemo(() => {
+    const groups: Record<StudentActivity, Student[]> = { active: [], idle: [], gone: [] };
+    for (const student of students) groups[activityOf(student)].push(student);
+    return groups;
+  }, [students]);
 
-  // roster 鍵盤操作：↑↓ 換人、Enter 開完整頁、/ 聚焦搜尋
+  const sections = useMemo(() => {
+    if (isSearching) return [{ key: "search" as const, students }];
+    const keys = activityView === "all" ? ACTIVITY_ORDER : [activityView];
+    return keys.map((key) => ({ key, students: byActivity[key] }));
+  }, [isSearching, students, activityView, byActivity]);
+
+  // 畫面上看得到的順序（「已離開」收起來時不算），↑↓ 換人用。
+  const visibleStudents = useMemo(
+    () =>
+      sections.flatMap((section) =>
+        section.key === "gone" && activityView === "all" && !showGone ? [] : section.students
+      ),
+    [sections, activityView, showGone]
+  );
+
+  // table 鍵盤操作：/ 聚焦搜尋；抽屜開著時 ↑↓ 換人（Esc 關抽屜由 SideSheet 處理）
   useEffect(() => {
-    if (!isRoster) return;
+    if (!isTable) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       const active = document.activeElement as HTMLElement | null;
@@ -125,47 +146,41 @@ const StudentList = ({
         !!active &&
         (active.tagName === "INPUT" ||
           active.tagName === "TEXTAREA" ||
+          active.tagName === "SELECT" ||
           active.isContentEditable);
+      if (isTyping) {
+        if (event.key === "Escape" && selectedId == null) active?.blur();
+        return;
+      }
 
-      if (event.key === "/" && !isTyping) {
+      if (event.key === "/" && selectedId == null) {
         event.preventDefault();
         searchInputRef.current?.focus();
         return;
       }
-      if (event.key === "Escape" && isTyping) {
-        active?.blur();
-        return;
-      }
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        if (students.length === 0) return;
+      if ((event.key === "ArrowDown" || event.key === "ArrowUp") && selectedId != null) {
+        const index = visibleStudents.findIndex((s) => s.id === selectedId);
+        if (index < 0) return;
         event.preventDefault();
-        const index = students.findIndex((s) => s.id === selectedId);
         const next =
-          index < 0
-            ? 0
-            : event.key === "ArrowDown"
-              ? Math.min(index + 1, students.length - 1)
-              : Math.max(index - 1, 0);
-        onSelect?.(students[next]);
-        return;
-      }
-      if (event.key === "Enter" && selectedId != null) {
-        const selected = students.find((s) => s.id === selectedId);
-        if (selected) onOpenFull?.(selected);
+          event.key === "ArrowDown"
+            ? Math.min(index + 1, visibleStudents.length - 1)
+            : Math.max(index - 1, 0);
+        onSelect?.(visibleStudents[next]);
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isRoster, students, selectedId, onSelect, onOpenFull]);
+  }, [isTable, visibleStudents, selectedId, onSelect]);
 
-  // 鍵盤換人時把選取列捲進視野
+  // 抽屜裡換人時，把名單上的那一列捲進視野（抽屜後面還看得到名單）
   useEffect(() => {
-    if (!isRoster) return;
-    listRef.current
-      ?.querySelector('[aria-current="true"]')
+    if (!isTable || selectedId == null) return;
+    document
+      .querySelector(`[data-student-list] [aria-current="true"]`)
       ?.scrollIntoView({ block: "nearest" });
-  }, [isRoster, selectedId]);
+  }, [isTable, selectedId]);
 
   if (isLoading) return <ListSkeleton />;
 
@@ -319,69 +334,100 @@ const StudentList = ({
     />
   );
 
-  if (isRoster) {
+  const activityCounts: Record<StudentActivity, number> = {
+    active: byActivity.active.length,
+    idle: byActivity.idle.length,
+    gone: byActivity.gone.length,
+  };
+
+  const list =
+    students.length === 0 ? (
+      <div className="p-4 lg:p-0">{emptyState}</div>
+    ) : (
+      <div data-student-list className="flex flex-col gap-4 lg:gap-6">
+        {sections.map((section, index) => {
+          const meta = section.key === "search" ? null : ACTIVITY_META[section.key];
+          // 「全部」時已離開那區預設收起來；單獨點進「已離開」就整區展開。
+          const collapsible = section.key === "gone" && activityView === "all";
+          const open = !collapsible || showGone;
+          return (
+            <section key={section.key} aria-label={meta?.label ?? "搜尋結果"}>
+              {meta && (activityView === "all" || section.students.length === 0) && (
+                <div className="flex items-center gap-2 px-4 lg:px-1 pb-2">
+                  <span aria-hidden="true" className={`w-2 h-2 rounded-full ${meta.dot}`} />
+                  <h3 className="text-sm font-semibold text-neutral-900">{meta.label}</h3>
+                  <span className="text-xs text-neutral-500 truncate">
+                    {section.students.length} 位
+                    <span className="hidden sm:inline"> · {section.key === "idle" ? "已付錢但沒在用" : meta.desc}</span>
+                  </span>
+                  {collapsible && section.students.length > 0 && (
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      onClick={() => setShowGone((v) => !v)}
+                      className="ml-auto shrink-0 text-xs font-semibold text-primary-700 hover:text-primary-900 cursor-pointer px-1 py-1"
+                    >
+                      {open ? "收起" : `展開 ${section.students.length} 位`}
+                    </button>
+                  )}
+                </div>
+              )}
+              {open &&
+                (section.students.length > 0 ? (
+                  <StudentTable
+                    students={section.students}
+                    selectedId={selectedId}
+                    onSelect={isTable ? onSelect : undefined}
+                    hideHeader={index > 0}
+                  />
+                ) : (
+                  <p className="m-0 px-4 lg:px-1 text-sm text-neutral-500">沒有學生</p>
+                ))}
+            </section>
+          );
+        })}
+      </div>
+    );
+
+  if (isTable) {
     return (
-      <div className="flex flex-col h-full min-h-0 bg-white">
-        <div className="px-4 pt-4 pb-2.5 border-b border-neutral-200">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xl font-semibold">
-              學生
-              <span className="ml-2 text-[13px] font-normal text-neutral-400">
-                {allStudents.length} 位
-              </span>
-            </h2>
+      <div className="px-8 py-7 flex flex-col gap-5 max-w-[1440px]">
+        <div className="flex flex-wrap items-center gap-4">
+          <h2 className="text-2xl font-semibold">
+            學生
+            <span className="ml-2 text-sm font-normal text-neutral-500">共 {allStudents.length} 位</span>
+          </h2>
+          <div className="flex-1 min-w-[240px] max-w-md">
+            <Searchbar onSearch={setQuery} inputRef={searchInputRef} compact />
+          </div>
+          <div className="ml-auto">
             <NewStudent />
           </div>
-
-          <Searchbar onSearch={setQuery} inputRef={searchInputRef} compact />
-
-          <div className="flex flex-wrap gap-1.5 mt-2.5">
-            {quickChips("sm")}
-            <FilterChip
-              size="sm"
-              active={hiddenActiveCount > 0}
-              count={hiddenActiveCount > 0 ? hiddenActiveCount : undefined}
-              onClick={() => setDrawerOpen(true)}
-            >
-              <SlidersHorizontal className="w-3 h-3" />
-              更多篩選
-            </FilterChip>
-          </div>
-
-          <div className="mt-2">{resultBar}</div>
         </div>
 
-        <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto">
-          {students.length === 0 ? (
-            <div className="p-4">{emptyState}</div>
-          ) : (
-            students.map((student) => (
-              <RosterRow
-                key={student.id}
-                student={student}
-                selected={student.id === selectedId}
-                onSelect={() => onSelect?.(student)}
-              />
-            ))
-          )}
-          <UnboundLineEntry className="px-4 pt-3" />
-          <ArchivedStudents className="px-4 py-3" />
+        {!isSearching && (
+          <ActivityTabs value={activityView} onChange={setActivityView} counts={activityCounts} />
+        )}
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {quickChips("sm")}
+          <FilterChip
+            size="sm"
+            active={hiddenActiveCount > 0}
+            count={hiddenActiveCount > 0 ? hiddenActiveCount : undefined}
+            onClick={() => setDrawerOpen(true)}
+          >
+            <SlidersHorizontal className="w-3 h-3" />
+            更多篩選
+          </FilterChip>
+          <div className="ml-auto min-w-[220px]">{resultBar}</div>
         </div>
 
-        <div className="flex-none flex gap-4 px-4 py-2 border-t border-neutral-200 bg-neutral-50 text-[11px] text-neutral-400">
-          <span className="flex items-center gap-1">
-            <kbd className="px-1 py-px border border-neutral-200 rounded bg-white">↑</kbd>
-            <kbd className="px-1 py-px border border-neutral-200 rounded bg-white">↓</kbd>
-            切換
-          </span>
-          <span className="flex items-center gap-1">
-            <kbd className="px-1.5 py-px border border-neutral-200 rounded bg-white">/</kbd>
-            搜尋
-          </span>
-          <span className="flex items-center gap-1">
-            <CornerDownLeft className="w-3 h-3" />
-            開啟完整頁
-          </span>
+        {list}
+
+        <div className="flex flex-col gap-3">
+          <UnboundLineEntry />
+          <ArchivedStudents />
         </div>
 
         {drawer}
@@ -423,21 +469,19 @@ const StudentList = ({
           </button>
         </div>
 
+        {!isSearching && (
+          <ActivityTabs value={activityView} onChange={setActivityView} counts={activityCounts} />
+        )}
+
         {/* 快篩：一排橫向捲動，不換行，名單才不會被往下推 */}
         <div className="-mx-4 px-4 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
           {quickChips("sm")}
         </div>
       </div>
 
-      <div className="px-4 py-1.5 bg-neutral-50 border-b border-neutral-100">{resultBar}</div>
+      <div className="px-4 py-1.5 mb-3 bg-neutral-50 border-b border-neutral-100">{resultBar}</div>
 
-      {students.length === 0 && <div className="p-4">{emptyState}</div>}
-
-      <div className="flex flex-col">
-        {students.map((student) => (
-          <SingleStudent key={student.id} student={student} />
-        ))}
-      </div>
+      {list}
 
       <UnboundLineEntry className="px-4 pt-4" />
       <ArchivedStudents className="px-4 py-4" />

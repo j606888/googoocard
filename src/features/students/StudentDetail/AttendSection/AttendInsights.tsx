@@ -12,7 +12,8 @@ import {
   weeklyCounts,
 } from "./attendanceInsights";
 
-const HEAT = ["bg-neutral-100", "bg-primary-300", "bg-primary-600", "bg-primary-900"] as const;
+/** 方格的四個深淺（0 / 1 / 2 / 3+ 堂）；名單的近 8 週方格也用這組。 */
+export const HEAT = ["bg-neutral-100", "bg-primary-300", "bg-primary-600", "bg-primary-900"] as const;
 
 /** 近 13 週每週一格：0 / 1 / 2 / 3+ 堂四個深淺。 */
 export const WeeklyHeatGrid = ({ attendances, now = new Date() }: { attendances: StudentAttendance[]; now?: Date }) => {

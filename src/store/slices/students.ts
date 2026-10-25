@@ -37,6 +37,8 @@ export interface Student {
   unpaidAmount?: number;
   /** 沒買過任何非體驗課的卡（新同學）。只有名單 API 會帶。 */
   isNewStudent?: boolean;
+  /** 近 9 週內每次出席那堂課的上課時間（名單的「近 8 週出席」方格）。只有名單 API 會帶。 */
+  recentAttendAt?: string[];
 }
 
 export interface Event {

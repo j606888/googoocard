@@ -1,6 +1,7 @@
 import { Student } from "@/store/slices/students";
 import { SortOption } from "@/components/SortMenu";
 import { differenceInCalendarDays } from "date-fns";
+import { weeklyCounts } from "../StudentDetail/AttendSection/attendanceInsights";
 
 export interface StudentFilters {
   tags: string[]; // tag name，例 ["Needs Renewal", "未繳費"]
@@ -60,6 +61,65 @@ export const daysSinceLastAttend = (student: Student): number | null =>
   student.lastAttendAt
     ? differenceInCalendarDays(new Date(), new Date(student.lastAttendAt))
     : null;
+
+/**
+ * 名單分區的界線：這麼多天內有出席算「在上課」。比 `RECENT_ATTEND_DAYS`
+ * （快篩「近 7 天有上課」）寬——分區要回答的是「這個人還在不在」，不是「這週有沒有來」。
+ */
+export const ACTIVE_DAYS = 30;
+
+/**
+ * 名單的三區：
+ * - `active` 在上課 —— ACTIVE_DAYS 天內有出席；從沒上過課但 ACTIVE_DAYS 天內才加入的新生也算
+ * - `idle`   有卡沒來 —— 不在上課，但手上還有堂數（已經付錢、卻沒在用）
+ * - `gone`   已離開 —— 其他人：很久沒來、也沒有可用的課卡
+ */
+export type StudentActivity = "active" | "idle" | "gone";
+
+export const activityOf = (student: Student, now = new Date()): StudentActivity => {
+  const sinceAttend = student.lastAttendAt
+    ? differenceInCalendarDays(now, new Date(student.lastAttendAt))
+    : null;
+  const isActive =
+    sinceAttend !== null
+      ? sinceAttend <= ACTIVE_DAYS
+      : differenceInCalendarDays(now, new Date(student.createdAt)) <= ACTIVE_DAYS;
+  if (isActive) return "active";
+  return remainingSessions(student) > 0 ? "idle" : "gone";
+};
+
+/** 名單「近 N 週出席」方格的週數。 */
+export const ROSTER_WEEKS = 8;
+
+/** 近 ROSTER_WEEKS 週每週出席幾堂（最早那週在前）；跟詳情頁的 13 週方格同一個切法。 */
+export const recentWeeks = (student: Student, now = new Date()): number[] =>
+  weeklyCounts(
+    (student.recentAttendAt ?? []).map((startTime) => ({ startTime })),
+    now,
+    ROSTER_WEEKS
+  );
+
+/** 名單上方的分區選擇；`all` = 三區依序列出。 */
+export type ActivityView = "all" | StudentActivity;
+
+const activityStorageKey = (classroomId: number) => `student-activity:${classroomId}`;
+
+export const loadActivityView = (classroomId: number): ActivityView => {
+  try {
+    const raw = localStorage.getItem(activityStorageKey(classroomId));
+    return raw === "active" || raw === "idle" || raw === "gone" ? raw : "all";
+  } catch {
+    return "all";
+  }
+};
+
+export const saveActivityView = (classroomId: number, view: ActivityView) => {
+  try {
+    localStorage.setItem(activityStorageKey(classroomId), view);
+  } catch {
+    // ignore quota / serialization errors
+  }
+};
 
 const storageKey = (classroomId: number) => `student-filters:${classroomId}`;
 

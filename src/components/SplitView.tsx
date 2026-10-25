@@ -41,7 +41,16 @@ export const useSelectionMirroredToUrl = (
 
   const select = useCallback((id: number) => setSelectedId(id), []);
 
-  return { selectedId, select };
+  /** 取消選取（例如關掉抽屜），網址上的參數一併拿掉。 */
+  const clear = useCallback(() => {
+    setSelectedId(null);
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has(param)) return;
+    url.searchParams.delete(param);
+    window.history.replaceState(null, "", url);
+  }, [param]);
+
+  return { selectedId, select, clear };
 };
 
 const parseId = (value: string | null): number | null =>

@@ -1,10 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { subDays } from "date-fns";
+import prisma from "@/lib/prisma";
 import {
   resetDb,
   createClassroom,
   createStudent,
   createCard,
   createStudentCard,
+  createLesson,
 } from "../factories";
 
 const auth = vi.hoisted(() => ({ userId: 1, classroomId: 0 }));
@@ -39,5 +42,36 @@ describe("GET /api/students：點名名單的「未付 $X」「新學員」", ()
     );
     expect(byName["欠款舊生"]).toMatchObject({ unpaidAmount: 3500, isNewStudent: false });
     expect(byName["新同學"]).toMatchObject({ unpaidAmount: 400, isNewStudent: true });
+  });
+
+  it("recentAttendAt 只帶近 9 週內的出席，各學生各自的", async () => {
+    const { lesson } = await createLesson(classroomId);
+    const period = (startTime: Date) =>
+      prisma.lessonPeriod.create({
+        data: { lessonId: lesson.id, startTime, endTime: new Date(startTime.getTime() + 3600_000) },
+      });
+    const recent = await period(subDays(new Date(), 3));
+    const weeksAgo = await period(subDays(new Date(), 40));
+    const old = await period(subDays(new Date(), 120));
+
+    const regular = await createStudent(classroomId, { name: "常來" });
+    const quiet = await createStudent(classroomId, { name: "很久沒來" });
+    await prisma.attendanceRecord.createMany({
+      data: [
+        { lessonPeriodId: recent.id, studentId: regular.id },
+        { lessonPeriodId: weeksAgo.id, studentId: regular.id },
+        { lessonPeriodId: old.id, studentId: regular.id },
+        { lessonPeriodId: old.id, studentId: quiet.id },
+      ],
+    });
+
+    const res = await LIST(new Request("http://test.local/api/students"));
+    const byName = Object.fromEntries(
+      ((await res.json()) as { name: string; recentAttendAt: string[] }[]).map((s) => [s.name, s])
+    );
+    expect(byName["常來"].recentAttendAt.map((t) => new Date(t).getTime()).sort()).toEqual(
+      [weeksAgo.startTime.getTime(), recent.startTime.getTime()]
+    );
+    expect(byName["很久沒來"].recentAttendAt).toEqual([]);
   });
 });

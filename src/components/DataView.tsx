@@ -60,12 +60,23 @@ const DataView = <T,>({
   rows,
   rowKey,
   onRowClick,
+  rowClassName,
+  hideHeader = false,
   className = "",
 }: {
   columns: DataViewColumn<T>[];
   rows: T[];
   rowKey: (row: T) => string | number;
+  /**
+   * 整列可點。注意這是 div 上的 onClick，鍵盤點不到——要鍵盤可操作的話，
+   * 改在 primary 那格放真的 `<button>`／`<Link>` 並用 `after:absolute after:inset-0`
+   * 撐滿整列（每一列都是 `relative`）。
+   */
   onRowClick?: (row: T) => void;
+  /** 個別列的額外樣式，例如選取中。 */
+  rowClassName?: (row: T) => string | undefined;
+  /** 同一張表拆成好幾段時（例如分區），只讓第一段顯示表頭。 */
+  hideHeader?: boolean;
   className?: string;
 }) => {
   const primary = columns.find((c) => c.role === "primary");
@@ -84,17 +95,19 @@ const DataView = <T,>({
   return (
     <div className={cn("rounded-2xl border border-neutral-200 bg-white overflow-hidden", className)}>
       {/* 表頭只有桌面有；手機的小標在每一格裡面 */}
-      <div
-        style={trackVars}
-        className={cn(
-          grid,
-          "hidden lg:grid px-4.5 py-2.5 bg-neutral-50 border-b border-neutral-100 text-xs font-semibold text-neutral-500"
-        )}
-      >
-        {columns.map((c) => (
-          <div key={c.key}>{c.header}</div>
-        ))}
-      </div>
+      {!hideHeader && (
+        <div
+          style={trackVars}
+          className={cn(
+            grid,
+            "hidden lg:grid px-4.5 py-2.5 bg-neutral-50 border-b border-neutral-100 text-xs font-semibold text-neutral-500"
+          )}
+        >
+          {columns.map((c) => (
+            <div key={c.key}>{c.header}</div>
+          ))}
+        </div>
+      )}
 
       {rows.map((row) => (
         <div
@@ -102,8 +115,9 @@ const DataView = <T,>({
           style={trackVars}
           className={cn(
             grid,
-            "items-center px-3.5 py-3 lg:px-4.5 lg:py-3.5 border-b border-neutral-100 last:border-b-0 transition-colors",
-            onRowClick && "cursor-pointer hover:bg-neutral-50"
+            "relative items-center px-3.5 py-3 lg:px-4.5 lg:py-3.5 border-b border-neutral-100 last:border-b-0 transition-colors",
+            onRowClick && "cursor-pointer hover:bg-neutral-50",
+            rowClassName?.(row)
           )}
           onClick={onRowClick ? () => onRowClick(row) : undefined}
         >

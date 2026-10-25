@@ -605,16 +605,28 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 進入 `/students/[id]` 的連結可帶 `?from=<encodedPath>`，返回鍵讀它決定回哪：有就回該頁、沒有（或非站內路徑）fallback 回 `/students`。helper 在 `src/lib/studentNav.ts`（`studentDetailHref` / `resolveBackHref`）。目前 check-success（`StudentInfo`）與課程詳情（`AttendanceMatrix`、`StudentSection`）的入口會帶來源；桌面分割檢視的「完整頁面」帶 `/students?sel=<id>`，返回時會回到同一位學生被選取的名單；手機列表不帶、維持回 `/students`。未來其他頁面要此行為，連結改用 `studentDetailHref(id, pathname)` 即可。
 
-## 學生頁版面（手機列表 vs 桌面分割檢視）
+## 學生頁版面（全寬名單＋右側抽屜，2026-10-26 改版）
 
-`/students` 依寬度掛載**其中一棵樹**（`useIsWide()`，≥1024px）——不是用 CSS 藏，因為兩棵都掛的話兩份篩選狀態會各自寫 localStorage 而分岔。
+`/students` 依寬度掛載**其中一棵樹**（`useSizeClass()`，≥1024px）——不是用 CSS 藏，因為兩棵都掛的話兩份篩選狀態會各自寫 localStorage 而分岔。設計稿：https://claude.ai/artifact/5K55zKbFRV5ef7NUGSmahz（方向 A）。
 
-- **手機**：`StudentList`（`variant="page"`）維持原本的整頁列表，點學生跳 `/students/[id]`。
-- **桌面**：`StudentsSplitView` = 左欄 `StudentList variant="roster"`（密集列 `RosterRow`、搜尋、排序選單、快速條件、↑↓／`/`／Enter 鍵盤操作）+ 右欄 `StudentDetailHeader variant="pane"` 與 `StudentDetail variant="pane"`。換人只換右欄，不換頁。
+- **名單本身是同一套**：`StudentList` 的列由 `StudentTable` 畫，底下是 `DataView`——手機卡片、桌面表格，同一份 DOM。欄位：學生／舞種／剩餘／最近上課／近 8 週出席方格／狀態（需續約、未付 $X）。
+- **手機**（`variant="page"`）：列是 `<Link>`，點了進整頁 `/students/[id]`。
+- **桌面**（`variant="table"`）：`StudentsTableView` = 全寬名單 ＋ `SideSheet`（600px）。抽屜裡是 `StudentDetailHeader variant="pane"` ＋ `AttentionBar` ＋ `StudentDetail variant="pane"`，頂端有「開啟完整頁」。鍵盤：`/` 聚焦搜尋；抽屜開著時 ↑↓ 換人、Esc 關閉。
+- 整列可點但仍可用鍵盤：primary 格是真的 `<button>`／`<Link>`，用 `after:absolute after:inset-0` 撐滿整列（`DataView` 每列都是 `relative`）。
+
+**活躍度三區**（`activityOf()`，`studentFilters.ts`，門檻 `ACTIVE_DAYS = 30`）——production 有很多早就不來的學生，藏起來怪、混在一起又拖慢瀏覽，所以分區而不是隱藏：
+- **在上課**：30 天內有出席；或從沒上過課、但 30 天內才加入（新生）。
+- **有卡沒來**：不在上課，但還有剩餘堂數（已付錢卻沒在用，值得聯絡）。
+- **已離開**：其他人。「全部」時這區預設收起來，只顯示「展開 N 位」。
+分區在篩選＋排序**之後**才切；有輸入搜尋字時不分區、整份平鋪——找人不該被藏進收起來的區。目前選的分區存在 localStorage（`student-activity:<classroomId>`）。
+
+「近 8 週出席」：`GET /api/students` 多回 `recentAttendAt`（近 63 天每次出席那堂課的上課時間，一個 `findMany` 不拉整份出席史），週在前端用 `weeklyCounts()` 依瀏覽器時區切——跟詳情頁的 13 週方格同一個定義與同一組深淺（`HEAT`）。
+
+**提醒列** `AttentionBar`（抽屜、桌面完整頁、手機詳情頁都有）：一次只講一件，未付款 > 需續約 > 有卡沒來（`attentionFor()`，`StudentDetail/attention.ts`）。只有一張未付卡時可直接「確認收款」；需續約不放按鈕（頁首就有「購買課卡」）；刻意不做「傳 LINE 提醒」（沒有這個功能）。
 
 選取狀態同時活在 React state 與網址：**state 是畫面的真相**（`router.replace` 只改 query 時不會讓這頁的 `useSearchParams()` 重繪，靠網址驅動會整個選不動），**網址是可分享的鏡射**，用 `history.replaceState` 寫回，所以連續看十位學生不會在瀏覽紀錄堆十筆。
 
-右欄與獨立學生頁 `/students/[id]`（桌面）是**同一套**版面（2026-10 改版，舊的三欄完整頁已移除）：
+抽屜與獨立學生頁 `/students/[id]`（桌面）是**同一套**版面（2026-10 改版，舊的三欄完整頁已移除）：
 頁首（大頭貼、舞種 pill、標籤、編輯／⋯／購買課卡、四格統計 `StudentStats`）＋ 底線分頁 課卡／出席／動態 ＋
 右側欄 `ProfilePanels`（舞種資格點一下就存、學生資料、公開頁）。側欄要內容寬度 ≥ `SIDE_PANEL_MIN_WIDTH`
 （1000px，`useElementWidth` 量的是詳情容器，不是 viewport）才擺在右邊；不夠寬就收成第四個「資料」分頁。

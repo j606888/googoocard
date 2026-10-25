@@ -2,7 +2,7 @@
 
 import Navbar from "@/features/Navbar";
 import StudentList from "@/features/students/StudentList";
-import StudentsSplitView from "@/features/students/StudentsSplitView";
+import StudentsTableView from "@/features/students/StudentsTableView";
 import { useSizeClass } from "@/hooks/useMediaQuery";
 
 const StudentsPage = () => {
@@ -12,7 +12,7 @@ const StudentsPage = () => {
   return (
     <>
       <Navbar />
-      {sizeClass === "expanded" ? <StudentsSplitView /> : <StudentList />}
+      {sizeClass === "expanded" ? <StudentsTableView /> : <StudentList />}
     </>
   );
 };
