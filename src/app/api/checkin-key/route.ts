@@ -2,17 +2,16 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
+import { checkinEntryUrl } from "@/service/checkin";
 
 // The wall-poster check-in key for the caller's current classroom.
 // Longer than the usual nanoid(8) share keys because this one gets printed and
 // photographed; rotating it (POST) is the remedy when a poster leaks.
 const KEY_LENGTH = 10;
 
-// The QR encodes an absolute URL, so fall back to the request origin when
-// NEXT_PUBLIC_HOST_URL isn't configured — a relative path would be unscannable.
+// The QR encodes the LIFF check-in URL (src/service/checkin.ts).
 function buildUrl(request: Request, key: string) {
-  const host = process.env.NEXT_PUBLIC_HOST_URL || new URL(request.url).origin;
-  return `${host}/checkin/${key}`;
+  return checkinEntryUrl(key, new URL(request.url).origin);
 }
 
 // GET — returns the classroom's key, creating one on first view so teachers

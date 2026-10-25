@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { bearerToken, resolveOwnedStudent } from "@/lib/liffAuth";
 import { canBuyCard, toDanceLevels } from "@/domains/qualification";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
-import { nextCardSerial } from "@/service/studentCardSerial";
+import { createStudentCardInTx } from "@/service/studentCard";
 import { notifyClassroom } from "@/service/push";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
@@ -24,7 +24,9 @@ export async function POST(request: Request) {
   const { student } = resolved;
 
   const card = await prisma.card.findUnique({ where: { id: cardId } });
-  if (!card || card.classroomId !== student.classroomId) {
+  // Trial cards are only offered inside check-in, where the price depends on
+  // whether the student is new (src/service/trial.ts).
+  if (!card || card.classroomId !== student.classroomId || card.isTrial) {
     return NextResponse.json({ error: "Card not found" }, { status: 404 });
   }
 
@@ -44,36 +46,17 @@ export async function POST(request: Request) {
 
   // Card, serial and purchase Event are one unit of work: the serial counter
   // must only advance for a card that actually exists.
-  const studentCard = await prisma.$transaction(async (tx) => {
-    const created = await tx.studentCard.create({
-      data: {
-        serialNumber: await nextCardSerial(tx, card.classroomId),
-        studentId: student.id,
-        cardId: card.id,
-        basePrice: card.price,
-        finalPrice: card.price,
-        totalSessions: card.sessions,
-        remainingSessions: card.sessions,
-        purchaseSource: "STUDENT",
-        purchasedByUserId: null,
-        isPaid: false,
-        paidAt: null,
-        paidByUserId: null,
-      },
-    });
-
-    await tx.event.create({
-      data: {
-        title: "購買課卡",
-        description: `學生自助購買課卡 ${card.name}（待付款）`,
-        studentId: student.id,
-        resourceType: "studentCard",
-        resourceId: created.id,
-      },
-    });
-
-    return created;
-  });
+  const studentCard = await prisma.$transaction((tx) =>
+    createStudentCardInTx(tx, {
+      studentId: student.id,
+      card,
+      finalPrice: card.price,
+      sessions: card.sessions,
+      purchaseSource: "STUDENT",
+      isPaid: false,
+      eventDescription: `學生自助購買課卡 ${card.name}（待付款）`,
+    })
+  );
 
   await refreshNeedsRenewalTag(student.id, card.classroomId);
 

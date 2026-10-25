@@ -17,7 +17,8 @@ export async function GET(request: Request) {
   }
 
   const cards = await prisma.card.findMany({
-    where: { classroomId: resolved.student.classroomId, expiredAt: null },
+    // Trial cards are picked inside check-in only, never bought on their own.
+    where: { classroomId: resolved.student.classroomId, expiredAt: null, isTrial: false },
     select: {
       id: true,
       name: true,

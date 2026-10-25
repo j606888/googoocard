@@ -18,8 +18,6 @@ vi.mock("@/lib/auth", () => ({ decodeAuthToken: async () => auth }));
 import { GET as LIST } from "@/app/api/students/route";
 import { GET as DETAIL, PATCH } from "@/app/api/students/[id]/route";
 import { POST as BUY } from "@/app/api/students/[id]/student-cards/route";
-import { POST as CHECKIN } from "@/app/api/checkin/[key]/checkin/route";
-import { GET as CHECKIN_ROSTER } from "@/app/api/checkin/[key]/students/route";
 
 const at = (iso: string) => ({ lessonPeriod: { startTime: new Date(iso) } });
 
@@ -157,13 +155,11 @@ describe("學生詳情 API 的新欄位", () => {
 
 describe("封存學生", () => {
   let classroomId: number;
-  const KEY = "wallKey123";
 
   beforeEach(async () => {
     await resetDb();
     classroomId = (await createClassroom()).id;
     auth.classroomId = classroomId;
-    await prisma.classroom.update({ where: { id: classroomId }, data: { checkinKey: KEY } });
   });
 
   const list = async (params = "") =>
@@ -200,38 +196,5 @@ describe("封存學生", () => {
     const amy = await createStudent(classroomId);
     const res = await PATCH(jsonRequest("PATCH", { archived: "yes" }), routeParams({ id: String(amy.id) }));
     expect(res.status).toBe(400);
-  });
-
-  it("封存的學生不能在 QR 看板自助簽到", async () => {
-    const amy = await createStudent(classroomId, { name: "Amy" });
-    const { lesson, period } = await createLesson(classroomId, { withPeriod: true });
-    await prisma.student.update({ where: { id: amy.id }, data: { archivedAt: new Date() } });
-
-    const res = await CHECKIN(
-      new Request(`http://test.local/api/checkin/${KEY}/checkin`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentId: amy.id, lessonId: lesson.id, periodIds: [period!.id] }),
-      }),
-      routeParams({ key: KEY })
-    );
-    expect(res.status).toBe(403);
-    expect(await prisma.attendanceRecord.count()).toBe(0);
-  });
-
-  it("QR 看板的學生名單不列封存的學生", async () => {
-    const amy = await createStudent(classroomId, { name: "Amy" });
-    await createStudent(classroomId, { name: "Ben" });
-    await prisma.student.update({ where: { id: amy.id }, data: { archivedAt: new Date() } });
-    // 名單只在今天有課時出現
-    const { lesson } = await createLesson(classroomId);
-    const now = Date.now();
-    await prisma.lessonPeriod.create({
-      data: { lessonId: lesson.id, startTime: new Date(now), endTime: new Date(now + 3600_000) },
-    });
-
-    const res = await CHECKIN_ROSTER(new Request(`http://test.local/api/checkin/${KEY}/students`), routeParams({ key: KEY }));
-    const { students } = await res.json();
-    expect(students.map((s: { name: string }) => s.name)).toEqual(["Ben"]);
   });
 });

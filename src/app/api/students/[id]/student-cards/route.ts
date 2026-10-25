@@ -5,7 +5,7 @@ import { ApiError, notFound } from "@/lib/apiError";
 import { buyStudentCardSchema } from "@/lib/schemas";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { canBuyCard, toDanceLevels } from "@/domains/qualification";
-import { nextCardSerial } from "@/service/studentCardSerial";
+import { createStudentCardInTx } from "@/service/studentCard";
 
 type Params = { id: string };
 
@@ -62,40 +62,22 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
   // a card that exists with no Event leaves a gap in the student's timeline,
   // and a stale "Needs Renewal" tag tells the teacher to chase a student who
   // just paid.
-  const studentCard = await prisma.$transaction(async (tx) => {
-    const created = await tx.studentCard.create({
-      data: {
-        serialNumber: await nextCardSerial(tx, card.classroomId),
-        studentId,
-        cardId,
-        basePrice: card.price,
-        finalPrice: price,
-        // total and remaining must match at creation; both follow the (editable)
-        // session count chosen at purchase, defaulting to the card's own sessions.
-        totalSessions: sessions,
-        remainingSessions: sessions,
-        purchaseSource: "STAFF",
-        purchasedByUserId: userId,
-        isPaid,
-        // When paid at point of sale, the seller is also the payment confirmer.
-        paidAt: isPaid ? new Date() : null,
-        paidByUserId: isPaid ? userId : null,
-        note: note?.trim() || null,
-      },
-    });
-
-    await tx.event.create({
-      data: {
-        title: "購買課卡",
-        description: `購買新課卡 ${card.name}`,
-        studentId,
-        resourceType: "studentCard",
-        resourceId: created.id,
-      },
-    });
-
-    return created;
-  });
+  const studentCard = await prisma.$transaction((tx) =>
+    createStudentCardInTx(tx, {
+      studentId,
+      card,
+      finalPrice: price,
+      // Follows the (editable) session count chosen at purchase.
+      sessions,
+      purchaseSource: "STAFF",
+      purchasedByUserId: userId,
+      isPaid,
+      // When paid at point of sale, the seller is also the payment receiver.
+      paidByUserId: userId,
+      note: note?.trim() || null,
+      eventDescription: `購買新課卡 ${card.name}`,
+    })
+  );
 
   await refreshNeedsRenewalTag(studentId, card.classroomId);
 

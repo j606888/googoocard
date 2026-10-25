@@ -3,13 +3,16 @@
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { StudentWithDetail } from "@/store/slices/students";
 import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import FirstTimeGate, { FirstTimePrefill } from "@/features/liff/FirstTimeGate";
 
 // Shared identity gate for student LIFF pages. Authenticates with LIFF (ID
 // token, no cookie), resolves the bound student via /api/liff/me, and only
 // renders `children(student)` once a single student is resolved. A LINE account
 // may be bound to several students (different classrooms) → shows a picker,
-// remembering the last choice. Unbound accounts are blocked, and the gate only
-// ever hands over the caller's own student — no admin / other-student access.
+// remembering the last choice. Unbound accounts are blocked — except on the
+// on-site check-in entry (`checkinKey`, from the wall QR), where a LINE account
+// with no student in that classroom gets「第一次來嗎？」and can register itself.
+// The gate only ever hands over the caller's own student.
 
 const LAST_STUDENT_KEY = "liff:lastStudentId";
 
@@ -31,21 +34,33 @@ export interface LiffAuthContext {
 
 export default function LiffStudentGate({
   children,
+  acceptCheckinKey = false,
 }: {
   children: (student: StudentWithDetail, auth: LiffAuthContext) => ReactNode;
+  /**
+   * Read `?key=` (Classroom.checkinKey, from the on-site QR) once LIFF has
+   * restored the real URL: scopes to that classroom and allows self-registration.
+   */
+  acceptCheckinKey?: boolean;
 }) {
   const [status, setStatus] = useState("登入中…");
   const [idToken, setIdToken] = useState<string | null>(null);
   const [options, setOptions] = useState<StudentOption[] | null>(null);
   const [student, setStudent] = useState<StudentWithDetail | null>(null);
   const [boundStudents, setBoundStudents] = useState<StudentOption[]>([]);
+  const [firstTime, setFirstTime] = useState<FirstTimePrefill | null>(null);
+  const [checkinKey, setCheckinKey] = useState<string | null>(null);
 
   // Fetch /api/liff/me with the ID token, optionally for a specific student.
-  const loadMe = useCallback(async (token: string, studentId?: number) => {
+  const loadMe = useCallback(async (token: string, studentId?: number, key?: string | null) => {
     setStudent(null);
     setOptions(null);
+    setFirstTime(null);
     setStatus("載入中…");
-    const qs = studentId ? `?studentId=${studentId}` : "";
+    const params = new URLSearchParams();
+    if (studentId) params.set("studentId", String(studentId));
+    if (key) params.set("key", key);
+    const qs = params.toString() ? `?${params}` : "";
     const res = await fetch(`/api/liff/me${qs}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -54,10 +69,25 @@ export default function LiffStudentGate({
       // not_bound, or a remembered student that no longer belongs here.
       if (studentId) {
         localStorage.removeItem(LAST_STUDENT_KEY);
-        await loadMe(token); // retry without the stale id
+        await loadMe(token, undefined, key); // retry without the stale id
         return;
       }
+      if (key) {
+        const body = await res.json().catch(() => ({}));
+        if (body.error === "not_bound") {
+          setFirstTime({
+            classroomName: body.classroomName ?? "",
+            lineName: body.lineName ?? "",
+            linePicture: body.linePicture ?? null,
+          });
+          return;
+        }
+      }
       setStatus("此 LINE 帳號尚未綁定學生，請使用老師提供的綁定連結。");
+      return;
+    }
+    if (res.status === 404 && key) {
+      setStatus("簽到 QR Code 已失效，請找老師或小幫手確認最新的 QR Code。");
       return;
     }
     if (!res.ok) {
@@ -108,12 +138,15 @@ export default function LiffStudentGate({
 
         // ?switch=1 (from the「切換學生」menu button) forces the picker by
         // ignoring the remembered choice.
-        const forcePick = new URLSearchParams(window.location.search).has("switch");
+        const search = new URLSearchParams(window.location.search);
+        const key = acceptCheckinKey ? search.get("key") : null;
+        setCheckinKey(key);
+        const forcePick = search.has("switch");
         if (forcePick) localStorage.removeItem(LAST_STUDENT_KEY);
         const remembered = forcePick
           ? undefined
           : Number(localStorage.getItem(LAST_STUDENT_KEY)) || undefined;
-        await loadMe(token, remembered);
+        await loadMe(token, remembered, key);
       } catch (err) {
         console.error("[liff] init error", err);
         if (!cancelled) setStatus("LIFF 初始化失敗。");
@@ -123,12 +156,12 @@ export default function LiffStudentGate({
     return () => {
       cancelled = true;
     };
-  }, [loadMe]);
+  }, [loadMe, acceptCheckinKey]);
 
   const pickStudent = (id: number) => {
     if (!idToken) return;
     localStorage.setItem(LAST_STUDENT_KEY, String(id));
-    loadMe(idToken, id);
+    loadMe(idToken, id, checkinKey);
   };
 
   // Drop the remembered choice and re-show the picker (cross-classroom switch).
@@ -136,8 +169,20 @@ export default function LiffStudentGate({
     if (!idToken) return;
     localStorage.removeItem(LAST_STUDENT_KEY);
     setStudent(null);
-    loadMe(idToken);
+    loadMe(idToken, undefined, checkinKey);
   };
+
+  // On-site QR, no student in this classroom yet →「第一次來嗎？」
+  if (firstTime && idToken && checkinKey) {
+    return (
+      <FirstTimeGate
+        prefill={firstTime}
+        idToken={idToken}
+        checkinKey={checkinKey}
+        onRegistered={() => loadMe(idToken, undefined, checkinKey)}
+      />
+    );
+  }
 
   // Multi-student picker.
   if (options) {

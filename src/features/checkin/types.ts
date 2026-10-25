@@ -1,6 +1,6 @@
 import type { DanceStyleSummary } from "@/lib/danceStyles";
 
-/** Wire shapes shared by the LIFF check-in page and the public QR check-in page. */
+/** Wire shapes of the LIFF check-in page (src/service/checkin.ts, /api/liff/checkin). */
 
 export interface TodayPeriod {
   periodId: number;
@@ -9,11 +9,36 @@ export interface TodayPeriod {
   alreadyChecked: boolean;
 }
 
+export interface UsableCardOption {
+  studentCardId: number;
+  name: string;
+  serialNumber: number;
+  remainingSessions: number;
+  isPracticeCard: boolean;
+}
+
+export interface BuyableCardOption {
+  cardId: number;
+  name: string;
+  sessions: number;
+  /** What this student pays (trial cards are free for 舊生). */
+  price: number;
+  isTrial: boolean;
+  isPracticeCard: boolean;
+}
+
+export interface LessonCardStatus {
+  usable: UsableCardOption[];
+  autoPickId: number | null;
+  buyable: BuyableCardOption[];
+}
+
 export interface TodayLesson {
   lessonId: number;
   lessonName: string;
   danceStyle: DanceStyleSummary | null;
   periods: TodayPeriod[];
+  cardStatus?: LessonCardStatus;
 }
 
 export interface TodayResponse {
@@ -28,6 +53,15 @@ export interface CheckinResult {
   cardName?: string;
   remainingSessions?: number;
   exhausted?: boolean;
+}
+
+export interface CheckinResponse {
+  results: CheckinResult[];
+  purchased: { id: number; serialNumber: number; name: string; finalPrice: number; isPaid: boolean } | null;
+  /** Unpaid total of the card bought in this check-in (0 if none / free). */
+  amountDue: number;
+  /** Every card this student still owes for, oldest first. */
+  unpaidCards: { id: number; serialNumber: number; name: string; finalPrice: number }[];
 }
 
 export const timeFmt = new Intl.DateTimeFormat("zh-TW", {

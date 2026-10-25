@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { bearerToken, resolveOwnedStudent } from "@/lib/liffAuth";
-import { selfCheckIn } from "@/domains/attendance/attendance.service";
+import {
+  SelfCheckInCardChoice,
+  SelfCheckInError,
+  selfCheckIn,
+} from "@/domains/attendance/attendance.service";
 
 // Student self check-in from the LIFF「上課簽到」page. Auth is a LIFF ID token;
 // ownership enforced via resolveOwnedStudent. Records attendance for the chosen
-// period(s) of a lesson and deducts a card per period (source = STUDENT, does NOT
-// finalize the period — the teacher still reviews). Idempotent per period.
+// period(s) of a lesson (source = STUDENT, does NOT finalize the period — the
+// teacher still reviews). Idempotent per period.
+//
+// Every self check-in is bound to a card: the student either has one the
+// engine picks, chooses one of theirs (`studentCardId`), or buys one of the
+// lesson's cards on the spot (`buyCardId`, unpaid — paid after class). Anything
+// that would leave a period unbound is refused with `card_required`.
 export async function POST(request: Request) {
-  const { studentId, lessonId, periodIds } = await request.json();
+  const { studentId, lessonId, periodIds, studentCardId, buyCardId } = await request.json();
 
   const resolved = await resolveOwnedStudent(bearerToken(request), studentId);
   if (!resolved.ok) {
@@ -26,11 +35,43 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
   }
 
-  const results = await selfCheckIn({
-    studentId: student.id,
-    lessonId: lesson.id,
-    lessonPeriodIds: periodIds.map(Number),
+  let card: SelfCheckInCardChoice | undefined;
+  if (studentCardId) card = { studentCardId: Number(studentCardId) };
+  else if (buyCardId) card = { buyCardId: Number(buyCardId) };
+
+  let outcome;
+  try {
+    outcome = await selfCheckIn({
+      studentId: student.id,
+      lessonId: lesson.id,
+      lessonPeriodIds: periodIds.map(Number),
+      card,
+      requireCard: true,
+    });
+  } catch (e) {
+    if (e instanceof SelfCheckInError) {
+      return NextResponse.json({ error: e.code }, { status: e.status });
+    }
+    throw e;
+  }
+
+  // Everything this student still owes — the completion screen says「下課請找
+  // 小幫手付款」for what was just bought and reminds about older unpaid cards.
+  const unpaidCards = await prisma.studentCard.findMany({
+    where: { studentId: student.id, isPaid: false },
+    select: { id: true, serialNumber: true, finalPrice: true, card: { select: { name: true } } },
+    orderBy: { createdAt: "asc" },
   });
 
-  return NextResponse.json({ results });
+  return NextResponse.json({
+    results: outcome.results,
+    purchased: outcome.purchased,
+    amountDue: outcome.purchased && !outcome.purchased.isPaid ? outcome.purchased.finalPrice : 0,
+    unpaidCards: unpaidCards.map((sc) => ({
+      id: sc.id,
+      serialNumber: sc.serialNumber,
+      name: sc.card.name,
+      finalPrice: sc.finalPrice,
+    })),
+  });
 }

@@ -314,11 +314,15 @@ export async function pushMessage(
 }
 
 /**
- * Verify a LIFF-issued ID token with LINE and return the LINE userId (`sub`).
+ * Verify a LIFF-issued ID token with LINE and return the LINE userId (`sub`),
+ * plus the display name / picture when the LIFF app has the `profile` scope
+ * (used to pre-fill a newcomer's nickname and avatar).
  * Returns null if the token is invalid or doesn't match our login channel.
  * https://developers.line.biz/en/reference/line-login/#verify-id-token
  */
-export async function verifyIdToken(idToken: string): Promise<{ userId: string } | null> {
+export async function verifyIdToken(
+  idToken: string
+): Promise<{ userId: string; name?: string; picture?: string } | null> {
   if (!idToken || !LOGIN_CHANNEL_ID) return null;
   const res = await fetch("https://api.line.me/oauth2/v2.1/verify", {
     method: "POST",
@@ -329,8 +333,10 @@ export async function verifyIdToken(idToken: string): Promise<{ userId: string }
     console.error(`[line] verifyIdToken failed: ${res.status} ${await res.text()}`);
     return null;
   }
-  const payload = (await res.json()) as { sub?: string };
-  return payload.sub ? { userId: payload.sub } : null;
+  const payload = (await res.json()) as { sub?: string; name?: string; picture?: string };
+  return payload.sub
+    ? { userId: payload.sub, name: payload.name, picture: payload.picture }
+    : null;
 }
 
 /** Minimal subset of the LINE webhook event shape we care about. */

@@ -3,13 +3,14 @@
 import LiffStudentGate from "../LiffStudentGate";
 import CheckinList from "@/features/liff/CheckinList";
 
-// Opened from the student menu's「上課簽到」button. Shows today's lessons and lets
-// the student self check-in (single or multiple periods), then nudges toward
-// 購買課卡 when a card is missing or used up. Identity is resolved by
-// LiffStudentGate (unbound → blocked, only the caller's own student).
+// Opened from the student menu's「上課簽到」button, or by scanning the studio's
+// wall QR (`?key=<Classroom.checkinKey>`). Shows today's lessons with what the
+// student can pay with, and every check-in is bound to a card (chosen, or bought
+// on the spot). Identity is resolved by LiffStudentGate; via the wall QR an
+// unbound LINE account can register itself as a newcomer.
 export default function LiffCheckinPage() {
   return (
-    <LiffStudentGate>
+    <LiffStudentGate acceptCheckinKey>
       {(student, auth) => (
         <>
           <div className="relative flex h-16 w-full items-center justify-center bg-primary-500">

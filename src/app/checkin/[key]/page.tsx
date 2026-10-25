@@ -1,19 +1,18 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useParams } from "next/navigation";
-import PublicCheckin from "@/features/checkin/PublicCheckin";
-
-// Landing page for the QR code posted on the studio wall. Public by design (see
-// the `/checkin/` entry in src/middleware.ts) — the classroom key in the URL is
-// the only credential.
-const PublicCheckinPage = () => {
-  const { key } = useParams();
-
+// The old wall-poster address. Self check-in now always runs inside LINE (LIFF)
+// so every check-in knows who it is — posters printed before the switch keep
+// working by bouncing to the LIFF URL with the same classroom key.
+export default async function LegacyCheckinPage({ params }: { params: Promise<{ key: string }> }) {
+  const { key } = await params;
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  if (liffId) {
+    redirect(`https://liff.line.me/${liffId}/checkin?key=${encodeURIComponent(key)}`);
+  }
   return (
-    <div className="mx-auto min-h-screen w-full max-w-[480px] bg-white">
-      <PublicCheckin checkinKey={key as string} />
+    <div className="mx-auto flex min-h-screen max-w-[480px] flex-col items-center justify-center gap-2 px-6 text-center">
+      <h1 className="text-lg font-semibold">請用 LINE 掃描簽到</h1>
+      <p className="text-neutral-500">LINE 簽到尚未設定完成，請找老師或小幫手。</p>
     </div>
   );
-};
-
-export default PublicCheckinPage;
+}

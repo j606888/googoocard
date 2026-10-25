@@ -602,7 +602,7 @@ describe("selfCheckIn — 一次多時段的扣卡同步", () => {
       totalSessions: 10,
     });
 
-    const results = await selfCheckIn({
+    const { results } = await selfCheckIn({
       studentId: student.id,
       lessonId: lesson.id,
       lessonPeriodIds: [p1.id, p2.id],
@@ -642,7 +642,7 @@ describe("selfCheckIn — 一次多時段的扣卡同步", () => {
       totalSessions: 5,
     });
 
-    const results = await selfCheckIn({
+    const { results } = await selfCheckIn({
       studentId: student.id,
       lessonId: lesson.id,
       lessonPeriodIds: [p1.id, p2.id],

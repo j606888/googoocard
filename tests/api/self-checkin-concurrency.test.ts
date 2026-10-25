@@ -76,7 +76,7 @@ describe("selfCheckIn 並發 — 不重複扣卡 (#1 unique 約束)", () => {
     expect(sc.remainingSessions).toBe(5);
 
     // 恰好一個 call 報 checked，另一個被 unique 約束擋下 → already_checked
-    const statuses = [...a, ...b].map((r) => r.status).sort();
+    const statuses = [...a.results, ...b.results].map((r) => r.status).sort();
     expect(statuses).toEqual(["already_checked", "checked"]);
   });
 

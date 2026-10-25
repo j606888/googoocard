@@ -14,7 +14,8 @@ const PageHeader = () => (
   <div className="print:hidden">
     <h1 className="text-xl font-semibold">簽到 QR Code</h1>
     <p className="mt-1 text-sm leading-relaxed text-neutral-500">
-      印出來貼在教室看板上。學生掃描後選擇自己、勾選今天要上的課即可簽到；
+      印出來貼在教室門口。學生用手機相機掃描會在 LINE 裡打開：已綁定的直接選課報到，
+      第一次來的填暱稱就能報到；沒卡的當場選一張，下課再付款。
       助教仍需在點名畫面確認後才會定案。
     </p>
   </div>

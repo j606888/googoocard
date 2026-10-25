@@ -3,7 +3,11 @@ import prisma from "@/lib/prisma";
 import { refreshLesson } from "@/service/lesson";
 import { refreshNeedsRenewalTags } from "@/service/studentTag";
 import { notifyClassroom } from "@/service/push";
-import { canUseCard, cardMatchesLesson, isQualified, requiredDanceStyleFor, requiredLevelFor, toDanceLevels } from "@/domains/qualification";
+import { canBuyCard, canUseCard, cardMatchesLesson, isQualified, requiredDanceStyleFor, requiredLevelFor, toDanceLevels } from "@/domains/qualification";
+import { createStudentCardInTx } from "@/service/studentCard";
+import { isReturningStudent, selfServicePrice } from "@/service/trial";
+import { formatCardSerial } from "@/lib/cardSerial";
+import { formatMoney } from "@/lib/money";
 import {
   fetchStudentsWithValidCards,
   type StudentWithLessonCards,
@@ -94,30 +98,40 @@ async function validateUpdateAttendanceRequest(
 
 
 
-function selectStudentCard(
+type CandidateCard = StudentWithCards["studentCards"][number];
+
+/**
+ * Which of the student's cards can pay for this lesson, best first, and the one
+ * the engine would pick on its own (`autoPick`). Practice priority: when the
+ * lesson accepts a practice card the student qualifies for, only practice cards
+ * count and the recommended one is auto-picked even if there are several.
+ * Otherwise a card is auto-picked only when it's the single usable one — with
+ * several, staff (or, at self check-in, the student) has to choose.
+ */
+export function cardOptionsFor(
   student: StudentWithCards,
   lesson: LessonWithCards
-): StudentWithCards["studentCards"][number] | null {
+): { usable: CandidateCard[]; autoPick: CandidateCard | null } {
   const levels = toDanceLevels(student.danceQualifications);
-  const shouldForcePracticeCard = shouldUsePracticePriority(lesson, student);
 
-  if (shouldForcePracticeCard) {
-    const practiceCards = student.studentCards.filter(
-      (studentCard) =>
-        studentCard.card.isPracticeCard &&
-        canUseCard(studentCard.card, levels, lesson)
+  if (shouldUsePracticePriority(lesson, student)) {
+    const practiceCards = sortRecommended(
+      student.studentCards.filter(
+        (studentCard) =>
+          studentCard.card.isPracticeCard && canUseCard(studentCard.card, levels, lesson)
+      )
     );
-    return getRecommendedStudentCard(practiceCards);
+    return { usable: practiceCards, autoPick: practiceCards[0] ?? null };
   }
 
-  const usableCards = student.studentCards.filter((studentCard) =>
-    canUseCard(studentCard.card, levels, lesson)
+  const usable = sortRecommended(
+    student.studentCards.filter((studentCard) => canUseCard(studentCard.card, levels, lesson))
   );
+  return { usable, autoPick: usable.length === 1 ? usable[0] : null };
+}
 
-  if (usableCards.length === 1) {
-    return usableCards[0];
-  }
-  return null;
+function selectStudentCard(student: StudentWithCards, lesson: LessonWithCards): CandidateCard | null {
+  return cardOptionsFor(student, lesson).autoPick;
 }
 
 function shouldUsePracticePriority(
@@ -137,11 +151,8 @@ function shouldUsePracticePriority(
   });
 }
 
-function getRecommendedStudentCard(cards: StudentWithCards["studentCards"]) {
-  if (cards.length === 0) {
-    return null;
-  }
-
+// Fewest sessions left first (use it up), then earliest expiry, then oldest.
+function sortRecommended(cards: CandidateCard[]): CandidateCard[] {
   return [...cards].sort((a, b) => {
     if (a.remainingSessions !== b.remainingSessions) {
       return a.remainingSessions - b.remainingSessions;
@@ -160,7 +171,7 @@ function getRecommendedStudentCard(cards: StudentWithCards["studentCards"]) {
     }
 
     return a.id - b.id;
-  })[0];
+  });
 }
 
 async function createAttendanceRecord(
@@ -473,27 +484,90 @@ export type SelfCheckInResult = {
   exhausted?: boolean;
 };
 
+/** How the student pays for this check-in: a card they hold, or one bought now. */
+export type SelfCheckInCardChoice = { studentCardId: number } | { buyCardId: number };
+
+/**
+ * A self check-in the engine refuses before writing anything. `status` is the
+ * HTTP status the LIFF route answers with.
+ */
+export class SelfCheckInError extends Error {
+  constructor(
+    public code:
+      | "card_required" // requireCard, and some period would end up without a card
+      | "card_not_usable" // studentCardId isn't one of this lesson's usable cards
+      | "card_not_offered" // buyCardId isn't attached to this lesson
+      | "not_qualified", // buyCardId is a practice card the student can't buy
+    public status: 400 | 403
+  ) {
+    super(code);
+  }
+}
+
+export type SelfCheckInOutcome = {
+  results: SelfCheckInResult[];
+  /** The card bought during this check-in, if any. */
+  purchased: { id: number; serialNumber: number; name: string; finalPrice: number; isPaid: boolean } | null;
+};
+
+// The card each new period would be charged to, simulated on a copy of the
+// student's cards: the chosen card while it has sessions, then the engine's own
+// pick. Null = that period would go unbound.
+function planPeriodCards(
+  student: StudentWithCards,
+  lesson: LessonWithCards,
+  periodCount: number,
+  chosenId: number | null
+): (number | null)[] {
+  const sim: StudentWithCards = {
+    ...student,
+    studentCards: student.studentCards.map((c) => ({ ...c })),
+  };
+  const plan: (number | null)[] = [];
+  for (let i = 0; i < periodCount; i++) {
+    const chosen = chosenId !== null ? sim.studentCards.find((c) => c.id === chosenId) : undefined;
+    const pick = chosen ?? selectStudentCard(sim, lesson);
+    plan.push(pick?.id ?? null);
+    if (pick) {
+      pick.remainingSessions -= 1;
+      if (pick.remainingSessions <= 0) {
+        sim.studentCards = sim.studentCards.filter((c) => c.id !== pick.id);
+      }
+    }
+  }
+  return plan;
+}
+
+// Placeholder id for the card being bought, until it exists.
+const BUYING = -1;
+
 /**
  * Student self check-in (LIFF). Records attendance for one student across the
- * given periods of a lesson and deducts a card per period, reusing the same card
- * auto-selection as the teacher flow (`selectStudentCard`). Unlike `takeAttendance`
+ * given periods of a lesson and deducts a card per period. Unlike `takeAttendance`
  * it:
  *   - marks each record `source: STUDENT`,
  *   - does NOT set `attendanceTakenAt` (the teacher still finalizes later),
  *   - is idempotent per (student, period) — an existing record is left untouched
  *     and reported as `already_checked` (no double-charge),
- *   - reports per-period card status so the UI can upsell when a card is missing
- *     or was just exhausted.
+ *   - lets the student pick which card pays (`card.studentCardId`) or buy one of
+ *     the lesson's cards on the spot (`card.buyCardId` — unpaid, except a trial
+ *     card for 舊生, which is $0 and paid; src/service/trial.ts),
+ *   - with `requireCard`, refuses (SelfCheckInError, nothing written) rather than
+ *     leave any period unbound.
  */
 export async function selfCheckIn({
   studentId,
   lessonId,
   lessonPeriodIds,
+  card: choice,
+  requireCard = false,
 }: {
   studentId: number;
   lessonId: number;
   lessonPeriodIds: number[];
-}): Promise<SelfCheckInResult[]> {
+  card?: SelfCheckInCardChoice;
+  requireCard?: boolean;
+}): Promise<SelfCheckInOutcome> {
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
     include: { danceStyle: true, cards: { include: { card: true } } },
@@ -504,9 +578,8 @@ export async function selfCheckIn({
 
   const validCardIds = lesson.cards.map((card) => card.cardId);
   // Scoped to the lesson's classroom, which also enforces the "student and
-  // lesson must be in the same classroom" rule both self check-in entry points
-  // rely on (LIFF resolves the student from a LINE token, the QR board from a
-  // classroom key).
+  // lesson must be in the same classroom" rule (LIFF resolves the student from
+  // a LINE token).
   const [student] = await fetchStudentsWithValidCards(
     [studentId],
     validCardIds,
@@ -527,19 +600,92 @@ export async function selfCheckIn({
     select: { lessonPeriodId: true },
   });
   const alreadyCheckedIds = new Set(existing.map((r) => r.lessonPeriodId));
+  const newPeriods = periods.filter((p) => !alreadyCheckedIds.has(p.id));
 
-  const results: SelfCheckInResult[] = [];
+  // ----- Validate the card choice and plan every period before writing -----
+  let chosenId: number | null = null;
+  let buying: (typeof lesson.cards)[number]["card"] | null = null;
+
+  if (choice && "studentCardId" in choice) {
+    const { usable } = cardOptionsFor(student, lesson);
+    if (!usable.some((c) => c.id === choice.studentCardId)) {
+      throw new SelfCheckInError("card_not_usable", 400);
+    }
+    chosenId = choice.studentCardId;
+  } else if (choice && "buyCardId" in choice) {
+    buying = lesson.cards.find((lc) => lc.cardId === choice.buyCardId && !lc.card.expiredAt)?.card ?? null;
+    if (!buying) throw new SelfCheckInError("card_not_offered", 400);
+    if (!canBuyCard(buying, toDanceLevels(student.danceQualifications), lesson).allowed) {
+      throw new SelfCheckInError("not_qualified", 403);
+    }
+    chosenId = BUYING;
+    student.studentCards.push({
+      id: BUYING,
+      remainingSessions: buying.sessions,
+      expiredAt: null,
+      card: buying,
+    } as CandidateCard);
+  }
+
+  const plan = planPeriodCards(student, lesson, newPeriods.length, chosenId);
+  if (requireCard && plan.some((id) => id === null)) {
+    throw new SelfCheckInError("card_required", 400);
+  }
+
+  // ----- Buy the card (only if some period actually uses it) -----
+  let purchased: SelfCheckInOutcome["purchased"] = null;
+  if (buying && plan.includes(BUYING)) {
+    const card = buying;
+    const returning = await isReturningStudent(student.id);
+    const finalPrice = selfServicePrice(card, returning);
+    const isPaid = finalPrice === 0;
+    const created = await prisma.$transaction((tx) =>
+      createStudentCardInTx(tx, {
+        studentId: student.id,
+        card,
+        finalPrice,
+        sessions: card.sessions,
+        purchaseSource: "STUDENT",
+        isPaid,
+        eventDescription: isPaid
+          ? `自助點名時選用 ${card.name}（舊生體驗免費）`
+          : `自助點名時購買 ${card.name}（待付款）`,
+      })
+    );
+    purchased = {
+      id: created.id,
+      serialNumber: created.serialNumber,
+      name: card.name,
+      finalPrice,
+      isPaid,
+    };
+    const placeholder = student.studentCards.find((c) => c.id === BUYING);
+    if (placeholder) Object.assign(placeholder, created, { card });
+    for (let i = 0; i < plan.length; i++) if (plan[i] === BUYING) plan[i] = created.id;
+
+    if (!isPaid) {
+      await notifyClassroom(lesson.classroomId, {
+        type: "UNPAID_CARD",
+        title: "待確認收款",
+        body: `${student.name} 自助點名時買了「${card.name}」${formatCardSerial(created.serialNumber)}，NT$${formatMoney(finalPrice)}`,
+        path: `/students/${student.id}`,
+      });
+    }
+  }
+  student.studentCards = student.studentCards.filter((c) => c.id !== BUYING);
+
+  // ----- Write: one transaction per period -----
+  const results: SelfCheckInResult[] = periods
+    .filter((p) => alreadyCheckedIds.has(p.id))
+    .map((p) => ({ periodId: p.id, status: "already_checked" as const }));
 
   // One transaction per period so they're independent: a duplicate-rejection on
   // one period (unique constraint) doesn't abort the others, and each record +
   // its card deduction commit atomically together.
-  for (const period of periods) {
-    if (alreadyCheckedIds.has(period.id)) {
-      results.push({ periodId: period.id, status: "already_checked" });
-      continue;
-    }
-
-    const studentCard = selectStudentCard(student, lesson);
+  for (const [index, period] of newPeriods.entries()) {
+    const planned = plan[index];
+    const studentCard =
+      planned !== null ? student.studentCards.find((c) => c.id === planned) ?? null : null;
 
     try {
       await prisma.$transaction(async (tx) => {
@@ -573,21 +719,14 @@ export async function selfCheckIn({
       continue;
     }
 
-    // Keep the in-memory card list in sync so multi-period check-ins don't
-    // re-pick an exhausted card or double-count its remaining sessions.
-    const remainingSessions = studentCard.remainingSessions - 1;
-    const memCard = student.studentCards.find((c) => c.id === studentCard.id);
-    if (memCard) memCard.remainingSessions = remainingSessions;
-    if (remainingSessions <= 0) {
-      student.studentCards = student.studentCards.filter((c) => c.id !== studentCard.id);
-    }
-
+    // Keep the in-memory card in sync for the next period's result.
+    studentCard.remainingSessions -= 1;
     results.push({
       periodId: period.id,
       status: "checked",
       cardName: studentCard.card.name,
-      remainingSessions,
-      exhausted: remainingSessions === 0,
+      remainingSessions: studentCard.remainingSessions,
+      exhausted: studentCard.remainingSessions === 0,
     });
   }
 
@@ -605,5 +744,8 @@ export async function selfCheckIn({
     });
   }
 
-  return results;
+  results.sort(
+    (a, b) => periods.findIndex((p) => p.id === a.periodId) - periods.findIndex((p) => p.id === b.periodId)
+  );
+  return { results, purchased };
 }
