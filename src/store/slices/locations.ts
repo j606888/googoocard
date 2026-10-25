@@ -39,7 +39,7 @@ const locationsApi = api.injectEndpoints({
       query: (ids) => ({ url: "locations/order", method: "PUT", body: { ids } }),
       invalidatesTags: ["Location"],
     }),
-    assignLocation: builder.mutation<{ updated: number }, { locationId: number; weekdays: number[] }>({
+    assignLocation: builder.mutation<{ updated: number }, { locationId: number; lessonIds: number[] }>({
       query: (body) => ({ url: "locations/assign", method: "POST", body }),
       invalidatesTags: ["Lesson"],
     }),

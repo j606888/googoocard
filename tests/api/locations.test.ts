@@ -96,21 +96,28 @@ describe("/api/locations", () => {
     expect(bad.status).toBe(400);
   });
 
-  it("assign tags only unassigned lessons whose first period falls on the chosen weekdays (Taipei)", async () => {
+  it("assign tags only the picked lessons that are unassigned and in this classroom", async () => {
     const tainan = await createLocation(classroomId, { name: "台南" });
     const kaohsiung = await createLocation(classroomId, { name: "高雄" });
-    const sunday = await lessonOn(classroomId, SUNDAY);
-    const wednesday = await lessonOn(classroomId, WEDNESDAY);
+    // Same weekday, different branches — the reason it's a pick list, not a weekday rule.
+    const tuesdayTainan = await lessonOn(classroomId, WEDNESDAY);
+    const tuesdayKaohsiung = await lessonOn(classroomId, WEDNESDAY);
     const alreadySet = await lessonOn(classroomId, SUNDAY, kaohsiung.id);
     const other = await createClassroom({ name: "Other", email: "other@test.local" });
     const foreignLesson = await lessonOn(other.id, SUNDAY);
 
-    const res = await ASSIGN(jsonRequest("POST", { locationId: tainan.id, weekdays: [0] }), routeParams({}));
+    const res = await ASSIGN(
+      jsonRequest("POST", {
+        locationId: tainan.id,
+        lessonIds: [tuesdayTainan.id, alreadySet.id, foreignLesson.id],
+      }),
+      routeParams({})
+    );
     expect(await res.json()).toEqual({ updated: 1 });
 
     const byId = async (id: number) => (await prisma.lesson.findUniqueOrThrow({ where: { id } })).locationId;
-    expect(await byId(sunday.id)).toBe(tainan.id);
-    expect(await byId(wednesday.id)).toBeNull();
+    expect(await byId(tuesdayTainan.id)).toBe(tainan.id);
+    expect(await byId(tuesdayKaohsiung.id)).toBeNull();
     expect(await byId(alreadySet.id)).toBe(kaohsiung.id);
     expect(await byId(foreignLesson.id)).toBeNull();
   });
@@ -118,7 +125,7 @@ describe("/api/locations", () => {
   it("assign refuses another classroom's location", async () => {
     const other = await createClassroom({ name: "Other", email: "other@test.local" });
     const foreign = await createLocation(other.id);
-    const res = await ASSIGN(jsonRequest("POST", { locationId: foreign.id, weekdays: [0] }), routeParams({}));
+    const res = await ASSIGN(jsonRequest("POST", { locationId: foreign.id, lessonIds: [1] }), routeParams({}));
     expect(res.status).toBe(400);
   });
 

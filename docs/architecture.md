@@ -244,7 +244,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 同一間教室的不同上課地點（台南、高雄…）。照舞種的做法：教室自己在 `/locations` 管理（名稱、地址、排序、封存不刪），`GET/POST /api/locations`、`PATCH /api/locations/[id]`、`PUT /api/locations/order`。
 - `Lesson.locationId` 選填（`ON DELETE SET NULL`），開課／編輯課程用 `LocationSelect`（chip，教室沒有分部就不顯示；記住上次選的，`getLastLessonLocation`）。課程寫入要驗分部屬於本教室（`LOCATION_NOT_FOUND` 400）。
 - 嵌在課程回應裡只用 `locationSummarySelect`（id、name）。課程列表、詳情、行事曆、LIFF 簽到都顯示 `LocationBadge`；課程列表有 ≥2 個分部有課時多一排分部篩選（`availableLocationIds`）。
-- `POST /api/locations/assign { locationId, weekdays }`：把**還沒設定分部**、第一個時段落在那幾個星期（台北）的課一次標上——舊資料的批次整理，已設定的不動。
+- `POST /api/locations/assign { locationId, lessonIds }`：把勾選的課一次標上分部——舊資料的批次整理，只改本教室、**還沒設定分部**的課。UI 是勾選清單（`AssignLocationDrawer`），「依星期」「依老師」只是快速勾選：同一天兩個分部都有課（週二台南、高雄各一班）所以不能只看星期。
 - **課卡不分部限定**：點名、選卡、購卡規則完全沒變。
 - `Classroom.lineListed`（分部頁上的開關，`PATCH /api/locations/settings`）＝在 LINE 官方帳號公開課表與價目表，見下一節。
 

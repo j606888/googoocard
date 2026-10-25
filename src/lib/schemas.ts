@@ -180,10 +180,10 @@ export const reorderLocationsSchema = z.object({
   ids: z.array(positiveInt).min(1),
 });
 
-/** 套用到既有課程：未設定分部、且第一個時段落在這幾個星期（0 = 週日，台北時間）的課。 */
+/** 套用到既有課程：老師勾選的課（只改還沒設定分部的）。 */
 export const assignLocationSchema = z.object({
   locationId: positiveInt,
-  weekdays: z.array(z.number().int().min(0).max(6)).min(1),
+  lessonIds: z.array(positiveInt).min(1).max(500),
 });
 
 export const locationSettingsSchema = z.object({
