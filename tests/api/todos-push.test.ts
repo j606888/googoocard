@@ -63,6 +63,23 @@ const TOKEN_B = "ExponentPushToken[bbb]";
 
 let classroomId: number;
 
+/** 幾天前上過一堂課、用了這張卡（建一堂只有那個時段的課）。 */
+async function attendRecently(studentId: number, studentCardId: number, daysAgo: number) {
+  const { lesson } = await createLesson(classroomId);
+  const startTime = new Date(Date.now() - daysAgo * 86_400_000);
+  const period = await prisma.lessonPeriod.create({
+    data: {
+      lessonId: lesson.id,
+      startTime,
+      endTime: new Date(startTime.getTime() + 3_600_000),
+      attendanceTakenAt: startTime,
+    },
+  });
+  return prisma.attendanceRecord.create({
+    data: { lessonPeriodId: period.id, studentId, studentCardId },
+  });
+}
+
 async function registerToken(userId: number, token: string) {
   await prisma.pushToken.create({ data: { userId, token, platform: "ios" } });
 }
@@ -79,13 +96,14 @@ beforeEach(async () => {
 });
 
 describe("GET /api/todos", () => {
-  it("列出三類待處理，總數相符", async () => {
+  it("列出三類待處理；紅色數字（total）只算未付款＋沒綁卡", async () => {
     const card = await createCard(classroomId, { name: "10 堂卡" });
     const payer = await createStudent(classroomId, { name: "欠款" });
     await createStudentCard(payer.id, card.id, { isPaid: false });
 
     const renewer = await createStudent(classroomId, { name: "用完" });
-    await createStudentCard(renewer.id, card.id, { remainingSessions: 0 });
+    const used = await createStudentCard(renewer.id, card.id, { remainingSessions: 0 });
+    await attendRecently(renewer.id, used.id, 3);
     await refreshNeedsRenewalTag(renewer.id, classroomId);
 
     const { lesson, period } = await createLesson(classroomId, { withPeriod: true });
@@ -109,7 +127,9 @@ describe("GET /api/todos", () => {
       lessonPeriodId: period!.id,
       student: { name: "沒卡" },
     });
-    expect(body.total).toBe(3);
+    expect(body.urgentCount).toBe(2);
+    expect(body.total).toBe(2);
+    expect(body.reminderCount).toBe(1);
   });
 
   it("其他教室的事項不會出現", async () => {
@@ -173,7 +193,80 @@ describe("GET /api/todos（追帳與可能重複）", () => {
     expect(body.possibleDuplicates[0].students.map((s: { id: number }) => s.id)).toEqual([old.id, fresh.id]);
     expect(body.possibleDuplicates[0].students[1]).toMatchObject({ lineBound: true });
     expect(body.possibleDuplicates[0].students[1]).not.toHaveProperty("lineUserId");
-    expect(body.total).toBe(1);
+    expect(body.reminderCount).toBe(1);
+    expect(body.total).toBe(0);
+  });
+});
+
+describe("GET /api/todos（提醒）", () => {
+  const getTodos = async () =>
+    (await GET_TODOS(new Request("http://test.local/api/todos"), { params: Promise.resolve({}) })).json();
+
+  it("需續約只列 30 天內有來上課的人，更久沒來的只算人數；不進紅色數字", async () => {
+    const card = await createCard(classroomId);
+    const recent = await createStudent(classroomId, { name: "最近有來" });
+    const recentCard = await createStudentCard(recent.id, card.id, { remainingSessions: 0 });
+    await attendRecently(recent.id, recentCard.id, 5);
+    await refreshNeedsRenewalTag(recent.id, classroomId);
+
+    const gone = await createStudent(classroomId, { name: "很久沒來" });
+    const goneCard = await createStudentCard(gone.id, card.id, { remainingSessions: 0 });
+    await attendRecently(gone.id, goneCard.id, 45);
+    await refreshNeedsRenewalTag(gone.id, classroomId);
+
+    const never = await createStudent(classroomId, { name: "沒出席紀錄" });
+    await createStudentCard(never.id, card.id, { remainingSessions: 0 });
+    await refreshNeedsRenewalTag(never.id, classroomId);
+
+    const body = await getTodos();
+    expect(body.needsRenewal.map((r: { student: { name: string } }) => r.student.name)).toEqual(["最近有來"]);
+    expect(body.needsRenewal[0]).toMatchObject({ lineBound: false, lastRemindedAt: null });
+    expect(body.needsRenewal[0].student).not.toHaveProperty("lineUserId");
+    expect(body.inactiveRenewalCount).toBe(2);
+    expect(body.reminderCount).toBe(1);
+    expect(body.total).toBe(0);
+  });
+
+  it("LINE 已提醒只算這次用完之後發的", async () => {
+    const card = await createCard(classroomId);
+    const student = await createStudent(classroomId);
+    await prisma.student.update({ where: { id: student.id }, data: { lineUserId: "U1" } });
+    const sc = await createStudentCard(student.id, card.id, { remainingSessions: 0 });
+    await attendRecently(student.id, sc.id, 2);
+    await prisma.renewalReminder.create({
+      data: { studentId: student.id, sentAt: new Date(Date.now() - 60 * 86_400_000) },
+    });
+    await refreshNeedsRenewalTag(student.id, classroomId);
+
+    let body = await getTodos();
+    expect(body.needsRenewal[0]).toMatchObject({ lineBound: true, lastRemindedAt: null });
+
+    await prisma.renewalReminder.create({ data: { studentId: student.id } });
+    body = await getTodos();
+    expect(body.needsRenewal[0].lastRemindedAt).not.toBeNull();
+  });
+
+  it("14 天內上過體驗課、沒買過正式卡的列進體驗後還沒買卡", async () => {
+    const trial = await createCard(classroomId, { name: "體驗課", isTrial: true, price: 300, sessions: 1 });
+    const regular = await createCard(classroomId, { name: "8 堂卡" });
+
+    const fresh = await createStudent(classroomId, { name: "剛體驗" });
+    const freshTrial = await createStudentCard(fresh.id, trial.id, { remainingSessions: 0, totalSessions: 1 });
+    await attendRecently(fresh.id, freshTrial.id, 3);
+
+    const bought = await createStudent(classroomId, { name: "已買卡" });
+    const boughtTrial = await createStudentCard(bought.id, trial.id, { remainingSessions: 0, totalSessions: 1 });
+    await attendRecently(bought.id, boughtTrial.id, 3);
+    await createStudentCard(bought.id, regular.id);
+
+    const old = await createStudent(classroomId, { name: "太久以前" });
+    const oldTrial = await createStudentCard(old.id, trial.id, { remainingSessions: 0, totalSessions: 1 });
+    await attendRecently(old.id, oldTrial.id, 20);
+
+    const body = await getTodos();
+    expect(body.trialFollowUps.map((t: { student: { name: string } }) => t.student.name)).toEqual(["剛體驗"]);
+    expect(body.reminderCount).toBe(1);
+    expect(body.total).toBe(0);
   });
 });
 
@@ -240,7 +333,7 @@ describe("/api/notification-preferences", () => {
 describe("notifyClassroom", () => {
   const push = { type: "UNPAID_CARD" as const, title: "t", body: "b", path: "/x" };
 
-  it("推給 owner 與助教，不推給其他教室的人；badge = 待處理總數", async () => {
+  it("推給 owner 與助教，不推給其他教室的人；badge = 要處理的數字", async () => {
     const assistant = await createMember(classroomId);
     const other = await createClassroom({ name: "別間", email: "other@test.local" });
     const outsider = await prisma.membership.findFirstOrThrow({ where: { classroomId: other.id } });

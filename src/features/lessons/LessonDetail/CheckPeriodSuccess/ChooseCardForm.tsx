@@ -5,7 +5,6 @@ import { useGetStudentCardsByLessonQuery } from "@/store/slices/students";
 import { formatDate } from "@/lib/utils";
 import CardSerial from "@/components/CardSerial";
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
-import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
@@ -14,15 +13,22 @@ const ChooseCardForm = ({
   record,
   lesson,
   studentId,
+  periodId,
+  inline = false,
+  onDone,
 }: {
   record: AttendanceRecord;
   lesson: Lesson;
   studentId: number;
+  periodId: number;
+  /** 已經在對話框裡：表單直接攤開（見 ExpandableAction） */
+  inline?: boolean;
+  /** 送出成功或取消後（inline 時由外層關掉對話框） */
+  onDone?: () => void;
 }) => {
   const [open, setOpen] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [allowManualOverride, setAllowManualOverride] = useState(false);
-  const { periodId } = useParams();
   const [consumeStudentCard, { isLoading }] = useConsumeStudentCardMutation();
   const { data: studentCards } = useGetStudentCardsByLessonQuery({
     studentId,
@@ -62,6 +68,7 @@ const ChooseCardForm = ({
     setOpen(false);
     setSelectedCardId(null);
     setAllowManualOverride(false);
+    onDone?.();
   };
 
   const handleSubmit = async () => {
@@ -69,7 +76,7 @@ const ChooseCardForm = ({
 
     await consumeStudentCard({
       id: lesson.id,
-      periodId: Number(periodId),
+      periodId,
       studentId,
       studentCardId: selectedCardId,
     });
@@ -84,6 +91,7 @@ const ChooseCardForm = ({
         title={`為 ${record.studentName} 選擇課卡使用`}
         open={open}
         onOpenChange={(next) => (next ? setOpen(true) : handleClose())}
+        inline={inline}
         onSubmit={handleSubmit}
         submitText="使用這張"
         disabled={!selectedCardId}

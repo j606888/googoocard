@@ -416,7 +416,7 @@ https://claude.ai/artifact/CXhjEmTYUz9MDHurt4zNdH
 - `Tag` / `StudentTag`：教室層級的自由標籤，學生編輯頁可增刪。
 - **"Needs Renewal"** 由系統自動維護（`src/service/studentTag.ts` 的
   `refreshNeedsRenewalTag`）：學生最新一張多堂卡用完 → 自動加 tag，買新卡/退堂 → 自動移除。
-  觸發點：點名（含取消勾選退堂）、買卡、課卡轉換／轉讓、合併學員。**不要手動增刪這個 tag 的邏輯**，改
+  觸發點：點名（含取消勾選退堂）、買卡、課卡轉換／轉讓、停用課卡、合併學員。**不要手動增刪這個 tag 的邏輯**，改
   `findExhaustedRenewableCard` 即可（見下一節）。
 
 ## 續卡提醒推播（每日 cron）
@@ -487,9 +487,19 @@ build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
 | 類別（`TodoType`） | 怎麼算 | 處理完 | 推播觸發點 |
 |---|---|---|---|
 | `UNPAID_CARD` 待確認收款 | `StudentCard.isPaid = false`（封存學生照列，欠款還是欠款），**拖越久排越前**，附已用堂數 | 確認付款 | 學生在 LIFF 自助買卡、或自助點名時當場買卡（體驗課卡不在學生端賣） |
-| `NEEDS_RENEWAL` 需續約 | 「Needs Renewal」tag，排除封存學生 | 買新卡 → tag 移除 | `refreshNeedsRenewalTag()` 裡 tag **這次才加上**（`createMany skipDuplicates` 的 count = 1） |
+| `NEEDS_RENEWAL` 需續約 | 「Needs Renewal」tag，排除封存學生；**只列 30 天內有來上課的**（`RENEWAL_ACTIVE_DAYS`），更久沒來的只回 `inactiveRenewalCount`。每列附 `lastAttendedAt`、`lineBound`、`lastRemindedAt`（這次用完後的 LINE 續卡提醒） | 買新卡 → tag 移除 | `refreshNeedsRenewalTag()` 裡 tag **這次才加上**（`createMany skipDuplicates` 的 count = 1） |
 | `UNBOUND_ATTENDANCE` 出席沒綁課卡 | `AttendanceRecord.studentCardId = null` | 綁上課卡 | `selfCheckIn()` 有時段是 `no_card`（LIFF 開了 `requireCard`，實際上只剩不帶 `requireCard` 的呼叫會發生） |
+| 體驗後還沒買卡（**不是** `TodoType`、不推播） | 14 天內（`TRIAL_FOLLOW_UP_DAYS`）用體驗卡上過課、沒有任何非體驗卡的在籍學生，`trialFollowUps` | 買正式卡，或過了 14 天 | 無 |
 | 可能重複（**不是** `TodoType`、不推播） | 同教室、在籍、名字相同（trim、不分大小寫）的學生組，`findPossibleDuplicates()` | 合併學員或改名 | 無 |
+
+**兩層：要處理 vs. 提醒**（2026-10-26）。待確認收款＋出席沒綁課卡是「已經發生、要現在補」的 → `urgentCount`；
+需續約、體驗後沒買卡、可能重複是「值得知道」的 → `reminderCount`。**紅色數字只算 `urgentCount`**：
+鈴鐺、App 圖示、推播 badge（`countTodos()`）、Badging API 都是；`total` 留著等於 `urgentCount`（舊版 App 拿它設圖示）。
+只剩提醒時鈴鐺顯示灰點、不顯示數字；底部「學生」分頁與側欄不再掛需續約人數（同一畫面兩個數字會打架，改看學生列表的篩選 chip）。
+
+鈴鐺分「要處理／提醒」兩頁。要處理的兩類**就地處理**，不用回課程頁：「補卡」開 `BindAttendanceCardDialog`
+（跟點名完成頁的「未綁定課卡學生」同一套 `PendingRecordAction`，`ExpandableAction inline` 攤開）、
+「確認收款」開 `ConfirmPaymentDrawer`。兩個對話框都掛在 Popover 外面（Popover 一被點到外面就關，掛在裡面會連對話框一起卸載）。
 
 老師自己在後台建未付款卡、點名時沒卡，**不推**（人就在現場），但一樣會出現在待處理。
 

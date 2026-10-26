@@ -6,18 +6,13 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { MoreHorizontal } from "lucide-react";
 import { PRIMARY_LINKS, SECONDARY_LINKS } from "./navConfig";
-import {
-  useGetStudentsQuery,
-  useGetUnpaidStudentCardsQuery,
-} from "@/store/slices/students";
+import { useGetUnpaidStudentCardsQuery } from "@/store/slices/students";
 import MoreSheet from "./MoreSheet";
 
 const BottomNav = () => {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const { data: renewalStudents } = useGetStudentsQuery({ needsRenewal: true });
-  const renewalCount = renewalStudents?.length ?? 0;
   const { data: unpaidCards } = useGetUnpaidStudentCardsQuery();
   const unpaidCount = unpaidCards?.length ?? 0;
 
@@ -35,7 +30,6 @@ const BottomNav = () => {
           {PRIMARY_LINKS.map((link) => {
             const active = pathname.startsWith(link.href);
             let badge: number | undefined;
-            if (link.href === "/students" && renewalCount > 0) badge = renewalCount;
             if (link.href === "/income" && unpaidCount > 0) badge = unpaidCount;
             return (
               <NavTab

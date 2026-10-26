@@ -307,12 +307,15 @@ export async function buildStudentDetailPayload(studentId: number) {
 
   const { attendanceRecords, studentCards, danceQualifications } = student;
 
+  // 跟老師端 GET /api/students/[id] 同一套：轉換／轉讓而來的卡不是「買」的，不算消費。
+  const purchasedCards = studentCards.filter((card) => card.origin === "PURCHASE");
+
   const overview = {
     ...toLastAttendance(attendanceRecords),
     ...attendanceCounts(attendanceRecords),
-    cardCount: studentCards.length,
-    totalSpend: studentCards.reduce((acc, card) => acc + card.finalPrice, 0),
-    totalSaved: studentCards.reduce((acc, card) => acc + (card.basePrice - card.finalPrice), 0),
+    cardCount: purchasedCards.length,
+    totalSpend: purchasedCards.reduce((acc, card) => acc + card.finalPrice, 0),
+    totalSaved: purchasedCards.reduce((acc, card) => acc + (card.basePrice - card.finalPrice), 0),
   };
 
   const { attendancesByLesson, attendancesByDate, studentCardAttendances } =

@@ -10,7 +10,7 @@ import {
   jsonRequest,
   routeParams,
 } from "../factories";
-import { attendanceCounts } from "@/service/studentDetail";
+import { attendanceCounts, buildStudentDetailPayload } from "@/service/studentDetail";
 
 const auth = vi.hoisted(() => ({ userId: 1, classroomId: 0 }));
 vi.mock("@/lib/auth", () => ({ decodeAuthToken: async () => auth }));
@@ -196,5 +196,26 @@ describe("封存學生", () => {
     const amy = await createStudent(classroomId);
     const res = await PATCH(jsonRequest("PATCH", { archived: "yes" }), routeParams({ id: String(amy.id) }));
     expect(res.status).toBe(400);
+  });
+});
+
+describe("公開頁／LIFF 的學生總覽（buildStudentDetailPayload）", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+
+  it("課卡數與消費金額只算買的卡，跟老師端一致", async () => {
+    const classroom = await createClassroom();
+    const student = await createStudent(classroom.id);
+    const card = await createCard(classroom.id);
+    await createStudentCard(student.id, card.id, { finalPrice: 3000 });
+    await createStudentCard(student.id, card.id, { finalPrice: 1500, origin: "CONVERSION" });
+    await createStudentCard(student.id, card.id, { finalPrice: 800, origin: "TRANSFER" });
+
+    const payload = await buildStudentDetailPayload(student.id);
+    expect(payload?.overview.cardCount).toBe(1);
+    expect(payload?.overview.totalSpend).toBe(3000);
+    // 課卡列表本身還是全部列出
+    expect(payload?.studentCards).toHaveLength(3);
   });
 });

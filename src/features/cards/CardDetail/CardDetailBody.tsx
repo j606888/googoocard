@@ -13,6 +13,7 @@ import {
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { cn, formatDate } from "@/lib/utils";
 import SortMenu from "@/components/SortMenu";
+import { studentDetailHref } from "@/lib/studentNav";
 import CardSerial from "@/components/CardSerial";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
@@ -184,7 +185,7 @@ const CardDetailBody = ({
         </div>
       )}
 
-      <Holders holders={holders} isTrial={kind === "trial"} />
+      <Holders holders={holders} isTrial={kind === "trial"} cardId={card.id} />
 
       {purchasedCount === 0 && (
         <Button variant="dangerSecondary" size="sm" className="self-start" onClick={() => setConfirmDelete(true)}>
@@ -207,7 +208,15 @@ const CardDetailBody = ({
   );
 };
 
-const Holders = ({ holders, isTrial }: { holders: CardDetail["holders"]; isTrial: boolean }) => {
+const Holders = ({
+  holders,
+  isTrial,
+  cardId,
+}: {
+  holders: CardDetail["holders"];
+  isTrial: boolean;
+  cardId: number;
+}) => {
   const [filter, setFilter] = useState<HolderFilter>("all");
   const [sort, setSort] = useState<HolderSort>(DEFAULT_HOLDER_SORT);
   const [query, setQuery] = useState("");
@@ -307,7 +316,7 @@ const Holders = ({ holders, isTrial }: { holders: CardDetail["holders"]; isTrial
             return (
               <li key={holder.id}>
                 <Link
-                  href={`/students/${holder.studentId}?from=cards`}
+                  href={studentDetailHref(holder.studentId, `/cards/${cardId}`)}
                   className="flex items-center gap-3 py-2.5 border-b border-neutral-100 hover:bg-neutral-50 -mx-2 px-2 rounded-lg"
                 >
                   <img
