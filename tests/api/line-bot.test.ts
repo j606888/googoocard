@@ -190,6 +190,50 @@ describe("LINE bot — 課表／價目表／我的課卡", () => {
     expect(last()).toContain("cards?switch=1");
   });
 
+  it("更多 for a bound student: their name, 上課紀錄 with this month's count, 教室地點 — no binding steps", async () => {
+    const me = await createStudent(classroomId, { name: "小美" });
+    await prisma.student.update({ where: { id: me.id }, data: { lineUserId: "Ume" } });
+    await createLocation(classroomId, { name: "台南", address: "台南市中西區民族路 1 號" });
+    const lesson = await lessonAt(classroomId, "2026-10-20T11:00:00Z", { name: "上週課" });
+    const period = await prisma.lessonPeriod.findFirstOrThrow({ where: { lessonId: lesson.id } });
+    await prisma.attendanceRecord.create({ data: { lessonPeriodId: period.id, studentId: me.id } });
+
+    await postback("Ume", "a=more");
+    expect(last()).toContain("小美 · Googoo");
+    expect(last()).toContain("cards?tab=attend");
+    expect(last()).toContain("這個月上了 1 堂");
+    expect(last()).toContain("教室地點");
+    expect(last()).not.toContain("第一次來上課");
+  });
+
+  it("更多 for an unbound account: the two ways to bind, plus the public classroom's 教室地點", async () => {
+    await postback("Unew", "a=more");
+    expect(last()).toContain("第一次來上課");
+    expect(last()).toContain("已經在上課了");
+    expect(last()).not.toContain("教室地點"); // no public classroom to show yet
+
+    await prisma.classroom.update({ where: { id: classroomId }, data: { lineListed: true } });
+    await createLocation(classroomId, { name: "高雄" });
+    await postback("Unew", "a=more");
+    expect(last()).toContain("教室地點");
+  });
+
+  it("教室地點 lists each 分部; one with an address opens Google Maps", async () => {
+    const me = await createStudent(classroomId, { name: "小美" });
+    await prisma.student.update({ where: { id: me.id }, data: { lineUserId: "Ume" } });
+    await text("Ume", "地點");
+    expect(last()).toContain("還沒有設定教室地點");
+
+    await createLocation(classroomId, { name: "台南", address: "台南市中西區民族路 1 號", sortOrder: 0 });
+    await createLocation(classroomId, { name: "高雄", sortOrder: 1 });
+    await createLocation(classroomId, { name: "舊址", archivedAt: new Date() });
+    await postback("Ume", "a=locations");
+    expect(last()).toContain("台南市中西區民族路 1 號");
+    expect(last()).toContain("google.com/maps");
+    expect(last()).toContain("高雄");
+    expect(last()).not.toContain("舊址");
+  });
+
   it("follow: a bound student is greeted by name; a stranger is told how to register", async () => {
     const follow = (userId: string) =>
       handleLineEvent({ type: "follow", replyToken: "r", source: { type: "user", userId } }, reply);

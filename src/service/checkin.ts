@@ -1,8 +1,13 @@
-import { locationSummarySelect } from "@/lib/locations";
-import { Classroom } from "@prisma/client";
-import type { DanceStyleSummary } from "@/lib/danceStyles";
+import { locationSummarySelect, type LocationSummary } from "@/lib/locations";
+import { Classroom, Prisma } from "@prisma/client";
+import { danceStyleSummarySelect, type DanceStyleSummary } from "@/lib/danceStyles";
 import prisma from "@/lib/prisma";
-import { toTaipeiDateKey, parseTaipeiDateRange } from "@/lib/taipei-date";
+import {
+  toTaipeiDateKey,
+  parseTaipeiDateRange,
+  parseTaipeiMonthRange,
+  toTaipeiMonthKey,
+} from "@/lib/taipei-date";
 import { canBuyCard, toDanceLevels } from "@/domains/qualification";
 import { cardOptionsFor } from "@/domains/attendance/attendance.service";
 import { fetchStudentsWithValidCards } from "@/service/lessonCards";
@@ -51,10 +56,46 @@ export interface TodayLesson {
   cardStatus?: LessonCardStatus;
 }
 
+/** A future period, for the「下一堂課」/「接下來」of a day with no class. */
+export interface UpcomingPeriod {
+  periodId: number;
+  lessonId: number;
+  lessonName: string;
+  danceStyle: DanceStyleSummary;
+  location: LocationSummary | null;
+  startTime: Date;
+  endTime: Date;
+}
+
+export interface NextLesson extends UpcomingPeriod {
+  /** A lesson the student has been in (LessonStudent) — 「你的下一堂」 — rather than just the classroom's next. */
+  mine: boolean;
+  /** Only with a student: what that lesson would charge. */
+  cardStatus?: LessonCardStatus;
+}
+
+/** One of the student's cards for the no-class page: still usable, or not paid yet. */
+export interface MyCardSummary {
+  id: number;
+  name: string;
+  serialNumber: number;
+  remainingSessions: number;
+  totalSessions: number;
+  /** null = paid. */
+  unpaidAmount: number | null;
+  lastUsedAt: Date | null;
+}
+
 export interface TodayLessons {
   date: string;
   today: TodayLesson[];
-  nextLesson: { lessonName: string; startTime: Date } | null;
+  /** Only when there's no class today. */
+  nextLesson: NextLesson | null;
+  /** Only when there's no class today: the classroom's next few periods besides `nextLesson`. */
+  upcoming: UpcomingPeriod[];
+  /** Only when there's no class today and a student is given. */
+  myCards?: MyCardSummary[];
+  monthAttendance?: number;
 }
 
 /**
@@ -88,8 +129,8 @@ export function checkinEntryUrl(key: string, origin: string) {
  * Today's (Taipei) lessons in a classroom, with each period flagged for whether
  * `studentId` already checked in. Walk-in style: every lesson running today is
  * offered, not just the ones the student is enrolled in. When there is no class
- * today, `nextLesson` carries the next upcoming period so the UI can show
- * 「下次上課」.
+ * today it says what's next instead — `nextLesson`, `upcoming`, and with a
+ * student their cards and this month's count — so the page isn't a dead end.
  *
  * Data source of the LIFF check-in page (`/api/liff/today`).
  */
@@ -146,19 +187,136 @@ export async function getTodayLessons(
     }))
   );
 
-  let nextLesson: { lessonName: string; startTime: Date } | null = null;
-  if (today.length === 0) {
-    const next = await prisma.lessonPeriod.findFirst({
-      where: { lesson: { classroomId }, startTime: { gt: now } },
-      orderBy: { startTime: "asc" },
-      include: { lesson: { select: { name: true } } },
-    });
-    if (next) {
-      nextLesson = { lessonName: next.lesson.name, startTime: next.startTime };
-    }
-  }
+  if (today.length > 0) return { date: todayKey, today, nextLesson: null, upcoming: [] };
 
-  return { date: todayKey, today, nextLesson };
+  // No class today — say when the next one is, so the page isn't a dead end.
+  const nextLesson = await findNextLesson(classroomId, studentId, now);
+  const upcoming = await findFuturePeriods(
+    { lesson: { classroomId, endedAt: null }, ...(nextLesson ? { id: { not: nextLesson.periodId } } : {}) },
+    now,
+    UPCOMING_COUNT
+  );
+  if (!studentId) return { date: todayKey, today, nextLesson, upcoming };
+
+  const [myCards, monthAttendance] = await Promise.all([
+    myCardSummaries(studentId),
+    monthAttendanceCount(studentId, now),
+  ]);
+  return { date: todayKey, today, nextLesson, upcoming, myCards, monthAttendance };
+}
+
+const UPCOMING_COUNT = 2;
+
+const upcomingPeriodSelect = {
+  id: true,
+  startTime: true,
+  endTime: true,
+  lesson: {
+    select: {
+      id: true,
+      name: true,
+      danceStyle: { select: danceStyleSummarySelect },
+      location: { select: locationSummarySelect },
+    },
+  },
+} satisfies Prisma.LessonPeriodSelect;
+
+type UpcomingPeriodRow = Prisma.LessonPeriodGetPayload<{ select: typeof upcomingPeriodSelect }>;
+
+const toUpcoming = (p: UpcomingPeriodRow): UpcomingPeriod => ({
+  periodId: p.id,
+  lessonId: p.lesson.id,
+  lessonName: p.lesson.name,
+  danceStyle: p.lesson.danceStyle,
+  location: p.lesson.location,
+  startTime: p.startTime,
+  endTime: p.endTime,
+});
+
+/**
+ * Periods after `now`, soonest first. Callers filter on `lesson.endedAt: null`
+ * like the LINE 課表: a lesson ended by hand has no more classes, and endedAt is
+ * always in the past, so that's every future period the LIFF 課表 would show.
+ */
+async function findFuturePeriods(where: Prisma.LessonPeriodWhereInput, now: Date, take: number) {
+  const periods = await prisma.lessonPeriod.findMany({
+    where: { ...where, startTime: { gt: now } },
+    orderBy: [{ startTime: "asc" }, { id: "asc" }],
+    take,
+    select: upcomingPeriodSelect,
+  });
+  return periods.map(toUpcoming);
+}
+
+/**
+ * The next period of a lesson the student has been in (the LIFF 課表's「我的課」),
+ * else the classroom's next period — a newcomer still sees when to come. With a
+ * student, it carries what that lesson would charge them.
+ */
+async function findNextLesson(
+  classroomId: number,
+  studentId: number | undefined,
+  now: Date
+): Promise<NextLesson | null> {
+  const open = { classroomId, endedAt: null };
+  const [mine] = studentId
+    ? await findFuturePeriods({ lesson: { ...open, students: { some: { studentId } } } }, now, 1)
+    : [];
+  const [next] = mine ? [mine] : await findFuturePeriods({ lesson: open }, now, 1);
+  if (!next) return null;
+  if (!studentId) return { ...next, mine: false };
+
+  const lesson = await prisma.lesson.findUniqueOrThrow({
+    where: { id: next.lessonId },
+    include: { danceStyle: true, cards: { include: { card: true } } },
+  });
+  return {
+    ...next,
+    mine: Boolean(mine),
+    cardStatus: await lessonCardStatus(lesson, studentId, classroomId),
+  };
+}
+
+/** Same set as the LINE「我的課卡」reply: usable cards plus any still unpaid, oldest first. */
+async function myCardSummaries(studentId: number): Promise<MyCardSummary[]> {
+  const cards = await prisma.studentCard.findMany({
+    where: {
+      studentId,
+      OR: [{ remainingSessions: { gt: 0 }, expiredAt: null }, { isPaid: false }],
+    },
+    select: {
+      id: true,
+      serialNumber: true,
+      remainingSessions: true,
+      totalSessions: true,
+      isPaid: true,
+      finalPrice: true,
+      card: { select: { name: true } },
+      attendanceRecords: {
+        select: { lessonPeriod: { select: { startTime: true } } },
+        orderBy: { lessonPeriod: { startTime: "desc" } },
+        take: 1,
+      },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+  return cards.map((c) => ({
+    id: c.id,
+    name: c.card.name,
+    serialNumber: c.serialNumber,
+    remainingSessions: c.remainingSessions,
+    totalSessions: c.totalSessions,
+    unpaidAmount: c.isPaid ? null : c.finalPrice,
+    lastUsedAt: c.attendanceRecords[0]?.lessonPeriod.startTime ?? null,
+  }));
+}
+
+/** How many periods the student attended this (Taipei) month. */
+export async function monthAttendanceCount(studentId: number, now = new Date()): Promise<number> {
+  const { start, end } = parseTaipeiMonthRange(toTaipeiMonthKey(now));
+  return prisma.attendanceRecord.count({
+    where: { studentId, lessonPeriod: { startTime: { gte: start, lt: end } } },
+  });
 }
 
 // The lesson query loads the full style (the card rules need it); the wire

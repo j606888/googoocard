@@ -65,7 +65,7 @@ export const WARNING = "#C96C1E"; // warning-800
  * the action bound to the whole row, instead of a filled LINE button — cleaner
  * and lets us show a leading icon, which LINE's native `button` can't.
  */
-type MenuItem = { icon: string; label: string; action: LineMessage; muted?: boolean };
+type MenuItem = { icon: string; label: string; action: LineMessage; muted?: boolean; note?: string };
 
 /**
  * URL for a student LIFF sub-page (`/liff/<path>`): a LIFF deep link when the
@@ -82,8 +82,9 @@ function liffItem(icon: string, label: string, path: string, muted = false): Men
   return { icon, label, muted, action: { type: "uri", label, uri: liffPath(path) } };
 }
 
-/** Render one menu entry as a tappable horizontal row: icon · label · chevron. */
+/** Render one menu entry as a tappable horizontal row: icon · label (· note under it) · chevron. */
 function itemRow(item: MenuItem): LineMessage {
+  const label = { type: "text", text: item.label, size: "md", weight: "bold", color: item.muted ? TEXT_MUTED : TEXT_MAIN };
   return {
     type: "box",
     layout: "horizontal",
@@ -92,15 +93,14 @@ function itemRow(item: MenuItem): LineMessage {
     spacing: "md",
     contents: [
       { type: "text", text: item.icon, flex: 0, size: "lg", gravity: "center" },
-      {
-        type: "text",
-        text: item.label,
-        flex: 1,
-        size: "md",
-        weight: "bold",
-        gravity: "center",
-        color: item.muted ? TEXT_MUTED : TEXT_MAIN,
-      },
+      item.note
+        ? {
+            type: "box",
+            layout: "vertical",
+            flex: 1,
+            contents: [label, { type: "text", text: item.note, size: "xs", color: TEXT_MUTED, wrap: true }],
+          }
+        : { ...label, flex: 1, gravity: "center" },
       { type: "text", text: "›", flex: 0, size: "lg", gravity: "center", color: "#cccccc" },
     ],
   };
@@ -193,25 +193,61 @@ export function buildStudentMenuFlex(opts: { showStudentSwitch?: boolean; name?:
 }
 
 /**
- * Rich menu「更多」: the less-used entries. Each is optional — only what applies
- * to this LINE account is shown.
+ * Rich menu「更多」. The rich menu is shared by everyone, so this is where it
+ * differs by who taps it: a bound student gets their own things (上課紀錄,
+ * 教室地點, 切換教室 when bound in several classrooms); an unbound account gets
+ * the two ways to become a student.
  */
 export function buildMoreMenuFlex(opts: {
+  /** Bound → their menu (header names them); omitted → the unbound one. */
+  student?: { name: string; classroomName: string; monthAttendance: number };
+  /** 分部 of the classroom in view; empty → no 教室地點 row. */
+  locationNames?: string[];
   /** Bound to more than one student (one per classroom) → the LIFF picker. */
   studentSwitch?: boolean;
   /** Not a bound student and several classrooms are public → choose one. */
   classroomSwitch?: boolean;
 }): LineMessage {
-  const items: MenuItem[] = [];
-  if (opts.studentSwitch) items.push(liffItem("🔁", "切換教室", "cards?switch=1"));
+  const bindHelp = { type: "postback", label: "怎麼綁定", data: "a=bindhelp", displayText: "怎麼綁定學生身分？" };
+  const locations: MenuItem[] = opts.locationNames?.length
+    ? [
+        {
+          icon: "📍",
+          label: "教室地點",
+          note: opts.locationNames.join("・"),
+          action: { type: "postback", label: "教室地點", data: "a=locations", displayText: "教室地點" },
+        },
+      ]
+    : [];
+
+  if (opts.student) {
+    const { name, classroomName, monthAttendance } = opts.student;
+    const items: MenuItem[] = [
+      {
+        ...liffItem("🗓", "上課紀錄", "cards?tab=attend"),
+        note: monthAttendance > 0 ? `這個月上了 ${monthAttendance} 堂` : "你上過的每一堂課",
+      },
+      ...locations,
+    ];
+    if (opts.studentSwitch) items.push(liffItem("🔁", "切換教室", "cards?switch=1"));
+    items.push({ icon: "🔗", label: "也在別間教室上課？", muted: true, action: bindHelp });
+    return { type: "flex", altText: "googoocard 更多", contents: menuBubble(`${name} · ${classroomName}`, items) };
+  }
+
+  const items: MenuItem[] = [
+    { ...liffItem("📷", "第一次來上課", "checkin"), note: "到教室掃門口的簽到 QR 就能登記" },
+    { icon: "🔗", label: "已經在上課了", note: "請老師傳綁定連結給你", action: bindHelp },
+    ...locations,
+  ];
   if (opts.classroomSwitch) {
     items.push({ icon: "🔁", label: "切換教室", action: { type: "postback", label: "切換教室", data: "a=classrooms", displayText: "切換教室" } });
   }
-  items.push({ icon: "🔗", label: "怎麼綁定學生身分", action: { type: "postback", label: "怎麼綁定", data: "a=bindhelp", displayText: "怎麼綁定學生身分？" } });
   return {
     type: "flex",
     altText: "googoocard 更多",
-    contents: menuBubble("更多", items),
+    contents: menuBubble("還沒綁定學生身分", items, {
+      lead: "要簽到、看自己的課卡，先綁定學生身分。課表和價目表不用綁定也能看。",
+    }),
   };
 }
 

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { AlertCircle, Banknote, Check, ChevronLeft, CreditCard, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import EmptyState from "@/components/EmptyState";
 import StatusTag from "@/components/StatusTag";
 import LiffSkeleton from "@/features/liff/LiffSkeleton";
 import { StudentWithDetail } from "@/store/slices/students";
@@ -16,6 +15,7 @@ import { formatMoney } from "@/lib/money";
 import { loadLiff } from "@/lib/liffClient";
 import LocationBadge from "@/components/LocationBadge";
 import AddFriendPrompt from "@/features/liff/AddFriendPrompt";
+import NoClassToday from "@/features/liff/NoClassToday";
 import {
   CheckinResponse,
   TodayLesson,
@@ -197,26 +197,9 @@ export default function CheckinList({
     return <CheckinDone student={student} done={done} />;
   }
 
-  // ----- No class today -----
+  // ----- No class today: what's next instead -----
   if (data.today.length === 0) {
-    return (
-      <EmptyState
-        kind="page"
-        title="今天沒有課程"
-        description={
-          data.nextLesson ? (
-            <>
-              下次上課：{dateFmt.format(new Date(data.nextLesson.startTime))}{" "}
-              {timeFmt.format(new Date(data.nextLesson.startTime))}
-              <br />
-              {data.nextLesson.lessonName}
-            </>
-          ) : (
-            "目前沒有安排中的課程。"
-          )
-        }
-      />
-    );
+    return <NoClassToday data={data} />;
   }
 
   // ----- Pick a card to buy (B4) -----

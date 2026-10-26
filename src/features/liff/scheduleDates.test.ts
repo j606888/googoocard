@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dateKeyOf, dayLabel, monthGrid, shiftMonth, taipeiTime } from "./scheduleDates";
+import { dateKeyOf, dayLabel, daysBetween, monthGrid, shiftMonth, taipeiTime } from "./scheduleDates";
 
 describe("scheduleDates", () => {
   it("pads the month to whole Sunday-first weeks", () => {
@@ -19,5 +19,10 @@ describe("scheduleDates", () => {
     // 2026-10-27T16:30Z is 00:30 on the 28th in Taipei.
     expect(taipeiTime("2026-10-27T16:30:00Z")).toBe("00:30");
     expect(dateKeyOf("2026-10-27T16:30:00Z")).toBe("2026-10-28");
+  });
+
+  it("counts whole days between date keys, across months", () => {
+    expect(daysBetween("2026-10-26", "2026-10-28")).toBe(2);
+    expect(daysBetween("2026-10-31", "2026-11-01")).toBe(1);
   });
 });

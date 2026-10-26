@@ -31,11 +31,26 @@ export const monthLabel = (monthKey: string) => {
   return `${year} 年 ${month} 月`;
 };
 
-/** `"2026-10-28"` → 「10/28（三）」 */
-export function dayLabel(dateKey: string): string {
+const utcOf = (dateKey: string) => {
   const [year, month, day] = dateKey.split("-").map(Number);
-  return `${month}/${day}（${WEEKDAY[new Date(Date.UTC(year, month - 1, day)).getUTCDay()]}）`;
+  return Date.UTC(year, month - 1, day);
+};
+
+/** `"2026-10-28"` → 「三」 */
+export const weekdayOf = (dateKey: string) => WEEKDAY[new Date(utcOf(dateKey)).getUTCDay()];
+
+/** `"2026-10-28"` → 「10/28」 */
+export function shortDay(dateKey: string): string {
+  const [, month, day] = dateKey.split("-").map(Number);
+  return `${month}/${day}`;
 }
+
+/** `"2026-10-28"` → 「10/28（三）」 */
+export const dayLabel = (dateKey: string) => `${shortDay(dateKey)}（${weekdayOf(dateKey)}）`;
+
+/** Whole days from one date key to another (`"2026-10-26"` → `"2026-10-28"` = 2). */
+export const daysBetween = (fromKey: string, toKey: string) =>
+  Math.round((utcOf(toKey) - utcOf(fromKey)) / (24 * 60 * 60 * 1000));
 
 /** 「20:00」 in Taipei. */
 export function taipeiTime(iso: string | Date): string {

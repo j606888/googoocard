@@ -169,6 +169,50 @@ export function scheduleCarousel(opts: {
 export const mapsUri = (query: string) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 
+// ── 教室地點 ────────────────────────────────────────────────────────────────
+
+export type ClassroomLocation = { name: string; address: string | null };
+
+/** 「更多」→ 教室地點：一個分部一列，有地址的整列點了開地圖。 */
+export function locationsFlex(opts: { classroomName: string; locations: ClassroomLocation[] }): LineMessage {
+  const rows: LineMessage[] = [];
+  opts.locations.forEach((loc, i) => {
+    if (i > 0) rows.push({ type: "separator", color: ROW_DIVIDER });
+    rows.push({
+      type: "box",
+      layout: "horizontal",
+      spacing: "md",
+      paddingTop: "md",
+      paddingBottom: "md",
+      ...(loc.address ? { action: { type: "uri", label: "地圖", uri: mapsUri(loc.address) } } : {}),
+      contents: [
+        {
+          type: "box",
+          layout: "vertical",
+          flex: 1,
+          contents: [
+            { type: "text", text: loc.name, size: "sm", weight: "bold", color: TEXT_MAIN, wrap: true },
+            { type: "text", text: loc.address ?? "地址請問老師", size: "xs", color: TEXT_MUTED, wrap: true },
+          ],
+        },
+        ...(loc.address
+          ? [{ type: "text", text: "地圖 ›", flex: 0, size: "sm", weight: "bold", color: BRAND_DARK, gravity: "center" }]
+          : []),
+      ],
+    });
+  });
+  return {
+    type: "flex",
+    altText: `${opts.classroomName} 教室地點`,
+    contents: {
+      type: "bubble",
+      size: "mega",
+      header: header("教室地點", opts.classroomName),
+      body: { type: "box", layout: "vertical", paddingAll: "lg", paddingTop: "sm", contents: rows },
+    },
+  };
+}
+
 // ── 價目表 ──────────────────────────────────────────────────────────────────
 
 export type PriceCard = { name: string; sessions: number; price: number };

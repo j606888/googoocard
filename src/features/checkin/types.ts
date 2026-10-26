@@ -42,10 +42,41 @@ export interface TodayLesson {
   cardStatus?: LessonCardStatus;
 }
 
+export interface UpcomingPeriod {
+  periodId: number;
+  lessonId: number;
+  lessonName: string;
+  danceStyle: DanceStyleSummary;
+  location: LocationSummary | null;
+  startTime: string;
+  endTime: string;
+}
+
+export interface NextLesson extends UpcomingPeriod {
+  /** A lesson the student has been in — 「你的下一堂」. */
+  mine: boolean;
+  cardStatus?: LessonCardStatus;
+}
+
+export interface MyCardSummary {
+  id: number;
+  name: string;
+  serialNumber: number;
+  remainingSessions: number;
+  totalSessions: number;
+  /** null = paid. */
+  unpaidAmount: number | null;
+  lastUsedAt: string | null;
+}
+
 export interface TodayResponse {
   date: string;
   today: TodayLesson[];
-  nextLesson: { lessonName: string; startTime: string } | null;
+  /** The rest only when there's no class today (src/service/checkin.ts). */
+  nextLesson: NextLesson | null;
+  upcoming: UpcomingPeriod[];
+  myCards?: MyCardSummary[];
+  monthAttendance?: number;
 }
 
 export interface CheckinResult {

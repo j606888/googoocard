@@ -2,10 +2,11 @@
 
 import { ReactNode, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronRight, QrCode } from "lucide-react";
+import { CalendarDays, Check, ChevronRight, Lock, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import EmptyState from "@/components/EmptyState";
+import StatusTag from "@/components/StatusTag";
 import { Button } from "@/components/ui/button";
 import LiffSkeleton from "@/features/liff/LiffSkeleton";
 import ClassroomPicker from "@/features/liff/ClassroomPicker";
@@ -30,10 +31,22 @@ type PlanCard = {
 
 type PricesResponse = { classroom: ClassroomChoice; classrooms: ClassroomChoice[]; cards: PlanCard[] };
 
-type Group = { key: string; title: string; note?: string; style?: DanceStyleSummary | null; cards: PlanCard[] };
+type Group = {
+  key: string;
+  title: string;
+  note?: string;
+  style?: DanceStyleSummary | null;
+  cards: PlanCard[];
+  /** 綁定的學生看複習卡：還沒資格（整組都不能買）／已經有資格。訪客兩個都是 undefined。 */
+  locked?: boolean;
+  unlocked?: boolean;
+};
 
-/** 一般 → 各舞種複習卡（照教室的舞種順序）→ 體驗課。 */
-function groupCards(cards: PlanCard[]): Group[] {
+/**
+ * 一般 → 各舞種複習卡（照教室的舞種順序）→ 體驗課。給了 `levels`（綁定的學生）時，
+ * 還沒資格的複習卡整組移到最後、標「未解鎖」，有資格的標「已解鎖」。
+ */
+function groupCards(cards: PlanCard[], levels?: DanceLevels): Group[] {
   const general = cards.filter((c) => !c.isTrial && !c.isPracticeCard);
   const trial = cards.filter((c) => c.isTrial);
   const practice = new Map<string, Group & { order: number }>();
@@ -50,10 +63,19 @@ function groupCards(cards: PlanCard[]): Group[] {
     group.cards.push(c);
     practice.set(key, group);
   }
+  const practiceGroups = [...practice.values()]
+    .sort((a, b) => a.order - b.order)
+    .map((group) => {
+      if (!levels) return group;
+      const locked = group.cards.every((c) => !canBuyCard(c, levels).allowed);
+      return { ...group, note: undefined, locked, unlocked: !locked };
+    });
   return [
     ...(general.length ? [{ key: "general", title: "課卡", cards: general }] : []),
-    ...[...practice.values()].sort((a, b) => a.order - b.order),
-  ].concat(trial.length ? [{ key: "trial", title: "體驗課", note: "報名請洽老師；買過正式課卡的舊生免費。", cards: trial }] : []);
+    ...practiceGroups.filter((g) => !g.locked),
+    ...(trial.length ? [{ key: "trial", title: "體驗課", note: "報名請洽老師；買過正式課卡的舊生免費。", cards: trial }] : []),
+    ...practiceGroups.filter((g) => g.locked),
+  ];
 }
 
 /** The student's cards still usable — for「你手上的卡」. */
@@ -61,7 +83,7 @@ export type HeldCard = { name: string; remainingSessions: number };
 
 /**
  * LIFF「課卡方案」= 價目表＋購買。綁定的學生（`buyer`）每張可買的卡有「購買」，
- * 還沒資格的複習卡停用並寫原因；沒綁定的訪客只看價格，最上面告訴他怎麼登記。
+ * 還沒資格的複習卡整組鎖起來、移到最後並寫怎麼解鎖；沒綁定的訪客只看價格，最上面告訴他怎麼登記。
  * 體驗課只列價格，報名由老師在課程頁登記。
  */
 export default function PlansList({
@@ -121,16 +143,40 @@ export default function PlansList({
 
           {data.cards.length === 0 && <EmptyState kind="inline" title="目前沒有上架的課卡。" />}
 
-          {groupCards(data.cards).map((group) => (
+          {groupCards(data.cards, buyer?.danceLevels).map((group) => (
             <section key={group.key} className="flex flex-col gap-2">
-              <div className="flex items-baseline justify-between gap-2">
-                <h3 className="flex items-center gap-2 font-semibold text-neutral-900">
-                  {group.style && <span className={cn("size-2 rounded-full", danceStyleMeta(group.style).dot)} />}
+              <div className="flex items-center justify-between gap-2">
+                <h3
+                  className={cn(
+                    "flex items-center gap-2 font-semibold",
+                    group.locked ? "text-neutral-600" : "text-neutral-900"
+                  )}
+                >
+                  {group.locked ? (
+                    <Lock className="size-4" aria-hidden />
+                  ) : (
+                    group.style && <span className={cn("size-2 rounded-full", danceStyleMeta(group.style).dot)} />
+                  )}
                   {group.title}
                 </h3>
-                {group.note && <span className="text-right text-xs text-neutral-500">{group.note}</span>}
+                {group.locked ? (
+                  <StatusTag tone="neutral">未解鎖</StatusTag>
+                ) : group.unlocked ? (
+                  <StatusTag tone="positive">
+                    <Check className="size-3" strokeWidth={2.5} aria-hidden />
+                    已解鎖
+                  </StatusTag>
+                ) : (
+                  group.note && <span className="text-right text-xs text-neutral-500">{group.note}</span>
+                )}
               </div>
-              <div className="divide-y divide-neutral-100 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+              <div
+                className={cn(
+                  "divide-y overflow-hidden rounded-2xl border border-neutral-200",
+                  group.locked ? "divide-neutral-200 bg-neutral-50" : "divide-neutral-100 bg-white"
+                )}
+              >
+                {group.locked && <LockedReason style={group.style} />}
                 {group.cards.map((card) => {
                   const buyable = buyer && !card.isTrial && canBuyCard(card, buyer.danceLevels).allowed;
                   const locked = buyer && card.isPracticeCard && !buyable;
@@ -138,28 +184,42 @@ export default function PlansList({
                     <div key={card.id} className="flex items-center gap-3 p-3.5">
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className={cn("font-semibold", locked ? "text-neutral-500" : "text-neutral-900")}>{card.name}</span>
-                        <span className="text-xs text-neutral-500">
-                          {card.sessions} 堂
-                          {locked && card.danceStyle && `・上完 ${card.danceStyle.name} 的課後可以買`}
-                        </span>
+                        <span className="text-xs text-neutral-500">{card.sessions} 堂</span>
                       </div>
                       <span className={cn("shrink-0 font-bold", locked ? "text-neutral-500" : "text-neutral-900")}>
                         ${formatMoney(card.price)}
                       </span>
-                      {buyer && !card.isTrial && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled={!buyable}
-                          onClick={() => setSelected(card)}
-                          className="shrink-0"
-                        >
-                          購買
-                        </Button>
+                      {locked ? (
+                        <span className="grid size-9 shrink-0 place-items-center text-neutral-400">
+                          <Lock className="size-[18px]" aria-hidden />
+                          <span className="sr-only">未解鎖</span>
+                        </span>
+                      ) : (
+                        buyer &&
+                        !card.isTrial && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={!buyable}
+                            onClick={() => setSelected(card)}
+                            className="shrink-0"
+                          >
+                            購買
+                          </Button>
+                        )
                       )}
                     </div>
                   );
                 })}
+                {group.locked && (
+                  <Link
+                    href="/liff/schedule"
+                    className="flex h-11 items-center justify-center gap-1 bg-white text-sm font-semibold text-primary-700 active:bg-neutral-50"
+                  >
+                    {group.style ? `看 ${group.style.name} 什麼時候有課` : "看課表"}
+                    <ChevronRight className="size-4" aria-hidden />
+                  </Link>
+                )}
               </div>
             </section>
           ))}
@@ -188,6 +248,23 @@ export default function PlansList({
         )}
       </Drawer>
     </>
+  );
+}
+
+/** 還沒資格的複習卡組最上面：為什麼鎖著、怎麼解鎖（資格是老師在學生資料裡開的）。 */
+function LockedReason({ style }: { style?: DanceStyleSummary | null }) {
+  return (
+    <div className="flex items-start gap-3 bg-white p-3.5">
+      <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-neutral-100 text-neutral-600">
+        <Lock className="size-[18px]" />
+      </span>
+      <div className="flex flex-col gap-0.5">
+        <p className="text-sm font-semibold text-neutral-900">上完 {style?.name ?? "這個舞種"} 的課就會解鎖</p>
+        <p className="text-[13px] leading-relaxed text-neutral-600">
+          複習卡是給上過課的同學回來練習的，老師確認你上完課後就能買。
+        </p>
+      </div>
+    </div>
   );
 }
 

@@ -9,6 +9,7 @@ import {
 } from "@/lib/line";
 import {
   groupByTaipeiDay,
+  locationsFlex,
   mapsUri,
   myCardsFlex,
   priceListFlex,
@@ -19,12 +20,13 @@ import {
 import { formatCardSerial } from "@/lib/cardSerial";
 import { lessonLevelLabel } from "@/lib/danceLevels";
 import { parseTaipeiDateRange, toTaipeiDateKey } from "@/lib/taipei-date";
+import { monthAttendanceCount } from "@/service/checkin";
 import { bindStudentLine } from "@/service/lineBinding";
 
 /**
  * The LINE bot — students only (teachers use the website): binding keys, the
  * student menu, and the rich-menu actions that answer right in the chat
- * (價目表／我的課卡／更多; 課表 is also a LIFF page). The webhook route only
+ * (價目表／我的課卡／更多／教室地點; 課表 is also a LIFF page). The webhook route only
  * verifies the signature and hands each event here with a `reply` that calls
  * LINE; the /dev/line simulator passes one that collects the messages instead.
  *
@@ -34,7 +36,7 @@ import { bindStudentLine } from "@/service/lineBinding";
 export type Reply = (messages: LineMessage[]) => Promise<void>;
 
 /** Postback `a=` actions — the rich menu (src/lib/lineRichMenu.json) sends these. */
-export const BOT_ACTIONS = ["schedule", "prices", "mycards", "more", "bindhelp", "classrooms", "pick"] as const;
+export const BOT_ACTIONS = ["schedule", "prices", "mycards", "more", "bindhelp", "classrooms", "pick", "locations"] as const;
 type BotAction = (typeof BOT_ACTIONS)[number];
 
 // Typed keywords that do the same as the rich menu buttons.
@@ -48,6 +50,9 @@ const KEYWORDS: Record<string, BotAction> = {
   更多: "more",
   課卡方案: "prices",
   切換教室: "more",
+  教室地點: "locations",
+  地點: "locations",
+  地址: "locations",
 };
 
 const BIND_HELP =
@@ -299,18 +304,55 @@ async function replyMyCards(lineUserId: string, reply: Reply) {
   ]);
 }
 
+const classroomLocations = (classroomId: number) =>
+  prisma.location.findMany({
+    where: { classroomId, archivedAt: null },
+    select: { name: true, address: true },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+  });
+
+/** 「更多」: the bound student's own menu, or how to become one (buildMoreMenuFlex). */
 async function replyMore(lineUserId: string, reply: Reply) {
   const [student, studentCount, listed] = await Promise.all([
     currentStudent(lineUserId),
     prisma.student.count({ where: { lineUserId, archivedAt: null } }),
     listedClassrooms(),
   ]);
+  if (student) {
+    const [classroom, locations, monthAttendance] = await Promise.all([
+      prisma.classroom.findUniqueOrThrow({ where: { id: student.classroomId }, select: { name: true } }),
+      classroomLocations(student.classroomId),
+      monthAttendanceCount(student.id),
+    ]);
+    await reply([
+      buildMoreMenuFlex({
+        student: { name: student.name, classroomName: classroom.name, monthAttendance },
+        locationNames: locations.map((l) => l.name),
+        studentSwitch: studentCount > 1,
+      }),
+    ]);
+    return;
+  }
+  const resolved = await resolveLineClassroom(lineUserId);
+  const locations = resolved.kind === "classroom" ? await classroomLocations(resolved.classroomId) : [];
   await reply([
     buildMoreMenuFlex({
-      studentSwitch: studentCount > 1,
-      classroomSwitch: !student && listed.length > 1,
+      locationNames: locations.map((l) => l.name),
+      classroomSwitch: listed.length > 1,
     }),
   ]);
+}
+
+/** 教室地點: the classroom's 分部 with their addresses, each opening Google Maps. */
+async function replyLocations(lineUserId: string, reply: Reply) {
+  const classroom = await classroomOrAsk(lineUserId, "locations", reply);
+  if (!classroom) return;
+  const locations = await classroomLocations(classroom.id);
+  if (locations.length === 0) {
+    await reply([textMessage(`${classroom.name} 還沒有設定教室地點，請直接問老師。`)]);
+    return;
+  }
+  await reply([locationsFlex({ classroomName: classroom.name, locations })]);
 }
 
 async function replyClassrooms(reply: Reply) {
@@ -332,7 +374,9 @@ async function pickClassroom(lineUserId: string, params: URLSearchParams, reply:
     update: { browseClassroomId: id },
     create: { lineUserId, browseClassroomId: id },
   });
-  if (params.get("then") === "prices") await replyPrices(lineUserId, reply);
+  const then = params.get("then");
+  if (then === "prices") await replyPrices(lineUserId, reply);
+  else if (then === "locations") await replyLocations(lineUserId, reply);
   else await replySchedule(lineUserId, null, reply);
 }
 
@@ -352,6 +396,8 @@ async function runAction(action: BotAction, lineUserId: string, params: URLSearc
       return replyClassrooms(reply);
     case "pick":
       return pickClassroom(lineUserId, params, reply);
+    case "locations":
+      return replyLocations(lineUserId, reply);
   }
 }
 

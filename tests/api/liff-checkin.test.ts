@@ -18,6 +18,7 @@ vi.mock("@/lib/line", () => ({
 
 import { POST as checkin } from "@/app/api/liff/checkin/route";
 import { GET as today } from "@/app/api/liff/today/route";
+import { monthAttendanceCount } from "@/service/checkin";
 
 function checkinRequest(token: string | null, body: unknown) {
   return new Request("http://test.local/api/liff/checkin", {
@@ -328,6 +329,58 @@ describe("GET /api/liff/today", () => {
     const res = await today(todayRequest("lineAmy", studentId));
     const body = await res.json();
     expect(body.today).toHaveLength(0);
-    expect(body.nextLesson?.lessonName).toBe("下週課");
+    expect(body.nextLesson).toMatchObject({ lessonName: "下週課", mine: false });
+    expect(body.myCards).toEqual([]);
+  });
+
+  it("今天沒課 → 下一堂先找他上過的課、帶卡況；接下來不重複、略過手動結束的課；附上課卡", async () => {
+    const card = await createCard(classroomId, { name: "8 堂卡", sessions: 8 });
+    const at = (days: number) => new Date(Date.now() + days * 24 * 3600_000);
+    const period = (lessonId: number, start: Date) =>
+      createPeriod(lessonId, start, new Date(start.getTime() + 3600_000));
+
+    const { lesson: other } = await createLesson(classroomId, { name: "別人的課" });
+    await period(other.id, at(2));
+    const { lesson: mine } = await createLesson(classroomId, { name: "我的課", cardIds: [card.id] });
+    await period(mine.id, at(4));
+    await prisma.lessonStudent.create({ data: { lessonId: mine.id, studentId } });
+    const { lesson: ended } = await createLesson(classroomId, { name: "結束的課" });
+    await prisma.lesson.update({ where: { id: ended.id }, data: { endedAt: new Date() } });
+    await period(ended.id, at(1));
+
+    const sc = await createStudentCard(studentId, card.id, {
+      remainingSessions: 5,
+      totalSessions: 8,
+      isPaid: false,
+      finalPrice: 3200,
+    });
+    const past = await period(mine.id, new Date("2025-03-10T11:00:00Z"));
+    await prisma.attendanceRecord.create({ data: { lessonPeriodId: past.id, studentId, studentCardId: sc.id } });
+
+    const body = await (await today(todayRequest("lineAmy", studentId))).json();
+    expect(body.today).toHaveLength(0);
+    expect(body.nextLesson).toMatchObject({ lessonName: "我的課", mine: true });
+    expect(body.nextLesson.cardStatus.autoPickId).toBe(sc.id);
+    expect(body.upcoming.map((p: { lessonName: string }) => p.lessonName)).toEqual(["別人的課"]);
+    expect(body.myCards).toEqual([
+      expect.objectContaining({
+        id: sc.id,
+        name: "8 堂卡",
+        remainingSessions: 5,
+        unpaidAmount: 3200,
+        lastUsedAt: "2025-03-10T11:00:00.000Z",
+      }),
+    ]);
+    expect(body.monthAttendance).toBe(0);
+  });
+
+  it("monthAttendanceCount 只算台北的這個月", async () => {
+    const { lesson } = await createLesson(classroomId);
+    // 16:30Z on Feb 28 is 00:30 on Mar 1 in Taipei; 15:00Z is still Feb 28.
+    for (const start of ["2025-02-28T16:30:00Z", "2025-02-28T15:00:00Z"]) {
+      const p = await createPeriod(lesson.id, new Date(start), new Date(start));
+      await prisma.attendanceRecord.create({ data: { lessonPeriodId: p.id, studentId } });
+    }
+    expect(await monthAttendanceCount(studentId, new Date("2025-03-15T00:00:00Z"))).toBe(1);
   });
 });

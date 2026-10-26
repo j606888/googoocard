@@ -238,6 +238,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - `Classroom.checkinKey`（`nanoid(10)`）：只說明「哪間教室」，不證明是誰——身分永遠來自 LINE ID Token。老師第一次開 `/checkin-qr` 時 lazy 產生，外流時「重新產生」（`POST /api/checkin-key`）。
 - `checkinEntryUrl()`（`src/service/checkin.ts`）：有 `NEXT_PUBLIC_LIFF_ID` 就是 LIFF 網址，否則退回 `/checkin/<key>`。
 - 「今天有哪些課」：`getTodayLessons()`（台北時區，walk-in 制：當天所有課程都可簽，不限已報名的）。
+- **今天沒課**時不是空狀態（`NoClassToday`）：`getTodayLessons()` 改回 `nextLesson`（先找他上過的課〔`LessonStudent`，同 LIFF 課表的「我的課」〕的下一個時段，沒有才退回教室的下一堂；帶 `mine` 與這堂的 `cardStatus`，畫面寫「會用 X，目前剩 n 堂」，剩 1 堂多一塊「上完這堂就用完了 → 課卡方案」）、`upcoming`（教室接下來 2 個時段，不含 nextLesson）、`myCards`（同 bot「我的課卡」：能用或未付的卡＋上次使用日）、`monthAttendance`（`monthAttendanceCount()`，台北這個月）。手動結束的課（`endedAt`）不算。今天有課時這些都不查。
 
 ## 分部（Location，2026-10）
 
@@ -257,14 +258,15 @@ webhook（`src/app/api/line/webhook/route.ts`）只驗簽章，每個事件交�
 - **LIFF 頁**（都有 `LiffHeader`：深綠頁首＋「教室 · 學生」膠囊；綁了多位學生（通常一間教室一位）時膠囊帶 ▾，點開底部面板切換）：
   - `/liff/checkin` 上課簽到（見上一節）。
   - `/liff/schedule` 課表：月曆、有課的日子標舞種色點、依舞種／分部篩選、點日期列當天的課；綁定學生多「我的課」（`LessonStudent`）。`GET /api/liff/schedule?month=`。
-  - `/liff/plans` 課卡方案＝價目表＋購買：綁定學生可買（`POST /api/liff/student-cards`），沒資格的複習卡停用並寫原因；沒綁定的人只看價格＋「第一次來？掃門口 QR」。體驗課只列價格。`GET /api/liff/prices`。`/liff/buy`（舊連結、續卡提醒）渲染同一頁。
+  - `/liff/plans` 課卡方案＝價目表＋購買：綁定學生可買（`POST /api/liff/student-cards`）；有資格的複習卡組標「已解鎖」，**沒資格的整組上鎖**——移到最後、標「未解鎖」、最上面寫怎麼解鎖（資格是老師在學生資料開的）、每列是鎖頭而不是停用的購買鈕、最下面連到課表；沒綁定的人只看價格＋「第一次來？掃門口 QR」。體驗課只列價格。`GET /api/liff/prices`。`/liff/buy`（舊連結、續卡提醒）渲染同一頁。
   - `/liff/cards` 我的課卡。
   - 課表與課卡方案**沒綁定也能看**：`LiffStudentGate` 的 `guest` 渲染訪客版，教室由 `resolveLiffClassroom()`（`src/service/liffClassroom.ts`）決定——帶 `studentId`（驗擁有權）→ 他的教室；帶 `classroomId` → 必須是公開教室，並記成 `browseClassroomId`；都沒帶 → 同 bot 的 `resolveLineClassroom()`，多間公開回 409 讓頁面列出來選。
 - **看哪間教室**（官方帳號將來會給多間教室共用）——`resolveLineClassroom()`：綁定學生的教室 → 之前選過的公開教室（`LineAccount.browseClassroomId`）→ 唯一一間 `lineListed` 的教室；多間公開就 quick reply 讓他選（`a=pick`），零間回「目前還沒有公開的課表」。
 - `a=schedule`（打字「課表」）：教室有 ≥2 個分部先問哪一個（含「全部」），再回未來 7 天（台北）的 carousel，一天一張、超過 8 堂顯示「還有 N 堂」；手動結束的課不列；選了有地址的分部附「地圖」按鈕。Rich Menu 的「課表」改開 LIFF 月曆。
 - `a=prices`（打字「價目表」「課卡方案」）：`expiredAt = null` 的卡，分「課卡（各分部通用）」「<舞種> 複習卡」「體驗課」三組；綁定的學生多一個購買按鈕（開 `/liff/plans`）。
 - `a=mycards`：目前學生（`currentStudent()`，LIFF 選的那位）還能用或未付的卡＋未付合計；未綁定回綁定說明。
-- `a=more`：切換教室（綁多位學生時開 LIFF 選擇；未綁定且多間公開時 quick reply 選公開教室）、怎麼綁定。
+- `a=more`（`buildMoreMenuFlex()`）：Rich Menu 大家共用，所以「更多」依身分不同——**綁定學生**：頁首「名字 · 教室」、上課紀錄（開 `/liff/cards?tab=attend`，附「這個月上了 n 堂」）、教室地點、切換教室（綁多位學生時）、灰字「也在別間教室上課？」（綁定說明）；**未綁定**：先說綁定才能簽到看課卡，再分「第一次來上課」（開 `/liff/checkin` 掃門口 QR）和「已經在上課了」（綁定說明），加教室地點、多間公開時的切換教室。教室沒有分部就不列教室地點。
+- `a=locations`（打字「教室地點」「地點」「地址」）：教室的分部（未封存，照 `sortOrder`），有地址的整列點了開 Google Maps；沒有分部回「請直接問老師」。教室同 `resolveLineClassroom()`。
 - **加好友（follow）**：已綁定的人（多半是門口登記後從簽到完成頁加好友）叫名字歡迎＋教室名；沒綁定的人告訴他可以看課表／價目、到教室掃門口 QR 登記。掃門口 QR **不會**自動加好友——LIFF 的 Add friend option（Aggressive）只問一次，所以簽到完成頁再用 `getFriendship()` 檢查、沒加就顯示 `AddFriendPrompt`。
 - 打字其他文字：綁定學生回學生 Flex 選單、未綁定回說明＋quick reply；綁定碼永遠優先。
 - **綁定／解除綁定都走 `src/service/lineBinding.ts`，各寫一筆 Event**（`resourceType = "student"`，畫在學生頁「動態」）：`bindStudentLine()`（綁定碼 webhook、LINE 模擬器的「模擬綁定」）寫「綁定 LINE · LINE 名稱「…」」，同教室換綁時舊學生另寫「解除 LINE 綁定」；`unbindStudentLine()` 是老師端「解除綁定」（`DELETE /api/students/[id]/line-binding`，入口在頁首 ⋯ 和「學生資料」的 LINE 列），給綁錯人用——清 `lineUserId`／`lineDisplayName`／`lineBindKey`／`lineInviteSentAt`，下次複製的是新連結、未綁定名單顯示未邀請；LINE 那邊不用清，`currentStudent()`／`resolveOwnedStudent()` 都比對 `lineUserId`，那個帳號自然就看不到這位學生。門口自助登記另寫「自助登記」、合併沿用「合併學員」，不重複寫綁定。
