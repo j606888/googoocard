@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  * The two ways out of a classroom, kept together at the bottom of the team page
  * and behind a confirmation each.
  *
- * Which one you get is decided by role: an assistant leaves, an owner deletes.
+ * Which one you get is decided by role: any other member leaves, the owner deletes.
  * An owner can't leave — the classroom would be left without one — so they see
  * only the delete action.
  */
@@ -88,7 +88,7 @@ const DangerZone = ({ role }: { role: string }) => {
             <span className="text-[13px] leading-relaxed text-neutral-500">
               {isOwner
                 ? "整間教室會被封存：所有成員都看不到它，牆上的簽到 QR 也會失效。"
-                : `你將失去 ${classroom.name} 的存取權，之後可以請擁有者再邀請你回來。`}
+                : `你將失去 ${classroom.name} 的存取權，之後可以請管理員再邀請你回來。`}
             </span>
           </div>
           <Button

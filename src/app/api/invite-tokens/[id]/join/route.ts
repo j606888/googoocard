@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { createAuthSession } from "@/lib/auth";
 import { sessionRoute } from "@/lib/apiRoute";
 import { ApiError, badRequest } from "@/lib/apiError";
+import { redeemInvite } from "@/service/team";
 
 // `[id]` is the token string here, not a numeric id.
 type Params = { id: string };
@@ -37,21 +38,15 @@ export const POST = sessionRoute<Params>(async ({ params, userId }) => {
     );
   }
 
-  await prisma.$transaction([
-    prisma.inviteToken.update({
-      where: { id: inviteToken.id },
-      data: { uses: { increment: 1 } },
-    }),
-    prisma.membership.create({
-      data: { userId, classroomId: inviteToken.classroomId, role: "assistant" },
-    }),
+  await prisma.$transaction(async (tx) => {
+    await redeemInvite(tx, userId, inviteToken);
     // Joining also switches you into the classroom; this used to update only
     // the JWT, leaving `User.currentClassroomId` behind.
-    prisma.user.update({
+    await tx.user.update({
       where: { id: userId },
       data: { currentClassroomId: inviteToken.classroomId },
-    }),
-  ]);
+    });
+  });
 
   await createAuthSession(userId, inviteToken.classroomId);
 

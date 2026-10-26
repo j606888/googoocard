@@ -10,6 +10,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { useJoinInviteTokenMutation } from "@/store/slices/memberships";
+import { roleLabel } from "@/lib/roles";
 
 function InvitationsContent() {
   const searchParams = useSearchParams();
@@ -94,7 +95,7 @@ function InvitationsContent() {
           </h4>
           <p className="text-sm text-neutral-600">
             歡迎使用 GoogooCard <br />
-            只差一步就能加入{" "}
+            只差一步就能以「{roleLabel(inviteToken?.role ?? "assistant")}」加入{" "}
             <span className="font-bold">{inviteToken?.classroom?.name}</span>
           </p>
         </div>
@@ -118,7 +119,7 @@ function InvitationsContent() {
             邀請連結無效
           </h4>
           <p className="text-sm text-neutral-600">
-            很抱歉，這個連結已經失效了，請向教室擁有者索取新的連結。
+            很抱歉，這個連結已經失效了，請向教室管理員索取新的連結。
             <br />
             或者你也可以直接註冊開始使用。
           </p>

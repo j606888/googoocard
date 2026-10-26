@@ -1,9 +1,35 @@
 import { api, TAG_TYPES } from "../api";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
+import type { TeacherSummary } from "./teachers";
 
 export interface Me {
   id: number;
   name: string;
   email: string;
+}
+
+/** One period of GET /me/lessons — 我接下來的課. */
+export interface MyPeriod {
+  id: number;
+  startTime: string;
+  endTime: string;
+  attendanceTakenAt: string | null;
+  /** Records so far — self check-ins before attendance is taken. */
+  attendanceCount: number;
+  lesson: {
+    id: number;
+    name: string;
+    level: number;
+    danceStyle: DanceStyleSummary;
+    location: { id: number; name: string } | null;
+    teachers: TeacherSummary[];
+  };
+}
+
+export interface MyLessons {
+  /** The Teacher row you're linked to here; null = nothing to show. */
+  teacher: TeacherSummary | null;
+  periods: MyPeriod[];
 }
 
 export type TodoType = "UNPAID_CARD" | "NEEDS_RENEWAL" | "UNBOUND_ATTENDANCE";
@@ -13,6 +39,10 @@ const meApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getMe: builder.query<Me, void>({
       query: () => "me",
+    }),
+    getMyLessons: builder.query<MyLessons, void>({
+      query: () => "me/lessons",
+      providesTags: ["Lesson", "Teacher", "Membership", "Attendance", "AttendanceRecord"],
     }),
     getLineBindLink: builder.query<
       { bound: boolean; key?: string; deepLink?: string | null },
@@ -97,6 +127,7 @@ const meApi = api.injectEndpoints({
 
 export const {
   useGetMeQuery,
+  useGetMyLessonsQuery,
   useGetLineBindLinkQuery,
   useLoginMutation,
   useOauthLoginMutation,

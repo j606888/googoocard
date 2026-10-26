@@ -3,11 +3,13 @@ import { InviteToken } from "@/store/slices/memberships";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import StatusTag from "@/components/StatusTag";
+import { roleLabel } from "@/lib/roles";
 
 const NEXT_PUBLIC_HOST_URL = process.env.NEXT_PUBLIC_HOST_URL;
 
 /**
- * One invite link: URL, usage, copy and delete. A stacked card on phones, a
+ * One invite link: URL, the role it hands out, usage, copy and delete. A stacked card on phones, a
  * single row inside the invitations card from `lg:` up.
  */
 const InvitationCard = ({
@@ -21,7 +23,13 @@ const InvitationCard = ({
   const usedRatio = inviteToken.maxUses > 0 ? Math.min(inviteToken.uses / inviteToken.maxUses, 1) : 0;
 
   const usage = (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      <StatusTag tone={inviteToken.role === "teacher" ? "positive" : inviteToken.role === "admin" ? "warning" : "neutral"}>
+        {roleLabel(inviteToken.role)}
+      </StatusTag>
+      {inviteToken.teacher && (
+        <span className="text-xs text-neutral-600">連到 {inviteToken.teacher.name}</span>
+      )}
       <div className="h-1 w-16 overflow-hidden rounded-full bg-neutral-200">
         <div className="h-full bg-primary-700" style={{ width: `${usedRatio * 100}%` }} />
       </div>

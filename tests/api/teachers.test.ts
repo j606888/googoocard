@@ -81,7 +81,7 @@ describe("/api/teachers", () => {
     expect(res.status).toBe(200);
     expect(body.map((t: { name: string }) => t.name)).toEqual(["Sean", "Kathy"]);
     expect(Object.keys(body[0]).sort()).toEqual(
-      ["activeLessonCount", "archivedAt", "color", "id", "lessonCount", "name", "note"].sort()
+      ["activeLessonCount", "archivedAt", "color", "id", "lessonCount", "name", "note", "userId"].sort()
     );
     expect(body[0]).toMatchObject({ lessonCount: 2, activeLessonCount: 1 });
     expect(body[1]).toMatchObject({ lessonCount: 0, activeLessonCount: 0 });

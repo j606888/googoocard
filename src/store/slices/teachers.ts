@@ -12,6 +12,8 @@ export interface TeacherSummary {
 
 export interface Teacher extends TeacherSummary {
   note: string | null;
+  /** The member this teacher is linked to (團隊), or null. */
+  userId: number | null;
   archivedAt: string | null;
   activeLessonCount: number;
   lessonCount: number;

@@ -6,6 +6,7 @@ import FinishedLessons from "./FinishedLessons";
 import TabAndSort from "./TabAndSort";
 import LessonTable, { LessonTableSkeleton } from "./LessonTable";
 import LessonGroupSection from "./LessonGroupSection";
+import MyUpcomingLessons from "./MyUpcomingLessons";
 import Drawer from "@/components/Drawer";
 import { useState } from "react";
 import { useLessonsList } from "./useLessonsList";
@@ -56,6 +57,8 @@ const LessonsList = () => {
           新增課程
         </Button>
       </div>
+
+      <MyUpcomingLessons />
 
       <TabAndSort
         tabsCount={lessons?.tabsCount}

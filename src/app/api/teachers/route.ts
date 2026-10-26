@@ -11,6 +11,8 @@ export const GET = apiRoute(async ({ classroomId }) => {
     where: { classroomId },
     select: {
       ...teacherPayloadSelect,
+      // Who this teacher is on the team — the invite / role pickers skip linked ones.
+      userId: true,
       _count: { select: { lessons: true } },
     },
     orderBy: { id: "asc" },

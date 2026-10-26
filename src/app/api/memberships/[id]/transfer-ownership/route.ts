@@ -5,10 +5,10 @@ import { ApiError, badRequest } from "@/lib/apiError";
 type Params = { id: string };
 
 /**
- * Hand the current classroom to one of its assistants. Owner only.
+ * Hand the current classroom to another member. Owner only.
  *
- * The owner becomes an assistant (so they can then leave like anyone else) and
- * the target becomes owner; `Classroom.ownerId` moves with them. All three
+ * The owner becomes a plain 管理員 (so they can then leave like anyone else)
+ * and the target becomes owner; `Classroom.ownerId` moves with them. All three
  * writes are one transaction — a classroom must never have zero or two owners.
  *
  * This is also the owner's way out before deleting their account
@@ -37,7 +37,7 @@ export const POST = apiRoute<Params>(async ({ params, userId, classroomId, role 
     prisma.membership.update({ where: { id: target.id }, data: { role: "owner" } }),
     prisma.membership.updateMany({
       where: { userId, classroomId },
-      data: { role: "assistant" },
+      data: { role: "admin" },
     }),
     prisma.classroom.update({ where: { id: classroomId }, data: { ownerId: target.userId } }),
   ]);

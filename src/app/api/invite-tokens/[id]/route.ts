@@ -1,22 +1,32 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { decodeAuthToken } from "@/lib/auth";
+import { apiRoute, parseId } from "@/lib/apiRoute";
+import { ApiError } from "@/lib/apiError";
+import { assertAdmin } from "@/lib/authz";
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const { classroomId } = await decodeAuthToken();
-  await prisma.inviteToken.delete({
-    where: { id: parseInt(id), classroomId },
-  });
-  return NextResponse.json({ success: true });
-}
+/** 管理員 only, like creating one. */
+export const DELETE = apiRoute<{ id: string }>(async ({ params, classroomId, role }) => {
+  assertAdmin(role);
+  const id = parseId(params.id, "invite id");
+  const { count } = await prisma.inviteToken.deleteMany({ where: { id, classroomId } });
+  if (count === 0) {
+    throw new ApiError(404, "INVITE_TOKEN_NOT_FOUND", "Invite token not found");
+  }
+  return { success: true };
+});
 
+// Public: the join page shows which classroom and role a link is for. Only
+// those — this used to return the whole classroom row, check-in key included.
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: token } = await params;
   const inviteToken = await prisma.inviteToken.findUnique({
     where: { token },
-    include: {
-      classroom: true,
+    select: {
+      id: true,
+      token: true,
+      role: true,
+      classroomId: true,
+      classroom: { select: { id: true, name: true } },
     },
   });
   return NextResponse.json(inviteToken);

@@ -27,7 +27,7 @@ export async function GET() {
  * Delete your own account (App Store Guideline 5.1.1(v): an app that creates
  * accounts must let you delete one from inside it).
  *
- * Refused while you still own a live classroom — hand it to an assistant
+ * Refused while you still own a live classroom — hand it to another member
  * (`POST /api/memberships/[id]/transfer-ownership`) or archive it first, so no
  * classroom is ever left without an owner.
  *
@@ -59,6 +59,8 @@ export const DELETE = sessionRoute(async ({ userId }) => {
 
   await prisma.$transaction([
     prisma.membership.deleteMany({ where: { userId } }),
+    // Their Teacher rows stay (lessons keep them) but stop pointing at them.
+    prisma.teacher.updateMany({ where: { userId }, data: { userId: null } }),
     prisma.pushToken.deleteMany({ where: { userId } }),
     prisma.webPushSubscription.deleteMany({ where: { userId } }),
     prisma.notificationPreference.deleteMany({ where: { userId } }),

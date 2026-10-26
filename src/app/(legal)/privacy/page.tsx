@@ -28,7 +28,7 @@ export default function PrivacyPage() {
       <ul>
         <li>帳號資料：名稱、Email、密碼（只存加密雜湊，我們看不到原本的密碼）</li>
         <li>如果你綁定 LINE：你的 LINE 使用者 ID</li>
-        <li>你在哪些教室、擔任擁有者或助教</li>
+        <li>你在哪些教室、擔任什麼角色（管理員、老師或小幫手）</li>
         <li>使用 iOS App 並允許通知時：裝置的推播代碼（push token），以及你的通知設定</li>
       </ul>
       <h3>教室裡的學生資料</h3>
@@ -74,7 +74,7 @@ export default function PrivacyPage() {
 
       <h2>5. 誰看得到資料</h2>
       <ul>
-        <li>教室的資料只有該教室的擁有者和助教看得到</li>
+        <li>教室的資料只有該教室的成員看得到</li>
         <li>學生透過 LINE 只看得到自己的課卡和出席</li>
         <li>老師可以替學生產生分享連結，拿到連結的人可以看到該學生的課卡和出席</li>
       </ul>
