@@ -64,7 +64,8 @@ export async function DELETE(
   const studentCard = await prisma.studentCard.findUnique({
     where: { id: parseInt(studentCardId) },
     include: {
-      _count: { select: { attendanceRecords: true } },
+      _count: { select: { attendanceRecords: true, convertedFrom: true } },
+      transferredFrom: { select: { id: true } },
       student: { select: { classroomId: true } },
     },
   });
@@ -88,6 +89,20 @@ export async function DELETE(
   if (studentCard._count.attendanceRecords > 0) {
     return NextResponse.json(
       { error: "Card has been used; expire it instead of deleting" },
+      { status: 400 }
+    );
+  }
+
+  // 轉換／轉讓鏈上的卡：刪掉任一端，另一端的「來自」「已轉讓給」就斷了，
+  // 轉入的堂數也會跟著消失。
+  if (
+    studentCard.convertedToId ||
+    studentCard.transferredToId ||
+    studentCard.transferredFrom ||
+    studentCard._count.convertedFrom > 0
+  ) {
+    return NextResponse.json(
+      { error: "Card is part of a conversion or transfer; expire it instead of deleting" },
       { status: 400 }
     );
   }

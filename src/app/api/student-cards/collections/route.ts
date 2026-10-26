@@ -17,6 +17,8 @@ export const GET = apiRoute(async ({ request, classroomId }) => {
       where: {
         student: { classroomId },
         isPaid: true,
+        // 轉換／轉讓產生的卡也是 isPaid + paidAt，但沒有人真的收到錢。
+        origin: "PURCHASE",
         paidAt: { gte: start, lt: end },
         finalPrice: { gt: 0 },
       },

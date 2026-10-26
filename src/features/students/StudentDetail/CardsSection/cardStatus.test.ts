@@ -16,6 +16,13 @@ describe("cardStatus", () => {
     expect(cardEndReason({ remainingSessions: 2, convertedTo: null })).toBe("已停用");
   });
 
+  it("轉讓：寫出轉了幾堂、給誰；公開頁沒有名字就只寫編號", () => {
+    expect(
+      cardEndReason({ remainingSessions: 4, transferredTo: { serialNumber: 42, student: { name: "李彥增" } } })
+    ).toBe("已轉讓 4 堂 → 李彥增 #A0042");
+    expect(cardEndReason({ remainingSessions: 4, transferredTo: { serialNumber: 42 } })).toBe("已轉讓 4 堂 → #A0042");
+  });
+
   it("今年省略年份，其他年份帶年份", () => {
     expect(shortDate("2026-07-02T10:00:00+08:00", now)).toBe("7/2");
     expect(shortDate("2025-12-01T10:00:00+08:00", now)).toBe("2025/12/1");

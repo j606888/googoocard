@@ -19,7 +19,7 @@ Mobile-first，但**老師後台在桌面是滿版 + 側邊欄**，版型模式�
 ```
 Classroom（頂層容器，所有實體都屬於一間教室）
 ├── Student ──┬── StudentCard（學生持有的課卡實例：remainingSessions / expiredAt /
-│             │                note / origin / convertedToId → 見「課卡轉換」）
+│             │                note / origin / convertedToId / transferredToId → 見「課卡轉換」「課卡轉讓」）
 │             ├── StudentDanceQualification（學生 × 舞種 + 已完成階級 level，可買/用複習卡）
 │             ├── StudentTag ── Tag（自由標籤；"Needs Renewal" 為系統自動維護）
 │             └── Event（學生事件日誌：簽到、買卡、課卡用完）
@@ -343,6 +343,28 @@ webhook（`src/app/api/line/webhook/route.ts`）只驗簽章，每個事件交�
 `convertedTo` / `convertedFrom`（`conversionLinksInclude`，`src/service/studentDetail.ts`，白名單欄位）。
 新卡顯示「來自 #A0412 …」、舊卡標「已轉換」並顯示「已轉換為 #A0873 …」，剩餘堂數改稱「轉出堂數」。
 後台點那一列會捲到另一端的卡並短暫高亮（被卡種篩選藏起來就先切回「全部」）；公開頁／LIFF 只顯示不跳轉。
+
+## 課卡轉讓（剩餘堂數給另一位學生）
+
+`POST /api/students/[id]/student-cards/[studentCardId]/transfer`（body：`toStudentId`、可選 `note`）；
+寫入在 `performTransfer`（`src/service/studentCardTransfer.ts`）。2026-10-26 定案：**剩下的堂數整批轉，不能只轉一部分**。
+
+- 對方拿到**同卡種**的新卡：`origin = TRANSFER`、`totalSessions = remainingSessions = 舊卡剩餘堂數`、
+  `finalPrice = basePrice = 舊卡剩餘價值`（`residualValueOf`，單堂價不變，每日營收照常攤提、總額守恆）、
+  `isPaid = true` 但 **`paidByUserId = null`**（錢在原卡收過了，沒有人手上多了錢）
+- 舊卡設 `expiredAt` 與 `transferredToId`（一對一、`@unique`，放在舊卡上指向新卡）；`remainingSessions` 不歸零＝轉讓了幾堂。
+  搶先以 `updateMany where expiredAt = null` 標結束，同一張卡同時轉兩次只有一個會成功
+- 原因（`note`）寫進新卡備註、附加到舊卡備註；兩位學生各寫一筆 `Event`（課卡轉讓），兩位都刷新 Needs Renewal tag
+- 擋：未付款（`CARD_UNPAID`，同轉換）、體驗課卡（`CARD_TRIAL`）、已結束、轉給自己（`SAME_STUDENT`）、
+  別的教室（404）、已封存的學生（`STUDENT_ARCHIVED`）；複習卡要對方 `canBuyCard` 通過（403 `STUDENT_NOT_QUALIFIED`）
+- 營收：所有「真的有金流」的統計都只算 `origin = PURCHASE`（課卡月營收、卡種營收、學生 overview），
+  下課對帳（`student-cards/collections`）也是——轉換／轉讓的卡 `isPaid + paidAt` 都有值，不篩會被當成當天收的錢
+- 轉換鏈或轉讓鏈上的卡（任一端）**不能刪除**，只能停用；刪了另一端會斷、轉入的堂數也會消失
+- 顯示：老師端帶 `transferredTo` / `transferredFrom`（`transferLinksInclude`，含對方學生 id、名字）；
+  公開頁／LIFF 用 `publicTransferLinksInclude`，**不帶對方名字**，只顯示編號
+
+課卡的預覽（票根：每堂一顆圓點，可用綠、已上灰、轉讓出去綠色虛線圈）與詳情（票根＋「紀錄」時間線）的設計稿：
+https://claude.ai/artifact/CXhjEmTYUz9MDHurt4zNdH
 
 ## 卡片編號（StudentCard.serialNumber）
 

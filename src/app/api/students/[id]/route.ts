@@ -7,6 +7,7 @@ import {
   attendanceHistoryInclude,
   buildAttendanceViews,
   conversionLinksInclude,
+  transferLinksInclude,
   toLastAttendance,
   toStudentPayload,
 } from "@/service/studentDetail";
@@ -155,6 +156,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         include: {
           card: { include: { danceStyle: { select: danceStyleSummarySelect } } },
           ...conversionLinksInclude,
+          ...transferLinksInclude,
           purchasedBy: { select: { name: true } },
           paidBy: { select: { name: true } },
         },
@@ -173,7 +175,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { attendanceRecords, studentCards, studentTags, danceQualifications } = student;
   const tags = studentTags.map((st) => ({ id: st.tag.id, name: st.tag.name }));
 
-  // 轉換而來的卡不是「買」的 — 它繼承舊卡的剩餘價值，計進去會把消費金額灌水。
+  // 轉換／轉讓而來的卡不是「買」的 — 它繼承舊卡的剩餘價值，計進去會把消費金額灌水。
   const purchasedCards = studentCards.filter((card) => card.origin === "PURCHASE");
 
   const overview = {

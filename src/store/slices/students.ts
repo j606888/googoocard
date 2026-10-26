@@ -132,6 +132,13 @@ export interface ConversionLinkCard {
   card: { name: string };
 }
 
+/** 轉讓另一端的卡 —— 屬於另一位學生。 */
+export interface TransferLinkCard {
+  id: number;
+  serialNumber: number;
+  student?: { id: number; name: string };
+}
+
 export type PaymentMethod = "CASH" | "TRANSFER";
 
 export interface StudentCard {
@@ -146,8 +153,12 @@ export interface StudentCard {
   remainingSessions: number;
   purchaseSource: "STAFF" | "STUDENT";
   note: string | null;
-  origin: "PURCHASE" | "CONVERSION";
+  origin: "PURCHASE" | "CONVERSION" | "TRANSFER";
   convertedToId: number | null;
+  transferredToId?: number | null;
+  /** 轉讓的另一端。學生詳情才會帶；`student` 只有老師端有（公開頁／LIFF 不帶別人的名字）。 */
+  transferredTo?: (TransferLinkCard & { totalSessions: number }) | null;
+  transferredFrom?: (TransferLinkCard & { remainingSessions: number }) | null;
   /** 學生詳情（含公開頁／LIFF）才會帶，其他端點沒有 */
   convertedTo?: (ConversionLinkCard & { totalSessions: number }) | null;
   convertedFrom?: (ConversionLinkCard & { remainingSessions: number })[];
@@ -396,6 +407,17 @@ const studentsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["StudentCard", "Student"],
     }),
+    transferStudentCard: builder.mutation<
+      StudentCard,
+      { id: number; studentCardId: number; toStudentId: number; note?: string }
+    >({
+      query: ({ id, studentCardId, toStudentId, note }) => ({
+        url: `students/${id}/student-cards/${studentCardId}/transfer`,
+        method: "POST",
+        body: { toStudentId, note },
+      }),
+      invalidatesTags: ["StudentCard", "Student"],
+    }),
     deleteStudentCard: builder.mutation<{ success: boolean }, { id: number; studentCardId: number }>({
       query: ({ id, studentCardId }) => ({
         url: `students/${id}/student-cards/${studentCardId}`,
@@ -458,6 +480,7 @@ export const {
   useExpireStudentCardMutation,
   useUpdateStudentCardNoteMutation,
   useConvertStudentCardMutation,
+  useTransferStudentCardMutation,
   useDeleteStudentCardMutation,
   useGetStudentCardsByLessonQuery,
   useGetStudentEventsQuery,

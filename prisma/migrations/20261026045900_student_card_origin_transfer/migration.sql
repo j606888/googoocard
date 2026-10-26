@@ -1,0 +1,1 @@
+ALTER TYPE "StudentCardOrigin" ADD VALUE 'TRANSFER';

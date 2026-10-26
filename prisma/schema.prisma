@@ -21,6 +21,7 @@ enum CardPurchaseSource {
 enum StudentCardOrigin {
   PURCHASE // 正常購買 — 有真的金流，計入課卡營收
   CONVERSION // 由舊卡轉換而來（例：Level 1 升級 Level 2、複習卡折抵）— 不重複計入課卡營收
+  TRANSFER // 別的學生轉讓過來的剩餘堂數 — 沒有新金流，不計入課卡營收
 }
 
 enum AttendanceSource {
@@ -241,6 +242,10 @@ model StudentCard {
   convertedToId     Int?
   convertedTo       StudentCard?       @relation("StudentCardConversion", fields: [convertedToId], references: [id])
   convertedFrom     StudentCard[]      @relation("StudentCardConversion")
+  // 轉讓：剩餘堂數整批給另一位學生。欄位放在「舊卡」上指向對方的新卡，一對一。
+  transferredToId   Int?               @unique
+  transferredTo     StudentCard?       @relation("StudentCardTransfer", fields: [transferredToId], references: [id])
+  transferredFrom   StudentCard?       @relation("StudentCardTransfer")
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   expiredAt         DateTime?

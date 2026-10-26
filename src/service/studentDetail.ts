@@ -68,6 +68,26 @@ export const conversionLinksInclude = {
 } as const;
 
 /**
+ * The other end of a card transfer, for「已轉讓 4 堂 → 王小明 #A0042」/
+ *「陳小華 轉入」. The two ends belong to different students of the same
+ * classroom, so the student's name is only for the teacher's view —
+ * `publicTransferLinksInclude` leaves it out for the share link and LIFF.
+ */
+export const transferLinksInclude = {
+  transferredTo: {
+    select: { id: true, serialNumber: true, totalSessions: true, student: { select: { id: true, name: true } } },
+  },
+  transferredFrom: {
+    select: { id: true, serialNumber: true, remainingSessions: true, student: { select: { id: true, name: true } } },
+  },
+} as const;
+
+export const publicTransferLinksInclude = {
+  transferredTo: { select: { id: true, serialNumber: true, totalSessions: true } },
+  transferredFrom: { select: { id: true, serialNumber: true, remainingSessions: true } },
+} as const;
+
+/**
  * 「最近上課」= the latest class the student attended, dated by the class
  * (`lessonPeriod.startTime`) — not by when the teacher took attendance, which
  * can land after midnight, and not by the record's `createdAt`. Self check-ins
@@ -275,6 +295,7 @@ export async function buildStudentDetailPayload(studentId: number) {
         include: {
           card: { include: { danceStyle: { select: danceStyleSummarySelect } } },
           ...conversionLinksInclude,
+          ...publicTransferLinksInclude,
         },
         orderBy: { createdAt: "desc" },
       },

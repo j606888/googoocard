@@ -4,6 +4,7 @@ import {
   CircleDollarSign,
   CircleDot,
   CreditCard,
+  Forward,
   Repeat2,
   SquareDashed,
   type LucideIcon,
@@ -18,7 +19,8 @@ export const EXHAUSTED_TITLE = "課卡使用完畢";
 const PURCHASE_TITLE = "購買課卡";
 const PAYMENT_TITLE = "確認付款";
 const CONVERSION_TITLE = "課卡轉換";
-const CARD_TITLES = new Set([PURCHASE_TITLE, PAYMENT_TITLE, EXHAUSTED_TITLE, CONVERSION_TITLE]);
+const TRANSFER_TITLE = "課卡轉讓";
+const CARD_TITLES = new Set([PURCHASE_TITLE, PAYMENT_TITLE, EXHAUSTED_TITLE, CONVERSION_TITLE, TRANSFER_TITLE]);
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -70,6 +72,8 @@ export function presentEvent(event: Event): EventPresentation {
       };
     case CONVERSION_TITLE:
       return { icon: Repeat2, tone: TONE.warm, title: "課卡轉換", description: event.description || null };
+    case TRANSFER_TITLE:
+      return { icon: Forward, tone: TONE.pale, title: "課卡轉讓", description: event.description || null };
     default:
       return { icon: CircleDot, tone: TONE.grey, title: event.title, description: event.description || null };
   }

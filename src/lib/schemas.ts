@@ -71,6 +71,12 @@ export const convertStudentCardSchema = z.object({
   note: z.string().max(500).nullish(),
 });
 
+/** 課卡轉讓：剩餘堂數整批給同教室的另一位學生（src/service/studentCardTransfer.ts）。 */
+export const transferStudentCardSchema = z.object({
+  toStudentId: positiveInt,
+  note: z.string().max(500).nullish(),
+});
+
 /**
  * A lesson period's time slot (PATCH .../periods/[periodId]).
  *
