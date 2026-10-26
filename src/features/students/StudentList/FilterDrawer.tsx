@@ -1,6 +1,7 @@
 "use client";
 
 import FilterChip from "@/components/FilterChip";
+import { SortDirection, SortDirectionToggle } from "@/components/SortMenu";
 import Drawer from "@/components/Drawer";
 import { Button } from "@/components/ui/button";
 import type { DanceStyleSummary } from "@/lib/danceStyles";
@@ -31,6 +32,8 @@ interface FilterDrawerProps {
   onChange: (next: StudentFilters) => void;
   sort: StudentSort;
   onSortChange: (sort: StudentSort) => void;
+  sortDirection: SortDirection;
+  onSortDirectionChange: (direction: SortDirection) => void;
   statusOptions: StatusFilterOption[];
   tags: StudentTag[];
   lessons: Pick<LessonSummary, "id" | "name">[];
@@ -55,6 +58,8 @@ const FilterDrawer = ({
   onChange,
   sort,
   onSortChange,
+  sortDirection,
+  onSortDirectionChange,
   statusOptions,
   tags,
   lessons,
@@ -63,6 +68,7 @@ const FilterDrawer = ({
 }: FilterDrawerProps) => {
   // 需續約已經在「狀態」裡，標籤區不再重複一次
   const otherTags = tags.filter((tag) => tag.name !== NEEDS_RENEWAL_TAG);
+  const currentSortDirections = SORT_OPTIONS.find((option) => option.value === sort)?.directions;
 
   return (
     <Drawer
@@ -97,6 +103,15 @@ const FilterDrawer = ({
             </label>
           ))}
         </div>
+        {currentSortDirections && (
+          <div className="mt-2">
+            <SortDirectionToggle
+              labels={currentSortDirections}
+              direction={sortDirection}
+              onChange={onSortDirectionChange}
+            />
+          </div>
+        )}
       </div>
 
       <Section title="狀態">

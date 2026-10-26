@@ -8,7 +8,7 @@ import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import StudentTable, { StudentTableSkeleton } from "./StudentTable";
 import ActivityTabs, { ACTIVITY_META } from "./ActivityTabs";
 import Searchbar from "./Searchbar";
-import SortMenu from "@/components/SortMenu";
+import SortMenu, { SortDirection } from "@/components/SortMenu";
 import FilterDrawer, { StatusFilterOption } from "./FilterDrawer";
 import ArchivedStudents from "./ArchivedStudents";
 import UnboundLineEntry from "./UnboundLineEntry";
@@ -39,7 +39,9 @@ import {
   loadStudentFilters,
   saveStudentFilters,
   loadStudentSort,
+  loadStudentSortDirection,
   saveStudentSort,
+  saveStudentSortDirection,
   remainingSessions,
   sortStudents,
 } from "./studentFilters";
@@ -61,6 +63,12 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<StudentFilters>(EMPTY_FILTERS);
   const [sort, setSort] = useState<StudentSort>(DEFAULT_SORT);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  // 換排序欄位就回到那個欄位的預設方向，免得「剩餘堂數」突然變成多到少
+  const changeSort = (next: StudentSort) => {
+    if (next !== sort) setSortDirection("asc");
+    setSort(next);
+  };
   const [activityView, setActivityView] = useState<ActivityView>("all");
   const [showGone, setShowGone] = useState(false);
   const [hydratedClassroomId, setHydratedClassroomId] = useState<number | null>(null);
@@ -90,6 +98,7 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
     if (classroomId == null) return;
     setFilters(loadStudentFilters(classroomId));
     setSort(loadStudentSort(classroomId));
+    setSortDirection(loadStudentSortDirection(classroomId));
     setActivityView(loadActivityView(classroomId));
     setHydratedClassroomId(classroomId);
   }, [classroomId]);
@@ -103,7 +112,8 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
   useEffect(() => {
     if (classroomId == null || hydratedClassroomId !== classroomId) return;
     saveStudentSort(classroomId, sort);
-  }, [classroomId, hydratedClassroomId, sort]);
+    saveStudentSortDirection(classroomId, sortDirection);
+  }, [classroomId, hydratedClassroomId, sort, sortDirection]);
 
   useEffect(() => {
     if (classroomId == null || hydratedClassroomId !== classroomId) return;
@@ -111,8 +121,8 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
   }, [classroomId, hydratedClassroomId, activityView]);
 
   const students = useMemo(
-    () => sortStudents(applyStudentFilters(allStudents, filters), sort),
-    [allStudents, filters, sort]
+    () => sortStudents(applyStudentFilters(allStudents, filters), sort, sortDirection),
+    [allStudents, filters, sort, sortDirection]
   );
 
   // 分區：篩選、排序之後才切。有搜尋字時不分區——找人就是找人，不該被藏在收起來的區裡。
@@ -297,7 +307,13 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
           </Button>
         )}
       </span>
-      <SortMenu sort={sort} options={SORT_OPTIONS} onChange={setSort} />
+      <SortMenu
+        sort={sort}
+        options={SORT_OPTIONS}
+        onChange={changeSort}
+        direction={sortDirection}
+        onDirectionChange={setSortDirection}
+      />
     </div>
   );
 
@@ -337,7 +353,9 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
       filters={filters}
       onChange={setFilters}
       sort={sort}
-      onSortChange={setSort}
+      onSortChange={changeSort}
+      sortDirection={sortDirection}
+      onSortDirectionChange={setSortDirection}
       statusOptions={statusOptions}
       tags={tags}
       lessons={inProgressLessons}

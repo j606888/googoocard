@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { subDays } from "date-fns";
 import type { Student } from "@/store/slices/students";
-import { ACTIVE_DAYS, activityOf, recentWeeks } from "./studentFilters";
+import { ACTIVE_DAYS, activityOf, recentWeeks, sortStudents } from "./studentFilters";
 
 const NOW = new Date("2026-10-26T12:00:00");
 
@@ -62,5 +62,30 @@ describe("recentWeeks", () => {
 
   it("沒帶 recentAttendAt 時全是 0", () => {
     expect(recentWeeks(student({}), NOW)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+  });
+});
+
+describe("sortStudents", () => {
+  const named = (name: string, number: number, remaining: number, lastAttendDaysAgo: number | null) =>
+    ({ ...student({ remaining, lastAttendDaysAgo }), name, number }) as Student;
+  const list = [
+    named("乙", 2, 3, 10),
+    named("甲", 1, 3, null),
+    named("丙", 3, 1, 2),
+  ];
+  const names = (students: Student[]) => students.map((s) => s.name);
+  // 甲、乙剩餘堂數一樣，同分時的姓名順序
+  const tie = ["甲", "乙"].sort((a, b) => a.localeCompare(b, "zh-Hant"));
+
+  it("預設方向維持原本的排法", () => {
+    expect(names(sortStudents(list, "number"))).toEqual(["甲", "乙", "丙"]);
+    expect(names(sortStudents(list, "remaining"))).toEqual(["丙", ...tie]);
+    expect(names(sortStudents(list, "lastAttend"))).toEqual(["甲", "乙", "丙"]);
+  });
+
+  it("倒序只反轉主要欄位，同分仍依姓名正序", () => {
+    expect(names(sortStudents(list, "number", "desc"))).toEqual(["丙", "乙", "甲"]);
+    expect(names(sortStudents(list, "remaining", "desc"))).toEqual([...tie, "丙"]);
+    expect(names(sortStudents(list, "lastAttend", "desc"))).toEqual(["丙", "乙", "甲"]);
   });
 });

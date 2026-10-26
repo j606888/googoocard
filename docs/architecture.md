@@ -655,7 +655,7 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 ⋯ 選單：複製公開頁連結、複製 LINE 綁定連結（未綁定時）、封存／還原學生。
 手機老師端、公開頁、LIFF 仍是舊的「概要／課卡／出席／動態」分頁（手機老師端會在改版第 7 階段換掉）。
 
-排序有四種（`SORT_OPTIONS`，`studentFilters.ts`）：姓名／編號／剩餘堂數（少到多）／最近上課（久到近）。**一律在前端排**——列表沒有分頁，而且後兩者不是 DB 單一欄位排得出來的。`GET /api/students` 為此多回 `lastAttendAt` / `lastAttendLessonName`（巢狀 `take: 1`，靠 `AttendanceRecord @@index([studentId])`）。「最近上課」= 最近一次出席**那堂課的上課時間**（`lessonPeriod.startTime`），不是點名時間；學生自助簽到、尚未定案的也算。三個出口（名單、學生詳情、LIFF／分享頁）共用 `src/service/studentDetail.ts` 的 `lastAttendanceQuery` / `toLastAttendance`，別再各寫一份。
+排序有四種（`SORT_OPTIONS`，`studentFilters.ts`）：姓名／編號／剩餘堂數（少到多）／最近上課（久到近），每種都可以切正序／倒序（`SortMenu` 底下的 `SortDirectionToggle`，篩選抽屜也有一份；倒序只反轉主要欄位，同分仍依姓名正序；換排序欄位會回到正序）。方向存在 localStorage（`student-sort-dir:<classroomId>`）。**一律在前端排**——列表沒有分頁，而且後兩者不是 DB 單一欄位排得出來的。`GET /api/students` 為此多回 `lastAttendAt` / `lastAttendLessonName`（巢狀 `take: 1`，靠 `AttendanceRecord @@index([studentId])`）。「最近上課」= 最近一次出席**那堂課的上課時間**（`lessonPeriod.startTime`），不是點名時間；學生自助簽到、尚未定案的也算。三個出口（名單、學生詳情、LIFF／分享頁）共用 `src/service/studentDetail.ts` 的 `lastAttendanceQuery` / `toLastAttendance`，別再各寫一份。
 
 ## 測試
 

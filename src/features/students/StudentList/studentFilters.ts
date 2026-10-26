@@ -1,5 +1,5 @@
 import { Student } from "@/store/slices/students";
-import { SortOption } from "@/components/SortMenu";
+import { SortDirection, SortOption } from "@/components/SortMenu";
 import { differenceInCalendarDays } from "date-fns";
 import { weeklyCounts } from "../StudentDetail/AttendSection/attendanceInsights";
 
@@ -196,10 +196,10 @@ export const tagLabel = (name: string): string =>
 export type StudentSort = "name" | "number" | "remaining" | "lastAttend";
 
 export const SORT_OPTIONS: SortOption<StudentSort>[] = [
-  { value: "name", label: "姓名", short: "姓名" },
-  { value: "number", label: "編號", short: "編號" },
-  { value: "remaining", label: "剩餘堂數（少到多）", short: "剩餘堂數" },
-  { value: "lastAttend", label: "最近上課（久到近）", short: "最近上課" },
+  { value: "name", label: "姓名", short: "姓名", directions: ["A→Z", "Z→A"] },
+  { value: "number", label: "編號", short: "編號", directions: ["小到大", "大到小"] },
+  { value: "remaining", label: "剩餘堂數", short: "剩餘堂數", directions: ["少到多", "多到少"] },
+  { value: "lastAttend", label: "最近上課", short: "最近上課", directions: ["久到近", "近到久"] },
 ];
 
 /** 沒有存過偏好時的排序。編號是老師心裡的固定順序，比姓名筆畫穩定。 */
@@ -211,28 +211,32 @@ const isStudentSort = (value: string): value is StudentSort =>
 /**
  * 排序一律在前端做——列表沒有分頁，資料本來就整份在手上，
  * 「剩餘堂數」「最近上課」也不是 DB 單一欄位排得出來的。
+ * desc 只反轉主要欄位；同分時一律再依姓名正序，倒過來也好找人。
  */
-export const sortStudents = (students: Student[], sort: StudentSort): Student[] => {
-  const sorted = [...students];
-  switch (sort) {
-    case "number":
-      return sorted.sort((a, b) => a.number - b.number);
-    case "remaining":
-      return sorted.sort(
-        (a, b) =>
-          remainingSessions(a) - remainingSessions(b) ||
-          a.name.localeCompare(b.name, "zh-Hant")
-      );
-    case "lastAttend": {
-      // 越久沒來排越前面；從未上過課視為最久。
-      const staleness = (s: Student) => daysSinceLastAttend(s) ?? Number.POSITIVE_INFINITY;
-      return sorted.sort(
-        (a, b) => staleness(b) - staleness(a) || a.name.localeCompare(b.name, "zh-Hant")
-      );
+export const sortStudents = (
+  students: Student[],
+  sort: StudentSort,
+  direction: SortDirection = "asc"
+): Student[] => {
+  const sign = direction === "desc" ? -1 : 1;
+  const byName = (a: Student, b: Student) => a.name.localeCompare(b.name, "zh-Hant");
+  // 越久沒來排越前面；從未上過課視為最久。
+  const staleness = (s: Student) => daysSinceLastAttend(s) ?? Number.POSITIVE_INFINITY;
+  const primary: (a: Student, b: Student) => number = (() => {
+    switch (sort) {
+      case "number":
+        return (a: Student, b: Student) => a.number - b.number;
+      case "remaining":
+        return (a: Student, b: Student) => remainingSessions(a) - remainingSessions(b);
+      case "lastAttend":
+        // Infinity - Infinity 是 NaN，從未上過課的人彼此要算同分
+        return (a: Student, b: Student) =>
+          staleness(a) === staleness(b) ? 0 : staleness(b) > staleness(a) ? 1 : -1;
+      default:
+        return byName;
     }
-    default:
-      return sorted.sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
-  }
+  })();
+  return [...students].sort((a, b) => sign * primary(a, b) || byName(a, b));
 };
 
 const sortStorageKey = (classroomId: number) => `student-sort:${classroomId}`;
@@ -249,6 +253,24 @@ export const loadStudentSort = (classroomId: number): StudentSort => {
 export const saveStudentSort = (classroomId: number, sort: StudentSort) => {
   try {
     localStorage.setItem(sortStorageKey(classroomId), sort);
+  } catch {
+    // ignore quota / serialization errors
+  }
+};
+
+const sortDirectionStorageKey = (classroomId: number) => `student-sort-dir:${classroomId}`;
+
+export const loadStudentSortDirection = (classroomId: number): SortDirection => {
+  try {
+    return localStorage.getItem(sortDirectionStorageKey(classroomId)) === "desc" ? "desc" : "asc";
+  } catch {
+    return "asc";
+  }
+};
+
+export const saveStudentSortDirection = (classroomId: number, direction: SortDirection) => {
+  try {
+    localStorage.setItem(sortDirectionStorageKey(classroomId), direction);
   } catch {
     // ignore quota / serialization errors
   }
