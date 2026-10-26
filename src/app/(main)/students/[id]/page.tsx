@@ -58,6 +58,7 @@ const StudentPage = () => {
       />
       <AttentionBar
         student={student}
+        hideRenewal={sizeClass !== "compact"}
         className={sizeClass === "compact" ? "px-4 pt-3 bg-white" : "px-8 pt-4 bg-white"}
       />
       <StudentDetail student={student} />

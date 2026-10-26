@@ -27,7 +27,7 @@ const CardSkeleton = ({ className = "" }: { className?: string }) => (
 
 /**
  * 學生詳情載入中：跟 `StudentDetailHeader` ＋ `StudentDetail` 同一個版面——大頭貼、
- * 姓名、數字格、分頁列、課卡。返回連結與分頁名稱是真的，只有資料是骨架。
+ * 姓名、數字格（桌面是一行數據列）、分頁列、課卡。返回連結與分頁名稱是真的，只有資料是骨架。
  */
 const StudentDetailSkeleton = ({
   variant = "page",
@@ -56,7 +56,7 @@ const StudentDetailSkeleton = ({
         )}
         <div aria-hidden="true">
           <div className={`flex items-center ${compact ? "gap-3.5" : "gap-4"}`}>
-            <Skeleton className={`${compact ? "size-14" : "size-16"} shrink-0`} />
+            <Skeleton className={`${variant === "pane" ? "size-12" : "size-14"} shrink-0`} />
             <div className="flex flex-col gap-2.5">
               <Skeleton className="h-5 w-32" />
               <div className="flex gap-1.5">
@@ -65,15 +65,15 @@ const StudentDetailSkeleton = ({
               </div>
             </div>
           </div>
-          <div
-            className={
-              compact ? "mt-3.5 grid grid-cols-3 gap-2" : "mt-5 grid grid-cols-2 @3xl:grid-cols-4 gap-3"
-            }
-          >
-            {Array.from({ length: compact ? 3 : 4 }, (_, i) => (
-              <Skeleton key={i} className={`rounded-xl ${compact ? "h-[70px]" : "h-[88px]"}`} />
-            ))}
-          </div>
+          {compact ? (
+            <div className="mt-3.5 grid grid-cols-3 gap-2">
+              {Array.from({ length: 3 }, (_, i) => (
+                <Skeleton key={i} className="rounded-xl h-[70px]" />
+              ))}
+            </div>
+          ) : (
+            <Skeleton className={`${variant === "pane" ? "mt-3" : "mt-4"} rounded-xl h-10`} />
+          )}
         </div>
       </div>
 

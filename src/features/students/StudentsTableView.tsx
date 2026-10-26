@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import Link from "next/link";
-import { ArrowUpRight, X } from "lucide-react";
+import { SquareArrowOutUpRight, X } from "lucide-react";
 import StudentList from "./StudentList";
 import StudentDetail from "./StudentDetail";
 import StudentDetailHeader from "./StudentDetail/StudentDetailHeader";
@@ -10,8 +10,8 @@ import AttentionBar from "./StudentDetail/AttentionBar";
 import { Student, useGetStudentQuery } from "@/store/slices/students";
 import { studentDetailHref } from "@/lib/studentNav";
 import StudentDetailSkeleton from "./StudentDetail/StudentDetailSkeleton";
-import { Button } from "@/components/ui/button";
-import SideSheet, { SideSheetTitle } from "@/components/SideSheet";
+import { Button, buttonVariants } from "@/components/ui/button";
+import SideSheet from "@/components/SideSheet";
 import { useSelectionMirroredToUrl } from "@/components/SplitView";
 
 const selHref = (studentId: number) => `/students?sel=${studentId}`;
@@ -23,7 +23,8 @@ const selHref = (studentId: number) => `/students?sel=${studentId}`;
  * state 是真相、網址只是鏡射，理由寫在那裡。關掉抽屜就清掉選取和網址參數。
  *
  * 抽屜裡是跟獨立學生頁同一套頁首＋分頁；600px 寬時 `StudentDetail` 會自己把
- * 側欄收成「資料」分頁。「開啟完整頁」保留（可分享的網址）。
+ * 側欄收成「資料」分頁。抽屜沒有自己的標題列：「開啟完整頁」（可分享的網址）
+ * 與關閉做成灰色小圖示，接在頁首動作按鈕後面，把高度留給分頁。
  */
 const StudentsTableView = () => {
   const { selectedId, select, clear } = useSelectionMirroredToUrl("sel");
@@ -40,32 +41,57 @@ const StudentsTableView = () => {
   return (
     <>
       <StudentList variant="table" selectedId={selectedId} onSelect={handleSelect} />
-      <SideSheet open={selectedId != null} onClose={clear} className="w-[600px]">
-        <div className="flex-none flex items-center gap-2 px-4 h-12 border-b border-neutral-100">
-          <SideSheetTitle className="text-sm font-semibold text-neutral-500">
-            {student ? student.name : "學生詳情"}
-          </SideSheetTitle>
-          {selectedId != null && (
-            <Link
-              href={studentDetailHref(selectedId, selHref(selectedId))}
-              className="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:text-primary-900 px-2 py-2"
-            >
-              開啟完整頁
-              <ArrowUpRight className="w-4 h-4" />
-            </Link>
-          )}
-          <Button type="button" variant="ghost" size="iconSm" onClick={clear} aria-label="關閉">
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
-
-        <div className="flex-1 min-h-0 flex flex-col">
+      <SideSheet
+        open={selectedId != null}
+        onClose={clear}
+        label={student ? student.name : "學生詳情"}
+        className="w-[600px]"
+      >
+        <div className="relative flex-1 min-h-0 flex flex-col">
           {isLoading || !student ? (
-            <StudentDetailSkeleton variant="pane" />
+            <>
+              {/* 載入中還沒有頁首，關閉鈕先浮在右上角 */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="iconSm"
+                onClick={clear}
+                aria-label="關閉"
+                className="absolute top-4 right-4 text-neutral-500"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+              <StudentDetailSkeleton variant="pane" />
+            </>
           ) : (
             <>
-              <StudentDetailHeader student={student} variant="pane" />
-              <AttentionBar student={student} className="flex-none px-6 pt-4 bg-white" />
+              <StudentDetailHeader
+                student={student}
+                variant="pane"
+                trailing={
+                  <>
+                    <Link
+                      href={studentDetailHref(student.id, selHref(student.id))}
+                      aria-label="開啟完整頁"
+                      title="開啟完整頁"
+                      className={`${buttonVariants({ variant: "ghost", size: "iconSm" })} text-neutral-500`}
+                    >
+                      <SquareArrowOutUpRight className="w-4 h-4" />
+                    </Link>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="iconSm"
+                      onClick={clear}
+                      aria-label="關閉"
+                      className="text-neutral-500"
+                    >
+                      <X className="w-5 h-5" />
+                    </Button>
+                  </>
+                }
+              />
+              <AttentionBar student={student} hideRenewal className="flex-none px-6 pt-3 bg-white" />
               <StudentDetail student={student} variant="pane" />
             </>
           )}

@@ -11,11 +11,20 @@ import { attentionFor } from "./attention";
 /**
  * 學生詳情頁首下方的一條提醒（右側抽屜與手機詳情頁共用）。
  * 需續約不放按鈕——頁首／課卡分頁本來就有「購買課卡」。
+ * 桌面傳 `hideRenewal`：需續約已經由頁首數據列的紅字＋徽章講了，不再多一條。
  */
-const AttentionBar = ({ student, className }: { student: StudentWithDetail; className?: string }) => {
+const AttentionBar = ({
+  student,
+  className,
+  hideRenewal = false,
+}: {
+  student: StudentWithDetail;
+  className?: string;
+  hideRenewal?: boolean;
+}) => {
   const [paying, setPaying] = useState(false);
   const attention = student.archivedAt ? null : attentionFor(student);
-  if (!attention) return null;
+  if (!attention || (hideRenewal && attention.kind === "renewal")) return null;
 
   const tone =
     attention.kind === "idle"
