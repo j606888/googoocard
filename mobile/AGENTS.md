@@ -5,7 +5,7 @@ Expo 混合式 App：原生畫面是登入、待處理（`src/app/(tabs)/index.t
 
 ## 這個 App 的規則
 
-- **App 內不能出現價格、方案、升級或付款**（App Store 3.1.3(f)）。WebView 顯示整個網站，網站加付費功能時要用 `src/lib/inApp.ts` 在 App 裡藏起來。
+- **App 內不能出現價格、方案、升級或付款**（App Store 3.1.3(f)）。WebView 顯示整個網站，網站加付費功能時要用網站那邊的 `../src/lib/inApp.ts` 在 App 裡藏起來。
 - 打 API 一律走 `src/lib/api.ts`（帶 bearer 和 `X-Googoocard-Client: app`）。不要在 App 裡用 cookie。
 - 網站和 App 的「目前教室」是同一個（`User.currentClassroomId`）。App 這邊換教室用 `switchClassroom()`，它會 bump `epoch` 讓 WebView 重新進站。
 - 本機開發：`mobile/.env.local` 設 `EXPO_PUBLIC_API_URL=http://localhost:3000`（模擬器）或電腦的區網 IP（實機），再 `npx expo run:ios`。正式網址在 `eas.json`。

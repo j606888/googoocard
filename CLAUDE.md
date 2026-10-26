@@ -62,12 +62,14 @@ Tests are safe by construction: they run against a separate `googoocard_test` da
 ```
 src/
 ├── app/
-│   ├── login/, signup/   # Auth pages (no route group wrapper)
-│   ├── lessons/          # Lesson management UI
-│   ├── cards/            # Student card (payment package) UI
-│   ├── students/         # Student management UI
-│   ├── income/           # Revenue analytics UI
-│   ├── teachers/, teams/, onboarding/
+│   ├── (auth)/           # login/, signup/, onboarding/ (route group)
+│   ├── (main)/           # Teacher app (route group with sidebar/BottomNav layout):
+│   │   ├── lessons/      # Lesson management UI
+│   │   ├── cards/        # Student card (payment package) UI
+│   │   ├── students/     # Student management UI
+│   │   ├── income/       # Revenue analytics UI
+│   │   └── teachers/, teams/, dance-styles/, locations/, …
+│   ├── liff/             # Student-facing LINE LIFF pages
 │   └── api/              # REST API endpoints
 ├── components/           # Shared UI components
 ├── features/             # Domain-specific UI modules (mirrors app/ pages)
@@ -91,7 +93,7 @@ mobile/                   # Teacher iOS App (Expo) — own package.json/tsconfig
 
 ### Data Flow
 
-1. **Auth**: Middleware (`src/middleware.ts`) guards all routes except `/`, `/login`, `/signup`, `/invitations`, `/api`, `/public-students`, `/privacy`, `/terms`. Token decoded in every API handler via `decodeAuthToken()`, which also re-verifies membership and returns `NO_CLASSROOM` (`-1`, from `src/lib/authz.ts`) when there is none — **never `undefined`**, because Prisma reads `where: { classroomId: undefined }` as "no filter" and would return every classroom's rows. The iOS App sends `Authorization: Bearer` instead of the cookie (App-only JWT whose classroom is `User.currentClassroomId` — see "老師端 iOS App" in `docs/architecture.md`). Route wrappers in `src/lib/apiRoute.ts`: `apiRoute` (needs a live membership), `sessionRoute` (login only — for the classroom-management routes), `publicApiRoute` (no auth).
+1. **Auth**: Middleware (`src/middleware.ts`) guards all routes except `/`, `/login`, `/liff`, `/signup`, `/invitations`, `/checkin/`, `/api`, `/public-students`, `/privacy`, `/terms` (plus static assets). Token decoded in every API handler via `decodeAuthToken()`, which also re-verifies membership and returns `NO_CLASSROOM` (`-1`, from `src/lib/authz.ts`) when there is none — **never `undefined`**, because Prisma reads `where: { classroomId: undefined }` as "no filter" and would return every classroom's rows. The iOS App sends `Authorization: Bearer` instead of the cookie (App-only JWT whose classroom is `User.currentClassroomId` — see "老師端 iOS App" in `docs/architecture.md`). Route wrappers in `src/lib/apiRoute.ts`: `apiRoute` (needs a live membership), `sessionRoute` (login only — for the classroom-management routes), `publicApiRoute` (no auth).
 
 2. **API**: Each resource has REST endpoints under `src/app/api/`. Handlers call Prisma directly or delegate to `src/service/`.
 
@@ -107,7 +109,7 @@ mobile/                   # Teacher iOS App (Expo) — own package.json/tsconfig
 - `DanceStyle` — a classroom's own dance style (`name`, palette-key `color`, `hasLevels`, `sortOrder`, `archivedAt`), managed on `/dance-styles`. Replaced the old `DanceType` enum (2026-10). Archived, never deleted. Validate any incoming `danceStyleId` with `findDanceStyleInClassroom()` (`src/lib/authz.ts`).
 - `StudentDanceQualification` — (studentId, danceStyleId, level) rows: the highest level (1 初階 / 2 中階 / 3 進階, `src/lib/danceLevels.ts`) a student has completed in a dance style. Level ≥ 1 = may buy practice cards; a practice card is usable only in lessons with `Lesson.level` ≤ that level — **only when the style `hasLevels`**; otherwise every level counts as 1. APIs expose both `danceQualifications: number[]` (style ids) and `danceLevels: { [danceStyleId]: level }`.
 - `Card` — configurable card type (session limit, price). `isTrial` = 體驗課卡: registered by the teacher on the lesson page's 體驗名單 (`src/service/trialRoster.ts`), never sold at self check-in; default price $0 for 舊生 = anyone who bought a non-trial card (`src/lib/trialPrice.ts`). `isPracticeCard` + `danceStyleId` define a practice (複習) card; `danceStyleId` is required for practice cards, `null` on general cards (and on legacy practice cards, which fall back to the lesson's style).
-- `StudentCard` — a student's instance of a Card (tracks `remainingSessions`, `expiredAt`). Create one only via `createStudentCardInTx()` (`src/service/studentCard.ts`). Confirming payment records `paymentMethod` / `paymentReference` and the receiver (`paidByUserId` = who holds the money) — see "收款" in `docs/architecture.md`. `serialNumber` is a per-classroom sequence shown as `#A0001`…`#A9999` → `#B0001` (`src/lib/cardSerial.ts`); issue it only via `nextCardSerial(tx, classroomId)` inside the creating transaction — there is no DB unique constraint. Conversion rules (value-based default sessions, unpaid cards blocked) live in `src/domains/cardConversion`; a card's remaining sessions can also be transferred whole to another student (`origin = TRANSFER`, `transferredToId` on the old card) — see "課卡轉換" / "課卡轉讓" / "卡片編號" in `docs/architecture.md`. Revenue/collection stats count only `origin = PURCHASE`.
+- `StudentCard` — a student's instance of a Card (tracks `remainingSessions`, `expiredAt`). Create one only via `createStudentCardInTx()` (`src/service/studentCard.ts`). Confirming payment records `paymentMethod` / `paymentReference` and the receiver (`paidByUserId` = who holds the money) — see "收款" in `docs/architecture.md`. `serialNumber` is a per-classroom sequence shown as `#A0001`…`#A9999` → `#B0001` (`src/lib/cardSerial.ts`); issue it only via `nextCardSerial(tx, classroomId)` (`src/service/studentCardSerial.ts`) inside the creating transaction — there is no DB unique constraint. Conversion rules (value-based default sessions, unpaid cards blocked) live in `src/domains/cardConversion`; a card's remaining sessions can also be transferred whole to another student (`origin = TRANSFER`, `transferredToId` on the old card) — see "課卡轉換" / "課卡轉讓" / "卡片編號" in `docs/architecture.md`. Revenue/collection stats count only `origin = PURCHASE`.
 - `Lesson` — has `status` (`inProgress` / `finished`), a `kind` (`fixed` / `ongoing`), an optional `endedAt` (ended by hand), a required `danceStyleId` and a `level`. Status is computed by `refreshLesson()` in `src/service/lesson.ts` via `deriveLessonStatus()` (`src/lib/lessonKind.ts`): ended by hand → finished; ongoing → never auto-finishes; fixed → finished once every period is checked. See "課程型態" in `docs/architecture.md`.
 - `LessonPeriod` — a time slot within a Lesson; `attendanceTakenAt` marks when attendance was recorded
 - `AttendanceRecord` — links a student + lessonPeriod + (optionally) a StudentCard; card session is decremented on creation, incremented on removal
@@ -162,6 +164,6 @@ Colours, radii, sizes and the shared components (`Button`, `Field`, `EmptyState`
 
 ### Mobile-First, but not 480px-only
 
-Mobile-first, but the **teacher-facing app goes full-width with a sidebar on desktop** — the layout-mode switch is `lg:` (content) while the nav shell still switches at `md:` (a known inconsistency). `max-w-[480px]` now only applies to the student-facing entry points (LIFF, on-site QR check-in) and to `Drawer`.
+Mobile-first, but the **teacher-facing app goes full-width with a sidebar on desktop** — both the nav shell (sidebar / BottomNav in `app/(main)/layout.tsx`) and the content switch at `lg:`. `max-w-[480px]` now only applies to the student-facing entry points (LIFF, on-site QR check-in) and to `Drawer`.
 
 ⚠️ Five mobile/desktop divergence mechanisms coexist (one of them has already cost a bug); which one a screen may use is now a written rule, not a judgment call. **Read [`docs/ui-responsive.md`](docs/ui-responsive.md) before adding a desktop layout to any screen** — it states the rule (one 1024px size class, logic in hooks, `variant` props over parallel trees, four adaptive primitives), and records the deliberate trade-offs so they don't get re-litigated.

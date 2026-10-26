@@ -24,7 +24,7 @@
 ## 1. 掃碼入口統一走 LIFF
 
 - 門口海報的 QR 改成 LIFF 網址：`https://liff.line.me/{LIFF_ID}/checkin?key=<Classroom.checkinKey>`。用手機相機掃，直接在 LINE 裡打開，能拿到 ID Token，**每一筆自助點名都知道是誰本人**。
-- 現在的 `/checkin/[key]`（從名單點自己名字、不驗身分）**改成只給工作人員用**：需要老師／小幫手登入，當作學生手機沒電時的備案。原網址導到 LIFF 版。
+- 現在的 `/checkin/[key]`（從名單點自己名字、不驗身分）**改成只給工作人員用**：需要老師／小幫手登入，當作學生手機沒電時的備案。原網址導到 LIFF 版。（實作時沒留工作人員備案：`/checkin/[key]` 只 redirect 到 LIFF。）
 - `checkinKey` 仍只負責「哪間教室、今天」，維持可輪換。
 
 ## 2. LIFF 點名流程
@@ -130,7 +130,7 @@ model StudentCard {
 | `Card.isTrial Boolean @default(false)` | §3.1 體驗課：新同學付費、舊生預設免費 |
 | `Student.mergedIntoId Int?` | §7 |
 | `Student.lineInviteSentAt DateTime?` | §2.1 邀請綁定的發送紀錄 |
-| 新 `TodoType.POSSIBLE_DUPLICATE` | §2 新學員與未綁定舊學員同名 |
+| 新 `TodoType.POSSIBLE_DUPLICATE` | §2 新學員與未綁定舊學員同名（沒做：「可能重複」由 `src/service/todos.ts` 即時推導，不加 enum） |
 
 一律 `npm run db:migrate`，不用 `db push`。
 

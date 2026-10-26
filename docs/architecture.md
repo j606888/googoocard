@@ -48,7 +48,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 - 每間教室在 **`/dance-styles`** 管理自己的舞種：新增、改名（同教室不可重名，`@@unique([classroomId, name])` → 409）、色盤選色、「分階」開關、上下排序、封存／還原。**新教室清單是空的**，開課／建立複習卡時會引導過去。
 - **只封存不刪除**（沒有 DELETE API）：封存的舞種不出現在選單，但舊課、舊卡、學生資格照常顯示。
-- API：`GET/POST /api/dance-styles`、`PATCH /api/dance-styles/[id]`（含 `archived: boolean`）、`PUT /api/dance-styles/order`（`ids` 必須剛好是該教室全部舞種，含封存，一次重寫所有 `sortOrder`）。寫入其他資源時用 `findDanceStyleInClassroom()`（`src/lib/authz.ts`）驗證，別教室或不存在 → 400 `DANCE_STYLE_NOT_FOUND`；缺 → 400 `DANCE_STYLE_REQUIRED`。
+- API：`GET/POST /api/dance-styles`、`PATCH /api/dance-styles/[id]`（含 `archived: boolean`）、`PUT /api/dance-styles/order`（`ids` 必須剛好是該教室全部舞種，含封存，一次重寫所有 `sortOrder`）。寫入其他資源時用 `findDanceStyleInClassroom()`／`requireDanceStyleInClassroom()`（`src/lib/authz.ts`，後者直接丟 400）驗證，別教室或不存在 → 400 `DANCE_STYLE_NOT_FOUND`；缺 → 400 `DANCE_STYLE_REQUIRED`。
 - 回應裡的舞種一律是 `DanceStyleSummary = { id, name, color, hasLevels }`，用 `danceStyleSummarySelect`（`src/lib/danceStyles.ts`）select，不要 `danceStyle: true`。
 - 顏色：`color` 存色盤 key（`DANCE_STYLE_COLORS`），對應的 Tailwind class 寫死在 `src/lib/danceStyleColors.ts`（`danceStyleMeta(style)`），因為 Tailwind 只認得靜態 class。
 - 前端：老師端用 `useDanceStyles()`（`styles` = 未封存、`byId` = 全部）；LIFF、QR 看板、公開學生頁讀 API 回應裡附帶的 `danceStyle`（它們沒有老師 session）。
@@ -123,9 +123,9 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 ### 自動選卡（POST/PUT 點名時，`selectStudentCard`）
 
-1. **複習卡優先**：課程掛有複習卡、且學生具該卡所需舞種資格 → 強制從學生的可用複習卡中選
+1. **複習卡優先**：課程掛有複習卡、且學生具該卡所需舞種資格 → 強制從學生的可用複習卡中選（多張時自動挑推薦的那張）。在這之前還有一條：手上有這堂課體驗卡的人優先扣體驗卡（見「體驗課」）
 2. 否則過濾出學生「可用」的卡（`canUseCard`，不符資格的複習卡被排除）——**恰好一張**才自動選，多張不選（留待人工）
-3. 推薦排序：剩餘堂數最少 → 到期日最早 → id 最小（`getRecommendedStudentCard`）
+3. 推薦排序：剩餘堂數最少 → 到期日最早 → id 最小（引擎的 `sortRecommended`；GET 分類用 route 裡同規則的 `getRecommendedStudentCard`）
 4. 選中的卡 `remainingSessions -1`；移除點名時 `+1` 退回
 
 ### 未解決案例分類（GET，`findUncheckedType`）
@@ -208,7 +208,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - 沒指定 → 引擎自己挑（`cardOptionsFor().autoPick`：practice 優先時挑推薦的那張；否則只有唯一一張才自動挑）。
 - **`requireCard`（LIFF 一律開）**：寫入前先用 `planPeriodCards()` 在卡片副本上模擬每個時段扣哪張（選定的卡用完就換引擎自動挑），任何一個時段會沒卡 → `card_required` 400，**什麼都不寫**（也不買卡）。所以自助點名不再產生「沒綁卡」的出席；`UNBOUND_ATTENDANCE` 只剩老師端點名。
 
-`/api/liff/today` 帶學生時，每堂課多回 `cardStatus = { usable, autoPickId, buyable }`（`src/service/checkin.ts` 的 `lessonCardStatus()`，跟引擎同一套規則），LIFF 畫面據此顯示「使用 X（剩 n 堂）」／多張卡讓學生選／「還沒有能用的課卡，下一步選一張」。`POST /api/liff/checkin` 回 `{ results, purchased, amountDue, unpaidCards }`，完成畫面寫「下課請找小幫手付款 $X」並提醒舊的未付卡。**不另外推播**。
+`/api/liff/today` 帶學生時，每堂課多回 `cardStatus = { usable, autoPickId, buyable }`（`src/service/checkin.ts` 的 `lessonCardStatus()`，跟引擎同一套規則），LIFF 畫面據此顯示「使用 X（剩 n 堂）」／多張卡讓學生選／「還沒有能用的課卡，下一步選一張」。`POST /api/liff/checkin` 回 `{ results, purchased, amountDue, unpaidCards }`，完成畫面寫「下課請找小幫手付款 $X」並提醒舊的未付卡。**不另外推播給學生**（當場買卡時老師端照常收到「待確認收款」`UNPAID_CARD` 推播）。
 
 **加好友提示**：掃門口 QR 進來的人不一定加了官方帳號（LIFF 的 Add friend option 只在第一次授權時問、可以拒絕；建議設 Aggressive）。沒加好友就收不到續卡提醒、聊天室叫不出選單，所以完成畫面用 `liff.getFriendship()` 再查一次，沒加就顯示「加好友」（`AddFriendPrompt`，連 `line.me/R/ti/p/<NEXT_PUBLIC_LINE_OA_ID>`）。LIFF 沒連到官方帳號（getFriendship 丟錯）或沒設 OA ID 時不顯示。
 
@@ -267,7 +267,7 @@ webhook（`src/app/api/line/webhook/route.ts`）只驗簽章，每個事件交�
 1. **學生詳細頁** `BuyCard.tsx` — 無課程上下文，複習卡用 `card.danceStyleId` 驗證
 2. **點名頁「買卡並使用」** `BuyAndUseForm.tsx` — 帶 `lessonId`，legacy 卡 fallback 用課程舞種；買完立即 consume
 
-買卡會建立 `Event`（購買課卡）並刷新 Needs Renewal tag。三個寫入點（老師開卡、LIFF「購買課卡」、自助點名時當場選卡）都走 `createStudentCardInTx()`（`src/service/studentCard.ts`）。
+買卡會建立 `Event`（購買課卡）並刷新 Needs Renewal tag。四個寫入點（老師開卡、LIFF「購買課卡」、自助點名時當場選卡、課程頁體驗名單登記）都走 `createStudentCardInTx()`（`src/service/studentCard.ts`）。
 
 ## 收款（確認付款）
 
@@ -301,7 +301,7 @@ webhook（`src/app/api/line/webhook/route.ts`）只驗簽章，每個事件交�
 - **詳情點了才出現**：桌面是右側抽屜（`components/SideSheet.tsx`，背景調暗不模糊、有上一個／下一個），選取鏡射到 `?card=<id>`；手機是整頁 `/cards/[id]`。桌面打開 `/cards/[id]` 會導回 `/cards?card=<id>`——桌面只有一種呈現。
 - **編輯／複製在同一個抽屜裡換成表單**，不疊第二層彈窗；手機用底部 `Drawer`。兩個外殼共用 `CardForm/useCardForm.ts`。
 - **「這張卡給誰買」是三選一**（一般／複習／體驗），存回 `isPracticeCard` / `isTrial` 兩個布林（`cardKind` / `kindFlags`）；舊資料兩個都開時以複習卡為準。
-- **改價只影響之後的購買**：表單上直接寫明；詳情列出 `issuedPrices`（`GET /api/cards/[id]`，依 `basePrice` 分組、不含轉換卡），看得到手上的卡照哪個價算。
+- **改價只影響之後的購買**：表單上直接寫明；詳情列出 `issuedPrices`（`GET /api/cards/[id]`，依 `basePrice` 分組、只算 `origin = PURCHASE`，不含轉換／轉讓卡），看得到手上的卡照哪個價算。
 - 「每堂省 $X」與表單的單堂價比較**只在同舞種的一般方案之間**——不限舞種那組常混著私人課，比了會誤導。
 
 ## 課卡轉換（StudentCard 轉換 / 淘汰舊卡種）
@@ -373,7 +373,7 @@ https://claude.ai/artifact/CXhjEmTYUz9MDHurt4zNdH
 格式化／解析是純函式 `src/lib/cardSerial.ts`（`formatCardSerial` / `parseCardSerial`），UI 用 `<CardSerial>`。
 
 - **發號**：`nextCardSerial(tx, classroomId)`（`src/service/studentCardSerial.ts`）遞增 `Classroom.nextCardSerial`，
-  必須在建卡的同一個 transaction 裡呼叫。三個建卡入口都走它：後台買卡、LIFF 自助買卡、`performConversion`。
+  必須在建卡的同一個 transaction 裡呼叫。所有建卡入口都走它：`createStudentCardInTx()`（後台買卡、LIFF 自助買卡、自助點名當場買卡、體驗名單）、`performConversion`、`performTransfer`。
   跟學生編號（`Classroom.nextStudentNumber`）同一個模式。
 - **沒有 DB unique**：StudentCard 沒有 `classroomId`，加不了 `(classroomId, serialNumber)` 的唯一約束；
   唯一性由計數器那一列的 row lock 保證（同教室的並發建卡會排隊）。這是刻意的取捨——
@@ -416,7 +416,7 @@ https://claude.ai/artifact/CXhjEmTYUz9MDHurt4zNdH
 - `Tag` / `StudentTag`：教室層級的自由標籤，學生編輯頁可增刪。
 - **"Needs Renewal"** 由系統自動維護（`src/service/studentTag.ts` 的
   `refreshNeedsRenewalTag`）：學生最新一張多堂卡用完 → 自動加 tag，買新卡/退堂 → 自動移除。
-  觸發點：點名、買卡、退卡。**不要手動增刪這個 tag 的邏輯**，改
+  觸發點：點名（含取消勾選退堂）、買卡、課卡轉換／轉讓、合併學員。**不要手動增刪這個 tag 的邏輯**，改
   `findExhaustedRenewableCard` 即可（見下一節）。
 
 ## 續卡提醒推播（每日 cron）
@@ -486,7 +486,7 @@ build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
 
 | 類別（`TodoType`） | 怎麼算 | 處理完 | 推播觸發點 |
 |---|---|---|---|
-| `UNPAID_CARD` 待確認收款 | `StudentCard.isPaid = false`（封存學生照列，欠款還是欠款），**拖越久排越前**，附已用堂數 | 確認付款 | 學生在 LIFF 自助買卡、或自助點名時當場選卡（$0 的舊生體驗卡不推） |
+| `UNPAID_CARD` 待確認收款 | `StudentCard.isPaid = false`（封存學生照列，欠款還是欠款），**拖越久排越前**，附已用堂數 | 確認付款 | 學生在 LIFF 自助買卡、或自助點名時當場買卡（體驗課卡不在學生端賣） |
 | `NEEDS_RENEWAL` 需續約 | 「Needs Renewal」tag，排除封存學生 | 買新卡 → tag 移除 | `refreshNeedsRenewalTag()` 裡 tag **這次才加上**（`createMany skipDuplicates` 的 count = 1） |
 | `UNBOUND_ATTENDANCE` 出席沒綁課卡 | `AttendanceRecord.studentCardId = null` | 綁上課卡 | `selfCheckIn()` 有時段是 `no_card`（LIFF 開了 `requireCard`，實際上只剩不帶 `requireCard` 的呼叫會發生） |
 | 可能重複（**不是** `TodoType`、不推播） | 同教室、在籍、名字相同（trim、不分大小寫）的學生組，`findPossibleDuplicates()` | 合併學員或改名 | 無 |
@@ -517,7 +517,7 @@ build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
 
 Expo（SDK 57、Expo Router、EAS），架構照 `../dance-note/mobile`，開發規則見 `mobile/AGENTS.md`。
 分頁：**待處理**（原生，`GET /api/todos`）、課程／學生／收入（WebView 開網站）、**更多**（原生：切換教室、
-網站其他頁、通知開關、登出、刪除帳號）。登入畫面也是原生的；只有 email 登入，不需要 Sign in with Apple。
+網站其他頁、通知開關、登出、刪除帳號）。登入畫面也是原生的：email／密碼，加上 Sign in with Apple 與 Google（ID token 交給 `POST /api/auth/oauth`）。
 
 **登入**：App 不用 cookie，用 bearer token。
 - `POST /api/login` 帶 `X-Googoocard-Client: app` → body 回 `token`（`generateAppToken`，JWT 有 `app: true`、**沒有 classroomId**），不設 cookie。
@@ -533,7 +533,7 @@ App 換教室時重新走一次（`epoch` 當 WebView 的 key）。
 
 **網頁在 App 裡**：WebView 的 user agent 尾巴是 `GoogoocardApp/1.0`（`src/lib/inApp.ts`），並在載入前注入一段 CSS：
 `data-in-app="hide"` 的元素（底部導覽、鈴鐺、切換教室——App 裡都是原生的）藏起來，
-`data-in-app="no-bottom-pad"` 拿掉底部留白。「加到主畫面」引導在 App 裡當作已安裝，不出現。
+`data-in-app="no-bottom-pad"` 拿掉底部留白，`data-in-app="flush-bottom"` 把墊在網頁底部導覽上方的按鈕列貼回底部。「加到主畫面」引導在 App 裡當作已安裝，不出現。
 網頁裡按登出 → WebView 到 `/login` → App 也登出。
 
 **App 內不能出現價格、方案、升級**（App Store 3.1.3(f)）——WebView 顯示的是整個網站，網站上要賣東西時記得用 `isInApp` 藏起來。
@@ -548,7 +548,7 @@ App 換教室時重新走一次（`epoch` 當 WebView 的 key）。
 | `assistant` | 退出教室 | 封存教室、移除任何人 |
 
 owner 不能「退出」——教室會變成沒有 owner，而 `Classroom.ownerId` 仍指向一個非成員。
-要走就先**轉移擁有權**（`POST /api/memberships/[id]/transfer-ownership`，`/teams` 成員卡上的「轉為擁有者」）：
+要走就先**轉移擁有權**（`POST /api/memberships/[id]/transfer-ownership`，`/teams` 成員卡 ⋯ 選單的「把教室交給他」）：
 目標助教變 owner、原 owner 變助教、`Classroom.ownerId` 跟著換，三筆寫入同一個交易，教室永遠恰好一位 owner。
 之後原 owner 就能像助教一樣退出。不想交給別人就封存教室。
 
@@ -557,8 +557,8 @@ owner 不能「退出」——教室會變成沒有 owner，而 `Classroom.owner
 App Store Guideline 5.1.1(v) 要求 App 內能刪帳號。規則：
 - 還擁有**未封存**的教室 → 409 `OWNS_CLASSROOMS`（附教室清單），要先轉出去或封存。
 - `User` **匿名化而不是刪除**：`StudentCard.purchasedBy` / `paidBy`、封存教室的 `ownerId` 都還指著它，那是營收歷史。
-  清掉名稱、email（改成 `deleted-{id}@deleted.invalid`，原 email 可以重新註冊）、密碼、LINE 綁定、`currentClassroomId`，
-  刪掉所有 membership、push token、通知偏好，設 `deletedAt`。
+  清掉名稱、email（改成 `deleted-{id}@deleted.invalid`，原 email 可以重新註冊）、密碼、LINE／Google／Apple 綁定（有 Apple refresh token 就順便撤銷 Sign in with Apple）、`currentClassroomId`，
+  刪掉所有 membership、push token、web push 訂閱、通知偏好，設 `deletedAt`。
 - **`User.deletedAt` 讓舊 JWT 失效**：JWT 30 天且無法撤銷，刪除後其他裝置上的 token 還在。
   刪掉的人沒有 membership，請求一定落在 `decodeAuthToken()` 的「沒有教室」分支，那裡多查一次
   `deletedAt`（`isDeletedUser`），是的話連 `userId` 都不回——`sessionRoute` 也就 401。有教室的一般請求不多花查詢。
@@ -576,8 +576,8 @@ App Store Guideline 5.1.1(v) 要求 App 內能刪帳號。規則：
 救回目前只能手動 `UPDATE "Classroom" SET "deletedAt" = NULL WHERE id = ...`
 （`checkinKey` 會在下次有人開 `/checkin-qr` 時重新產生）。
 
-UI 在 `/teams` 頁 Members 分頁底部的「Danger zone」（`src/features/teams/TeamList/DangerZone.tsx`），
-依角色顯示「Leave classroom」或「Delete classroom」；刪除要求輸入教室名稱才能送出。
+UI 在 `/teams` 頁底部的「危險操作」（`src/features/teams/TeamList/DangerZone.tsx`），
+依角色顯示「退出教室」或「刪除教室」；刪除要求輸入教室名稱才能送出。
 
 ### 為什麼每個請求都要重查 membership
 
@@ -593,22 +593,23 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 ## API 慣例
 
-- 所有 handler 用 `decodeAuthToken()` 取 `{ userId, classroomId, role }`（JWT cookie）。
+- 所有 handler 用 `decodeAuthToken()` 取 `{ userId, classroomId, role }`（JWT cookie，或 App 的 `Authorization: Bearer`）。
 - 三個 route wrapper（`src/lib/apiRoute.ts`）：
 
   | Wrapper | 要求 | 用在哪 |
   |---|---|---|
   | `apiRoute` | 登入 **且** 是 `classroomId` 的現任成員，否則 401；handler 拿得到 `role` | 一般 classroom-scoped 路由 |
   | `sessionRoute` | 只要求登入，不要求教室 | 管理教室本身的路由（列出／建立／切換／退出／封存）——這些必須在 JWT 的教室已失效時仍然打得通，否則使用者會被鎖死沒有救回路徑 |
-  | `publicApiRoute` | 不要求登入 | login/signup、LINE webhook、LIFF、現場 QR 簽到 |
+  | `publicApiRoute` | 不要求登入 | 本意是 login/signup、LINE webhook、LIFF、現場 QR 簽到；目前實際只有 `/api/cron/renewal-reminders` 用它（自己比對 `CRON_SECRET`），其餘公開 route 仍是沒包 wrapper 的一般 handler |
 
-- Middleware（`src/middleware.ts`）保護除 `/`、`/login`、`/signup`、`/invitations`、`/liff`、`/checkin/`、`/api`、`/public-students` 外的所有路由。
+- Middleware（`src/middleware.ts`）保護除 `/`、`/login`、`/signup`、`/invitations`、`/liff`、`/checkin/`、`/api`、`/public-students`、`/privacy`、`/terms`（加上靜態資源）外的所有路由。
   （`/api` 整段在 middleware 層是公開的，真正的把關在各 handler。）
 - 前端資料層全部走 RTK Query（`src/store/slices/`，一 resource 一檔），
   mutation 用 tag invalidation 同步 UI（`TAG_TYPES` 在 `store/api.ts`）。
 - 學生 API 回傳的 `danceQualifications` 是扁平的舞種 id 陣列 `number[]`（不是 join table 物件）。
-- PATCH student 時 `danceQualifications` 為 `undefined` → 不動資格（保護舊 client）；
-  給陣列 → 整組同步（transaction 內 delete notIn + createMany skipDuplicates）。
+- PATCH student 時 `danceLevels` 與 `danceQualifications` 都是 `undefined` → 不動資格（保護舊 client）；
+  給 `danceLevels`（`{ [danceStyleId]: level }`）或舊的 `danceQualifications` 陣列 → 整組同步（transaction 內 delete notIn + 逐筆 upsert；
+  舊陣列新加的舞種給初階、已存在的保留原等級）。舞種 id 不屬於本教室 → 400 `DANCE_STYLE_NOT_FOUND`。
 
 ## 學生頭像（Student Avatars）
 
@@ -616,7 +617,7 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 **預設頭像**（2026-10 起）：奇異鳥 × 學生在雙人舞裡的身分——Leader、Follower、Both、Not Sure、工作人員，新學生預設 Not Sure。圖是自己畫的，由 `scripts/generate-avatars.mjs` 從 `public/kiwi-bird.svg` 產生 PNG，要改圖就改腳本再重跑。原本 8 張預設圖不是自己的，已刪除，還在用的學生由 migration 改成 Not Sure。只是頭像，**不是**學生資料欄位（沒有「這位學生是 Leader」的資料可以篩選）。
 
-- **選圖 UI**：`src/features/students/AvatarPicker.tsx`（可重用），由 NewStudent 與 EditStudent 共用。內含 5 張預設（下面有名稱）+ 一個「上傳」格子，預設清單在同檔的 `PRESET_AVATARS`。
+- **選圖 UI**：`src/features/students/AvatarPicker.tsx`（可重用），由 NewStudent、EditStudent 與點名頁的 CreateStudent 共用。內含 5 張預設（下面有名稱）+ 一個「上傳」格子，預設清單在同檔的 `PRESET_AVATARS`。
 - **上傳流程**：signed direct upload。前端先 `POST /api/upload-signature`（`decodeAuthToken` 把關，登入才給簽章），拿到簽章後把檔案**直接** POST 到 Cloudinary，避開 Vercel serverless 4.5MB body 限制、也讓 Cloudinary 處理 HEIC。回傳的 `secure_url` 存回 `avatarUrl`。
 - **裁切設定**寫死在 `src/app/api/upload-signature/route.ts`（`c_fill,g_auto,256×256,q_auto`），且**必須與前端送出的 `transformation` 完全一致**，否則簽章驗證失敗。
 - **環境變數**：`CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET`（cloud name 與 api key 會回給前端，api secret 只留伺服器端）。沒設定時上傳會回 500，但預設頭像照常運作。不需要在 Cloudinary 後台建 upload preset。
@@ -625,7 +626,7 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 ## 返回來源（StudentDetail back navigation）
 
-進入 `/students/[id]` 的連結可帶 `?from=<encodedPath>`，返回鍵讀它決定回哪：有就回該頁、沒有（或非站內路徑）fallback 回 `/students`。helper 在 `src/lib/studentNav.ts`（`studentDetailHref` / `resolveBackHref`）。目前 check-success（`StudentInfo`）與課程詳情（`AttendanceMatrix`、`StudentSection`）的入口會帶來源；桌面分割檢視的「完整頁面」帶 `/students?sel=<id>`，返回時會回到同一位學生被選取的名單；手機列表不帶、維持回 `/students`。未來其他頁面要此行為，連結改用 `studentDetailHref(id, pathname)` 即可。
+進入 `/students/[id]` 的連結可帶 `?from=<encodedPath>`，返回鍵讀它決定回哪：有就回該頁、沒有（或非站內路徑）fallback 回 `/students`。helper 在 `src/lib/studentNav.ts`（`studentDetailHref` / `resolveBackHref`）。目前 check-success（`StudentInfo`）、課程詳情（`AttendanceOverview/RosterList`、`AttentionList`）與老師詳情（`TeacherDetail`）的入口會帶來源；桌面分割檢視的「完整頁面」帶 `/students?sel=<id>`，返回時會回到同一位學生被選取的名單；手機列表不帶、維持回 `/students`。未來其他頁面要此行為，連結改用 `studentDetailHref(id, pathname)` 即可。
 
 ## 學生頁版面（全寬名單＋右側抽屜，2026-10-26 改版）
 
@@ -652,10 +653,10 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 頁首（大頭貼、舞種 pill、標籤、編輯／⋯／購買課卡、四格統計 `StudentStats`）＋ 底線分頁 課卡／出席／動態 ＋
 右側欄 `ProfilePanels`（舞種資格點一下就存、學生資料、公開頁）。側欄要內容寬度 ≥ `SIDE_PANEL_MIN_WIDTH`
 （1000px，`useElementWidth` 量的是詳情容器，不是 viewport）才擺在右邊；不夠寬就收成第四個「資料」分頁。
-⋯ 選單：複製公開頁連結、複製 LINE 綁定連結（未綁定時）、封存／還原學生。
-手機老師端、公開頁、LIFF 仍是舊的「概要／課卡／出席／動態」分頁（手機老師端會在改版第 7 階段換掉）。
+⋯ 選單：複製公開頁連結、複製 LINE 綁定連結（未綁定時）、合併到另一位學員、封存／還原學生。
+手機老師端是 課卡／出席／動態／資料 四個分頁（「資料」就是桌面的側欄）；公開頁、LIFF 仍是舊的「概要／課卡／出席／動態」分頁。
 
-排序有四種（`SORT_OPTIONS`，`studentFilters.ts`）：姓名／編號／剩餘堂數（少到多）／最近上課（久到近），每種都可以切正序／倒序（`SortMenu` 底下的 `SortDirectionToggle`，篩選抽屜也有一份；倒序只反轉主要欄位，同分仍依姓名正序；換排序欄位會回到正序）。方向存在 localStorage（`student-sort-dir:<classroomId>`）。**一律在前端排**——列表沒有分頁，而且後兩者不是 DB 單一欄位排得出來的。`GET /api/students` 為此多回 `lastAttendAt` / `lastAttendLessonName`（巢狀 `take: 1`，靠 `AttendanceRecord @@index([studentId])`）。「最近上課」= 最近一次出席**那堂課的上課時間**（`lessonPeriod.startTime`），不是點名時間；學生自助簽到、尚未定案的也算。三個出口（名單、學生詳情、LIFF／分享頁）共用 `src/service/studentDetail.ts` 的 `lastAttendanceQuery` / `toLastAttendance`，別再各寫一份。
+排序有四種（`SORT_OPTIONS`，`studentFilters.ts`）：姓名／編號／剩餘堂數（少到多）／最近上課（久到近），每種都可以切正序／倒序（`SortMenu` 底下的 `SortDirectionToggle`，篩選抽屜也有一份；倒序只反轉主要欄位，同分仍依姓名正序；換排序欄位會回到正序）。排序欄位與方向存在 localStorage（`student-sort:<classroomId>`、`student-sort-dir:<classroomId>`；沒存過預設依編號）。**一律在前端排**——列表沒有分頁，而且後兩者不是 DB 單一欄位排得出來的。`GET /api/students` 為此多回 `lastAttendAt` / `lastAttendLessonName`（巢狀 `take: 1`，靠 `AttendanceRecord @@index([studentId])`）。「最近上課」= 最近一次出席**那堂課的上課時間**（`lessonPeriod.startTime`），不是點名時間；學生自助簽到、尚未定案的也算。三個出口（名單、學生詳情、LIFF／分享頁）共用 `src/service/studentDetail.ts` 的 `lastAttendanceQuery` / `toLastAttendance`，別再各寫一份。
 
 ## 測試
 

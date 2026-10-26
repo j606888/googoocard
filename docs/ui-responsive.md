@@ -75,11 +75,11 @@
 
 ### 3. 用 `variant` prop，不要平行元件樹
 
-同一個元件用 `variant` / `layout` 多工，是本專案已確立的慣例：`StudentList variant="page"|"table"`（2026-10-26 起名單列改由 `DataView` 同一份 DOM 畫，兩個 variant 只差「點了進整頁」還是「開抽屜」）、`StudentDetail variant="page"|"pane"`（2026-10 起，取代 `layout="auto"|"tabs"`）、`StudentDetailHeader variant="page"|"pane"`。
+同一個元件用 `variant` / `layout` 多工，是本專案已確立的慣例：`StudentList variant="page"|"table"`（2026-10-26 起名單列改由 `DataView` 同一份 DOM 畫，兩個 variant 只差「點了進整頁」還是「開抽屜」）、`StudentDetail variant="page"|"pane"`（2026-10 起，取代 `layout="auto"|"tabs"`）、`StudentDetailHeader variant="page"|"pane"|"compact"`（`compact` 是手機的白色 app bar＋三格數字，2026-10-13 加）。
 
 但要小心別讓它變成「把 breakpoint 用 props 重新實作一遍」。判準：**prop 名稱描述的是「用途」（`roster` / `pane`）還是「寬度」（`isDesktop` / `columns`）？** 前者健康，後者是味道（曾經的例子：`CardsSection` 的 `columns={isPane ? 2 : 1}`，2026-10 改成課卡網格 `auto-fill minmax(280px,1fr)` 依自身寬度排欄後移除）。
 
-同一個元件要出現在不同寬度的槽位時（例如桌面 480px 抽屜 vs 手機滿版），用 **container query**（Tailwind v4 原生 `@container`，不需 plugin，目前用量為零），讓元件對自己的槽位負責，而不是對整個視窗負責。
+同一個元件要出現在不同寬度的槽位時（例如桌面 480px 抽屜 vs 手機滿版），用 **container query**（Tailwind v4 原生 `@container`，不需 plugin；2026-10 起用在學生詳情的 `StudentDetailHeader`、`CardsSection`、`AttendSection` 等處），讓元件對自己的槽位負責，而不是對整個視窗負責。
 
 ### 4. 四個 adaptive primitives，做完 L2 的畫面全部免費
 

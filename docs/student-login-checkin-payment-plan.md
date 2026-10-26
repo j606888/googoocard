@@ -1,6 +1,10 @@
 # 學生 LINE 綁定身分 → 自助簽到 → 自助購卡對帳（規劃討論稿 / LINE Bot 版）
 
-> 狀態：**討論中（尚未開發）**。本文記錄方向決策、分階段藍圖、與待細談的開放問題。
+> 狀態：~~討論中（尚未開發）~~ → **Phase 1、Phase 2 已上線，Phase 3 以簡化版上線**（2026-10-26 對照程式碼）。本文記錄方向決策、分階段藍圖、與待細談的開放問題，留作紀錄；現況以 `docs/architecture.md` 為準，後續的新同學／必綁卡／收款見 `docs/onsite-checkin-newcomer-plan.md`。跟本文不同的地方：
+> - 綁定用一次性的 `Student.lineBindKey`，不是 `randomKey`（`randomKey` 只留給 `public-students` 分享連結）——等於回答了開放問題 1。
+> - 自助簽到沒有 `LessonPeriod.checkInOpenedAt`：「今天有哪些課」由 `src/service/checkin.ts` 的 `getTodayLessons()` 決定，門口 QR 帶 `Classroom.checkinKey`；一律要綁卡，簽到當下就扣卡。
+> - Phase 3 沒有 `CardOrder`／`paymentStatus`：`/liff/buy` 直接建 `StudentCard`（`purchaseSource: STUDENT`、`isPaid: false`），老師確認收款；**營收不排除未付款的卡**（理由見 onsite 那份）。
+> - 「卡用完就推播催續」沒做成即時 hook，改成續卡提醒 cron（`/api/cron/renewal-reminders`），已寫好但還沒排程。
 > 註：本版已將原「網頁 Google OAuth」方向整個替換為 **LINE Bot（Messaging API）+ LIFF**。
 
 ## 背景（為什麼做）

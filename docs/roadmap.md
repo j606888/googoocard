@@ -2,6 +2,7 @@
 
 > 建立：2026-08-23（全專案掃描：21.8k 行 / 64 個 API route / 23 支整合測試）
 > 更新：2026-09-16（P2-1 續卡提醒推播，專案有了第一個 cron）
+> 更新：2026-10-26（對照程式碼校正各項狀態：P3-1／P3-2／營收 CSV 標註部分完成、更新路徑與 route 清點）
 > 前提：**production 上已有多間教室在使用**——跨教室資料邊界是實質風險，不是理論問題。
 
 ## 這份文件是什麼
@@ -36,6 +37,8 @@
 > **後續改善方向**（尚未做）：與其倚賴每個 handler 自律，不如做成預設安全——
 > 例如 P1-3 的 `withApiHandler()` 包裝器預設要求 session，公開 route 必須明確 opt-out。
 > 那才是真正堵住這一類漏洞的方式，本次只是把已知的洞補上。
+> （2026-10-26：包裝器已在 P1-3 做出來，名稱是 `apiRoute()` / `sessionRoute()` / `publicApiRoute()`，
+> 不是 `withApiHandler()`；但 middleware 仍把整段 `/api` 放行，未包的 route 仍靠 handler 自律，見 P1-3 的清點。）
 
 ## [x] P0-1 八個完全沒有身分驗證的 route ✅ 2026-08-23
 
@@ -317,6 +320,8 @@ handler 收到的是單一 context 物件而非 Next 的 `(request, segment)`：
 **尚未遷移的 route 仍是舊寫法**，兩種風格會並存一陣子。動到哪個就順手遷移哪個。
 （2026-08-28 清點：64 支裡還有 55 支沒包。P0b-1 已讓它們 fail closed，
 但只有包了 `apiRoute` 的才會回乾淨的 401 並拿得到 `role`。）
+（2026-10-26 清點：95 支裡還有 51 支沒包任何 wrapper，其中包含本來就公開的 `liff/*`、`line/webhook`、
+`login` / `signup` / `auth/oauth` 等。）
 
 ## [x] P1-4 CI ✅ 2026-08-24
 
@@ -439,7 +444,8 @@ import `renewalReminder` / `pushMessage` / `findExhaustedRenewableCard`），沒
 - **新增 `dueForAttendanceIsBacklog`**（summary → API payload → `LessonSummary`）：
   CTA 目標不是今天時為 true。`TimeSlotCard` 用它把「待點名」改成「8月23日 待點名」——
   群組日檢視只顯示 `HH:mm`，不標日期的話舊時段看起來就像今天的課。
-  `LessonCard` 本來就印 `M月d日`，不用改。
+  `LessonCard` 本來就印 `M月d日`，不用改。（`src/features/lessons/LessonCard.tsx` 已在 2026-10-10
+  課程列表改版時移除，現在 CTA 的消費者是 `TimeSlotCard` 與 `lessonGrouping.ts`。）
 - **`PeriodInfo.tsx` 警示**：時段不是今天時整塊轉 warning 色，並多一行
   「這是 8月23日 的課，不是今天（9月16日）。確定要點這一堂嗎？」
 - 單元測試補了兩個 case（含 Bailamore 情境：舊時段沒點名時 CTA 仍指向今天），
@@ -476,7 +482,8 @@ import `renewalReminder` / `pushMessage` / `findExhaustedRenewableCard`），沒
   課卡不分部限定（使用者決定兩地通用）；Rich Menu 只有一張、所有人共用（內容由 webhook 依身分決定，
   不逐人 link、不建表）；沒綁定的人看哪間教室靠 `Classroom.lineListed` + 選過的 `browseClassroomId`，
   多間教室共用官方帳號時用 quick reply 選。舊的老師／學生 Flex 選單仍保留當備案，之後可以拿掉。
-- **營收 CSV 匯出** — 老師報稅／對帳用。
+- **營收 CSV 匯出** — 老師報稅／對帳用。🟡 部分完成 2026-10-10：收入頁「課卡」月明細可匯出 CSV
+  （`purchasesToCsv()`，`src/features/income/incomeInsights.ts`，含未付款欄）；堂數收入（session）尚無匯出。
 - **課程模板／重複排課** — 現在每期課要手動建所有 periods。
 - **已封存教室的還原 UI** — 現在只能手動 `UPDATE "Classroom" SET "deletedAt" = NULL`。
   一併考慮 purge job（真正清資料）；cron route 的寫法見 P2-1，排程設定檔仍待補。
@@ -505,6 +512,11 @@ import `renewalReminder` / `pushMessage` / `findExhaustedRenewableCard`），沒
 （後者服務 `/public-students` 與 LIFF）。應合併成**單一 builder + 不同欄位白名單**
 ——這也剛好是 P0-2 要做的事，兩者一起做。
 
+🟡 **部分完成**（2026-10-13 前後）：O(n²) 的 `find()` 已改成 `buildAttendanceViews()`（`src/service/studentDetail.ts`，
+用 `Map` 索引），兩邊共用它與 `attendanceHistoryInclude` / `attendanceCounts` / `toLastAttendance`；
+欄位白名單統一走 `toStudentPayload()`。**仍未做**：GET 仍把全部出席與課卡拉進記憶體（無分頁），
+route 與 `buildStudentDetailPayload()` 仍各自寫一份 Prisma 查詢，沒有合併成單一 builder。
+
 ## [ ] P3-4 收入頁改用 RTK Query
 
 `src/features/income/IncomeCalendar.tsx` 用 `fetch` + `useState` 自己管四種資料與快取（每日列表、單日明細、
@@ -516,9 +528,11 @@ import `renewalReminder` / `pushMessage` / `findExhaustedRenewableCard`），沒
 
 - **`GET /api/students` 無分頁**，且對每位學生 include 全部未過期卡 + tags + lessons。
 - **`validateAttendanceRequest` 與 `validateUpdateAttendanceRequest`**
-  （`src/domains/attendance/attendance.service.ts:29,63`）除了一行
+  （`src/domains/attendance/attendance.service.ts:30,66`）除了一行
   `attendanceTakenAt` 檢查外**完全相同**，應合併成帶 flag 的單一函式。
-- **`Membership.role` 是 `String` 且永遠是 `"owner"`** — 沒有助教權限分級。
+- ~~**`Membership.role` 是 `String` 且永遠是 `"owner"`**~~ — 🟡 現在已區分 `"owner"` / `"assistant"`（邀請加入＝assistant，
+  見 P0b-4；2026-10-21 加了轉移擁有權 `memberships/[id]/transfer-ownership`），但 role 仍是 `String`，
+  且**權限分級仍沒做**：owner-only 只限教室刪除／移除成員／轉移擁有權，
   任何被邀請加入教室的成員都能看營收、改課卡價格、刪學生。
   這在「已有多間教室在用」的前提下是產品缺口，不只是技術債。
 
