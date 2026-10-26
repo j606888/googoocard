@@ -71,6 +71,8 @@ model User {
   pushTokens              PushToken[]
   webPushSubscriptions    WebPushSubscription[]
   notificationPreferences NotificationPreference[]
+  // 連到的老師資料（每間教室最多一筆，Teacher.userId）
+  teacherProfiles         Teacher[]
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 }
@@ -134,10 +136,17 @@ model Teacher {
   classroomId Int
   classroom   Classroom       @relation(fields: [classroomId], references: [id])
   lessons     LessonTeacher[]
+  // The member (role teacher, or an admin) this teacher is. Their lessons show
+  // under 我接下來的課 on the lessons page. One per user per classroom.
+  userId      Int?
+  user        User?           @relation(fields: [userId], references: [id])
+  invites     InviteToken[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
+  @@unique([classroomId, userId])
   @@index([classroomId])
+  @@index([userId])
 }
 
 model Card {
@@ -433,10 +442,16 @@ model InviteToken {
   classroom   Classroom @relation(fields: [classroomId], references: [id])
   maxUses     Int
   uses        Int       @default(0)
+  // Role the joiner gets ("admin" | "teacher" | "assistant", src/lib/roles.ts),
+  // and for a teacher the Teacher row they're linked to on joining.
+  role        String    @default("assistant")
+  teacherId   Int?
+  teacher     Teacher?  @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@index([classroomId])
+  @@index([teacherId])
 }
 
 model Event {

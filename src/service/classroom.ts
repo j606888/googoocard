@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { createAuthSession } from "@/lib/auth";
+import { redeemInvite } from "@/service/team";
 
 export const joinClassroom = async ({
   userId,
@@ -38,24 +39,7 @@ export const joinClassroom = async ({
 
   if (!classroom) return null;
 
-  await prisma.membership.create({
-    data: {
-      userId,
-      classroomId: inviteToken.classroomId,
-      role: "assistant",
-    },
-  });
-
-  await prisma.inviteToken.update({
-    where: {
-      token,
-    },
-    data: {
-      uses: {
-        increment: 1,
-      },
-    },
-  });
+  await prisma.$transaction((tx) => redeemInvite(tx, userId, inviteToken));
 
   return classroom.id;
 };

@@ -530,11 +530,9 @@ route 與 `buildStudentDetailPayload()` 仍各自寫一份 Prisma 查詢，沒�
 - **`validateAttendanceRequest` 與 `validateUpdateAttendanceRequest`**
   （`src/domains/attendance/attendance.service.ts:30,66`）除了一行
   `attendanceTakenAt` 檢查外**完全相同**，應合併成帶 flag 的單一函式。
-- ~~**`Membership.role` 是 `String` 且永遠是 `"owner"`**~~ — 🟡 現在已區分 `"owner"` / `"assistant"`（邀請加入＝assistant，
-  見 P0b-4；2026-10-21 加了轉移擁有權 `memberships/[id]/transfer-ownership`），但 role 仍是 `String`，
-  且**權限分級仍沒做**：owner-only 只限教室刪除／移除成員／轉移擁有權，
-  任何被邀請加入教室的成員都能看營收、改課卡價格、刪學生。
-  這在「已有多間教室在用」的前提下是產品缺口，不只是技術債。
+- ~~**`Membership.role` 是 `String` 且永遠是 `"owner"`**~~ — ✅ 2026-10-26 分成管理員（`owner`／`admin`）、老師（`teacher`）、小幫手（`assistant`），
+  見 architecture.md「教室生命週期與角色」。只有邀請／改角色／移除成員限管理員；**收入頁、課卡價格、刪學生對老師和小幫手都開放是刻意的**（使用者決定，不要再收緊）。
+  role 仍是 `String`（值集中在 `src/lib/roles.ts`）。
 
 ## [x] P3-3 手機／桌面版型機制收斂 ✅ 2026-09-16
 

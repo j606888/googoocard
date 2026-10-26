@@ -3,7 +3,7 @@ import { api, TAG_TYPES } from "../api";
 export interface Classroom {
   id: number;
   name: string;
-  /** The signed-in user's role in this classroom: "owner" | "assistant". */
+  /** The signed-in user's role in this classroom: "owner" | "admin" | "teacher" | "assistant" (src/lib/roles.ts). */
   role: string;
 }
 

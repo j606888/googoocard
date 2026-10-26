@@ -2,6 +2,7 @@ import { z } from "zod";
 import { PaymentMethod, TodoType } from "@prisma/client";
 import { DANCE_STYLE_COLORS } from "@/lib/danceStyles";
 import { isExpoPushToken } from "@/lib/expoPush";
+import { ASSIGNABLE_ROLES } from "@/lib/roles";
 
 /**
  * Request schemas for the routes with money or card-balance semantics.
@@ -252,4 +253,19 @@ export const deleteWebPushSubscriptionSchema = z.object({
 export const notificationPreferenceSchema = z.object({
   type: z.enum(TodoType),
   enabled: z.boolean(),
+});
+
+const assignableRole = z.enum(ASSIGNABLE_ROLES);
+
+export const createInviteSchema = z.object({
+  maxUses: z.coerce.number().int().min(1).max(100),
+  role: assignableRole.default("assistant"),
+  /** Required for a teacher invite; the joiner is linked to it. */
+  teacherId: positiveInt.nullish(),
+});
+
+/** Either field may be sent alone. `teacherId: null` unlinks. */
+export const updateMembershipSchema = z.object({
+  role: assignableRole.optional(),
+  teacherId: positiveInt.nullable().optional(),
 });

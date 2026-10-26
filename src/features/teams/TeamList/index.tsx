@@ -1,12 +1,10 @@
 import { Link2, Plus, UserPlus } from "lucide-react";
 import { useState } from "react";
-import Drawer from "@/components/Drawer";
 import MemberCard from "./MemberCard";
 import InvitationCard from "./InvitationCard";
 import DangerZone from "./DangerZone";
 import {
   Membership,
-  useCreateInviteTokenMutation,
   useDeleteInviteTokenMutation,
   useGetInviteTokensQuery,
   useGetMembershipsQuery,
@@ -18,7 +16,9 @@ import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/EmptyState";
-import Field from "@/components/Field";
+import { isAdminRole } from "@/lib/roles";
+import InviteDrawer from "./InviteDrawer";
+import EditMemberDrawer from "./EditMemberDrawer";
 
 // Mirrors a MemberCard row: avatar, name + email, role pill.
 const MemberCardSkeleton = () => (
@@ -44,14 +44,14 @@ const InvitationCardSkeleton = () => (
   </li>
 );
 
-const ROLE_HINT = "擁有者能管理成員與教室，助教能使用所有日常功能";
+const ROLE_HINT = "管理員能邀請和管理成員；老師和小幫手能使用所有日常功能";
 
 const sectionCard = "rounded-2xl border border-neutral-200 bg-white";
 
 const TeamList = () => {
   const [newMemberModalOpen, setNewMemberModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Membership | null>(null);
   const { data: memberships, isLoading: isMembershipsLoading } = useGetMembershipsQuery();
-  const [createInviteToken] = useCreateInviteTokenMutation();
   const [deleteInviteToken] = useDeleteInviteTokenMutation();
   const { data: inviteTokens, isLoading: isInviteTokensLoading } = useGetInviteTokensQuery();
   const { data: me, isLoading: isMeLoading } = useGetMeQuery();
@@ -61,12 +61,12 @@ const TeamList = () => {
   )?.name;
   const [removeMembership] = useRemoveMembershipMutation();
   const [transferOwnership] = useTransferOwnershipMutation();
-  const [maxUses, setMaxUses] = useState(1);
 
   // The viewer's own role in the current classroom — the same list already
   // powers the "You" pill, so no extra request is needed for it.
   const myRole = memberships?.find((membership) => membership.userId === me?.id)?.role;
   const isOwner = myRole === "owner";
+  const isAdmin = isAdminRole(myRole);
 
   const handleRemoveMember = async (membership: Membership) => {
     if (!confirm(`確定要把 ${membership.user.name} 移出這間教室嗎？`)) {
@@ -78,18 +78,12 @@ const TeamList = () => {
   const handleTransferOwnership = async (membership: Membership) => {
     if (
       !confirm(
-        `確定要把教室交給 ${membership.user.name} 嗎？\n你會變成助教，之後就不能再刪除教室或移除成員。`
+        `確定要把教室交給 ${membership.user.name} 嗎？\n你會變成一般管理員，之後就不能再刪除教室。`
       )
     ) {
       return;
     }
     await transferOwnership({ id: membership.id });
-  };
-
-  const handleCreateInviteToken = async () => {
-    await createInviteToken({ maxUses });
-    setNewMemberModalOpen(false);
-    setMaxUses(1);
   };
 
   const handleDeleteInviteToken = async (id: number) => {
@@ -116,12 +110,14 @@ const TeamList = () => {
               {memberships && `・${memberships.length} 位成員`}
             </p>
           </div>
-          <Button type="button" onClick={openCreateInvite} className="shrink-0">
-            <UserPlus />
-            <span>
-              邀請<span className="hidden lg:inline">助教</span>
-            </span>
-          </Button>
+          {isAdmin && (
+            <Button type="button" onClick={openCreateInvite} className="shrink-0">
+              <UserPlus />
+              <span>
+                邀請<span className="hidden lg:inline">成員</span>
+              </span>
+            </Button>
+          )}
         </header>
 
         <section className="flex flex-col gap-2 lg:gap-0">
@@ -138,86 +134,74 @@ const TeamList = () => {
                   key={membership.id}
                   membership={membership}
                   isMe={membership.userId === me?.id}
-                  onRemove={isOwner ? handleRemoveMember : undefined}
+                  onEdit={isAdmin ? setEditing : undefined}
+                  onRemove={isAdmin ? handleRemoveMember : undefined}
                   onTransfer={isOwner ? handleTransferOwnership : undefined}
                 />
               ))}
           </ul>
           <p className="mx-1 text-xs leading-relaxed text-neutral-500 lg:hidden">
-            {isOwner || !myRole ? `${ROLE_HINT}。` : "要移除成員或轉移教室，請找擁有者。"}
+            {isAdmin || !myRole ? `${ROLE_HINT}。` : "要邀請、改角色或移除成員，請找管理員。"}
           </p>
         </section>
 
-        <section className="flex flex-col gap-2 lg:gap-0">
-          <div className="mx-1 flex items-center justify-between gap-3 lg:mx-0 lg:rounded-t-2xl lg:border lg:border-b-0 lg:border-neutral-200 lg:bg-white lg:px-5 lg:pt-4 lg:pb-3.5">
-            <div className="flex flex-col gap-0.5">
-              <h3 className="text-sm font-bold text-neutral-700 lg:text-base lg:text-neutral-900">邀請連結</h3>
-              <p className="hidden text-[13px] text-neutral-500 lg:block">
-                傳給要加入的助教，對方登入後就會加入這間教室
-              </p>
+        {isAdmin && (
+          <section className="flex flex-col gap-2 lg:gap-0">
+            <div className="mx-1 flex items-center justify-between gap-3 lg:mx-0 lg:rounded-t-2xl lg:border lg:border-b-0 lg:border-neutral-200 lg:bg-white lg:px-5 lg:pt-4 lg:pb-3.5">
+              <div className="flex flex-col gap-0.5">
+                <h3 className="text-sm font-bold text-neutral-700 lg:text-base lg:text-neutral-900">邀請連結</h3>
+                <p className="hidden text-[13px] text-neutral-500 lg:block">
+                  傳給要加入的人，對方登入後就會以連結上的角色加入
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={openCreateInvite}
+                className="shrink-0 gap-1"
+              >
+                <Plus className="size-4" />
+                建立連結
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={openCreateInvite}
-              className="shrink-0 gap-1"
-            >
-              <Plus className="size-4" />
-              建立連結
-            </Button>
-          </div>
-          {isInviteTokensLoading ? (
-            <ul className="flex flex-col gap-2 lg:gap-0 lg:rounded-b-2xl lg:border lg:border-neutral-200 lg:bg-white">
-              <InvitationCardSkeleton />
-            </ul>
-          ) : inviteTokens && inviteTokens.length > 0 ? (
-            <ul className="flex flex-col gap-2 lg:gap-0 lg:divide-y lg:divide-neutral-100 lg:rounded-b-2xl lg:border lg:border-neutral-200 lg:bg-white">
-              {inviteTokens.map((inviteToken) => (
-                <InvitationCard
-                  key={inviteToken.id}
-                  inviteToken={inviteToken}
-                  onDelete={handleDeleteInviteToken}
-                />
-              ))}
-            </ul>
-          ) : (
-            <EmptyState
-              kind="inline"
-              icon={<Link2 />}
-              title="目前沒有可用的邀請連結"
-              description="建立一個，傳給要加入的助教"
-              className="bg-white lg:rounded-t-none lg:rounded-b-2xl lg:border lg:border-solid lg:px-5"
-            />
-          )}
-        </section>
+            {isInviteTokensLoading ? (
+              <ul className="flex flex-col gap-2 lg:gap-0 lg:rounded-b-2xl lg:border lg:border-neutral-200 lg:bg-white">
+                <InvitationCardSkeleton />
+              </ul>
+            ) : inviteTokens && inviteTokens.length > 0 ? (
+              <ul className="flex flex-col gap-2 lg:gap-0 lg:divide-y lg:divide-neutral-100 lg:rounded-b-2xl lg:border lg:border-neutral-200 lg:bg-white">
+                {inviteTokens.map((inviteToken) => (
+                  <InvitationCard
+                    key={inviteToken.id}
+                    inviteToken={inviteToken}
+                    onDelete={handleDeleteInviteToken}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <EmptyState
+                kind="inline"
+                icon={<Link2 />}
+                title="目前沒有可用的邀請連結"
+                description="建立一個，傳給要加入的老師或小幫手"
+                className="bg-white lg:rounded-t-none lg:rounded-b-2xl lg:border lg:border-solid lg:px-5"
+              />
+            )}
+          </section>
+        )}
 
         {!isMembersLoading && myRole && <DangerZone role={myRole} />}
       </div>
-      <Drawer
-        title="建立邀請連結"
-        open={newMemberModalOpen}
-        onClose={() => setNewMemberModalOpen(false)}
-        onSubmit={handleCreateInviteToken}
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleCreateInviteToken();
-          }}
-        >
-          <p className="text-sm text-neutral-600 mb-4">
-            任何人只要有這個連結就能加入教室
-          </p>
-          <Field
-            label="可使用次數"
-            className="mb-4"
-            placeholder="最多幾次"
-            value={maxUses}
-            onChange={(e) => setMaxUses(Number(e.target.value))}
-          />
-        </form>
-      </Drawer>
+      <InviteDrawer open={newMemberModalOpen} onClose={() => setNewMemberModalOpen(false)} />
+      {editing && (
+        <EditMemberDrawer
+          key={editing.id}
+          membership={editing}
+          isMe={editing.userId === me?.id}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </>
   );
 };

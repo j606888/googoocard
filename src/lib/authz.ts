@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
+import { isAdminRole } from "@/lib/roles";
 
 /**
  * The classroom id `decodeAuthToken` reports when the caller has no live
@@ -151,4 +152,11 @@ export async function requireOwner(userId: number, classroomId: number) {
     throw new ApiError(403, "NOT_CLASSROOM_OWNER", "Only the classroom owner can do this");
   }
   return membership;
+}
+
+/** Team management (invite, change roles, remove members) is for 管理員 — owner or admin. */
+export function assertAdmin(role: string) {
+  if (!isAdminRole(role)) {
+    throw new ApiError(403, "NOT_CLASSROOM_ADMIN", "Only a classroom admin can do this");
+  }
 }

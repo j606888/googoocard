@@ -47,7 +47,7 @@ const transfer = (membershipId: number) =>
 const deleteMe = () => meDelete(jsonRequest("DELETE"), routeParams({}));
 
 describe("POST /api/memberships/[id]/transfer-ownership", () => {
-  it("owner 交給助教：角色對調、ownerId 跟著走，原 owner 之後可以退出", async () => {
+  it("owner 交給助教：對方變 owner、原 owner 變管理員、ownerId 跟著走，原 owner 之後可以退出", async () => {
     const { classroom, assistant, assistantMembership } = await seed();
 
     const res = await transfer(assistantMembership.id);
@@ -58,7 +58,7 @@ describe("POST /api/memberships/[id]/transfer-ownership", () => {
       orderBy: { userId: "asc" },
     });
     expect(memberships.map((m) => [m.userId, m.role])).toEqual([
-      [OWNER_ID, "assistant"],
+      [OWNER_ID, "admin"],
       [assistant.id, "owner"],
     ]);
     expect((await prisma.classroom.findUniqueOrThrow({ where: { id: classroom.id } })).ownerId).toBe(

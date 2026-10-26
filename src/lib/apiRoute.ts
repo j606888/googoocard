@@ -28,7 +28,7 @@ type Handler<P, R> = (ctx: {
   params: P;
   userId: number;
   classroomId: number;
-  /** The caller's role in `classroomId` — "owner" or "assistant". */
+  /** The caller's role in `classroomId` — "owner" | "admin" | "teacher" | "assistant" (src/lib/roles.ts). */
   role: string;
 }) => Promise<R>;
 

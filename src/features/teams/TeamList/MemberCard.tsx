@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Crown, MoreHorizontal, UserMinus } from "lucide-react";
+import { Crown, Link2, MoreHorizontal, Pencil, UserMinus } from "lucide-react";
 import { Membership } from "@/store/slices/memberships";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import StatusTag from "@/components/StatusTag";
+import StatusTag, { type StatusTone } from "@/components/StatusTag";
+import { roleLabel } from "@/lib/roles";
 
 // Initials avatar tints, picked by user id so a person keeps their colour.
 const AVATAR_TINTS = [
@@ -16,18 +17,31 @@ const AVATAR_TINTS = [
 const menuItem =
   "flex h-11 w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 text-left text-sm hover:bg-neutral-100";
 
-/** One row of the members card: avatar, name + email, role, and (for an owner viewing an assistant) a ⋯ menu. */
+const ROLE_TONES: Record<string, StatusTone> = {
+  owner: "warning",
+  admin: "warning",
+  teacher: "positive",
+  assistant: "neutral",
+};
+
+/**
+ * One row of the members card: avatar, name + email (+ the teacher they're
+ * linked to), role, and for a 管理員 viewer a ⋯ menu.
+ */
 const MemberCard = ({
   membership,
   isMe,
+  onEdit,
   onRemove,
   onTransfer,
 }: {
   membership: Membership;
   isMe: boolean;
-  /** Passed only when the viewer may remove this member (owner, and not self). */
+  /** Passed only when the viewer is a 管理員 — any row, own included (to link a teacher). */
+  onEdit?: (membership: Membership) => void;
+  /** Passed only when the viewer may remove members (管理員); never offered on self or the owner. */
   onRemove?: (membership: Membership) => void;
-  /** Passed only when the viewer may hand the classroom to this member (owner, and not self). */
+  /** Passed only when the viewer is the owner; never offered on self. */
   onTransfer?: (membership: Membership) => void;
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -35,6 +49,7 @@ const MemberCard = ({
   const { name, email } = membership.user;
   const canTransfer = onTransfer && !isMe && !isOwner;
   const canRemove = onRemove && !isMe && !isOwner;
+  const hasMenu = onEdit || canTransfer || canRemove;
 
   return (
     <li className="flex items-center gap-3 px-4 py-3 lg:gap-3.5 lg:px-5">
@@ -54,20 +69,18 @@ const MemberCard = ({
           )}
         </div>
         <span className="truncate text-xs text-neutral-500 lg:text-sm">{email}</span>
+        {membership.teacher && (
+          <span className="flex items-center gap-1 truncate text-xs font-medium text-primary-700">
+            <Link2 aria-hidden="true" className="size-3.5 shrink-0" />
+            {membership.teacher.name}
+          </span>
+        )}
       </div>
-      {isOwner ? (
-        <StatusTag tone="warning">
-          <Crown className="h-3.5 w-3.5" />
-          擁有者
-        </StatusTag>
-      ) : (
-        <StatusTag tone="neutral">助教</StatusTag>
-      )}
-      {/* Keeps the role pills in one column when other rows have a menu. */}
-      {(onTransfer || onRemove) && !canTransfer && !canRemove && (
-        <div aria-hidden="true" className="-mr-2 w-11 shrink-0" />
-      )}
-      {(canTransfer || canRemove) && (
+      <StatusTag tone={ROLE_TONES[membership.role] ?? "neutral"}>
+        {isOwner && <Crown aria-label="建立者" className="h-3.5 w-3.5" />}
+        {roleLabel(membership.role)}
+      </StatusTag>
+      {hasMenu && (
         <Popover open={menuOpen} onOpenChange={setMenuOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -81,6 +94,19 @@ const MemberCard = ({
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="flex w-56 flex-col p-1.5">
+            {onEdit && (
+              <button
+                type="button"
+                className={menuItem}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onEdit(membership);
+                }}
+              >
+                <Pencil className="h-4 w-4" />
+                {isMe || isOwner ? "連結老師資料" : "改角色"}
+              </button>
+            )}
             {canTransfer && (
               <button
                 type="button"

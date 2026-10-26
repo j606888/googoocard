@@ -540,17 +540,31 @@ App 換教室時重新走一次（`epoch` 當 WebView 的 key）。
 
 ## 教室生命週期與角色
 
-`Membership.role` 只有兩個值：`"owner"`（建立教室的人）與 `"assistant"`（用邀請連結加入的人）。
+`Membership.role` 有四個值（`src/lib/roles.ts`），畫面上是三種角色（2026-10-26，設計稿：https://claude.ai/artifact/29gpTsPi7krWteueANXhiG）：
 
-| 角色 | 可做 | 不可做 |
-|---|---|---|
-| `owner` | 封存教室、移除 assistant、把教室轉給 assistant | 退出教室（要先轉出去） |
-| `assistant` | 退出教室 | 封存教室、移除任何人 |
+| role | 畫面 | 可做 | 不可做 |
+|---|---|---|---|
+| `owner` | 管理員（皇冠） | 建立教室的人，恰好一位（`Classroom.ownerId`）。管理員能做的全部＋封存教室、把教室交給別人 | 退出教室（要先轉出去）、被移除、被改角色 |
+| `admin` | 管理員 | 邀請（指定角色）、改別人的角色、連結老師資料、移除成員（建立者除外） | 封存／轉移教室、改自己的角色 |
+| `teacher` | 老師 | 日常功能全部；**一定連著一筆 `Teacher`**，課程頁最上面有「我接下來的課」 | 邀請、改角色、移除成員 |
+| `assistant` | 小幫手 | 日常功能全部（跟老師一樣，收入頁、課卡價格也看得到改得到——刻意的決定） | 同老師；不能連老師資料 |
+
+**只有「管人」這件事分權限**：邀請連結的建立／刪除（`/api/invite-tokens`）、`PATCH`／`DELETE /api/memberships/[id]` 走 `assertAdmin(role)`（`src/lib/authz.ts`，403 `NOT_CLASSROOM_ADMIN`）；其他所有 route 對三種角色一視同仁。
+
+**老師 ↔ 老師資料**：`Teacher.userId`（nullable，`@@unique([classroomId, userId])`——一個人在一間教室最多是一位老師）。
+課程本來就有 `LessonTeacher`，所以「我接下來的課」直接從「掛著我這位老師的課」推導（`getMyUpcomingPeriods()`，`src/service/myLessons.ts`，`GET /api/me/lessons`：今天起 7 天、手動結束的課不算），**不做釘選**。
+- `teacher` 一定要連（`TEACHER_REQUIRED`）；`admin`／`owner` 可選（會教課的管理員）；`assistant` 一律不連，改成小幫手會自動解除。
+- 一筆老師資料只能連一個人（409 `TEACHER_ALREADY_LINKED`）；換連另一筆時舊的自動解除（`linkTeacher()`，`src/service/team.ts`）。
+- 退出、被移除、刪帳號都會解除連結，`Teacher` 本身留著（舊課還掛著它）。
+
+**邀請連結帶角色**：`InviteToken.role`＋`teacherId`。老師的連結一定指定一筆老師資料、只能用一次（`maxUses` 強制 1）。
+兩條加入路徑（`POST /api/invite-tokens/[token]/join`，以及註冊／登入帶 `token` 的 `joinClassroom()`）都走 `redeemInvite()`；
+若那筆老師資料在等待期間被連給別人，照樣以老師加入、只是不連，管理員之後再連。公開的 `GET /api/invite-tokens/[token]` 只回教室名稱與角色。
 
 owner 不能「退出」——教室會變成沒有 owner，而 `Classroom.ownerId` 仍指向一個非成員。
-要走就先**轉移擁有權**（`POST /api/memberships/[id]/transfer-ownership`，`/teams` 成員卡 ⋯ 選單的「把教室交給他」）：
-目標助教變 owner、原 owner 變助教、`Classroom.ownerId` 跟著換，三筆寫入同一個交易，教室永遠恰好一位 owner。
-之後原 owner 就能像助教一樣退出。不想交給別人就封存教室。
+要走就先**轉移擁有權**（`POST /api/memberships/[id]/transfer-ownership`，`/teams` 成員卡 ⋯ 選單的「把教室交給他」，只有 owner 能做）：
+目標成員變 owner、原 owner 變 `admin`、`Classroom.ownerId` 跟著換，三筆寫入同一個交易，教室永遠恰好一位 owner。
+之後原 owner 就能像其他成員一樣退出。不想交給別人就封存教室。
 
 ### 刪除帳號（`DELETE /api/me`，`/account` 頁）
 
