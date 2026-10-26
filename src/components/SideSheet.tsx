@@ -30,6 +30,10 @@ const SideSheet = ({
       <Dialog.Overlay className="rd-overlay fixed inset-0 bg-neutral-900/30 z-40" />
       <Dialog.Content
         aria-describedby={undefined}
+        // sonner 的 toast 在抽屜外（右下角，正好蓋住抽屜底部），點到它不該被當成點外面而關掉抽屜
+        onInteractOutside={(e) => {
+          if ((e.target as Element | null)?.closest?.("[data-sonner-toaster]")) e.preventDefault();
+        }}
         className={cn(
           "rd-side fixed top-0 right-0 bottom-0 z-50 w-[520px] max-w-full bg-white shadow-2xl flex flex-col",
           className

@@ -49,8 +49,12 @@ const Menu = ({ open, anchorEl, onClose, children, className }: MenuProps) => {
 
   if (!open || !anchorEl) return null;
 
+  // 在 Radix 對話框／抽屜裡打開時要 portal 進那個對話框：modal 對話框會把 body 設成
+  // pointer-events: none，portal 到 body 的選單點不到（點擊會穿到後面），也會被當成點外面。
+  const dialogRoot = anchorEl.closest<HTMLElement>("[role=dialog]") ?? undefined;
+
   return (
-    <FloatingPortal>
+    <FloatingPortal root={dialogRoot}>
       <div
         ref={(node) => {
           refs.setFloating(node);
