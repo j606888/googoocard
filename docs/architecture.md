@@ -186,7 +186,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 | 進來的方式 | 網址 | 差別 |
 |---|---|---|
-| LINE 選單「上課簽到」 | `liff.line.me/{LIFF_ID}/checkin` | 沒綁 LINE → 擋下（請用老師給的綁定連結） |
+| LINE 選單「上課簽到」 | `liff.line.me/{LIFF_ID}/checkin` | 沒綁 LINE →「掃門口的 QR 就能簽到」頁（`UnboundCheckin`）：LIFF 裡直接開 LINE 掃描器（`liff.scanCodeV2`，LIFF 設定要開「Scan QR」）掃到海報就帶 `?key=` 重開這頁；另列今天的課、綁定連結說明 |
 | 門口海報 QR（手機相機掃） | `liff.line.me/{LIFF_ID}/checkin?key=<Classroom.checkinKey>` | 限定該教室；這個 LINE 在該教室沒有學生 →「第一次來嗎？」 |
 
 舊的 `/checkin/[key]`（從名單點自己、不驗身分）已退役：頁面只會 redirect 到上面的 LIFF 網址（已印出的海報照常可用），兩支公開 API 已刪除。工作人員的備案是老師端點名頁本來就能現場加人。
@@ -248,16 +248,25 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - **課卡不分部限定**：點名、選卡、購卡規則完全沒變。
 - `Classroom.lineListed`（分部頁上的開關，`PATCH /api/locations/settings`）＝在 LINE 官方帳號公開課表與價目表，見下一節。
 
-## LINE Bot（聊天室直接看課表／價目表／我的課卡，2026-10）
+## LINE（只給學生用，2026-10）
+
+**LINE 只服務學生，老師一律用網站／App。** 老師綁定 LINE（網站產生綁定碼、老師 Flex 選單、LIFF 免密碼登入）已在 2026-10-26 移除；`User.lineUserId` 欄位還在但不再被讀，`LineAccount.menuMode` 同樣留著沒用（之後清 schema 時一起拿掉）。`/liff` 根頁只負責 LIFF 的 `liff.state` 轉址，直接打開就去「上課簽到」。
 
 webhook（`src/app/api/line/webhook/route.ts`）只驗簽章，每個事件交給 `handleLineEvent(event, reply)`（`src/service/lineBot.ts`）。**全部是 reply、不是 push，不占官方帳號的訊息額度。**
-- **Rich Menu**：一張、所有人共用、設成官方帳號預設選單。區塊定義 `src/lib/lineRichMenu.json`（3×2：上課簽到／我的課卡／課表／價目表／購買課卡／更多），`liff:<path>` 開 LIFF、`postback:<action>` 送 `a=<action>` 給 bot。圖由 `npm run richmenu:image`（`scripts/generate-richmenu.mjs`，sharp＋lucide＋PingFang TC）產生到 `public/images/richmenu/main.png`；`npm run richmenu:provision` 預覽、加 `-- --yes` 才真的上傳並設成預設（用 env 的 `LINE_CHANNEL_ACCESS_TOKEN` 決定哪個官方帳號，重跑會刪掉同名舊選單）。內容依「這個 LINE 是誰」在 webhook 決定，所以不用逐人 link、沒有資料表。
-- **看哪間教室**（官方帳號將來會給多間教室共用）——`resolveLineClassroom()`：綁定學生的教室 → 綁定老師的目前教室 → 之前選過的公開教室（`LineAccount.browseClassroomId`）→ 唯一一間 `lineListed` 的教室；多間公開就 quick reply 讓他選（`a=pick`），零間回「目前還沒有公開的課表」。
-- `a=schedule`：教室有 ≥2 個分部先問哪一個（含「全部」），再回未來 7 天（台北）的 carousel，一天一張、超過 8 堂顯示「還有 N 堂」；手動結束的課不列；選了有地址的分部附「地圖」按鈕。
-- `a=prices`：`expiredAt = null` 的卡，分「課卡（各分部通用）」「<舞種> 複習卡」「體驗課」三組；綁定的學生多一個購買按鈕。
+- **Rich Menu**：一張、所有人共用、設成官方帳號預設選單。區塊定義 `src/lib/lineRichMenu.json`（左邊一大格「上課簽到」＋右邊 2×2：我的課卡／課表／課卡方案／更多），`liff:<path>` 開 LIFF、`postback:<action>` 送 `a=<action>` 給 bot。圖由 `npm run richmenu:image`（`scripts/generate-richmenu.mjs`，sharp＋lucide＋PingFang TC）產生到 `public/images/richmenu/main.png`；`npm run richmenu:provision` 預覽、加 `-- --yes` 才真的上傳並設成預設（用 env 的 `LINE_CHANNEL_ACCESS_TOKEN` 決定哪個官方帳號，重跑會刪掉同名舊選單）。內容依「這個 LINE 是誰」決定，所以不用逐人 link、沒有資料表。
+- **LIFF 頁**（都有 `LiffHeader`：深綠頁首＋「教室 · 學生」膠囊；綁了多位學生（通常一間教室一位）時膠囊帶 ▾，點開底部面板切換）：
+  - `/liff/checkin` 上課簽到（見上一節）。
+  - `/liff/schedule` 課表：月曆、有課的日子標舞種色點、依舞種／分部篩選、點日期列當天的課；綁定學生多「我的課」（`LessonStudent`）。`GET /api/liff/schedule?month=`。
+  - `/liff/plans` 課卡方案＝價目表＋購買：綁定學生可買（`POST /api/liff/student-cards`），沒資格的複習卡停用並寫原因；沒綁定的人只看價格＋「第一次來？掃門口 QR」。體驗課只列價格。`GET /api/liff/prices`。`/liff/buy`（舊連結、續卡提醒）渲染同一頁。
+  - `/liff/cards` 我的課卡。
+  - 課表與課卡方案**沒綁定也能看**：`LiffStudentGate` 的 `guest` 渲染訪客版，教室由 `resolveLiffClassroom()`（`src/service/liffClassroom.ts`）決定——帶 `studentId`（驗擁有權）→ 他的教室；帶 `classroomId` → 必須是公開教室，並記成 `browseClassroomId`；都沒帶 → 同 bot 的 `resolveLineClassroom()`，多間公開回 409 讓頁面列出來選。
+- **看哪間教室**（官方帳號將來會給多間教室共用）——`resolveLineClassroom()`：綁定學生的教室 → 之前選過的公開教室（`LineAccount.browseClassroomId`）→ 唯一一間 `lineListed` 的教室；多間公開就 quick reply 讓他選（`a=pick`），零間回「目前還沒有公開的課表」。
+- `a=schedule`（打字「課表」）：教室有 ≥2 個分部先問哪一個（含「全部」），再回未來 7 天（台北）的 carousel，一天一張、超過 8 堂顯示「還有 N 堂」；手動結束的課不列；選了有地址的分部附「地圖」按鈕。Rich Menu 的「課表」改開 LIFF 月曆。
+- `a=prices`（打字「價目表」「課卡方案」）：`expiredAt = null` 的卡，分「課卡（各分部通用）」「<舞種> 複習卡」「體驗課」三組；綁定的學生多一個購買按鈕（開 `/liff/plans`）。
 - `a=mycards`：目前學生（`currentStudent()`，LIFF 選的那位）還能用或未付的卡＋未付合計；未綁定回綁定說明。
-- `a=more`：切換學生（綁多位時）、切換教室（未綁定且多間公開時）、怎麼綁定、進入網站（老師）。
-- 打字「課表」「價目表」「我的課卡」等關鍵字同上；綁定碼永遠優先。未綁定的人傳其他訊息回說明＋quick reply（不再是「無法辨識此綁定碼」）。舊的老師／學生 Flex 選單照舊保留。
+- `a=more`：切換教室（綁多位學生時開 LIFF 選擇；未綁定且多間公開時 quick reply 選公開教室）、怎麼綁定。
+- **加好友（follow）**：已綁定的人（多半是門口登記後從簽到完成頁加好友）叫名字歡迎＋教室名；沒綁定的人告訴他可以看課表／價目、到教室掃門口 QR 登記。掃門口 QR **不會**自動加好友——LIFF 的 Add friend option（Aggressive）只問一次，所以簽到完成頁再用 `getFriendship()` 檢查、沒加就顯示 `AddFriendPrompt`。
+- 打字其他文字：綁定學生回學生 Flex 選單、未綁定回說明＋quick reply；綁定碼永遠優先。
 - Flex builder 是純函式（`src/lib/lineFlex.ts`，有單元測試），配色跟網站一致改成品牌綠（`src/lib/line.ts` 的 `BRAND`）。
 
 ## 買卡流程（StudentCard 建立）

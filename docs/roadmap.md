@@ -481,7 +481,11 @@ import `renewalReminder` / `pushMessage` / `findExhaustedRenewableCard`），沒
 - [x] **分部＋LINE 聊天室看課表／價目表／我的課卡＋Rich Menu** ✅ 2026-10-26。已知取捨：
   課卡不分部限定（使用者決定兩地通用）；Rich Menu 只有一張、所有人共用（內容由 webhook 依身分決定，
   不逐人 link、不建表）；沒綁定的人看哪間教室靠 `Classroom.lineListed` + 選過的 `browseClassroomId`，
-  多間教室共用官方帳號時用 quick reply 選。舊的老師／學生 Flex 選單仍保留當備案，之後可以拿掉。
+  多間教室共用官方帳號時用 quick reply 選。
+- [x] **LINE 只給學生＋Rich Menu 改版** ✅ 2026-10-26。Rich Menu 改成左大「上課簽到」＋課卡方案（價目＋購買合併）／LIFF 月曆課表；
+  LIFF 頁首可切換教室；沒綁定的人按上課簽到改成掃 QR 引導；加好友歡迎詞叫名字。已知取捨（使用者決定）：
+  **老師不再綁 LINE**（老師選單、綁定碼、LIFF 免密碼登入都移除，老師用網站／App）；`User.lineUserId`、
+  `User.randomKey`（老師綁定用的那個）、`LineAccount.menuMode` 欄位暫留未刪，之後清 schema 時一起處理。
 - **營收 CSV 匯出** — 老師報稅／對帳用。🟡 部分完成 2026-10-10：收入頁「課卡」月明細可匯出 CSV
   （`purchasesToCsv()`，`src/features/income/incomeInsights.ts`，含未付款欄）；堂數收入（session）尚無匯出。
 - **課程模板／重複排課** — 現在每期課要手動建所有 periods。

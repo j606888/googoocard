@@ -1,13 +1,9 @@
-import { LineMenuMode } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
-  buildMenuFlex,
   buildMoreMenuFlex,
   buildStudentMenuFlex,
   liffPath,
   textMessage,
-  SWITCH_TO_STUDENT,
-  SWITCH_TO_TEACHER,
   type LineMessage,
   type LineWebhookEvent,
 } from "@/lib/line";
@@ -25,8 +21,9 @@ import { lessonLevelLabel } from "@/lib/danceLevels";
 import { parseTaipeiDateRange, toTaipeiDateKey } from "@/lib/taipei-date";
 
 /**
- * The LINE bot: binding keys, the 老師/學生 menus, and the rich-menu actions that
- * answer right in the chat (課表／價目表／我的課卡／更多). The webhook route only
+ * The LINE bot — students only (teachers use the website): binding keys, the
+ * student menu, and the rich-menu actions that answer right in the chat
+ * (價目表／我的課卡／更多; 課表 is also a LIFF page). The webhook route only
  * verifies the signature and hands each event here with a `reply` that calls
  * LINE; the /dev/line simulator passes one that collects the messages instead.
  *
@@ -48,6 +45,8 @@ const KEYWORDS: Record<string, BotAction> = {
   我的課卡: "mycards",
   課卡: "mycards",
   更多: "more",
+  課卡方案: "prices",
+  切換教室: "more",
 };
 
 const BIND_HELP =
@@ -58,18 +57,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ── Account state ───────────────────────────────────────────────────────────
 
-/** Remembered default menu (老師/學生) for accounts bound to both. */
-async function getMenuMode(lineUserId: string): Promise<LineMenuMode> {
-  const account = await prisma.lineAccount.findUnique({ where: { lineUserId } });
-  return account?.menuMode ?? LineMenuMode.TEACHER;
-}
-async function setMenuMode(lineUserId: string, menuMode: LineMenuMode): Promise<void> {
-  await prisma.lineAccount.upsert({
-    where: { lineUserId },
-    update: { menuMode },
-    create: { lineUserId, menuMode },
-  });
-}
 /** Remember which student this account last selected (in LIFF or on bind). */
 async function setSelectedStudent(lineUserId: string, selectedStudentId: number): Promise<void> {
   await prisma.lineAccount.upsert({
@@ -95,10 +82,6 @@ export async function currentStudent(lineUserId: string) {
   return prisma.student.findFirst({ where: { lineUserId, archivedAt: null }, orderBy: { id: "asc" } });
 }
 
-async function teacherFor(lineUserId: string) {
-  return prisma.user.findFirst({ where: { lineUserId, deletedAt: null } });
-}
-
 const listedClassrooms = () =>
   prisma.classroom.findMany({
     where: { lineListed: true, deletedAt: null },
@@ -107,7 +90,7 @@ const listedClassrooms = () =>
   });
 
 export type ResolvedClassroom =
-  | { kind: "classroom"; classroomId: number; via: "student" | "teacher" | "browse" | "listed" }
+  | { kind: "classroom"; classroomId: number; via: "student" | "browse" | "listed" }
   | { kind: "pick"; classrooms: { id: number; name: string }[] }
   | { kind: "none" };
 
@@ -115,21 +98,12 @@ export type ResolvedClassroom =
  * Which classroom's 課表／價目表 this LINE account sees. The official account may
  * serve several classrooms, so in order:
  *  1. the bound student's classroom;
- *  2. the bound teacher's current classroom (if still a member);
- *  3. the public classroom they picked before (`LineAccount.browseClassroomId`);
- *  4. the only public (`lineListed`) classroom — or, with several, ask them to pick.
+ *  2. the public classroom they picked before (`LineAccount.browseClassroomId`);
+ *  3. the only public (`lineListed`) classroom — or, with several, ask them to pick.
  */
 export async function resolveLineClassroom(lineUserId: string): Promise<ResolvedClassroom> {
   const student = await currentStudent(lineUserId);
   if (student) return { kind: "classroom", classroomId: student.classroomId, via: "student" };
-
-  const teacher = await teacherFor(lineUserId);
-  if (teacher?.currentClassroomId) {
-    const membership = await prisma.membership.findFirst({
-      where: { userId: teacher.id, classroomId: teacher.currentClassroomId, classroom: { deletedAt: null } },
-    });
-    if (membership) return { kind: "classroom", classroomId: teacher.currentClassroomId, via: "teacher" };
-  }
 
   const listed = await listedClassrooms();
   const account = await prisma.lineAccount.findUnique({ where: { lineUserId } });
@@ -279,7 +253,7 @@ async function replyPrices(lineUserId: string, reply: Reply) {
     priceListFlex({
       classroomName: classroom.name,
       groups,
-      buyUri: student && student.classroomId === classroom.id ? liffPath("buy") : null,
+      buyUri: student && student.classroomId === classroom.id ? liffPath("plans") : null,
     }),
   ]);
 }
@@ -327,24 +301,22 @@ async function replyMyCards(lineUserId: string, reply: Reply) {
         unpaidAmount: c.isPaid ? null : c.finalPrice,
       })),
       cardsUri: liffPath("cards"),
-      buyUri: liffPath("buy"),
+      buyUri: liffPath("plans"),
       switchUri: studentCount > 1 ? liffPath("cards?switch=1") : null,
     }),
   ]);
 }
 
 async function replyMore(lineUserId: string, reply: Reply) {
-  const [student, teacher, studentCount, listed] = await Promise.all([
+  const [student, studentCount, listed] = await Promise.all([
     currentStudent(lineUserId),
-    teacherFor(lineUserId),
     prisma.student.count({ where: { lineUserId, archivedAt: null } }),
     listedClassrooms(),
   ]);
   await reply([
     buildMoreMenuFlex({
       studentSwitch: studentCount > 1,
-      teacher: !!teacher,
-      classroomSwitch: !student && !teacher && listed.length > 1,
+      classroomSwitch: !student && listed.length > 1,
     }),
   ]);
 }
@@ -405,47 +377,18 @@ export async function handleLineEvent(event: LineWebhookEvent, reply: Reply): Pr
     const params = new URLSearchParams(data);
     const action = params.get("a");
     if (isBotAction(action)) return runAction(action, lineUserId, params, reply);
-    // Older Flex menus: 老師／學生 switch buttons.
-    return sendMenu(reply, lineUserId, data || null);
+    // Buttons on older Flex menus (e.g. the retired 老師／學生 switch).
+    return sendMenu(reply, lineUserId);
   }
 
-  // A new friend: say what the bot can do.
-  if (event.type === "follow") {
-    await reply([
-      quickReplyText(
-        "歡迎！點下方選單就能看課表、價目表和自己的課卡。",
-        [
-          { label: "課表", data: "a=schedule" },
-          { label: "價目表", data: "a=prices" },
-          { label: "我的課卡", data: "a=mycards" },
-        ]
-      ),
-    ]);
-    return;
-  }
+  if (event.type === "follow") return replyWelcome(lineUserId, reply);
 
   if (event.type !== "message" || event.message?.type !== "text") return;
 
   // A binding key always takes priority, even if this LINE account is already
-  // bound to something else. Teacher and student bindings live on separate
-  // tables (User.lineUserId / Student.lineUserId), so one LINE account can be
-  // both — e.g. a teacher binding their own student profile via the link.
+  // bound to another student.
   const text = event.message.text?.trim() ?? "";
   if (text) {
-    const user = await prisma.user.findUnique({ where: { randomKey: text } });
-    if (user) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { lineUserId, randomKey: null },
-      });
-      await setMenuMode(lineUserId, LineMenuMode.TEACHER);
-      await reply([
-        textMessage(`綁定成功，${user.name}！傳任何訊息即可叫出選單。`),
-        buildMenuFlex({ showSwitch: await isStudent(lineUserId) }),
-      ]);
-      return;
-    }
-
     const student = await prisma.student.findUnique({ where: { lineBindKey: text } });
     if (student) {
       // One LINE account can bind multiple students across DIFFERENT classrooms,
@@ -465,7 +408,6 @@ export async function handleLineEvent(event: LineWebhookEvent, reply: Reply): Pr
         where: { id: student.id },
         data: { lineUserId, lineBindKey: null },
       });
-      await setMenuMode(lineUserId, LineMenuMode.STUDENT);
       await setSelectedStudent(lineUserId, student.id);
       await reply([
         textMessage(
@@ -475,7 +417,6 @@ export async function handleLineEvent(event: LineWebhookEvent, reply: Reply): Pr
         ),
         buildStudentMenuFlex({
           name: student.name,
-          showSwitch: await isTeacher(lineUserId),
           showStudentSwitch: (await prisma.student.count({ where: { lineUserId } })) > 1,
         }),
       ]);
@@ -487,70 +428,58 @@ export async function handleLineEvent(event: LineWebhookEvent, reply: Reply): Pr
   }
 
   // Not a binding key — show the menu for whatever this account is bound to.
-  await sendMenu(reply, lineUserId, null);
-}
-
-async function isTeacher(lineUserId: string): Promise<boolean> {
-  return (await prisma.user.findUnique({ where: { lineUserId } })) !== null;
-}
-
-async function isStudent(lineUserId: string): Promise<boolean> {
-  return (await prisma.student.findFirst({ where: { lineUserId, archivedAt: null } })) !== null;
+  await sendMenu(reply, lineUserId);
 }
 
 /**
- * Reply with the appropriate menu. `requested` is a switch postback value, or
- * null to pick the default. For accounts bound to BOTH a teacher and a student,
- * the default follows the remembered `menuMode` (set on switch / bind) so a
- * switch to the student menu sticks across messages. Each menu exposes a switch
- * button only when the account holds the other identity; the student menu also
- * offers「切換學生」when the account is bound to more than one student.
+ * A new (or returning) friend. Someone already bound — typically registered at the
+ * door, then added the official account from the check-in page — is greeted by
+ * name; anyone else gets what they can do and how to become a student.
  */
-async function sendMenu(reply: Reply, lineUserId: string, requested: string | null): Promise<void> {
-  // A LINE account may be bound to multiple students (across classrooms). The
-  // flex menu reflects one student for the title; real multi-student switching
-  // happens in LIFF via the「切換學生」button.
-  const [teacher, student, studentCount] = await Promise.all([
-    prisma.user.findUnique({ where: { lineUserId } }),
-    currentStudent(lineUserId),
-    prisma.student.count({ where: { lineUserId } }),
+async function replyWelcome(lineUserId: string, reply: Reply) {
+  const student = await currentStudent(lineUserId);
+  if (!student) {
+    await reply([
+      quickReplyText(
+        `歡迎！不用綁定也能看課表和價目表。\n\n第一次來上課？到教室用手機相機掃門口的簽到 QR Code 就能登記。`,
+        [
+          { label: "課表", data: "a=schedule", displayText: "課表" },
+          { label: "價目表", data: "a=prices", displayText: "價目表" },
+        ]
+      ),
+    ]);
+    return;
+  }
+  const classroom = await prisma.classroom.findUniqueOrThrow({
+    where: { id: student.classroomId },
+    select: { name: true },
+  });
+  await reply([
+    quickReplyText(
+      `${student.name}，歡迎！已經連上你在 ${classroom.name} 的學生資料。\n\n下次上課直接按下方選單的「上課簽到」，不用再掃門口 QR；課卡快用完時也會在這裡提醒你。`,
+      [
+        { label: "我的課卡", data: "a=mycards", displayText: "我的課卡" },
+        { label: "課表", data: "a=schedule", displayText: "課表" },
+      ]
+    ),
   ]);
-  const isBoth = !!teacher && !!student;
-  const studentMenu = () =>
-    buildStudentMenuFlex({
-      name: student!.name,
-      showSwitch: isBoth,
-      showStudentSwitch: studentCount > 1,
-    });
+}
 
-  if (requested === SWITCH_TO_STUDENT && student) {
-    await setMenuMode(lineUserId, LineMenuMode.STUDENT);
-    await reply([studentMenu()]);
-    return;
-  }
-  if (requested === SWITCH_TO_TEACHER && teacher) {
-    await setMenuMode(lineUserId, LineMenuMode.TEACHER);
-    await reply([buildMenuFlex({ showSwitch: isBoth })]);
-    return;
-  }
-
-  // Default: for both-bound accounts follow the remembered mode; otherwise the
-  // only identity they have.
-  if (isBoth) {
-    const mode = await getMenuMode(lineUserId);
-    await reply([mode === LineMenuMode.STUDENT ? studentMenu() : buildMenuFlex({ showSwitch: true })]);
-    return;
-  }
-  if (teacher) {
-    await reply([buildMenuFlex({ showSwitch: false })]);
-    return;
-  }
+/**
+ * Reply with the student menu (bound) or what an unbound account can still do.
+ * The flex menu reflects one student for the title; switching between students
+ * (one per classroom) happens in LIFF via「切換教室」.
+ */
+async function sendMenu(reply: Reply, lineUserId: string): Promise<void> {
+  const [student, studentCount] = await Promise.all([
+    currentStudent(lineUserId),
+    prisma.student.count({ where: { lineUserId, archivedAt: null } }),
+  ]);
   if (student) {
-    await reply([studentMenu()]);
+    await reply([buildStudentMenuFlex({ name: student.name, showStudentSwitch: studentCount > 1 })]);
     return;
   }
 
-  // Unbound: what they can still do without an identity.
   await reply([
     quickReplyText(`嗨！還沒有綁定學生身分也可以看課表和價目表。\n\n${BIND_HELP}`, [
       { label: "課表", data: "a=schedule" },

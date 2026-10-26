@@ -2,7 +2,6 @@
 
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { StudentWithDetail } from "@/store/slices/students";
-import { Button } from "@/components/ui/button";
 import LiffSkeleton from "@/features/liff/LiffSkeleton";
 import FirstTimeGate, { FirstTimePrefill } from "@/features/liff/FirstTimeGate";
 import { getLiffId, loadLiff } from "@/lib/liffClient";
@@ -11,14 +10,15 @@ import { getLiffId, loadLiff } from "@/lib/liffClient";
 // token, no cookie), resolves the bound student via /api/liff/me, and only
 // renders `children(student)` once a single student is resolved. A LINE account
 // may be bound to several students (different classrooms) → shows a picker,
-// remembering the last choice. Unbound accounts are blocked — except on the
-// on-site check-in entry (`checkinKey`, from the wall QR), where a LINE account
-// with no student in that classroom gets「第一次來嗎？」and can register itself.
-// The gate only ever hands over the caller's own student.
+// remembering the last choice. Unbound accounts get the page's `guest` view when it
+// has one (課表／課卡方案 work for anyone; 上課簽到 explains how to register), else a
+// message — except on the on-site check-in entry (`checkinKey`, from the wall QR),
+// where a LINE account with no student in that classroom gets「第一次來嗎？」and
+// can register itself. The gate only ever hands over the caller's own student.
 
 const LAST_STUDENT_KEY = "liff:lastStudentId";
 
-interface StudentOption {
+export interface StudentOption {
   id: number;
   name: string;
   avatarUrl: string;
@@ -32,13 +32,20 @@ type MeResponse =
 export interface LiffAuthContext {
   idToken: string;
   studentId: number;
+  /** Every student this LINE account is bound to (usually one per classroom). */
+  boundStudents: StudentOption[];
+  /** Switch to another bound student — what LiffHeader's「切換教室」calls. */
+  pickStudent: (id: number) => void;
 }
 
 export default function LiffStudentGate({
   children,
+  guest,
   acceptCheckinKey = false,
 }: {
   children: (student: StudentWithDetail, auth: LiffAuthContext) => ReactNode;
+  /** Rendered for a LINE account with no student (outside the wall-QR flow). */
+  guest?: (idToken: string) => ReactNode;
   /**
    * Read `?key=` (Classroom.checkinKey, from the on-site QR) once LIFF has
    * restored the real URL: scopes to that classroom and allows self-registration.
@@ -52,12 +59,14 @@ export default function LiffStudentGate({
   const [boundStudents, setBoundStudents] = useState<StudentOption[]>([]);
   const [firstTime, setFirstTime] = useState<FirstTimePrefill | null>(null);
   const [checkinKey, setCheckinKey] = useState<string | null>(null);
+  const [unbound, setUnbound] = useState(false);
 
   // Fetch /api/liff/me with the ID token, optionally for a specific student.
   const loadMe = useCallback(async (token: string, studentId?: number, key?: string | null) => {
     setStudent(null);
     setOptions(null);
     setFirstTime(null);
+    setUnbound(false);
     setStatus("載入中…");
     const params = new URLSearchParams();
     if (studentId) params.set("studentId", String(studentId));
@@ -85,6 +94,7 @@ export default function LiffStudentGate({
           return;
         }
       }
+      setUnbound(true);
       setStatus("此 LINE 帳號尚未綁定學生，請使用老師提供的綁定連結。");
       return;
     }
@@ -166,14 +176,6 @@ export default function LiffStudentGate({
     loadMe(idToken, id, checkinKey);
   };
 
-  // Drop the remembered choice and re-show the picker (cross-classroom switch).
-  const switchStudent = () => {
-    if (!idToken) return;
-    localStorage.removeItem(LAST_STUDENT_KEY);
-    setStudent(null);
-    loadMe(idToken, undefined, checkinKey);
-  };
-
   // On-site QR, no student in this classroom yet →「第一次來嗎？」
   if (firstTime && idToken && checkinKey) {
     return (
@@ -186,11 +188,13 @@ export default function LiffStudentGate({
     );
   }
 
+  if (unbound && idToken && guest) return <>{guest(idToken)}</>;
+
   // Multi-student picker.
   if (options) {
     return (
       <div className="mx-auto max-w-[480px] px-5 py-6">
-        <h2 className="mb-4 text-lg font-semibold">選擇身分</h2>
+        <h2 className="mb-4 text-lg font-semibold">要用哪一間教室？</h2>
         <div className="flex flex-col gap-3">
           {options.map((opt) => (
             <button
@@ -217,23 +221,9 @@ export default function LiffStudentGate({
 
   // Resolved a single student → hand it to the caller, along with the auth
   // context (ID token + resolved studentId) needed for student-scoped LIFF APIs.
-  // When the account is bound to more than one student, show a switch bar.
+  // Switching between bound students lives in each page's LiffHeader.
   if (student && idToken) {
-    return (
-      <>
-        {boundStudents.length > 1 && (
-          <div className="flex items-center justify-between gap-2 bg-neutral-50 px-4 py-2 text-sm">
-            <span className="truncate text-neutral-600">
-              目前：{student.name}（{student.classroom.name}）
-            </span>
-            <Button variant="secondary" size="sm" onClick={switchStudent} className="shrink-0">
-              切換學生
-            </Button>
-          </div>
-        )}
-        {children(student, { idToken, studentId: student.id })}
-      </>
-    );
+    return <>{children(student, { idToken, studentId: student.id, boundStudents, pickStudent })}</>;
   }
 
   // Loading / error.

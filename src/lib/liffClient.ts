@@ -16,6 +16,10 @@ export type LiffClient = {
   closeWindow: () => void;
   /** Whether this user has added the linked official account as a friend. */
   getFriendship: () => Promise<{ friendFlag: boolean }>;
+  /** Whether an optional API (e.g. "scanCodeV2") works here. Absent in the simulator. */
+  isApiAvailable?: (api: string) => boolean;
+  /** LINE's QR scanner — needs「Scan QR」enabled in the LIFF app's settings. */
+  scanCodeV2?: () => Promise<{ value: string | null }>;
 };
 
 // The persona the /dev/line simulator put on this frame, if any.

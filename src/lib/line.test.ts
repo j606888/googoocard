@@ -23,27 +23,17 @@ function actionsOf(flex: Record<string, unknown>): Action[] {
 }
 
 describe("buildStudentMenuFlex", () => {
-  it("exposes 上課簽到 / 我的課卡 / 購買課卡 as LIFF uri actions", () => {
-    const uriActions = actionsOf(buildStudentMenuFlex()).filter((a) => a.type === "uri");
-
-    expect(uriActions).toHaveLength(3);
-    const labels = uriActions.map((a) => a.label);
-    expect(labels).toEqual(["上課簽到", "瀏覽我的課卡", "購買課卡"]);
-
-    const uris = uriActions.map((a) => a.uri);
-    expect(uris[0]).toMatch(/\/checkin$/);
-    expect(uris[1]).toMatch(/\/cards$/);
-    expect(uris[2]).toMatch(/\/buy$/);
+  it("exposes 上課簽到 / 我的課卡 / 課表 / 課卡方案 as LIFF uri actions", () => {
+    const actions = actionsOf(buildStudentMenuFlex());
+    expect(actions.every((a) => a.type === "uri")).toBe(true);
+    expect(actions.map((a) => a.label)).toEqual(["上課簽到", "我的課卡", "課表", "課卡方案"]);
+    expect(actions.map((a) => a.uri?.split("/").pop())).toEqual(["checkin", "cards", "schedule", "plans"]);
   });
 
-  it("adds a 切換到老師 postback action only when showSwitch", () => {
-    const without = actionsOf(buildStudentMenuFlex());
-    expect(without.some((a) => a.type === "postback")).toBe(false);
-
-    const withSwitch = actionsOf(buildStudentMenuFlex({ showSwitch: true }));
-    const postbacks = withSwitch.filter((a) => a.type === "postback");
-    expect(postbacks).toHaveLength(1);
-    expect(postbacks[0].label).toBe("切換到老師");
+  it("adds 切換教室 (the LIFF picker) only when bound to several students", () => {
+    expect(actionsOf(buildStudentMenuFlex()).some((a) => a.label === "切換教室")).toBe(false);
+    const switchAction = actionsOf(buildStudentMenuFlex({ showStudentSwitch: true })).find((a) => a.label === "切換教室");
+    expect(switchAction?.uri).toMatch(/\/cards\?switch=1$/);
   });
 });
 
@@ -56,7 +46,7 @@ describe("buildRenewalReminderFlex", () => {
     const actions = actionsOf(flex);
     expect(actions).toHaveLength(1);
     expect(actions[0].label).toBe("購買課卡");
-    expect(actions[0].uri).toMatch(/\/buy$/);
+    expect(actions[0].uri).toMatch(/\/plans$/);
 
     // 說明段落是 rows 的第一個 box（沒有 action），和按鈕列分開。
     const body = (flex.contents as { body: { contents: Record<string, unknown>[] } }).body;

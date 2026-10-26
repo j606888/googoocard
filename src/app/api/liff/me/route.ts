@@ -6,7 +6,7 @@ import { resolveCheckinClassroom } from "@/service/checkin";
 
 // Student LIFF "我的課卡" data source. Auth is a LIFF-issued ID token in the
 // Authorization header (students have no cookie/session) — NOT the teacher
-// session used by /api/line/liff-login.
+// session (teachers use the website; LINE is student-only).
 //
 // A LINE account can be bound to multiple students across classrooms:
 //   - ?studentId= absent, 0 bound   → 403 not_bound

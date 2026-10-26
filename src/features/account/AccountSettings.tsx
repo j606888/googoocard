@@ -13,7 +13,6 @@ import {
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { useWebPush } from "@/hooks/useWebPush";
 import { Skeleton } from "@/components/ui/skeleton";
-import LineBindButton from "@/features/line/LineBindButton";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldLabel, fieldControlClass } from "@/components/Field";
 import { cn } from "@/lib/utils";
@@ -48,11 +47,6 @@ const AccountSettings = () => {
             {isMeLoading ? <Skeleton className="my-1 h-3.5 w-48" /> : me?.email}
           </dd>
         </dl>
-      </section>
-
-      <section className="rounded-2xl border border-neutral-200 bg-white p-4">
-        <h3 className="mb-3 text-lg font-bold text-neutral-900">LINE</h3>
-        <LineBindButton />
       </section>
 
       <NotificationSettings

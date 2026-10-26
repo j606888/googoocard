@@ -4,62 +4,30 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getLiffId, loadLiff } from "@/lib/liffClient";
 
-// Entry point opened from the LINE menu's "進入網站" button.
-// Uses LIFF + LINE Login to authenticate, then starts a googoocard session —
-// no email/password needed.
+// The LIFF endpoint itself. A deep link like liff.line.me/<id>/checkin first lands
+// here with `?liff.state=/checkin`; liff.init() then forwards to that page. Opened
+// bare (no state), it goes to 上課簽到 — LINE is student-only, teachers use the site.
 export default function LiffPage() {
   const router = useRouter();
-  const [status, setStatus] = useState("登入中…");
+  const [status, setStatus] = useState("載入中…");
 
   useEffect(() => {
-    let cancelled = false;
-
     (async () => {
       const liffId = getLiffId();
       if (!liffId) {
         setStatus("尚未設定 LIFF ID");
         return;
       }
-
+      const forwarding = new URLSearchParams(window.location.search).has("liff.state");
       try {
         const liff = await loadLiff();
         await liff.init({ liffId });
-
-        if (!liff.isLoggedIn()) {
-          liff.login(); // redirects to LINE, then back to this page
-          return;
-        }
-
-        const idToken = liff.getIDToken();
-        if (!idToken) {
-          setStatus("無法取得 LINE 身分，請重新開啟。");
-          return;
-        }
-
-        const res = await fetch("/api/line/liff-login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idToken }),
-        });
-
-        if (cancelled) return;
-
-        if (res.ok) {
-          router.replace("/redirect");
-        } else if (res.status === 403) {
-          setStatus("此 LINE 帳號尚未綁定 googoocard，請先用密碼登入並完成綁定。");
-        } else {
-          setStatus("登入失敗，請稍後再試。");
-        }
+        if (!forwarding) router.replace("/liff/checkin");
       } catch (err) {
         console.error("[liff] init error", err);
-        if (!cancelled) setStatus("LIFF 初始化失敗。");
+        setStatus("LIFF 初始化失敗。");
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [router]);
 
   return (

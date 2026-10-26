@@ -26,15 +26,6 @@ export function bindDeepLink(key: string): string | null {
 }
 
 /**
- * Where the "進入網站" button sends the user:
- * LIFF (auto-login) if configured, else the public tunnel URL, else the host URL.
- */
-export function websiteEntryUrl(): string {
-  if (LIFF_ID) return `https://liff.line.me/${LIFF_ID}`;
-  return PUBLIC_WEB_URL || HOST_URL;
-}
-
-/**
  * Verify the `x-line-signature` header against the raw request body.
  * LINE signs the body with HMAC-SHA256 using the channel secret (base64).
  * See: https://developers.line.biz/en/reference/messaging-api/#signature-validation
@@ -59,10 +50,6 @@ export function textMessage(text: string): LineMessage {
   return { type: "text", text };
 }
 
-// Postback `data` values for the menu identity-switch buttons.
-export const SWITCH_TO_STUDENT = "switch=student";
-export const SWITCH_TO_TEACHER = "switch=teacher";
-
 // Brand palette for the flex messages — the site's primary green
 // (globals.css --color-primary-*), same as LIFF and the rich menu.
 export const BRAND = "#2B8E6E"; // primary-700 (header background)
@@ -80,15 +67,6 @@ export const WARNING = "#C96C1E"; // warning-800
  */
 type MenuItem = { icon: string; label: string; action: LineMessage; muted?: boolean };
 
-/** The shared "進入網站" entry used by the teacher menu. */
-function websiteItem(): MenuItem {
-  return {
-    icon: "🖥️",
-    label: "進入網站",
-    action: { type: "uri", label: "進入網站", uri: websiteEntryUrl() },
-  };
-}
-
 /**
  * URL for a student LIFF sub-page (`/liff/<path>`): a LIFF deep link when the
  * LIFF id is configured (opens in-app, auto ID-token auth), else a plain URL.
@@ -102,11 +80,6 @@ export function liffPath(path: string): string {
 /** A menu entry that opens a student LIFF sub-page. */
 function liffItem(icon: string, label: string, path: string, muted = false): MenuItem {
   return { icon, label, muted, action: { type: "uri", label, uri: liffPath(path) } };
-}
-
-/** A muted entry that switches between teacher/student menus via postback. */
-function switchItem(label: string, data: string): MenuItem {
-  return { icon: "🔄", label, muted: true, action: { type: "postback", label, data } };
 }
 
 /** Render one menu entry as a tappable horizontal row: icon · label · chevron. */
@@ -199,36 +172,19 @@ function menuBubble(
 }
 
 /**
- * The teacher menu. Pass `showSwitch` when this LINE account is also bound to a
- * student, to expose a "切換到學生" button.
+ * The student menu, sent when a bound student types something the bot doesn't
+ * recognise (the rich menu does the same job). `showStudentSwitch` when the account
+ * is bound to more than one student — usually one per classroom — exposes
+ * 「切換教室」, which opens the LIFF picker.
  */
-export function buildMenuFlex(opts: { showSwitch?: boolean } = {}): LineMessage {
-  const items = [websiteItem()];
-  if (opts.showSwitch) items.push(switchItem("切換到學生", SWITCH_TO_STUDENT));
-  return {
-    type: "flex",
-    altText: "googoocard 老師選單",
-    contents: menuBubble("老師選單", items),
-  };
-}
-
-/**
- * The student menu. Pass `showSwitch` when this LINE account is also a teacher,
- * to expose a "切換到老師" button; pass `showStudentSwitch` when the account is
- * bound to more than one student, to expose a "切換學生" button that opens the
- * LIFF identity picker.
- */
-export function buildStudentMenuFlex(
-  opts: { showSwitch?: boolean; showStudentSwitch?: boolean; name?: string } = {},
-): LineMessage {
+export function buildStudentMenuFlex(opts: { showStudentSwitch?: boolean; name?: string } = {}): LineMessage {
   const items = [
     liffItem("📝", "上課簽到", "checkin"),
-    liffItem("🎫", "瀏覽我的課卡", "cards"),
-    liffItem("🛒", "購買課卡", "buy"),
+    liffItem("🎫", "我的課卡", "cards"),
+    liffItem("📅", "課表", "schedule"),
+    liffItem("🛒", "課卡方案", "plans"),
   ];
-  if (opts.showStudentSwitch)
-    items.push(liffItem("🔁", "切換學生", "cards?switch=1", true));
-  if (opts.showSwitch) items.push(switchItem("切換到老師", SWITCH_TO_TEACHER));
+  if (opts.showStudentSwitch) items.push(liffItem("🔁", "切換教室", "cards?switch=1", true));
   return {
     type: "flex",
     altText: "googoocard 學生選單",
@@ -241,20 +197,17 @@ export function buildStudentMenuFlex(
  * to this LINE account is shown.
  */
 export function buildMoreMenuFlex(opts: {
-  /** Bound to more than one student → the LIFF picker. */
+  /** Bound to more than one student (one per classroom) → the LIFF picker. */
   studentSwitch?: boolean;
-  /** Bound to a teacher → the website. */
-  teacher?: boolean;
   /** Not a bound student and several classrooms are public → choose one. */
   classroomSwitch?: boolean;
 }): LineMessage {
   const items: MenuItem[] = [];
-  if (opts.studentSwitch) items.push(liffItem("🔁", "切換學生", "cards?switch=1"));
+  if (opts.studentSwitch) items.push(liffItem("🔁", "切換教室", "cards?switch=1"));
   if (opts.classroomSwitch) {
-    items.push({ icon: "🏫", label: "切換教室", action: { type: "postback", label: "切換教室", data: "a=classrooms", displayText: "切換教室" } });
+    items.push({ icon: "🔁", label: "切換教室", action: { type: "postback", label: "切換教室", data: "a=classrooms", displayText: "切換教室" } });
   }
   items.push({ icon: "🔗", label: "怎麼綁定學生身分", action: { type: "postback", label: "怎麼綁定", data: "a=bindhelp", displayText: "怎麼綁定學生身分？" } });
-  if (opts.teacher) items.push(websiteItem());
   return {
     type: "flex",
     altText: "googoocard 更多",
@@ -274,7 +227,7 @@ export function buildRenewalReminderFlex(opts: {
   return {
     type: "flex",
     altText: "續卡提醒",
-    contents: menuBubble("續卡提醒", [liffItem("🛒", "購買課卡", "buy")], {
+    contents: menuBubble("續卡提醒", [liffItem("🛒", "購買課卡", "plans")], {
       lead: `${opts.name ? `${opts.name}，你` : "你"}的${card}堂數已經用完囉！要繼續上課的話，點下面就能直接續卡 👇`,
     }),
   };

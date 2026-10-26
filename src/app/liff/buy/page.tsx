@@ -1,22 +1,2 @@
-"use client";
-
-import LiffStudentGate from "../LiffStudentGate";
-import BuyCardList from "@/features/liff/BuyCardList";
-
-// Opened from the student menu's「購買課卡」button. Lists the classroom's
-// purchasable cards (hiding unqualified practice cards) and lets the student
-// self-purchase; identity is resolved by LiffStudentGate.
-export default function LiffBuyPage() {
-  return (
-    <LiffStudentGate>
-      {(student, auth) => (
-        <>
-          <div className="relative flex h-16 w-full items-center justify-center bg-primary-900">
-            <h2 className="text-lg font-semibold text-white">購買課卡</h2>
-          </div>
-          <BuyCardList student={student} auth={auth} />
-        </>
-      )}
-    </LiffStudentGate>
-  );
-}
+// 舊網址：續卡提醒、舊的 Flex 選單都連到 /liff/buy。現在價目表和購買合併成「課卡方案」。
+export { default } from "../plans/page";

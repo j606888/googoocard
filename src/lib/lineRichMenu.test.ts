@@ -38,7 +38,7 @@ describe("rich menu definition", () => {
         expect(BOT_ACTIONS).toContain(new URLSearchParams(action.data).get("a"));
         expect(action.displayText).toBe(area.label);
       } else {
-        expect(["checkin", "cards", "buy"]).toContain(action.uri.split("/").pop());
+        expect(["checkin", "schedule", "plans"]).toContain(action.uri.split("/").pop());
       }
       // LINE caps action labels at 20 chars.
       expect(area.label.length).toBeLessThanOrEqual(20);

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserPlus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Check, UserPlus } from "lucide-react";
 import { isMockLiff, loadLiff } from "@/lib/liffClient";
 
 const OA_ID = process.env.NEXT_PUBLIC_LINE_OA_ID ?? "";
@@ -37,21 +36,33 @@ const AddFriendPrompt = () => {
   if (!show) return null;
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
-      <UserPlus className="h-5 w-5 shrink-0 text-primary-700" />
-      <p className="flex-1 text-sm leading-relaxed">
-        加入官方帳號，課卡快用完會通知你，聊天室也能直接叫出選單
-      </p>
-      <Button asChild size="sm">
-        <a
-          href={`https://line.me/R/ti/p/${encodeURIComponent(oaId)}`}
-          // The simulator's phone is an iframe and line.me refuses to be framed.
-          target={mock ? "_blank" : undefined}
-          rel="noreferrer"
-        >
-          加好友
-        </a>
-      </Button>
+    <div className="flex flex-col gap-3 rounded-2xl border-[1.5px] border-[#06C755] bg-white p-4">
+      <div className="flex items-center gap-2.5">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[#06C755]">
+          <UserPlus className="size-5 text-white" aria-hidden />
+        </span>
+        <div className="flex flex-col">
+          <span className="font-semibold text-neutral-900">加入 Googoocard 好友</span>
+          <span className="text-xs text-neutral-500">還沒加的話，下次會找不到入口</span>
+        </div>
+      </div>
+      <ul className="flex flex-col gap-1.5 text-sm text-neutral-700">
+        {["下次從聊天室選單一鍵簽到", "課卡快用完時提醒你", "隨時看課表和剩幾堂"].map((line) => (
+          <li key={line} className="flex items-center gap-2">
+            <Check className="size-3.5 shrink-0 text-primary-700" strokeWidth={2.8} aria-hidden />
+            {line}
+          </li>
+        ))}
+      </ul>
+      <a
+        href={`https://line.me/R/ti/p/${encodeURIComponent(oaId)}`}
+        // The simulator's phone is an iframe and line.me refuses to be framed.
+        target={mock ? "_blank" : undefined}
+        rel="noreferrer"
+        className="flex h-11 items-center justify-center rounded-xl bg-[#06C755] text-[15px] font-bold text-white"
+      >
+        加入好友
+      </a>
     </div>
   );
 };

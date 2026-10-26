@@ -556,7 +556,7 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
             ，要先續卡嗎？
           </p>
           <Button asChild variant="link" className="px-1 py-2 text-sm text-primary-900">
-            <Link href="/liff/buy">續卡</Link>
+            <Link href="/liff/plans">續卡</Link>
           </Button>
         </div>
       )}

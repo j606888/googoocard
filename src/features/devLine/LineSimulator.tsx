@@ -33,10 +33,14 @@ type SimData = {
   unbound: SimStudent[];
 };
 
+// "door" = scanning the wall QR (carries the classroom key); "checkin" = the rich
+// menu's 上課簽到 (no key — an unbound LINE gets the「掃門口 QR」page).
 const PAGES = [
-  { key: "checkin", label: "自助簽到（門口 QR）" },
+  { key: "door", label: "門口 QR" },
+  { key: "checkin", label: "上課簽到" },
+  { key: "schedule", label: "課表" },
+  { key: "plans", label: "課卡方案" },
   { key: "cards", label: "我的課卡" },
-  { key: "buy", label: "買卡" },
 ] as const;
 type PageKey = (typeof PAGES)[number]["key"];
 // A LIFF path under /liff — one of PAGES, or anything a chat button opens
@@ -138,8 +142,8 @@ const LineSimulator = () => {
 
   const src = useMemo(() => {
     if (!data) return null;
-    // Self check-in is opened from the wall QR, which carries the classroom key.
-    return page === "checkin"
+    // The wall QR carries the classroom key.
+    return page === "door"
       ? `/liff/checkin?key=${encodeURIComponent(data.checkinKey)}`
       : `/liff/${page}`;
   }, [data, page]);
@@ -175,7 +179,7 @@ const LineSimulator = () => {
                 <Button
                   type="button"
                   size="sm"
-                  onClick={() => open({ userId: newMockLineUserId(), name: newName.trim() || "新同學" }, "checkin")}
+                  onClick={() => open({ userId: newMockLineUserId(), name: newName.trim() || "新同學" }, "door")}
                 >
                   開啟
                 </Button>

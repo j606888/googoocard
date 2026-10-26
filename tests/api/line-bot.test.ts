@@ -57,9 +57,9 @@ describe("LINE bot — 課表／價目表／我的課卡", () => {
       expect(await resolveLineClassroom("Ustu")).toEqual({ kind: "classroom", classroomId, via: "student" });
     });
 
-    it("teacher → current classroom", async () => {
+    it("a teacher's old LINE binding no longer picks a classroom (LINE is student-only)", async () => {
       await prisma.user.update({ where: { id: 1 }, data: { lineUserId: "Uteach", currentClassroomId: classroomId } });
-      expect(await resolveLineClassroom("Uteach")).toMatchObject({ kind: "classroom", classroomId, via: "teacher" });
+      expect(await resolveLineClassroom("Uteach")).toEqual({ kind: "none" });
     });
 
     it("unbound: nothing public → none; one public → it; several → pick, then remembered", async () => {
@@ -176,12 +176,31 @@ describe("LINE bot — 課表／價目表／我的課卡", () => {
     });
   });
 
-  it("更多 shows 老師後台 only to teachers", async () => {
-    await postback("Unew", "a=more");
-    expect(last()).not.toContain("進入網站");
-    await prisma.user.update({ where: { id: 1 }, data: { lineUserId: "Uteach" } });
-    await postback("Uteach", "a=more");
-    expect(last()).toContain("進入網站");
+  it("更多 offers 切換教室 to a student bound in several classrooms", async () => {
+    const me = await createStudent(classroomId, { name: "小美" });
+    await prisma.student.update({ where: { id: me.id }, data: { lineUserId: "Ume" } });
+    await postback("Ume", "a=more");
+    expect(last()).not.toContain("切換教室");
+
+    const other = await createClassroom({ name: "Other", email: "o2@test.local" });
+    const me2 = await createStudent(other.id, { name: "小美" });
+    await prisma.student.update({ where: { id: me2.id }, data: { lineUserId: "Ume" } });
+    await postback("Ume", "a=more");
+    expect(last()).toContain("切換教室");
+    expect(last()).toContain("cards?switch=1");
+  });
+
+  it("follow: a bound student is greeted by name; a stranger is told how to register", async () => {
+    const follow = (userId: string) =>
+      handleLineEvent({ type: "follow", replyToken: "r", source: { type: "user", userId } }, reply);
+    await follow("Unew");
+    expect(last()).toContain("掃門口的簽到 QR Code");
+
+    const me = await createStudent(classroomId, { name: "小美" });
+    await prisma.student.update({ where: { id: me.id }, data: { lineUserId: "Ume" } });
+    await follow("Ume");
+    expect(last()).toContain("小美，歡迎");
+    expect(last()).toContain("Googoo");
   });
 
   it("an unbound stranger's message gets help + quick replies instead of an error", async () => {

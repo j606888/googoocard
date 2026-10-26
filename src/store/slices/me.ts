@@ -44,12 +44,6 @@ const meApi = api.injectEndpoints({
       query: () => "me/lessons",
       providesTags: ["Lesson", "Teacher", "Membership", "Attendance", "AttendanceRecord"],
     }),
-    getLineBindLink: builder.query<
-      { bound: boolean; key?: string; deepLink?: string | null },
-      void
-    >({
-      query: () => "line/bind-link",
-    }),
     login: builder.mutation<
       void,
       { email: string; password: string; token?: string }
@@ -128,7 +122,6 @@ const meApi = api.injectEndpoints({
 export const {
   useGetMeQuery,
   useGetMyLessonsQuery,
-  useGetLineBindLinkQuery,
   useLoginMutation,
   useOauthLoginMutation,
   useSignupMutation,

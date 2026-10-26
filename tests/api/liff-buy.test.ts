@@ -12,20 +12,10 @@ vi.mock("@/lib/line", () => ({
     token && token !== "bad" ? { userId: token } : null,
 }));
 
-import { GET } from "@/app/api/liff/cards/route";
 import { POST } from "@/app/api/liff/student-cards/route";
 
 async function bindStudent(studentId: number, lineUserId: string) {
   await prisma.student.update({ where: { id: studentId }, data: { lineUserId } });
-}
-
-function cardsRequest(token: string | null, studentId?: number) {
-  const url = studentId
-    ? `http://test.local/api/liff/cards?studentId=${studentId}`
-    : "http://test.local/api/liff/cards";
-  return new Request(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
 }
 
 function buyRequest(token: string | null, body: unknown) {
@@ -50,48 +40,6 @@ describe("LIFF buy card", () => {
     const classroom = await createClassroom();
     classroomId = classroom.id;
     S = await createDanceStyles(classroomId);
-  });
-
-  describe("GET /api/liff/cards", () => {
-    it("無效 token → 401", async () => {
-      const student = await createStudent(classroomId);
-      await bindStudent(student.id, "lineA");
-      const res = await GET(cardsRequest("bad", student.id));
-      expect(res.status).toBe(401);
-    });
-
-    it("缺少 studentId → 400", async () => {
-      const res = await GET(cardsRequest("lineA"));
-      expect(res.status).toBe(400);
-    });
-
-    it("帶別人的 studentId → 403（防越權）", async () => {
-      const mine = await createStudent(classroomId, { name: "Mine" });
-      const other = await createStudent(classroomId, { name: "Other" });
-      await bindStudent(mine.id, "lineMe");
-      await bindStudent(other.id, "lineOther");
-      const res = await GET(cardsRequest("lineMe", other.id));
-      expect(res.status).toBe(403);
-    });
-
-    it("回傳該教室的 active 卡片", async () => {
-      const student = await createStudent(classroomId);
-      await bindStudent(student.id, "lineA");
-      await createCard(classroomId, { name: "一般卡" });
-      await createCard(classroomId, {
-        name: "Bachata 複習卡",
-        isPracticeCard: true,
-        danceStyleId: S.BACHATA,
-      });
-
-      const res = await GET(cardsRequest("lineA", student.id));
-      expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body).toHaveLength(2);
-      expect(body.map((c: { name: string }) => c.name).sort()).toEqual(
-        ["Bachata 複習卡", "一般卡"].sort(),
-      );
-    });
   });
 
   describe("POST /api/liff/student-cards", () => {

@@ -18,7 +18,6 @@ vi.mock("@/lib/line", async (importActual) => {
 });
 
 import { POST } from "@/app/api/line/webhook/route";
-import { SWITCH_TO_STUDENT, SWITCH_TO_TEACHER } from "@/lib/line";
 
 function webhookRequest(event: Record<string, unknown>) {
   const req = new Request("http://test.local/api/line/webhook", {
@@ -36,9 +35,6 @@ function textEvent(userId: string, text: string) {
     message: { type: "text", id: "1", text },
   };
 }
-function postbackEvent(userId: string, data: string) {
-  return { type: "postback", replyToken: "r", source: { type: "user", userId }, data: undefined, postback: { data } };
-}
 function lastAltText(): string | undefined {
   const msgs = sent.at(-1);
   return msgs?.find((m) => typeof m.altText === "string")?.altText as string | undefined;
@@ -54,41 +50,23 @@ function lastSubtitle(): string | undefined {
 }
 
 const STUDENT_MENU = "googoocard 學生選單";
-const TEACHER_MENU = "googoocard 老師選單";
 
-describe("POST /api/line/webhook — 選單記憶 (menu mode)", () => {
+describe("POST /api/line/webhook — LINE 只給學生用", () => {
   beforeEach(async () => {
     await resetDb();
     sent.length = 0;
   });
 
-  it("同時是老師與學生：切到學生選單後會記憶，之後一般訊息預設仍為學生選單", async () => {
+  it("老師的舊綁定碼不再有作用、綁定的老師 LINE 只當一般好友", async () => {
     const classroom = await createClassroom();
-    await prisma.user.update({
-      where: { id: classroom.ownerId },
-      data: { lineUserId: "lineBoth" },
-    });
-    const student = await createStudent(classroom.id, { name: "Amy" });
-    await prisma.student.update({ where: { id: student.id }, data: { lineUserId: "lineBoth" } });
+    await prisma.user.update({ where: { id: classroom.ownerId }, data: { randomKey: "teacherKey", lineUserId: "lineTeacher" } });
 
-    // Default before any switch → teacher menu wins.
-    await POST(webhookRequest(textEvent("lineBoth", "hi")));
-    expect(lastAltText()).toBe(TEACHER_MENU);
+    await POST(webhookRequest(textEvent("lineNew", "teacherKey")));
+    expect((await prisma.user.findUnique({ where: { id: classroom.ownerId } }))?.lineUserId).toBe("lineTeacher");
+    expect(lastAltText()).not.toBe(STUDENT_MENU);
 
-    // Switch to student → persisted.
-    await POST(webhookRequest(postbackEvent("lineBoth", SWITCH_TO_STUDENT)));
-    expect(lastAltText()).toBe(STUDENT_MENU);
-    const acc = await prisma.lineAccount.findUnique({ where: { lineUserId: "lineBoth" } });
-    expect(acc?.menuMode).toBe("STUDENT");
-
-    // A later plain message defaults to the remembered student menu.
-    await POST(webhookRequest(textEvent("lineBoth", "hi again")));
-    expect(lastAltText()).toBe(STUDENT_MENU);
-
-    // Switching back to teacher is also remembered.
-    await POST(webhookRequest(postbackEvent("lineBoth", SWITCH_TO_TEACHER)));
-    await POST(webhookRequest(textEvent("lineBoth", "yet again")));
-    expect(lastAltText()).toBe(TEACHER_MENU);
+    await POST(webhookRequest(textEvent("lineTeacher", "hi")));
+    expect(JSON.stringify(sent.at(-1))).toContain("還沒有綁定學生身分");
   });
 });
 
@@ -98,7 +76,7 @@ describe("POST /api/line/webhook — 綁定 (binding)", () => {
     sent.length = 0;
   });
 
-  it("同教室已有綁定 → 自動換綁（舊學生解除、新學生綁上、menuMode=STUDENT）", async () => {
+  it("同教室已有綁定 → 自動換綁（舊學生解除、新學生綁上）", async () => {
     const classroom = await createClassroom();
     const a = await createStudent(classroom.id, { name: "A" });
     await prisma.student.update({ where: { id: a.id }, data: { lineUserId: "lineX" } });
@@ -113,7 +91,6 @@ describe("POST /api/line/webhook — 綁定 (binding)", () => {
     expect(bAfter?.lineUserId).toBe("lineX");
     expect(bAfter?.lineBindKey).toBeNull();
     const acc = await prisma.lineAccount.findUnique({ where: { lineUserId: "lineX" } });
-    expect(acc?.menuMode).toBe("STUDENT");
     expect(acc?.selectedStudentId).toBe(b.id);
     expect(lastAltText()).toBe(STUDENT_MENU);
   });
