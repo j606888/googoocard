@@ -24,8 +24,8 @@ export async function POST(request: Request) {
   const { student } = resolved;
 
   const card = await prisma.card.findUnique({ where: { id: cardId } });
-  // Trial cards are only offered inside check-in, where the price depends on
-  // whether the student is new (src/service/trial.ts).
+  // Trial cards are never sold here — the teacher registers them on the lesson's
+  // 體驗名單 (src/service/trialRoster.ts), priced by src/lib/trialPrice.ts.
   if (!card || card.classroomId !== student.classroomId || card.isTrial) {
     return NextResponse.json({ error: "Card not found" }, { status: 404 });
   }

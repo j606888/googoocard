@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
+import { refreshNeedsRenewalTag } from "@/service/studentTag";
 
 export async function POST(
   request: Request,
@@ -41,6 +42,8 @@ export async function POST(
     where: { id: parseInt(studentCardId) },
     data: { expiredAt: new Date() },
   });
+  // 停用的卡不再算「用完該續卡」——不刷新的話 tag 會一直掛著
+  await refreshNeedsRenewalTag(studentCard.studentId, classroomId);
 
   return NextResponse.json({ success: true });
 }

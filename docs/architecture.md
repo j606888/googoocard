@@ -416,7 +416,7 @@ https://claude.ai/artifact/CXhjEmTYUz9MDHurt4zNdH
 - `Tag` / `StudentTag`：教室層級的自由標籤，學生編輯頁可增刪。
 - **"Needs Renewal"** 由系統自動維護（`src/service/studentTag.ts` 的
   `refreshNeedsRenewalTag`）：學生最新一張多堂卡用完 → 自動加 tag，買新卡/退堂 → 自動移除。
-  觸發點：點名（含取消勾選退堂）、買卡、課卡轉換／轉讓、合併學員。**不要手動增刪這個 tag 的邏輯**，改
+  觸發點：點名（含取消勾選退堂）、買卡、課卡轉換／轉讓、停用課卡、合併學員。**不要手動增刪這個 tag 的邏輯**，改
   `findExhaustedRenewableCard` 即可（見下一節）。
 
 ## 續卡提醒推播（每日 cron）

@@ -50,6 +50,23 @@ describe("POST /api/students/[id]/student-cards/[studentCardId]/expire", () => {
     expect(updated.remainingSessions).toBe(3);
   });
 
+  it("停用用完的卡 → 拿掉「Needs Renewal」tag", async () => {
+    const student = await createStudent(classroomId);
+    const card = await createCard(classroomId);
+    const sc = await createStudentCard(student.id, card.id, { remainingSessions: 0 });
+    const tag = await prisma.tag.create({ data: { name: "Needs Renewal", classroomId } });
+    await prisma.studentTag.create({ data: { studentId: student.id, tagId: tag.id } });
+
+    const res = await POST(
+      jsonRequest("POST"),
+      routeParams({ id: String(student.id), studentCardId: String(sc.id) })
+    );
+    expect(res.status).toBe(200);
+
+    const tags = await prisma.studentTag.count({ where: { studentId: student.id, tagId: tag.id } });
+    expect(tags).toBe(0);
+  });
+
   it("卡片不存在 → 404", async () => {
     const student = await createStudent(classroomId);
     const res = await POST(
