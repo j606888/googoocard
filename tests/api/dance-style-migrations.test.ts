@@ -32,6 +32,10 @@ describe("dance style migrations", () => {
     expect(columns).toEqual([
       { table_name: "Card", is_nullable: "YES" },
       { table_name: "Lesson", is_nullable: "NO" },
+      // 模組：技能樹 — one tree per style
+      { table_name: "Skill", is_nullable: "NO" },
+      { table_name: "SkillCategory", is_nullable: "NO" },
+      { table_name: "SkillTier", is_nullable: "NO" },
       { table_name: "StudentDanceQualification", is_nullable: "NO" },
     ]);
   });

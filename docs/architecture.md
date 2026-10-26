@@ -614,6 +614,18 @@ owner 不能「退出」——教室會變成沒有 owner，而 `Classroom.owner
 
 **依賴單向**：核心不 import 模組（`src/**/curriculum`、`src/**/finance` 各層資料夾），模組之間也不互相 import——`eslint.config.mjs` 的 `no-restricted-imports` 擋。核心頁面要嵌模組元件時，針對那個檔案開例外並記在這裡。
 
+### 模組：技能樹（`curriculum`，2026-10-27，`docs/modules-plan.md` 第 2 階段）
+
+一個舞種一棵樹：`SkillCategory`（分類，tab）× `SkillTier`（等級欄，名稱照位置叫一轉、二轉…）× `Skill`。
+- **待定區就是 `Skill.categoryId = null`**：放進樹只是填上分類與等級，留言、已讀都不用搬。放進樹要有等級（`TIER_REQUIRED`）。
+- 樹上的技能只封存（`archivedAt`）；待定卡可以真的刪除，留言 cascade。刪分類／等級時技能搬到別處或一起封存；分類被刪掉的封存技能還原時回到待定區。至少留一個分類、一個等級，等級最多 10 個。
+- 同一舞種的名字不重複（不分大小寫，`SKILL_NAME_TAKEN`）；貼上待定區時重複的跳過並回報。
+- 每次改動在同一個 transaction 寫 `SkillChange`（存人看得懂的字：分類名、「二轉 · Lv2」）。
+- 留言：`SkillComment`（一層回覆，回覆的回覆攤平）、`SkillCommentReaction`（一人一個，同一個再按＝取消）、`SkillCommentMention`（`mentionsIn` 子字串比對，teach-what 的已知行為）、`SkillTalkRead`。每個技能最多一則結論。留言表沒有 `classroomId`，一律經由 `skill.classroomId` 驗證。
+- 權限：讀、留言、按表情、標結論＝`curriculum.view`；改樹＝`curriculum.edit`；刪別人的留言＝`members.manage`。
+- 程式：純邏輯 `src/domains/curriculum/`（從 teach-what 搬，附測試）、`src/service/curriculum/`、`/api/curriculum/*`、`src/features/curriculum/`、`src/store/slices/curriculum.ts`（tag `SkillTree`／`SkillTalk`，`markSkillRead` 是 optimistic）。
+- 對話框裡的選單用 `Menu`（會 portal 進對話框），不要用 Radix `Popover`——portal 到 body 的 popover 在 modal 對話框裡點不到。
+
 ### 刪除帳號（`DELETE /api/me`，`/account` 頁）
 
 App Store Guideline 5.1.1(v) 要求 App 內能刪帳號。規則：

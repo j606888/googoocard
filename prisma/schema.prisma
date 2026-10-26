@@ -74,6 +74,14 @@ model User {
   // 連到的老師資料（每間教室最多一筆，Teacher.userId）
   teacherProfiles         Teacher[]
   enabledModules          ClassroomModule[]
+  // 模組：技能樹
+  skillsCreated           Skill[]
+  skillChanges            SkillChange[]
+  skillComments           SkillComment[]           @relation("SkillCommentAuthor")
+  skillConclusions        SkillComment[]           @relation("SkillCommentConclusion")
+  skillReactions          SkillCommentReaction[]
+  skillMentions           SkillCommentMention[]
+  skillTalkReads          SkillTalkRead[]
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 }
@@ -107,6 +115,9 @@ model Classroom {
   User                    User[]
   notificationPreferences NotificationPreference[]
   modules                 ClassroomModule[]
+  skillCategories         SkillCategory[]
+  skillTiers              SkillTier[]
+  skills                  Skill[]
 }
 
 model Membership {
@@ -314,21 +325,24 @@ model Lesson {
 // managed on /dance-styles. Never deleted, only archived, so
 // old lessons and cards keep their style.
 model DanceStyle {
-  id             Int                         @id @default(autoincrement())
-  classroomId    Int
-  classroom      Classroom                   @relation(fields: [classroomId], references: [id])
-  name           String
+  id              Int                         @id @default(autoincrement())
+  classroomId     Int
+  classroom       Classroom                   @relation(fields: [classroomId], references: [id])
+  name            String
   // Palette key: green/orange/slate/stone/purple/blue/pink/teal/red/indigo.
-  color          String
+  color           String
   // On: 初階/中階/進階 (src/lib/danceLevels.ts). Off: qualified or not — level is always 1.
-  hasLevels      Boolean                     @default(false)
-  sortOrder      Int                         @default(0)
-  archivedAt     DateTime?
-  lessons        Lesson[]
-  cards          Card[]
-  qualifications StudentDanceQualification[]
-  createdAt      DateTime                    @default(now())
-  updatedAt      DateTime                    @updatedAt
+  hasLevels       Boolean                     @default(false)
+  sortOrder       Int                         @default(0)
+  archivedAt      DateTime?
+  lessons         Lesson[]
+  cards           Card[]
+  qualifications  StudentDanceQualification[]
+  skillCategories SkillCategory[]
+  skillTiers      SkillTier[]
+  skills          Skill[]
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
 
   // Leads with classroomId, so it also serves classroom lookups.
   @@unique([classroomId, name])
@@ -593,4 +607,151 @@ model ClassroomModule {
   enabledBy   User?     @relation(fields: [enabledById], references: [id])
 
   @@unique([classroomId, module])
+}
+
+// ===== 模組：技能樹（docs/modules-plan.md 第 2 階段）=====
+// 一個舞種一棵樹：分類（tab）× 等級（欄）× 技能。「這個舞種有樹」＝至少有一個分類。
+
+// 分類（teach-what: treeSchools）。color 是 DANCE_STYLE_COLORS 之一，icon 是 SKILL_CATEGORY_ICONS 之一
+// （src/domains/curriculum/skillTree.ts）。刪除前由 service 先把技能搬走或封存。
+model SkillCategory {
+  id           Int        @id @default(autoincrement())
+  classroomId  Int
+  classroom    Classroom  @relation(fields: [classroomId], references: [id])
+  danceStyleId Int
+  danceStyle   DanceStyle @relation(fields: [danceStyleId], references: [id])
+  name         String
+  color        String
+  icon         String
+  sortOrder    Int        @default(0)
+  skills       Skill[]
+  createdAt    DateTime   @default(now())
+
+  @@index([classroomId, danceStyleId])
+  @@index([danceStyleId])
+}
+
+// 等級欄（teach-what: treeTiers）。顯示名「一轉、二轉…」由位置決定，label 是自由標籤（例如 Lv1）。
+model SkillTier {
+  id           Int        @id @default(autoincrement())
+  classroomId  Int
+  classroom    Classroom  @relation(fields: [classroomId], references: [id])
+  danceStyleId Int
+  danceStyle   DanceStyle @relation(fields: [danceStyleId], references: [id])
+  label        String     @default("")
+  sortOrder    Int        @default(0)
+  skills       Skill[]
+  createdAt    DateTime   @default(now())
+
+  @@index([classroomId, danceStyleId])
+  @@index([danceStyleId])
+}
+
+// 技能。categoryId 是 null ＝ 在待定區；放進樹只是填上分類與等級，留言、已讀都不用搬。
+// 樹上的技能只封存（archivedAt），待定的可以真的刪除（留言等一起 cascade）。
+model Skill {
+  id           Int             @id @default(autoincrement())
+  classroomId  Int
+  classroom    Classroom       @relation(fields: [classroomId], references: [id])
+  danceStyleId Int
+  danceStyle   DanceStyle      @relation(fields: [danceStyleId], references: [id])
+  categoryId   Int?
+  category     SkillCategory?  @relation(fields: [categoryId], references: [id])
+  // 待定的可以沒有等級；放進樹時必填（service 檢查）
+  tierId       Int?
+  tier         SkillTier?      @relation(fields: [tierId], references: [id])
+  name         String
+  fullName     String          @default("")
+  description  String          @default("")
+  sortOrder    Int             @default(0)
+  createdById  Int?
+  createdBy    User?           @relation(fields: [createdById], references: [id])
+  createdAt    DateTime        @default(now())
+  archivedAt   DateTime?
+  changes      SkillChange[]
+  comments     SkillComment[]
+  reads        SkillTalkRead[]
+
+  @@index([classroomId, danceStyleId])
+  @@index([danceStyleId])
+  @@index([categoryId])
+  @@index([tierId])
+}
+
+// 修改紀錄（teach-what: treeSkillChanges）。from/to 存人看得懂的字（分類名、「二轉」）。
+// kind: add | place | rename | describe | move_tier | move_category | archive | restore
+model SkillChange {
+  id        Int      @id @default(autoincrement())
+  skillId   Int
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  skillName String
+  kind      String
+  fromValue String?
+  toValue   String?
+  actorId   Int?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([skillId, createdAt])
+}
+
+// 技能討論。回覆只有一層（回覆的回覆會被攤平到同一串）；每個技能最多一則結論。
+// 不放 classroomId：一律經由 skill.classroomId 驗證。
+model SkillComment {
+  id             Int                    @id @default(autoincrement())
+  skillId        Int
+  skill          Skill                  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  parentId       Int?
+  parent         SkillComment?          @relation("SkillCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies        SkillComment[]         @relation("SkillCommentReplies")
+  authorId       Int?
+  author         User?                  @relation("SkillCommentAuthor", fields: [authorId], references: [id])
+  text           String
+  conclusionAt   DateTime?
+  conclusionById Int?
+  conclusionBy   User?                  @relation("SkillCommentConclusion", fields: [conclusionById], references: [id])
+  createdAt      DateTime               @default(now())
+  editedAt       DateTime?
+  reactions      SkillCommentReaction[]
+  mentions       SkillCommentMention[]
+
+  @@index([skillId])
+  @@index([parentId])
+}
+
+// 表情：一人一則一個，換表情＝覆蓋。kind: like | love | haha | wow | think | down
+model SkillCommentReaction {
+  commentId Int
+  comment   SkillComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User         @relation(fields: [userId], references: [id])
+  kind      String
+  createdAt DateTime     @default(now())
+
+  @@id([commentId, userId])
+  @@index([userId])
+}
+
+// 被 @ 到。seenAt 是 null ＝ 還沒打開那串討論。
+model SkillCommentMention {
+  commentId Int
+  comment   SkillComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User         @relation(fields: [userId], references: [id])
+  seenAt    DateTime?
+
+  @@id([commentId, userId])
+  @@index([userId])
+}
+
+// 每個人最後一次打開某技能討論的時間。
+model SkillTalkRead {
+  userId  Int
+  user    User     @relation(fields: [userId], references: [id])
+  skillId Int
+  skill   Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  readAt  DateTime @default(now())
+
+  @@id([userId, skillId])
+  @@index([skillId])
 }

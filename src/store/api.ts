@@ -18,6 +18,9 @@ export const TAG_TYPES = [
   "Location",
   "Access",
   "ClassroomModule",
+  // 模組：技能樹
+  "SkillTree",
+  "SkillTalk",
 ]
 
 const rawBaseQuery = fetchBaseQuery({ baseUrl: "/api" });

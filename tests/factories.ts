@@ -10,7 +10,8 @@ export async function resetDb() {
       "LessonCard", "StudentDanceQualification", "StudentTag", "Tag", "Event",
       "StudentCard", "Lesson", "LessonGroup", "Location", "Card", "DanceStyle", "Student", "Teacher", "InviteToken",
       "Membership", "Classroom", "User", "LineAccount", "RenewalReminder", "PushToken", "WebPushSubscription",
-      "NotificationPreference", "ClassroomModule" RESTART IDENTITY CASCADE`
+      "NotificationPreference", "ClassroomModule", "SkillTalkRead", "SkillCommentMention", "SkillCommentReaction",
+      "SkillComment", "SkillChange", "Skill", "SkillTier", "SkillCategory" RESTART IDENTITY CASCADE`
   );
 }
 
