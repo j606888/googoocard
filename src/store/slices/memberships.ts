@@ -14,6 +14,10 @@ export interface Membership {
   };
   /** The Teacher row this member is (Teacher.userId), or null. */
   teacher: TeacherSummary | null;
+  /** What they can actually do (src/lib/permissions.ts) — role defaults ± personal overrides, modules that are on only. */
+  permissions: string[];
+  /** Their permissions differ from their role's defaults. */
+  customized: boolean;
 }
 
 export interface InviteToken {
@@ -70,14 +74,14 @@ const membershipsApi = api.injectEndpoints({
     // the teachers list, hence "Teacher".
     updateMembership: builder.mutation<
       void,
-      { id: number; role?: AssignableRole; teacherId?: number | null }
+      { id: number; role?: AssignableRole; teacherId?: number | null; permissions?: string[] }
     >({
       query: ({ id, ...body }) => ({
         url: `memberships/${id}`,
         method: "PATCH",
         body,
       }),
-      invalidatesTags: ["Membership", "Teacher"],
+      invalidatesTags: ["Membership", "Teacher", "Access"],
     }),
     removeMembership: builder.mutation<void, { id: number }>({
       query: ({ id }) => ({
@@ -93,7 +97,7 @@ const membershipsApi = api.injectEndpoints({
         url: `memberships/${id}/transfer-ownership`,
         method: "POST",
       }),
-      invalidatesTags: ["Membership", "Classroom"],
+      invalidatesTags: ["Membership", "Classroom", "Access"],
     }),
     deleteInviteToken: builder.mutation<void, { id: number }>({
       query: ({ id }) => ({

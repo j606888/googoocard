@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { MoreHorizontal } from "lucide-react";
-import { PRIMARY_LINKS, SECONDARY_LINKS } from "./navConfig";
+import { MODULE_LINKS, PRIMARY_LINKS, SECONDARY_LINKS } from "./navConfig";
 import { useGetUnpaidStudentCardsQuery } from "@/store/slices/students";
 import MoreSheet from "./MoreSheet";
 
@@ -17,7 +17,7 @@ const BottomNav = () => {
   const unpaidCount = unpaidCards?.length ?? 0;
 
   // "More" counts as active when on a secondary page.
-  const moreActive = SECONDARY_LINKS.some((l) => pathname.startsWith(l.href));
+  const moreActive = [...SECONDARY_LINKS, ...MODULE_LINKS].some((l) => pathname.startsWith(l.href));
 
   return (
     <>

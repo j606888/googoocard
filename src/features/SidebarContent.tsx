@@ -13,7 +13,8 @@ import { disableWebPushOnLogout } from "@/hooks/useWebPush";
 import Menu from "@/components/Menu";
 import KiwiLogo from "@/components/KiwiLogo";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PRIMARY_LINKS, SECONDARY_LINKS, type NavLink } from "./nav/navConfig";
+import { useAccess } from "@/hooks/useCan";
+import { MODULE_LINKS, PRIMARY_LINKS, SECONDARY_LINKS, type NavLink } from "./nav/navConfig";
 import TodoBell from "./TodoBell";
 
 interface SidebarContentProps {
@@ -27,6 +28,9 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const [logout] = useLogoutMutation();
+  const { can } = useAccess();
+  const visible = (link: NavLink) => !link.permission || can(link.permission);
+  const moduleLinks = MODULE_LINKS.filter(visible);
   const { data } = useGetClassroomsQuery();
   const otherClassrooms = data?.classrooms.filter(
     (classroom) => classroom.id !== data.currentClassroomId
@@ -148,7 +152,13 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
       <nav className="mt-5 flex flex-col gap-0.5">
         {PRIMARY_LINKS.map(renderLink)}
         <div className="mx-3 my-3 h-px bg-neutral-200/70" />
-        {SECONDARY_LINKS.map(renderLink)}
+        {SECONDARY_LINKS.filter(visible).map(renderLink)}
+        {moduleLinks.length > 0 && (
+          <>
+            <p className="mx-3 mb-1 mt-4 text-xs font-medium text-neutral-500">模組</p>
+            {moduleLinks.map(renderLink)}
+          </>
+        )}
       </nav>
       <div className="flex flex-col items-start mt-auto">
         <button

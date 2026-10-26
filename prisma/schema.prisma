@@ -73,6 +73,7 @@ model User {
   notificationPreferences NotificationPreference[]
   // 連到的老師資料（每間教室最多一筆，Teacher.userId）
   teacherProfiles         Teacher[]
+  enabledModules          ClassroomModule[]
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 }
@@ -105,6 +106,7 @@ model Classroom {
   teachers                Teacher[]
   User                    User[]
   notificationPreferences NotificationPreference[]
+  modules                 ClassroomModule[]
 }
 
 model Membership {
@@ -114,6 +116,10 @@ model Membership {
   classroomId Int
   classroom   Classroom @relation(fields: [classroomId], references: [id])
   role        String    @default("owner")
+  // 角色預設組合以外，多給／拿掉的權限（src/lib/permissions.ts）。只存差異，
+  // 預設組合寫在程式碼裡，所以新增權限不用跑資料遷移。
+  grants      String[]  @default([])
+  revokes     String[]  @default([])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -573,4 +579,18 @@ model NotificationPreference {
 
   @@unique([userId, classroomId, type])
   @@index([classroomId])
+}
+
+// 教室開了哪些功能模組（src/lib/permissions.ts 的 MODULES）。關閉＝刪掉這一列，
+// 模組自己的資料表不動，重新開啟資料就回來。見 docs/modules-plan.md。
+model ClassroomModule {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  module      String
+  enabledAt   DateTime  @default(now())
+  enabledById Int?
+  enabledBy   User?     @relation(fields: [enabledById], references: [id])
+
+  @@unique([classroomId, module])
 }

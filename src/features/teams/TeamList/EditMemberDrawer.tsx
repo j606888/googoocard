@@ -2,8 +2,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import { canLinkTeacher, isAdminRole, roleLabel, type AssignableRole } from "@/lib/roles";
+import { isPermission, roleBundle, type Permission } from "@/lib/permissions";
 import { Membership, useUpdateMembershipMutation } from "@/store/slices/memberships";
 import RolePicker from "./RolePicker";
+import PermissionPicker, { useVisiblePermissions } from "./PermissionPicker";
 import TeacherPicker, {
   initialTeacherChoice,
   teacherChoiceError,
@@ -13,9 +15,11 @@ import TeacherPicker, {
 import { teamErrorMessage } from "./teamErrors";
 
 /**
- * 管理員 changing a member's role and teacher link. The owner's own role and
- * your own role are shown but not editable (the API refuses both) — the
- * teacher link still is, so an admin who also teaches can link themselves.
+ * 管理員 changing a member's role, permissions and teacher link. The owner's
+ * and your own role and permissions are shown but not editable (the API
+ * refuses both) — the teacher link still is, so an admin who also teaches can
+ * link themselves. Picking another role resets the permissions to that role's
+ * defaults, as the API does.
  * Mount with `key={membership.id}` so the form resets per member.
  */
 export default function EditMemberDrawer({
@@ -31,6 +35,15 @@ export default function EditMemberDrawer({
   const [role, setRole] = useState<AssignableRole>(
     membership.role === "owner" ? "admin" : (membership.role as AssignableRole)
   );
+  const visiblePermissions = useVisiblePermissions();
+  const [permissions, setPermissions] = useState<Set<Permission>>(
+    () => new Set(membership.permissions.filter(isPermission))
+  );
+  const changeRole = (next: AssignableRole) => {
+    setRole(next);
+    const bundle = roleBundle(next);
+    setPermissions(new Set(visiblePermissions.filter((p) => bundle.has(p))));
+  };
   const [teacher, setTeacher] = useState<TeacherChoice>(initialTeacherChoice(membership.teacher?.id));
   const [showErrors, setShowErrors] = useState(false);
   const [updateMembership, { isLoading }] = useUpdateMembershipMutation();
@@ -50,7 +63,7 @@ export default function EditMemberDrawer({
       const teacherId = linksTeacher ? await resolveTeacher(teacher) : null;
       await updateMembership({
         id: membership.id,
-        ...(!roleLocked && { role }),
+        ...(!roleLocked && { role, permissions: [...permissions] }),
         teacherId,
       }).unwrap();
       toast.success("已更新");
@@ -87,8 +100,14 @@ export default function EditMemberDrawer({
             </span>
           </div>
         ) : (
-          <RolePicker legend="角色" value={role} onChange={setRole} />
+          <RolePicker legend="角色" value={role} onChange={changeRole} />
         )}
+        <PermissionPicker
+          role={roleLocked ? membership.role : role}
+          value={permissions}
+          onChange={setPermissions}
+          locked={roleLocked}
+        />
         {linksTeacher && (
           <TeacherPicker
             value={teacher}

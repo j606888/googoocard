@@ -11,13 +11,19 @@ import {
   UserCog,
   type LucideIcon,
   MapPin,
+  Network,
+  Droplets,
+  Blocks,
 } from "lucide-react";
+import type { Permission } from "@/lib/permissions";
 
 export interface NavLink {
   /** Display label. Identity is `href` — never match on this. */
   name: string;
   icon: LucideIcon;
   href: string;
+  /** Shown only to members with this permission (`useCan`); a module's permission also hides it while the module is off. */
+  permission?: Permission;
 }
 
 /** Always-visible priority destinations (mobile bottom bar). */
@@ -36,8 +42,12 @@ export const SECONDARY_LINKS: NavLink[] = [
   { name: "舞種", icon: Music, href: "/dance-styles" },
   { name: "分部", icon: MapPin, href: "/locations" },
   { name: "團隊", icon: Boxes, href: "/teams" },
+  { name: "功能模組", icon: Blocks, href: "/modules", permission: "modules.manage" },
   { name: "帳號", icon: UserCog, href: "/account" },
 ];
 
-/** Full list for the desktop sidebar — priority items first, then the rest. */
-export const LINKS: NavLink[] = [...PRIMARY_LINKS, ...SECONDARY_LINKS];
+/** 功能模組 (docs/modules-plan.md) — a group of their own in the sidebar, in the "More" sheet on mobile. */
+export const MODULE_LINKS: NavLink[] = [
+  { name: "技能樹", icon: Network, href: "/curriculum", permission: "curriculum.view" },
+  { name: "水庫", icon: Droplets, href: "/finance", permission: "finance.view" },
+];

@@ -76,10 +76,13 @@ const MemberCard = ({
           </span>
         )}
       </div>
-      <StatusTag tone={ROLE_TONES[membership.role] ?? "neutral"}>
-        {isOwner && <Crown aria-label="建立者" className="h-3.5 w-3.5" />}
-        {roleLabel(membership.role)}
-      </StatusTag>
+      <div className="flex shrink-0 flex-col items-end gap-1 lg:flex-row lg:items-center lg:gap-1.5">
+        <StatusTag tone={ROLE_TONES[membership.role] ?? "neutral"}>
+          {isOwner && <Crown aria-label="建立者" className="h-3.5 w-3.5" />}
+          {roleLabel(membership.role)}
+        </StatusTag>
+        {membership.customized && <StatusTag tone="outline">自訂權限</StatusTag>}
+      </div>
       {hasMenu && (
         <Popover open={menuOpen} onOpenChange={setMenuOpen}>
           <PopoverTrigger asChild>
@@ -104,7 +107,7 @@ const MemberCard = ({
                 }}
               >
                 <Pencil className="h-4 w-4" />
-                {isMe || isOwner ? "連結老師資料" : "改角色"}
+                {isMe || isOwner ? "連結老師資料" : "改角色與權限"}
               </button>
             )}
             {canTransfer && (

@@ -1,9 +1,15 @@
 import prisma from "@/lib/prisma";
 import { apiRoute, parseBody, parseId } from "@/lib/apiRoute";
 import { ApiError, badRequest } from "@/lib/apiError";
-import { assertAdmin } from "@/lib/authz";
 import { updateMembershipSchema } from "@/lib/schemas";
 import { canLinkTeacher } from "@/lib/roles";
+import {
+  MODULES,
+  effectivePermissions,
+  isPermission,
+  overridesFor,
+  visiblePermissions,
+} from "@/lib/permissions";
 import { linkTeacher, unlinkTeacher } from "@/service/team";
 
 type Params = { id: string };
@@ -20,16 +26,25 @@ async function findMembershipInClassroom(rawId: string, classroomId: number) {
   return membership;
 }
 
+const sameSet = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((x) => b.includes(x));
+
 /**
- * Change someone's role and/or which Teacher row they are. 管理員 only.
+ * Change someone's role, permissions and/or which Teacher row they are.
+ * `members.manage` only.
  *
  * The owner's role isn't changeable here (that's transfer-ownership), and
- * nobody changes their own role — an admin can't lock themselves out by
- * accident. Linking a teacher is allowed for anyone but a 小幫手, including
- * the caller (an admin who also teaches). A teacher always ends up linked.
+ * nobody changes their own role or permissions — an admin can't lock
+ * themselves out by accident. Linking a teacher is allowed for anyone but a
+ * 小幫手, including the caller (an admin who also teaches). A teacher always
+ * ends up linked.
+ *
+ * Permissions arrive as the full list the member should have; only the
+ * difference from the role's bundle is stored (grants/revokes). Changing the
+ * role drops the old overrides. Nobody can hand out a permission they don't
+ * hold themselves.
  */
-export const PATCH = apiRoute<Params>(async ({ request, params, userId, classroomId, role: callerRole }) => {
-  assertAdmin(callerRole);
+export const PATCH = apiRoute<Params>(async ({ request, params, userId, classroomId, modules }) => {
   const body = await parseBody(request, updateMembershipSchema);
   const membership = await findMembershipInClassroom(params.id, classroomId);
 
@@ -43,6 +58,51 @@ export const PATCH = apiRoute<Params>(async ({ request, params, userId, classroo
   }
 
   const role = body.role ?? membership.role;
+  const roleChanged = role !== membership.role;
+
+  // Overrides survive only while the role stays the same.
+  let { grants, revokes } = roleChanged ? { grants: [] as string[], revokes: [] as string[] } : membership;
+  if (body.permissions !== undefined) {
+    const unknown = body.permissions.filter((p) => !isPermission(p));
+    if (unknown.length > 0) {
+      throw badRequest("UNKNOWN_PERMISSION", `Unknown permission: ${unknown.join(", ")}`);
+    }
+    // Only the checkboxes on screen (modules that are on) are rewritten.
+    ({ grants, revokes } = overridesFor(
+      role,
+      body.permissions.filter(isPermission),
+      visiblePermissions([...modules]),
+      { grants, revokes }
+    ));
+  }
+  const permissionsChanged =
+    !sameSet(grants, membership.grants) || !sameSet(revokes, membership.revokes);
+
+  if (permissionsChanged && !roleChanged) {
+    if (membership.role === "owner") {
+      throw new ApiError(403, "CANNOT_CHANGE_OWNER_PERMISSIONS", "The owner always has every permission");
+    }
+    if (membership.userId === userId) {
+      throw new ApiError(403, "CANNOT_CHANGE_OWN_PERMISSIONS", "Ask another admin to change your permissions");
+    }
+  }
+  if (permissionsChanged) {
+    // Compared with every module on, so a permission can't be slipped in
+    // while its module happens to be off.
+    const caller = await prisma.membership.findFirstOrThrow({
+      where: { userId, classroomId },
+      select: { role: true, grants: true, revokes: true },
+    });
+    const all = { modules: MODULES };
+    const callerHas = effectivePermissions({ ...caller, ...all });
+    const before = effectivePermissions({ ...membership, ...all });
+    const after = effectivePermissions({ role, grants, revokes, ...all });
+    const handedOut = [...after].filter((p) => !before.has(p) && !callerHas.has(p));
+    if (handedOut.length > 0) {
+      throw new ApiError(403, "CANNOT_GRANT_PERMISSION", `You don't have: ${handedOut.join(", ")}`);
+    }
+  }
+
   const current = await prisma.teacher.findFirst({
     where: { classroomId, userId: membership.userId },
     select: { id: true },
@@ -59,8 +119,8 @@ export const PATCH = apiRoute<Params>(async ({ request, params, userId, classroo
   }
 
   await prisma.$transaction(async (tx) => {
-    if (role !== membership.role) {
-      await tx.membership.update({ where: { id: membership.id }, data: { role } });
+    if (roleChanged || permissionsChanged) {
+      await tx.membership.update({ where: { id: membership.id }, data: { role, grants, revokes } });
     }
     if (teacherId !== (current?.id ?? null)) {
       await linkTeacher(tx, classroomId, membership.userId, teacherId);
@@ -68,16 +128,15 @@ export const PATCH = apiRoute<Params>(async ({ request, params, userId, classroo
   });
 
   return { success: true };
-});
+}, { permission: "members.manage" });
 
 /**
- * Remove someone from the current classroom. 管理員 only; never the owner.
+ * Remove someone from the current classroom. `members.manage` only; never the owner.
  *
  * Takes effect on their very next request: `apiRoute` re-reads the membership
  * every time, so the cookie they're still holding stops working immediately.
  */
-export const DELETE = apiRoute<Params>(async ({ params, userId, classroomId, role }) => {
-  assertAdmin(role);
+export const DELETE = apiRoute<Params>(async ({ params, userId, classroomId }) => {
   const membership = await findMembershipInClassroom(params.id, classroomId);
 
   if (membership.userId === userId) {
@@ -103,4 +162,4 @@ export const DELETE = apiRoute<Params>(async ({ params, userId, classroomId, rol
   ]);
 
   return { success: true };
-});
+}, { permission: "members.manage" });

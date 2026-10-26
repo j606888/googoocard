@@ -2,6 +2,7 @@ import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
 import prisma from "@/lib/prisma";
 import { NO_CLASSROOM } from "@/lib/authz";
+import { findMembershipAccess } from "@/lib/access";
 
 const TWO_WEEKS_SECONDS = 14 * 24 * 60 * 60;
 const JWT_SECRET = process.env.JWT_SECRET!;
@@ -92,6 +93,10 @@ export const readAuthSession = async (): Promise<AuthSession> => {
  * assistant would keep full access for a month. It costs one indexed lookup
  * (`@@unique([userId, classroomId])`) per request.
  *
+ * The same query brings back the member's permission overrides and the
+ * classroom's modules, which `apiRoute` turns into `permissions`
+ * (src/lib/permissions.ts).
+ *
  * When there is no live classroom, `classroomId` comes back as `NO_CLASSROOM`
  * rather than `undefined` — see the constant for why that distinction matters.
  */
@@ -99,6 +104,9 @@ export const decodeAuthToken = async (): Promise<{
   userId?: number;
   classroomId: number;
   role?: string;
+  grants?: string[];
+  revokes?: string[];
+  modules?: string[];
 }> => {
   const session = await readAuthSession();
   const { userId, exp } = session;
@@ -129,18 +137,15 @@ export const decodeAuthToken = async (): Promise<{
       : { userId, classroomId: NO_CLASSROOM };
   }
 
-  const membership = await prisma.membership.findFirst({
-    where: { userId, classroomId, classroom: { deletedAt: null } },
-    select: { role: true },
-  });
+  const access = await findMembershipAccess(userId, classroomId);
 
-  if (!membership) {
+  if (!access) {
     return (await isDeletedUser(userId))
       ? { classroomId: NO_CLASSROOM }
       : { userId, classroomId: NO_CLASSROOM };
   }
 
-  return { userId, classroomId, role: membership.role };
+  return { userId, classroomId, ...access };
 };
 /**
  * A deleted account has no memberships left (DELETE /api/me removes them), so

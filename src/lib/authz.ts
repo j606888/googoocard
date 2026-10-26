@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
-import { isAdminRole } from "@/lib/roles";
+import { moduleOf, type Module, type Permission } from "@/lib/permissions";
 
 /**
  * The classroom id `decodeAuthToken` reports when the caller has no live
@@ -154,9 +154,20 @@ export async function requireOwner(userId: number, classroomId: number) {
   return membership;
 }
 
-/** Team management (invite, change roles, remove members) is for 管理員 — owner or admin. */
-export function assertAdmin(role: string) {
-  if (!isAdminRole(role)) {
-    throw new ApiError(403, "NOT_CLASSROOM_ADMIN", "Only a classroom admin can do this");
+/**
+ * Permission check on `apiRoute`'s context (src/lib/permissions.ts). A
+ * permission of a module this classroom hasn't switched on answers 404 — the
+ * feature doesn't exist here — rather than 403.
+ */
+export function assertCan(
+  ctx: { permissions: Set<Permission>; modules: Set<Module> },
+  permission: Permission
+) {
+  const mod = moduleOf(permission);
+  if (mod && !ctx.modules.has(mod)) {
+    throw new ApiError(404, "MODULE_NOT_ENABLED", `Module ${mod} is not enabled`);
+  }
+  if (!ctx.permissions.has(permission)) {
+    throw new ApiError(403, "PERMISSION_DENIED", `Missing permission ${permission}`);
   }
 }
