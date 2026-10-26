@@ -20,7 +20,8 @@ export type Todos = {
     createdAt: string;
     student: StudentRef;
   }[];
-  needsRenewal: { student: StudentRef; since: string }[];
+  /** 需續約、且近 30 天有來上課的人 */
+  needsRenewal: { student: StudentRef; since: string; lastAttendedAt?: string; lineBound?: boolean }[];
   unboundAttendance: {
     id: number;
     source: string;
@@ -35,6 +36,7 @@ export type Todos = {
     name: string;
     students: (StudentRef & { lineBound: boolean; createdAt: string })[];
   }[];
+  /** 要處理（未付款 + 出席沒綁課卡）；圖示數字只算這個，提醒類不算 */
   total: number;
 };
 

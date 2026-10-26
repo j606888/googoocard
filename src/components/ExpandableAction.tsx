@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
  *
  * 桌面的展開面板用 `w-full` 靠父層的 `flex-wrap` 換到自己那一行，
  * 所以呼叫端的列要是 `flex flex-wrap`。
+ *
+ * `inline`：已經在對話框裡（例如待處理鈴鐺的「補卡」），不要按鈕、也不要
+ * 再疊一層 Drawer——面板直接攤開，取消 = `onOpenChange(false)`。
  */
 const ExpandableAction = ({
   triggerLabel,
@@ -25,6 +28,7 @@ const ExpandableAction = ({
   submitText,
   disabled,
   isLoading,
+  inline = false,
   children,
 }: {
   triggerLabel: string;
@@ -36,6 +40,7 @@ const ExpandableAction = ({
   submitText: string;
   disabled?: boolean;
   isLoading?: boolean;
+  inline?: boolean;
   children: React.ReactNode;
 }) => {
   const isExpanded = useSizeClass() === "expanded";
@@ -55,6 +60,26 @@ const ExpandableAction = ({
       )}
     </Button>
   );
+
+  if (inline) {
+    return (
+      <div className="w-full">
+        {children}
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            取消
+          </Button>
+          <Button
+            onClick={() => !isLoading && onSubmit()}
+            disabled={disabled}
+            isLoading={isLoading}
+          >
+            {isLoading ? "處理中…" : submitText}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!isExpanded) {
     return (

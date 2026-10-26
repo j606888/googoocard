@@ -6,7 +6,6 @@ import RoundCheckbox from "@/components/RoundCheckbox";
 import { Switch } from "@/components/ui/switch";
 import { useCreateStudentCardMutation, useGetStudentQuery } from "@/store/slices/students";
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
-import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { canBuyCard } from "@/domains/qualification";
 import { practiceCardBlockedHint } from "@/lib/danceLevels";
@@ -18,10 +17,18 @@ const BuyAndUseForm = ({
   record,
   lesson,
   studentId,
+  periodId,
+  inline = false,
+  onDone,
 }: {
   record: AttendanceRecord;
   lesson: Lesson;
   studentId: number;
+  periodId: number;
+  /** 已經在對話框裡：表單直接攤開（見 ExpandableAction） */
+  inline?: boolean;
+  /** 送出成功或取消後（inline 時由外層關掉對話框） */
+  onDone?: () => void;
 }) => {
   const { data: student } = useGetStudentQuery({ id: studentId });
   const [open, setOpen] = useState(false);
@@ -30,7 +37,6 @@ const BuyAndUseForm = ({
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
   const [isPaid, setIsPaid] = useState(true);
-  const { periodId } = useParams();
 
   const cardOptions = useMemo(() => {
     return lesson?.cards || [];
@@ -105,6 +111,7 @@ const BuyAndUseForm = ({
     setOpen(false);
     setAllowManualOverride(false);
     setIsPaid(true);
+    onDone?.();
   };
 
   const handleSubmit = async () => {
@@ -120,7 +127,7 @@ const BuyAndUseForm = ({
       if (studentCard?.data) {
         await consumeStudentCard({
           id: lesson.id,
-          periodId: Number(periodId),
+          periodId,
           studentId: studentId,
           studentCardId: studentCard.data.id,
         });
@@ -154,6 +161,7 @@ const BuyAndUseForm = ({
         title={`為 ${record.studentName} 買卡並使用`}
         open={open}
         onOpenChange={(next) => (next ? setOpen(true) : handleClose())}
+        inline={inline}
         onSubmit={handleSubmit}
         submitText="買卡並使用"
         isLoading={isLoading || isConsumeLoading}

@@ -10,7 +10,6 @@ import {
 } from "@/store/slices/classrooms";
 import { useLogoutMutation } from "@/store/slices/me";
 import { disableWebPushOnLogout } from "@/hooks/useWebPush";
-import { useGetStudentsQuery } from "@/store/slices/students";
 import Menu from "@/components/Menu";
 import KiwiLogo from "@/components/KiwiLogo";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,9 +27,6 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const [logout] = useLogoutMutation();
-  const { data: renewalStudents } = useGetStudentsQuery({ needsRenewal: true });
-  const renewalCount = renewalStudents?.length ?? 0;
-
   const { data } = useGetClassroomsQuery();
   const otherClassrooms = data?.classrooms.filter(
     (classroom) => classroom.id !== data.currentClassroomId
@@ -67,11 +63,6 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
       >
         <link.icon className={`h-5 w-5 ${active ? "text-primary-700" : ""}`} />
         <span className="flex-1">{link.name}</span>
-        {link.href === "/students" && renewalCount > 0 && (
-          <span className="rounded-full bg-warning-100 px-2 text-xs font-semibold leading-5 text-warning-950">
-            {renewalCount}
-          </span>
-        )}
       </Link>
     );
   };
