@@ -17,10 +17,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/EmptyState";
 import StatusTag from "@/components/StatusTag";
+import Drawer from "@/components/Drawer";
+import { useSizeClass } from "@/hooks/useMediaQuery";
 import type {
   CardMonthlyDetailResponse,
   CardMonthlyListResponse,
   CardMonthlyTotal,
+  CardPurchase,
   DailySummaryListResponse,
   DailySummaryResponse,
   DailyTotal,
@@ -32,7 +35,6 @@ import {
   buildMonthGrid,
   formatDayLabel,
   monthKeyOf,
-  revenueTier,
   shiftMonth,
   todayDateKey,
 } from "./calendarUtils";
@@ -68,6 +70,10 @@ const fetchCardMonth = (month: string) =>
  *   - 課程：依舞種拆分（session-monthly）＋ 點選日期看當日各堂
  *   - 課卡：依卡種拆分 ＋ 整月購買明細（點日期只看那天）＋ 匯出 CSV
  *
+ * 月曆只標「哪天有收入」（小圓點）與今天，不再用深淺分營收高低。手機版
+ * （compact）點日期改成彈出底部面板顯示當天明細——明細排在月曆下方時，
+ * 點了要往下捲才看得到變化，像是沒反應。桌面版明細仍在右欄。
+ *
  * ⚠️ 資料仍是 fetch + useState，不是 RTK Query——搬遷記在 docs/roadmap.md。
  */
 export default function IncomeCalendar({
@@ -79,7 +85,9 @@ export default function IncomeCalendar({
   unpaidLoading?: boolean;
   onOpenUnpaid: () => void;
 }) {
+  const compact = useSizeClass() === "compact";
   const [type, setType] = useState<RevenueType>("session");
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [monthKey, setMonthKey] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [today, setToday] = useState<string | null>(null);
@@ -206,9 +214,10 @@ export default function IncomeCalendar({
     goToMonth(monthKey, newType);
   };
 
+  // 桌面：課卡再點同一天回到整月。手機面板裡沒有「整月」，直接換到那天。
   const handleSelectDate = async (date: string) => {
     if (type === "card") {
-      setSelectedDate((current) => (current === date ? null : date));
+      setSelectedDate((current) => (!compact && current === date ? null : date));
       return;
     }
     setSelectedDate(date);
@@ -221,6 +230,16 @@ export default function IncomeCalendar({
         setLoadingSessionDate(null);
       }
     }
+  };
+
+  const openDay = (date: string) => {
+    handleSelectDate(date);
+    setSheetOpen(true);
+  };
+  const closeSheet = () => {
+    setSheetOpen(false);
+    // 課卡：關掉面板回到整月明細。
+    if (type === "card") setSelectedDate(null);
   };
 
   // 當月每天的營收(課卡收入只計入已付款,與月列表的 totalRevenue 定義一致)。
@@ -241,10 +260,17 @@ export default function IncomeCalendar({
     return map;
   }, [type, monthKey, sessionDays, cardDetailCache]);
 
-  const maxRevenue = useMemo(
-    () => Object.values(monthDayTotals).reduce((mx, v) => Math.max(mx, v), 0),
+  // 有收入的日子（舊→新），給面板的「前一天／後一天」用。
+  const activeDates = useMemo(
+    () => Object.keys(monthDayTotals).filter((d) => monthDayTotals[d] > 0).sort(),
     [monthDayTotals]
   );
+  const selectedIndex = selectedDate ? activeDates.indexOf(selectedDate) : -1;
+  const prevActiveDate = selectedIndex > 0 ? activeDates[selectedIndex - 1] : null;
+  const nextActiveDate =
+    selectedIndex >= 0 && selectedIndex < activeDates.length - 1
+      ? activeDates[selectedIndex + 1]
+      : null;
   const cells = useMemo(() => (monthKey ? buildMonthGrid(monthKey) : []), [monthKey]);
 
   const prevMonth = monthKey ? shiftMonth(monthKey, -1) : null;
@@ -393,47 +419,72 @@ export default function IncomeCalendar({
           <div className="grid grid-cols-7 gap-1">
             {isLoading &&
               Array.from({ length: 35 }, (_, i) => (
-                <Skeleton key={`skeleton-${i}`} className="aspect-square rounded-lg" />
+                <Skeleton key={`skeleton-${i}`} className="h-11 rounded-lg" />
               ))}
             {cells.map((cell, i) => {
               if (!cell.date) return <div key={`blank-${i}`} />;
               const revenue = monthDayTotals[cell.date] ?? 0;
               const hasData = revenue > 0;
-              const tier = revenueTier(revenue, maxRevenue);
-              const selected = cell.date === selectedDate;
+              // 手機的明細在面板裡，面板關著時月曆不留選取狀態。
+              const selected = cell.date === selectedDate && (!compact || sheetOpen);
               const isToday = cell.date === today;
               return (
                 <button
                   key={cell.date}
                   disabled={!hasData}
-                  onClick={() => cell.date && handleSelectDate(cell.date)}
+                  onClick={() => {
+                    if (!cell.date) return;
+                    if (compact) openDay(cell.date);
+                    else handleSelectDate(cell.date);
+                  }}
                   aria-pressed={selected}
-                  aria-label={
-                    hasData
-                      ? `${formatDayLabel(cell.date)} $${formatMoney(revenue)}`
-                      : formatDayLabel(cell.date)
-                  }
+                  aria-label={[
+                    formatDayLabel(cell.date),
+                    isToday && "今天",
+                    hasData && `$${formatMoney(revenue)}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                   className={cn(
-                    "aspect-square rounded-lg text-[13px] flex items-center justify-center transition-colors cursor-pointer disabled:cursor-default",
-                    !hasData && "text-neutral-300",
-                    !selected && hasData && tier === 1 && "bg-primary-50 text-primary-900 font-medium hover:bg-primary-100",
-                    !selected && hasData && tier === 2 && "bg-primary-300 text-primary-900 font-medium hover:brightness-95",
-                    !selected && hasData && tier === 3 && "bg-primary-500 text-primary-900 font-semibold hover:brightness-95",
-                    selected && "bg-primary-900 text-white font-semibold",
-                    isToday &&
-                      (selected
-                        ? "ring-2 ring-inset ring-white/70"
-                        : "ring-1 ring-inset ring-primary-700")
+                    "h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer disabled:cursor-default",
+                    hasData && !selected && "hover:bg-neutral-50",
+                    selected && "bg-primary-900"
                   )}
                 >
-                  {cell.day}
+                  <span
+                    className={cn(
+                      "size-7 rounded-full flex items-center justify-center text-[13px]",
+                      hasData ? "font-semibold text-neutral-900" : "text-neutral-400",
+                      isToday && "ring-[1.5px] ring-inset ring-primary-900 font-semibold text-primary-900",
+                      selected && "text-white ring-white/70"
+                    )}
+                  >
+                    {cell.day}
+                  </span>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "size-1.5 rounded-full",
+                      hasData ? (selected ? "bg-white" : "bg-primary-700") : "bg-transparent"
+                    )}
+                  />
                 </button>
               );
             })}
           </div>
-          <p className="text-[11px] text-neutral-500 mt-3">
-            {type === "session" ? "點日期看當天每堂的收入" : "點日期只看當天，再點一次回到整月"}
-          </p>
+          <div className="flex items-center gap-3 mt-3 px-1 text-[11px] text-neutral-500">
+            <span className="flex items-center gap-1.5">
+              <span aria-hidden className="size-1.5 rounded-full bg-primary-700" />
+              {type === "session" ? "有課程收入" : "有賣卡"}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span aria-hidden className="size-3.5 rounded-full ring-[1.5px] ring-inset ring-primary-900" />
+              今天
+            </span>
+            <span className="ml-auto">
+              {compact || type === "session" ? "點日期看當天明細" : "點日期只看當天"}
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-col gap-4 min-w-0">
@@ -464,148 +515,212 @@ export default function IncomeCalendar({
             )
           )}
 
-          {/* 明細 */}
-          <div className="border border-neutral-200 rounded-2xl bg-white p-3 lg:p-4">
-            {isLoading && (
-              <>
-                <div className="flex items-center justify-between mb-3">
-                  <Skeleton className="h-5 w-28" />
-                  <Skeleton className="h-6 w-20" />
-                </div>
-                <DetailRowsSkeleton />
-              </>
-            )}
-
-            {!isLoading && type === "session" && selectedDate && (
-              <>
-                <div className="flex items-baseline justify-between mb-3">
-                  <span className="text-sm font-semibold">{formatDayLabel(selectedDate)}</span>
-                  <span className="text-lg font-bold text-primary-900">
-                    ${formatMoney(monthDayTotals[selectedDate] ?? 0)}
-                  </span>
-                </div>
-                {loadingSessionDate === selectedDate && !sessionDetail && <DetailRowsSkeleton />}
-                {sessionDetail && sessionDetail.periods.length === 0 && (
-                  <EmptyState kind="inline" title="當日無課堂明細。" />
-                )}
-                {sessionDetail && sessionDetail.periods.length > 0 && (
-                  <div className="divide-y divide-neutral-100">
-                    {sessionDetail.periods.map((period) => (
-                      <div key={period.periodId} className="py-2.5">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{period.lessonName}</p>
-                          <p className="text-xs text-neutral-500">
-                            出席 {period.attendanceCount} 人
-                          </p>
-                          <p className="ml-auto font-semibold text-primary-900">
-                            ${formatMoney(period.revenue)}
-                          </p>
-                        </div>
-                        {period.pendingStudents.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-neutral-100">
-                            <p className="text-xs font-semibold text-danger-700 mb-1">
-                              尚未扣卡:{period.pendingStudents.join("、")}
-                            </p>
-                            <Link
-                              href={`/lessons/${period.lessonId}/periods/${period.periodId}/check-success`}
-                              className="text-xs font-medium text-primary-700 underline underline-offset-4"
-                            >
-                              回到該堂點名頁
-                            </Link>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+          {/* 明細（手機的當日課程明細在面板裡，這裡只剩載入／空月份） */}
+          {!(compact && type === "session" && selectedDate) && (
+            <div className="border border-neutral-200 rounded-2xl bg-white p-3 lg:p-4">
+              {isLoading && (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <Skeleton className="h-5 w-28" />
+                    <Skeleton className="h-6 w-20" />
                   </div>
-                )}
-              </>
-            )}
-
-            {!isLoading && type === "card" && (
-              <>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-semibold">
-                    {selectedDate ? formatDayLabel(selectedDate) : `${monthKey ? shortMonth(monthKey) : ""}課卡明細`}
-                  </span>
-                  {loadingCardMonth === monthKey && monthPurchases.length === 0 ? (
-                    <Skeleton className="h-3.5 w-8" />
-                  ) : (
-                    <span className="text-xs text-neutral-500">{shownPurchases.length} 筆</span>
-                  )}
-                  {selectedDate && (
-                    <Button
-                      variant="link"
-                      onClick={() => setSelectedDate(null)}
-                      className="gap-0.5 text-xs"
-                    >
-                      <X className="size-3" />
-                      看整月
-                    </Button>
-                  )}
-                  {monthPurchases.length > 0 && (
-                    <Button variant="secondary" size="sm" onClick={downloadCsv} className="ml-auto">
-                      <Download className="size-4" />
-                      匯出 CSV
-                    </Button>
-                  )}
-                </div>
-                {loadingCardMonth === monthKey && monthPurchases.length === 0 && (
                   <DetailRowsSkeleton />
-                )}
-                {loadingCardMonth !== monthKey && shownPurchases.length === 0 && (
-                  <EmptyState kind="inline" title="這段期間沒有購買紀錄。" />
-                )}
-                {shownPurchases.length > 0 && (
-                  <div className="divide-y divide-neutral-100">
-                    {shownPurchases.map((purchase) => (
-                      <Link
-                        key={purchase.id}
-                        href={`/students/${purchase.studentId}`}
-                        className="flex items-center gap-3 py-2.5 hover:bg-neutral-50 -mx-2 px-2 rounded-lg"
-                      >
-                        {!selectedDate && (
-                          <span className="w-20 shrink-0 text-xs text-neutral-500">
-                            {formatDayLabel(purchase.date)}
-                          </span>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-neutral-900 truncate">
-                            {purchase.studentName}
-                          </p>
-                          <p className="text-xs text-neutral-500 truncate">{purchase.cardName}</p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p
-                            className={cn(
-                              "text-base font-bold",
-                              purchase.isPaid ? "text-neutral-900" : "text-danger-700"
-                            )}
-                          >
-                            ${formatMoney(purchase.finalPrice)}
-                          </p>
-                          {!purchase.isPaid && <StatusTag tone="danger">未付款</StatusTag>}
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
+                </>
+              )}
 
-            {!isLoading && type === "session" && !selectedDate && (
-              <EmptyState
-                kind="inline"
-                icon={<CalendarIcon />}
-                title={`本月尚無${typeLabel}收入`}
-                description="切換上方月份查看其他紀錄"
-              />
-            )}
-          </div>
+              {!isLoading && type === "session" && selectedDate && (
+                <>
+                  <div className="flex items-baseline justify-between mb-3">
+                    <span className="text-sm font-semibold">{formatDayLabel(selectedDate)}</span>
+                    <span className="text-lg font-bold text-primary-900">
+                      ${formatMoney(monthDayTotals[selectedDate] ?? 0)}
+                    </span>
+                  </div>
+                  <SessionPeriods
+                    detail={sessionDetail}
+                    loading={loadingSessionDate === selectedDate}
+                  />
+                </>
+              )}
+
+              {!isLoading && type === "card" && (
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-semibold">
+                      {selectedDate ? formatDayLabel(selectedDate) : `${monthKey ? shortMonth(monthKey) : ""}課卡明細`}
+                    </span>
+                    {loadingCardMonth === monthKey && monthPurchases.length === 0 ? (
+                      <Skeleton className="h-3.5 w-8" />
+                    ) : (
+                      <span className="text-xs text-neutral-500">{shownPurchases.length} 筆</span>
+                    )}
+                    {selectedDate && (
+                      <Button
+                        variant="link"
+                        onClick={() => setSelectedDate(null)}
+                        className="gap-0.5 text-xs"
+                      >
+                        <X className="size-3" />
+                        看整月
+                      </Button>
+                    )}
+                    {monthPurchases.length > 0 && (
+                      <Button variant="secondary" size="sm" onClick={downloadCsv} className="ml-auto">
+                        <Download className="size-4" />
+                        匯出 CSV
+                      </Button>
+                    )}
+                  </div>
+                  {loadingCardMonth === monthKey && monthPurchases.length === 0 && (
+                    <DetailRowsSkeleton />
+                  )}
+                  {loadingCardMonth !== monthKey && shownPurchases.length === 0 && (
+                    <EmptyState kind="inline" title="這段期間沒有購買紀錄。" />
+                  )}
+                  <PurchaseRows purchases={shownPurchases} showDate={!selectedDate} />
+                </>
+              )}
+
+              {!isLoading && type === "session" && !selectedDate && (
+                <EmptyState
+                  kind="inline"
+                  icon={<CalendarIcon />}
+                  title={`本月尚無${typeLabel}收入`}
+                  description="切換上方月份查看其他紀錄"
+                />
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {compact && (
+        <Drawer
+          open={sheetOpen && !!selectedDate}
+          onClose={closeSheet}
+          onSubmit={closeSheet}
+          title={selectedDate ? formatDayLabel(selectedDate) : ""}
+          subtitle={`${typeLabel}收入`}
+          submitText="關閉"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={() => prevActiveDate && handleSelectDate(prevActiveDate)}
+              disabled={!prevActiveDate}
+              aria-label="前一個有收入的日子"
+            >
+              <ChevronLeft />
+            </Button>
+            <p className="flex-1 text-center text-3xl font-bold text-primary-900">
+              ${formatMoney(selectedDate ? monthDayTotals[selectedDate] ?? 0 : 0)}
+            </p>
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={() => nextActiveDate && handleSelectDate(nextActiveDate)}
+              disabled={!nextActiveDate}
+              aria-label="下一個有收入的日子"
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+          {type === "session" ? (
+            <SessionPeriods detail={sessionDetail} loading={loadingSessionDate === selectedDate} />
+          ) : (
+            <PurchaseRows purchases={shownPurchases} showDate={false} />
+          )}
+        </Drawer>
+      )}
     </div>
   );
 }
+
+/** 某天各堂課的收入；尚未扣卡的學生附上回點名頁的連結。 */
+const SessionPeriods = ({
+  detail,
+  loading,
+}: {
+  detail: DailySummaryResponse | undefined;
+  loading: boolean;
+}) => {
+  if (!detail) return loading ? <DetailRowsSkeleton /> : null;
+  if (detail.periods.length === 0) return <EmptyState kind="inline" title="當日無課堂明細。" />;
+  return (
+    <div className="divide-y divide-neutral-100">
+      {detail.periods.map((period) => (
+        <div key={period.periodId} className="py-2.5">
+          <div className="flex items-center gap-2">
+            <p className="font-medium">{period.lessonName}</p>
+            <p className="text-xs text-neutral-500">出席 {period.attendanceCount} 人</p>
+            <p className="ml-auto font-semibold text-primary-900">
+              ${formatMoney(period.revenue)}
+            </p>
+          </div>
+          {period.pendingStudents.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-neutral-100">
+              <p className="text-xs font-semibold text-danger-700 mb-1">
+                尚未扣卡:{period.pendingStudents.join("、")}
+              </p>
+              <Link
+                href={`/lessons/${period.lessonId}/periods/${period.periodId}/check-success`}
+                className="text-xs font-medium text-primary-700 underline underline-offset-4"
+              >
+                回到該堂點名頁
+              </Link>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/** 課卡購買列；整月檢視時每列前面帶日期。 */
+const PurchaseRows = ({
+  purchases,
+  showDate,
+}: {
+  purchases: CardPurchase[];
+  showDate: boolean;
+}) => {
+  if (purchases.length === 0) return null;
+  return (
+    <div className="divide-y divide-neutral-100">
+      {purchases.map((purchase) => (
+        <Link
+          key={purchase.id}
+          href={`/students/${purchase.studentId}`}
+          className="flex items-center gap-3 py-2.5 hover:bg-neutral-50 -mx-2 px-2 rounded-lg"
+        >
+          {showDate && (
+            <span className="w-20 shrink-0 text-xs text-neutral-500">
+              {formatDayLabel(purchase.date)}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-neutral-900 truncate">
+              {purchase.studentName}
+            </p>
+            <p className="text-xs text-neutral-500 truncate">{purchase.cardName}</p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p
+              className={cn(
+                "text-base font-bold",
+                purchase.isPaid ? "text-neutral-900" : "text-danger-700"
+              )}
+            >
+              ${formatMoney(purchase.finalPrice)}
+            </p>
+            {!purchase.isPaid && <StatusTag tone="danger">未付款</StatusTag>}
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+};
 
 const shortMonth = (monthKey: string) => `${Number(monthKey.split("-")[1])} 月`;
 

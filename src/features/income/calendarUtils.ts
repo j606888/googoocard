@@ -40,15 +40,6 @@ export function todayDateKey(): string {
   ).padStart(2, "0")}`;
 }
 
-// 依當月最大營收分三級,用於日曆格子深淺,0 = 當天無營收。
-export function revenueTier(revenue: number, max: number): 0 | 1 | 2 | 3 {
-  if (!revenue || revenue <= 0) return 0;
-  if (max <= 0) return 1;
-  if (revenue >= max * 0.66) return 3;
-  if (revenue >= max * 0.33) return 2;
-  return 1;
-}
-
 export function formatDayLabel(dateKey: string): string {
   const [y, m, d] = dateKey.split("-").map(Number);
   const weekday = new Date(y, m - 1, d).getDay();
