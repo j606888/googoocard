@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { verifyIdToken } from "@/lib/line";
 import { buildStudentDetailPayload } from "@/service/studentDetail";
 import { resolveCheckinClassroom } from "@/service/checkin";
+import { syncLineProfile } from "@/service/lineBinding";
 
 // Student LIFF "我的課卡" data source. Auth is a LIFF-issued ID token in the
 // Authorization header (students have no cookie/session) — NOT the teacher
@@ -26,6 +27,9 @@ export async function GET(request: Request) {
   if (!verified) {
     return NextResponse.json({ error: "invalid_token" }, { status: 401 });
   }
+  // Every LIFF page opens through here, so it's where a changed LINE name or
+  // picture reaches the teacher's view.
+  await syncLineProfile(verified.userId, verified);
 
   const url = new URL(request.url);
   const key = url.searchParams.get("key");

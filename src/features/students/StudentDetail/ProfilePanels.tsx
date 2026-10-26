@@ -1,9 +1,9 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
-import type { ReactNode } from "react";
 import {
   StudentWithDetail,
   useGetStudentLineBindLinkQuery,
@@ -11,6 +11,7 @@ import {
 } from "@/store/slices/students";
 import EditStudent from "./BasicSection/EditStudent";
 import LineBindQrButton from "./LineBindQrButton";
+import UnbindLineDialog from "./UnbindLineDialog";
 import QualificationLevels, { applyLevelPick } from "./QualificationLevels";
 import { Skeleton } from "@/components/ui/skeleton";
 import { buttonVariants } from "@/components/ui/button";
@@ -73,8 +74,23 @@ const QualificationPanel = ({ student }: { student: StudentWithDetail }) => {
 
 const LineStatus = ({ studentId, studentName }: { studentId: number; studentName: string }) => {
   const { data, isLoading } = useGetStudentLineBindLinkQuery({ id: studentId });
+  const [confirmUnbind, setConfirmUnbind] = useState(false);
   if (isLoading || !data) return <span className="text-neutral-500">—</span>;
-  if (data.bound) return <span>已綁定 · 收得到續卡提醒</span>;
+  if (data.bound) {
+    return (
+      <span className="flex items-center gap-2 flex-wrap">
+        <span>已綁定 · 收得到續卡提醒</span>
+        <button type="button" className={linkButton} onClick={() => setConfirmUnbind(true)}>
+          解除綁定
+        </button>
+        <UnbindLineDialog
+          student={{ id: studentId, name: studentName }}
+          open={confirmUnbind}
+          onClose={() => setConfirmUnbind(false)}
+        />
+      </span>
+    );
+  }
   if (!data.deepLink) return <span className="text-neutral-600">尚未設定 LINE 官方帳號</span>;
   return (
     <span className="flex items-center gap-2 flex-wrap">
@@ -93,6 +109,7 @@ const LineStatus = ({ studentId, studentName }: { studentId: number; studentName
 
 const InfoPanel = ({ student }: { student: StudentWithDetail }) => {
   const tags = (student.tags ?? []).filter((tag) => tag.name !== "Needs Renewal");
+  const { data: lineBind } = useGetStudentLineBindLinkQuery({ id: student.id });
   return (
     <Panel
       title="學生資料"
@@ -107,13 +124,21 @@ const InfoPanel = ({ student }: { student: StudentWithDetail }) => {
         />
       }
     >
-      <dl className="grid grid-cols-[56px_1fr] gap-x-3 gap-y-2 text-sm m-0">
+      <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-2 text-sm m-0">
         <dt className="text-neutral-600">加入</dt>
         <dd className="m-0">{format(new Date(student.createdAt), "yyyy/MM/dd")}</dd>
         <dt className="text-neutral-600">LINE</dt>
         <dd className="m-0">
           <LineStatus studentId={student.id} studentName={student.name} />
         </dd>
+        {lineBind?.bound && (
+          <>
+            <dt className="text-neutral-600">LINE 名稱</dt>
+            <dd className="m-0">
+              {lineBind.lineDisplayName ?? <span className="text-neutral-500">學生下次打開 LINE 裡的頁面時會帶入</span>}
+            </dd>
+          </>
+        )}
         {tags.length > 0 && (
           <>
             <dt className="text-neutral-600">標籤</dt>

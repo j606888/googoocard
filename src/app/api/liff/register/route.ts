@@ -31,6 +31,7 @@ export async function POST(request: Request) {
 
   const { student, created } = await registerLineStudent(classroom.id, {
     lineUserId: verified.userId,
+    lineDisplayName: verified.name || null,
     name: trimmed,
     avatarUrl: verified.picture || DEFAULT_STUDENT_AVATAR,
   });

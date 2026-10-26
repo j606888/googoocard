@@ -39,7 +39,12 @@ export const DEFAULT_STUDENT_AVATAR = "/images/avatars/not-sure.png";
  */
 export async function registerLineStudent(
   classroomId: number,
-  { lineUserId, name, avatarUrl }: { lineUserId: string; name: string; avatarUrl: string }
+  {
+    lineUserId,
+    lineDisplayName,
+    name,
+    avatarUrl,
+  }: { lineUserId: string; lineDisplayName: string | null; name: string; avatarUrl: string }
 ) {
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Classroom" WHERE id = ${classroomId} FOR UPDATE`;
@@ -58,6 +63,7 @@ export async function registerLineStudent(
         name,
         avatarUrl,
         lineUserId,
+        lineDisplayName,
         classroomId,
         number: classroom.nextStudentNumber - 1,
         randomKey: nanoid(8),

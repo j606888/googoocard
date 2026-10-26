@@ -17,6 +17,15 @@ vi.mock("@/lib/line", async (importActual) => {
   };
 });
 
+// LINE profile lookups (Messaging API) answer only for the ids listed here.
+const { profiles } = vi.hoisted(() => ({
+  profiles: {} as Record<string, { displayName: string; pictureUrl?: string }>,
+}));
+vi.mock("@/lib/lineProfile", async (importActual) => ({
+  ...(await importActual<typeof import("@/lib/lineProfile")>()),
+  fetchLineProfile: async (lineUserId: string) => profiles[lineUserId] ?? null,
+}));
+
 import { POST } from "@/app/api/line/webhook/route";
 
 function webhookRequest(event: Record<string, unknown>) {
@@ -79,7 +88,10 @@ describe("POST /api/line/webhook — 綁定 (binding)", () => {
   it("同教室已有綁定 → 自動換綁（舊學生解除、新學生綁上）", async () => {
     const classroom = await createClassroom();
     const a = await createStudent(classroom.id, { name: "A" });
-    await prisma.student.update({ where: { id: a.id }, data: { lineUserId: "lineX" } });
+    await prisma.student.update({
+      where: { id: a.id },
+      data: { lineUserId: "lineX", lineDisplayName: "小明", avatarUrl: "https://profile.line-scdn.net/x" },
+    });
     const b = await createStudent(classroom.id, { name: "B" });
     await prisma.student.update({ where: { id: b.id }, data: { lineBindKey: "keyB" } });
 
@@ -87,12 +99,61 @@ describe("POST /api/line/webhook — 綁定 (binding)", () => {
 
     const aAfter = await prisma.student.findUnique({ where: { id: a.id } });
     const bAfter = await prisma.student.findUnique({ where: { id: b.id } });
-    expect(aAfter?.lineUserId).toBeNull();
+    // The LINE name and picture leave with the binding.
+    expect(aAfter).toMatchObject({ lineUserId: null, lineDisplayName: null, avatarUrl: "/images/avatars/not-sure.png" });
     expect(bAfter?.lineUserId).toBe("lineX");
     expect(bAfter?.lineBindKey).toBeNull();
     const acc = await prisma.lineAccount.findUnique({ where: { lineUserId: "lineX" } });
     expect(acc?.selectedStudentId).toBe(b.id);
     expect(lastAltText()).toBe(STUDENT_MENU);
+
+    // Both sides land on the 動態 timeline.
+    const [aEvent] = await prisma.event.findMany({ where: { studentId: a.id } });
+    expect(aEvent).toMatchObject({ title: "解除 LINE 綁定", description: "這個 LINE 改綁到「B」" });
+    const [bEvent] = await prisma.event.findMany({ where: { studentId: b.id } });
+    expect(bEvent).toMatchObject({ title: "綁定 LINE", resourceType: "student", resourceId: b.id });
+    expect(bEvent.description).toContain("原本綁在「A」");
+  });
+
+  it("綁定時抓 LINE 名稱與大頭照，寫一筆動態；同一個綁定碼再送一次不會重複寫", async () => {
+    profiles.lineS = { displayName: "小S", pictureUrl: "https://profile.line-scdn.net/s" };
+    const classroom = await createClassroom();
+    const s = await createStudent(classroom.id, { name: "S" });
+    await prisma.student.update({ where: { id: s.id }, data: { lineBindKey: "keyS" } });
+
+    await POST(webhookRequest(textEvent("lineS", "keyS")));
+    await POST(webhookRequest(textEvent("lineS", "keyS")));
+
+    const after = await prisma.student.findUniqueOrThrow({ where: { id: s.id } });
+    expect(after).toMatchObject({ lineDisplayName: "小S", avatarUrl: "https://profile.line-scdn.net/s" });
+    const events = await prisma.event.findMany({ where: { studentId: s.id } });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ title: "綁定 LINE", description: "LINE 名稱「小S」" });
+  });
+
+  it("老師上傳的大頭照不會被 LINE 的換掉；抓不到 LINE 資料也照樣綁定", async () => {
+    profiles.lineU = { displayName: "小U", pictureUrl: "https://profile.line-scdn.net/u" };
+    const classroom = await createClassroom();
+    const uploaded = "https://res.cloudinary.com/demo/image/upload/u.jpg";
+    const u = await createStudent(classroom.id, { name: "U" });
+    await prisma.student.update({ where: { id: u.id }, data: { lineBindKey: "keyU", avatarUrl: uploaded } });
+    const n = await createStudent(classroom.id, { name: "N" });
+    await prisma.student.update({ where: { id: n.id }, data: { lineBindKey: "keyN" } });
+
+    await POST(webhookRequest(textEvent("lineU", "keyU")));
+    await POST(webhookRequest(textEvent("lineNoFriend", "keyN")));
+
+    expect(await prisma.student.findUniqueOrThrow({ where: { id: u.id } })).toMatchObject({
+      lineDisplayName: "小U",
+      avatarUrl: uploaded,
+    });
+    expect(await prisma.student.findUniqueOrThrow({ where: { id: n.id } })).toMatchObject({
+      lineUserId: "lineNoFriend",
+      lineDisplayName: null,
+      avatarUrl: "/images/avatars/not-sure.png",
+    });
+    const [nEvent] = await prisma.event.findMany({ where: { studentId: n.id } });
+    expect(nEvent.description).toBe("學生用 LINE 送出綁定碼");
   });
 
   it("不同教室 → 兩位學生都保留綁定", async () => {

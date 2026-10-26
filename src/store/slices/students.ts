@@ -193,6 +193,8 @@ export interface MergeSide {
   name: string;
   avatarUrl: string;
   lineBound: boolean;
+  /** 綁定的 LINE 顯示名稱（綁定時或學生開 LIFF 時抓到的）；舊綁定可能還沒有 */
+  lineDisplayName: string | null;
   createdAt: string;
   cardCount: number;
   attendanceCount: number;
@@ -282,7 +284,7 @@ const studentsApi = api.injectEndpoints({
       providesTags: ["Student"],
     }),
     getStudentLineBindLink: builder.query<
-      { bound: boolean; key?: string; deepLink?: string | null },
+      { bound: boolean; lineDisplayName?: string | null; key?: string; deepLink?: string | null },
       { id: number }
     >({
       query: ({ id }) => `students/${id}/line-bind-link`,
@@ -305,6 +307,10 @@ const studentsApi = api.injectEndpoints({
     }),
     markLineInviteSent: builder.mutation<{ id: number; lineInviteSentAt: string }, { id: number }>({
       query: ({ id }) => ({ url: `students/${id}/line-invite`, method: "POST" }),
+      invalidatesTags: ["Student"],
+    }),
+    unbindStudentLine: builder.mutation<{ ok: true }, { id: number }>({
+      query: ({ id }) => ({ url: `students/${id}/line-binding`, method: "DELETE" }),
       invalidatesTags: ["Student"],
     }),
     createStudent: builder.mutation<
@@ -465,6 +471,7 @@ export const {
   useGetStudentLineBindLinkQuery,
   useGetLineInvitesQuery,
   useMarkLineInviteSentMutation,
+  useUnbindStudentLineMutation,
   useCreateStudentMutation,
   useUpdateStudentMutation,
   useSetStudentArchivedMutation,

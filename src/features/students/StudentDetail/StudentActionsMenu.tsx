@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Archive, ArchiveRestore, Link2, Merge, MessageCircle, MoreHorizontal } from "lucide-react";
+import { Archive, ArchiveRestore, Link2, Link2Off, Merge, MessageCircle, MoreHorizontal } from "lucide-react";
 import Menu from "@/components/Menu";
 import ArchiveStudentDialog from "./ArchiveStudentDialog";
 import MergeStudentDialog from "./MergeStudentDialog";
+import UnbindLineDialog from "./UnbindLineDialog";
 import {
   StudentWithDetail,
   useGetStudentLineBindLinkQuery,
@@ -18,7 +19,7 @@ const itemClass =
   "flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-left hover:bg-neutral-50 cursor-pointer";
 
 /**
- * The header's ⋯: 複製公開頁連結／複製 LINE 綁定連結／合併到另一位學員／封存（或還原）學生.
+ * The header's ⋯: 複製公開頁連結／複製 LINE 綁定連結（或解除綁定）／合併到另一位學員／封存（或還原）學生.
  * `?mergeInto=<id>` (from 待處理「可能重複」) opens the merge dialog with that target.
  */
 const StudentActionsMenu = ({
@@ -30,6 +31,7 @@ const StudentActionsMenu = ({
 }) => {
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmUnbind, setConfirmUnbind] = useState(false);
   const searchParams = useSearchParams();
   const mergeInto = Number(searchParams.get("mergeInto")) || null;
   const [mergeOpen, setMergeOpen] = useState(false);
@@ -92,6 +94,19 @@ const StudentActionsMenu = ({
             複製 LINE 綁定連結
           </button>
         )}
+        {lineBind?.bound && (
+          <button
+            type="button"
+            className={itemClass}
+            onClick={() => {
+              close();
+              setConfirmUnbind(true);
+            }}
+          >
+            <Link2Off className="w-4 h-4 text-neutral-500" />
+            解除 LINE 綁定
+          </button>
+        )}
         {!archived && (
           <button
             type="button"
@@ -137,6 +152,7 @@ const StudentActionsMenu = ({
         open={confirmArchive}
         onClose={() => setConfirmArchive(false)}
       />
+      <UnbindLineDialog student={student} open={confirmUnbind} onClose={() => setConfirmUnbind(false)} />
       {!archived && (
         <MergeStudentDialog
           student={student}

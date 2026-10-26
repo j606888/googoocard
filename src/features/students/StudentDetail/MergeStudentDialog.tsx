@@ -32,7 +32,7 @@ const SideCard = ({ side, label, keep }: { side: MergeSide; label: string; keep:
     <p className="text-xs leading-relaxed text-neutral-600">
       #{side.number} · {formatDate(side.createdAt)} 建立
       <br />
-      {side.lineBound ? "已綁 LINE" : "未綁 LINE"}
+      {side.lineBound ? `已綁 LINE${side.lineDisplayName ? `「${side.lineDisplayName}」` : ""}` : "未綁 LINE"}
       <br />
       {side.cardCount} 張卡 · {side.attendanceCount} 次出席
     </p>
@@ -186,6 +186,7 @@ const MergeStudentDialog = ({
                           className="h-4 w-4 accent-primary-700"
                         />
                         {side === "source" ? `${preview.source.name}（併掉這筆）的 LINE` : `${preview.target.name}（保留這筆）的 LINE`}
+                        {preview[side].lineDisplayName && `「${preview[side].lineDisplayName}」`}
                       </label>
                     ))}
                   </fieldset>

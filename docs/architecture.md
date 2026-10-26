@@ -267,6 +267,8 @@ webhook（`src/app/api/line/webhook/route.ts`）只驗簽章，每個事件交�
 - `a=more`：切換教室（綁多位學生時開 LIFF 選擇；未綁定且多間公開時 quick reply 選公開教室）、怎麼綁定。
 - **加好友（follow）**：已綁定的人（多半是門口登記後從簽到完成頁加好友）叫名字歡迎＋教室名；沒綁定的人告訴他可以看課表／價目、到教室掃門口 QR 登記。掃門口 QR **不會**自動加好友——LIFF 的 Add friend option（Aggressive）只問一次，所以簽到完成頁再用 `getFriendship()` 檢查、沒加就顯示 `AddFriendPrompt`。
 - 打字其他文字：綁定學生回學生 Flex 選單、未綁定回說明＋quick reply；綁定碼永遠優先。
+- **綁定／解除綁定都走 `src/service/lineBinding.ts`，各寫一筆 Event**（`resourceType = "student"`，畫在學生頁「動態」）：`bindStudentLine()`（綁定碼 webhook、LINE 模擬器的「模擬綁定」）寫「綁定 LINE · LINE 名稱「…」」，同教室換綁時舊學生另寫「解除 LINE 綁定」；`unbindStudentLine()` 是老師端「解除綁定」（`DELETE /api/students/[id]/line-binding`，入口在頁首 ⋯ 和「學生資料」的 LINE 列），給綁錯人用——清 `lineUserId`／`lineDisplayName`／`lineBindKey`／`lineInviteSentAt`，下次複製的是新連結、未綁定名單顯示未邀請；LINE 那邊不用清，`currentStudent()`／`resolveOwnedStudent()` 都比對 `lineUserId`，那個帳號自然就看不到這位學生。門口自助登記另寫「自助登記」、合併沿用「合併學員」，不重複寫綁定。
+- **LINE 名稱與大頭照**（`Student.lineDisplayName`，老師端「學生資料」顯示、合併確認畫面也列出）：webhook 綁定時用 Messaging API 的 get-profile 抓（`fetchLineProfile()`，`src/lib/lineProfile.ts`；只對加了好友的人有回應，抓不到就照樣綁、沒有名稱），自助登記用 ID token 的 `name`；之後每次學生開 LIFF，`GET /api/liff/me` 用 ID token 的 name/picture 呼叫 `syncLineProfile()` 更新（舊綁定也是這樣補上）。大頭照規則：LINE 的照片只會換掉**預設頭像**（`/images/avatars/`）或舊的 LINE 照片，**老師上傳的照片永遠不動**；預設頭像只在第一次拿到 LINE 資料時換（之後老師改回預設就尊重）；解除／換綁時若頭像是 LINE 照片（`profile.line-scdn.net`）就換回預設的 Not Sure。
 - Flex builder 是純函式（`src/lib/lineFlex.ts`，有單元測試），配色跟網站一致改成品牌綠（`src/lib/line.ts` 的 `BRAND`）。
 
 ## 買卡流程（StudentCard 建立）
@@ -646,7 +648,7 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 ## 學生頭像（Student Avatars）
 
-`Student.avatarUrl` 只是一個字串，可以是內建預設圖（`/images/avatars/*.png`），也可以是上傳到 Cloudinary 後的 URL——DB schema 不區分兩者。
+`Student.avatarUrl` 只是一個字串，可以是內建預設圖（`/images/avatars/*.png`）、上傳到 Cloudinary 後的 URL，或綁定 LINE 帶進來的 LINE 大頭照（`profile.line-scdn.net`，規則見「LINE（只給學生用）」的「LINE 名稱與大頭照」）——DB schema 不區分，靠網址前綴判斷（`src/lib/lineProfile.ts`）。
 
 **預設頭像**（2026-10 起）：奇異鳥 × 學生在雙人舞裡的身分——Leader、Follower、Both、Not Sure、工作人員，新學生預設 Not Sure。圖是自己畫的，由 `scripts/generate-avatars.mjs` 從 `public/kiwi-bird.svg` 產生 PNG，要改圖就改腳本再重跑。原本 8 張預設圖不是自己的，已刪除，還在用的學生由 migration 改成 Not Sure。只是頭像，**不是**學生資料欄位（沒有「這位學生是 Leader」的資料可以篩選）。
 

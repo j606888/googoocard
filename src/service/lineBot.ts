@@ -19,6 +19,7 @@ import {
 import { formatCardSerial } from "@/lib/cardSerial";
 import { lessonLevelLabel } from "@/lib/danceLevels";
 import { parseTaipeiDateRange, toTaipeiDateKey } from "@/lib/taipei-date";
+import { bindStudentLine } from "@/service/lineBinding";
 
 /**
  * The LINE bot — students only (teachers use the website): binding keys, the
@@ -56,15 +57,6 @@ const SCHEDULE_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ── Account state ───────────────────────────────────────────────────────────
-
-/** Remember which student this account last selected (in LIFF or on bind). */
-async function setSelectedStudent(lineUserId: string, selectedStudentId: number): Promise<void> {
-  await prisma.lineAccount.upsert({
-    where: { lineUserId },
-    update: { selectedStudentId },
-    create: { lineUserId, selectedStudentId },
-  });
-}
 
 /**
  * The student this account is acting as: the LIFF-selected one when it's still
@@ -391,24 +383,7 @@ export async function handleLineEvent(event: LineWebhookEvent, reply: Reply): Pr
   if (text) {
     const student = await prisma.student.findUnique({ where: { lineBindKey: text } });
     if (student) {
-      // One LINE account can bind multiple students across DIFFERENT classrooms,
-      // but only one per classroom. If this account already has another student
-      // in the same classroom, auto-rebind: release the old one, bind the new.
-      // Consuming the one-time lineBindKey keeps re-sending the same key idempotent.
-      const previous = await prisma.student.findFirst({
-        where: { lineUserId, classroomId: student.classroomId, id: { not: student.id } },
-      });
-      if (previous) {
-        await prisma.student.update({
-          where: { id: previous.id },
-          data: { lineUserId: null },
-        });
-      }
-      await prisma.student.update({
-        where: { id: student.id },
-        data: { lineUserId, lineBindKey: null },
-      });
-      await setSelectedStudent(lineUserId, student.id);
+      const { previous } = await bindStudentLine(student, lineUserId, "學生用 LINE 送出綁定碼");
       await reply([
         textMessage(
           previous

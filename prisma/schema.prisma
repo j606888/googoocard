@@ -182,6 +182,8 @@ model Student {
   randomKey           String?                     @unique // public-students share link token (NOT for LINE)
   lineBindKey         String?                     @unique // one-time key for the LINE binding deep link
   lineUserId          String? // bound LINE userId — NOT unique: one LINE account can bind multiple students across classrooms
+  // 綁定的 LINE 顯示名稱（綁定時抓、學生開 LIFF 時更新），讓老師看得出有沒有綁錯人。
+  lineDisplayName     String?
   classroomId         Int
   classroom           Classroom                   @relation(fields: [classroomId], references: [id])
   studentCards        StudentCard[]

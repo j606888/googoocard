@@ -50,6 +50,7 @@ describe("POST /api/liff/register（第一次來）", () => {
     expect(student).toMatchObject({
       classroomId,
       lineUserId: "lineMei",
+      lineDisplayName: "LINE-lineMei",
       avatarUrl: "https://profile.line-scdn.net/lineMei",
     });
     const numbers = (await prisma.student.findMany({ where: { classroomId } })).map((s) => s.number).sort();

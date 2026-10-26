@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { apiRoute } from "@/lib/apiRoute";
 import { ApiError, notFound } from "@/lib/apiError";
 import { isLineMockEnabled, newMockLineUserId } from "@/lib/lineMock";
+import { bindStudentLine } from "@/service/lineBinding";
 
 // LINE 模擬器（/dev/line）的資料：這間教室的簽到 key，以及可以扮演的 LINE 身分。
 // 只在模擬模式開放（src/lib/lineMock.ts）——它會回傳 lineUserId，正式環境絕不能有。
@@ -83,12 +84,13 @@ export const POST = apiRoute(async ({ request, classroomId }) => {
 
   const student = await prisma.student.findFirst({
     where: { id: studentId, classroomId, archivedAt: null },
-    select: { id: true, name: true, lineUserId: true },
+    select: { id: true, name: true, classroomId: true, avatarUrl: true, lineUserId: true },
   });
   if (!student) throw notFound("Student");
   if (student.lineUserId) throw new ApiError(400, "ALREADY_BOUND", "Student already bound to LINE");
 
   const lineUserId = newMockLineUserId();
-  await prisma.student.update({ where: { id: student.id }, data: { lineUserId, lineBindKey: null } });
+  // The simulator's persona for this account goes by the student's name.
+  await bindStudentLine(student, lineUserId, "LINE 模擬器：模擬綁定", { displayName: student.name });
   return { lineUserId, name: student.name };
 });

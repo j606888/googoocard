@@ -1,7 +1,12 @@
 import prisma from "@/lib/prisma";
 import { bindDeepLink, generateRandomKey } from "@/lib/line";
 
-type BindableStudent = { id: number; lineUserId: string | null; lineBindKey: string | null };
+type BindableStudent = {
+  id: number;
+  lineUserId: string | null;
+  lineBindKey: string | null;
+  lineDisplayName?: string | null;
+};
 
 /**
  * A student's LINE binding deep link, creating the one-time `lineBindKey` on
@@ -9,7 +14,8 @@ type BindableStudent = { id: number; lineUserId: string | null; lineBindKey: str
  * invite list so both hand out the same link.
  */
 export async function studentBindLink(student: BindableStudent) {
-  if (student.lineUserId) return { bound: true as const };
+  // The LINE name (not the id) is how a teacher spots a binding to the wrong person.
+  if (student.lineUserId) return { bound: true as const, lineDisplayName: student.lineDisplayName ?? null };
 
   let key = student.lineBindKey;
   if (!key) {

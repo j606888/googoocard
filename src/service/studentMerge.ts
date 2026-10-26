@@ -14,6 +14,7 @@ const studentSummarySelect = {
   name: true,
   avatarUrl: true,
   lineUserId: true,
+  lineDisplayName: true,
   createdAt: true,
   _count: { select: { studentCards: true, attendanceRecords: true } },
 } satisfies Prisma.StudentSelect;
@@ -88,6 +89,7 @@ const summary = (s: Awaited<ReturnType<typeof loadPair>>["source"]) => ({
   avatarUrl: s.avatarUrl,
   // Only whether — never the LINE id itself.
   lineBound: s.lineUserId !== null,
+  lineDisplayName: s.lineDisplayName,
   createdAt: s.createdAt,
   cardCount: s._count.studentCards,
   attendanceCount: s._count.attendanceRecords,
@@ -201,10 +203,13 @@ export async function mergeStudents(
     const keptLine = useSourceLine ? source.lineUserId : target.lineUserId;
     await tx.student.update({
       where: { id: source.id },
-      data: { archivedAt: new Date(), mergedIntoId: target.id, lineUserId: null, lineBindKey: null },
+      data: { archivedAt: new Date(), mergedIntoId: target.id, lineUserId: null, lineDisplayName: null, lineBindKey: null },
     });
     if (useSourceLine) {
-      await tx.student.update({ where: { id: target.id }, data: { lineUserId: keptLine, lineBindKey: null } });
+      await tx.student.update({
+        where: { id: target.id },
+        data: { lineUserId: keptLine, lineDisplayName: source.lineDisplayName, lineBindKey: null },
+      });
     }
     // The LINE bot menu pointed at the archived record → follow the merge.
     await tx.lineAccount.updateMany({
