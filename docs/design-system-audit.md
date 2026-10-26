@@ -1,5 +1,7 @@
 # Design System 調查與待辦
 
+> ⚠️ 現行規範請看 [`design-system.md`](design-system.md)；這份是 2026-06 的 token 收斂紀錄。
+
 > 調查日期：2026-06-20。本文記錄目前色彩 token 與共用元件的現況、問題，以及可逐項處理的待辦清單。
 
 ## 現況摘要

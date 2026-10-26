@@ -145,31 +145,31 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
             儲存
           </Button>
           <div className="pt-4 border-t border-neutral-200 flex flex-col gap-1">
-            <button
+            <Button
+              variant="secondary"
+              className="w-full"
               onClick={handleEndToggle}
-              disabled={isEnding || isReopening}
-              className="w-full py-2 rounded font-semibold border border-neutral-300 text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 cursor-pointer"
+              isLoading={isEnding || isReopening}
             >
               {isEndedByHand ? "重新開課" : "結束課程"}
-            </button>
-            <p className="text-xs text-neutral-400 text-center">
+            </Button>
+            <p className="text-xs text-neutral-500 text-center">
               {isEndedByHand
                 ? "這門課已手動結束；重新開課或排新時段都會回到「進行中」"
                 : "結束後移到「已結束」，紀錄都會保留"}
             </p>
           </div>
           <div className="pt-4 border-t border-neutral-200">
-            <button
+            <Button
+              variant="dangerSecondary"
+              className="w-full"
               onClick={handleDelete}
               disabled={!hasNoPeriods || isDeleting}
-              className={`w-full py-2 rounded font-semibold text-white bg-danger-500 hover:bg-danger-600 ${
-                !hasNoPeriods || isDeleting ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-              }`}
             >
               刪除課程
-            </button>
+            </Button>
             {!hasNoPeriods && (
-              <p className="text-xs text-neutral-400 mt-1 text-center">
+              <p className="text-xs text-neutral-500 mt-1 text-center">
                 刪除課程前，請先移除所有時段
               </p>
             )}

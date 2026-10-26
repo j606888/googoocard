@@ -1,6 +1,5 @@
 import type { StudentCardWithCard } from "@/store/slices/students";
-
-const pill = "shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap";
+import StatusTag from "@/components/StatusTag";
 
 /**
  * 一張課卡的狀態 pill：複習／轉換／已轉換／已付款／未付款。
@@ -16,18 +15,18 @@ const CardStatusPills = ({
 }) => (
   <div className="flex items-center gap-1 flex-wrap justify-end">
     {studentCard.card.isPracticeCard && (
-      <span className={`${pill} bg-warning-100 text-warning-900`}>複習</span>
+      <StatusTag tone="warning">複習</StatusTag>
     )}
     {studentCard.origin === "CONVERSION" && (
-      <span className={`${pill} bg-primary-100 text-primary-900`}>轉換</span>
+      <StatusTag tone="positive">轉換</StatusTag>
     )}
     {studentCard.convertedToId && (
-      <span className={`${pill} bg-neutral-100 text-neutral-600`}>已轉換</span>
+      <StatusTag tone="neutral">已轉換</StatusTag>
     )}
     {studentCard.isPaid === false ? (
-      <span className={`${pill} bg-danger-100 text-danger-700`}>未付款</span>
+      <StatusTag tone="danger">未付款</StatusTag>
     ) : (
-      showPaid && <span className={`${pill} bg-primary-50 text-primary-900`}>已付款</span>
+      showPaid && <StatusTag tone="positive">已付款</StatusTag>
     )}
   </div>
 );

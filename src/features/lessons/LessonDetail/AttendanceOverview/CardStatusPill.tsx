@@ -1,4 +1,5 @@
 import type { CardStatus } from "@/domains/attendance/rosterInsights";
+import StatusTag from "@/components/StatusTag";
 
 // Lesson-scoped: "can tonight's session be charged to a card?". Deliberately
 // never worded 需續約 — that is the classroom-wide tag from studentTag.ts and
@@ -17,12 +18,7 @@ const CardStatusPill = ({ status }: { status: CardStatus }) => {
         : "無可用卡"
       : `剩 ${usableSessions} 堂`;
 
-  const style =
-    level === "none"
-      ? "bg-danger-50 text-danger-600 border-danger-200"
-      : level === "low"
-      ? "bg-warning-100 text-warning-900 border-warning-200"
-      : "bg-primary-50 text-primary-700 border-primary-300";
+  const tone = level === "none" ? "danger" : level === "low" ? "warning" : "positive";
 
   return (
     <span
@@ -31,9 +27,11 @@ const CardStatusPill = ({ status }: { status: CardStatus }) => {
           ? "有這堂課的複習卡，但學生還沒有該舞種的資格"
           : undefined
       }
-      className={`shrink-0 w-[72px] text-center text-[10.5px] font-semibold px-2 py-0.5 rounded-full border ${style}`}
+      className="shrink-0 w-[72px] flex"
     >
-      {label}
+      <StatusTag tone={tone} className="w-full justify-center px-2 text-[10.5px]">
+        {label}
+      </StatusTag>
     </span>
   );
 };

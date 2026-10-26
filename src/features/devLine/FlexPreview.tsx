@@ -147,7 +147,7 @@ export function BotMessage({ message, onAction }: { message: FlexNode; onAction:
     }
     return <Bubble bubble={contents} onAction={onAction} />;
   }
-  return <div className="text-xs text-neutral-400">（{message.type} 訊息，模擬器不顯示）</div>;
+  return <div className="text-xs text-neutral-500">（{message.type} 訊息，模擬器不顯示）</div>;
 }
 
 /** The quick-reply chips of the latest message, if any. */

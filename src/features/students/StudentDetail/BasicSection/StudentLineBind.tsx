@@ -15,8 +15,8 @@ const StudentLineBind = ({ studentId }: { studentId: number }) => {
         <Skeleton className="w-4 h-4 shrink-0" />
         <Skeleton className="h-5 w-28" />
         <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-          <Skeleton className="h-7 w-[88px] rounded-full" />
-          <Skeleton className="w-7 h-7 rounded-full" />
+          <Skeleton className="h-9 w-[104px] rounded-lg" />
+          <Skeleton className="size-9 rounded-lg" />
         </div>
       </div>
     );
@@ -27,7 +27,7 @@ const StudentLineBind = ({ studentId }: { studentId: number }) => {
     return (
       <div className="flex flex-col gap-2">
         <p className="text-sm font-semibold text-neutral-700">LINE</p>
-        <div className="rounded-xl border border-success-200 bg-success-50 px-3 py-2.5 text-sm text-success-700">
+        <div className="rounded-xl bg-primary-100 px-3 py-2.5 text-sm text-primary-900">
           ✓ 已綁定 LINE
         </div>
       </div>
@@ -38,7 +38,7 @@ const StudentLineBind = ({ studentId }: { studentId: number }) => {
     return (
       <div className="flex flex-col gap-2">
         <p className="text-sm font-semibold text-neutral-700">LINE</p>
-        <div className="rounded-xl border border-warning-200 bg-warning-50 px-3 py-2.5 text-sm text-warning-700">
+        <div className="rounded-xl border border-warning-300 bg-warning-50 px-3 py-2.5 text-sm text-warning-950">
           LINE 綁定尚未設定完成（缺少官方帳號 ID）。
         </div>
       </div>

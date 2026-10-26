@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { validateForm, ValidationErrors } from "@/lib/validation";
 import { useSignupMutation } from "@/store/slices/me";
-import AuthScaffold, { authPrimaryButton } from "../AuthScaffold";
-import AuthField from "../AuthField";
+import AuthScaffold from "../AuthScaffold";
+import { Button } from "@/components/ui/button";
+import Field from "@/components/Field";
 import SocialLogin from "../SocialLogin";
 
 const TITLE = "建立你的帳號";
@@ -53,14 +54,14 @@ function SignupForm() {
       <SocialLogin inviteToken={token} redirect={redirect} />
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-1 flex-col gap-4">
-        <AuthField
+        <Field
           label="你的名字"
           autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           error={errors.name}
         />
-        <AuthField
+        <Field
           label="電子郵件"
           type="email"
           autoComplete="email"
@@ -69,7 +70,7 @@ function SignupForm() {
           onChange={(e) => setEmail(e.target.value)}
           error={errors.email}
         />
-        <AuthField
+        <Field
           label="密碼"
           type="password"
           autoComplete="new-password"
@@ -80,9 +81,9 @@ function SignupForm() {
         />
 
         <div className="mt-auto lg:mt-4 flex flex-col gap-3 pt-4">
-          <button type="submit" disabled={loading} className={authPrimaryButton}>
+          <Button type="submit" size="lg" className="w-full" isLoading={loading}>
             建立帳號
-          </button>
+          </Button>
           <p className="text-xs text-neutral-500 text-center">
             建立帳號即表示同意{" "}
             <Link href="/terms" className="underline hover:text-neutral-700">服務條款</Link>

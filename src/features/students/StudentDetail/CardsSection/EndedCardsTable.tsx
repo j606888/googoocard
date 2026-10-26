@@ -28,7 +28,7 @@ const EndedCardsTable = ({
     <div className="@container">
       <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
         <div
-          className="hidden @md:grid grid-cols-[minmax(0,1.6fr)_80px_minmax(110px,1fr)_minmax(120px,1fr)] gap-3 px-4 py-2 bg-neutral-50 text-xs text-neutral-600"
+          className="hidden @md:grid grid-cols-[minmax(0,1.6fr)_80px_minmax(110px,1fr)_minmax(120px,1fr)] gap-3 px-4 py-2 bg-neutral-50 text-xs font-semibold text-neutral-500"
           aria-hidden="true"
         >
           <span>課卡</span>

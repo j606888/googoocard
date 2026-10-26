@@ -1,6 +1,8 @@
 import { Copy, Link2, Trash2 } from "lucide-react";
 import { InviteToken } from "@/store/slices/memberships";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const NEXT_PUBLIC_HOST_URL = process.env.NEXT_PUBLIC_HOST_URL;
 
@@ -31,7 +33,7 @@ const InvitationCard = ({
 
   return (
     <li className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-3.5 lg:flex-row lg:items-center lg:gap-3.5 lg:rounded-none lg:border-0 lg:bg-transparent lg:px-5 lg:py-3.5">
-      <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700 lg:flex">
+      <div className="hidden size-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700 lg:flex">
         <Link2 className="h-[18px] w-[18px]" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-3 lg:gap-1.5">
@@ -43,33 +45,36 @@ const InvitationCard = ({
           {url.replace(/^https?:\/\//, "")}
         </span>
       </div>
-      <button
+      <Button
         type="button"
-        className="flex h-11 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary-100 px-3.5 text-[15px] font-medium text-primary-900 hover:bg-primary-300 lg:h-10 lg:text-sm"
+        variant="secondary"
+        className="shrink-0 gap-1.5 lg:h-9 lg:rounded-lg lg:px-3.5 lg:text-sm"
         onClick={() => {
           navigator.clipboard.writeText(url);
           toast("已複製");
         }}
       >
-        <Copy className="h-4 w-4" />
+        <Copy className="size-4" />
         <span>
           複製<span className="lg:hidden">連結</span>
         </span>
-      </button>
+      </Button>
       <DeleteButton className="hidden lg:flex" onClick={() => onDelete(inviteToken.id)} />
     </li>
   );
 };
 
 const DeleteButton = ({ className, onClick }: { className: string; onClick: () => void }) => (
-  <button
+  <Button
     type="button"
+    variant="ghost"
+    size="icon"
     aria-label="刪除這個邀請連結"
-    className={`h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-danger-600 ${className}`}
+    className={cn("text-neutral-500 hover:bg-danger-50 hover:text-danger-700", className)}
     onClick={onClick}
   >
-    <Trash2 className="h-4 w-4" />
-  </button>
+    <Trash2 className="size-4" />
+  </Button>
 );
 
 export default InvitationCard;

@@ -7,6 +7,8 @@ import { Lesson, LessonStudent } from "@/store/slices/lessons";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { lessonLevelLabel } from "@/lib/danceLevels";
 import { lessonAttendanceRate } from "@/domains/attendance/rosterInsights";
+import { Button } from "@/components/ui/button";
+import StatusTag from "@/components/StatusTag";
 
 const LessonDetailHeader = ({
   lesson,
@@ -68,44 +70,42 @@ const LessonDetailHeader = ({
               </span>
             )}
             <LocationBadge location={lesson.location} className="px-2.5 py-1 font-semibold" />
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isFinished ? "bg-neutral-100 text-neutral-600" : "bg-primary-100 text-primary-700"}`}>
+            <StatusTag tone={isFinished ? "neutral" : "positive"}>
               {isFinished ? "已結束" : "進行中"}
-            </span>
+            </StatusTag>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <button
+          <Button
+            variant={showSettings ? "primary" : "secondary"}
+            size="sm"
+            aria-pressed={showSettings}
             onClick={onToggleSettings}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
-              showSettings
-                ? "bg-neutral-900 text-white border-neutral-900"
-                : "bg-white text-neutral-600 border-neutral-200 hover:border-neutral-400"
-            }`}
           >
-            <Settings className="w-3.5 h-3.5" />
+            <Settings className="size-4" />
             編輯
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Stats pills */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200 shadow-sm">
+        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
           <Users className="w-4 h-4" />
           <span>{lesson.students.length} 位學生</span>
         </div>
-        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200 shadow-sm">
+        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
           <BookOpenText className="w-4 h-4" />
           <span>
             {isOngoing ? `持續開課 · 已上 ${attendedCount} 堂` : `${attendedCount} / ${periods.length} 個時段`}
           </span>
         </div>
-        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200 shadow-sm">
+        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
           <span className={`w-2 h-2 rounded-full ${attendanceRate >= 80 ? "bg-primary-500" : attendanceRate >= 50 ? "bg-warning-500" : "bg-neutral-400"}`} />
           <span>出席率 {attendanceRate}%</span>
         </div>
         {lesson.teachers.length > 0 && (
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200 shadow-sm">
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
             <GraduationCap className="w-4 h-4" />
             <span>{lesson.teachers.map((t) => t.name).join(", ")}</span>
           </div>

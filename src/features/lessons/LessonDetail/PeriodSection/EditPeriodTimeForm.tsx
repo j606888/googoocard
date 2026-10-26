@@ -5,6 +5,7 @@ import { Period, useUpdatePeriodMutation } from "@/store/slices/lessons";
 import { DatePicker } from "@/components/DatePicker";
 import TimePicker, { Option, generateTimeOptions } from "@/components/TimePicker";
 import { toast } from "sonner";
+import { FieldError, FieldLabel } from "@/components/Field";
 
 const timeOption = (value: string): Option | null =>
   generateTimeOptions().find((option: Option) => option.value === value) ?? null;
@@ -65,17 +66,17 @@ const EditPeriodTimeForm = ({
       submitText="儲存"
       isLoading={isLoading}
     >
-      <div className="flex flex-col gap-0.5 mb-4">
-        <label className="text-sm text-neutral-700">日期</label>
+      <div className="flex flex-col gap-1.5 mb-4">
+        <FieldLabel>日期</FieldLabel>
         <DatePicker date={date} setDate={setDate} />
       </div>
       <div className="flex gap-2 mb-4">
-        <div>
-          <label className="text-sm text-neutral-700">開始</label>
+        <div className="flex flex-col gap-1.5">
+          <FieldLabel>開始</FieldLabel>
           <TimePicker selectedTime={fromTime} setSelectedTime={setFromTime} />
         </div>
-        <div>
-          <label className="text-sm text-neutral-700">結束</label>
+        <div className="flex flex-col gap-1.5">
+          <FieldLabel>結束</FieldLabel>
           <TimePicker selectedTime={toTime} setSelectedTime={setToTime} />
         </div>
       </div>
@@ -84,7 +85,11 @@ const EditPeriodTimeForm = ({
           這個時段已經點名。改時間不會動到出席紀錄與課卡，只是把它掛到新的日期上。
         </p>
       )}
-      {error && <p className="mb-4 text-sm text-danger-500">{error}</p>}
+      {error && (
+        <div className="mb-4">
+          <FieldError>{error}</FieldError>
+        </div>
+      )}
     </Drawer>
   );
 };

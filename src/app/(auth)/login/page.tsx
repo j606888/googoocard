@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useLoginMutation } from "@/store/slices/me";
-import AuthScaffold, { authPrimaryButton } from "../AuthScaffold";
-import AuthField from "../AuthField";
+import AuthScaffold from "../AuthScaffold";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import Field from "@/components/Field";
 import SocialLogin from "../SocialLogin";
 
 const TITLE = "歡迎回來";
@@ -57,7 +59,7 @@ function LoginForm() {
       <SocialLogin inviteToken={token} redirect={redirect} />
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-1 flex-col gap-4">
-        <AuthField
+        <Field
           label="電子郵件"
           type="email"
           autoComplete="email"
@@ -66,7 +68,7 @@ function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           error={errorField === "email" ? error : undefined}
         />
-        <AuthField
+        <Field
           label="密碼"
           type="password"
           autoComplete="current-password"
@@ -76,9 +78,9 @@ function LoginForm() {
         />
 
         <div className="mt-auto lg:mt-4 flex flex-col gap-3 pt-4">
-          <button type="submit" disabled={loading} className={authPrimaryButton}>
+          <Button type="submit" size="lg" className="w-full" isLoading={loading}>
             登入
-          </button>
+          </Button>
           <p className="text-sm text-neutral-600 text-center">
             還沒有帳號？{" "}
             <Link href="/signup" className="font-bold text-primary-900 hover:text-primary-700">
@@ -94,10 +96,10 @@ function LoginForm() {
 function LoginPageFallback() {
   return (
     <AuthScaffold title={TITLE} subtitle={SUBTITLE} backHref="/">
-      <div className="flex flex-1 flex-col gap-4 animate-pulse">
-        <div className="h-[50px] rounded-xl bg-neutral-100" />
-        <div className="h-[50px] rounded-xl bg-neutral-100" />
-        <div className="mt-auto lg:mt-4 h-[52px] rounded-xl bg-neutral-200" />
+      <div className="flex flex-1 flex-col gap-4">
+        <Skeleton className="h-12 rounded-xl" />
+        <Skeleton className="h-12 rounded-xl" />
+        <Skeleton className="mt-auto lg:mt-4 h-13 rounded-xl" />
       </div>
     </AuthScaffold>
   );

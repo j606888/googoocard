@@ -11,10 +11,16 @@ import {
   useExpireCardMutation,
 } from "@/store/slices/cards";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import SortMenu from "@/components/SortMenu";
 import CardSerial from "@/components/CardSerial";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import EmptyState from "@/components/EmptyState";
+import FilterChip from "@/components/FilterChip";
+import StatusTag from "@/components/StatusTag";
+import { fieldControlClass } from "@/components/Field";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   cardKind,
   DEFAULT_HOLDER_SORT,
@@ -119,35 +125,30 @@ const CardDetailBody = ({
       </div>
 
       {confirmArchive && (
-        <div className="flex flex-col gap-3 rounded-xl border border-warning-300 bg-warning-50 p-4">
-          <p className="text-sm leading-relaxed text-warning-900">
+        <div className="flex flex-col gap-3 rounded-2xl border border-warning-300 bg-warning-50 p-4">
+          <p className="text-sm leading-relaxed text-warning-950">
             下架「{card.name}」？學生之後買不到這個方案；手上還有的 {activeHolderCount}{" "}
             張照常使用。
           </p>
           <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={isExpiring}
+            <Button
+              size="sm"
+              isLoading={isExpiring}
               onClick={async () => {
                 await expireCard(card.id);
                 setConfirmArchive(false);
               }}
-              className="min-h-10 px-4 rounded-lg bg-warning-900 text-white text-sm font-semibold cursor-pointer disabled:opacity-50"
             >
               下架
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmArchive(false)}
-              className="min-h-10 px-4 rounded-lg border border-neutral-200 bg-white text-sm text-neutral-700 cursor-pointer"
-            >
+            </Button>
+            <Button variant="ghost" size="sm" className="bg-white" onClick={() => setConfirmArchive(false)}>
               先不要
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      <div className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl bg-neutral-50 px-5 py-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl bg-neutral-50 px-5 py-4">
         <div className="flex items-baseline gap-2">
           <span className="text-3xl font-bold tracking-tight">${card.price.toLocaleString()}</span>
           <span className="text-sm text-neutral-500">/ {card.sessions} 堂</span>
@@ -186,17 +187,14 @@ const CardDetailBody = ({
       <Holders holders={holders} isTrial={kind === "trial"} />
 
       {purchasedCount === 0 && (
-        <button
-          type="button"
-          onClick={() => setConfirmDelete(true)}
-          className="self-start flex items-center gap-1.5 min-h-10 text-[13px] text-danger-600 cursor-pointer"
-        >
-          <Trash className="w-4 h-4" />
+        <Button variant="dangerSecondary" size="sm" className="self-start" onClick={() => setConfirmDelete(true)}>
+          <Trash className="size-4" />
           刪除這個方案（還沒賣出過才能刪）
-        </button>
+        </Button>
       )}
 
       <ConfirmDialog
+        variant="danger"
         open={confirmDelete}
         title="刪除這個方案？"
         message={`「${card.name}」會直接刪掉，不會留在「已下架」。`}
@@ -228,10 +226,10 @@ const Holders = ({ holders, isTrial }: { holders: CardDetail["holders"]; isTrial
     return sortHolders(filtered, sort);
   }, [holders, query, sort, filter]);
 
-  const chips: { value: HolderFilter; label: string; active: string }[] = [
-    { value: "all", label: `全部 ${holders.length}`, active: "bg-neutral-900 border-neutral-900 text-white" },
-    { value: "runningOut", label: `快用完 ${runningOut}`, active: "bg-warning-100 border-warning-300 text-warning-900" },
-    { value: "unpaid", label: `未付款 ${unpaid}`, active: "bg-danger-100 border-danger-200 text-danger-700" },
+  const chips: { value: HolderFilter; label: string; count: number }[] = [
+    { value: "all", label: "全部", count: holders.length },
+    { value: "runningOut", label: "快用完", count: runningOut },
+    { value: "unpaid", label: "未付款", count: unpaid },
   ];
 
   const emptyText =
@@ -254,34 +252,50 @@ const Holders = ({ holders, isTrial }: { holders: CardDetail["holders"]; isTrial
       {holders.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {chips.map((chip) => (
-            <button
+            <FilterChip
               key={chip.value}
-              type="button"
-              aria-pressed={filter === chip.value}
+              active={filter === chip.value}
+              count={chip.count}
               onClick={() => setFilter(chip.value)}
-              className={`min-h-8 px-3 rounded-full border text-[13px] font-medium cursor-pointer ${
-                filter === chip.value ? chip.active : "bg-white border-neutral-200 text-neutral-700"
-              }`}
             >
               {chip.label}
-            </button>
+            </FilterChip>
           ))}
         </div>
       )}
       {holders.length > 8 && (
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="搜尋學生姓名"
             aria-label="搜尋學生姓名"
-            className="w-full pl-9 pr-3 py-2.5 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:border-primary-400"
+            className={cn(fieldControlClass(), "h-11 pl-10")}
           />
         </div>
       )}
       {visible.length === 0 ? (
-        <p className="rounded-xl bg-neutral-50 p-4 text-center text-[13px] text-neutral-500">{emptyText}</p>
+        holders.length === 0 ? (
+          <EmptyState kind="inline" title={emptyText} />
+        ) : (
+          <EmptyState
+            kind="filtered"
+            title={emptyText}
+            action={
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setFilter("all");
+                  setQuery("");
+                }}
+              >
+                清除篩選
+              </Button>
+            }
+          />
+        )
       ) : (
         <ul className="flex flex-col">
           {visible.map((holder) => {
@@ -305,15 +319,11 @@ const Holders = ({ holders, isTrial }: { holders: CardDetail["holders"]; isTrial
                     <span className="flex items-center gap-1.5 text-sm">
                       <span className="font-semibold truncate">{holder.student.name}</span>
                       <CardSerial serialNumber={holder.serialNumber} />
-                      {!holder.isPaid && (
-                        <span className="shrink-0 text-[11px] font-semibold px-1.5 rounded-full bg-danger-100 text-danger-700">
-                          未付款
-                        </span>
-                      )}
+                      {!holder.isPaid && <StatusTag tone="danger">未付款</StatusTag>}
                     </span>
                     <span className="block h-1.5 rounded-full bg-neutral-100 overflow-hidden">
                       <span
-                        className={`block h-full rounded-full ${low ? "bg-warning-500" : "bg-primary-500"}`}
+                        className={`block h-full rounded-full ${low ? "bg-warning-500" : "bg-primary-600"}`}
                         style={{ width: `${pct}%` }}
                       />
                     </span>
@@ -322,7 +332,7 @@ const Holders = ({ holders, isTrial }: { holders: CardDetail["holders"]; isTrial
                     </span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className={`text-base font-bold ${low ? "text-warning-900" : "text-neutral-900"}`}>
+                    <span className={`text-base font-bold ${low ? "text-warning-950" : "text-neutral-900"}`}>
                       {holder.remainingSessions}
                     </span>
                     <span className="text-xs text-neutral-500"> / {holder.totalSessions}</span>
@@ -346,14 +356,10 @@ const ActionButton = ({
   children: React.ReactNode;
   onClick: () => void;
 }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="flex-1 flex items-center justify-center gap-2 min-h-11 rounded-lg border border-neutral-300 text-sm font-semibold text-neutral-900 hover:bg-neutral-50 cursor-pointer"
-  >
+  <Button variant="secondary" onClick={onClick} className="flex-1 px-3 text-sm">
     {icon}
     {children}
-  </button>
+  </Button>
 );
 
 const Stat = ({
@@ -365,9 +371,51 @@ const Stat = ({
   label: string;
   highlight?: boolean;
 }) => (
-  <div className="flex flex-col gap-0.5 rounded-lg border border-neutral-100 p-3">
+  <div className="flex flex-col gap-0.5 rounded-2xl border border-neutral-200 p-3">
     <span className={`text-xl font-bold ${highlight ? "text-primary-900" : "text-neutral-900"}`}>{value}</span>
     <span className="text-xs text-neutral-500">{label}</span>
+  </div>
+);
+
+/** `CardDetailBody` while the detail loads — same blocks, data skeleton-ed. */
+export const CardDetailSkeleton = () => (
+  <div className="flex flex-col gap-5" aria-busy="true">
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-2.5">
+        <div className="flex gap-1.5">
+          <Skeleton className="h-5.5 w-40" />
+          <Skeleton className="h-5.5 w-16" />
+        </div>
+        <Skeleton className="h-6 w-44" />
+      </div>
+      <Skeleton className="h-6 w-11 shrink-0 mt-2.5" />
+    </div>
+    <Skeleton className="h-[68px] w-full rounded-2xl" />
+    <div className="flex gap-2">
+      <Skeleton className="h-11 flex-1 rounded-xl" />
+      <Skeleton className="h-11 flex-1 rounded-xl" />
+    </div>
+    <div className="grid grid-cols-3 gap-2">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex flex-col gap-2 rounded-2xl border border-neutral-200 p-3">
+          <Skeleton className="h-6 w-10" />
+          <Skeleton className="h-3 w-12" />
+        </div>
+      ))}
+    </div>
+    <div className="flex flex-col gap-3 border-t border-neutral-100 pt-4">
+      <h3 className="text-[15px] font-bold">持卡中的學生</h3>
+      {["w-24", "w-16", "w-20"].map((width, i) => (
+        <div key={i} className={`flex items-center gap-3 py-2.5 ${i === 2 ? "opacity-50" : ""}`}>
+          <Skeleton className="size-9 shrink-0" />
+          <div className="flex flex-1 flex-col gap-2">
+            <Skeleton className={`h-3.5 ${width}`} />
+            <Skeleton className="h-1.5 w-full" />
+          </div>
+          <Skeleton className="h-5 w-10" />
+        </div>
+      ))}
+    </div>
   </div>
 );
 

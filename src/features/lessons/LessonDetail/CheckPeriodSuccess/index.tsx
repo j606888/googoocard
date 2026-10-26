@@ -17,6 +17,8 @@ import PendingStudents from "./PendingStudents";
 import DayCollections from "./DayCollections";
 import { toTaipeiDateKey } from "@/lib/taipei-date";
 import { useSizeClass } from "@/hooks/useMediaQuery";
+import { Button } from "@/components/ui/button";
+import StatusTag from "@/components/StatusTag";
 
 const CheckPeriodSuccess = () => {
   const [showIncome, setShowIncome] = useState(false);
@@ -79,7 +81,7 @@ const CheckPeriodSuccess = () => {
           {justSubmitted ? (
             <>
               <div className="flex justify-center items-center rounded-full bg-primary-100 w-20 h-20 ring-8 ring-primary-50">
-                <Check className="w-11 h-11 text-primary-600" strokeWidth={2.5} />
+                <Check className="w-11 h-11 text-primary-700" strokeWidth={2.5} />
               </div>
               <div className="flex flex-col items-center gap-1">
                 <h3 className="text-lg font-bold text-neutral-900">課程簽到成功</h3>
@@ -106,7 +108,7 @@ const CheckPeriodSuccess = () => {
               <div className="flex gap-2 items-center" key={index}>
                 <Skeleton className="w-6 h-6 rounded-full shrink-0" />
                 <Skeleton className="h-5 w-24 mr-auto" />
-                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-5.5 w-20" />
               </div>
             ))}
           </div>
@@ -131,7 +133,7 @@ const CheckPeriodSuccess = () => {
         {justSubmitted ? (
           <>
             <div className="flex justify-center items-center rounded-full bg-primary-100 w-20 h-20 ring-8 ring-primary-50">
-              <Check className="w-11 h-11 text-primary-600" strokeWidth={2.5} />
+              <Check className="w-11 h-11 text-primary-700" strokeWidth={2.5} />
             </div>
             <div className="flex flex-col items-center gap-1">
               <h3 className="text-lg font-bold text-neutral-900">課程簽到成功</h3>
@@ -159,16 +161,16 @@ const CheckPeriodSuccess = () => {
             resolved yet) / absent / pending resolution */}
         <div className="flex gap-2 w-full">
           <div className="flex-1 flex flex-col items-center gap-0.5 bg-primary-50 rounded-xl py-2.5">
-            <span className="text-lg font-bold text-primary-700">{attendanceRecords.length}</span>
-            <span className="text-[11px] text-primary-700">出席</span>
+            <span className="text-lg font-bold text-primary-900">{attendanceRecords.length}</span>
+            <span className="text-xs text-primary-900">出席</span>
           </div>
           <div className="flex-1 flex flex-col items-center gap-0.5 bg-danger-50 rounded-xl py-2.5">
-            <span className="text-lg font-bold text-danger-600">{absentStudents.length}</span>
-            <span className="text-[11px] text-danger-600">缺席</span>
+            <span className="text-lg font-bold text-danger-700">{absentStudents.length}</span>
+            <span className="text-xs text-danger-700">缺席</span>
           </div>
           <div className="flex-1 flex flex-col items-center gap-0.5 bg-neutral-100 rounded-xl py-2.5">
             <span className="text-lg font-bold text-neutral-600">{pendingRecords.length}</span>
-            <span className="text-[11px] text-neutral-600">待處理</span>
+            <span className="text-xs text-neutral-600">待處理</span>
           </div>
         </div>
 
@@ -192,9 +194,7 @@ const CheckPeriodSuccess = () => {
                 size="small"
                 className="mr-auto"
               />
-              <div className="px-3 py-1 bg-primary-50 rounded-full border border-primary-200 text-xs font-medium text-primary-700">
-                {attendanceRecord?.cardName}
-              </div>
+              <StatusTag tone="positive">{attendanceRecord?.cardName}</StatusTag>
               <div className="text-sm text-neutral-600 w-24 text-right">
                 {showIncome ? (
                   <span className="font-semibold text-neutral-900">${Math.round(attendanceRecord?.income)}</span>
@@ -209,7 +209,7 @@ const CheckPeriodSuccess = () => {
           {showIncome && (
             <div className="flex justify-between w-full px-3 py-2.5 bg-primary-50 rounded-xl mt-2">
               <span className="text-sm font-semibold text-neutral-700">合計</span>
-              <span className="text-sm font-bold text-primary-700">
+              <span className="text-sm font-bold text-primary-900">
                 $
                 {Math.round(
                   paidRecords?.reduce((acc, record) => acc + record.income, 0)
@@ -230,9 +230,7 @@ const CheckPeriodSuccess = () => {
                   size="small"
                   className="mr-auto"
                 />
-                <div className="px-3 py-1 bg-danger-50 rounded-full border border-danger-200 text-xs font-medium text-danger-600">
-                  缺席
-                </div>
+                <StatusTag tone="danger">缺席</StatusTag>
               </div>
             ))}
           </div>
@@ -242,20 +240,16 @@ const CheckPeriodSuccess = () => {
 
         <div className="flex flex-col gap-2.5 w-full mt-2">
           {isLastAttend && (
-            <Link href={`/lessons/${id}/periods/${periodId}/check-edit`} className="w-full">
-              <button className="border border-neutral-200 text-neutral-700 px-4 py-3 rounded-xl flex items-center justify-center gap-2 w-full cursor-pointer hover:bg-neutral-50 font-semibold transition-colors">
-                <PencilLine className="w-4 h-4" />
-                <span>編輯點名</span>
-              </button>
-            </Link>
+            <Button asChild variant="secondary" size="lg" className="w-full">
+              <Link href={`/lessons/${id}/periods/${periodId}/check-edit`}>
+                <PencilLine className="size-4" />
+                編輯點名
+              </Link>
+            </Button>
           )}
-          <Link href={`/lessons/${id}`} className="w-full">
-            <button
-              className="bg-primary-500 text-white px-4 py-3 rounded-xl flex items-center justify-center gap-2 w-full cursor-pointer hover:bg-primary-600 font-semibold shadow-[0_6px_18px_-6px_rgba(43,142,110,0.7)] transition-colors"
-            >
-              <span>回到課程</span>
-            </button>
-          </Link>
+          <Button asChild size="lg" className="w-full">
+            <Link href={`/lessons/${id}`}>回到課程</Link>
+          </Button>
         </div>
       </div>
     </>

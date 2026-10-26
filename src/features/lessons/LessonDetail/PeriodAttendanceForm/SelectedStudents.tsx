@@ -1,6 +1,7 @@
 import { Student } from "@/store/slices/students";
 import { X } from "lucide-react";
 import { formatMoney } from "@/lib/money";
+import StatusTag from "@/components/StatusTag";
 
 const SelectedStudents = ({
   selectedStudents,
@@ -32,23 +33,23 @@ const SelectedStudents = ({
             alt={student.name}
             className="w-9 h-9 rounded-full"
           />
-          <span className="text-sm font-medium">{student.name}</span>
+          <span className="text-sm font-medium text-neutral-900">{student.name}</span>
           {selfCheckInStudentIds.includes(student.id) && (
-            <span className="rounded-full bg-success-100 px-1.5 text-[10px] font-medium text-success-700">
+            <StatusTag tone="outline" className="h-4.5 px-1.5 text-[10px]">
               自助簽到
-            </span>
+            </StatusTag>
           )}
           {trialStudentIds.includes(student.id) && (
-            <span className="rounded-full bg-primary-100 px-1.5 text-[10px] font-medium text-primary-900">
+            <StatusTag tone="outline" className="h-4.5 px-1.5 text-[10px]">
               體驗報名
-            </span>
+            </StatusTag>
           )}
           {(student.unpaidAmount ?? 0) > 0 && (
-            <span className="rounded-full bg-warning-100 px-1.5 text-[10px] font-bold text-warning-800">
+            <StatusTag tone="danger" className="h-4.5 px-1.5 text-[10px]">
               未付 ${formatMoney(student.unpaidAmount!)}
-            </span>
+            </StatusTag>
           )}
-          <div className="absolute top-0 right-0 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-2xl">
+          <div className="absolute top-0 right-0 w-4 h-4 bg-white rounded-full flex items-center justify-center border border-neutral-200 text-neutral-600">
             <X className="w-3 h-3" />
           </div>
         </div>

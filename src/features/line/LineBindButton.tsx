@@ -9,11 +9,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function LineBindButton() {
   const { data, isLoading } = useGetLineBindLinkQuery();
 
-  if (isLoading) return <Skeleton className="h-12 w-full rounded-lg" />;
+  if (isLoading) return <Skeleton className="h-11 w-full rounded-xl" />;
 
   if (data?.bound) {
     return (
-      <div className="rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700">
+      <div className="rounded-xl bg-primary-100 px-4 py-3 text-sm text-primary-900">
         ✓ 已綁定 LINE
       </div>
     );
@@ -21,7 +21,7 @@ export default function LineBindButton() {
 
   if (!data?.deepLink) {
     return (
-      <div className="rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-700">
+      <div className="rounded-xl border border-warning-300 bg-warning-50 px-4 py-3 text-sm text-warning-950">
         LINE 綁定尚未設定完成（缺少官方帳號 ID）。
       </div>
     );
@@ -32,7 +32,7 @@ export default function LineBindButton() {
       href={data.deepLink}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center justify-center gap-2 rounded-lg bg-[#06C755] px-4 py-3 font-semibold text-white"
+      className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#06C755] px-5 text-[15px] font-bold text-white"
     >
       綁定 LINE
     </a>

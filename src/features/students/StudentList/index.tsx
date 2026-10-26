@@ -5,7 +5,7 @@ import NewStudent from "./NewStudent";
 import { Student, useGetStudentsQuery, useGetTagsQuery } from "@/store/slices/students";
 import { useGetLessonsQuery } from "@/store/slices/lessons";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
-import StudentTable from "./StudentTable";
+import StudentTable, { StudentTableSkeleton } from "./StudentTable";
 import ActivityTabs, { ACTIVITY_META } from "./ActivityTabs";
 import Searchbar from "./Searchbar";
 import SortMenu from "@/components/SortMenu";
@@ -13,8 +13,10 @@ import FilterDrawer, { StatusFilterOption } from "./FilterDrawer";
 import ArchivedStudents from "./ArchivedStudents";
 import UnboundLineEntry from "./UnboundLineEntry";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Users, SlidersHorizontal } from "lucide-react";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { SlidersHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import {
   StudentFilters,
@@ -182,8 +184,6 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
       ?.scrollIntoView({ block: "nearest" });
   }, [isTable, selectedId]);
 
-  if (isLoading) return <ListSkeleton />;
-
   const activeCount = countActiveFilters(filters);
 
   const toggleTag = (name: string) =>
@@ -287,36 +287,48 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
       <span>
         {isNarrowed ? `符合 ${students.length} 位` : `共 ${students.length} 位`}
         {activeCount > 0 && (
-          <button
+          <Button
             type="button"
+            variant="link"
             onClick={() => setFilters(EMPTY_FILTERS)}
-            className="ml-2 font-semibold text-primary-700 hover:text-primary-900 cursor-pointer"
+            className="ml-2 text-xs font-semibold"
           >
             清除條件
-          </button>
+          </Button>
         )}
       </span>
       <SortMenu sort={sort} options={SORT_OPTIONS} onChange={setSort} />
     </div>
   );
 
-  const emptyState = (
-    <div className="flex flex-col items-center justify-center p-8 gap-3 bg-primary-50 rounded-2xl">
-      <div className="flex items-center justify-center w-12 h-12 bg-primary-500 rounded-full">
-        <Users className="w-6 h-6 text-white" />
-      </div>
-      <div className="flex flex-col items-center justify-center">
-        <p className="text-lg font-bold">
-          {isNarrowed ? "找不到符合的學生" : "還沒有學生"}
-        </p>
-        <p className="text-sm text-neutral-500 text-center">
-          {isNarrowed
-            ? "換個關鍵字，或清掉上面的篩選條件"
-            : "建立學生後就可以開始上課"}
-        </p>
-      </div>
+  const emptyState = isNarrowed ? (
+    <EmptyState
+      kind="filtered"
+      title="找不到符合的學生"
+      description="換個關鍵字，或清掉上面的篩選條件"
+      action={
+        activeCount > 0 && (
+          <Button type="button" variant="secondary" size="sm" onClick={() => setFilters(EMPTY_FILTERS)}>
+            清除篩選
+          </Button>
+        )
+      }
+    />
+  ) : (
+    <EmptyState kind="page" title="還沒有學生" description="建立學生後就可以開始上課" />
+  );
+
+  // 載入中：分區卡和快篩的數字還不知道，畫同樣大小的骨架，資料進來不會跳。
+  const activitySkeleton = (
+    <div aria-hidden="true" className="grid grid-cols-4 gap-1.5 lg:gap-3">
+      {[0, 1, 2, 3].map((i) => (
+        <Skeleton key={i} className="h-[60px] lg:h-[92px] rounded-xl" />
+      ))}
     </div>
   );
+  const chipSkeletons = ["w-20", "w-24", "w-16", "w-28"].map((width) => (
+    <Skeleton key={width} aria-hidden="true" className={`h-[26px] shrink-0 ${width}`} />
+  ));
 
   const drawer = (
     <FilterDrawer
@@ -341,7 +353,9 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
   };
 
   const list =
-    students.length === 0 ? (
+    isLoading ? (
+      <StudentTableSkeleton />
+    ) : students.length === 0 ? (
       <div className="p-4 lg:p-0">{emptyState}</div>
     ) : (
       <div data-student-list className="flex flex-col gap-4 lg:gap-6">
@@ -361,14 +375,15 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
                     <span className="hidden sm:inline"> · {section.key === "idle" ? "已付錢但沒在用" : meta.desc}</span>
                   </span>
                   {collapsible && section.students.length > 0 && (
-                    <button
+                    <Button
                       type="button"
+                      variant="link"
                       aria-expanded={open}
                       onClick={() => setShowGone((v) => !v)}
-                      className="ml-auto shrink-0 text-xs font-semibold text-primary-700 hover:text-primary-900 cursor-pointer px-1 py-1"
+                      className="ml-auto px-1 py-1 text-xs font-semibold"
                     >
                       {open ? "收起" : `展開 ${section.students.length} 位`}
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
@@ -381,7 +396,7 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
                     hideHeader={index > 0}
                   />
                 ) : (
-                  <p className="m-0 px-4 lg:px-1 text-sm text-neutral-500">沒有學生</p>
+                  <EmptyState kind="inline" title="沒有學生" className="mx-4 lg:mx-0" />
                 ))}
             </section>
           );
@@ -393,9 +408,11 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
     return (
       <div className="px-8 py-7 flex flex-col gap-5 max-w-[1440px]">
         <div className="flex flex-wrap items-center gap-4">
-          <h2 className="text-2xl font-semibold">
+          <h2 className="text-2xl font-bold">
             學生
-            <span className="ml-2 text-sm font-normal text-neutral-500">共 {allStudents.length} 位</span>
+            {!isLoading && (
+              <span className="ml-2 text-sm font-normal text-neutral-500">共 {allStudents.length} 位</span>
+            )}
           </h2>
           <div className="flex-1 min-w-[240px] max-w-md">
             <Searchbar onSearch={setQuery} inputRef={searchInputRef} compact />
@@ -405,12 +422,14 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
           </div>
         </div>
 
-        {!isSearching && (
-          <ActivityTabs value={activityView} onChange={setActivityView} counts={activityCounts} />
-        )}
+        {isLoading
+          ? activitySkeleton
+          : !isSearching && (
+              <ActivityTabs value={activityView} onChange={setActivityView} counts={activityCounts} />
+            )}
 
         <div className="flex flex-wrap items-center gap-1.5">
-          {quickChips("sm")}
+          {isLoading ? chipSkeletons : quickChips("sm")}
           <FilterChip
             size="sm"
             active={hiddenActiveCount > 0}
@@ -439,11 +458,13 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
     <div className="py-3">
       <div className="px-4 flex flex-col gap-2.5 pb-2.5 border-b border-neutral-200">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">
+          <h2 className="text-2xl font-bold">
             學生
-            <span className="ml-1.5 text-[13px] font-medium text-neutral-500">
-              {allStudents.length} 位
-            </span>
+            {!isLoading && (
+              <span className="ml-1.5 text-[13px] font-medium text-neutral-500">
+                {allStudents.length} 位
+              </span>
+            )}
           </h2>
           <NewStudent />
         </div>
@@ -452,30 +473,34 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
           <div className="flex-1 min-w-0">
             <Searchbar onSearch={setQuery} />
           </div>
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="icon"
             onClick={() => setDrawerOpen(true)}
             aria-label={
               activeCount > 0 ? `篩選與排序，已套用 ${activeCount} 個條件` : "篩選與排序"
             }
-            className="relative shrink-0 w-11 h-11 grid place-items-center rounded-xl border border-neutral-200 bg-white text-neutral-700 hover:border-primary-300 cursor-pointer"
+            className="relative size-12 border-neutral-300 text-neutral-700 hover:border-primary-300 hover:bg-white"
           >
             <SlidersHorizontal className="w-5 h-5" />
             {activeCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full border-2 border-white bg-primary-700 text-white text-[11px] font-bold">
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full border-2 border-white bg-primary-900 text-white text-[11px] font-bold">
                 {activeCount}
               </span>
             )}
-          </button>
+          </Button>
         </div>
 
-        {!isSearching && (
-          <ActivityTabs value={activityView} onChange={setActivityView} counts={activityCounts} />
-        )}
+        {isLoading
+          ? activitySkeleton
+          : !isSearching && (
+              <ActivityTabs value={activityView} onChange={setActivityView} counts={activityCounts} />
+            )}
 
         {/* 快篩：一排橫向捲動，不換行，名單才不會被往下推 */}
         <div className="-mx-4 px-4 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
-          {quickChips("sm")}
+          {isLoading ? chipSkeletons : quickChips("sm")}
         </div>
       </div>
 

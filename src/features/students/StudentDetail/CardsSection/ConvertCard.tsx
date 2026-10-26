@@ -18,6 +18,11 @@ import {
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatDate } from "@/lib/utils";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { FieldLabel, fieldControlClass } from "@/components/Field";
+import EmptyState from "@/components/EmptyState";
+import StatusTag from "@/components/StatusTag";
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
 
@@ -26,14 +31,9 @@ const formatExact = (exact: number, isExact: boolean) =>
 
 /** 比較表的差異小標籤：多 → 綠、少 → 紅、持平 → 灰。 */
 const DeltaChip = ({ delta, format }: { delta: number; format: (n: number) => string }) => {
-  const tone =
-    delta > 0
-      ? "bg-primary-100 text-primary-900"
-      : delta < 0
-        ? "bg-danger-50 text-danger-700"
-        : "bg-neutral-100 text-neutral-600";
+  const tone = delta > 0 ? "positive" : delta < 0 ? "danger" : "neutral";
   const label = delta > 0 ? `+${format(delta)}` : delta < 0 ? `−${format(-delta)}` : "±0";
-  return <span className={`text-[11px] font-semibold px-1.5 py-px rounded-full ${tone}`}>{label}</span>;
+  return <StatusTag tone={tone}>{label}</StatusTag>;
 };
 
 // 課卡轉換 —— 把還沒用完的卡換成教室裡的另一種卡（含複習卡）。
@@ -170,7 +170,7 @@ const ConvertCard = ({
               </div>
               <div className="text-right leading-none shrink-0">
                 <div className="flex items-baseline gap-0.5 justify-end">
-                  <span className="text-2xl font-bold text-primary-700">
+                  <span className="text-2xl font-bold text-primary-900">
                     {studentCard.remainingSessions}
                   </span>
                   <span className="text-sm text-neutral-500">/{studentCard.totalSessions}</span>
@@ -188,7 +188,7 @@ const ConvertCard = ({
           <section className="flex flex-col gap-2">
             <p className="text-xs font-medium text-neutral-500">轉換成</p>
             {cardOptions.length === 0 && (
-              <p className="text-neutral-500">教室裡沒有其他啟用中的卡種。</p>
+              <EmptyState kind="inline" title="教室裡沒有其他啟用中的卡種" />
             )}
             <div className="flex flex-col gap-2" role="radiogroup" aria-label="轉換成">
               {cardOptions.map((card) => {
@@ -211,7 +211,7 @@ const ConvertCard = ({
                       reason
                         ? "border-neutral-200 bg-neutral-50 opacity-60 cursor-not-allowed"
                         : selected
-                          ? "border-primary-500 bg-primary-50 cursor-pointer"
+                          ? "border-primary-700 ring-1 ring-primary-700 bg-primary-50 cursor-pointer"
                           : "border-neutral-200 bg-white hover:border-primary-300 cursor-pointer"
                     }`}
                   >
@@ -269,7 +269,7 @@ const ConvertCard = ({
                     <span className="font-semibold">{studentCard.remainingSessions} 堂</span>
                     <span className="text-neutral-400" aria-hidden>→</span>
                     <span className="flex items-center gap-1.5">
-                      <span className="font-bold text-primary-700">
+                      <span className="font-bold text-primary-900">
                         {sessionsValid ? `${sessions} 堂` : "—"}
                       </span>
                       {sessionsValid && (
@@ -302,9 +302,7 @@ const ConvertCard = ({
 
               {/* 新卡堂數 */}
               <div className="flex flex-col gap-2">
-                <label htmlFor="convert-sessions" className="text-xs font-medium text-neutral-700">
-                  新卡堂數
-                </label>
+                <FieldLabel htmlFor="convert-sessions">新卡堂數</FieldLabel>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center rounded-xl border border-neutral-300 overflow-hidden">
                     <button
@@ -338,13 +336,14 @@ const ConvertCard = ({
                     </button>
                   </div>
                   {isEdited && (
-                    <button
+                    <Button
                       type="button"
+                      variant="link"
                       onClick={() => setSessionsOverride(null)}
-                      className="py-2 text-xs text-primary-700 underline underline-offset-2 cursor-pointer"
+                      className="py-2 text-xs underline"
                     >
                       還原建議 {suggestion.suggested} 堂
-                    </button>
+                    </Button>
                   )}
                 </div>
 
@@ -362,7 +361,7 @@ const ConvertCard = ({
                 ) : (
                   <div
                     role="status"
-                    className="flex gap-2.5 rounded-xl border border-warning-200 bg-warning-50 px-3.5 py-3 text-xs leading-relaxed text-warning-900"
+                    className="flex gap-2.5 rounded-xl border border-warning-300 bg-warning-50 px-3.5 py-3 text-xs leading-relaxed text-warning-950"
                   >
                     <CircleAlert className="w-4 h-4 shrink-0 mt-px" />
                     <span>
@@ -385,12 +384,10 @@ const ConvertCard = ({
 
               {/* 新卡備註 */}
               <div className="flex flex-col gap-2">
-                <label htmlFor="convert-note" className="text-xs font-medium text-neutral-700">
-                  新卡備註
-                </label>
+                <FieldLabel htmlFor="convert-note">新卡備註</FieldLabel>
                 <textarea
                   id="convert-note"
-                  className="w-full p-2.5 rounded-xl bg-neutral-100 focus:outline-primary-500 text-sm"
+                  className={cn(fieldControlClass(), "py-3")}
                   rows={2}
                   maxLength={500}
                   value={note}
@@ -403,7 +400,7 @@ const ConvertCard = ({
           )}
 
           <div className="flex flex-col gap-1">
-            {error && <p className="text-danger-700">{error}</p>}
+            {error && <p className="text-[13px] text-danger-700">{error}</p>}
             <p className="text-xs text-neutral-500 text-center">
               轉換後 {sourceSerial} 會停用，並標記「已轉換」
             </p>

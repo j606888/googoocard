@@ -3,10 +3,12 @@
 import CardDetail from "@/features/cards/CardDetail";
 import { useGetCardDetailQuery } from "@/store/slices/cards";
 import { useSizeClass } from "@/hooks/useMediaQuery";
-import { ArrowLeftIcon } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { buttonVariants } from "@/components/ui/button";
+import CardListSkeleton from "@/features/cards/CardList/CardListSkeleton";
+import { CardDetailSkeleton } from "@/features/cards/CardDetail/CardDetailBody";
 import { useEffect } from "react";
 
 const CardPage = () => {
@@ -24,20 +26,26 @@ const CardPage = () => {
     window.scrollTo(0, 0);
   }, [id]);
 
-  if (isExpanded) return <ListSkeleton />;
+  if (isExpanded) return <CardListSkeleton />;
 
   return (
     <>
-      <div className="relative h-16 bg-primary-500 w-full flex items-center justify-center">
-        <div className="absolute left-5 top-1/2 -translate-y-1/2">
-          <Link href="/cards" aria-label="回課卡">
-            <ArrowLeftIcon className="w-6 h-6 text-white" />
+      <div className="relative h-14 bg-white border-b border-neutral-200 w-full flex items-center justify-center">
+        <div className="absolute left-2 top-1/2 -translate-y-1/2">
+          <Link href="/cards" aria-label="回課卡" className={buttonVariants({ variant: "ghost", size: "icon" })}>
+            <ChevronLeft className="size-6 text-neutral-900" />
           </Link>
         </div>
-        <h2 className="text-white text-lg font-semibold">課卡</h2>
+        <h2 className="text-lg font-bold text-neutral-900">課卡</h2>
       </div>
 
-      {isLoading || !data ? <ListSkeleton /> : <CardDetail detail={data} />}
+      {isLoading || !data ? (
+        <div className="w-full px-5 py-5">
+          <CardDetailSkeleton />
+        </div>
+      ) : (
+        <CardDetail detail={data} />
+      )}
     </>
   );
 };

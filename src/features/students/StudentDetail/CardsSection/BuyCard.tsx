@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import { Student, StudentCardWithCard } from "@/store/slices/students";
@@ -8,6 +8,11 @@ import { Card, useGetCardsQuery } from "@/store/slices/cards";
 import { canBuyCard } from "@/domains/qualification";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { formatMoney } from "@/lib/money";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { FieldError, FieldLabel, fieldControlClass } from "@/components/Field";
+import EmptyState from "@/components/EmptyState";
+import StatusTag from "@/components/StatusTag";
 
 type BuyableStudent = Pick<Student, "id" | "name" | "danceLevels"> & {
   /** 有帶的話：卡種依上次買過排序、標題顯示目前剩幾堂。 */
@@ -32,9 +37,6 @@ export const buyBlockedReason = (card: Card, student: Pick<Student, "danceLevels
 /** 卡種清單先顯示幾張，其餘收在「顯示其他 N 種卡」。 */
 const VISIBLE_CARD_COUNT = 4;
 const NOTE_MAX = 500;
-
-const inputClass =
-  "w-full h-11 border border-neutral-300 rounded-lg px-3 text-[15px] tabular-nums focus:outline-none focus:ring-1 focus:ring-primary-400";
 
 /**
  * 卡種排序：這位學生買過的在前（越近買的越前面），其餘照課卡頁的順序；
@@ -82,6 +84,7 @@ export const BuyCardDialog = ({
   const [showAll, setShowAll] = useState(false);
   const [errors, setErrors] = useState<{ selectedCardId?: string; cardSessions?: string }>({});
   const [createStudentCard, { isLoading }] = useCreateStudentCardMutation();
+  const fieldId = useId();
 
   const cardOptions = useMemo(
     () => orderCards(cards?.activeCards ?? [], student),
@@ -231,9 +234,7 @@ export const BuyCardDialog = ({
                     <span className="flex items-center gap-1.5 flex-wrap text-[15px] font-semibold">
                       {card.name}
                       {card.isPracticeCard && (
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-warning-100 text-warning-900">
-                          複習
-                        </span>
+                        <StatusTag tone="warning">複習</StatusTag>
                       )}
                       {card.isPracticeCard && card.danceStyle && (
                         <span
@@ -243,7 +244,7 @@ export const BuyCardDialog = ({
                         </span>
                       )}
                     </span>
-                    <span className={`block text-xs ${blockedReason ? "text-warning-900" : "text-neutral-500"}`}>
+                    <span className={`block text-xs ${blockedReason ? "text-warning-950" : "text-neutral-500"}`}>
                       {blockedReason ??
                         [`${card.sessions} 堂`, boughtCardIds.has(card.id) ? "買過" : null]
                           .filter(Boolean)
@@ -256,48 +257,57 @@ export const BuyCardDialog = ({
             })}
           </div>
           {hiddenCount > 0 && (
-            <button
+            <Button
               type="button"
+              variant="link"
               onClick={() => setShowAll(true)}
-              className="mt-1.5 py-1.5 text-sm font-semibold text-primary-700 hover:text-primary-900 cursor-pointer"
+              className="mt-1.5 py-1.5 text-sm font-semibold"
             >
               顯示其他 {hiddenCount} 種卡
-            </button>
+            </Button>
           )}
           {cardOptions.length === 0 && (
-            <p className="text-sm text-neutral-500">還沒有啟用中的卡種，請先到「課卡」頁新增。</p>
+            <EmptyState kind="inline" title="還沒有啟用中的卡種" description="請先到「課卡」頁新增。" />
           )}
-          {errors.selectedCardId && <p className="mt-1 text-danger-500 text-sm">{errors.selectedCardId}</p>}
+          {errors.selectedCardId && (
+            <div className="mt-1">
+              <FieldError>{errors.selectedCardId}</FieldError>
+            </div>
+          )}
         </fieldset>
 
         {selectedCardId && (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-neutral-700">堂數</span>
+              <div className="flex flex-col gap-1.5">
+                <FieldLabel htmlFor={`${fieldId}-sessions`}>堂數</FieldLabel>
                 <input
+                  id={`${fieldId}-sessions`}
                   type="number"
                   inputMode="numeric"
                   value={cardSessions}
                   onChange={handleSessionsChange}
-                  className={inputClass}
+                  aria-invalid={errors.cardSessions ? true : undefined}
+                  aria-describedby={errors.cardSessions ? `${fieldId}-sessions-error` : undefined}
+                  className={cn(fieldControlClass(!!errors.cardSessions), "h-12 tabular-nums")}
                 />
-                {errors.cardSessions && <span className="text-xs text-danger-500">{errors.cardSessions}</span>}
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-neutral-700">金額</span>
+                <FieldError id={`${fieldId}-sessions-error`}>{errors.cardSessions}</FieldError>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <FieldLabel htmlFor={`${fieldId}-price`}>金額</FieldLabel>
                 <input
+                  id={`${fieldId}-price`}
                   type="number"
                   inputMode="numeric"
                   value={cardPrice}
                   onChange={(e) => setCardPrice(e.target.value)}
-                  className={inputClass}
+                  className={cn(fieldControlClass(), "h-12 tabular-nums")}
                 />
-              </label>
+              </div>
             </div>
 
             <div>
-              <div className="text-sm font-semibold mb-1.5">付款</div>
+              <div className="text-sm font-medium text-neutral-900 mb-1.5">付款</div>
               <SegmentedTabs
                 ariaLabel="付款狀態"
                 options={PAYMENT_OPTIONS}
@@ -308,18 +318,19 @@ export const BuyCardDialog = ({
               {!isPaid && <p className="mt-1.5 text-xs text-neutral-500">尚未付款，卡片照樣可以用</p>}
             </div>
 
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold">
-                備註 <span className="font-normal text-neutral-500">（選填）</span>
-              </span>
+            <div className="flex flex-col gap-1.5">
+              <FieldLabel htmlFor={`${fieldId}-note`} hint="（選填）">
+                備註
+              </FieldLabel>
               <textarea
+                id={`${fieldId}-note`}
                 value={note}
                 onChange={(e) => setNote(e.target.value.slice(0, NOTE_MAX))}
                 rows={2}
                 placeholder="例如：朋友介紹優惠、分兩次付款"
-                className="w-full text-sm border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary-400"
+                className={cn(fieldControlClass(), "py-3")}
               />
-            </label>
+            </div>
           </>
         )}
       </div>
@@ -342,17 +353,14 @@ const BuyCard = ({
 
   return (
     <>
-      <button
+      <Button
         type="button"
-        className={
-          variant === "header"
-            ? "flex items-center gap-1.5 h-10 px-4 rounded-xl bg-primary-900 text-white text-sm font-semibold cursor-pointer hover:bg-primary-700"
-            : "w-full h-[50px] rounded-2xl bg-primary-900 text-white text-base font-bold shadow-lg cursor-pointer hover:bg-primary-700"
-        }
+        size={variant === "header" ? "md" : "lg"}
+        className={variant === "header" ? undefined : "w-full shadow-lg"}
         onClick={() => setIsDrawerOpen(true)}
       >
         ＋ 購買課卡
-      </button>
+      </Button>
       <BuyCardDialog student={student} open={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
     </>
   );

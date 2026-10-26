@@ -6,6 +6,8 @@ import { formatDate } from "@/lib/utils";
 import { useGetUnpaidStudentCardsQuery } from "@/store/slices/students";
 import { formatMoney } from "@/lib/money";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
 import ConfirmPaymentDrawer, {
   ConfirmPaymentTarget,
 } from "@/features/students/ConfirmPaymentDrawer";
@@ -17,7 +19,7 @@ export default function UnpaidTab() {
   if (isLoading) {
     return (
       <div
-        className="border border-neutral-200 rounded-sm bg-white overflow-hidden"
+        className="border border-neutral-200 rounded-2xl bg-white overflow-hidden"
         aria-busy="true"
         aria-label="載入未付款清單中"
       >
@@ -30,7 +32,7 @@ export default function UnpaidTab() {
                 <Skeleton className="h-3 w-28" />
               </div>
               <Skeleton className="shrink-0 h-5 w-14" />
-              <Skeleton className="shrink-0 h-7 w-[88px] rounded-full" />
+              <Skeleton className="shrink-0 h-9 w-[104px] rounded-lg" />
             </div>
           ))}
         </div>
@@ -40,20 +42,17 @@ export default function UnpaidTab() {
 
   if (!cards || cards.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-6 gap-3 bg-success-50 rounded-sm">
-        <div className="flex items-center justify-center w-12 h-12 bg-success-500 rounded-full">
-          <CircleDollarSign className="w-6 h-6 text-white" />
-        </div>
-        <div className="flex flex-col items-center justify-center">
-          <p className="text-lg font-bold">沒有未付款的課卡</p>
-          <p className="text-sm text-neutral-500 text-center">所有課卡都已收款。</p>
-        </div>
-      </div>
+      <EmptyState
+        kind="inline"
+        icon={<CircleDollarSign />}
+        title="沒有未付款的課卡"
+        description="所有課卡都已收款。"
+      />
     );
   }
 
   return (
-    <div className="border border-neutral-200 rounded-sm bg-white overflow-hidden">
+    <div className="border border-neutral-200 rounded-2xl bg-white overflow-hidden">
       <div className="divide-y divide-neutral-200">
         {cards.map((card) => (
           <div key={card.id} className="flex items-center gap-3 px-3 py-2.5">
@@ -69,11 +68,13 @@ export default function UnpaidTab() {
                 {card.purchasedBy?.name ? ` · ${card.purchasedBy.name}` : ""}
               </p>
             </div>
-            <div className="shrink-0 text-right text-base font-bold text-danger-600">
+            <div className="shrink-0 text-right text-base font-bold text-danger-700">
               ${formatMoney(card.finalPrice)}
             </div>
-            <button
-              className="shrink-0 inline-flex items-center gap-1 text-xs font-medium bg-success-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-success-700 transition-colors disabled:opacity-50"
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1"
               onClick={() =>
                 setPaying({
                   studentId: card.studentId,
@@ -85,9 +86,9 @@ export default function UnpaidTab() {
                 })
               }
             >
-              <CircleDollarSign className="w-3.5 h-3.5" />
+              <CircleDollarSign className="size-4" />
               <span>確認付款</span>
-            </button>
+            </Button>
           </div>
         ))}
       </div>

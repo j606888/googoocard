@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { isMockLiff, loadLiff } from "@/lib/liffClient";
 
 const OA_ID = process.env.NEXT_PUBLIC_LINE_OA_ID ?? "";
@@ -36,20 +37,21 @@ const AddFriendPrompt = () => {
   if (!show) return null;
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-white p-4">
+    <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
       <UserPlus className="h-5 w-5 shrink-0 text-primary-700" />
       <p className="flex-1 text-sm leading-relaxed">
         加入官方帳號，課卡快用完會通知你，聊天室也能直接叫出選單
       </p>
-      <a
-        href={`https://line.me/R/ti/p/${encodeURIComponent(oaId)}`}
-        // The simulator's phone is an iframe and line.me refuses to be framed.
-        target={mock ? "_blank" : undefined}
-        rel="noreferrer"
-        className="shrink-0 rounded-lg bg-primary-700 px-3 py-2 text-sm font-medium text-white"
-      >
-        加好友
-      </a>
+      <Button asChild size="sm">
+        <a
+          href={`https://line.me/R/ti/p/${encodeURIComponent(oaId)}`}
+          // The simulator's phone is an iframe and line.me refuses to be framed.
+          target={mock ? "_blank" : undefined}
+          rel="noreferrer"
+        >
+          加好友
+        </a>
+      </Button>
     </div>
   );
 };

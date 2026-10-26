@@ -30,7 +30,7 @@ const Tile = ({
 }) => {
   return (
     <div className="flex flex-col items-center justify-center gap-1 py-4 border border-neutral-200 rounded-2xl bg-white">
-      <div className="flex items-center gap-1 text-xs text-neutral-400">
+      <div className="flex items-center gap-1 text-xs text-neutral-500">
         <Icon className="w-3.5 h-3.5" />
         <span>{label}</span>
       </div>

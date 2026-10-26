@@ -8,7 +8,7 @@ import SubNavbar from "@/features/SubNavbar";
 import { useState } from "react";
 import PeriodSection from "./PeriodSection";
 import SettingSection from "./SettingSection";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import LessonDetailHeader from "./LessonDetailHeader";
 import AttendanceOverview from "./AttendanceOverview";
 import { useSizeClass } from "@/hooks/useMediaQuery";
@@ -43,7 +43,44 @@ const LessonDetail = () => {
         />
       )}
       {isLessonLoading || isStudentsLoading || !lesson ? (
-        <ListSkeleton />
+        isExpanded ? (
+          <div className="flex flex-col">
+            <div className="border-b border-neutral-200 px-8 py-5 flex flex-col gap-4">
+              <Skeleton className="h-3.5 w-40" />
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-12 rounded-xl" />
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-6 w-56" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-5.5 w-16" />
+                    <Skeleton className="h-5.5 w-14" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Skeleton className="h-9 w-28" />
+                <Skeleton className="h-9 w-32" />
+                <Skeleton className="h-9 w-28" />
+              </div>
+            </div>
+            <div className="flex">
+              <div className="w-96 flex-shrink-0 border-r border-neutral-200 py-4">
+                <PeriodTimelineSkeleton />
+              </div>
+              <div className="flex-1 p-6 flex flex-col gap-4">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-28 w-full rounded-2xl" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-48 w-full rounded-2xl opacity-50" />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <LessonTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            <PeriodTimelineSkeleton />
+          </div>
+        )
       ) : isExpanded ? (
         /* 桌面：兩欄（＋可切換的設定欄） */
         <div className="flex flex-col min-h-[calc(100vh-0px)]">
@@ -88,5 +125,26 @@ const LessonDetail = () => {
     </>
   );
 };
+
+const TIMELINE_FADE = ["", "", "opacity-75", "opacity-50", "opacity-25"];
+
+/** PeriodSection 的時間軸形狀：左邊圓點、右邊日期＋時間。 */
+const PeriodTimelineSkeleton = () => (
+  <div className="flex flex-col gap-4 px-5">
+    <Skeleton className="h-4 w-28" />
+    <div className="flex flex-col gap-5">
+      {TIMELINE_FADE.map((fade, index) => (
+        <div key={index} className={`flex items-center gap-3 ${fade}`}>
+          <Skeleton className="size-5 shrink-0" />
+          <div className="flex flex-col gap-1.5">
+            <Skeleton className={`h-3.5 ${index % 2 ? "w-20" : "w-24"}`} />
+            <Skeleton className="h-3 w-16" />
+          </div>
+          <Skeleton className="ml-auto h-3 w-12" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 export default LessonDetail;

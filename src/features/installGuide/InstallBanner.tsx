@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Smartphone, X } from "lucide-react";
 import { useInstallState } from "@/hooks/useInstallState";
+import { Button } from "@/components/ui/button";
 import InstallGuideDialog from "./InstallGuideDialog";
 
 /**
@@ -26,13 +27,15 @@ const InstallBanner = () => {
           加到主畫面，像 App 一樣使用
           <span className="ml-1 font-semibold underline underline-offset-2">看怎麼做</span>
         </button>
-        <button
+        <Button
+          variant="ghost"
+          size="iconSm"
           onClick={dismissBanner}
           aria-label="不再顯示"
-          className="rounded-full p-2 text-primary-700 active:bg-primary-100"
+          className="text-primary-700 hover:bg-primary-100 active:bg-primary-100"
         >
           <X className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
       <InstallGuideDialog
         open={guideOpen}

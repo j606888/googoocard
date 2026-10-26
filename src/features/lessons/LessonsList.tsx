@@ -1,15 +1,17 @@
 "use client";
 
-import { AlarmClock, BookOpenText, Plus } from "lucide-react";
+import { AlarmClock, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { TableSkeleton } from "@/components/skeletons/ListSkeleton";
 import FinishedLessons from "./FinishedLessons";
 import TabAndSort from "./TabAndSort";
-import LessonTable from "./LessonTable";
+import LessonTable, { LessonTableSkeleton } from "./LessonTable";
 import LessonGroupSection from "./LessonGroupSection";
 import Drawer from "@/components/Drawer";
 import { useState } from "react";
 import { useLessonsList } from "./useLessonsList";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
+import Field from "@/components/Field";
 
 const LessonsList = () => {
   const router = useRouter();
@@ -48,14 +50,11 @@ const LessonsList = () => {
   return (
     <div className="px-5 py-3 lg:px-8 lg:py-6 w-full max-w-[1120px]">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold">課程</h2>
-        <button
-          className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600"
-          onClick={() => router.push("/lessons/new")}
-        >
-          <Plus className="w-4 h-4" />
-          <span className="font-medium">新增課程</span>
-        </button>
+        <h2 className="text-2xl font-bold text-neutral-900">課程</h2>
+        <Button onClick={() => router.push("/lessons/new")}>
+          <Plus />
+          新增課程
+        </Button>
       </div>
 
       <TabAndSort
@@ -75,7 +74,7 @@ const LessonsList = () => {
       />
 
       {(attention.dueCount > 0 || attention.needsNextCount > 0) && (
-        <div className="flex items-center gap-2.5 mb-4 px-4 py-2.5 rounded-xl bg-warning-50 border border-warning-200 text-sm text-neutral-700">
+        <div className="flex items-center gap-2.5 mb-4 px-4 py-2.5 rounded-xl bg-warning-50 border border-warning-300 text-sm text-warning-950">
           <AlarmClock className="w-4 h-4 shrink-0 text-warning-700" />
           <span>
             {[
@@ -90,23 +89,39 @@ const LessonsList = () => {
       )}
 
       {isLoading ? (
-        <TableSkeleton />
+        <LessonTableSkeleton />
       ) : lessons?.lessons.length === 0 && !useGroupedView ? (
-        <div className="flex flex-col items-center justify-center p-8 gap-3 bg-primary-50 rounded-2xl">
-          <div className="flex items-center justify-center w-12 h-12 bg-primary-500 rounded-full">
-            <BookOpenText className="w-6 h-6 text-white" />
-          </div>
-          <div className="flex flex-col items-center justify-center">
-            <p className="text-lg font-bold">
-              {isFiltering ? "沒有符合的課程" : "還沒有課程"}
-            </p>
-            <p className="text-sm text-neutral-500 text-center">
-              {isFiltering
-                ? "換個關鍵字或篩選再試試。"
-                : "建立課程就可以開始上課了！"}
-            </p>
-          </div>
-        </div>
+        isFiltering ? (
+          <EmptyState
+            kind="filtered"
+            title={search.trim() ? `沒有符合「${search.trim()}」的課程` : "沒有符合的課程"}
+            description="換個關鍵字或篩選再試試。"
+            action={
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setSearch("");
+                  setDanceStyleId(null);
+                  setLocationId(null);
+                }}
+              >
+                清除篩選
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            title="還沒有課程"
+            description="建立課程就可以開始上課了！"
+            action={
+              <Button onClick={() => router.push("/lessons/new")}>
+                <Plus />
+                新增課程
+              </Button>
+            }
+          />
+        )
       ) : useGroupedView ? (
         <div className="flex flex-col gap-5">
           {sections.map((section) => (
@@ -117,13 +132,14 @@ const LessonsList = () => {
               onToggle={() => toggleSection(section.id)}
             />
           ))}
-          <button
+          <Button
             onClick={() => setCreateGroupOpen(true)}
-            className="flex items-center justify-center gap-2 border border-dashed border-neutral-300 rounded-2xl text-neutral-500 py-3 text-sm font-semibold cursor-pointer hover:border-neutral-400 hover:text-neutral-700"
+            variant="ghost"
+            className="w-full h-12 rounded-2xl border-[1.5px] border-dashed border-neutral-300 text-neutral-500 hover:bg-transparent hover:border-neutral-400 hover:text-neutral-700"
           >
             <Plus className="w-4 h-4" />
             新增群組
-          </button>
+          </Button>
         </div>
       ) : (
         <>
@@ -137,13 +153,9 @@ const LessonsList = () => {
           )}
           {lessons?.hasNextPage && (
             <div className="flex justify-center mt-5">
-              <button
-                onClick={loadMore}
-                disabled={isFetching}
-                className="px-5 py-2 rounded-full border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
-              >
+              <Button variant="secondary" size="sm" onClick={loadMore} isLoading={isFetching}>
                 {isFetching ? "載入中…" : "載入更多"}
-              </button>
+              </Button>
             </div>
           )}
         </>
@@ -156,10 +168,15 @@ const LessonsList = () => {
         onSubmit={handleCreateGroup}
         isLoading={isCreatingGroup}
       >
-        <form>
-          <label className="block mb-2 font-medium">名稱</label>
-          <input
-            className="w-full mb-4 p-2 rounded bg-neutral-100 focus:outline-primary-500"
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCreateGroup();
+          }}
+        >
+          <Field
+            label="名稱"
+            className="mb-4"
             placeholder="例如：週日課"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}

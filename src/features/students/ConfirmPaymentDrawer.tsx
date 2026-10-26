@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import SegmentedTabs from "@/components/SegmentedTabs";
+import Field, { FieldLabel, fieldControlClass } from "@/components/Field";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/money";
 import { formatCardSerial } from "@/lib/cardSerial";
 import {
@@ -87,7 +89,7 @@ export default function ConfirmPaymentDrawer({
       submitText={`已收到 $${formatMoney(target.finalPrice)}`}
     >
       <div className="flex flex-col gap-5 pb-4">
-        <div className="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
+        <div className="flex items-center justify-between rounded-xl bg-neutral-50 px-4 py-3">
           <div className="min-w-0">
             <p className="font-semibold truncate">{target.cardName}</p>
             {target.serialNumber !== undefined && (
@@ -98,7 +100,7 @@ export default function ConfirmPaymentDrawer({
         </div>
 
         <div className="flex flex-col gap-2">
-          <p className="font-medium">怎麼付的</p>
+          <p className="text-sm font-medium text-neutral-900">怎麼付的</p>
           <SegmentedTabs
             ariaLabel="付款方式"
             options={METHOD_OPTIONS}
@@ -109,28 +111,21 @@ export default function ConfirmPaymentDrawer({
         </div>
 
         {method === "TRANSFER" && (
-          <div className="flex flex-col gap-2">
-            <label htmlFor="payment-reference" className="font-medium">
-              轉帳末五碼 <span className="text-sm font-normal text-neutral-500">（選填）</span>
-            </label>
-            <input
-              id="payment-reference"
-              className="w-full rounded bg-neutral-100 p-2 tracking-widest focus:outline-primary-500"
-              inputMode="numeric"
-              maxLength={20}
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-            />
-          </div>
+          <Field
+            label="轉帳末五碼"
+            hint="（選填）"
+            inputMode="numeric"
+            maxLength={20}
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+          />
         )}
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="payment-receiver" className="font-medium">
-            錢現在在誰手上
-          </label>
+        <div className="flex flex-col gap-1.5">
+          <FieldLabel htmlFor="payment-receiver">錢現在在誰手上</FieldLabel>
           <select
             id="payment-receiver"
-            className="w-full rounded bg-neutral-100 p-2 focus:outline-primary-500"
+            className={cn(fieldControlClass(), "h-12")}
             value={receiver ?? ""}
             onChange={(e) => setReceiverUserId(Number(e.target.value))}
           >

@@ -5,6 +5,7 @@ import Drawer from "@/components/Drawer";
 import { useCreateStudentMutation } from "@/store/slices/students";
 import InputField from "@/components/InputField";
 import AvatarPicker, { DEFAULT_AVATAR } from "@/features/students/AvatarPicker";
+import { Button } from "@/components/ui/button";
 
 const validationErrors = {
   name: "請輸入姓名",
@@ -72,14 +73,10 @@ const NewStudent = () => {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="bg-primary-500 text-white px-4 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600"
-      >
+      <Button type="button" onClick={() => setOpen(true)}>
         <Plus className="w-4 h-4" />
-        <span className="font-medium">新增學生</span>
-      </button>
+        新增學生
+      </Button>
       <Drawer
         title="新增學生"
         open={open}
@@ -88,7 +85,13 @@ const NewStudent = () => {
         isLoading={isLoading}
         disabled={avatarUploading}
       >
-        <form className="mb-6 flex flex-col gap-3" onSubmit={(e) => e.preventDefault()}>
+        <form
+          className="mb-6 flex flex-col gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!avatarUploading) handleSubmit();
+          }}
+        >
           <InputField
             label="學生姓名"
             value={name}

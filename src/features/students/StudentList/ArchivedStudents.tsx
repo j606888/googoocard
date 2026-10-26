@@ -12,6 +12,8 @@ import {
   useGetStudentsQuery,
   useSetStudentArchivedMutation,
 } from "@/store/slices/students";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
 
 const ArchivedRow = ({ student }: { student: Student }) => {
   const [setArchived, { isLoading }] = useSetStudentArchivedMutation();
@@ -28,14 +30,15 @@ const ArchivedRow = ({ student }: { student: Student }) => {
         className="flex-1 min-w-0 flex items-center gap-2 hover:underline"
       >
         <span className="font-medium truncate">{student.name}</span>
-        <span className="text-[11px] font-mono text-neutral-400 shrink-0">
+        <span className="text-[11px] font-mono text-neutral-500 shrink-0">
           #{student.number}
         </span>
       </Link>
-      <button
+      <Button
         type="button"
-        disabled={isLoading}
-        className="shrink-0 px-3 py-1.5 rounded-lg border border-neutral-300 text-sm font-semibold text-primary-900 hover:bg-neutral-50 cursor-pointer disabled:opacity-50"
+        variant="secondary"
+        size="sm"
+        isLoading={isLoading}
         onClick={async () => {
           try {
             await setArchived({ id: student.id, archived: false }).unwrap();
@@ -46,7 +49,7 @@ const ArchivedRow = ({ student }: { student: Student }) => {
         }}
       >
         還原
-      </button>
+      </Button>
     </li>
   );
 };
@@ -81,22 +84,22 @@ const ArchivedStudents = ({ className = "" }: { className?: string }) => {
           <ResponsiveDialogTitle className="text-xl font-semibold">
             已封存的學生
           </ResponsiveDialogTitle>
-          <button
+          <Button
             type="button"
-            className="text-neutral-500 absolute right-0 top-0 cursor-pointer"
+            variant="ghost"
+            size="iconSm"
+            className="absolute -right-2 -top-1.5 text-neutral-500"
             onClick={() => setOpen(false)}
             aria-label="關閉"
           >
             <X className="w-6 h-6" />
-          </button>
+          </Button>
         </div>
         <p className="text-sm text-neutral-500 mb-2">
           還原後會回到名單，課卡和出席紀錄都還在。
         </p>
         {archived.length === 0 && (
-          <p className="py-6 text-center text-sm text-neutral-400">
-            沒有封存的學生了
-          </p>
+          <EmptyState kind="inline" title="沒有封存的學生了" className="my-2" />
         )}
         <ul className="max-h-[60vh] overflow-y-auto">
           {archived.map((student) => (

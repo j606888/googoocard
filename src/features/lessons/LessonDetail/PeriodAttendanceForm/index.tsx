@@ -114,7 +114,8 @@ const PeriodAttendanceForm = ({
       onClick={() => onSubmit(selectedIds)}
       disabled={selectedStudents.length === 0}
       isLoading={isLoading}
-      className="w-full rounded-xl shadow-[0_6px_18px_-6px_rgba(43,142,110,0.7)]"
+      size="lg"
+      className="w-full"
     >
       {submitLabel}
       {selectedStudents.length > 0 && `（${selectedStudents.length} 人）`}

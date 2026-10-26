@@ -18,7 +18,7 @@ const SubNavbar = ({
 }) => {
   return (
     <div
-      className={`sticky bg-primary-500 w-full flex flex-col items-center justify-center top-0 z-10 ${
+      className={`sticky bg-primary-900 w-full flex flex-col items-center justify-center top-0 z-10 ${
         subtitle ? "py-3" : "h-16"
       } ${className ?? ""}`}
     >
@@ -29,8 +29,8 @@ const SubNavbar = ({
           </Link>
         )}
       </div>
-      <h2 className="text-white text-lg font-semibold">{title}</h2>
-      {subtitle && <p className="text-white/85 text-xs mt-0.5">{subtitle}</p>}
+      <h2 className="text-white text-lg font-bold">{title}</h2>
+      {subtitle && <p className="text-primary-100 text-[13px] mt-0.5">{subtitle}</p>}
       {withTodoBell && (
         <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center justify-center">
           <TodoBell className="" tone="onPrimary" />

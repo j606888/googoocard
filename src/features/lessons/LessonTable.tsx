@@ -12,6 +12,8 @@ import { lessonLevelLabel } from "@/lib/danceLevels";
 import { setLessonCloneSource } from "@/lib/lessonDraftStorage";
 import { daysUntilLabel, formatPeriodRange, lessonRowAction } from "./lessonGrouping";
 import NextPeriodDrawer from "./NextPeriodDrawer";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -26,7 +28,7 @@ const NextCell = ({ lesson }: { lesson: LessonSummary }) => {
   if (lesson.dueForAttendanceCount > 0 && lesson.dueForAttendanceDate) {
     const due = new Date(lesson.dueForAttendanceDate);
     return (
-      <span className="font-semibold text-warning-700 truncate">
+      <span className="font-semibold text-warning-900 truncate">
         {lesson.dueForAttendanceIsBacklog
           ? `${formatDay(due)} 未點名`
           : `${formatDay(due)} ${format(due, "HH:mm")}`}
@@ -39,17 +41,17 @@ const NextCell = ({ lesson }: { lesson: LessonSummary }) => {
     const until = daysUntilLabel(next, new Date());
     return (
       <>
-        <span className="lg:hidden text-neutral-400 shrink-0">下一堂</span>
+        <span className="lg:hidden text-neutral-500 shrink-0">下一堂</span>
         <span className="truncate">{`${formatDay(next)} ${format(next, "HH:mm")}`}</span>
         {until && <span className="text-neutral-500 shrink-0">· {until}</span>}
       </>
     );
   }
   if (lesson.status === "finished" && lesson.lastPeriodEnd) {
-    return <span className="text-neutral-400">{format(new Date(lesson.lastPeriodEnd), "M/d")} 結束</span>;
+    return <span className="text-neutral-500">{format(new Date(lesson.lastPeriodEnd), "M/d")} 結束</span>;
   }
   return (
-    <span className="text-neutral-400 truncate">
+    <span className="text-neutral-500 truncate">
       尚未排
       {lesson.lastPeriodStart && ` · 上次 ${format(new Date(lesson.lastPeriodStart), "M/d")}`}
     </span>
@@ -65,7 +67,7 @@ const ProgressCell = ({ lesson }: { lesson: LessonSummary }) => {
       </span>
     );
   }
-  if (lesson.totalPeriods === 0) return <span className="text-neutral-400">—</span>;
+  if (lesson.totalPeriods === 0) return <span className="text-neutral-500">—</span>;
   const pct = Math.round((lesson.attendedCount / lesson.totalPeriods) * 100);
   return (
     <span className="flex items-center gap-2 min-w-0">
@@ -87,7 +89,7 @@ const PeriodRangeCell = ({ lesson }: { lesson: LessonSummary }) => {
   const range = formatPeriodRange(lesson.firstPeriodStart, lesson.lastPeriodEnd, new Date());
   return (
     <>
-      <span className="lg:hidden text-neutral-400 shrink-0">期間</span>
+      <span className="lg:hidden text-neutral-500 shrink-0">期間</span>
       <span className="truncate text-neutral-600">{range ?? "—"}</span>
     </>
   );
@@ -178,7 +180,7 @@ const LessonTable = ({
       width: "64px",
       render: (lesson) => (
         <>
-          <Users className="lg:hidden w-3.5 h-3.5 text-neutral-400" />
+          <Users className="lg:hidden w-3.5 h-3.5 text-neutral-500" />
           <span className="tabular-nums">{lesson.studentCount}</span>
         </>
       ),
@@ -211,45 +213,51 @@ const LessonTable = ({
         const action = lessonRowAction(lesson);
         if (action.type === "attend") {
           return (
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 router.push(`/lessons/${lesson.id}/periods/${action.periodId}/check`);
               }}
-              className="lg:ml-auto flex items-center gap-1.5 shrink-0 bg-warning-700 hover:bg-warning-600 text-white text-sm font-semibold px-3 py-2 rounded-lg transition-colors cursor-pointer"
+              className="lg:ml-auto"
             >
-              <AlarmClock className="w-4 h-4" />
+              <AlarmClock className="size-4" />
               {lesson.dueForAttendanceIsBacklog ? "補點名" : "點名"}
-            </button>
+            </Button>
           );
         }
         if (action.type === "schedule") {
           return (
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 setScheduling(lesson);
               }}
-              className="lg:ml-auto flex items-center gap-1 shrink-0 border border-primary-500 text-primary-700 bg-white hover:bg-primary-50 text-sm font-semibold px-3 py-2 rounded-lg transition-colors cursor-pointer"
+              className="lg:ml-auto gap-1"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="size-4" />
               下一堂
-            </button>
+            </Button>
           );
         }
         return (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               handleClone(lesson);
             }}
-            className="lg:ml-auto flex items-center gap-1.5 shrink-0 p-2 lg:px-3 lg:py-1.5 lg:border lg:border-neutral-200 text-neutral-500 hover:text-primary-700 hover:bg-primary-50 text-sm font-medium rounded-lg transition-colors cursor-pointer"
+            className="lg:ml-auto max-lg:w-9 max-lg:px-0 lg:border-[1.5px] lg:border-neutral-200 text-neutral-600 hover:text-primary-700 hover:bg-primary-50"
             aria-label={`複製「${lesson.name}」開新一期`}
             title="複製這門課的設定，開新一期"
           >
             <Copy className="w-4 h-4 lg:hidden" />
             <span className="max-lg:sr-only">複製開新期</span>
-          </button>
+          </Button>
         );
       },
     },
@@ -267,6 +275,69 @@ const LessonTable = ({
         <NextPeriodDrawer lesson={scheduling} onClose={() => setScheduling(null)} />
       )}
     </>
+  );
+};
+
+const SKELETON_COLUMNS = [
+  { header: "課程", width: "minmax(0,2.4fr)" },
+  { header: "舞種 · 程度", width: "minmax(0,1.1fr)" },
+  { header: "學生", width: "64px" },
+  { header: "進度", width: "minmax(0,1.3fr)" },
+  { header: "下一堂", width: "minmax(0,1.4fr)" },
+  { header: "", width: "128px" },
+];
+const SKELETON_ROWS = [
+  { name: "w-36", fade: "" },
+  { name: "w-28", fade: "" },
+  { name: "w-32", fade: "opacity-75" },
+  { name: "w-24", fade: "opacity-50" },
+  { name: "w-28", fade: "opacity-25" },
+];
+
+/** 載入中：跟 `LessonTable`（DataView）同一個外框與真的表頭，只有資料列是骨架。 */
+export const LessonTableSkeleton = () => {
+  const trackVars = {
+    "--dv-cols-compact": "minmax(0,1fr) auto",
+    "--dv-cols-expanded": SKELETON_COLUMNS.map((c) => c.width).join(" "),
+  } as React.CSSProperties;
+  const grid =
+    "grid grid-cols-[var(--dv-cols-compact)] lg:grid-cols-[var(--dv-cols-expanded)] gap-x-3 gap-y-2 lg:gap-3";
+
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden" aria-busy="true">
+      <div
+        style={trackVars}
+        className={`${grid} hidden lg:grid px-4.5 py-2.5 bg-neutral-50 border-b border-neutral-100 text-xs font-semibold text-neutral-500`}
+      >
+        {SKELETON_COLUMNS.map((c) => (
+          <div key={c.header || "action"}>{c.header}</div>
+        ))}
+      </div>
+      {SKELETON_ROWS.map((row, index) => (
+        <div
+          key={index}
+          style={trackVars}
+          className={`${grid} items-center px-3.5 py-3 lg:px-4.5 lg:py-3.5 border-b border-neutral-100 last:border-b-0 ${row.fade}`}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <Skeleton className="w-1 h-9 shrink-0" />
+            <div className="flex flex-col gap-1.5">
+              <Skeleton className={`h-3.5 ${row.name}`} />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          </div>
+          <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 lg:contents">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-3 w-6" />
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          <div className="col-start-2 row-start-1 lg:col-auto lg:row-auto flex justify-end">
+            <Skeleton className="h-9 w-20 rounded-lg" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 };
 

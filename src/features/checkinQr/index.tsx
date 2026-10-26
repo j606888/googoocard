@@ -9,10 +9,11 @@ import {
   useRotateCheckinKeyMutation,
 } from "@/store/slices/classrooms";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 const PageHeader = () => (
   <div className="print:hidden">
-    <h1 className="text-xl font-semibold">簽到 QR Code</h1>
+    <h1 className="text-2xl font-bold text-neutral-900">簽到 QR Code</h1>
     <p className="mt-1 text-sm leading-relaxed text-neutral-500">
       印出來貼在教室門口。學生用手機相機掃描會在 LINE 裡打開：已綁定的直接選課報到，
       第一次來的填暱稱就能報到；沒卡的當場選一張，下課再付款。
@@ -54,14 +55,14 @@ const CheckinQr = () => {
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-neutral-200 p-6">
           <Skeleton className="h-7 w-32" />
           <Skeleton className="h-5 w-16" />
-          <Skeleton className="aspect-square w-full max-w-[256px]" />
+          <Skeleton className="aspect-square w-full max-w-[256px] rounded-sm" />
           <Skeleton className="h-5 w-56" />
         </div>
         <div className="flex flex-col gap-3">
-          <Skeleton className="h-9 w-full rounded-lg" />
-          <Skeleton className="h-11 w-full rounded-lg" />
-          <Skeleton className="h-11 w-full rounded-lg" />
-          <Skeleton className="mx-auto h-11 w-40 rounded-lg" />
+          <Skeleton className="h-9 w-full rounded-xl" />
+          <Skeleton className="h-11 w-full rounded-xl" />
+          <Skeleton className="h-11 w-full rounded-xl" />
+          <Skeleton className="mx-auto h-11 w-40 rounded-xl" />
         </div>
       </div>
     );
@@ -113,53 +114,46 @@ const CheckinQr = () => {
       </div>
 
       <div className="flex flex-col gap-3 print:hidden">
-        <div className="truncate rounded-lg bg-primary-50 px-3 py-2 text-sm text-primary-900">
+        <div className="truncate rounded-xl bg-primary-50 px-3 py-2 text-sm text-primary-900">
           {data.url}
         </div>
-        <button
-          onClick={handleCopy}
-          className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary-500 px-3 py-3 text-sm font-medium text-white hover:bg-primary-600"
-        >
-          <Copy className="h-4 w-4" />
+        <Button onClick={handleCopy}>
+          <Copy className="size-4" />
           複製連結
-        </button>
-        <button
-          onClick={() => window.print()}
-          className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-neutral-200 px-3 py-3 text-sm font-medium hover:bg-neutral-50"
-        >
-          <Printer className="h-4 w-4" />
+        </Button>
+        <Button variant="secondary" onClick={() => window.print()}>
+          <Printer className="size-4" />
           列印看板
-        </button>
+        </Button>
 
         {confirmingRotate ? (
-          <div className="flex flex-col gap-3 rounded-xl bg-warning-50 p-4">
-            <p className="text-sm leading-relaxed text-warning-800">
+          <div className="flex flex-col gap-3 rounded-2xl border border-warning-300 bg-warning-50 p-4">
+            <p className="text-sm leading-relaxed text-warning-950">
               重新產生後，目前貼在教室的 QR Code 會立刻失效，需要重印一張。確定要繼續嗎？
             </p>
             <div className="flex gap-2">
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => setConfirmingRotate(false)}
-                className="flex-1 cursor-pointer rounded-lg border border-neutral-200 bg-white py-2 text-sm"
+                className="flex-1 bg-white"
               >
                 取消
-              </button>
-              <button
-                disabled={isRotating}
+              </Button>
+              <Button
+                variant="danger"
+                isLoading={isRotating}
                 onClick={handleRotate}
-                className="flex-1 cursor-pointer rounded-lg bg-warning-600 py-2 text-sm font-medium text-white disabled:bg-neutral-300"
+                className="flex-1"
               >
                 {isRotating ? "產生中…" : "確定重新產生"}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
-          <button
-            onClick={() => setConfirmingRotate(true)}
-            className="flex cursor-pointer items-center justify-center gap-2 rounded-lg px-3 py-3 text-sm text-neutral-500 hover:bg-neutral-50"
-          >
-            <RefreshCw className="h-4 w-4" />
+          <Button variant="ghost" onClick={() => setConfirmingRotate(true)}>
+            <RefreshCw className="size-4" />
             重新產生 QR Code
-          </button>
+          </Button>
         )}
       </div>
     </div>

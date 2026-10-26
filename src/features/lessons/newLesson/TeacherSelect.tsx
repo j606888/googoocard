@@ -1,5 +1,6 @@
 import { useState } from "react";
 import MultiSelect from "@/components/MultiSelect";
+import { FieldLabel } from "@/components/Field";
 import TeacherForm from "@/features/teachers/TeacherForm";
 import { useGetTeachersQuery } from "@/store/slices/teachers";
 
@@ -17,8 +18,8 @@ const TeacherSelect = ({ selectedTeacherIds, onChange, error }: { selectedTeache
     })) || [];
 
   return (
-    <div className="flex flex-col gap-1">
-      <label className="block font-medium mb-1">老師</label>
+    <div className="flex flex-col gap-1.5">
+      <FieldLabel>老師</FieldLabel>
       <MultiSelect
         options={teacherOptions}
         values={selectedTeacherIds}

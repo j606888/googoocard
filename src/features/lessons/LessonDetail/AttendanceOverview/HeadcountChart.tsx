@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { endOfDay, format } from "date-fns";
 import type { PeriodHeadcount } from "@/domains/attendance/rosterInsights";
+import EmptyState from "@/components/EmptyState";
 
 // Headcount per session, as a column chart. It doubles as a period navigator:
 // a column goes wherever PeriodSection's row for the same period goes, so this
@@ -20,7 +21,7 @@ const HeadcountChart = ({
 
   if (data.length === 0) {
     return (
-      <p className="text-sm text-neutral-400 py-6 text-center">還沒有排任何時段</p>
+      <EmptyState kind="inline" title="還沒有排任何時段" />
     );
   }
 
@@ -56,8 +57,8 @@ const HeadcountChart = ({
               column.taken
                 ? "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
                 : isOverdue(column)
-                  ? "border-warning-400 text-warning-700 bg-warning-50"
-                  : "border-dashed border-neutral-300 text-neutral-400"
+                  ? "border-warning-300 text-warning-950 bg-warning-50"
+                  : "border-dashed border-neutral-300 text-neutral-500"
             }`}
           >
             {format(new Date(column.startTime), "M/d")}{" "}
@@ -113,7 +114,7 @@ const HeadcountChart = ({
             >
               <span
                 className={`text-[11px] font-bold leading-none ${
-                  column.taken ? "text-neutral-600" : "text-neutral-300"
+                  column.taken ? "text-neutral-600" : "text-neutral-400"
                 }`}
               >
                 {column.taken ? column.attended : "–"}
@@ -122,17 +123,17 @@ const HeadcountChart = ({
                   track, never a zero bar — "nobody came" and "not called yet"
                   must not look the same. */}
               <div
-                className={`w-full h-20 rounded-md flex flex-col justify-end overflow-hidden transition-colors ${
+                className={`w-full h-20 rounded-sm flex flex-col justify-end overflow-hidden transition-colors ${
                   column.taken
                     ? "bg-neutral-100 group-hover:bg-primary-50"
                     : isOverdue(column)
-                      ? "bg-warning-50 border border-dashed border-warning-400"
+                      ? "bg-warning-50 border border-dashed border-warning-300"
                       : "bg-white border border-dashed border-neutral-300"
                 }`}
               >
                 {column.taken && (
                   <div
-                    className="w-full rounded-t bg-primary-500 min-h-[2px] group-hover:bg-primary-600 transition-colors"
+                    className="w-full rounded-t-sm bg-primary-500 min-h-[2px] group-hover:bg-primary-600 transition-colors"
                     style={{ height: `${percent}%` }}
                   />
                 )}
@@ -141,7 +142,7 @@ const HeadcountChart = ({
                 className={`text-[10px] leading-none ${
                   column.taken || !isOverdue(column)
                     ? "text-neutral-500"
-                    : "text-warning-700 font-semibold"
+                    : "text-warning-950 font-semibold"
                 }`}
               >
                 {format(new Date(column.startTime), "M/d")}
@@ -154,7 +155,7 @@ const HeadcountChart = ({
       <div className="flex items-center gap-4 mt-3 pt-2.5 border-t border-neutral-100">
         <Legend className="bg-primary-500" label="到課人數" />
         <Legend className="bg-neutral-100 border border-neutral-200" label={`名單 ${rosterSize} 人`} />
-        <Legend className="bg-warning-50 border border-dashed border-warning-400" label="尚未點名" />
+        <Legend className="bg-warning-50 border border-dashed border-warning-300" label="尚未點名" />
       </div>
     </section>
   );

@@ -12,7 +12,9 @@ import {
   Pencil,
   Plus,
 } from "lucide-react";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
 import { Switch } from "@/components/ui/switch";
 import {
   useGetLocationsQuery,
@@ -26,8 +28,27 @@ import AssignLocationDrawer from "./AssignLocationDrawer";
 
 type FormState = { open: false } | { open: true; location?: Location; key: number };
 
-const iconButton =
-  "w-9 h-9 flex items-center justify-center rounded-lg text-neutral-500 hover:bg-neutral-100 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent";
+const iconButton = "text-neutral-500 disabled:opacity-30 disabled:hover:bg-transparent";
+
+/** 每列寬度不同、越往下越淡（docs/design-system.md「骨架」）。 */
+const SKELETON_ROWS = [
+  { width: "w-28", fade: "" },
+  { width: "w-20", fade: "" },
+  { width: "w-32", fade: "opacity-50" },
+  { width: "w-24", fade: "opacity-25" },
+];
+
+const RowsSkeleton = () => (
+  <ul className="flex flex-col">
+    {SKELETON_ROWS.map((row, i) => (
+      <li key={i} className={`flex h-14 items-center gap-2 border-b border-neutral-200 ${row.fade}`}>
+        <Skeleton className="size-3 shrink-0" />
+        <Skeleton className={`h-3.5 ${row.width}`} />
+      </li>
+    ))}
+  </ul>
+);
+
 
 /** /locations：分部（台南／高雄…）。Same shape as the dance-style page. */
 const LocationList = () => {
@@ -72,51 +93,43 @@ const LocationList = () => {
     }
   };
 
-  if (isLoading) return <ListSkeleton />;
-
   return (
     <>
       <div className="w-full px-5 py-3 lg:max-w-[720px] lg:px-8 lg:py-6">
         <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">分部</h2>
-          <button
-            type="button"
-            onClick={() => openForm()}
-            className="flex items-center gap-2 rounded-full bg-primary-500 px-4 py-1.5 text-white cursor-pointer hover:bg-primary-600"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="font-medium">新增分部</span>
-          </button>
+          <h2 className="text-2xl font-bold text-neutral-900">分部</h2>
+          <Button type="button" onClick={() => openForm()}>
+            <Plus />
+            新增分部
+          </Button>
         </div>
-        <p className="mb-4 text-sm text-neutral-500">
+        <p className="mb-4 text-sm text-neutral-600">
           同一間教室的不同上課地點。開課時可以選分部，課表和 LINE 會依分部顯示；課卡各分部通用。
         </p>
 
-        <label className="mb-5 flex items-start gap-3 rounded-xl bg-neutral-50 p-3 cursor-pointer">
-          <Switch
-            checked={data?.lineListed ?? false}
-            disabled={savingSettings}
-            onCheckedChange={setLineListed}
-            className="mt-0.5"
-          />
+        <label className="mb-5 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4 cursor-pointer">
+          {isLoading ? (
+            <Skeleton className="mt-0.5 h-[1.15rem] w-8 shrink-0" />
+          ) : (
+            <Switch
+              checked={data?.lineListed ?? false}
+              disabled={savingSettings}
+              onCheckedChange={setLineListed}
+              className="mt-0.5"
+            />
+          )}
           <span className="flex flex-col gap-0.5">
-            <span className="font-medium">在 LINE 官方帳號公開課表與價目表</span>
-            <span className="text-xs leading-relaxed text-neutral-500">
+            <span className="font-medium text-neutral-900">在 LINE 官方帳號公開課表與價目表</span>
+            <span className="text-[13px] leading-relaxed text-neutral-500">
               開啟後，還沒綁定的人在 LINE 點「課表」「價目表」也看得到這間教室的課。已綁定的學生不受影響。
             </span>
           </span>
         </label>
 
-        {active.length === 0 && (
-          <div className="mb-4 flex flex-col items-center justify-center gap-3 rounded-sm bg-primary-50 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-500">
-              <MapPin className="h-6 w-6 text-white" />
-            </div>
-            <div className="flex flex-col items-center justify-center">
-              <p className="text-lg font-bold">還沒有分部</p>
-              <p className="text-center text-sm text-neutral-500">只有一個上課地點的話可以不用設定。</p>
-            </div>
-          </div>
+        {isLoading && <RowsSkeleton />}
+
+        {!isLoading && active.length === 0 && (
+          <EmptyState title="還沒有分部" description="只有一個上課地點的話可以不用設定。" />
         )}
 
         <ul className="flex flex-col">
@@ -124,56 +137,66 @@ const LocationList = () => {
             <li key={location.id} className="flex items-center gap-2 border-b border-neutral-200 py-2.5">
               <MapPin className="h-4 w-4 shrink-0 text-neutral-500" />
               <span className="flex min-w-0 flex-col">
-                <span className="truncate font-medium">{location.name}</span>
+                <span className="truncate font-medium text-neutral-900">{location.name}</span>
                 {location.address && (
                   <span className="truncate text-xs text-neutral-500">{location.address}</span>
                 )}
               </span>
               <div className="ml-auto flex shrink-0 items-center">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="iconSm"
                   aria-label={`把 ${location.name} 套用到既有課程`}
                   title="套用到既有課程"
                   className={iconButton}
                   onClick={() => setAssigning(location)}
                 >
                   <CalendarCheck className="h-4.5 w-4.5" />
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="iconSm"
                   aria-label={`${location.name} 上移`}
                   className={iconButton}
                   disabled={index === 0 || reordering}
                   onClick={() => move(index, -1)}
                 >
-                  <ChevronUp className="h-5 w-5" />
-                </button>
-                <button
+                  <ChevronUp className="size-5" />
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="iconSm"
                   aria-label={`${location.name} 下移`}
                   className={iconButton}
                   disabled={index === active.length - 1 || reordering}
                   onClick={() => move(index, 1)}
                 >
-                  <ChevronDown className="h-5 w-5" />
-                </button>
-                <button
+                  <ChevronDown className="size-5" />
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="iconSm"
                   aria-label={`編輯 ${location.name}`}
                   className={iconButton}
                   onClick={() => openForm(location)}
                 >
                   <Pencil className="h-4.5 w-4.5" />
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="iconSm"
                   aria-label={`封存 ${location.name}`}
                   title="封存"
                   className={iconButton}
                   onClick={() => setArchived(location, true)}
                 >
                   <Archive className="h-4.5 w-4.5" />
-                </button>
+                </Button>
               </div>
             </li>
           ))}
@@ -184,7 +207,7 @@ const LocationList = () => {
             <button
               type="button"
               onClick={() => setShowArchived((v) => !v)}
-              className="flex items-center gap-1 text-sm font-medium text-neutral-500 cursor-pointer"
+              className="flex min-h-11 items-center gap-1 text-sm font-medium text-neutral-600 cursor-pointer"
               aria-expanded={showArchived}
             >
               {showArchived ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -199,14 +222,16 @@ const LocationList = () => {
                   >
                     <MapPin className="h-4 w-4 shrink-0 opacity-50" />
                     <span className="truncate">{location.name}</span>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setArchived(location, false)}
-                      className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-primary-700 hover:bg-primary-50 cursor-pointer"
+                      className="ml-auto shrink-0 gap-1.5 text-primary-700 hover:bg-primary-50"
                     >
-                      <ArchiveRestore className="h-4 w-4" />
+                      <ArchiveRestore className="size-4" />
                       還原
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>

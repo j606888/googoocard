@@ -1,6 +1,8 @@
 "use client";
 
-import { Loader2, X } from "lucide-react";
+import { X } from "lucide-react";
+import { Button } from "./ui/button";
+import { cn } from "@/lib/utils";
 import ResponsiveDialog, { ResponsiveDialogTitle } from "./ResponsiveDialog";
 
 interface BottomSheetDialogProps {
@@ -48,49 +50,49 @@ const Drawer = ({
   footerStart,
   subtitle,
 }: BottomSheetDialogProps) => {
-  const submitColor =
-    variant === "danger"
-      ? "bg-danger-500 hover:bg-danger-600"
-      : "bg-primary-500 hover:bg-primary-600";
-
   return (
     <ResponsiveDialog open={open} onClose={onClose}>
-      <div className="relative flex flex-col items-center justify-center mb-6">
-        <ResponsiveDialogTitle className="text-xl font-semibold">
+      <div className="relative flex flex-col items-center justify-center mb-6 px-11">
+        <ResponsiveDialogTitle className="text-lg font-bold text-neutral-900 text-center">
           {title}
         </ResponsiveDialogTitle>
-        {subtitle && <p className="mt-0.5 text-xs text-neutral-500">{subtitle}</p>}
-        <button
-          className="text-neutral-500 absolute right-0 top-0 flex items-center gap-2 cursor-pointer"
+        {subtitle && <p className="mt-0.5 text-center text-[13px] text-neutral-500">{subtitle}</p>}
+        <Button
+          variant="ghost"
+          size="iconSm"
+          className="absolute -right-1 -top-1.5 text-neutral-500"
           onClick={onClose}
           aria-label="關閉"
         >
-          <X className="w-6 h-6" />
-        </button>
+          <X className="size-5" />
+        </Button>
       </div>
       <div className="max-h-[60vh] overflow-y-auto">{children}</div>
       <div className="mt-auto w-full flex items-center gap-2">
         {footerStart && <div className="shrink-0 mr-1">{footerStart}</div>}
         {secondaryText && (
-          <button
+          <Button
             type="button"
-            className="flex-1 border border-neutral-300 bg-white text-neutral-800 font-semibold py-2 rounded hover:bg-neutral-50 cursor-pointer"
+            variant="secondary"
+            className="flex-1"
             onClick={onSecondary ?? onClose}
           >
             {secondaryText}
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           disabled={disabled}
           type="submit"
-          className={`mt-auto ${secondaryText ? "flex-[2]" : footerStart ? "flex-1" : "w-full"} ${submitColor} text-white font-semibold py-2 rounded flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-            isLoading ? "opacity-50 cursor-not-allowed" : ""
-          }`}
+          variant={variant}
+          isLoading={isLoading}
+          className={cn(
+            "mt-auto",
+            secondaryText ? "flex-[2]" : footerStart ? "flex-1" : "w-full"
+          )}
           onClick={() => !isLoading && onSubmit()}
         >
-          <span>{submitText}</span>
-          {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-        </button>
+          {submitText}
+        </Button>
       </div>
     </ResponsiveDialog>
   );

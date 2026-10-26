@@ -7,6 +7,9 @@ import { Lesson, TrialEntry, useGetLessonTrialsQuery } from "@/store/slices/less
 import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/utils";
 import RegisterTrialDrawer from "./RegisterTrialDrawer";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
+import StatusTag, { type StatusTone } from "@/components/StatusTag";
 
 const PAYMENT_LABEL = { CASH: "現金", TRANSFER: "轉帳" } as const;
 
@@ -28,10 +31,10 @@ const TrialRoster = ({ lesson }: { lesson: Lesson }) => {
   const canRegister = data.trialCards.length > 0;
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4">
+    <section className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <h3 className="text-base font-bold">體驗名單</h3>
+          <h3 className="text-base font-bold text-neutral-900">體驗名單</h3>
           <p className="text-[13px] text-neutral-600">
             {registered.length} 人報名
             {unpaid.length > 0 && <span className="text-warning-900">・{unpaid.length} 人還沒收錢</span>}
@@ -39,21 +42,19 @@ const TrialRoster = ({ lesson }: { lesson: Lesson }) => {
           </p>
         </div>
         {canRegister && (
-          <button
-            type="button"
-            onClick={() => setRegistering(true)}
-            className="shrink-0 flex items-center gap-1.5 min-h-10 px-3.5 rounded-lg bg-primary-900 text-white text-sm font-semibold hover:opacity-90 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
+          <Button type="button" size="sm" onClick={() => setRegistering(true)}>
+            <Plus className="size-4" />
             登記體驗
-          </button>
+          </Button>
         )}
       </div>
 
       {registered.length === 0 ? (
-        <p className="rounded-lg bg-neutral-50 px-4 py-3 text-[13px] leading-relaxed text-neutral-600">
-          還沒有人報名。把 Google 表單或現場報名的人登記進來，上課點名時會自動勾好。
-        </p>
+        <EmptyState
+          kind="inline"
+          title="還沒有人報名"
+          description="把 Google 表單或現場報名的人登記進來，上課點名時會自動勾好。"
+        />
       ) : (
         <ul className="flex flex-col">
           {registered.map((entry) => (
@@ -96,15 +97,15 @@ const TrialRoster = ({ lesson }: { lesson: Lesson }) => {
 };
 
 const EntryRow = ({ entry }: { entry: TrialEntry }) => {
-  const payment =
+  const payment: { text: string; tone: StatusTone } =
     entry.finalPrice === 0
-      ? { text: "免費", className: "bg-neutral-100 text-neutral-700" }
+      ? { text: "免費", tone: "neutral" }
       : entry.isPaid
         ? {
             text: `已收 $${formatMoney(entry.finalPrice)}${entry.paymentMethod ? `・${PAYMENT_LABEL[entry.paymentMethod]}` : ""}`,
-            className: "bg-primary-100 text-primary-900",
+            tone: "positive",
           }
-        : { text: `待收 $${formatMoney(entry.finalPrice)}`, className: "bg-warning-100 text-warning-900" };
+        : { text: `待收 $${formatMoney(entry.finalPrice)}`, tone: "warning" };
 
   return (
     <li>
@@ -121,9 +122,7 @@ const EntryRow = ({ entry }: { entry: TrialEntry }) => {
               : `${formatDate(entry.registeredAt, "M/d")} 登記`}
           </span>
         </span>
-        <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${payment.className}`}>
-          {payment.text}
-        </span>
+        <StatusTag tone={payment.tone}>{payment.text}</StatusTag>
       </Link>
     </li>
   );

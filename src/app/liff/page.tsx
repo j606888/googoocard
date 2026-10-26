@@ -63,7 +63,7 @@ export default function LiffPage() {
   }, [router]);
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center gap-3 bg-primary-500 text-white">
+    <div className="flex h-screen flex-col items-center justify-center gap-3 bg-primary-900 text-white">
       <div className="text-lg font-semibold">googoocard</div>
       <div className="text-sm opacity-90">{status}</div>
     </div>

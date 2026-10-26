@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { ChevronDown, CircleAlert } from "lucide-react";
 import type { LessonAttendance } from "@/store/slices/students";
 import DanceBadge from "../../StudentList/DanceBadge";
+import StatusTag, { type StatusTone } from "@/components/StatusTag";
 import { formatCardSerial } from "@/lib/cardSerial";
 import {
   buildTimelineAxis,
@@ -19,7 +20,7 @@ const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 const CELL_CLASS: Record<WeekCell, string> = {
   attended: "bg-primary-600",
-  absent: "bg-white border-2 border-danger-500",
+  absent: "bg-white border-2 border-danger-600",
   unchecked: "bg-white border border-dashed border-neutral-400",
   gap: "bg-[radial-gradient(circle,var(--color-neutral-300)_1.5px,transparent_2px)]",
   none: "",
@@ -33,11 +34,11 @@ const CELL_TITLE: Record<WeekCell, string> = {
   none: "",
 };
 
-const STATUS_PILL: Record<PeriodStatus | "pending", { label: string; className: string }> = {
-  attended: { label: "出席", className: "bg-primary-100 text-primary-900" },
-  pending: { label: "待確認", className: "bg-warning-100 text-warning-900" },
-  absent: { label: "缺席", className: "bg-danger-50 text-danger-700" },
-  unchecked: { label: "未點名", className: "bg-white text-neutral-500 border border-dashed border-neutral-300" },
+const STATUS_PILL: Record<PeriodStatus | "pending", { label: string; tone: StatusTone; className?: string }> = {
+  attended: { label: "出席", tone: "positive" },
+  pending: { label: "待確認", tone: "warning" },
+  absent: { label: "缺席", tone: "danger" },
+  unchecked: { label: "未點名", tone: "outline", className: "text-neutral-500 border-dashed border-neutral-300" },
 };
 
 // 寬：課名｜週軸｜出席；窄：課名＋出席一行、週軸在下一行。
@@ -239,7 +240,7 @@ const LessonDetail = ({
         <Stat label="出席率" value={summary.rate === null ? "—" : `${summary.rate}%`} className="bg-neutral-100 text-neutral-800" />
       </div>
       {streak && (
-        <p className="m-0 flex items-center gap-2 rounded-xl bg-warning-50 text-warning-900 px-3 py-2 text-xs @lg:text-[13px]">
+        <p className="m-0 flex items-center gap-2 rounded-xl bg-warning-50 text-warning-950 px-3 py-2 text-xs @lg:text-[13px]">
           <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
           {shortDate(streak.from.periodStartTime)} – {shortDate(streak.to.periodStartTime)} 連續缺了 {streak.length} 堂
           （第 {streak.from.periodNumber}–{streak.to.periodNumber} 堂）
@@ -259,9 +260,9 @@ const LessonDetail = ({
               <span className="font-semibold text-neutral-900 tabular-nums">
                 {format(at, "M/d")} <span className="font-normal text-xs text-neutral-500">週{WEEKDAYS[at.getDay()]}</span>
               </span>
-              <span className={`justify-self-start text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${pill.className}`}>
+              <StatusTag tone={pill.tone} className={`justify-self-start ${pill.className ?? ""}`}>
                 {pill.label}
-              </span>
+              </StatusTag>
               <span className="truncate text-xs text-neutral-600">
                 {slot.studentCard ? (
                   <>

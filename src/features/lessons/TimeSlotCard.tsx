@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { LessonSummary } from "@/store/slices/lessons";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
+import { Button } from "@/components/ui/button";
 
 // Compact, time-first row for browsing a group's slots on one day — as
 // opposed to LessonCard's date-first grid tile used in the flat/search list.
@@ -31,7 +32,7 @@ const TimeSlotCard = ({ lesson }: { lesson: LessonSummary }) => {
 
   return (
     <div
-      className="flex items-stretch rounded-2xl border border-neutral-200 bg-white overflow-hidden cursor-pointer hover:shadow-md transition-all duration-200"
+      className="flex items-stretch rounded-2xl border border-neutral-200 bg-white overflow-hidden cursor-pointer hover:border-primary-300 transition-colors"
       onClick={() => router.push(`/lessons/${lesson.id}`)}
     >
       <div className={`w-1.5 shrink-0 ${style.bg}`} />
@@ -62,18 +63,15 @@ const TimeSlotCard = ({ lesson }: { lesson: LessonSummary }) => {
         )}
 
         {hasDue ? (
-          <button
-            onClick={handleTakeAttendance}
-            className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-warning-500 text-white text-sm font-semibold hover:bg-warning-600 transition-colors"
-          >
-            <AlarmClock className="w-4 h-4" />
+          <Button size="sm" className="w-full" onClick={handleTakeAttendance}>
+            <AlarmClock className="size-4" />
             {/* A backlog target is another day's period — never label it with the clock time alone. */}
             {lesson.dueForAttendanceIsBacklog && start
               ? `${format(new Date(start), "M月d日")} 待點名`
               : "待點名"}
-          </button>
+          </Button>
         ) : isFinished ? (
-          <div className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-primary-50 text-primary-700 text-sm font-medium">
+          <div className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-primary-50 text-primary-900 text-sm font-medium">
             <Check className="w-4 h-4" />
             已點名{lesson.attendedCount > 0 ? ` · ${lesson.attendedCount} 堂` : ""}
           </div>

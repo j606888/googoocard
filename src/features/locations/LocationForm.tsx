@@ -88,7 +88,7 @@ const LocationForm = ({
             placeholder="例如 台南市東區…"
             onChange={(e) => setAddress(e.target.value)}
           />
-          <p className="text-xs text-neutral-500">填了的話，LINE 課表會附「地圖」按鈕。</p>
+          <p className="text-[13px] text-neutral-500">填了的話，LINE 課表會附「地圖」按鈕。</p>
         </div>
       </form>
     </Drawer>

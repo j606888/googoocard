@@ -5,7 +5,8 @@ import Link from "next/link";
 import { ArrowLeft, Plus, Users, BookOpenText } from "lucide-react";
 import { useGetLessonsQuery } from "@/store/slices/lessons";
 import { useGetLessonGroupsQuery } from "@/store/slices/lessonGroups";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import SubNavbar from "@/features/SubNavbar";
 import TimeSlotCard from "./TimeSlotCard";
 
@@ -43,7 +44,30 @@ const GroupDetail = () => {
       </div>
 
       {isLoading ? (
-        <ListSkeleton />
+        <div className="w-full max-w-[1120px] px-5 py-3 lg:px-8 lg:py-6 flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            <Skeleton className="h-7 w-20" />
+            <Skeleton className="h-7 w-24" />
+          </div>
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4 xl:grid-cols-3">
+            {["", "", "opacity-50", "opacity-25"].map((fade, i) => (
+              <div
+                key={i}
+                className={`flex items-stretch rounded-2xl border border-neutral-200 overflow-hidden ${fade}`}
+              >
+                <div className="w-1.5 shrink-0 bg-neutral-100" />
+                <div className="flex flex-col gap-2.5 p-3.5 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3.5 w-20" />
+                    <Skeleton className={`h-3.5 ${i % 2 ? "w-24" : "w-32"}`} />
+                  </div>
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-9 w-full rounded-lg" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
         <div className="w-full max-w-[1120px] px-5 py-3 lg:px-8 lg:py-6 flex flex-col gap-4">
           <div className="flex flex-wrap gap-2">
@@ -65,15 +89,16 @@ const GroupDetail = () => {
             ))}
           </div>
 
-          <button
+          <Button
             onClick={() =>
               router.push(isUngrouped ? "/lessons/new" : `/lessons/new?groupId=${numericGroupId}`)
             }
-            className="flex items-center justify-center gap-2 border border-dashed border-neutral-300 rounded-2xl text-neutral-500 py-3 text-sm font-semibold cursor-pointer hover:border-neutral-400 hover:text-neutral-700"
+            variant="ghost"
+            className="w-full h-12 rounded-2xl border-[1.5px] border-dashed border-neutral-300 text-neutral-500 hover:bg-transparent hover:border-neutral-400 hover:text-neutral-700"
           >
             <Plus className="w-4 h-4" />
             {isUngrouped ? "新增課程" : "新增這天的堂"}
-          </button>
+          </Button>
         </div>
       )}
     </>

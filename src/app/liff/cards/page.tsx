@@ -11,7 +11,7 @@ export default function LiffCardsPage() {
     <LiffStudentGate>
       {(student) => (
         <>
-          <div className="relative flex h-16 w-full items-center justify-center bg-primary-500">
+          <div className="relative flex h-16 w-full items-center justify-center bg-primary-900">
             <h2 className="text-lg font-semibold text-white">
               {student.classroom.name} - {student.name}
             </h2>

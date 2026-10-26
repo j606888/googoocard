@@ -32,8 +32,8 @@ const StudentCard = ({
       id={`student-card-${studentCard.id}`}
       onClick={() => onOpen(studentCard)}
       aria-label={`${studentCard.card.name} ${formatCardSerial(studentCard.serialNumber)}，剩 ${studentCard.remainingSessions} 堂，查看詳情`}
-      className={`flex flex-col gap-2.5 w-full p-4 rounded-2xl border bg-white text-left shadow-sm scroll-mt-4 cursor-pointer transition-[box-shadow,border-color] duration-300 hover:border-primary-400 hover:shadow-md ${
-        highlighted ? "border-primary-500 ring-4 ring-primary-100" : "border-neutral-200"
+      className={`flex flex-col gap-2.5 w-full p-4 rounded-2xl border bg-white text-left scroll-mt-4 cursor-pointer transition-[box-shadow,border-color] duration-300 hover:border-primary-300 ${
+        highlighted ? "border-primary-700 ring-4 ring-primary-100" : "border-neutral-200"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -46,7 +46,7 @@ const StudentCard = ({
         <CardStatusPills studentCard={studentCard} />
       </div>
 
-      <div className={`leading-none font-bold tabular-nums ${low ? "text-danger-600" : "text-neutral-900"}`}>
+      <div className={`leading-none font-bold tabular-nums ${low ? "text-danger-700" : "text-neutral-900"}`}>
         <span className="text-[28px]">{studentCard.remainingSessions}</span>
         <span className="text-sm font-medium text-neutral-600"> / {studentCard.totalSessions} 堂</span>
       </div>
@@ -60,7 +60,7 @@ const StudentCard = ({
         aria-label="剩餘堂數"
       >
         <div
-          className={`h-full rounded-full ${low ? "bg-danger-500" : "bg-primary-500"}`}
+          className={`h-full rounded-full ${low ? "bg-danger-600" : "bg-primary-600"}`}
           style={{ width: `${ratio}%` }}
         />
       </div>

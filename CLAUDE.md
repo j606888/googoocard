@@ -156,6 +156,10 @@ Unresolved attendance cases surface as `uncheckedType` on the `AttendanceRecord`
 
 `@/*` maps to `src/*` (configured in `tsconfig.json`).
 
+### Design system
+
+Colours, radii, sizes and the shared components (`Button`, `Field`, `EmptyState`, `Skeleton`, `StatusTag`…) are specified in **[`docs/design-system.md`](docs/design-system.md)** — read it before building or restyling UI; don't hand-roll a button, input, empty state or skeleton.
+
 ### Mobile-First, but not 480px-only
 
 Mobile-first, but the **teacher-facing app goes full-width with a sidebar on desktop** — the layout-mode switch is `lg:` (content) while the nav shell still switches at `md:` (a known inconsistency). `max-w-[480px]` now only applies to the student-facing entry points (LIFF, on-site QR check-in) and to `Drawer`.

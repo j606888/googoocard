@@ -2,6 +2,7 @@
 
 import { Copy, Ellipsis, Share, SquarePlus } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import ResponsiveDialog, { ResponsiveDialogTitle } from "@/components/ResponsiveDialog";
 import type { InstallState } from "@/hooks/useInstallState";
 
@@ -38,12 +39,9 @@ const InstallGuideDialog = ({
 
       {state === "ios-in-app" ? <InAppSteps /> : <SafariSteps />}
 
-      <button
-        onClick={onClose}
-        className="w-full rounded-xl bg-primary-500 py-3 font-medium text-white active:bg-primary-600"
-      >
+      <Button size="lg" onClick={onClose} className="w-full">
         知道了
-      </button>
+      </Button>
     </div>
   </ResponsiveDialog>
 );
@@ -57,7 +55,7 @@ const SafariSteps = () => (
         分享
       </Chip>
       按鈕
-      <p className="mt-1 text-xs text-neutral-400">
+      <p className="mt-1 text-xs text-neutral-500">
         Safari 在網址列旁邊；如果沒看到，先點
         <Ellipsis className="mx-0.5 inline h-3.5 w-3.5 align-[-2px]" />
       </p>
@@ -95,24 +93,18 @@ const InAppSteps = () => {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="rounded-xl bg-warning-100 px-4 py-3 text-sm text-neutral-700">
+      <p className="rounded-xl bg-warning-100 px-4 py-3 text-sm text-warning-950">
         你現在是在 LINE（或其他 App）裡面開啟，這裡沒辦法加到主畫面，
         要先用 Safari 打開。
       </p>
-      <button
-        onClick={openInSafari}
-        className="flex items-center justify-center rounded-xl border border-primary-500 py-3 font-medium text-primary-700 active:bg-primary-50"
-      >
+      <Button variant="secondary" size="lg" onClick={openInSafari} className="w-full">
         用 Safari 開啟
-      </button>
-      <button
-        onClick={copyUrl}
-        className="flex items-center justify-center gap-2 rounded-xl border border-neutral-200 py-3 text-sm text-neutral-600 active:bg-neutral-50"
-      >
+      </Button>
+      <Button variant="ghost" onClick={copyUrl} className="w-full text-sm text-neutral-600">
         <Copy className="h-4 w-4" />
         複製網址，自己貼到 Safari
-      </button>
-      <p className="text-xs text-neutral-400">
+      </Button>
+      <p className="text-xs text-neutral-500">
         在 Safari 打開後，再點一次「加到主畫面」看步驟。
       </p>
     </div>
@@ -121,7 +113,7 @@ const InAppSteps = () => {
 
 const Step = ({ n, children }: { n: number; children: React.ReactNode }) => (
   <li className="flex gap-3">
-    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">
+    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-900">
       {n}
     </span>
     <div className="pt-0.5 text-[15px] leading-relaxed text-neutral-700">{children}</div>
@@ -129,7 +121,7 @@ const Step = ({ n, children }: { n: number; children: React.ReactNode }) => (
 );
 
 const Chip = ({ children }: { children: React.ReactNode }) => (
-  <span className="mx-1 inline-flex items-center gap-1 rounded-md bg-neutral-100 px-1.5 py-0.5 align-[1px] text-sm font-medium text-neutral-800">
+  <span className="mx-1 inline-flex items-center gap-1 rounded-sm bg-neutral-100 px-1.5 py-0.5 align-[1px] text-sm font-medium text-neutral-800">
     {children}
   </span>
 );

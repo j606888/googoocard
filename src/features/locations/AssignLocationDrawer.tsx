@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import RoundCheckbox from "@/components/RoundCheckbox";
+import FilterChip from "@/components/FilterChip";
+import EmptyState from "@/components/EmptyState";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useGetLessonsQuery, type LessonSummary } from "@/store/slices/lessons";
 import { useAssignLocationMutation, type Location } from "@/store/slices/locations";
 
@@ -24,10 +27,12 @@ function toRow(lesson: LessonSummary): Row {
   };
 }
 
-const chip = (on: boolean) =>
-  `shrink-0 rounded-full border px-3 py-1 text-xs font-medium cursor-pointer ${
-    on ? "border-primary-700 bg-primary-700 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
-  }`;
+const SKELETON_ROWS = [
+  { width: "w-32", fade: "" },
+  { width: "w-24", fade: "" },
+  { width: "w-28", fade: "opacity-50" },
+  { width: "w-20", fade: "opacity-25" },
+];
 
 /**
  * 「套用到既有課程」：列出還沒設定分部的課，勾選要標成這個分部的。同一天兩個分部
@@ -87,15 +92,15 @@ const AssignLocationDrawer = ({ location, onClose }: { location: Location; onClo
       <div className="mb-6 flex flex-col gap-4">
         {(weekdays.length > 1 || teachers.length > 1) && (
           <div className="flex flex-col gap-2">
-            <p className="text-xs text-neutral-500">快速勾選</p>
+            <p className="text-[13px] text-neutral-500">快速勾選</p>
             {weekdays.length > 1 && (
               <div className="flex flex-wrap gap-2">
                 {weekdays.map((day) => {
                   const ids = idsWhere((r) => r.weekday === day);
                   return (
-                    <button key={day} type="button" aria-pressed={allSelected(ids)} onClick={() => toggleGroup(ids)} className={chip(allSelected(ids))}>
+                    <FilterChip key={day} size="sm" active={allSelected(ids)} onClick={() => toggleGroup(ids)}>
                       週{WEEKDAYS[day]}
-                    </button>
+                    </FilterChip>
                   );
                 })}
               </div>
@@ -105,9 +110,9 @@ const AssignLocationDrawer = ({ location, onClose }: { location: Location; onClo
                 {teachers.map((name) => {
                   const ids = idsWhere((r) => r.lesson.teachers.some((t) => t.name === name));
                   return (
-                    <button key={name} type="button" aria-pressed={allSelected(ids)} onClick={() => toggleGroup(ids)} className={chip(allSelected(ids))}>
+                    <FilterChip key={name} size="sm" active={allSelected(ids)} onClick={() => toggleGroup(ids)}>
                       {name}
-                    </button>
+                    </FilterChip>
                   );
                 })}
               </div>
@@ -116,9 +121,25 @@ const AssignLocationDrawer = ({ location, onClose }: { location: Location; onClo
         )}
 
         {rows.length === 0 && !isFetching && (
-          <p className="rounded-xl bg-neutral-50 p-4 text-center text-sm text-neutral-500">
-            {includeFinished ? "所有課程都已經設定分部了" : "進行中的課都已經設定分部了"}
-          </p>
+          <EmptyState
+            kind="inline"
+            title={includeFinished ? "所有課程都已經設定分部了" : "進行中的課都已經設定分部了"}
+          />
+        )}
+
+        {rows.length === 0 && isFetching && (
+          <ul className="flex flex-col">
+            {SKELETON_ROWS.map((row, i) => (
+              <li key={i} className={`flex items-center gap-3 px-2 py-2.5 ${row.fade}`}>
+                <Skeleton className="h-3.5 w-8 shrink-0" />
+                <span className="flex flex-1 flex-col gap-2">
+                  <Skeleton className={`h-3.5 ${row.width}`} />
+                  <Skeleton className="h-2.5 w-24" />
+                </span>
+                <Skeleton className="size-6 shrink-0" />
+              </li>
+            ))}
+          </ul>
         )}
 
         <ul className="flex flex-col">
@@ -129,13 +150,13 @@ const AssignLocationDrawer = ({ location, onClose }: { location: Location; onClo
                 <button
                   type="button"
                   onClick={() => toggle(row.lesson.id)}
-                  className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left cursor-pointer ${on ? "bg-primary-50" : "hover:bg-neutral-50"}`}
+                  className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left cursor-pointer ${on ? "bg-primary-100" : "hover:bg-neutral-50"}`}
                 >
                   <span className="w-10 shrink-0 text-sm font-medium text-neutral-600">
                     {row.weekday !== null ? `週${WEEKDAYS[row.weekday]}` : "—"}
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate font-medium">{row.lesson.name}</span>
+                    <span className="truncate font-medium text-neutral-900">{row.lesson.name}</span>
                     <span className="truncate text-xs text-neutral-500">
                       {[row.time, row.teachers, row.lesson.status === "finished" ? "已結束" : null].filter(Boolean).join(" · ")}
                     </span>
@@ -152,7 +173,7 @@ const AssignLocationDrawer = ({ location, onClose }: { location: Location; onClo
             type="checkbox"
             checked={includeFinished}
             onChange={(e) => setIncludeFinished(e.target.checked)}
-            className="h-4 w-4 accent-primary-700"
+            className="h-4 w-4 accent-primary-900"
           />
           也列出已結束的課
         </label>

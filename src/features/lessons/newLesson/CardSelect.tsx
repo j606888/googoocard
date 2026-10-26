@@ -1,66 +1,14 @@
 import { useEffect, useState } from "react";
-import Drawer from "@/components/Drawer";
-import { useCreateCardMutation, useGetCardsQuery } from "@/store/slices/cards";
-import InputField from "@/components/InputField";
+import { useGetCardsQuery } from "@/store/slices/cards";
 import MultiSelect from "@/components/MultiSelect";
-import { cardValidationForm } from "@/features/cards/cardValidation";
+import { FieldLabel } from "@/components/Field";
+import CardFormDrawer from "@/features/cards/CardForm/CardFormDrawer";
 import { cardMatchesLesson } from "@/domains/qualification";
 import { toast } from "sonner";
 
 const NewCard = ({ selectedCardIds, onChange, danceStyleId, error }: { selectedCardIds: number[], onChange: (value: number[]) => void, danceStyleId: number | null, error?: string }) => {
   const { data: cards } = useGetCardsQuery();
   const [open, setOpen] = useState(false);
-  const [cardName, setCardName] = useState("");
-  const [price, setPrice] = useState("");
-  const [sessions, setSessions] = useState("");
-  const [errors, setErrors] = useState<{ cardName?: string; price?: string; sessions?: string }>({});
-
-  const [createCard, { isLoading }] = useCreateCardMutation();
-
-  const handleSubmit = async () => {
-    const errors = cardValidationForm({ cardName, price, sessions });
-    if (Object.keys(errors).length > 0) {
-      setErrors(errors);
-      return;
-    }
-    const card = await createCard({ name: cardName, price: Number(price), sessions: Number(sessions), isPracticeCard: false, isTrial: false, danceStyleId: null });
-    if (card.data) {
-      onChange([...selectedCardIds, card.data.id]);
-    }
-    setCardName("");
-    setPrice("");
-    setSessions("");
-    setOpen(false);
-  };
-
-  const handleCardNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCardName(e.target.value);
-    if (errors.cardName) {
-      setErrors((prev) => ({ ...prev, cardName: undefined }));
-    }
-  };
-
-  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const onlyDigits = e.target.value.replace(/\D/g, "");
-    setPrice(onlyDigits);
-
-    if (errors.price && onlyDigits) {
-      setErrors((prev) => ({ ...prev, price: undefined }));
-    }
-  };
-
-  const handleSessionsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const onlyDigits = e.target.value.replace(/\D/g, "");
-    setSessions(onlyDigits);
-    if (errors.sessions && onlyDigits) {
-      setErrors((prev) => ({ ...prev, sessions: undefined }));
-    }
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-    setErrors({});
-  };
 
   // Candidate cards: all active cards, plus disabled cards that students still
   // hold unused (activeHolders > 0) so those cards can be attached to a lesson
@@ -99,8 +47,8 @@ const NewCard = ({ selectedCardIds, onChange, danceStyleId, error }: { selectedC
   }, [danceStyleId, cards, selectedCardIds]);
 
   return (
-    <div className="flex flex-col gap-1">
-      <label className="block font-medium mb-1">課卡</label>
+    <div className="flex flex-col gap-1.5">
+      <FieldLabel>課卡</FieldLabel>
       <MultiSelect
         options={cardOptions}
         values={selectedCardIds}
@@ -114,39 +62,13 @@ const NewCard = ({ selectedCardIds, onChange, danceStyleId, error }: { selectedC
         }}
         error={error}
       />
-      <Drawer
-        title="新增課卡"
-        open={open}
-        onClose={handleClose}
-        onSubmit={handleSubmit}
-        isLoading={isLoading}
-      >
-        <form className="mb-6">
-          <InputField
-            label="課卡名稱"
-            value={cardName}
-            placeholder="例如：初階 6 堂"
-            onChange={handleCardNameChange}
-            error={errors.cardName}
-          />
-          <div className="flex gap-4">
-            <InputField
-              label="金額"
-              value={price}
-              onChange={handlePriceChange}
-              error={errors.price}
-              type="number"
-            />
-            <InputField
-              label="堂數"
-              value={sessions}
-              onChange={handleSessionsChange}
-              error={errors.sessions}
-              type="number"
-            />
-          </div>
-        </form>
-      </Drawer>
+      {open && (
+        <CardFormDrawer
+          target={{ mode: "new", danceStyleId }}
+          onClose={() => setOpen(false)}
+          onSaved={(cardId) => onChange([...selectedCardIds, cardId])}
+        />
+      )}
     </div>
   );
 };

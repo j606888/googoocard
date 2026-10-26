@@ -46,7 +46,7 @@ function RedirectContent() {
   }, [data, isLoading, router, token, redirect]);
 
   return (
-    <div className="flex flex-col items-center justify-center left-0 right-0 top-0 bottom-0 absolute bg-primary-500 overflow-hidden">
+    <div className="flex flex-col items-center justify-center left-0 right-0 top-0 bottom-0 absolute bg-primary-900 overflow-hidden">
       <div className="relative w-full flex flex-col items-center justify-center h-[40vh] gap-4">
         <h2
           className="text-white text-center text-xl font-semibold w-30
@@ -61,7 +61,7 @@ function RedirectContent() {
 
 function RedirectPageFallback() {
   return (
-    <div className="flex flex-col items-center justify-center left-0 right-0 top-0 bottom-0 absolute bg-primary-500 overflow-hidden">
+    <div className="flex flex-col items-center justify-center left-0 right-0 top-0 bottom-0 absolute bg-primary-900 overflow-hidden">
       <div className="relative w-full flex flex-col items-center justify-center h-[40vh] gap-4">
         <h2
           className="text-white text-center text-xl font-semibold w-30

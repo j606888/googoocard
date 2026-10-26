@@ -4,6 +4,7 @@ import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { X } from "lucide-react";
 import ResponsiveDialog, { ResponsiveDialogTitle } from "@/components/ResponsiveDialog";
+import { Button } from "@/components/ui/button";
 
 /**
  * 現場綁定：小幫手打開這位學生的綁定 QR，學生用 LINE 掃、送出訊息就綁好，
@@ -29,14 +30,16 @@ const LineBindQrButton = ({
           <ResponsiveDialogTitle className="text-xl font-semibold">
             {studentName} 的 LINE 綁定
           </ResponsiveDialogTitle>
-          <button
+          <Button
             type="button"
-            className="text-neutral-500 absolute right-0 top-0 cursor-pointer"
+            variant="ghost"
+            size="iconSm"
+            className="absolute -right-2 -top-1.5 text-neutral-500"
             onClick={() => setOpen(false)}
             aria-label="關閉"
           >
             <X className="w-6 h-6" />
-          </button>
+          </Button>
         </div>
         <div className="flex flex-col items-center gap-4 pb-4">
           <QRCodeSVG value={deepLink} size={240} marginSize={2} />

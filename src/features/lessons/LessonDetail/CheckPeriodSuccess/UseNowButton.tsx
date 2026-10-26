@@ -3,6 +3,7 @@ import { useGetStudentCardsByLessonQuery } from "@/store/slices/students";
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 const UseNowButton = ({
   lesson,
@@ -32,13 +33,9 @@ const UseNowButton = ({
   };
 
   return (
-    <button
-      className="text-xs font-medium rounded-full text-white bg-primary-500 hover:bg-primary-600 w-24 px-3 py-2 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      onClick={handleClick}
-      disabled={isLoading}
-    >
+    <Button size="sm" className="min-w-24" onClick={handleClick} isLoading={isLoading}>
       現在使用
-    </button>
+    </Button>
   );
 };
 

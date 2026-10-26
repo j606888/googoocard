@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import Drawer from "@/components/Drawer";
 import {
@@ -8,6 +8,9 @@ import {
   useLeaveClassroomMutation,
 } from "@/store/slices/classrooms";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { FieldError, FieldLabel, fieldControlClass } from "@/components/Field";
+import { cn } from "@/lib/utils";
 
 /**
  * The two ways out of a classroom, kept together at the bottom of the team page
@@ -22,6 +25,7 @@ const DangerZone = ({ role }: { role: string }) => {
   const [open, setOpen] = useState(false);
   const [confirmName, setConfirmName] = useState("");
   const [error, setError] = useState("");
+  const confirmInputId = useId();
 
   const { data, isLoading: isClassroomsLoading } = useGetClassroomsQuery();
   const classroom = data?.classrooms.find((c) => c.id === data.currentClassroomId);
@@ -37,7 +41,18 @@ const DangerZone = ({ role }: { role: string }) => {
   const [leaveClassroom, { isLoading: isLeaving }] = useLeaveClassroomMutation();
 
   if (isClassroomsLoading) {
-    return <Skeleton className="mt-4 h-[110px] w-full rounded-2xl lg:mt-6" />;
+    return (
+      <section className="mt-4 flex flex-col gap-2 lg:mt-6">
+        <h3 className="mx-1 text-[13px] font-medium text-danger-700 lg:mx-0">危險操作</h3>
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-danger-200 bg-white p-3.5 lg:gap-4 lg:px-5 lg:py-4">
+          <div className="flex min-w-[min(100%,16rem)] flex-1 flex-col gap-2">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-3 w-64 max-w-full" />
+          </div>
+          <Skeleton className="h-11 w-28 shrink-0 rounded-xl" />
+        </div>
+      </section>
+    );
   }
   if (!classroom) return null;
 
@@ -69,20 +84,21 @@ const DangerZone = ({ role }: { role: string }) => {
         <h3 className="mx-1 text-[13px] font-medium text-danger-700 lg:mx-0">危險操作</h3>
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-danger-200 bg-white p-3.5 lg:gap-4 lg:px-5 lg:py-4">
           <div className="flex min-w-[min(100%,16rem)] flex-1 flex-col gap-0.5">
-            <span className="font-medium">{isOwner ? "刪除教室" : "退出教室"}</span>
+            <span className="font-medium text-neutral-900">{isOwner ? "刪除教室" : "退出教室"}</span>
             <span className="text-[13px] leading-relaxed text-neutral-500">
               {isOwner
                 ? "整間教室會被封存：所有成員都看不到它，牆上的簽到 QR 也會失效。"
                 : `你將失去 ${classroom.name} 的存取權，之後可以請擁有者再邀請你回來。`}
             </span>
           </div>
-          <button
+          <Button
             type="button"
+            variant="dangerSecondary"
             onClick={() => setOpen(true)}
-            className="h-11 shrink-0 cursor-pointer rounded-lg border border-danger-400 bg-white px-4 text-sm font-medium text-danger-700 hover:bg-danger-50 lg:h-10"
+            className="shrink-0"
           >
             {isOwner ? "刪除教室…" : "退出…"}
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -104,20 +120,23 @@ const DangerZone = ({ role }: { role: string }) => {
               <span className="font-semibold text-neutral-900">{classroom.name}</span>{" "}
               以及裡面的所有資料都會被封存：
             </p>
-            <ul className="mb-4 space-y-1 rounded-lg bg-neutral-100 p-3 text-sm text-neutral-700">
+            <ul className="mb-4 space-y-1 rounded-xl bg-neutral-50 p-3 text-sm text-neutral-700">
               <li>{detail?.counts.students ?? "—"} 位學生</li>
               <li>{detail?.counts.lessons ?? "—"} 堂課程</li>
               <li>{detail?.counts.studentCards ?? "—"} 張學生課卡</li>
             </ul>
-            <label className="mb-2 block text-sm font-medium">
-              請輸入 <span className="font-semibold">{classroom.name}</span> 以確認
-            </label>
-            <input
-              className="mb-2 w-full rounded bg-neutral-100 p-2"
-              value={confirmName}
+            <div className="mb-2 flex flex-col gap-1.5">
+              <FieldLabel htmlFor={confirmInputId}>
+                請輸入 <span className="font-semibold">{classroom.name}</span> 以確認
+              </FieldLabel>
+              <input
+                id={confirmInputId}
+                className={cn(fieldControlClass(), "h-12")}
+                value={confirmName}
               onChange={(e) => setConfirmName(e.target.value)}
-              placeholder={classroom.name}
-            />
+                placeholder={classroom.name}
+              />
+            </div>
           </>
         ) : (
           <p className="text-sm text-neutral-600">
@@ -126,7 +145,9 @@ const DangerZone = ({ role }: { role: string }) => {
             ，並失去其中學生、課程與收入資料的存取權。
           </p>
         )}
-        {error && <p className="mt-2 text-sm text-danger-600">{error}</p>}
+        <div className="mt-2">
+          <FieldError>{error}</FieldError>
+        </div>
       </Drawer>
     </>
   );

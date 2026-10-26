@@ -8,6 +8,7 @@ import CardDetailDialog from "./CardDetailDialog";
 import EndedCardsTable from "./EndedCardsTable";
 import EmptyCards from "./EmptyCards";
 import { isCardEnded } from "./cardStatus";
+import EmptyState from "@/components/EmptyState";
 
 const SectionHeading = ({ title, hint }: { title: string; hint: string }) => (
   <h3 className="m-0 text-[15px] font-bold text-neutral-900">
@@ -89,9 +90,7 @@ const CardsSection = ({
             ))}
           </div>
         ) : (
-          <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
-            課卡都用完了{isPublic ? "" : "，可以幫學生續卡"}
-          </div>
+          <EmptyState kind="inline" title={`課卡都用完了${isPublic ? "" : "，可以幫學生續卡"}`} />
         )}
       </section>
 

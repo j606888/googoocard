@@ -43,7 +43,7 @@ const Tile = ({
     >
       <div className={`${compact ? "text-[11px]" : "text-xs"} text-neutral-600`}>{label}</div>
       <div
-        className={`mt-0.5 font-bold truncate ${valueSize} ${warn ? "text-warning-900" : "text-neutral-900"}`}
+        className={`mt-0.5 font-bold truncate ${valueSize} ${warn ? "text-warning-950" : "text-neutral-900"}`}
       >
         {value}
         {unit && (

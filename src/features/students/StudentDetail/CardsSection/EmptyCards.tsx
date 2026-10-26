@@ -5,6 +5,9 @@ import type { StudentWithDetail } from "@/store/slices/students";
 import { useGetCardsQuery } from "@/store/slices/cards";
 import { formatMoney } from "@/lib/money";
 import { BuyCardDialog, buyBlockedReason } from "./BuyCard";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
+import StatusTag from "@/components/StatusTag";
 
 /** 快選最多列這麼多種常用卡。 */
 const QUICK_PICK_COUNT = 4;
@@ -15,11 +18,7 @@ const QUICK_PICK_COUNT = 4;
  */
 const EmptyCards = ({ student, isPublic = false }: { student: StudentWithDetail; isPublic?: boolean }) => {
   if (isPublic) {
-    return (
-      <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
-        目前沒有課卡
-      </div>
-    );
+    return <EmptyState kind="inline" title="目前沒有課卡" />;
   }
   return <TeacherEmptyCards student={student} />;
 };
@@ -54,14 +53,12 @@ const TeacherEmptyCards = ({ student }: { student: StudentWithDetail }) => {
               key={card.id}
               type="button"
               onClick={() => openBuy(card.id)}
-              className="flex flex-col gap-1 p-3.5 rounded-xl border border-neutral-300 bg-white text-left cursor-pointer hover:border-primary-500 hover:bg-primary-50"
+              className="flex flex-col gap-1 p-3.5 rounded-xl border border-neutral-300 bg-white text-left cursor-pointer hover:border-primary-300 hover:bg-primary-50"
             >
               <span className="text-[15px] font-bold text-neutral-900 flex items-center gap-1.5 flex-wrap">
                 {card.name}
                 {card.isPracticeCard && (
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-warning-100 text-warning-900">
-                    複習
-                  </span>
+                  <StatusTag tone="warning">複習</StatusTag>
                 )}
               </span>
               <span className="text-[13px] text-neutral-600 tabular-nums">
@@ -73,13 +70,9 @@ const TeacherEmptyCards = ({ student }: { student: StudentWithDetail }) => {
       )}
       {!archived && (
         <div>
-          <button
-            type="button"
-            onClick={() => openBuy(null)}
-            className="h-12 px-5 rounded-xl bg-primary-900 text-white text-[15px] font-semibold cursor-pointer hover:bg-primary-700"
-          >
+          <Button type="button" onClick={() => openBuy(null)}>
             ＋ 購買第一張課卡
-          </button>
+          </Button>
         </div>
       )}
       <BuyCardDialog

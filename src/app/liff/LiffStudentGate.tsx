@@ -2,7 +2,8 @@
 
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { StudentWithDetail } from "@/store/slices/students";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { Button } from "@/components/ui/button";
+import LiffSkeleton from "@/features/liff/LiffSkeleton";
 import FirstTimeGate, { FirstTimePrefill } from "@/features/liff/FirstTimeGate";
 import { getLiffId, loadLiff } from "@/lib/liffClient";
 
@@ -195,7 +196,7 @@ export default function LiffStudentGate({
             <button
               key={opt.id}
               onClick={() => pickStudent(opt.id)}
-              className="flex items-center gap-3 rounded-xl border border-neutral-200 p-3 text-left active:bg-neutral-50"
+              className="flex items-center gap-3 rounded-2xl border border-neutral-200 p-3 text-left active:bg-neutral-50"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -225,12 +226,9 @@ export default function LiffStudentGate({
             <span className="truncate text-neutral-600">
               目前：{student.name}（{student.classroom.name}）
             </span>
-            <button
-              onClick={switchStudent}
-              className="shrink-0 rounded-full border border-neutral-300 px-3 py-1 text-xs font-medium active:bg-neutral-100"
-            >
+            <Button variant="secondary" size="sm" onClick={switchStudent} className="shrink-0">
               切換學生
-            </button>
+            </Button>
           </div>
         )}
         {children(student, { idToken, studentId: student.id })}
@@ -240,10 +238,15 @@ export default function LiffStudentGate({
 
   // Loading / error.
   if (status === "載入中…") {
-    return <ListSkeleton />;
+    return (
+      <>
+        <div className="h-16 w-full bg-primary-900" />
+        <LiffSkeleton />
+      </>
+    );
   }
   return (
-    <div className="flex h-screen flex-col items-center justify-center gap-3 bg-primary-500 text-white">
+    <div className="flex h-screen flex-col items-center justify-center gap-3 bg-primary-900 text-white">
       <div className="text-lg font-semibold">googoocard</div>
       <div className="text-sm opacity-90">{status}</div>
     </div>

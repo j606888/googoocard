@@ -11,6 +11,8 @@ import {
   useEndLessonMutation,
 } from "@/store/slices/lessons";
 import { nextPeriodDefault } from "./lessonGrouping";
+import { Button } from "@/components/ui/button";
+import { FieldError, FieldLabel } from "@/components/Field";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 /** 「一次排幾週」勾起來時連排的週數。 */
@@ -89,8 +91,8 @@ const NextPeriodDrawer = ({
           {lesson.totalPeriods > 0 && ` · 已上 ${lesson.attendedCount} 堂`}
         </p>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-sm text-neutral-700">日期</label>
+        <div className="flex flex-col gap-1.5">
+          <FieldLabel>日期</FieldLabel>
           <DatePicker
             date={date}
             setDate={(d) => {
@@ -99,13 +101,13 @@ const NextPeriodDrawer = ({
             }}
           />
           {defaults && (
-            <p className="text-xs text-neutral-400">預設沿用上一堂的星期與時間</p>
+            <p className="text-xs text-neutral-500">預設沿用上一堂的星期與時間</p>
           )}
         </div>
 
         <div className="flex gap-2">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm text-neutral-700">開始</label>
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel>開始</FieldLabel>
             <TimePicker
               selectedTime={fromTime}
               setSelectedTime={(t) => {
@@ -114,8 +116,8 @@ const NextPeriodDrawer = ({
               }}
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm text-neutral-700">結束</label>
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel>結束</FieldLabel>
             <TimePicker
               selectedTime={toTime}
               setSelectedTime={(t) => {
@@ -131,7 +133,7 @@ const NextPeriodDrawer = ({
             type="checkbox"
             checked={batch}
             onChange={(e) => setBatch(e.target.checked)}
-            className="mt-0.5 w-4 h-4 accent-primary-500"
+            className="mt-0.5 w-4 h-4 accent-primary-900"
           />
           <span>
             一次排 {BATCH_WEEKS} 週
@@ -143,17 +145,19 @@ const NextPeriodDrawer = ({
           </span>
         </label>
 
-        {error && <p className="text-sm text-danger-500">{error}</p>}
+        <FieldError>{error}</FieldError>
 
         {lesson.kind === "ongoing" && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={handleEnd}
             disabled={isEnding}
-            className="self-center text-sm text-neutral-500 hover:text-neutral-700 underline-offset-2 hover:underline disabled:opacity-50 cursor-pointer"
+            className="self-center text-neutral-500"
           >
             這門課不再開了 · 結束課程
-          </button>
+          </Button>
         )}
       </div>
     </Drawer>

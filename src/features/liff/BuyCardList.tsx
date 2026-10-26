@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
+import LiffSkeleton from "@/features/liff/LiffSkeleton";
 import { StudentWithDetail } from "@/store/slices/students";
 import { LiffAuthContext } from "@/app/liff/LiffStudentGate";
 import { canBuyCard } from "@/domains/qualification";
@@ -123,7 +125,7 @@ export default function BuyCardList({
   }
 
   if (!cards) {
-    return <ListSkeleton />;
+    return <LiffSkeleton />;
   }
 
   // ----- Completion screen (the flow's ending) -----
@@ -137,7 +139,7 @@ export default function BuyCardList({
           </h2>
         </div>
 
-        <div className="rounded-xl border border-neutral-200 p-4">
+        <div className="rounded-2xl border border-neutral-200 p-4">
           <div className="flex items-center gap-2">
             <span className="text-lg font-semibold">{purchased.name}</span>
             {purchased.isPracticeCard && purchased.danceStyle && (
@@ -150,22 +152,19 @@ export default function BuyCardList({
           </div>
           <div className="mt-2 flex items-center justify-between text-sm text-neutral-600">
             <span>{purchased.sessions} 堂</span>
-            <span className="text-lg font-bold text-primary-600">
+            <span className="text-lg font-bold text-primary-900">
               ${formatMoney(purchased.price)}
             </span>
           </div>
         </div>
 
-        <p className="rounded-xl bg-warning-50 p-4 text-sm leading-relaxed text-warning-800">
+        <p className="rounded-2xl bg-warning-50 p-4 text-sm leading-relaxed text-warning-950">
           待老師確認付款後，此課卡也會標記為已付款。卡片在確認付款前仍可正常使用，現在去上課吧！
         </p>
 
-        <button
-          onClick={handleClose}
-          className="rounded-lg bg-primary-500 py-3 text-center font-medium text-white active:bg-primary-600"
-        >
+        <Button size="lg" onClick={handleClose} className="w-full">
           關閉視窗
-        </button>
+        </Button>
       </div>
     );
   }
@@ -173,16 +172,14 @@ export default function BuyCardList({
   return (
     <div className="px-5 py-5">
       {visibleCards.length === 0 ? (
-        <p className="py-8 text-center text-sm text-neutral-500">
-          目前沒有可購買的課卡。
-        </p>
+        <EmptyState kind="page" title="目前沒有可購買的課卡。" />
       ) : (
         <div className="flex flex-col gap-3">
           {visibleCards.map((card) => (
             <button
               key={card.id}
               onClick={() => setSelected(card)}
-              className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 p-4 text-left active:bg-neutral-50"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-neutral-200 p-4 text-left active:bg-neutral-50"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -197,7 +194,7 @@ export default function BuyCardList({
                 </div>
                 <div className="mt-1 text-sm text-neutral-500">{card.sessions} 堂</div>
               </div>
-              <div className="shrink-0 text-lg font-bold text-primary-600">
+              <div className="shrink-0 text-lg font-bold text-primary-900">
                 ${formatMoney(card.price)}
               </div>
             </button>
@@ -215,7 +212,7 @@ export default function BuyCardList({
       >
         {selected && (
           <div className="flex flex-col gap-4">
-            <div className="rounded-xl border border-neutral-200 p-4">
+            <div className="rounded-2xl border border-neutral-200 p-4">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold">{selected.name}</span>
                 {selected.isPracticeCard && selected.danceStyle && (
@@ -228,12 +225,12 @@ export default function BuyCardList({
               </div>
               <div className="mt-2 flex items-center justify-between text-sm text-neutral-600">
                 <span>{selected.sessions} 堂</span>
-                <span className="text-lg font-bold text-primary-600">
+                <span className="text-lg font-bold text-primary-900">
                   ${formatMoney(selected.price)}
                 </span>
               </div>
             </div>
-            <p className="rounded-xl bg-warning-50 p-4 text-sm leading-relaxed text-warning-800">
+            <p className="rounded-2xl bg-warning-50 p-4 text-sm leading-relaxed text-warning-950">
               請直接轉帳或拿現金給老師，我們會再幫你把這張卡標記為已付款。卡片在確認付款前仍可正常使用。
             </p>
           </div>

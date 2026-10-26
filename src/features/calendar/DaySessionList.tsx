@@ -7,6 +7,8 @@ import { Check, AlarmClock, Clock, CalendarOff, GraduationCap } from "lucide-rea
 import { CalendarPeriod } from "@/store/slices/lessons";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
+import StatusTag from "@/components/StatusTag";
 import { sessionState } from "./status";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -44,9 +46,7 @@ const DaySessionList = ({ day, periods, loading }: DaySessionListProps) => {
           {format(day, "M/d")} ({WEEKDAYS[day.getDay()]})
         </span>
         {isToday(day) && (
-          <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-900">
-            今天
-          </span>
+          <StatusTag tone="positive">今天</StatusTag>
         )}
         {!loading && periods.length > 0 && (
           <span className="ml-auto text-xs font-medium text-neutral-500">
@@ -60,7 +60,7 @@ const DaySessionList = ({ day, periods, loading }: DaySessionListProps) => {
           {[0, 1].map((i) => (
             <div
               key={i}
-              className="flex items-stretch rounded-xl border border-neutral-200 bg-white overflow-hidden"
+              className="flex items-stretch rounded-2xl border border-neutral-200 bg-white overflow-hidden"
             >
               <Skeleton className="w-1.5 shrink-0 rounded-none" />
               <div className="flex flex-col gap-2 p-3 flex-1 min-w-0">
@@ -77,10 +77,7 @@ const DaySessionList = ({ day, periods, loading }: DaySessionListProps) => {
           ))}
         </div>
       ) : periods.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-2 py-8 text-neutral-400">
-          <CalendarOff className="w-6 h-6" />
-          <p className="text-sm">這天沒有課程</p>
-        </div>
+        <EmptyState kind="inline" icon={<CalendarOff />} title="這天沒有課程" />
       ) : (
         <div className="flex flex-col gap-2.5">
           {periods.map((p) => {
@@ -91,7 +88,7 @@ const DaySessionList = ({ day, periods, loading }: DaySessionListProps) => {
               <button
                 key={p.periodId}
                 onClick={() => handleClick(p)}
-                className={`group flex items-stretch gap-0 rounded-xl border bg-white overflow-hidden text-left hover:shadow-sm transition-all ${
+                className={`group flex items-stretch gap-0 rounded-2xl border bg-white overflow-hidden text-left cursor-pointer transition-colors ${
                   state === "due"
                     ? "border-warning-400 hover:border-warning-500"
                     : "border-neutral-200 hover:border-neutral-300"
@@ -130,7 +127,7 @@ const DaySessionList = ({ day, periods, loading }: DaySessionListProps) => {
                       </span>
                     )}
                     {state === "due" && (
-                      <span className="ml-auto flex items-center gap-1 shrink-0 rounded-full bg-primary-600 px-2.5 py-1 text-xs font-semibold text-white group-hover:bg-primary-700">
+                      <span className="ml-auto flex items-center gap-1 shrink-0 rounded-full bg-primary-900 px-2.5 py-1 text-xs font-semibold text-white group-hover:bg-primary-700">
                         <AlarmClock className="w-3.5 h-3.5" />
                         去點名
                       </span>

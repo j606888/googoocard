@@ -6,6 +6,7 @@ import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { DANCE_LEVELS, DEFAULT_DANCE_LEVEL } from "@/lib/danceLevels";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
 
 const NOT_DONE = { value: 0, label: "未完成" };
 const LEVELED_OPTIONS = [NOT_DONE, ...DANCE_LEVELS];
@@ -73,13 +74,13 @@ const QualificationLevels = ({
                 <Skeleton className="w-2.5 h-2.5 rounded-full shrink-0" />
                 <Skeleton className="h-4 flex-1" />
               </div>
-              <Skeleton className={`flex-1 rounded-xl ${dense ? "h-9" : "h-10"}`} />
+              <Skeleton className="flex-1 h-10 rounded-xl" />
             </div>
           ))}
         </div>
       );
     }
-    return <p className="text-sm text-neutral-500">教室還沒有舞種。</p>;
+    return <EmptyState kind="inline" title="教室還沒有舞種" />;
   }
 
   return (
@@ -125,7 +126,7 @@ const QualificationLevels = ({
                     aria-label={option.label}
                     disabled={disabled}
                     onClick={() => onPick(danceStyle.id, option.value, danceStyle.hasLevels)}
-                    className={`${dense ? "h-8 text-xs" : "h-9 text-sm"} rounded-[10px] cursor-pointer transition-colors disabled:cursor-wait ${
+                    className={`h-9 ${dense ? "text-xs" : "text-sm"} rounded-lg cursor-pointer transition-colors disabled:cursor-wait ${
                       !checked
                         ? "text-neutral-600"
                         : option.value === 0

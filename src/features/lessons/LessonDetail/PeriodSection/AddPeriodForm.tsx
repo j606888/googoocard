@@ -9,6 +9,8 @@ import TimePicker, {
   generateTimeOptions,
 } from "@/components/TimePicker";
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { FieldError, FieldLabel } from "@/components/Field";
 
 const validationErrors = {
   empty: "不可空白",
@@ -165,15 +167,10 @@ const AddPeriodForm = ({
 
   return (
     <>
-      <button className="bg-primary-500 text-white px-3 py-1.5 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600">
-        <Plus className="w-4 h-4" />
-        <span
-          className="text-sm font-medium"
-          onClick={() => setNewPeriodModalOpen(true)}
-        >
-          新增時段
-        </span>
-      </button>
+      <Button variant="secondary" size="sm" onClick={() => setNewPeriodModalOpen(true)}>
+        <Plus className="size-4" />
+        新增時段
+      </Button>
       {newPeriodModalOpen && (
         <Drawer
           open={newPeriodModalOpen}
@@ -183,33 +180,27 @@ const AddPeriodForm = ({
           submitText="新增"
           isLoading={isLoading}
         >
-          <div className="flex flex-col gap-0.5 mb-4">
-            <label className="text-sm text-neutral-700">日期</label>
+          <div className="flex flex-col gap-1.5 mb-4">
+            <FieldLabel>日期</FieldLabel>
             <DatePicker date={date} setDate={handleDateChange} />
-            {errors.date && (
-              <p className="text-sm text-danger-500">{errors.date}</p>
-            )}
+            <FieldError>{errors.date}</FieldError>
           </div>
           <div className="flex gap-2 mb-6">
-            <div>
-              <label className="text-sm text-neutral-700">開始</label>
+            <div className="flex flex-col gap-1.5">
+              <FieldLabel>開始</FieldLabel>
               <TimePicker
                 selectedTime={fromTime}
                 setSelectedTime={handleFromTimeChange}
               />
-              {errors.fromTime && (
-                <p className="mt-0.5 text-xs text-danger-500">{errors.fromTime}</p>
-              )}
+              <FieldError>{errors.fromTime}</FieldError>
             </div>
-            <div>
-              <label className="text-sm text-neutral-700">結束</label>
+            <div className="flex flex-col gap-1.5">
+              <FieldLabel>結束</FieldLabel>
               <TimePicker
                 selectedTime={toTime}
                 setSelectedTime={handleToTimeChange}
               />
-              {errors.toTime && (
-                <p className="mt-0.5 text-xs text-danger-500">{errors.toTime}</p>
-              )}
+              <FieldError>{errors.toTime}</FieldError>
             </div>
           </div>
         </Drawer>

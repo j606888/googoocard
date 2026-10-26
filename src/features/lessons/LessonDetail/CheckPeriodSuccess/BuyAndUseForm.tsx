@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { canBuyCard } from "@/domains/qualification";
 import { practiceCardBlockedHint } from "@/lib/danceLevels";
 import { Card } from "@/store/slices/cards";
+import { Button } from "@/components/ui/button";
+import { FieldError, FieldLabel } from "@/components/Field";
 
 const BuyAndUseForm = ({
   record,
@@ -158,19 +160,20 @@ const BuyAndUseForm = ({
         disabled={!selectedCardId || !cardSessions || !cardPrice}
       >
         <div className="mb-4">
-          <p>選擇課卡</p>
+          <FieldLabel>選擇課卡</FieldLabel>
           {shouldLockGeneralCards && (
-            <div className="flex flex-col gap-2 p-3 mt-2 rounded-sm bg-primary-50 border border-primary-200">
-              <p className="text-xs text-primary-700">
+            <div className="flex flex-col items-start gap-2 p-3 mt-2 rounded-xl bg-primary-50 border border-primary-300">
+              <p className="text-xs text-primary-900">
                 學生符合複習卡資格，已優先鎖定複習卡，保護學生權益
               </p>
-              <button
+              <Button
                 type="button"
-                className="text-xs text-primary-700 underline text-left cursor-pointer"
+                variant="link"
+                className="text-xs underline"
                 onClick={() => setAllowManualOverride(true)}
               >
                 老師手動切換覆蓋
-              </button>
+              </Button>
             </div>
           )}
           <div className="flex flex-wrap gap-2 pt-2">
@@ -182,13 +185,13 @@ const BuyAndUseForm = ({
               return (
                 <div
                   key={card.id}
-                  className={`flex flex-col gap-1 px-4 py-3 border-1 border-neutral-200 rounded-sm ${
+                  className={`flex flex-col gap-1 px-4 py-3 border border-neutral-200 rounded-xl ${
                     disabled
                       ? "opacity-50 cursor-not-allowed bg-neutral-50"
                       : "cursor-pointer"
                   } ${
                     isSelected
-                      ? "bg-primary-100 border-primary-500"
+                      ? "bg-primary-100 border-primary-700"
                       : ""
                   }`}
                   onClick={() => handleSelectCard(card.id)}
@@ -198,14 +201,12 @@ const BuyAndUseForm = ({
                     <p>{card.name}</p>
                   </div>
                   {hint && (
-                    <p className="text-xs text-danger-500">{hint}</p>
+                    <p className="text-xs text-danger-700">{hint}</p>
                   )}
                 </div>
               );
             })}
-            {errors.selectedCardId && (
-              <p className="text-danger-500 text-sm">{errors.selectedCardId}</p>
-            )}
+            <FieldError>{errors.selectedCardId}</FieldError>
           </div>
         </div>
         {selectedCardId && (
@@ -231,8 +232,8 @@ const BuyAndUseForm = ({
             </div>
             <div className="mb-4 flex items-center justify-between">
               <div className="flex flex-col">
-                <span className="text-sm font-medium text-neutral-700">已付款</span>
-                <span className="text-xs text-neutral-400">
+                <FieldLabel>已付款</FieldLabel>
+                <span className="text-xs text-neutral-500">
                   {isPaid ? "已收到款項" : "尚未付款，卡片仍可使用"}
                 </span>
               </div>

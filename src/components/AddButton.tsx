@@ -1,4 +1,6 @@
 import { Plus } from "lucide-react";
+import { Button } from "./ui/button";
+import { cn } from "@/lib/utils";
 
 const AddButton = ({
   onClick = () => {},
@@ -10,13 +12,10 @@ const AddButton = ({
   className?: string;
 }) => {
   return (
-    <button
-      className={`bg-primary-500 text-white px-4 py-1.5 rounded-sm flex items-center justify-center gap-2 mb-4 ${className || ""}`}
-      onClick={onClick}
-    >
-      <Plus className="w-4 h-4" />
-      <span className="font-medium">{children}</span>
-    </button>
+    <Button className={cn("mb-4", className)} onClick={onClick}>
+      <Plus />
+      <span>{children}</span>
+    </Button>
   );
 };
 

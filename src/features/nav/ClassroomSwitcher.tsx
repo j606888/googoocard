@@ -45,7 +45,7 @@ const ClassroomSwitcher = () => {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-neutral-900"
+        className="flex min-h-11 cursor-pointer items-center gap-1.5 text-neutral-900"
       >
         <span className="text-xl font-bold">{currentClassroom.name}</span>
         {/* Hidden in the App even before the effect above runs, so the name doesn't jump. */}
@@ -63,7 +63,7 @@ const ClassroomSwitcher = () => {
               onClick={() => setOpen(false)}
             />
             <motion.div
-              className="absolute left-0 top-full z-50 mt-2 w-60 origin-top-left rounded-2xl border border-black/5 bg-white p-2 shadow-[0_12px_40px_-12px_rgba(27,94,74,0.45)]"
+              className="absolute left-0 top-full z-50 mt-2 w-60 origin-top-left rounded-2xl border border-neutral-200 bg-white p-2 shadow-[0_12px_40px_-12px_rgba(27,94,74,0.45)]"
               initial={{ opacity: 0, y: -6, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.97 }}
@@ -71,33 +71,33 @@ const ClassroomSwitcher = () => {
             >
               {otherClassrooms && otherClassrooms.length > 0 ? (
                 <>
-                  <p className="px-2 pb-1 pt-1.5 text-xs font-medium text-neutral-400">
+                  <p className="px-2 pb-1 pt-1.5 text-xs font-medium text-neutral-500">
                     切換教室
                   </p>
                   {otherClassrooms.map((classroom) => (
                     <button
                       key={classroom.id}
                       onClick={() => handleSwitch(classroom.id)}
-                      className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-neutral-50"
+                      className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-neutral-50"
                     >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-500 text-sm font-bold text-white">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-primary-900 text-sm font-bold text-white">
                         {classroom.name.slice(0, 1)}
                       </div>
-                      <span className="font-medium text-neutral-800">
+                      <span className="font-medium text-neutral-900">
                         {classroom.name}
                       </span>
                     </button>
                   ))}
                 </>
               ) : (
-                <p className="px-2 py-2 text-sm text-neutral-400">
+                <p className="px-2 py-2 text-sm text-neutral-500">
                   沒有其他教室
                 </p>
               )}
               <Link
                 href="/onboarding"
                 onClick={() => setOpen(false)}
-                className="mt-1 flex items-center gap-2 rounded-xl border-t border-neutral-100 px-2 py-2.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
+                className="mt-1 flex items-center gap-2 rounded-lg border-t border-neutral-200 px-2 py-2.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
               >
                 <Plus className="h-4 w-4" />
                 建立新教室

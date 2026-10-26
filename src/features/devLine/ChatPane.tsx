@@ -70,7 +70,7 @@ const ChatPane = ({ persona, onOpenLiff }: { persona: MockLineUser; onOpenLiff: 
     <div className="overflow-hidden rounded-[2.5rem] border-[10px] border-neutral-900 bg-white shadow-xl">
       <div className="flex h-11 w-[375px] items-center border-b border-neutral-200 bg-white px-4">
         <span className="text-sm font-semibold">Googoocard</span>
-        <span className="ml-2 text-xs text-neutral-400">官方帳號 · {persona.name}</span>
+        <span className="ml-2 text-xs text-neutral-500">官方帳號 · {persona.name}</span>
       </div>
       <div className="flex h-[720px] w-[375px] flex-col bg-[#8cabd9]/25">
         <div ref={scroller} className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
@@ -88,7 +88,7 @@ const ChatPane = ({ persona, onOpenLiff }: { persona: MockLineUser; onOpenLiff: 
               </div>
             )
           )}
-          {busy && <p className="text-xs text-neutral-400">…</p>}
+          {busy && <p className="text-xs text-neutral-500">…</p>}
         </div>
 
         {chips.length > 0 && (
@@ -120,7 +120,7 @@ const ChatPane = ({ persona, onOpenLiff }: { persona: MockLineUser; onOpenLiff: 
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="輸入訊息（也可以貼綁定碼）"
-            className="min-w-0 flex-1 rounded-full bg-neutral-100 px-3 py-1.5 text-sm focus:outline-primary-500"
+            className="min-w-0 flex-1 rounded-full bg-neutral-100 px-3 py-1.5 text-sm focus:outline-primary-700"
           />
           <button type="submit" aria-label="傳送" className="text-[#06c755] cursor-pointer disabled:opacity-40" disabled={busy}>
             <Send className="h-5 w-5" />

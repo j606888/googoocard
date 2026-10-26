@@ -18,6 +18,7 @@ import { AlarmClock, ChevronLeft, ChevronRight } from "lucide-react";
 import { useGetCalendarPeriodsQuery, CalendarPeriod } from "@/store/slices/lessons";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import FilterChip from "@/components/FilterChip";
+import { Button } from "@/components/ui/button";
 import MonthGrid from "./MonthGrid";
 import DaySessionList from "./DaySessionList";
 import DueSessions from "./DueSessions";
@@ -116,32 +117,36 @@ const CalendarView = () => {
   return (
     <div className="w-full max-w-[1120px] px-5 py-3 lg:px-8 lg:py-6">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3 lg:mb-4">
-        <h2 className="text-2xl font-semibold">行事曆</h2>
+        <h2 className="text-2xl font-bold text-neutral-900">行事曆</h2>
         <div className="flex items-center gap-1">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => goToMonth(subMonths(viewMonth, 1))}
-            className="p-2 rounded-full text-neutral-500 hover:bg-neutral-100"
             aria-label="上個月"
           >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <span className="min-w-28 text-center font-medium text-neutral-800">
+            <ChevronLeft className="size-5" />
+          </Button>
+          <span className="min-w-28 text-center font-semibold text-neutral-900">
             {format(viewMonth, "yyyy 年 M 月")}
           </span>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => goToMonth(addMonths(viewMonth, 1))}
-            className="p-2 rounded-full text-neutral-500 hover:bg-neutral-100"
             aria-label="下個月"
           >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-          <button
+            <ChevronRight className="size-5" />
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={goToday}
             disabled={viewingToday}
-            className="ml-1 rounded-full border border-neutral-200 px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50 disabled:cursor-default disabled:text-neutral-400 disabled:hover:bg-transparent"
+            className="ml-1"
           >
             今天
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -179,7 +184,7 @@ const CalendarView = () => {
           {summary.due.length > 0 && (
             <button
               onClick={goToNextDue}
-              className="flex min-h-12 items-center gap-2.5 rounded-xl border border-warning-200 bg-warning-50 px-3 text-left text-warning-900 lg:hidden"
+              className="flex min-h-12 items-center gap-2.5 rounded-xl border border-warning-300 bg-warning-50 px-3 text-left text-warning-950 cursor-pointer lg:hidden"
             >
               <AlarmClock className="h-[18px] w-[18px] shrink-0" />
               <span className="flex-1 text-sm">
@@ -217,7 +222,7 @@ const CalendarView = () => {
 const SummaryPill = ({ label, value, warn }: { label: string; value: number; warn?: boolean }) => (
   <div
     className={`flex items-baseline gap-2 rounded-xl px-4 py-2 ${
-      warn ? "bg-warning-50 text-warning-900" : "bg-neutral-50 text-neutral-900"
+      warn ? "bg-warning-50 text-warning-950" : "bg-neutral-50 text-neutral-900"
     }`}
   >
     <span className={`text-sm ${warn ? "" : "text-neutral-500"}`}>{label}</span>

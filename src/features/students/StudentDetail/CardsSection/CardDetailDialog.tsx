@@ -28,28 +28,35 @@ import { formatMoney } from "@/lib/money";
 import ConvertCard from "./ConvertCard";
 import CardStatusPills from "./CardStatusPills";
 import { cardEndReason, isCardEnded, isLowRemaining, shortDate } from "./cardStatus";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { fieldControlClass } from "@/components/Field";
+import EmptyState from "@/components/EmptyState";
+import StatusTag from "@/components/StatusTag";
+import { cn } from "@/lib/utils";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
-const actionButton =
-  "min-h-12 inline-flex items-center gap-2 px-3 rounded-xl border border-neutral-300 bg-white text-sm font-semibold text-neutral-900 text-left cursor-pointer hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed";
+const actionButton = cn(
+  buttonVariants({ variant: "secondary" }),
+  "h-auto min-h-12 justify-start px-3 text-sm text-left whitespace-normal"
+);
 
 const Tile = ({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) => (
   <div className="bg-neutral-50 rounded-xl px-3 py-2 min-w-0">
     <div className="text-[11px] text-neutral-600">{label}</div>
-    <div className={`text-base font-bold tabular-nums truncate ${warn ? "text-danger-600" : "text-neutral-900"}`}>
+    <div className={`text-base font-bold tabular-nums truncate ${warn ? "text-danger-700" : "text-neutral-900"}`}>
       {value}
     </div>
   </div>
 );
 
 const SourcePill = ({ source, pending }: { source: "TEACHER" | "STUDENT"; pending: boolean }) => {
-  const [label, tone] = pending
-    ? ["待確認", "bg-warning-100 text-warning-900"]
-    : source === "STUDENT"
-      ? ["自助簽到", "bg-primary-100 text-primary-900"]
-      : ["老師點名", "bg-neutral-100 text-neutral-700"];
-  return <span className={`shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ${tone}`}>{label}</span>;
+  if (pending) return <StatusTag tone="warning">待確認</StatusTag>;
+  return source === "STUDENT" ? (
+    <StatusTag tone="outline">自助簽到</StatusTag>
+  ) : (
+    <StatusTag tone="neutral">老師點名</StatusTag>
+  );
 };
 
 /**
@@ -161,14 +168,16 @@ const CardDetailDialog = ({
             </div>
             <div className="flex items-start gap-2 shrink-0">
               <CardStatusPills studentCard={studentCard} showPaid={!ended} />
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="iconSm"
                 onClick={onClose}
                 aria-label="關閉"
-                className="-mr-1 -mt-1 p-1 rounded-lg text-neutral-500 hover:bg-neutral-100 cursor-pointer"
+                className="-mr-2 -mt-1.5 text-neutral-500"
               >
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2 mt-3">
@@ -218,17 +227,13 @@ const CardDetailDialog = ({
             <div className="flex items-center justify-between gap-3 text-sm">
               {isUnpaid ? (
                 <>
-                  <span className="text-danger-600 font-medium">
+                  <span className="text-danger-700 font-medium">
                     尚未付款 · ${formatMoney(studentCard.finalPrice)}
                   </span>
-                  <button
-                    type="button"
-                    className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold bg-success-600 text-white rounded-full px-3 py-1.5 cursor-pointer hover:bg-success-700"
-                    onClick={() => setPendingAction("pay")}
-                  >
-                    <CircleDollarSign className="w-3.5 h-3.5" />
+                  <Button type="button" size="sm" onClick={() => setPendingAction("pay")}>
+                    <CircleDollarSign className="w-4 h-4" />
                     確認付款
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <span className="text-neutral-600">
@@ -250,9 +255,7 @@ const CardDetailDialog = ({
               <span className="font-normal text-neutral-500">已用 {usedSessions} 堂</span>
             </h3>
             {studentCard.attendanceRecords.length === 0 ? (
-              <p className="text-sm text-neutral-500 border border-dashed border-neutral-200 rounded-xl px-3 py-3 text-center">
-                還沒用過
-              </p>
+              <EmptyState kind="inline" title="還沒用過" />
             ) : (
               <ul className="m-0 p-0 list-none border border-neutral-200 rounded-xl overflow-hidden">
                 {studentCard.attendanceRecords.map((record, index) => {
@@ -315,24 +318,16 @@ const CardDetailDialog = ({
         {!isPublic && (canExpire || canDelete) && (
           <div className="flex-none flex items-center justify-center gap-6 px-5 py-3 border-t border-neutral-100">
             {canExpire && (
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-neutral-700 hover:text-neutral-900 cursor-pointer"
-                onClick={() => setPendingAction("expire")}
-              >
+              <Button type="button" variant="ghost" size="sm" onClick={() => setPendingAction("expire")}>
                 <Ban className="w-4 h-4" />
                 停用卡片
-              </button>
+              </Button>
             )}
             {canDelete && (
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-danger-700 hover:text-danger-600 cursor-pointer"
-                onClick={() => setPendingAction("delete")}
-              >
+              <Button type="button" variant="dangerSecondary" size="sm" onClick={() => setPendingAction("delete")}>
                 <Trash2 className="w-4 h-4" />
                 刪除（買錯卡時用）
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -354,6 +349,7 @@ const CardDetailDialog = ({
         onClose={() => setPendingAction(null)}
       />
       <ConfirmDialog
+        variant="danger"
         open={pendingAction === "expire"}
         title="停用卡片"
         message={`確定要停用「${studentCard.card.name}」嗎？停用後剩餘的 ${studentCard.remainingSessions} 堂將無法再使用。`}
@@ -363,6 +359,7 @@ const CardDetailDialog = ({
         onCancel={() => setPendingAction(null)}
       />
       <ConfirmDialog
+        variant="danger"
         open={pendingAction === "delete"}
         title="刪除卡片"
         message={`確定要刪除「${studentCard.card.name}」嗎？此操作無法復原，通常用於買錯卡片的情況。`}
@@ -388,7 +385,8 @@ const CardDetailDialog = ({
         isLoading={isSavingNote}
       >
         <textarea
-          className="w-full p-2 rounded bg-neutral-100 focus:outline-primary-500 text-sm"
+          className={cn(fieldControlClass(), "py-3")}
+          aria-label="卡片備註"
           rows={4}
           maxLength={500}
           value={noteDraft}
@@ -403,7 +401,7 @@ const CardDetailDialog = ({
 
 const ConversionLink = ({ onClick, children }: { onClick?: () => void; children: React.ReactNode }) => {
   const className =
-    "flex items-center gap-2 w-full rounded-xl px-3 py-2 text-left bg-primary-50 border border-primary-200 text-primary-900";
+    "flex items-center gap-2 w-full rounded-xl px-3 py-2 text-left bg-primary-50 border border-primary-100 text-primary-900";
   // 公開頁／LIFF 不給 onClick：只顯示，不做成看起來能點的按鈕。
   return onClick ? (
     <button type="button" onClick={onClick} className={`${className} cursor-pointer hover:bg-primary-100`}>

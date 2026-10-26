@@ -7,7 +7,7 @@ import { useGetStudentQuery } from "@/store/slices/students";
 import { ChevronLeft } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import StudentDetailSkeleton from "@/features/students/StudentDetail/StudentDetailSkeleton";
 import { useEffect } from "react";
 import { resolveBackHref } from "@/lib/studentNav";
 import { useSizeClass } from "@/hooks/useMediaQuery";
@@ -41,7 +41,10 @@ const StudentPage = () => {
             </Link>
           </div>
         )}
-        <ListSkeleton />
+        <StudentDetailSkeleton
+          variant={sizeClass === "compact" ? "compact" : "page"}
+          backHref={backHref}
+        />
       </>
     );
   }

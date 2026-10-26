@@ -14,7 +14,7 @@ const RoundCheckbox = ({
   return (
     <div
       className={`w-6 h-6 rounded-full flex items-center justify-center cursor-pointer ${
-        isChecked ? "bg-primary-500" : "border-1 border-neutral-300"
+        isChecked ? "bg-primary-900" : "border-[1.5px] border-neutral-300"
       } ${disabled ? "cursor-not-allowed bg-neutral-100" : ""} ${className}`}
       onClick={disabled ? undefined : onClick}
     >

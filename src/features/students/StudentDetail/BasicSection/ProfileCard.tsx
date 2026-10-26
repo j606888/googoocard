@@ -12,7 +12,7 @@ const ProfileCard = ({
   isPublic?: boolean;
 }) => {
   return (
-    <div className="flex flex-col gap-3 p-4 rounded-2xl border border-neutral-200 bg-gradient-to-br from-primary-50 to-white shadow-sm">
+    <div className="flex flex-col gap-3 p-4 rounded-2xl border border-neutral-200 bg-gradient-to-br from-primary-50 to-white">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <img
@@ -22,11 +22,11 @@ const ProfileCard = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-xl font-semibold text-neutral-900">{student.name}</h2>
-              <span className="text-xs font-mono text-neutral-400 bg-neutral-100 rounded-full px-2 py-0.5">
+              <span className="text-xs font-mono text-neutral-500 bg-neutral-100 rounded-full px-2 py-0.5">
                 #{student.number}
               </span>
             </div>
-            <p className="text-xs text-neutral-400 mt-0.5">
+            <p className="text-xs text-neutral-500 mt-0.5">
               加入於 {format(new Date(student.createdAt), "yyyy年M月")}
             </p>
             {student.note && !isPublic && (
@@ -35,7 +35,7 @@ const ProfileCard = ({
           </div>
         </div>
         {!isPublic && (
-          <div className="w-9 h-9 rounded-full bg-white border border-neutral-200 shadow-sm flex items-center justify-center shrink-0 hover:bg-neutral-50 transition-colors">
+          <div className="shrink-0">
             <EditStudent student={student} />
           </div>
         )}

@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, GraduationCap, Plus } from "lucide-react";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { AlertTriangle, Plus } from "lucide-react";
 import SegmentedTabs from "@/components/SegmentedTabs";
+import EmptyState from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useGetTeachersOverviewQuery } from "@/store/slices/teachers";
 import MonthSwitcher from "./MonthSwitcher";
 import StatTile from "./StatTile";
@@ -29,13 +31,43 @@ const TeacherList = () => {
     return (
       <div className="px-5 py-10 text-center text-neutral-500">
         讀取失敗。
-        <button type="button" onClick={refetch} className="text-primary-700 underline cursor-pointer">
+        <Button variant="link" onClick={refetch} className="underline">
           再試一次
-        </button>
+        </Button>
       </div>
     );
   }
-  if (isLoading || !data) return <ListSkeleton />;
+  const header = (
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-2xl font-bold text-neutral-900">老師</h2>
+        <p className="text-sm text-neutral-500">
+          誰在教哪些課、這個月上了幾堂、來了多少學生。
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <MonthSwitcher month={month} onChange={setMonth} />
+        <Button onClick={() => setFormKey(Date.now())}>
+          <Plus className="size-4" />
+          新增老師
+        </Button>
+      </div>
+    </div>
+  );
+
+  if (isLoading || !data) {
+    return (
+      <>
+        <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-8 flex flex-col gap-5" aria-busy="true">
+          {header}
+          <TeacherListSkeleton />
+        </div>
+        {formKey !== null && (
+          <TeacherForm key={formKey} open onClose={() => setFormKey(null)} />
+        )}
+      </>
+    );
+  }
 
   const active = data.teachers.filter((t) => !t.archivedAt);
   const archived = data.teachers.filter((t) => t.archivedAt);
@@ -45,34 +77,16 @@ const TeacherList = () => {
   return (
     <>
       <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-8 flex flex-col gap-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-2xl font-semibold">老師</h2>
-            <p className="text-sm text-neutral-500">
-              誰在教哪些課、這個月上了幾堂、來了多少學生。
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <MonthSwitcher month={month} onChange={setMonth} />
-            <button
-              type="button"
-              onClick={() => setFormKey(Date.now())}
-              className="bg-primary-500 text-white h-10 px-4 rounded-full flex items-center gap-2 cursor-pointer hover:bg-primary-600"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="font-medium">新增老師</span>
-            </button>
-          </div>
-        </div>
+        {header}
 
         {data.unassignedLessonCount > 0 && (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning-200 bg-warning-50 px-4 py-3">
-            <AlertTriangle className="w-5 h-5 text-warning-800 shrink-0" />
-            <p className="flex-1 min-w-[14rem] text-sm text-warning-900">
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-warning-300 bg-warning-50 px-4 py-3">
+            <AlertTriangle className="w-5 h-5 text-warning-950 shrink-0" />
+            <p className="flex-1 min-w-[14rem] text-sm text-warning-950">
               <strong>{data.unassignedLessonCount} 堂進行中的課還沒指定老師</strong>
               ——指定後才會算進老師的堂數與出席人次。
             </p>
-            <Link href="/lessons" className="text-sm font-semibold text-warning-900 underline-offset-2 hover:underline">
+            <Link href="/lessons" className="text-sm font-semibold text-warning-950 underline-offset-4 hover:underline">
               去課程頁 →
             </Link>
           </div>
@@ -109,17 +123,11 @@ const TeacherList = () => {
         )}
 
         {active.length === 0 && tab === "active" ? (
-          <div className="flex flex-col items-center justify-center p-6 gap-3 bg-primary-50 rounded-xl">
-            <div className="flex items-center justify-center w-12 h-12 bg-primary-500 rounded-full">
-              <GraduationCap className="w-6 h-6 text-white" />
-            </div>
-            <div className="flex flex-col items-center justify-center">
-              <p className="text-lg font-bold">還沒有老師</p>
-              <p className="text-sm text-neutral-500 text-center">
-                先新增老師，開課時才能指定誰來教。
-              </p>
-            </div>
-          </div>
+          <EmptyState
+            kind="page"
+            title="還沒有老師"
+            description="先新增老師，開課時才能指定誰來教。"
+          />
         ) : (
           <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
             {shown.map((teacher) => (
@@ -144,5 +152,43 @@ const TeacherList = () => {
     </>
   );
 };
+
+/** Stat tiles + overview cards while loading; the page header above is real. */
+const TeacherListSkeleton = () => (
+  <>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="rounded-2xl border border-neutral-200 bg-white px-4 py-3.5 flex flex-col gap-2">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-7 w-14" />
+        </div>
+      ))}
+    </div>
+    <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
+      {["", "", "opacity-50"].map((fade, i) => (
+        <div key={i} className={`rounded-2xl border border-neutral-200 bg-white p-5 flex flex-col gap-4 ${fade}`}>
+          <div className="flex items-center gap-3">
+            <Skeleton className="size-12 shrink-0" />
+            <div className="flex flex-col gap-2 flex-1">
+              <Skeleton className={`h-4 ${i === 1 ? "w-20" : "w-28"}`} />
+              <Skeleton className="h-5 w-16" />
+            </div>
+            <Skeleton className="h-6 w-24 shrink-0" />
+          </div>
+          <Skeleton className="h-14 w-full rounded-xl" />
+          <div className="grid grid-cols-3 gap-2">
+            {[0, 1, 2].map((j) => (
+              <div key={j} className="flex flex-col gap-1.5">
+                <Skeleton className="h-6 w-8" />
+                <Skeleton className="h-3 w-14" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="h-10 w-full rounded-sm" />
+        </div>
+      ))}
+    </div>
+  </>
+);
 
 export default TeacherList;

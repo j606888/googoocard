@@ -2,10 +2,11 @@ import { useState } from "react";
 import { ChevronDown, Copy, Link2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
-const TONE_BUTTON_CLASS: Record<"primary" | "line", string> = {
-  primary: "bg-primary-500 hover:bg-primary-600",
-  line: "bg-[#06C755] hover:opacity-90",
+const TONE_BUTTON_CLASS: Record<"primary" | "line", string | undefined> = {
+  primary: undefined,
+  line: "bg-[#06C755] hover:bg-[#06C755]/90",
 };
 
 // Shared by "Shared URL" (BasicSection/index.tsx) and the LINE bind link
@@ -36,25 +37,27 @@ const CopyLinkRow = ({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <Link2 className="w-4 h-4 text-neutral-400 shrink-0" />
+        <Link2 className="w-4 h-4 text-neutral-500 shrink-0" />
         <div className="min-w-0">
           <p className="text-sm font-semibold text-neutral-700 truncate">{label}</p>
-          {caption && <p className="text-xs text-neutral-400 truncate">{caption}</p>}
+          {caption && <p className="text-xs text-neutral-500 truncate">{caption}</p>}
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-          <button
-            className={`inline-flex items-center gap-1.5 text-xs font-medium text-white rounded-full px-3 py-1.5 cursor-pointer transition-colors ${TONE_BUTTON_CLASS[tone]}`}
-            onClick={handleCopy}
-          >
-            <Copy className="w-3.5 h-3.5" />
+          <Button type="button" size="sm" className={TONE_BUTTON_CLASS[tone]} onClick={handleCopy}>
+            <Copy className="w-4 h-4" />
             <span>{copyButtonLabel}</span>
-          </button>
-          <button
-            className="w-7 h-7 rounded-full flex items-center justify-center text-neutral-400 hover:bg-neutral-100 cursor-pointer transition-colors"
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="iconSm"
+            aria-label={expanded ? "收起連結" : "顯示連結"}
+            aria-expanded={expanded}
+            className="text-neutral-500"
             onClick={() => setExpanded((v) => !v)}
           >
             <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
-          </button>
+          </Button>
         </div>
       </div>
       <AnimatePresence initial={false}>

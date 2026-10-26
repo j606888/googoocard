@@ -16,16 +16,31 @@ import {
 import { useGetMeQuery } from "@/store/slices/me";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
+import Field from "@/components/Field";
 
 // Mirrors a MemberCard row: avatar, name + email, role pill.
 const MemberCardSkeleton = () => (
   <li className="flex items-center gap-3 px-4 py-3 lg:px-5">
-    <Skeleton className="h-10 w-10 rounded-full" />
+    <Skeleton className="size-10" />
     <div className="flex flex-1 flex-col gap-1">
       <Skeleton className="h-5 w-24" />
       <Skeleton className="h-4 w-40" />
     </div>
-    <Skeleton className="h-6 w-14 rounded-full" />
+    <Skeleton className="h-5.5 w-14" />
+  </li>
+);
+
+// Mirrors an InvitationCard row: link icon, URL, usage bar, copy button.
+const InvitationCardSkeleton = () => (
+  <li className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-3.5 lg:flex-row lg:items-center lg:gap-3.5 lg:rounded-none lg:border-0 lg:bg-transparent lg:px-5 lg:py-3.5">
+    <Skeleton className="hidden size-10 shrink-0 rounded-lg lg:block" />
+    <div className="flex min-w-0 flex-1 flex-col gap-3 lg:gap-2">
+      <Skeleton className="h-3.5 w-56 max-w-full" />
+      <Skeleton className="h-3 w-36" />
+    </div>
+    <Skeleton className="h-11 w-full rounded-xl lg:h-9 lg:w-20" />
   </li>
 );
 
@@ -101,16 +116,12 @@ const TeamList = () => {
               {memberships && `・${memberships.length} 位成員`}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={openCreateInvite}
-            className="flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-primary-700 px-4 font-medium text-white hover:bg-primary-900 lg:px-5"
-          >
-            <UserPlus className="h-[18px] w-[18px]" />
+          <Button type="button" onClick={openCreateInvite} className="shrink-0">
+            <UserPlus />
             <span>
               邀請<span className="hidden lg:inline">助教</span>
             </span>
-          </button>
+          </Button>
         </header>
 
         <section className="flex flex-col gap-2 lg:gap-0">
@@ -145,17 +156,21 @@ const TeamList = () => {
                 傳給要加入的助教，對方登入後就會加入這間教室
               </p>
             </div>
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={openCreateInvite}
-              className="-mr-1 flex h-11 shrink-0 cursor-pointer items-center gap-1 px-1 text-sm font-medium text-primary-700 hover:text-primary-900 lg:mr-0 lg:h-10 lg:rounded-lg lg:border lg:border-neutral-300 lg:px-3.5 lg:text-neutral-900 lg:hover:bg-neutral-50"
+              className="shrink-0 gap-1"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="size-4" />
               建立連結
-            </button>
+            </Button>
           </div>
           {isInviteTokensLoading ? (
-            <Skeleton className="h-[140px] w-full rounded-2xl lg:h-[72px] lg:rounded-t-none" />
+            <ul className="flex flex-col gap-2 lg:gap-0 lg:rounded-b-2xl lg:border lg:border-neutral-200 lg:bg-white">
+              <InvitationCardSkeleton />
+            </ul>
           ) : inviteTokens && inviteTokens.length > 0 ? (
             <ul className="flex flex-col gap-2 lg:gap-0 lg:divide-y lg:divide-neutral-100 lg:rounded-b-2xl lg:border lg:border-neutral-200 lg:bg-white">
               {inviteTokens.map((inviteToken) => (
@@ -167,13 +182,13 @@ const TeamList = () => {
               ))}
             </ul>
           ) : (
-            <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-dashed border-neutral-300 bg-white px-4 py-5 text-center lg:rounded-t-none lg:border-solid lg:border-neutral-200">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
-                <Link2 className="h-[18px] w-[18px]" />
-              </div>
-              <p className="text-sm font-medium">目前沒有可用的邀請連結</p>
-              <p className="text-xs text-neutral-500">建立一個，傳給要加入的助教</p>
-            </div>
+            <EmptyState
+              kind="inline"
+              icon={<Link2 />}
+              title="目前沒有可用的邀請連結"
+              description="建立一個，傳給要加入的助教"
+              className="bg-white lg:rounded-t-none lg:rounded-b-2xl lg:border lg:border-solid lg:px-5"
+            />
           )}
         </section>
 
@@ -185,13 +200,18 @@ const TeamList = () => {
         onClose={() => setNewMemberModalOpen(false)}
         onSubmit={handleCreateInviteToken}
       >
-        <form>
-          <p className="text-sm text-neutral-500 mb-2">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCreateInviteToken();
+          }}
+        >
+          <p className="text-sm text-neutral-600 mb-4">
             任何人只要有這個連結就能加入教室
           </p>
-          <label className="block mb-2 font-medium">可使用次數</label>
-          <input
-            className="w-full mb-4 p-2 rounded bg-neutral-100"
+          <Field
+            label="可使用次數"
+            className="mb-4"
             placeholder="最多幾次"
             value={maxUses}
             onChange={(e) => setMaxUses(Number(e.target.value))}

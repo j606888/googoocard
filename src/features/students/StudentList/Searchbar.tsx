@@ -1,5 +1,6 @@
 import { Search, X } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 const Searchbar = ({
   onSearch,
@@ -22,8 +23,8 @@ const Searchbar = ({
   return (
     <div>
       <div
-        className={`flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 focus-within:border-primary-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary-100 transition-colors ${
-          compact ? "px-3.5 py-2 text-sm" : "px-4 py-2.5"
+        className={`flex items-center gap-3 rounded-xl border-[1.5px] border-neutral-300 bg-white focus-within:border-primary-700 focus-within:ring-[3px] focus-within:ring-primary-100 transition-colors ${
+          compact ? "h-11 pl-3.5 pr-1.5 text-sm" : "h-12 pl-4 pr-1.5 text-base"
         }`}
       >
         <Search
@@ -33,24 +34,28 @@ const Searchbar = ({
           ref={inputRef}
           type="text"
           placeholder={compact ? "搜尋姓名或卡號" : "搜尋學生姓名或卡號"}
-          className="w-full bg-transparent outline-none placeholder:text-neutral-400"
+          className="w-full bg-transparent text-neutral-900 outline-none placeholder:text-neutral-400"
           onChange={handleSearch}
           value={search}
         />
         {search ? (
-          <button
-            className="ml-auto text-neutral-400 hover:text-neutral-600 cursor-pointer"
+          <Button
+            type="button"
+            variant="ghost"
+            size="iconSm"
+            aria-label="清除搜尋"
+            className="ml-auto text-neutral-500"
             onClick={() => {
               setSearch("");
               onSearch("");
             }}
           >
             <X className={compact ? "w-4 h-4" : "w-5 h-5"} />
-          </button>
+          </Button>
         ) : (
           // 只有接了鍵盤捷徑（分割檢視）才提示 /，手機沒有鍵盤
           inputRef && (
-            <kbd className="ml-auto shrink-0 px-1.5 py-px border border-neutral-200 rounded bg-white text-[11px] text-neutral-400">
+            <kbd className="ml-auto mr-2 shrink-0 px-1.5 py-px border border-neutral-200 rounded-sm bg-white text-[11px] text-neutral-500">
               /
             </kbd>
           )

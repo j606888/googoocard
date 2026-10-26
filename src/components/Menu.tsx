@@ -59,7 +59,7 @@ const Menu = ({ open, anchorEl, onClose, children, className }: MenuProps) => {
         style={floatingStyles}
         className={
           className ??
-          "bg-white rounded-md shadow-[0_8px_32px_rgba(0,0,0,0.24)] z-50 flex flex-col"
+          "bg-white rounded-2xl border border-neutral-200 shadow-[0_12px_40px_-12px_rgba(27,94,74,0.45)] z-50 flex flex-col"
         }
       >
         {children}

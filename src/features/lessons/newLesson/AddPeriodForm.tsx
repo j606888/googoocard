@@ -6,6 +6,8 @@ import TimePicker, {
 } from "@/components/TimePicker";
 import { format, addDays } from "date-fns";
 import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { FieldError, FieldLabel } from "@/components/Field";
 
 const getInitialTimeOption = (isoString: string): Option | null => {
   const timeValue = format(new Date(isoString), "H:mm");
@@ -157,59 +159,46 @@ const AddPeriodForm = ({
 
   return (
     <div className="border-b border-neutral-200 py-1 flex flex-col gap-3">
-      <label className="font-medium -mb-3">時段</label>
+      <span className="text-base font-bold text-neutral-900 -mb-1">時段</span>
       <div className="flex gap-2 items-center justify-between">
-        <div className="flex flex-col gap-0.5">
-          <label className="text-sm text-neutral-700">日期</label>
+        <div className="flex flex-col gap-1.5">
+          <FieldLabel>日期</FieldLabel>
           <DatePicker date={date} setDate={handleDateChange} />
-          {errors.date && <p className="text-sm text-danger-500">{errors.date}</p>}
+          <FieldError>{errors.date}</FieldError>
         </div>
-        <div className="">
-          <label className="text-sm text-neutral-700">開始</label>
+        <div className="flex flex-col gap-1.5">
+          <FieldLabel>開始</FieldLabel>
           <TimePicker
             selectedTime={fromTime}
             setSelectedTime={handleFromTimeChange}
           />
-          {errors.fromTime && (
-            <p className="mt-0.5 text-xs text-danger-500">{errors.fromTime}</p>
-          )}
+          <FieldError>{errors.fromTime}</FieldError>
         </div>
-        <span className="text-sm text-neutral-500 mt-5">-</span>
-        <div className="">
-          <label className="text-sm text-neutral-700">結束</label>
+        <span className="text-sm text-neutral-500 mt-7">-</span>
+        <div className="flex flex-col gap-1.5">
+          <FieldLabel>結束</FieldLabel>
           <TimePicker
             selectedTime={toTime}
             setSelectedTime={handleToTimeChange}
           />
-          {errors.toTime && (
-            <p className="mt-0.5 text-xs text-danger-500">{errors.toTime}</p>
-          )}
+          <FieldError>{errors.toTime}</FieldError>
         </div>
       </div>
       <div className="flex gap-2 items-center">
         <div className="flex gap-2">
-          <div
-            className="text-sm border border-primary-500 rounded-md px-2 py-1 text-primary-700 cursor-pointer hover:bg-primary-50"
-            onClick={minusOneWeek}
-          >
+          <Button type="button" variant="secondary" size="sm" onClick={minusOneWeek}>
             -1 週
-          </div>
-          <div
-            className="text-sm border border-primary-500 rounded-md px-2 py-1 text-primary-700 cursor-pointer hover:bg-primary-50"
-            onClick={addOneWeek}
-          >
+          </Button>
+          <Button type="button" variant="secondary" size="sm" onClick={addOneWeek}>
             +1 週
-          </div>
+          </Button>
         </div>
-        <button
-          className="bg-primary-500 text-white text-sm px-4 py-1.5 rounded-sm flex items-center justify-center gap-2 ml-auto cursor-pointer hover:bg-primary-600"
-          onClick={handleSubmit}
-        >
-          <Plus className="w-4 h-4" />
-          <span className="font-medium">新增時段</span>
-        </button>
+        <Button variant="secondary" size="sm" className="ml-auto" onClick={handleSubmit}>
+          <Plus className="size-4" />
+          新增時段
+        </Button>
       </div>
-      {error && <p className="text-sm text-danger-500">{error}</p>}
+      <FieldError>{error}</FieldError>
       <div></div>
     </div>
   );

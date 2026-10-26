@@ -1,9 +1,10 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Loader2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 import SideSheet, { SideSheetTitle } from "@/components/SideSheet";
+import { Button } from "@/components/ui/button";
 import { useGetCardDetailQuery } from "@/store/slices/cards";
-import CardDetailBody, { cardFromDetail } from "./CardDetail/CardDetailBody";
+import CardDetailBody, { CardDetailSkeleton, cardFromDetail } from "./CardDetail/CardDetailBody";
 import CardFormFields from "./CardForm/CardFormFields";
 import { FORM_TITLE, SUBMIT_TEXT } from "./CardForm/CardFormDrawer";
 import { CardFormTarget, useCardForm } from "./CardForm/useCardForm";
@@ -54,9 +55,6 @@ const CardSheet = ({
   </SideSheet>
 );
 
-const iconButton =
-  "w-10 h-10 flex items-center justify-center rounded-lg text-neutral-700 hover:bg-neutral-100 cursor-pointer disabled:opacity-30 disabled:cursor-default";
-
 const DetailPane = ({
   id,
   order,
@@ -83,23 +81,21 @@ const DetailPane = ({
           {detail ? `方案詳情${index !== -1 ? `・${index + 1} / ${order.length}` : ""}` : "方案詳情"}
         </SideSheetTitle>
         <div className="flex items-center gap-1">
-          <button type="button" aria-label="上一個方案" disabled={order.length < 2 || index === -1} onClick={() => go(-1)} className={iconButton}>
-            <ChevronUp className="w-4.5 h-4.5" />
-          </button>
-          <button type="button" aria-label="下一個方案" disabled={order.length < 2 || index === -1} onClick={() => go(1)} className={iconButton}>
-            <ChevronDown className="w-4.5 h-4.5" />
-          </button>
+          <Button variant="ghost" size="icon" aria-label="上一個方案" disabled={order.length < 2 || index === -1} onClick={() => go(-1)}>
+            <ChevronUp />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="下一個方案" disabled={order.length < 2 || index === -1} onClick={() => go(1)}>
+            <ChevronDown />
+          </Button>
           <span className="w-px h-5 bg-neutral-200 mx-1" />
-          <button type="button" aria-label="關閉" onClick={onClose} className={`${iconButton} w-11 h-11`}>
-            <X className="w-5 h-5" />
-          </button>
+          <Button variant="ghost" size="icon" aria-label="關閉" onClick={onClose}>
+            <X className="size-5" />
+          </Button>
         </div>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto p-6">
         {!detail ? (
-          <div className="flex justify-center py-16 text-neutral-400">
-            <Loader2 className="w-6 h-6 animate-spin" aria-label="載入中" />
-          </div>
+          <CardDetailSkeleton />
         ) : (
           <div className={isFetching ? "opacity-70 transition-opacity" : ""}>
             <CardDetailBody
@@ -152,29 +148,20 @@ const FormPane = ({
             <span className="text-[13px] text-neutral-500 truncate">{target.card.name}</span>
           )}
         </div>
-        <button type="button" aria-label="關閉" onClick={onClose} className={`${iconButton} w-11 h-11`}>
-          <X className="w-5 h-5" />
-        </button>
+        <Button variant="ghost" size="icon" aria-label="關閉" onClick={onClose}>
+          <X className="size-5" />
+        </Button>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">
         <CardFormFields form={form} />
       </div>
       <div className="flex gap-2.5 px-6 py-4 border-t border-neutral-100">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex-1 min-h-12 rounded-lg border border-neutral-300 text-[15px] font-semibold text-neutral-900 hover:bg-neutral-50 cursor-pointer"
-        >
+        <Button type="button" variant="secondary" onClick={onCancel} className="flex-1">
           取消
-        </button>
-        <button
-          type="submit"
-          disabled={form.isLoading}
-          className="flex-[2] min-h-12 rounded-lg bg-primary-900 text-white text-[15px] font-semibold hover:opacity-90 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-        >
+        </Button>
+        <Button type="submit" isLoading={form.isLoading} className="flex-[2]">
           {SUBMIT_TEXT[target.mode]}
-          {form.isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-        </button>
+        </Button>
       </div>
     </form>
   );

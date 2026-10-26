@@ -32,7 +32,7 @@ const DanceBadge = ({
   return (
     <span
       title={fullLabel}
-      className={`inline-flex shrink-0 items-baseline gap-0.5 rounded-md font-semibold whitespace-nowrap ${meta.badge} ${
+      className={`inline-flex shrink-0 items-baseline gap-0.5 rounded-sm font-semibold whitespace-nowrap ${meta.badge} ${
         variant === "short" ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-0.5 text-xs"
       }`}
     >

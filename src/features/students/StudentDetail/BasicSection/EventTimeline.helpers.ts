@@ -32,9 +32,9 @@ export interface EventPresentation {
 
 const TONE = {
   green: "bg-primary-100 text-primary-900",
-  blue: "bg-sky-100 text-sky-800",
+  pale: "bg-primary-50 text-primary-700",
   grey: "bg-neutral-100 text-neutral-700",
-  purple: "bg-purple-100 text-purple-700",
+  warm: "bg-warning-100 text-warning-950",
 } as const;
 
 /**
@@ -45,7 +45,7 @@ export function presentEvent(event: Event): EventPresentation {
   switch (event.title) {
     case CHECKIN_TITLE: {
       const lesson = event.description.replace(/ ?簽到成功$/, "");
-      return { icon: Check, tone: TONE.blue, title: lesson ? `上課：${lesson}` : "上課", description: null };
+      return { icon: Check, tone: TONE.pale, title: lesson ? `上課：${lesson}` : "上課", description: null };
     }
     case PURCHASE_TITLE:
       return {
@@ -69,7 +69,7 @@ export function presentEvent(event: Event): EventPresentation {
         description: event.description.replace(/^課卡 ?/, "").replace(/ ?使用完畢$/, "") || null,
       };
     case CONVERSION_TITLE:
-      return { icon: Repeat2, tone: TONE.purple, title: "課卡轉換", description: event.description || null };
+      return { icon: Repeat2, tone: TONE.warm, title: "課卡轉換", description: event.description || null };
     default:
       return { icon: CircleDot, tone: TONE.grey, title: event.title, description: event.description || null };
   }

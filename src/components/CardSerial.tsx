@@ -11,7 +11,7 @@ const CardSerial = ({
   className?: string;
 }) => (
   <span
-    className={`shrink-0 inline-block rounded-md border px-1.5 text-xs font-semibold tabular-nums tracking-wide ${
+    className={`shrink-0 inline-block rounded-sm border px-1.5 text-xs font-semibold tabular-nums tracking-wide ${
       muted
         ? "border-neutral-200 bg-neutral-50 text-neutral-500"
         : "border-neutral-300 bg-white text-neutral-700"

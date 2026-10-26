@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { readAuthSession } from '@/lib/auth'
 import KiwiLogo from '@/components/KiwiLogo'
+import { Button } from '@/components/ui/button'
 
 const POINTS = ['LINE 自助簽到', '自動扣堂', '收款對帳']
 
@@ -33,7 +34,7 @@ const SampleCard = ({ className = '' }: { className?: string }) => (
       <span className="text-neutral-600">
         剩 <b className="text-lg lg:text-[22px] text-neutral-900">{10 - SAMPLE_USED}</b> 堂
       </span>
-      <span className="rounded-md bg-primary-100 px-2 py-0.5 font-bold text-primary-900">已付款</span>
+      <span className="rounded-full bg-primary-100 px-2.5 py-0.5 font-bold text-primary-900">已付款</span>
     </div>
   </div>
 )
@@ -53,12 +54,12 @@ export default async function Home() {
           <span className="font-bold tracking-[2.5px] text-[15px] lg:text-xl lg:tracking-[3px]">GOOGOOCARD</span>
         </div>
         <nav className="hidden lg:flex items-center gap-3">
-          <Link href="/login" className="px-5 py-3 rounded-xl font-medium text-primary-900 hover:bg-primary-100">
-            登入
-          </Link>
-          <Link href="/signup" className="px-5 py-3 rounded-xl font-bold bg-primary-900 text-white hover:bg-primary-700">
-            免費開始
-          </Link>
+          <Button asChild variant="ghost" className="text-primary-900 font-bold hover:bg-primary-100">
+            <Link href="/login">登入</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/signup">免費開始</Link>
+          </Button>
         </nav>
       </header>
 
@@ -76,18 +77,12 @@ export default async function Home() {
             學生用 LINE 簽到、堂數自動扣，誰該續卡、誰還沒付錢，一打開就知道。
           </p>
           <div className="hidden lg:flex items-center gap-3">
-            <Link
-              href="/signup"
-              className="px-8 py-[18px] rounded-2xl bg-primary-900 text-white text-[17px] font-bold hover:bg-primary-700"
-            >
-              建立我的教室
-            </Link>
-            <Link
-              href="/login"
-              className="px-6 py-[18px] rounded-2xl border-[1.5px] border-primary-300 bg-white text-[17px] font-medium text-primary-900 hover:bg-primary-50"
-            >
-              我已經有帳號
-            </Link>
+            <Button asChild size="lg" className="px-8 text-[17px]">
+              <Link href="/signup">建立我的教室</Link>
+            </Button>
+            <Button asChild size="lg" variant="secondary" className="text-[17px]">
+              <Link href="/login">我已經有帳號</Link>
+            </Button>
           </div>
           <ul className="hidden lg:flex gap-8 mt-2 text-[15px] text-neutral-600">
             {POINTS.map((point) => (
@@ -121,18 +116,12 @@ export default async function Home() {
 
         {/* 手機：底部白色面板 */}
         <nav className="lg:hidden relative mt-8 rounded-t-[28px] bg-white px-6 pt-6 pb-8 flex flex-col gap-3 text-neutral-900">
-          <Link
-            href="/signup"
-            className="min-h-[54px] rounded-2xl bg-primary-900 text-white text-[17px] font-bold grid place-items-center"
-          >
-            建立我的教室
-          </Link>
-          <Link
-            href="/login"
-            className="min-h-[54px] rounded-2xl border-[1.5px] border-primary-300 text-primary-900 text-[17px] font-bold grid place-items-center"
-          >
-            登入
-          </Link>
+          <Button asChild size="lg" className="w-full text-[17px]">
+            <Link href="/signup">建立我的教室</Link>
+          </Button>
+          <Button asChild size="lg" variant="secondary" className="w-full text-[17px]">
+            <Link href="/login">登入</Link>
+          </Button>
           <p className="mt-1 text-center text-xs text-neutral-500">
             <Link href="/privacy" className="hover:text-neutral-700">隱私權政策</Link>
             <span className="mx-2">·</span>

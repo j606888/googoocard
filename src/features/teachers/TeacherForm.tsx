@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
-import InputField from "@/components/InputField";
+import Field, { FieldLabel, fieldControlClass } from "@/components/Field";
 import PaletteColorPicker from "@/features/danceStyles/PaletteColorPicker";
 import type { DanceStyleColor } from "@/lib/danceStyles";
 import { firstFreeTeacherColor } from "@/lib/teachers";
@@ -78,7 +78,7 @@ const TeacherForm = ({
           handleSubmit();
         }}
       >
-        <InputField
+        <Field
           label="名字"
           value={name}
           placeholder="例如 Sean"
@@ -96,11 +96,10 @@ const TeacherForm = ({
           onChange={setColor}
         />
 
-        <div className="flex flex-col">
-          <label htmlFor="teacher-note" className="mb-2 font-medium">
+        <div className="flex flex-col gap-1.5">
+          <FieldLabel htmlFor="teacher-note" hint="（選填）">
             備註
-            <span className="ml-1 text-sm font-normal text-neutral-500">（選填）</span>
-          </label>
+          </FieldLabel>
           <textarea
             id="teacher-note"
             rows={3}
@@ -108,7 +107,7 @@ const TeacherForm = ({
             value={note}
             placeholder="例如：週二、四晚上可排課"
             onChange={(e) => setNote(e.target.value)}
-            className="w-full p-2 rounded bg-neutral-100 focus:outline-primary-500 resize-none"
+            className={`${fieldControlClass()} py-3 resize-none`}
           />
         </div>
       </form>

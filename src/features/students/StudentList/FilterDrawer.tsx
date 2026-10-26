@@ -2,6 +2,7 @@
 
 import FilterChip from "@/components/FilterChip";
 import Drawer from "@/components/Drawer";
+import { Button } from "@/components/ui/button";
 import type { DanceStyleSummary } from "@/lib/danceStyles";
 import { StudentTag } from "@/store/slices/students";
 import { LessonSummary } from "@/store/slices/lessons";
@@ -72,13 +73,9 @@ const FilterDrawer = ({
       submitText={`顯示 ${resultCount} 位學生`}
     >
       <div className="flex justify-end mb-1">
-        <button
-          type="button"
-          onClick={() => onChange(EMPTY_FILTERS)}
-          className="text-sm font-semibold text-primary-700 hover:text-primary-900 cursor-pointer"
-        >
+        <Button type="button" variant="link" className="text-sm font-semibold" onClick={() => onChange(EMPTY_FILTERS)}>
           清除全部
-        </button>
+        </Button>
       </div>
 
       <div className="mb-5">

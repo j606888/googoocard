@@ -9,6 +9,7 @@ import { useGetMeQuery } from "@/store/slices/me";
 import ConfirmPaymentDrawer, {
   ConfirmPaymentTarget,
 } from "@/features/students/ConfirmPaymentDrawer";
+import { Button } from "@/components/ui/button";
 
 const METHOD_LABEL = { CASH: "現金", TRANSFER: "轉帳" } as const;
 
@@ -62,7 +63,7 @@ const DayCollections = ({ date }: { date: string }) => {
 
       {data.unpaid.length > 0 && (
         <div className="flex flex-col gap-1">
-          <p className="text-sm font-semibold text-warning-800">還沒付款 · {data.unpaid.length} 筆</p>
+          <p className="text-sm font-semibold text-warning-900">還沒付款 · {data.unpaid.length} 筆</p>
           <ul className="divide-y divide-neutral-100">
             {data.unpaid.map((u) => (
               <li key={u.studentCardId} className="flex items-center gap-3 py-2">
@@ -76,9 +77,10 @@ const DayCollections = ({ date }: { date: string }) => {
                   </p>
                 </div>
                 <span className="shrink-0 text-sm font-bold">${formatMoney(u.finalPrice)}</span>
-                <button
+                <Button
                   type="button"
-                  className="shrink-0 rounded-lg bg-primary-50 px-3 py-2 text-sm font-medium text-primary-900 hover:bg-primary-100 cursor-pointer"
+                  variant="secondary"
+                  size="sm"
                   onClick={() =>
                     setPaying({
                       studentId: u.student.id,
@@ -91,7 +93,7 @@ const DayCollections = ({ date }: { date: string }) => {
                   }
                 >
                   收款
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

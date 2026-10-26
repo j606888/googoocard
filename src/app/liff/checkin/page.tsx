@@ -13,7 +13,7 @@ export default function LiffCheckinPage() {
     <LiffStudentGate acceptCheckinKey>
       {(student, auth) => (
         <>
-          <div className="relative flex h-16 w-full items-center justify-center bg-primary-500">
+          <div className="relative flex h-16 w-full items-center justify-center bg-primary-900">
             <h2 className="text-lg font-semibold text-white">上課簽到</h2>
           </div>
           <CheckinList student={student} auth={auth} />

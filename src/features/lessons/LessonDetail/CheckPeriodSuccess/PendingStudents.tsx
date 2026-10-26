@@ -22,7 +22,7 @@ const PendingStudents = ({
 }) => {
   return (
     <div className="flex flex-col gap-2 w-full rounded-2xl border border-danger-200 bg-danger-50/60 p-3">
-      <div className="flex items-center gap-1.5 text-danger-600">
+      <div className="flex items-center gap-1.5 text-danger-700">
         <MdOutlineWarning className="w-4 h-4" />
         <p className="text-sm font-semibold">未綁定課卡學生</p>
       </div>
@@ -38,7 +38,7 @@ const PendingStudents = ({
               name={record.studentName}
               size="small"
             />
-            <div className="flex flex-1 items-center gap-1 text-danger-500">
+            <div className="flex flex-1 items-center gap-1 text-danger-700">
               <p className="text-xs font-medium">
                 {record.uncheckedType === "not_qualified" && lesson.danceStyle?.hasLevels && lesson.level > DEFAULT_DANCE_LEVEL
                   ? `未具備${danceLevelLabel(lesson.level)}複習資格`

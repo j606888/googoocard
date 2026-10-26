@@ -42,7 +42,7 @@ const TodoBell = ({
     return (
       <Skeleton
         data-in-app="hide"
-        className={`${className} w-10 h-10 rounded-xl ${
+        className={`${className} size-11 rounded-xl ${
           tone === "onPrimary" ? "bg-white/20" : ""
         }`}
       />
@@ -57,7 +57,7 @@ const TodoBell = ({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         data-in-app="hide"
-        className={`${className} w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer ${
+        className={`${className} size-11 rounded-xl flex items-center justify-center cursor-pointer ${
           tone === "onPrimary" ? "hover:bg-white/15" : "hover:bg-neutral-100"
         }`}
         aria-label={`${todos.total} 件待處理`}
@@ -66,8 +66,8 @@ const TodoBell = ({
         <div className="flex items-center gap-2 relative">
           <Bell className={`w-6 h-6 ${tone === "onPrimary" ? "text-white" : "text-neutral-700"}`} />
           <span
-            className={`absolute -right-2.5 -top-2 bg-danger-500 text-white text-[10px] font-semibold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ring-2 ${
-              tone === "onPrimary" ? "ring-primary-500" : "ring-white"
+            className={`absolute -right-2.5 -top-2 bg-danger-600 text-white text-[10px] font-semibold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ring-2 ${
+              tone === "onPrimary" ? "ring-primary-900" : "ring-white"
             }`}
           >
             {todos.total}
@@ -168,7 +168,7 @@ const TodoSection = ({
   if (count === 0) return null;
   return (
     <section className="flex flex-col">
-      <h3 className="px-4 pt-2 pb-1 text-xs font-semibold text-neutral-500">
+      <h3 className="px-4 pt-2 pb-1 text-[13px] font-semibold text-neutral-500">
         {title}（{count}）
       </h3>
       {children}
@@ -201,10 +201,10 @@ const TodoRow = ({
     />
     <div className="flex flex-col flex-1 min-w-0">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold truncate">{student.name}</span>
+        <span className="text-sm font-semibold text-neutral-900 truncate">{student.name}</span>
         <span className="text-xs text-neutral-500 shrink-0">{meta}</span>
       </div>
-      <span className="text-sm text-neutral-500 min-w-0">{children}</span>
+      <span className="text-sm text-neutral-600 min-w-0">{children}</span>
     </div>
   </Link>
 );

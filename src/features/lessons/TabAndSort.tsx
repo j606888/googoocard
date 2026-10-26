@@ -8,6 +8,11 @@ import { useState } from "react";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import { useLocations } from "@/hooks/useLocations";
+import { Button } from "@/components/ui/button";
+import { fieldControlClass } from "@/components/Field";
+import FilterChip from "@/components/FilterChip";
+import SegmentedTabs from "@/components/SegmentedTabs";
+import { cn } from "@/lib/utils";
 
 const TABS = [
   { label: "進行中", value: "inProgress" },
@@ -73,47 +78,46 @@ const TabAndSort = ({
     <div className="flex flex-col gap-3 mb-4">
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="搜尋課程或老師"
-          className="w-full rounded-full border border-neutral-200 bg-white py-2 pl-9 pr-9 text-sm outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+          className={cn(fieldControlClass(), "h-11 pl-10 pr-11 text-sm")}
         />
         {search && (
-          <button
+          <Button
+            variant="ghost"
+            size="iconSm"
             onClick={() => setSearch("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+            className="absolute right-1 top-1/2 -translate-y-1/2 text-neutral-500"
             aria-label="清除搜尋"
           >
-            <X className="w-4 h-4" />
-          </button>
+            <X className="size-4" />
+          </Button>
         )}
       </div>
 
       {/* Dance-style filter chips */}
       {showDanceFilter && (
         <div className="flex items-center gap-2 overflow-x-auto pb-0.5 -mx-1 px-1">
-          <button
-            onClick={() => setDanceStyleId(null)}
-            className={`shrink-0 text-xs font-medium px-3 py-1 rounded-full transition-colors ${
-              danceStyleId === null
-                ? "bg-neutral-800 text-white"
-                : "bg-neutral-100 text-neutral-500 hover:text-neutral-700"
-            }`}
-          >
+          <FilterChip size="sm" active={danceStyleId === null} onClick={() => setDanceStyleId(null)}>
             全部
-          </button>
+          </FilterChip>
           {danceChips.map((style) => {
             const meta = danceStyleMeta(style);
             const active = danceStyleId === style.id;
             return (
               <button
                 key={style.id}
+                type="button"
+                aria-pressed={active}
                 onClick={() => setDanceStyleId(active ? null : style.id)}
-                className={`shrink-0 text-xs font-medium px-3 py-1 rounded-full transition-colors ${
-                  active ? meta.badge : "bg-neutral-100 text-neutral-500 hover:text-neutral-700"
+                className={`shrink-0 text-xs font-medium px-3 py-1 rounded-full border transition-colors cursor-pointer ${
+                  active
+                    ? `${meta.badge} border-transparent`
+                    : "bg-white border-neutral-300 text-neutral-700 hover:border-primary-400"
                 }`}
               >
                 {meta.label}
@@ -126,29 +130,21 @@ const TabAndSort = ({
       {/* 分部 filter chips */}
       {showLocationFilter && (
         <div className="flex items-center gap-2 overflow-x-auto pb-0.5 -mx-1 px-1">
-          <button
-            onClick={() => setLocationId(null)}
-            className={`shrink-0 text-xs font-medium px-3 py-1 rounded-full transition-colors ${
-              locationId === null
-                ? "bg-neutral-800 text-white"
-                : "bg-neutral-100 text-neutral-500 hover:text-neutral-700"
-            }`}
-          >
+          <FilterChip size="sm" active={locationId === null} onClick={() => setLocationId(null)}>
             所有分部
-          </button>
+          </FilterChip>
           {locationChips.map((location) => {
             const active = locationId === location.id;
             return (
-              <button
+              <FilterChip
                 key={location.id}
+                size="sm"
+                active={active}
                 onClick={() => setLocationId(active ? null : location.id)}
-                className={`flex shrink-0 items-center gap-0.5 text-xs font-medium px-3 py-1 rounded-full transition-colors ${
-                  active ? "bg-neutral-800 text-white" : "bg-neutral-100 text-neutral-500 hover:text-neutral-700"
-                }`}
               >
                 <MapPin className="w-3 h-3" />
                 {location.name}
-              </button>
+              </FilterChip>
             );
           })}
         </div>
@@ -156,53 +152,42 @@ const TabAndSort = ({
 
       {/* Tabs + Sort */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1 bg-neutral-100 rounded-full p-1">
-          {TABS.map((tab) => (
-            <button
-              key={tab.value}
-              className={`flex items-center justify-center px-3.5 py-1.5 gap-1 text-sm rounded-full cursor-pointer transition-colors ${
-                activeTab === tab.value
-                  ? "bg-white text-primary-700 font-semibold shadow-sm"
-                  : "text-neutral-500 hover:text-neutral-700"
-              }`}
-              onClick={() => setActiveTab(tab.value)}
-            >
-              <span>{tab.label}</span>
-              <span className={activeTab === tab.value ? "text-primary-400" : "text-neutral-400"}>
-                {tabsCount ? tabsCount[tab.value as keyof typeof tabsCount] : "–"}
-              </span>
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          ariaLabel="課程狀態"
+          value={activeTab}
+          onChange={setActiveTab}
+          options={TABS.map((tab) => ({
+            value: tab.value,
+            label: tab.label,
+            hint: tabsCount ? tabsCount[tab.value as keyof typeof tabsCount] : "–",
+          }))}
+        />
         <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger>
-            <div
-              className="flex items-center gap-1.5 text-neutral-600 hover:text-neutral-900 cursor-pointer px-2 py-1.5"
-              onClick={() => setOpen(!open)}
-            >
-              <ArrowDownUp className="w-4 h-4" />
-              <span className="text-sm">排序</span>
-            </div>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
+              <ArrowDownUp className="size-4" />
+              排序
+            </Button>
           </PopoverTrigger>
           <PopoverContent className="w-44">
             <div className="flex flex-col gap-3">
               <div className="text-xs text-neutral-500 font-medium">排序依據</div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-0.5">
                 {SORT_OPTIONS.map((option) => (
                   <div
                     key={option.value}
-                    className="flex items-center justify-between gap-2 text-sm cursor-pointer"
+                    className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm cursor-pointer hover:bg-neutral-100"
                     onClick={() => handleSort(option.value)}
                   >
                     <span
                       className={
-                        sort === option.value ? "text-primary-500" : "text-neutral-500"
+                        sort === option.value ? "font-semibold text-primary-900" : "text-neutral-700"
                       }
                     >
                       {option.label}
                     </span>
                     {sort === option.value && (
-                      <Check className="w-4 h-4 text-primary-500" />
+                      <Check className="w-4 h-4 text-primary-700" />
                     )}
                   </div>
                 ))}

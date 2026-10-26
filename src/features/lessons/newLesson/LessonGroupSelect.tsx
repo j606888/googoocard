@@ -5,6 +5,7 @@ import {
   useGetLessonGroupsQuery,
   useCreateLessonGroupMutation,
 } from "@/store/slices/lessonGroups";
+import Field, { FieldLabel } from "@/components/Field";
 
 // Single-select "which group does this lesson belong to" picker, built on
 // the same MultiSelect + Drawer-create-new pattern as TeacherSelect/CardSelect
@@ -35,8 +36,8 @@ const LessonGroupSelect = ({
   };
 
   return (
-    <div className="flex flex-col gap-1">
-      <label className="block font-medium mb-1">群組</label>
+    <div className="flex flex-col gap-1.5">
+      <FieldLabel>群組</FieldLabel>
       <MultiSelect
         options={groupOptions}
         values={groupId !== null ? [groupId] : []}
@@ -57,10 +58,15 @@ const LessonGroupSelect = ({
         onSubmit={handleCreateGroup}
         isLoading={isLoading}
       >
-        <form>
-          <label className="block mb-2 font-medium">名稱</label>
-          <input
-            className="w-full mb-4 p-2 rounded bg-neutral-100 focus:outline-primary-500"
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCreateGroup();
+          }}
+        >
+          <Field
+            label="名稱"
+            className="mb-4"
             placeholder="例如：週日課"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}

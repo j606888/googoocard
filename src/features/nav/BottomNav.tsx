@@ -31,7 +31,7 @@ const BottomNav = () => {
         className="lg:hidden fixed inset-x-0 bottom-0 z-40 pointer-events-none"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="pointer-events-auto mx-3 mb-3 flex items-center justify-around gap-1 rounded-[26px] border border-black/5 bg-white/80 px-2 py-2 shadow-[0_10px_30px_-8px_rgba(27,94,74,0.35)] backdrop-blur-xl">
+        <div className="pointer-events-auto mx-3 mb-3 flex items-center justify-around gap-1 rounded-full border border-neutral-200 bg-white/80 px-2 py-2 shadow-[0_10px_30px_-8px_rgba(27,94,74,0.35)] backdrop-blur-xl">
           {PRIMARY_LINKS.map((link) => {
             const active = pathname.startsWith(link.href);
             let badge: number | undefined;
@@ -85,13 +85,13 @@ const NavTab = ({
   const inner = (
     <span
       className={`relative flex items-center gap-2 rounded-full px-3.5 py-2.5 transition-colors ${
-        active ? "text-white" : "text-neutral-400"
+        active ? "text-white" : "text-neutral-500"
       }`}
     >
       {active && (
         <motion.span
           layoutId="bottomNavPill"
-          className="absolute inset-0 rounded-full bg-primary-500 shadow-[0_4px_12px_-2px_rgba(43,142,110,0.6)]"
+          className="absolute inset-0 rounded-full bg-primary-900 shadow-[0_4px_12px_-2px_rgba(27,94,74,0.6)]"
           transition={{ type: "spring", stiffness: 480, damping: 38 }}
         />
       )}
@@ -99,7 +99,7 @@ const NavTab = ({
         <span className="relative">
           <Icon className="h-6 w-6 shrink-0" />
           {badge !== undefined && (
-            <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-500 px-1 text-[10px] font-semibold text-white ring-2 ring-white">
+            <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-600 px-1 text-[10px] font-semibold text-white ring-2 ring-white">
               {badge}
             </span>
           )}

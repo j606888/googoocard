@@ -21,6 +21,8 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useDeletePeriodMutation } from "@/store/slices/lessons";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import StatusTag from "@/components/StatusTag";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -41,7 +43,7 @@ const PeriodSection = ({
   return (
     <div className="flex flex-col gap-4 px-5">
       <div className="flex justify-between items-center">
-        <h3 className="text-base font-medium">
+        <h3 className="text-base font-bold text-neutral-900">
           時段 · 共 {periods.length} 堂
         </h3>
         <AddPeriodForm lessonId={lesson.id} periods={periods} />
@@ -141,7 +143,7 @@ const PeriodRow = ({
       {/* Rail: status dot + connecting line down to the next row */}
       <div className="flex flex-col items-center w-5 shrink-0">
         {attended ? (
-          <div className="w-5 h-5 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
+          <div className="w-5 h-5 rounded-full bg-primary-700 flex items-center justify-center shrink-0">
             <Check className="w-3 h-3 text-white" strokeWidth={3} />
           </div>
         ) : canCheck ? (
@@ -167,47 +169,48 @@ const PeriodRow = ({
             <div className="text-sm font-semibold">
               {date}（{weekday}）
               {isToday(startTime) && !attended && (
-                <span className="text-warning-600 font-bold"> · 今天</span>
+                <span className="text-warning-900 font-bold"> · 今天</span>
               )}
             </div>
-            <div className="text-xs text-neutral-400">
+            <div className="text-xs text-neutral-500">
               {startHour}–{endHour}
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
             {attended ? (
-              <span className="text-xs font-semibold text-primary-600">
+              <span className="text-xs font-semibold text-primary-700">
                 已點名
               </span>
             ) : canCheck && isDue ? (
-              <button
+              <Button
+                size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleCheck();
                 }}
-                className="flex items-center gap-1.5 bg-warning-500 text-white rounded-full px-3.5 py-1.5 text-xs font-bold cursor-pointer hover:bg-warning-600"
               >
-                <AlarmClock className="w-3.5 h-3.5" />
+                <AlarmClock />
                 點名
-              </button>
+              </Button>
             ) : canCheck ? (
               <>
-                <span className="text-xs font-semibold text-neutral-600 bg-neutral-100 rounded-full px-2.5 py-1">
+                <StatusTag tone="neutral">
                   下一堂 · {daysUntil === 1 ? "明天" : `${daysUntil} 天後`}
-                </span>
-                <button
+                </StatusTag>
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleCheck();
                   }}
-                  className="text-xs font-semibold text-neutral-600 border border-neutral-300 rounded-full px-3 py-1 cursor-pointer hover:bg-neutral-50"
                 >
                   點名
-                </button>
+                </Button>
               </>
             ) : (
-              <span className="flex items-center gap-1 text-xs text-neutral-400">
+              <span className="flex items-center gap-1 text-xs text-neutral-500">
                 <Clock className="w-3.5 h-3.5" />
                 尚未開始
               </span>
@@ -215,15 +218,19 @@ const PeriodRow = ({
             {/* Every row has a menu now: any period can be mis-dated, including
                 ones already checked — that is the Bailamore case. 修改／重置 stay
                 limited to the last attended period, 刪除 to unchecked ones. */}
-            <button
+            <Button
+              variant="ghost"
+              size="iconSm"
+              aria-label="時段操作"
+              className="text-neutral-500"
               onClick={(e) => {
                 e.stopPropagation();
                 setMenuOpen(!menuOpen);
               }}
               ref={buttonRef}
             >
-              <EllipsisVertical className="w-4 h-4 text-neutral-300 cursor-pointer hover:text-neutral-500" />
-            </button>
+              <EllipsisVertical className="size-4" />
+            </Button>
           </div>
         </div>
       </div>
@@ -233,12 +240,12 @@ const PeriodRow = ({
         anchorEl={buttonRef.current}
         onClose={() => setMenuOpen(false)}
       >
-        <div className="flex flex-col gap-3 p-3">
+        <div className="flex flex-col gap-1 p-1.5">
           {/* Re-dating stays available after 點名: moving a period keeps its
               records (see the PATCH route), and the mis-dated ones are exactly
               the periods that need moving. */}
           <button
-            className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
+            className="flex gap-2 items-center rounded-lg px-2.5 py-2 text-sm text-neutral-700 hover:bg-neutral-100 cursor-pointer"
             onClick={handleEditTime}
           >
             <CalendarCog className="w-4 h-4" />
@@ -246,7 +253,7 @@ const PeriodRow = ({
           </button>
           {!attended && (
             <button
-              className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
+              className="flex gap-2 items-center rounded-lg px-2.5 py-2 text-sm text-neutral-700 hover:bg-neutral-100 cursor-pointer"
               onClick={handleDelete}
             >
               <Trash className="w-4 h-4" />
@@ -256,14 +263,14 @@ const PeriodRow = ({
           {isLastAttend && (
             <>
               <button
-                className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
+                className="flex gap-2 items-center rounded-lg px-2.5 py-2 text-sm text-neutral-700 hover:bg-neutral-100 cursor-pointer"
                 onClick={handleUpdate}
               >
                 <PencilLine className="w-4 h-4" />
                 修改
               </button>
               <button
-                className="flex gap-2 items-center hover:bg-neutral-100 rounded-sm"
+                className="flex gap-2 items-center rounded-lg px-2.5 py-2 text-sm text-neutral-700 hover:bg-neutral-100 cursor-pointer"
                 onClick={handleReset}
               >
                 <Eraser className="w-4 h-4" />

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronDown, Folder, Plus } from "lucide-react";
 import { LessonSection, UNGROUPED_ID } from "./lessonGrouping";
 import LessonTable from "./LessonTable";
+import { Button } from "@/components/ui/button";
 
 /**
  * 一個群組：標題列 + 直接展開的課程列表（不用再點進群組頁）。
@@ -38,7 +39,7 @@ const LessonGroupSection = ({
             } ${count === 0 ? "invisible" : ""}`}
           />
           <span
-            className={`w-7 h-7 shrink-0 rounded-[9px] flex items-center justify-center ${
+            className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center ${
               isUngrouped ? "bg-neutral-200 text-neutral-500" : "bg-neutral-800 text-white"
             }`}
           >
@@ -56,13 +57,17 @@ const LessonGroupSection = ({
           </span>
         </button>
         {!isUngrouped && (
-          <Link
-            href={`/lessons/new?groupId=${section.id}`}
-            className="ml-auto flex items-center gap-1 shrink-0 text-sm font-semibold text-primary-700 hover:bg-primary-50 px-2.5 py-1.5 rounded-lg transition-colors"
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="ml-auto gap-1 text-primary-700 hover:bg-primary-50 max-lg:w-9 max-lg:px-0"
           >
-            <Plus className="w-4 h-4" />
-            <span className="max-lg:sr-only">在這組開課</span>
-          </Link>
+            <Link href={`/lessons/new?groupId=${section.id}`}>
+              <Plus className="size-4" />
+              <span className="max-lg:sr-only">在這組開課</span>
+            </Link>
+          </Button>
         )}
       </div>
 

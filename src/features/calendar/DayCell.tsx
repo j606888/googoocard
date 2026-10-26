@@ -40,17 +40,17 @@ const DayCell = ({
   const extraChips = periods.length - chips.length;
 
   const cellTone = selected
-    ? "bg-primary-500 text-white lg:bg-primary-50 lg:text-neutral-800 lg:ring-2 lg:ring-inset lg:ring-primary-400"
+    ? "bg-primary-900 text-white lg:bg-primary-50 lg:text-neutral-900 lg:ring-2 lg:ring-inset lg:ring-primary-700"
     : isToday
     ? "bg-primary-50 hover:bg-primary-100 lg:bg-white lg:hover:bg-neutral-50"
     : "hover:bg-neutral-100 lg:hover:bg-neutral-50";
 
   const numberTone = isToday
     ? selected
-      ? "text-white lg:bg-primary-600"
-      : "text-primary-700 font-bold lg:bg-primary-600 lg:text-white"
+      ? "text-white lg:bg-primary-900"
+      : "text-primary-900 font-bold lg:bg-primary-900 lg:text-white"
     : selected
-    ? "text-white lg:text-neutral-800"
+    ? "text-white lg:text-neutral-900"
     : "text-neutral-700";
 
   return (
@@ -83,7 +83,7 @@ const DayCell = ({
         {extraDots > 0 && (
           <span
             className={`text-[9px] leading-none ${
-              selected ? "text-white/90" : "text-neutral-400"
+              selected ? "text-white/90" : "text-neutral-500"
             }`}
           >
             +{extraDots}
@@ -94,7 +94,7 @@ const DayCell = ({
       {hasDue && (
         <span
           className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ring-[1.5px] lg:hidden ${
-            selected ? "bg-white ring-primary-500" : "bg-warning-500 ring-white"
+            selected ? "bg-white ring-primary-900" : "bg-warning-500 ring-white"
           }`}
         />
       )}
@@ -107,9 +107,9 @@ const DayCell = ({
           return (
             <span
               key={p.periodId}
-              className={`flex items-center gap-1.5 min-w-0 rounded-md px-1.5 py-0.5 text-[11.5px] leading-snug ${
+              className={`flex items-center gap-1.5 min-w-0 rounded-sm px-1.5 py-0.5 text-[11.5px] leading-snug ${
                 state === "due"
-                  ? "bg-white text-warning-900 ring-[1.5px] ring-inset ring-warning-400"
+                  ? "bg-white text-warning-950 ring-[1.5px] ring-inset ring-warning-400"
                   : `${style.badge} ${state === "taken" ? "opacity-60" : ""}`
               }`}
             >

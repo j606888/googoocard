@@ -94,7 +94,7 @@ const AvatarPicker = ({
           <div className="flex flex-col items-center gap-1">
             <div className={`${tileBase}`}>
               <img src={value} alt="" className="w-full h-full object-cover" />
-              <div className="absolute bg-primary-500 flex items-center justify-center w-6 h-6 right-0 top-0 rounded-full">
+              <div className="absolute bg-primary-900 flex items-center justify-center w-6 h-6 right-0 top-0 rounded-full">
                 <Check className="w-3 h-3 text-white" />
               </div>
             </div>
@@ -114,7 +114,7 @@ const AvatarPicker = ({
             <div className={`${tileBase} ${value === avatarUrl ? "" : "brightness-75"}`}>
               <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
               {value === avatarUrl && (
-                <div className="absolute bg-primary-500 flex items-center justify-center w-6 h-6 right-0 top-0 rounded-full">
+                <div className="absolute bg-primary-900 flex items-center justify-center w-6 h-6 right-0 top-0 rounded-full">
                   <Check className="w-3 h-3 text-white" />
                 </div>
               )}
@@ -132,7 +132,7 @@ const AvatarPicker = ({
           disabled={uploading}
           className="group flex cursor-pointer flex-col items-center gap-1 disabled:opacity-60"
         >
-          <span className="w-16 h-16 rounded-full border-2 border-dashed border-neutral-300 flex items-center justify-center text-neutral-400 group-hover:border-primary-400 group-hover:text-primary-500 transition-colors">
+          <span className="w-16 h-16 rounded-full border-2 border-dashed border-neutral-300 flex items-center justify-center text-neutral-500 group-hover:border-primary-300 group-hover:text-primary-700 transition-colors">
             {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
           </span>
           <span className="text-[11px] text-neutral-500">上傳照片</span>
@@ -146,7 +146,7 @@ const AvatarPicker = ({
           onChange={handleFile}
         />
       </div>
-      {error && <p className="text-xs text-danger-500 text-center">{error}</p>}
+      {error && <p className="text-[13px] text-danger-700 text-center">{error}</p>}
     </div>
   );
 };

@@ -35,20 +35,20 @@ const SortMenu = <T extends string>({
         type="button"
         ref={anchorRef}
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-neutral-200 bg-white text-sm text-neutral-700 hover:border-primary-300 transition-colors cursor-pointer"
+        className="flex h-9 items-center gap-1.5 px-3 rounded-xl border-[1.5px] border-neutral-300 bg-white text-sm text-neutral-700 hover:border-primary-300 transition-colors cursor-pointer"
       >
-        <ArrowUpDown className="w-4 h-4 text-neutral-400" />
+        <ArrowUpDown className="w-4 h-4 text-neutral-500" />
         <span>排序</span>
         <span className="font-semibold text-neutral-900">{current?.short}</span>
         <ChevronDown
-          className={`w-4 h-4 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-neutral-500 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
       <Menu
         open={open}
         anchorEl={anchorRef.current}
         onClose={() => setOpen(false)}
-        className="w-56 rounded-2xl border border-black/5 bg-white p-2 shadow-[0_12px_40px_-12px_rgba(27,94,74,0.45)] z-50 flex flex-col"
+        className="w-56 rounded-2xl border border-neutral-200 bg-white p-2 shadow-[0_12px_40px_-12px_rgba(27,94,74,0.45)] z-50 flex flex-col"
       >
         {options.map((option) => (
           <button
@@ -58,12 +58,12 @@ const SortMenu = <T extends string>({
               onChange(option.value);
               setOpen(false);
             }}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-left cursor-pointer hover:bg-neutral-50 ${
-              option.value === sort ? "text-primary-700 font-semibold" : "text-neutral-700"
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-left cursor-pointer hover:bg-neutral-50 ${
+              option.value === sort ? "text-primary-900 font-semibold" : "text-neutral-700"
             }`}
           >
             <span className="flex-1">{option.label}</span>
-            {option.value === sort && <Check className="w-4 h-4 text-primary-600" />}
+            {option.value === sort && <Check className="w-4 h-4 text-primary-700" />}
           </button>
         ))}
       </Menu>

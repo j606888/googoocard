@@ -38,18 +38,18 @@ export default function FilterChip({
       } ${
         active
           ? "bg-primary-900 border-primary-900 text-white font-medium"
-          : "bg-white border-neutral-300 text-neutral-700 hover:border-primary-400"
+          : "bg-white border-neutral-300 text-neutral-700 hover:border-primary-300"
       } ${className}`}
     >
       {alert && (
         <span
           aria-hidden="true"
-          className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white" : "bg-danger-500"}`}
+          className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white" : "bg-danger-600"}`}
         />
       )}
       {children}
       {count !== undefined && (
-        <span className={`font-semibold ${active ? "text-white" : "text-neutral-500"}`}>{count}</span>
+        <span className={`font-semibold ${active ? "text-primary-100" : "text-neutral-500"}`}>{count}</span>
       )}
     </button>
   );

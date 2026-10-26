@@ -3,6 +3,7 @@ import { format, subWeeks } from "date-fns";
 import type { StudentAttendance } from "@/store/slices/students";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import DanceBadge from "../../StudentList/DanceBadge";
+import EmptyState from "@/components/EmptyState";
 import {
   INSIGHT_WEEKS,
   countByStyle,
@@ -54,7 +55,7 @@ export const WeeklyHeatGrid = ({ attendances, now = new Date() }: { attendances:
 export const StyleBars = ({ attendances }: { attendances: StudentAttendance[] }) => {
   const counts = useMemo(() => countByStyle(attendances), [attendances]);
   const max = counts[0]?.count ?? 0;
-  if (max === 0) return <p className="m-0 text-xs text-neutral-500">還沒有出席紀錄。</p>;
+  if (max === 0) return <EmptyState kind="inline" title="還沒有出席紀錄" />;
   return (
     <ul className="m-0 p-0 list-none flex flex-col gap-2 text-[13px]">
       {counts.map(({ style, count }) => (

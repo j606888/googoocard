@@ -53,7 +53,7 @@ const ProgressHeader = ({ currentStep }: { currentStep: number }) => {
         {rightPart}
       </div>
       <div className="absolute bottom-0 left-0 right-0 w-full h-1 bg-neutral-200"></div>
-      <div className="absolute bottom-0 left-0 h-1 bg-primary-500" style={{ width: `${widthPercentage}%` }}></div>
+      <div className="absolute bottom-0 left-0 h-1 bg-primary-600" style={{ width: `${widthPercentage}%` }}></div>
     </div>
   );
 };
@@ -81,7 +81,7 @@ const StepBall = ({ number, title, status }: { number: number, title?: string, s
   const active = ['inProgress', 'done'].includes(status);
   return (
     <div className="flex items-center gap-2">
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${active ? 'bg-primary-500' : 'shadow-md bg-white'}`}>
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${active ? 'bg-primary-900' : 'border-[1.5px] border-neutral-300 bg-white'}`}>
         <span className={`text-sm font-semibold ${active ? 'text-white' : 'text-neutral-500'}`}>
           {status === 'done' ? <CheckIcon className="w-4 h-4" /> : number}
         </span>

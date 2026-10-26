@@ -9,6 +9,9 @@ import { useGetStudentsQuery } from "@/store/slices/students";
 import { TrialRoster, useRegisterTrialMutation } from "@/store/slices/lessons";
 import { defaultTrialPrice } from "@/lib/trialPrice";
 import { formatMoney } from "@/lib/money";
+import { Button } from "@/components/ui/button";
+import { FieldError, fieldControlClass } from "@/components/Field";
+import { cn } from "@/lib/utils";
 
 type Who = { kind: "existing"; id: number; name: string; returning: boolean } | { kind: "new"; name: string };
 type Payment = "CASH" | "TRANSFER" | "UNPAID";
@@ -100,26 +103,28 @@ const RegisterTrialDrawer = ({
     >
       <div className="flex flex-col gap-5 pb-4">
         <div className="flex flex-col gap-2">
-          <span className="font-medium">誰來體驗</span>
+          <span className="text-sm font-medium text-neutral-900">誰來體驗</span>
           {who ? (
-            <div className="flex items-center justify-between gap-2 rounded-lg border border-primary-300 bg-primary-50 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2 rounded-xl border border-primary-300 bg-primary-50 px-3 py-2">
               <span className="flex items-center gap-2 min-w-0">
                 <span className="font-semibold truncate">{who.name}</span>
                 <span className="shrink-0 text-xs text-neutral-600">
                   {who.kind === "new" ? "新學員，會一起建立" : who.returning ? "舊生" : "還沒買過正式課卡"}
                 </span>
               </span>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="iconSm"
                 aria-label="換一位"
                 onClick={() => {
                   setWho(null);
                   setPrice(null);
                 }}
-                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-neutral-600 hover:bg-white cursor-pointer"
+                className="text-neutral-600 hover:bg-white"
               >
-                <X className="w-4 h-4" />
-              </button>
+                <X className="size-4" />
+              </Button>
             </div>
           ) : (
             <>
@@ -132,10 +137,10 @@ const RegisterTrialDrawer = ({
                 }}
                 placeholder="輸入姓名（Google 表單上的名字）"
                 aria-label="學員姓名"
-                className="w-full rounded bg-neutral-100 p-2.5 focus:outline-primary-500"
+                className={cn(fieldControlClass(!!error), "h-12")}
               />
               {trimmed && (
-                <ul className="flex flex-col rounded-lg border border-neutral-200 overflow-hidden">
+                <ul className="flex flex-col rounded-xl border border-neutral-200 overflow-hidden">
                   {suggestions.map((s) => (
                     <li key={s.id}>
                       <button
@@ -165,12 +170,12 @@ const RegisterTrialDrawer = ({
               )}
             </>
           )}
-          {error && <p className="text-sm text-danger-500">{error}</p>}
+          <FieldError>{error}</FieldError>
         </div>
 
         {trialCards.length > 1 && (
           <div className="flex flex-col gap-2">
-            <span className="font-medium">體驗卡</span>
+            <span className="text-sm font-medium text-neutral-900">體驗卡</span>
             <SegmentedTabs
               ariaLabel="體驗卡"
               options={trialCards.map((c) => ({ value: String(c.id), label: c.name }))}
@@ -185,24 +190,24 @@ const RegisterTrialDrawer = ({
         )}
 
         <label className="flex flex-col gap-2">
-          <span className="font-medium">
+          <span className="text-sm font-medium text-neutral-900">
             收費
             {returning && <span className="ml-2 text-xs font-normal text-neutral-500">舊生預設免費</span>}
           </span>
-          <span className="flex items-center gap-1.5 rounded bg-neutral-100 px-2.5 focus-within:outline focus-within:outline-primary-500">
-            <span className="text-neutral-500">$</span>
+          <span className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500">$</span>
             <input
               inputMode="numeric"
               value={price ?? String(defaultPrice)}
               onChange={(e) => setPrice(e.target.value.replace(/\D/g, ""))}
-              className="flex-1 bg-transparent py-2.5 outline-none"
+              className={cn(fieldControlClass(), "h-12 pl-8")}
             />
           </span>
         </label>
 
         {finalPrice > 0 && (
           <div className="flex flex-col gap-2">
-            <span className="font-medium">收款</span>
+            <span className="text-sm font-medium text-neutral-900">收款</span>
             <SegmentedTabs ariaLabel="收款" options={PAYMENT_OPTIONS} value={payment} onChange={setPayment} fill />
             {payment === "TRANSFER" && (
               <input
@@ -212,7 +217,7 @@ const RegisterTrialDrawer = ({
                 maxLength={20}
                 placeholder="轉帳末五碼（選填）"
                 aria-label="轉帳末五碼"
-                className="w-full rounded bg-neutral-100 p-2.5 tracking-widest focus:outline-primary-500"
+                className={cn(fieldControlClass(), "h-12 tracking-widest")}
               />
             )}
             {payment === "UNPAID" && (

@@ -18,7 +18,7 @@ const StatTile = ({
     <span className="text-xs text-neutral-500">{label}</span>
     <span
       className={`text-2xl font-semibold tabular-nums ${
-        tone === "warning" ? "text-warning-900" : "text-neutral-900"
+        tone === "warning" ? "text-warning-950" : "text-neutral-900"
       }`}
     >
       {value}

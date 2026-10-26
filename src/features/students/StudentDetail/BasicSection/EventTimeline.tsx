@@ -10,6 +10,7 @@ import {
 import EventRow from "./EventRow";
 import EventSubRow from "./EventSubRow";
 import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
 
 /** Mirrors the loaded timeline: one day heading + a few EventRows. */
 const EventTimelineSkeleton = () => (
@@ -62,9 +63,7 @@ const EventTimeline = ({ studentId }: { studentId: number }) => {
       {isLoading ? (
         <EventTimelineSkeleton />
       ) : groups.length === 0 ? (
-        <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
-          這個分類還沒有紀錄
-        </div>
+        <EmptyState kind="inline" title="這個分類還沒有紀錄" />
       ) : (
         <div className="bg-white border border-neutral-200 rounded-2xl px-5 pt-1 pb-3">
           {groups.map((group) => (

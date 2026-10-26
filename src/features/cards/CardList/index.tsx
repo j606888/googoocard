@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, CreditCard, Plus } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { Card, useGetCardsQuery } from "@/store/slices/cards";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import { useSizeClass } from "@/hooks/useMediaQuery";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import SegmentedTabs from "@/components/SegmentedTabs";
+import FilterChip from "@/components/FilterChip";
+import EmptyState from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
 import CardListSkeleton from "./CardListSkeleton";
 import CardSheet, { CardSheetView } from "../CardSheet";
 import CardFormDrawer from "../CardForm/CardFormDrawer";
@@ -116,24 +119,14 @@ const CardList = () => {
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => newPlan()}
-          className="shrink-0 flex items-center gap-2 min-h-11 px-4 rounded-lg bg-primary-900 text-white text-sm font-semibold hover:opacity-90 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
+        <Button onClick={() => newPlan()}>
+          <Plus className="size-4" />
           新增方案
-        </button>
+        </Button>
       </div>
 
       {!hasAnyCard ? (
-        <div className="flex flex-col items-center justify-center p-8 gap-3 bg-primary-50 rounded-xl">
-          <div className="flex items-center justify-center w-12 h-12 bg-primary-500 rounded-full">
-            <CreditCard className="w-6 h-6 text-white" />
-          </div>
-          <p className="text-lg font-bold">還沒有課卡方案</p>
-          <p className="text-sm text-neutral-600 text-center">建立第一個方案，學生就可以買了。</p>
-        </div>
+        <EmptyState kind="page" title="還沒有課卡方案" description="建立第一個方案，學生就可以買了。" />
       ) : (
         <>
           <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-neutral-200">
@@ -152,25 +145,16 @@ const CardList = () => {
             />
             {styleChips.length > 2 && (
               <div className="flex gap-2 pb-2 overflow-x-auto max-w-full [scrollbar-width:none]">
-                {styleChips.map((chip) => {
-                  const active = styleFilter === chip.value;
-                  return (
-                    <button
-                      key={String(chip.value)}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => setStyleFilter(chip.value)}
-                      className={`shrink-0 flex items-center gap-1.5 min-h-9 px-3 rounded-full border text-[13px] font-medium cursor-pointer ${
-                        active
-                          ? "bg-neutral-900 border-neutral-900 text-white"
-                          : "bg-white border-neutral-200 text-neutral-700 hover:border-neutral-300"
-                      }`}
-                    >
-                      {chip.dot && <span className={`w-2 h-2 rounded-full ${chip.dot}`} />}
-                      {chip.label}
-                    </button>
-                  );
-                })}
+                {styleChips.map((chip) => (
+                  <FilterChip
+                    key={String(chip.value)}
+                    active={styleFilter === chip.value}
+                    onClick={() => setStyleFilter(chip.value)}
+                  >
+                    {chip.dot && <span aria-hidden="true" className={`w-2 h-2 rounded-full ${chip.dot}`} />}
+                    {chip.label}
+                  </FilterChip>
+                ))}
               </div>
             )}
           </div>
@@ -182,9 +166,10 @@ const CardList = () => {
           )}
 
           {groups.length === 0 && (
-            <p className="rounded-xl bg-neutral-50 p-8 text-center text-sm text-neutral-600">
-              {tab === "archived" ? "沒有已下架的方案。" : "沒有開放購買的方案。"}
-            </p>
+            <EmptyState
+              kind="inline"
+              title={tab === "archived" ? "沒有已下架的方案。" : "沒有開放購買的方案。"}
+            />
           )}
 
           {groups.map((group) => {
@@ -201,16 +186,16 @@ const CardList = () => {
                     </span>
                   </div>
                   {tab === "open" && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="link"
                       onClick={() => newPlan(group.danceStyleId)}
-                      className="shrink-0 min-h-8 text-[13px] font-semibold text-primary-900 cursor-pointer"
+                      className="min-h-9 text-[13px] font-semibold"
                     >
                       ＋ 加一個方案
-                    </button>
+                    </Button>
                   )}
                 </div>
-                <ul className="bg-white border border-neutral-200 rounded-xl overflow-hidden">
+                <ul className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
                   {group.cards.map((card) => (
                     <CardRow
                       key={card.id}

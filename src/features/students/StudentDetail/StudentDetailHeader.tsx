@@ -10,21 +10,20 @@ import StudentStats from "./StudentStats";
 import StudentActionsMenu from "./StudentActionsMenu";
 import { DanceBadges } from "../StudentList/DanceBadge";
 import { NEEDS_RENEWAL_TAG, tagLabel } from "../StudentList/studentFilters";
-
-
-const outlineButton =
-  "h-10 px-3.5 rounded-xl border border-neutral-300 bg-white text-sm font-semibold text-neutral-900 inline-flex items-center gap-1.5 hover:bg-neutral-50 cursor-pointer";
+import { Button, buttonVariants } from "@/components/ui/button";
+import StatusTag from "@/components/StatusTag";
 
 const ArchivedBanner = ({ student }: { student: StudentWithDetail }) => {
   const [setArchived, { isLoading }] = useSetStudentArchivedMutation();
   return (
-    <div className="mb-4 flex items-center gap-3 rounded-xl border border-neutral-300 bg-neutral-50 px-4 py-2.5 text-sm text-neutral-700">
+    <div className="mb-4 flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm text-neutral-700">
       <Archive className="w-4 h-4 shrink-0" />
       <span className="flex-1">這位學生已封存，不會出現在名單、自助簽到和 LINE。</span>
-      <button
+      <Button
         type="button"
-        disabled={isLoading}
-        className="font-semibold text-primary-900 hover:underline cursor-pointer disabled:opacity-50"
+        variant="link"
+        isLoading={isLoading}
+        className="text-sm font-semibold"
         onClick={async () => {
           try {
             await setArchived({ id: student.id, archived: false }).unwrap();
@@ -35,13 +34,12 @@ const ArchivedBanner = ({ student }: { student: StudentWithDetail }) => {
         }}
       >
         還原
-      </button>
+      </Button>
     </div>
   );
 };
 
-const iconButton =
-  "w-11 h-11 grid place-items-center rounded-xl text-neutral-900 hover:bg-neutral-100 cursor-pointer";
+const iconButton = buttonVariants({ variant: "ghost", size: "icon" });
 
 /** 舞種資格（全名）、需續約、其他標籤——三種頁首共用。 */
 const StudentBadges = ({ student }: { student: StudentWithDetail }) => {
@@ -52,17 +50,12 @@ const StudentBadges = ({ student }: { student: StudentWithDetail }) => {
     <>
       <DanceBadges levels={student.danceLevels} variant="full" />
       {needsRenewal && (
-        <span className="text-xs font-semibold bg-danger-100 text-danger-700 rounded-full px-2.5 py-0.5">
-          {tagLabel(NEEDS_RENEWAL_TAG)}
-        </span>
+        <StatusTag tone="warning">{tagLabel(NEEDS_RENEWAL_TAG)}</StatusTag>
       )}
       {otherTags.map((tag) => (
-        <span
-          key={tag.id}
-          className="text-xs border border-neutral-300 text-neutral-700 rounded-full px-2.5 py-0.5"
-        >
+        <StatusTag key={tag.id} tone="neutral">
           {tag.name}
-        </span>
+        </StatusTag>
       ))}
     </>
   );
@@ -172,13 +165,13 @@ const StudentDetailHeader = ({
           <EditStudent
             student={student}
             trigger={(open) => (
-              <button type="button" className={outlineButton} onClick={open}>
+              <Button type="button" variant="secondary" onClick={open}>
                 <SquarePen className="w-4 h-4" />
                 編輯
-              </button>
+              </Button>
             )}
           />
-          <StudentActionsMenu student={student} buttonClassName={`${outlineButton} px-2.5`} />
+          <StudentActionsMenu student={student} buttonClassName={buttonVariants({ variant: "secondary", size: "icon" })} />
           {!student.archivedAt && <BuyCard student={student} variant="header" />}
         </div>
       </div>

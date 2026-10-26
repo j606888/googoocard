@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { danceStyleClasses, danceStyleMeta } from "@/lib/danceStyleColors";
 import type { TeacherOverviewRow } from "@/store/slices/teachers";
+import StatusTag from "@/components/StatusTag";
 import TeacherAvatar from "./TeacherAvatar";
 import { periodLabel, shortMonthLabel } from "./format";
 
@@ -24,7 +25,7 @@ const TeacherOverviewCard = ({
   return (
     <Link
       href={`/teachers/${teacher.id}?month=${month}`}
-      className="rounded-2xl border border-neutral-200 bg-white p-5 flex flex-col gap-4 hover:border-neutral-300 hover:shadow-sm transition"
+      className="rounded-2xl border border-neutral-200 bg-white p-5 flex flex-col gap-4 hover:border-neutral-300 transition-colors"
     >
       <div className="flex items-center gap-3">
         <TeacherAvatar name={teacher.name} color={teacher.color} muted={archived} />
@@ -43,21 +44,13 @@ const TeacherOverviewCard = ({
             </div>
           )}
         </div>
-        <span
-          className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${
-            archived
-              ? "bg-neutral-100 text-neutral-600"
-              : teacher.activeLessonCount > 0
-                ? "bg-primary-100 text-primary-900"
-                : "bg-neutral-100 text-neutral-600"
-          }`}
-        >
+        <StatusTag tone={!archived && teacher.activeLessonCount > 0 ? "positive" : "neutral"}>
           {archived
             ? "已封存"
             : teacher.activeLessonCount > 0
               ? `進行中 ${teacher.activeLessonCount} 堂課`
               : "沒有進行中的課"}
-        </span>
+        </StatusTag>
       </div>
 
       {!archived && (

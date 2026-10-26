@@ -14,16 +14,19 @@ const SearchbarSkeleton = () => (
   <div className="flex flex-col gap-3">
     <div className="flex items-center justify-between">
       <Skeleton className="h-5 w-24" />
-      <Skeleton className="h-8 w-20 rounded-lg" />
+      <Skeleton className="h-9 w-20 rounded-lg" />
     </div>
-    <Skeleton className="h-11 w-full rounded-xl" />
+    <Skeleton className="h-12 w-full rounded-xl" />
   </div>
 );
 
-const StudentOptionSkeleton = () => (
-  <div className="flex items-center gap-3 px-3 py-2.5">
+const NAME_WIDTHS = ["w-28", "w-20", "w-24", "w-16", "w-24", "w-20"];
+const ROW_FADE = ["", "", "opacity-75", "opacity-50", "opacity-25", "opacity-25"];
+
+const StudentOptionSkeleton = ({ index }: { index: number }) => (
+  <div className={`flex items-center gap-3 px-3 py-2.5 ${ROW_FADE[index]}`}>
     <Skeleton className="w-9 h-9 rounded-full shrink-0" />
-    <Skeleton className="h-5 w-28" />
+    <Skeleton className={`h-4 ${NAME_WIDTHS[index]}`} />
     <Skeleton className="ml-auto w-6 h-6 rounded-full shrink-0" />
   </div>
 );
@@ -31,7 +34,7 @@ const StudentOptionSkeleton = () => (
 const RosterSkeleton = () => (
   <div className="flex flex-col gap-1">
     {Array.from({ length: 6 }).map((_, index) => (
-      <StudentOptionSkeleton key={index} />
+      <StudentOptionSkeleton key={index} index={index} />
     ))}
   </div>
 );
@@ -54,7 +57,7 @@ const PeriodAttendanceSkeleton = ({ variant }: { variant: "compact" | "expanded"
               </div>
             ))}
           </div>
-          <Skeleton className="h-10 w-full rounded-xl" />
+          <Skeleton className="h-13 w-full rounded-xl" />
         </div>
       </div>
     );

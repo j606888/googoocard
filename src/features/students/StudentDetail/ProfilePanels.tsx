@@ -13,6 +13,9 @@ import EditStudent from "./BasicSection/EditStudent";
 import LineBindQrButton from "./LineBindQrButton";
 import QualificationLevels, { applyLevelPick } from "./QualificationLevels";
 import { Skeleton } from "@/components/ui/skeleton";
+import { buttonVariants } from "@/components/ui/button";
+import StatusTag from "@/components/StatusTag";
+import { cn } from "@/lib/utils";
 
 export const publicPageUrl = (student: StudentWithDetail) =>
   `${window.location.origin}/public-students/${student.randomKey}`;
@@ -44,8 +47,7 @@ export const Panel = ({
   </section>
 );
 
-const linkButton =
-  "text-xs font-semibold text-primary-900 hover:underline cursor-pointer px-1 py-1";
+const linkButton = cn(buttonVariants({ variant: "link" }), "text-xs font-semibold px-1 py-1");
 
 /** 舞種資格: each click saves (PATCH danceLevels) — no separate 儲存. */
 const QualificationPanel = ({ student }: { student: StudentWithDetail }) => {
@@ -117,9 +119,9 @@ const InfoPanel = ({ student }: { student: StudentWithDetail }) => {
             <dt className="text-neutral-600">標籤</dt>
             <dd className="m-0 flex flex-wrap gap-1">
               {tags.map((tag) => (
-                <span key={tag.id} className="text-xs border border-neutral-300 rounded-full px-2 py-0.5">
+                <StatusTag key={tag.id} tone="neutral">
                   {tag.name}
-                </span>
+                </StatusTag>
               ))}
             </dd>
           </>
@@ -168,7 +170,7 @@ const SetupStep = ({
     <span
       aria-hidden="true"
       className={`w-[22px] h-[22px] rounded-full border-2 grid place-items-center text-xs ${
-        done ? "bg-primary-700 border-primary-700 text-white" : "border-neutral-300 text-neutral-600"
+        done ? "bg-primary-900 border-primary-900 text-white" : "border-neutral-300 text-neutral-600"
       }`}
     >
       {done ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : index}

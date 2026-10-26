@@ -35,7 +35,7 @@ const MonthGrid = ({
         {WEEKDAYS.map((d) => (
           <div
             key={d}
-            className="text-center text-xs font-medium text-neutral-400 py-1 lg:text-left lg:px-3 lg:py-2.5 lg:text-neutral-500"
+            className="text-center text-xs font-medium text-neutral-500 py-1 lg:text-left lg:px-3 lg:py-2.5 lg:text-neutral-500"
           >
             {d}
           </div>

@@ -30,11 +30,12 @@ const PaletteColorPicker = ({
   hint?: string;
 }) => (
   <fieldset className="flex flex-col gap-2">
-    <legend className="mb-2 font-medium">
+    <legend className="mb-2 text-sm font-medium text-neutral-900">
       {label}
       {hint && <span className="ml-1 text-sm font-normal text-neutral-500">{hint}</span>}
     </legend>
-    <div className="grid grid-cols-5 gap-2">
+    {/* p-1：選取外框（ring-2 + offset-2）會超出格子 4px，抽屜的捲動容器會把它切掉 */}
+    <div className="grid grid-cols-5 gap-2 p-1">
       {DANCE_STYLE_COLORS.map((key) => {
         const selected = key === value;
         return (
@@ -46,7 +47,7 @@ const PaletteColorPicker = ({
             onClick={() => onChange(key)}
             className={`h-11 rounded-lg flex items-center justify-center cursor-pointer ${
               DANCE_STYLE_PALETTE[key].bg
-            } ${selected ? "ring-2 ring-offset-2 ring-neutral-800" : ""}`}
+            } ${selected ? "ring-2 ring-offset-2 ring-neutral-900" : ""}`}
           >
             {selected && <Check className="w-5 h-5 text-white" />}
           </button>

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
 import Drawer from "@/components/Drawer";
+import Field from "@/components/Field";
+import { Button } from "@/components/ui/button";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatDate } from "@/lib/utils";
 import {
@@ -108,15 +110,11 @@ const MergeStudentDialog = ({
       <div className="flex flex-col gap-4 pb-4">
         {!targetId || !preview ? (
           <div className="flex flex-col gap-2">
-            <label htmlFor="merge-search" className="font-medium">
-              「{student.name}」要併到哪一位？
-            </label>
-            <input
-              id="merge-search"
+            <Field
+              label={`「${student.name}」要併到哪一位？`}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="搜尋名字"
-              className="w-full rounded bg-neutral-100 p-2 focus:outline-primary-500"
             />
             <ul className="flex flex-col">
               {candidates.map((s) => (
@@ -129,7 +127,7 @@ const MergeStudentDialog = ({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={s.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
                     <span className="flex-1 truncate">{s.name}</span>
-                    <span className="font-mono text-xs text-neutral-400">#{s.number}</span>
+                    <span className="font-mono text-xs text-neutral-500">#{s.number}</span>
                   </button>
                 </li>
               ))}
@@ -141,13 +139,9 @@ const MergeStudentDialog = ({
               <SideCard side={preview.source} label="併掉（封存）" keep={false} />
               <SideCard side={preview.target} label="保留" keep />
             </div>
-            <button
-              type="button"
-              className="w-fit text-sm text-neutral-600 underline cursor-pointer"
-              onClick={() => setTargetId(null)}
-            >
+            <Button type="button" variant="link" className="w-fit text-sm" onClick={() => setTargetId(null)}>
               換一位
-            </button>
+            </Button>
 
             <div className="flex flex-col gap-2 rounded-xl bg-neutral-50 p-3 text-sm">
               <p className="font-semibold">合併後</p>
@@ -164,7 +158,7 @@ const MergeStudentDialog = ({
             </div>
 
             {(preview.clashes.length > 0 || preview.lineConflict) && (
-              <div className="flex flex-col gap-2 rounded-xl border border-warning-200 bg-warning-50 p-3 text-sm text-warning-900">
+              <div className="flex flex-col gap-2 rounded-xl border border-warning-300 bg-warning-50 p-3 text-sm text-warning-950">
                 <p className="font-semibold">需要你確認</p>
                 {preview.clashes.map((c, i) => (
                   <p key={i} className="leading-relaxed">

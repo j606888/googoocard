@@ -5,6 +5,8 @@ import { ChevronLeft, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
 import {
   LineInviteStudent,
   useGetLineInvitesQuery,
@@ -40,19 +42,16 @@ const InviteRow = ({ student }: { student: LineInviteStudent }) => {
           {sent ? `${formatDate(student.lineInviteSentAt, "M/d")} 已邀請` : "尚未邀請"}
         </p>
       </Link>
-      <button
+      <Button
         type="button"
+        variant={sent ? "ghost" : "secondary"}
         disabled={!student.inviteMessage}
         onClick={handleCopy}
-        className={`shrink-0 inline-flex items-center gap-1.5 h-10 px-3 rounded-lg text-sm font-semibold cursor-pointer disabled:opacity-50 ${
-          sent
-            ? "border border-neutral-300 text-neutral-800 hover:bg-neutral-50"
-            : "bg-primary-700 text-white hover:bg-primary-900"
-        }`}
+        className="px-3.5 text-sm"
       >
         <Copy className="w-4 h-4" />
         {sent ? "再複製" : "複製邀請"}
-      </button>
+      </Button>
     </li>
   );
 };
@@ -75,21 +74,36 @@ const LineInvites = () => {
         學生
       </Link>
       <div>
-        <h1 className="text-xl font-semibold">未綁定 LINE 的學員</h1>
+        <h1 className="text-2xl font-bold text-neutral-900">未綁定 LINE 的學員</h1>
         <p className="mt-1 text-sm leading-relaxed text-neutral-500">
           上課前先邀請綁好，之後學生就能用 LINE 自己報到、看剩幾堂。依最近出席排序。
         </p>
       </div>
 
       {isLoading || !data ? (
-        <div className="flex flex-col gap-3">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
+        <div aria-hidden="true">
+          <Skeleton className="h-11 w-full rounded-xl" />
+          <ul className="mt-4">
+            {["w-24", "w-32", "w-20", "w-28", "w-24"].map((width, i) => (
+              <li
+                key={i}
+                className={`flex items-center gap-3 py-3 border-b border-neutral-100 last:border-b-0 ${
+                  ["", "", "opacity-75", "opacity-50", "opacity-25"][i]
+                }`}
+              >
+                <Skeleton className="size-10 shrink-0" />
+                <div className="flex-1 flex flex-col gap-2">
+                  <Skeleton className={`h-3.5 ${width}`} />
+                  <Skeleton className="h-3 w-40" />
+                </div>
+                <Skeleton className="h-11 w-28 rounded-xl" />
+              </li>
+            ))}
+          </ul>
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-2.5 text-sm">
+          <div className="flex items-center justify-between rounded-xl bg-neutral-50 px-4 py-2.5 text-sm">
             <span>
               已綁定 <b>{data.boundCount}</b> / {data.totalCount} 人
             </span>
@@ -98,12 +112,12 @@ const LineInvites = () => {
             )}
           </div>
           {notConfigured && (
-            <p className="rounded-lg border border-warning-200 bg-warning-50 px-3 py-2.5 text-sm text-warning-800">
+            <p className="rounded-xl border border-warning-300 bg-warning-50 px-3 py-2.5 text-sm text-warning-950">
               LINE 綁定尚未設定完成（缺少官方帳號 ID），暫時無法產生邀請。
             </p>
           )}
           {data.students.length === 0 ? (
-            <p className="py-10 text-center text-sm text-neutral-500">所有學員都綁好 LINE 了</p>
+            <EmptyState kind="inline" title="所有學員都綁好 LINE 了" />
           ) : (
             <ul>
               {data.students.map((student) => (

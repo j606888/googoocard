@@ -2,6 +2,9 @@ import { Info, Minus, Plus } from "lucide-react";
 import { useGetCardsQuery } from "@/store/slices/cards";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
+import { cn } from "@/lib/utils";
+import { FieldError, fieldControlClass } from "@/components/Field";
+import { Button } from "@/components/ui/button";
 import { NoDanceStylesNotice } from "@/features/lessons/newLesson/DanceStyleSelect";
 import { cardKind, CardKind, perSessionPrice } from "../cardInsights";
 import type { CardFormState } from "./useCardForm";
@@ -26,6 +29,13 @@ const KIND_OPTIONS: { value: CardKind; title: string; description: string }[] = 
 ];
 
 const sectionTitle = "text-[15px] font-bold text-neutral-900";
+const fieldLabel = "text-sm font-medium text-neutral-900";
+/** A boxed control whose real input sits inside (prefix, stepper buttons). */
+const boxedControl = (error?: string) =>
+  cn(
+    fieldControlClass(!!error),
+    "flex items-center h-12 focus-within:border-primary-700 focus-within:ring-[3px] focus-within:ring-primary-100"
+  );
 
 /**
  * 課卡方案表單的欄位。狀態全在 `useCardForm`，這裡只負責長相——
@@ -37,9 +47,9 @@ const CardFormFields = ({ form }: { form: CardFormState }) => {
   return (
     <div className="flex flex-col gap-7">
       {issuedCount > 0 && (
-        <div className="flex gap-3 items-start rounded-xl border border-sky-200 bg-sky-50 px-4 py-3.5">
-          <Info className="w-4.5 h-4.5 shrink-0 mt-0.5 text-sky-700" aria-hidden />
-          <p className="text-[13px] leading-relaxed text-sky-950">
+        <div className="flex gap-3 items-start rounded-2xl bg-primary-50 px-4 py-3.5">
+          <Info className="w-4.5 h-4.5 shrink-0 mt-0.5 text-primary-700" aria-hidden />
+          <p className="text-[13px] leading-relaxed text-neutral-700">
             改了只套用在<b>之後的購買</b>。學生手上已經買的 {issuedCount}{" "}
             張，堂數和價格都照當時的算，不會跟著變。
           </p>
@@ -99,21 +109,18 @@ const CardFormFields = ({ form }: { form: CardFormState }) => {
             onChange={(next) => setValue("sessions", next)}
           />
           <label className="flex flex-col gap-1.5">
-            <span className="text-[13px] text-neutral-700">總價</span>
-            <span
-              className={`flex items-center gap-1.5 h-12 px-3.5 rounded-lg border bg-white focus-within:border-primary-500 ${
-                errors.price ? "border-danger-500" : "border-neutral-300"
-              }`}
-            >
+            <span className={fieldLabel}>總價</span>
+            <span className={cn(boxedControl(errors.price), "gap-1.5")}>
               <span className="text-neutral-500">$</span>
               <input
                 value={values.price}
                 inputMode="numeric"
+                aria-invalid={errors.price ? true : undefined}
                 onChange={(e) => setValue("price", e.target.value.replace(/\D/g, ""))}
                 className="flex-1 min-w-0 bg-transparent text-[17px] font-semibold outline-none"
               />
             </span>
-            {errors.price && <span className="text-xs text-danger-500">{errors.price}</span>}
+            <FieldError>{errors.price}</FieldError>
           </label>
         </div>
         <PriceLadder form={form} />
@@ -124,23 +131,18 @@ const CardFormFields = ({ form }: { form: CardFormState }) => {
           <span className={sectionTitle}>名稱</span>
           <input
             value={name}
+            aria-invalid={errors.name ? true : undefined}
             onChange={(e) => setName(e.target.value)}
-            className={`h-12 px-3.5 rounded-lg border bg-white text-[15px] outline-none focus:border-primary-500 ${
-              errors.name ? "border-danger-500" : "border-neutral-300"
-            }`}
+            className={cn(fieldControlClass(!!errors.name), "h-12")}
           />
         </label>
-        {errors.name && <span className="text-xs text-danger-500">{errors.name}</span>}
+        <FieldError>{errors.name}</FieldError>
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-neutral-500">學生在 LINE 上看到的就是這個名字</span>
           {values.nameEdited && (
-            <button
-              type="button"
-              onClick={resetName}
-              className="text-xs font-semibold text-primary-700 min-h-8 cursor-pointer"
-            >
+            <Button variant="link" onClick={resetName} className="min-h-9 text-xs font-semibold">
               改回自動名稱
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -169,7 +171,7 @@ const DanceStyleField = ({
   }
 
   const chip = (selected: boolean, disabled = false) =>
-    `flex items-center gap-2 min-h-11 px-3.5 rounded-lg border text-sm font-medium transition-colors ${
+    `flex items-center gap-2 min-h-11 px-3.5 rounded-xl border text-sm font-medium transition-colors ${
       disabled
         ? "border-neutral-200 bg-neutral-50 text-neutral-400 cursor-not-allowed"
         : selected
@@ -214,7 +216,7 @@ const DanceStyleField = ({
       ) : (
         <span className="text-xs text-neutral-500">一般方案的舞種只是分組用，不限制能用在哪種課。</span>
       )}
-      {error && <span className="text-xs text-danger-500">{error}</span>}
+      <FieldError>{error}</FieldError>
     </fieldset>
   );
 };
@@ -234,15 +236,13 @@ const SessionsStepper = ({
     "w-11 h-full flex items-center justify-center bg-neutral-50 text-neutral-700 hover:bg-neutral-100 cursor-pointer";
   return (
     <div className="flex flex-col gap-1.5">
-      <span id="card-sessions-label" className="text-[13px] text-neutral-700">
+      <span id="card-sessions-label" className={fieldLabel}>
         堂數
       </span>
       <div
         role="group"
         aria-labelledby="card-sessions-label"
-        className={`flex items-center h-12 rounded-lg border overflow-hidden bg-white ${
-          error ? "border-danger-500" : "border-neutral-300"
-        }`}
+        className={cn(boxedControl(error), "px-0 overflow-hidden")}
       >
         <button type="button" aria-label="少一堂" onClick={() => step(-1)} className={button}>
           <Minus className="w-4 h-4" />
@@ -258,7 +258,7 @@ const SessionsStepper = ({
           <Plus className="w-4 h-4" />
         </button>
       </div>
-      {error && <span className="text-xs text-danger-500">{error}</span>}
+      <FieldError>{error}</FieldError>
     </div>
   );
 };
@@ -292,7 +292,7 @@ const PriceLadder = ({ form }: { form: CardFormState }) => {
   const max = Math.max(...rows.map((row) => row.per), 1);
 
   return (
-    <div className="rounded-xl border border-neutral-100 overflow-hidden">
+    <div className="rounded-2xl border border-neutral-200 overflow-hidden">
       <div className="flex items-baseline justify-between px-4 py-3 bg-primary-50">
         <span className="text-[13px] text-primary-900">單堂</span>
         <span className="text-[22px] font-bold text-primary-900">${current.toLocaleString()}</span>

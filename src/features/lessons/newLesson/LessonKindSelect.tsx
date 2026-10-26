@@ -25,17 +25,17 @@ const LessonKindSelect = ({
   onChange: (value: LessonKind) => void;
 }) => (
   <fieldset className="flex flex-col gap-2">
-    <legend className="block font-medium mb-1">課程型態</legend>
+    <legend className="mb-1.5 text-sm font-medium text-neutral-900">課程型態</legend>
     <div className="grid gap-2 sm:grid-cols-2">
       {OPTIONS.map((option) => {
         const selected = kind === option.value;
         return (
           <label
             key={option.value}
-            className={`flex gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-colors ${
+            className={`flex gap-3 p-3.5 rounded-2xl border-[1.5px] cursor-pointer transition-colors ${
               selected
-                ? "bg-primary-50 border-primary-500"
-                : "bg-white border-neutral-200 hover:border-neutral-300"
+                ? "bg-primary-50 border-primary-700"
+                : "bg-white border-neutral-200 hover:border-primary-300"
             }`}
           >
             <input
@@ -44,7 +44,7 @@ const LessonKindSelect = ({
               value={option.value}
               checked={selected}
               onChange={() => onChange(option.value)}
-              className="mt-1 w-4 h-4 accent-primary-500 shrink-0"
+              className="mt-1 w-4 h-4 accent-primary-900 shrink-0"
             />
             <span className="flex flex-col gap-1">
               <span className="flex items-center gap-1.5 font-semibold text-neutral-900">

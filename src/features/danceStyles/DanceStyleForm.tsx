@@ -105,12 +105,12 @@ const DanceStyleForm = ({
         <div className="flex flex-col gap-1.5">
           <label className="flex items-center gap-2 cursor-pointer">
             <Switch checked={hasLevels} onCheckedChange={setHasLevels} />
-            <span className="font-medium">分階</span>
+            <span className="text-sm font-medium text-neutral-900">分階</span>
           </label>
-          <p className="text-xs text-neutral-500 leading-relaxed pl-[40px]">
+          <p className="text-[13px] text-neutral-500 leading-relaxed pl-10">
             開啟後，課程和學生資格可以設定 {LEVEL_NAMES}；複習卡只能用在不超過學生已完成階級的課。
             {style?.hasLevels && !hasLevels && (
-              <span className="block mt-1 text-warning-900">
+              <span className="block mt-1 text-warning-950">
                 關閉後已設定的階級會保留，但不再區分程度：有這個舞種資格的學生，任何課都能用複習卡。
               </span>
             )}

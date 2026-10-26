@@ -8,6 +8,7 @@ import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/money";
+import { Button } from "@/components/ui/button";
 
 const ChooseCardForm = ({
   record,
@@ -90,17 +91,18 @@ const ChooseCardForm = ({
       >
         <div className="flex flex-col gap-4 mb-4">
           {shouldLockGeneralCards && (
-            <div className="flex flex-col gap-2 p-3 rounded-xl bg-primary-50 border border-primary-200">
-              <p className="text-xs text-primary-700">
+            <div className="flex flex-col items-start gap-2 p-3 rounded-xl bg-primary-50 border border-primary-300">
+              <p className="text-xs text-primary-900">
                 已自動選擇複習課卡，保護學生一般課卡點數
               </p>
-              <button
+              <Button
                 type="button"
-                className="text-xs text-primary-700 underline text-left cursor-pointer"
+                variant="link"
+                className="text-xs underline"
                 onClick={() => setAllowManualOverride(true)}
               >
                 老師手動切換覆蓋
-              </button>
+              </Button>
             </div>
           )}
           {studentCards?.map((studentCard) => (
@@ -112,7 +114,7 @@ const ChooseCardForm = ({
                   : "cursor-pointer"
               } ${
                 selectedCardId === studentCard.id
-                  ? "border-primary-500 bg-primary-50"
+                  ? "border-primary-700 bg-primary-50"
                   : ""
               }`}
               onClick={() => handleSelectCard(studentCard.id)}

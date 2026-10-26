@@ -3,7 +3,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
+import { fieldControlClass } from "@/components/Field";
+import { cn } from "@/lib/utils";
 
 // Generate time options from 00:00 to 23:45 in 15-minute intervals
 export const generateTimeOptions = () => {
@@ -45,6 +47,29 @@ export type Option = {
   value: string;
 }
 
+/** 時段分頁：開始時（含）～ 結束時（不含），以小時計。 */
+const PERIODS = [
+  { key: "morning", label: "早上", from: 6, to: 11 },
+  { key: "noon", label: "中午", from: 11, to: 14 },
+  { key: "afternoon", label: "下午", from: 14, to: 18 },
+  { key: "evening", label: "晚上", from: 18, to: 24 },
+  { key: "night", label: "凌晨", from: 0, to: 6 },
+] as const;
+
+type PeriodKey = (typeof PERIODS)[number]["key"];
+
+const hourOf = (value: string) => Number(value.slice(0, 2));
+
+const periodOf = (value: string): PeriodKey =>
+  PERIODS.find((p) => hourOf(value) >= p.from && hourOf(value) < p.to)!.key;
+
+/** 分頁已經說明是早上還是晚上，格子裡只顯示「7:30」。 */
+const shortLabel = (option: Option) => option.label.split(" ")[1];
+
+/**
+ * 時間選擇：上面切早上／中午／下午／晚上／凌晨，下面是該時段每 15 分鐘一格。
+ * 沒選過時預設停在「晚上」——多數課都在晚上。
+ */
 const TimePicker = ({
   selectedTime,
   setSelectedTime,
@@ -54,60 +79,72 @@ const TimePicker = ({
 }) => {
   const timeOptions = generateTimeOptions();
   const [open, setOpen] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [period, setPeriod] = useState<PeriodKey>("evening");
 
-  const handleTimeSelect = (option: { label: string; value: string }) => {
+  const handleOpenChange = (next: boolean) => {
+    if (next) setPeriod(selectedTime ? periodOf(selectedTime.value) : "evening");
+    setOpen(next);
+  };
+
+  const handleTimeSelect = (option: Option) => {
     setSelectedTime(option);
     setOpen(false);
   };
 
-  useEffect(() => {
-    if (open) {
-      // Add a small delay to ensure the DOM is ready
-      setTimeout(() => {
-        if (scrollContainerRef.current) {
-          const container = scrollContainerRef.current;
-          const selectedIndex = timeOptions.findIndex(
-            (option) => option.value === (selectedTime?.value || "12:00")
-          );
-
-          if (selectedIndex !== -1) {
-            const optionHeight = 36;
-            const containerHeight = container.clientHeight;
-            const scrollTop =
-              selectedIndex * optionHeight -
-              containerHeight / 2 +
-              optionHeight / 2;
-
-            container.scrollTop = Math.max(0, scrollTop);
-          }
-        }
-      }, 10); // Small delay to ensure DOM is ready
-    }
-  }, [open, selectedTime, timeOptions]);
+  const current = PERIODS.find((p) => p.key === period)!;
+  const visible = timeOptions.filter(
+    (o) => hourOf(o.value) >= current.from && hourOf(o.value) < current.to
+  );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger>
         <input
-          className={`text-sm bg-neutral-100 rounded-md p-2 w-full cursor-pointer ${selectedTime?.label ? "" : "text-neutral-400"}`}
+          className={cn(fieldControlClass(), "h-12 cursor-pointer", !selectedTime?.label && "text-neutral-400")}
           value={selectedTime?.label || "選擇時間"}
           readOnly
         />
       </PopoverTrigger>
-      <PopoverContent className="w-40 p-0">
-        <div ref={scrollContainerRef} className="max-h-48 overflow-y-scroll">
-          {timeOptions.map((option) => (
-            <div
-              key={option.value}
-              className={`px-4 py-2 hover:bg-neutral-200 cursor-pointer text-sm text-neutral-700 ${
-                selectedTime?.value === option.value ? "bg-neutral-100" : ""
+      <PopoverContent className="w-72 p-2">
+        <div role="group" aria-label="時段" className="flex gap-1 rounded-xl bg-neutral-100 p-1">
+          {PERIODS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              aria-pressed={p.key === period}
+              onClick={() => setPeriod(p.key)}
+              className={`flex-1 rounded-lg py-1.5 text-sm cursor-pointer transition-colors ${
+                p.key === period
+                  ? "bg-white text-neutral-900 font-semibold shadow-sm"
+                  : "text-neutral-600 hover:text-neutral-900"
               }`}
-              onClick={() => handleTimeSelect(option)}
             >
-              {option.label}
-            </div>
+              {p.label}
+            </button>
           ))}
+        </div>
+        <div className="mt-2 grid grid-cols-4 gap-1 max-h-60 overflow-y-auto">
+          {visible.map((option) => {
+            const selected = selectedTime?.value === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={selected}
+                aria-label={option.label}
+                onClick={() => handleTimeSelect(option)}
+                className={`h-9 rounded-lg text-sm tabular-nums cursor-pointer transition-colors ${
+                  selected
+                    ? "bg-primary-900 text-white font-semibold"
+                    : option.value.endsWith(":00")
+                      ? "text-neutral-900 font-medium hover:bg-primary-50"
+                      : "text-neutral-600 hover:bg-primary-50"
+                }`}
+              >
+                {shortLabel(option)}
+              </button>
+            );
+          })}
         </div>
       </PopoverContent>
     </Popover>

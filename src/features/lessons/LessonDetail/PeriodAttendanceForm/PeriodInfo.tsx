@@ -22,7 +22,7 @@ const PeriodInfo = ({ period }: { period: Period }) => {
       >
         <div
           className={`flex items-center gap-2 text-sm font-semibold ${
-            isTodayPeriod ? "text-neutral-900" : "text-warning-900"
+            isTodayPeriod ? "text-neutral-900" : "text-warning-950"
           }`}
         >
           <CalendarDays
@@ -32,7 +32,7 @@ const PeriodInfo = ({ period }: { period: Period }) => {
         </div>
         <div
           className={`flex items-center gap-1.5 text-sm ${
-            isTodayPeriod ? "text-neutral-600" : "text-warning-900"
+            isTodayPeriod ? "text-neutral-600" : "text-warning-950"
           }`}
         >
           <Clock className={`w-4 h-4 ${isTodayPeriod ? "text-neutral-400" : "text-warning-700"}`} />
@@ -43,7 +43,7 @@ const PeriodInfo = ({ period }: { period: Period }) => {
       </div>
 
       {!isTodayPeriod && (
-        <div className="flex items-start gap-2 px-1 text-sm font-semibold text-warning-900">
+        <div className="flex items-start gap-2 px-1 text-sm font-semibold text-warning-950">
           <TriangleAlert className="w-4 h-4 shrink-0 mt-0.5 text-warning-700" />
           <span>
             {`這是 ${format(new Date(period.startTime), "M月d日")} 的課，不是今天（${format(

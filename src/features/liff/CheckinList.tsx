@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { AlertCircle, Banknote, CalendarX, Check, ChevronLeft, CreditCard, Info } from "lucide-react";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import { AlertCircle, Banknote, Check, ChevronLeft, CreditCard, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
+import StatusTag from "@/components/StatusTag";
+import LiffSkeleton from "@/features/liff/LiffSkeleton";
 import { StudentWithDetail } from "@/store/slices/students";
 import { LiffAuthContext } from "@/app/liff/LiffStudentGate";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
@@ -187,7 +190,7 @@ export default function CheckinList({
     );
   }
   if (!data) {
-    return <ListSkeleton />;
+    return <LiffSkeleton rows={2} />;
   }
 
   if (done) {
@@ -197,20 +200,22 @@ export default function CheckinList({
   // ----- No class today -----
   if (data.today.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 px-5 py-16 text-center">
-        <CalendarX className="h-10 w-10 text-neutral-400" />
-        <h2 className="text-lg font-semibold">今天沒有課程</h2>
-        {data.nextLesson ? (
-          <p className="text-neutral-500">
-            下次上課：{dateFmt.format(new Date(data.nextLesson.startTime))}{" "}
-            {timeFmt.format(new Date(data.nextLesson.startTime))}
-            <br />
-            {data.nextLesson.lessonName}
-          </p>
-        ) : (
-          <p className="text-neutral-500">目前沒有安排中的課程。</p>
-        )}
-      </div>
+      <EmptyState
+        kind="page"
+        title="今天沒有課程"
+        description={
+          data.nextLesson ? (
+            <>
+              下次上課：{dateFmt.format(new Date(data.nextLesson.startTime))}{" "}
+              {timeFmt.format(new Date(data.nextLesson.startTime))}
+              <br />
+              {data.nextLesson.lessonName}
+            </>
+          ) : (
+            "目前沒有安排中的課程。"
+          )
+        }
+      />
     );
   }
 
@@ -218,14 +223,15 @@ export default function CheckinList({
   if (step === "buy") {
     return (
       <div className="px-5 py-5 pb-40">
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={() => setStep("periods")}
-          className="-ml-2 mb-2 inline-flex h-11 items-center gap-1 px-2 text-sm text-neutral-600"
+          className="-ml-3 mb-2 gap-1 px-3 text-sm text-neutral-600"
         >
           <ChevronLeft className="h-4 w-4" />
           重選時段
-        </button>
+        </Button>
         <div className="flex flex-col gap-6">
           {lessonsToBuy.map((lesson) => (
             <fieldset key={lesson.lessonId} className="flex flex-col gap-3">
@@ -271,20 +277,22 @@ export default function CheckinList({
           </p>
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 mx-auto flex max-w-[480px] flex-col gap-2 border-t border-neutral-100 bg-white p-4">
+        <div className="fixed inset-x-0 bottom-0 mx-auto flex max-w-[480px] flex-col gap-2 border-t border-neutral-200 bg-white p-4">
           {amountToPay > 0 && (
             <div className="flex justify-between">
               <span className="text-neutral-600">下課要付</span>
               <span className="font-bold">${formatMoney(amountToPay)}</span>
             </div>
           )}
-          <button
-            disabled={submitting || lessonsToBuy.some((l) => !buyChoice[l.lessonId])}
+          <Button
+            size="lg"
+            disabled={lessonsToBuy.some((l) => !buyChoice[l.lessonId])}
+            isLoading={submitting}
             onClick={submit}
-            className="w-full rounded-lg bg-primary-700 py-3 font-medium text-white active:bg-primary-900 disabled:bg-neutral-300"
+            className="w-full"
           >
             {submitting ? "報到中…" : "確認報到"}
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -309,18 +317,20 @@ export default function CheckinList({
         ))}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 mx-auto max-w-[480px] border-t border-neutral-100 bg-white p-4">
-        <button
-          disabled={selected.size === 0 || submitting}
+      <div className="fixed inset-x-0 bottom-0 mx-auto max-w-[480px] border-t border-neutral-200 bg-white p-4">
+        <Button
+          size="lg"
+          disabled={selected.size === 0}
+          isLoading={submitting}
           onClick={goNext}
-          className="w-full rounded-lg bg-primary-700 py-3 font-medium text-white active:bg-primary-900 disabled:bg-neutral-300"
+          className="w-full"
         >
           {submitting
             ? "報到中…"
             : lessonsToBuy.length > 0
               ? "下一步：選課卡"
               : `確認報到${selected.size ? `（${selected.size}）` : ""}`}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -384,28 +394,28 @@ function LessonBlock({
                 className="h-5 w-5 accent-primary-700"
               />
               <span className="flex-1">{timeRange(period)}</span>
-              {period.alreadyChecked && <span className="text-sm">已簽到</span>}
+              {period.alreadyChecked && <StatusTag tone="neutral">已簽到</StatusTag>}
             </label>
           );
         })}
       </div>
 
       {!payable && (
-        <p className="flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
+        <p className="flex items-center gap-2 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
           <Info className="h-4 w-4 shrink-0" />
           這堂課沒有你能用的課卡，請找小幫手
         </p>
       )}
 
       {payable && usable.length === 0 && (
-        <p className="flex items-center gap-2 rounded-lg bg-warning-50 px-3 py-2 text-sm text-warning-800">
+        <p className="flex items-center gap-2 rounded-xl bg-warning-50 px-3 py-2 text-sm text-warning-950">
           <AlertCircle className="h-4 w-4 shrink-0" />
           還沒有能用的課卡，下一步選一張
         </p>
       )}
 
       {usable.length === 1 && (
-        <p className="flex items-center gap-2 rounded-lg bg-primary-50 px-3 py-2 text-sm text-primary-900">
+        <p className="flex items-center gap-2 rounded-xl bg-primary-50 px-3 py-2 text-sm text-primary-900">
           <CreditCard className="h-4 w-4 shrink-0" />
           使用 {usable[0].name}（剩 {usable[0].remainingSessions} 堂）
         </p>
@@ -421,7 +431,7 @@ function LessonBlock({
             return (
               <label
                 key={card.studentCardId}
-                className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 ${
+                className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${
                   checked ? "border-2 border-primary-700 bg-primary-50" : "border-neutral-200"
                 }`}
               >
@@ -479,7 +489,7 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col gap-3 bg-neutral-50 px-5 py-6">
       <div className="flex flex-col items-center gap-2 py-6 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-700">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-900">
           <Check className="h-8 w-8 text-white" strokeWidth={3} />
         </div>
         <h2 className="text-2xl font-bold">
@@ -488,7 +498,7 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
         <p className="text-sm text-neutral-500">{student.name}</p>
       </div>
 
-      <div className="rounded-2xl bg-white px-4 py-1">
+      <div className="rounded-2xl border border-neutral-200 bg-white px-4 py-1">
         {results.map((r) => {
           const info = periodInfo.get(r.periodId);
           return (
@@ -515,15 +525,15 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
       </div>
 
       {amountDue > 0 && (
-        <div className="flex flex-col gap-1 rounded-2xl border border-warning-200 bg-warning-50 p-4">
-          <p className="text-sm text-warning-800">下課請找小幫手付款</p>
-          <p className="text-3xl font-bold text-warning-900">${formatMoney(amountDue)}</p>
-          <p className="text-sm text-warning-800">現金或轉帳都可以</p>
+        <div className="flex flex-col gap-1 rounded-2xl border border-warning-300 bg-warning-50 p-4 text-warning-950">
+          <p className="text-sm">下課請找小幫手付款</p>
+          <p className="text-3xl font-bold">${formatMoney(amountDue)}</p>
+          <p className="text-sm">現金或轉帳都可以</p>
         </div>
       )}
 
       {olderUnpaid.length > 0 && (
-        <div className="flex gap-3 rounded-2xl border border-warning-200 bg-warning-50 p-4 text-sm leading-relaxed text-warning-900">
+        <div className="flex gap-3 rounded-2xl border border-warning-300 bg-warning-50 p-4 text-sm leading-relaxed text-warning-950">
           <CreditCard className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
             你有 {olderUnpaid.length > 1 ? `${olderUnpaid.length} 張` : "一張"}課卡還沒付款：
@@ -538,28 +548,24 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
       )}
 
       {runningLow && amountDue === 0 && (
-        <div className="flex items-center gap-3 rounded-2xl bg-white p-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
           <Info className="h-5 w-5 shrink-0 text-primary-700" />
           <p className="flex-1 text-sm">
             {runningLow.cardName}
             {runningLow.remainingSessions === 0 ? "已經用完了" : `只剩 ${runningLow.remainingSessions} 堂`}
             ，要先續卡嗎？
           </p>
-          <Link href="/liff/buy" className="px-1 py-2 text-sm font-medium text-primary-900">
-            續卡
-          </Link>
+          <Button asChild variant="link" className="px-1 py-2 text-sm text-primary-900">
+            <Link href="/liff/buy">續卡</Link>
+          </Button>
         </div>
       )}
 
       <AddFriendPrompt />
 
-      <button
-        type="button"
-        onClick={handleClose}
-        className="mt-auto rounded-xl border border-neutral-200 bg-white py-3.5 font-medium"
-      >
+      <Button type="button" variant="secondary" size="lg" onClick={handleClose} className="mt-auto w-full">
         關閉
-      </button>
+      </Button>
     </div>
   );
 }

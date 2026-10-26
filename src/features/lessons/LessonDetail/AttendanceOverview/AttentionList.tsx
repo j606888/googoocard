@@ -11,6 +11,7 @@ import {
   type AttentionItem,
 } from "@/domains/attendance/rosterInsights";
 import BuyCardDrawer from "../BuyCardDrawer";
+import { Button } from "@/components/ui/button";
 
 // The only rows on this screen that ask for a decision. Everything else is
 // reference — so this list stays short, and each row carries the action.
@@ -48,7 +49,7 @@ const AttentionList = ({
           />
         ))}
         {overflow > 0 && (
-          <p className="text-xs text-neutral-400 pl-1 pt-0.5">
+          <p className="text-xs text-neutral-500 pl-1 pt-0.5">
             還有 {overflow} 位
           </p>
         )}
@@ -102,7 +103,7 @@ const AttentionRow = ({
   return (
     <div
       className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 ${
-        danger ? "bg-danger-50 border-danger-200" : "bg-warning-50 border-warning-200"
+        danger ? "bg-danger-50 border-danger-200" : "bg-warning-50 border-warning-300"
       }`}
     >
       <Image
@@ -119,7 +120,7 @@ const AttentionRow = ({
           </span>
           <span
             className={`flex items-center gap-1 text-[10.5px] font-bold shrink-0 ${
-              danger ? "text-danger-600" : "text-warning-900"
+              danger ? "text-danger-700" : "text-warning-950"
             }`}
           >
             <AlertCircle className="w-3 h-3" />
@@ -132,28 +133,24 @@ const AttentionRow = ({
       </div>
 
       {kind === "consecutive_absence" ? (
-        <Link
-          href={studentDetailHref(student.id, pathname)}
-          className="shrink-0 flex items-center gap-0.5 text-[11.5px] font-bold text-white bg-danger-600 hover:bg-danger-700 rounded-full pl-3 pr-2 py-1.5 transition-colors"
-        >
-          看學生
-          <ChevronRight className="w-3.5 h-3.5" />
-        </Link>
+        <Button asChild variant="dangerSecondary" size="sm" className="gap-0.5 pr-2.5">
+          <Link href={studentDetailHref(student.id, pathname)}>
+            看學生
+            <ChevronRight className="size-4" />
+          </Link>
+        </Button>
       ) : (
         <BuyCardDrawer
           student={student}
           trigger={(open) => (
-            <button
+            <Button
               type="button"
+              variant={danger ? "dangerSecondary" : "secondary"}
+              size="sm"
               onClick={open}
-              className={`shrink-0 text-[11.5px] font-bold text-white rounded-full px-3.5 py-1.5 cursor-pointer transition-colors ${
-                danger
-                  ? "bg-danger-600 hover:bg-danger-700"
-                  : "bg-warning-600 hover:bg-warning-700"
-              }`}
             >
               買卡
-            </button>
+            </Button>
           )}
         />
       )}

@@ -1,4 +1,6 @@
-import { Snail, Trash } from "lucide-react";
+import { Trash } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
 
@@ -20,17 +22,7 @@ const PeriodList = ({
           />
         ))}
         {periods.length === 0 && (
-          <div className="bg-primary-100 rounded-sm p-6 flex flex-col gap-3 items-center">
-            <div className="flex items-center justify-center w-12 h-12 bg-primary-500 rounded-full">
-              <Snail className="w-6 h-6 text-white" />
-            </div>
-            <div className="text-center">
-              <h4 className="text-lg font-semibold">還沒有時段</h4>
-              <p className="text-sm text-neutral-500">
-                至少新增一個時段才能繼續
-              </p>
-            </div>
-          </div>
+          <EmptyState kind="inline" title="還沒有時段" description="至少新增一個時段才能繼續" />
         )}
       </div>
     </div>
@@ -49,17 +41,26 @@ const PeriodCard = ({
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center justify-between w-full px-3 py-2 bg-primary-100 rounded-sm">
-        <span className="text-sm font-semibold">
+      <div className="flex items-center justify-between w-full px-4 py-2.5 border border-neutral-200 bg-white rounded-xl">
+        <span className="text-sm font-semibold text-neutral-900">
           {date}, {weekday}
         </span>
-        <span className="text-xs">
+        <span className="text-xs text-neutral-600">
           {format(new Date(period.startTime), "hh:mm aa")}
           {" ~ "}
           {format(new Date(period.endTime), "hh:mm aa")}
         </span>
       </div>
-      <Trash className="w-4 h-4 cursor-pointer" onClick={onDelete} />
+      <Button
+        type="button"
+        variant="ghost"
+        size="iconSm"
+        aria-label="刪除時段"
+        className="text-neutral-500"
+        onClick={onDelete}
+      >
+        <Trash className="size-4" />
+      </Button>
     </div>
   );
 };

@@ -9,7 +9,8 @@ import StudentDetailHeader from "./StudentDetail/StudentDetailHeader";
 import AttentionBar from "./StudentDetail/AttentionBar";
 import { Student, useGetStudentQuery } from "@/store/slices/students";
 import { studentDetailHref } from "@/lib/studentNav";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import StudentDetailSkeleton from "./StudentDetail/StudentDetailSkeleton";
+import { Button } from "@/components/ui/button";
 import SideSheet, { SideSheetTitle } from "@/components/SideSheet";
 import { useSelectionMirroredToUrl } from "@/components/SplitView";
 
@@ -53,19 +54,14 @@ const StudentsTableView = () => {
               <ArrowUpRight className="w-4 h-4" />
             </Link>
           )}
-          <button
-            type="button"
-            onClick={clear}
-            aria-label="關閉"
-            className="w-10 h-10 grid place-items-center rounded-xl text-neutral-700 hover:bg-neutral-100 cursor-pointer"
-          >
+          <Button type="button" variant="ghost" size="iconSm" onClick={clear} aria-label="關閉">
             <X className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         <div className="flex-1 min-h-0 flex flex-col">
           {isLoading || !student ? (
-            <ListSkeleton />
+            <StudentDetailSkeleton variant="pane" />
           ) : (
             <>
               <StudentDetailHeader student={student} variant="pane" />
@@ -77,12 +73,12 @@ const StudentsTableView = () => {
 
         <div className="flex-none flex gap-4 px-4 py-2 border-t border-neutral-200 bg-neutral-50 text-[11px] text-neutral-500">
           <span className="flex items-center gap-1">
-            <kbd className="px-1 py-px border border-neutral-200 rounded bg-white">↑</kbd>
-            <kbd className="px-1 py-px border border-neutral-200 rounded bg-white">↓</kbd>
+            <kbd className="px-1 py-px border border-neutral-200 rounded-sm bg-white">↑</kbd>
+            <kbd className="px-1 py-px border border-neutral-200 rounded-sm bg-white">↓</kbd>
             換學生
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="px-1.5 py-px border border-neutral-200 rounded bg-white">Esc</kbd>
+            <kbd className="px-1.5 py-px border border-neutral-200 rounded-sm bg-white">Esc</kbd>
             關閉
           </span>
         </div>

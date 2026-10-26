@@ -1,3 +1,9 @@
+import Field from "./Field";
+
+/**
+ * Older call-site API kept for convenience; renders the design-system `Field`.
+ * New code should use `Field` directly.
+ */
 const InputField = ({
   label,
   value,
@@ -16,23 +22,19 @@ const InputField = ({
   type?: "text" | "number" | "date" | "time";
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   className?: string;
-}) => {
-  return (
-    <div className={`w-full relative ${className}`}>
-      <label className="block mb-2 font-medium">{label}</label>
-      <input
-        className={`w-full p-2 rounded bg-neutral-100 focus:outline-primary-500 ${error ? "border-1 border-danger-500" : ""}`}
-        value={value}
-        placeholder={placeholder}
-        type={type}
-        step={step}
-        inputMode={type === "number" ? "numeric" : "text"}
-        pattern={type === "number" ? "\d*" : undefined}
-        onChange={onChange}
-      />
-      {error && <p className="text-danger-500 text-xs mt-1">{error}</p>}
-    </div>
-  );
-};
+}) => (
+  <Field
+    label={label}
+    value={value}
+    placeholder={placeholder}
+    type={type}
+    step={step}
+    inputMode={type === "number" ? "numeric" : "text"}
+    pattern={type === "number" ? "\\d*" : undefined}
+    onChange={onChange}
+    error={error}
+    className={`w-full ${className}`}
+  />
+);
 
 export default InputField;

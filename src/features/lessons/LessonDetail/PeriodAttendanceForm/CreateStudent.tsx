@@ -9,6 +9,9 @@ import {
 } from "@/store/slices/students";
 import InputField from "@/components/InputField";
 import AvatarPicker, { DEFAULT_AVATAR } from "@/features/students/AvatarPicker";
+import { Button } from "@/components/ui/button";
+import { FieldLabel, fieldControlClass } from "@/components/Field";
+import { cn } from "@/lib/utils";
 
 const validationErrors = {
   name: "請輸入姓名",
@@ -94,13 +97,10 @@ const CreateStudent = ({
 
   return (
     <>
-      <button
-        className="bg-primary-500 text-white px-4 py-1.5 rounded-3xl flex items-center gap-2 text-sm cursor-pointer hover:bg-primary-600"
-        onClick={() => setIsDrawerOpen(true)}
-      >
-        <Plus className="w-4 h-4" />
-        <span className="font-medium">新增</span>
-      </button>
+      <Button size="sm" onClick={() => setIsDrawerOpen(true)}>
+        <Plus className="size-4" />
+        新增
+      </Button>
       <Drawer
         title="新增學生"
         open={isDrawerOpen}
@@ -133,7 +133,7 @@ const CreateStudent = ({
           />
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-neutral-700">標籤</label>
+            <FieldLabel>標籤</FieldLabel>
             {pendingTags.length > 0 && (
               <div className="flex flex-wrap gap-2 min-h-8">
                 {pendingTags.map((tag) => (
@@ -145,7 +145,8 @@ const CreateStudent = ({
                     <button
                       type="button"
                       onClick={() => removePendingTag(tag)}
-                      className="ml-0.5 hover:text-danger-500 transition-colors"
+                      aria-label={`移除標籤 ${tag}`}
+                      className="ml-0.5 hover:text-danger-700 transition-colors cursor-pointer"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -160,7 +161,7 @@ const CreateStudent = ({
                     key={tag.id}
                     type="button"
                     onClick={() => addPendingTag(tag.name)}
-                    className="inline-flex items-center gap-1 text-xs text-neutral-500 border border-dashed border-neutral-300 px-2 py-0.5 rounded-full hover:border-primary-400 hover:text-primary-600 transition-colors"
+                    className="inline-flex items-center gap-1 text-xs text-neutral-500 border border-dashed border-neutral-300 px-2 py-0.5 rounded-full hover:border-primary-400 hover:text-primary-700 transition-colors cursor-pointer"
                   >
                     <Plus className="w-3 h-3" />
                     {tag.name}
@@ -180,16 +181,16 @@ const CreateStudent = ({
                   }
                 }}
                 placeholder="新標籤名稱…"
-                className="flex-1 text-sm border border-neutral-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
+                className={cn(fieldControlClass(), "h-11 flex-1 text-sm")}
               />
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => addPendingTag(tagInput)}
                 disabled={!tagInput.trim()}
-                className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white disabled:opacity-40 hover:bg-primary-600 transition-colors"
               >
                 新增
-              </button>
+              </Button>
             </div>
           </div>
         </form>

@@ -16,8 +16,8 @@ const DueSessions = ({ due, onSelectDay }: DueSessionsProps) => {
   if (due.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-warning-200 bg-warning-50 p-4">
-      <div className="mb-1.5 flex items-center gap-2 text-warning-900">
+    <div className="rounded-2xl border border-warning-300 bg-warning-50 p-4">
+      <div className="mb-1.5 flex items-center gap-2 text-warning-950">
         <AlarmClock className="h-4 w-4" />
         <h3 className="font-semibold">還沒點名</h3>
         <span className="ml-auto text-sm font-semibold">{due.length} 堂</span>
@@ -29,15 +29,15 @@ const DueSessions = ({ due, onSelectDay }: DueSessionsProps) => {
             <button
               key={p.periodId}
               onClick={() => onSelectDay(start)}
-              className="flex min-h-11 items-center gap-3 rounded-lg px-2 text-left hover:bg-warning-100"
+              className="flex min-h-11 items-center gap-3 rounded-lg px-2 text-left cursor-pointer hover:bg-warning-100"
             >
-              <span className="w-20 shrink-0 whitespace-nowrap text-sm font-semibold text-warning-900 tabular-nums">
+              <span className="w-20 shrink-0 whitespace-nowrap text-sm font-semibold text-warning-950 tabular-nums">
                 {format(start, "M/d")} 週{WEEKDAYS[start.getDay()]}
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm text-neutral-800">
+              <span className="min-w-0 flex-1 truncate text-sm text-neutral-900">
                 {p.lessonName}
               </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-warning-900" />
+              <ChevronRight className="h-4 w-4 shrink-0 text-warning-950" />
             </button>
           );
         })}

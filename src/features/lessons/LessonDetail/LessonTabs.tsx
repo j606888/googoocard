@@ -1,4 +1,5 @@
 import { TABS } from ".";
+import SegmentedTabs from "@/components/SegmentedTabs";
 
 const LessonTabs = ({
   activeTab,
@@ -8,20 +9,16 @@ const LessonTabs = ({
   onTabChange: (tab: string) => void;
 }) => {
   return (
-    <div className="flex px-5 py-3">
-      {TABS.map((tab) => (
-        <div
-          key={tab.query}
-          className={`flex-1 text-center p-2.5 border-b-1 border-neutral-200 cursor-pointer ${
-            activeTab === tab.query
-              ? "border-b-2 border-primary-500 text-primary-500 font-semibold"
-              : ""
-          }`}
-          onClick={() => onTabChange(tab.query)}
-        >
-          {tab.name}
-        </div>
-      ))}
+    <div className="px-5 py-3">
+      <SegmentedTabs
+        variant="underline"
+        fill
+        ariaLabel="課程分頁"
+        className="border-b border-neutral-200"
+        value={activeTab}
+        onChange={onTabChange}
+        options={TABS.map((tab) => ({ value: tab.query, label: tab.name }))}
+      />
     </div>
   );
 };

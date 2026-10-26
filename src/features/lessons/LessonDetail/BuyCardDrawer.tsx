@@ -11,6 +11,7 @@ import { useCreateStudentCardMutation } from "@/store/slices/students";
 import { canBuyCard, type DanceLevels } from "@/domains/qualification";
 import { practiceCardBlockedHint } from "@/lib/danceLevels";
 import type { Card } from "@/store/slices/cards";
+import { FieldError, FieldLabel } from "@/components/Field";
 
 /**
  * Buy a card for a student without leaving the lesson page.
@@ -109,7 +110,7 @@ const BuyCardDrawer = ({
         isLoading={isLoading}
       >
         <div className="mb-4">
-          <p className="font-medium mb-2">選擇課卡</p>
+          <p className="text-sm font-medium text-neutral-900 mb-2">選擇課卡</p>
           <div className="flex flex-wrap gap-2">
             {cardOptions.map((card) => {
               const hint = forbiddenHint(card);
@@ -119,11 +120,11 @@ const BuyCardDrawer = ({
                   type="button"
                   disabled={Boolean(hint)}
                   onClick={() => handleSelectCard(card)}
-                  className={`flex flex-col items-start gap-1 px-4 py-3 border rounded-md text-left ${
+                  className={`flex flex-col items-start gap-1 px-4 py-3 border rounded-xl text-left ${
                     hint
                       ? "border-neutral-200 opacity-50 cursor-not-allowed"
                       : selectedCardId === card.id
-                      ? "bg-primary-100 border-primary-500 cursor-pointer"
+                      ? "bg-primary-100 border-primary-700 cursor-pointer"
                       : "border-neutral-200 cursor-pointer hover:border-neutral-300"
                   }`}
                 >
@@ -132,15 +133,15 @@ const BuyCardDrawer = ({
                     <span>{card.name}</span>
                   </span>
                   {hint && (
-                    <span className="text-xs text-danger-500 pl-7">{hint}</span>
+                    <span className="text-xs text-danger-700 pl-7">{hint}</span>
                   )}
                 </button>
               );
             })}
           </div>
-          {errors.selectedCardId && (
-            <p className="text-danger-500 text-sm mt-2">{errors.selectedCardId}</p>
-          )}
+          <div className="mt-2">
+            <FieldError>{errors.selectedCardId}</FieldError>
+          </div>
         </div>
 
         {selectedCardId && (
@@ -172,8 +173,8 @@ const BuyCardDrawer = ({
             </div>
             <div className="mb-4 flex items-center justify-between">
               <div className="flex flex-col">
-                <span className="text-sm font-medium text-neutral-700">已付款</span>
-                <span className="text-xs text-neutral-400">
+                <FieldLabel>已付款</FieldLabel>
+                <span className="text-xs text-neutral-500">
                   {isPaid ? "已收到款項" : "尚未付款，卡片仍可使用"}
                 </span>
               </div>

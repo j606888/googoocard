@@ -10,6 +10,7 @@ import { useLogoutMutation } from "@/store/slices/me";
 import { disableWebPushOnLogout } from "@/hooks/useWebPush";
 import { useInstallState } from "@/hooks/useInstallState";
 import InstallGuideDialog from "@/features/installGuide/InstallGuideDialog";
+import { Button } from "@/components/ui/button";
 
 interface MoreSheetProps {
   open: boolean;
@@ -62,8 +63,8 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
                       onClick={onClose}
                       className={`flex flex-col items-center gap-2 rounded-2xl border px-2 py-4 transition-colors ${
                         active
-                          ? "border-primary-500 bg-primary-50 text-primary-900"
-                          : "border-neutral-100 bg-neutral-50 text-neutral-600 active:bg-neutral-100"
+                          ? "border-primary-300 bg-primary-100 text-primary-900"
+                          : "border-neutral-200 bg-white text-neutral-600 active:bg-neutral-50"
                       }`}
                     >
                       <link.icon className="h-6 w-6" />
@@ -74,27 +75,31 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
               </div>
 
               {install.canGuide && (
-                <button
+                <Button
+                  variant="secondary"
+                  size="lg"
                   onClick={() => {
                     onClose();
                     setInstallGuideOpen(true);
                   }}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-primary-100 bg-primary-50 py-3.5 text-primary-900 active:bg-primary-100"
+                  className="mt-3 w-full"
                 >
-                  <Smartphone className="h-5 w-5" />
-                  <span className="text-sm font-medium">加到主畫面</span>
-                </button>
+                  <Smartphone />
+                  加到主畫面
+                </Button>
               )}
 
-              <button
+              <Button
+                variant="ghost"
+                size="lg"
                 onClick={handleLogout}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-neutral-100 bg-neutral-50 py-3.5 text-neutral-600 active:bg-neutral-100"
+                className="mt-3 w-full"
               >
-                <LogOut className="h-5 w-5" />
-                <span className="text-sm font-medium">登出</span>
-              </button>
+                <LogOut />
+                登出
+              </Button>
 
-              <p className="mt-5 text-center text-xs font-medium tracking-wide text-neutral-300">
+              <p className="mt-5 text-center text-xs font-medium tracking-wide text-neutral-400">
                 @GOOGOOCARD
               </p>
             </motion.div>

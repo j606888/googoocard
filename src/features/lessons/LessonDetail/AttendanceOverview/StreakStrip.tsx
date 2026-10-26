@@ -44,7 +44,7 @@ export const StreakDates = ({ cells }: { cells: RosterRow["cells"] }) => (
     {cells.map((cell) => (
       <span
         key={cell.periodId}
-        className={`${SEGMENT_SIZE} text-center text-[9px] leading-none text-neutral-400 tabular-nums overflow-hidden whitespace-nowrap`}
+        className={`${SEGMENT_SIZE} text-center text-[9px] leading-none text-neutral-500 tabular-nums overflow-hidden whitespace-nowrap`}
       >
         {format(new Date(cell.startTime), "M/d")}
       </span>

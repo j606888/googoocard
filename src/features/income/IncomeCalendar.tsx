@@ -14,6 +14,9 @@ import {
 import { cn } from "@/lib/utils";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
+import StatusTag from "@/components/StatusTag";
 import type {
   CardMonthlyDetailResponse,
   CardMonthlyListResponse,
@@ -277,18 +280,19 @@ export default function IncomeCalendar({
     <div className="flex flex-col gap-4 lg:gap-6">
       {/* 標題 + 月份切換 */}
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-semibold">收入</h2>
+        <h2 className="text-2xl font-bold text-neutral-900">收入</h2>
         <div className="flex items-center gap-1">
-        <button
+        <Button
+          variant="secondary"
+          size="icon"
           onClick={handlePrevMonth}
           disabled={prevDisabled}
           aria-label="上個月"
-          className="w-10 h-10 flex items-center justify-center rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-50 disabled:text-neutral-300 disabled:bg-neutral-50 disabled:hover:bg-neutral-50 cursor-pointer disabled:cursor-default"
         >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
+          <ChevronLeft />
+        </Button>
         {monthKey ? (
-          <span className="text-base font-semibold text-neutral-800 min-w-[128px] text-center">
+          <span className="text-base font-semibold text-neutral-900 min-w-[128px] text-center">
             {monthLabel(monthKey)}
           </span>
         ) : (
@@ -296,14 +300,15 @@ export default function IncomeCalendar({
             <Skeleton className="h-5 w-24" />
           </div>
         )}
-        <button
+        <Button
+          variant="secondary"
+          size="icon"
           onClick={handleNextMonth}
           disabled={nextDisabled}
           aria-label={nextDisabled ? "下個月（尚未到）" : "下個月"}
-          className="w-10 h-10 flex items-center justify-center rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-50 disabled:text-neutral-300 disabled:bg-neutral-50 disabled:hover:bg-neutral-50 cursor-pointer disabled:cursor-default"
         >
-          <ChevronRight className="w-4 h-4" />
-        </button>
+          <ChevronRight />
+        </Button>
         </div>
       </div>
 
@@ -340,14 +345,14 @@ export default function IncomeCalendar({
             unpaidLoading
               ? "bg-white border-neutral-200 hover:bg-neutral-50"
               : unpaidCount > 0
-                ? "bg-warning-50 border-warning-200 hover:bg-warning-100"
+                ? "bg-warning-50 border-warning-300 hover:bg-warning-100"
                 : "bg-primary-50 border-primary-100 hover:bg-primary-100"
           )}
         >
           {unpaidLoading ? (
             <Skeleton className="w-5 h-5 rounded-full shrink-0" />
           ) : unpaidCount > 0 ? (
-            <CircleDollarSign className="w-5 h-5 text-warning-700 shrink-0" />
+            <CircleDollarSign className="w-5 h-5 text-warning-950 shrink-0" />
           ) : (
             <CircleCheck className="w-5 h-5 text-primary-700 shrink-0" />
           )}
@@ -358,13 +363,13 @@ export default function IncomeCalendar({
             </div>
           ) : (
             <span className="flex-1 min-w-0">
-              <span className={cn("block text-xs", unpaidCount > 0 ? "text-warning-900" : "text-primary-700")}>
+              <span className={cn("block text-xs", unpaidCount > 0 ? "text-warning-950" : "text-primary-900")}>
                 未付款課卡
               </span>
               <span
                 className={cn(
                   "block text-lg font-bold",
-                  unpaidCount > 0 ? "text-warning-900" : "text-primary-700"
+                  unpaidCount > 0 ? "text-warning-950" : "text-primary-900"
                 )}
               >
                 {unpaidCount > 0 ? `${unpaidCount} 張待收款` : "全部已收款"}
@@ -379,7 +384,7 @@ export default function IncomeCalendar({
         <div className="border border-neutral-200 rounded-2xl bg-white p-3 lg:p-4">
           <div className="grid grid-cols-7 gap-1 mb-1">
             {WEEKDAYS_SHORT.map((w) => (
-              <div key={w} className="text-center text-[11px] text-neutral-400 font-medium py-0.5">
+              <div key={w} className="text-center text-[11px] text-neutral-500 font-medium py-0.5">
                 {w}
               </div>
             ))}
@@ -388,7 +393,7 @@ export default function IncomeCalendar({
           <div className="grid grid-cols-7 gap-1">
             {isLoading &&
               Array.from({ length: 35 }, (_, i) => (
-                <Skeleton key={`skeleton-${i}`} className="aspect-square" />
+                <Skeleton key={`skeleton-${i}`} className="aspect-square rounded-lg" />
               ))}
             {cells.map((cell, i) => {
               if (!cell.date) return <div key={`blank-${i}`} />;
@@ -409,16 +414,16 @@ export default function IncomeCalendar({
                       : formatDayLabel(cell.date)
                   }
                   className={cn(
-                    "aspect-square rounded-md text-[13px] flex items-center justify-center transition-colors cursor-pointer disabled:cursor-default",
+                    "aspect-square rounded-lg text-[13px] flex items-center justify-center transition-colors cursor-pointer disabled:cursor-default",
                     !hasData && "text-neutral-300",
-                    !selected && hasData && tier === 1 && "bg-primary-50 text-primary-700 font-medium hover:bg-primary-100",
-                    !selected && hasData && tier === 2 && "bg-primary-300 text-white font-medium hover:brightness-95",
-                    !selected && hasData && tier === 3 && "bg-primary-500 text-white font-semibold hover:brightness-95",
-                    selected && "bg-primary-700 text-white font-semibold shadow-sm",
+                    !selected && hasData && tier === 1 && "bg-primary-50 text-primary-900 font-medium hover:bg-primary-100",
+                    !selected && hasData && tier === 2 && "bg-primary-300 text-primary-900 font-medium hover:brightness-95",
+                    !selected && hasData && tier === 3 && "bg-primary-500 text-primary-900 font-semibold hover:brightness-95",
+                    selected && "bg-primary-900 text-white font-semibold",
                     isToday &&
-                      (selected || tier >= 2
+                      (selected
                         ? "ring-2 ring-inset ring-white/70"
-                        : "ring-1 ring-inset ring-primary-300")
+                        : "ring-1 ring-inset ring-primary-700")
                   )}
                 >
                   {cell.day}
@@ -426,7 +431,7 @@ export default function IncomeCalendar({
               );
             })}
           </div>
-          <p className="text-[11px] text-neutral-400 mt-3">
+          <p className="text-[11px] text-neutral-500 mt-3">
             {type === "session" ? "點日期看當天每堂的收入" : "點日期只看當天，再點一次回到整月"}
           </p>
         </div>
@@ -475,13 +480,13 @@ export default function IncomeCalendar({
               <>
                 <div className="flex items-baseline justify-between mb-3">
                   <span className="text-sm font-semibold">{formatDayLabel(selectedDate)}</span>
-                  <span className="text-lg font-bold text-primary-700">
+                  <span className="text-lg font-bold text-primary-900">
                     ${formatMoney(monthDayTotals[selectedDate] ?? 0)}
                   </span>
                 </div>
                 {loadingSessionDate === selectedDate && !sessionDetail && <DetailRowsSkeleton />}
                 {sessionDetail && sessionDetail.periods.length === 0 && (
-                  <p className="text-sm text-neutral-500">當日無課堂明細。</p>
+                  <EmptyState kind="inline" title="當日無課堂明細。" />
                 )}
                 {sessionDetail && sessionDetail.periods.length > 0 && (
                   <div className="divide-y divide-neutral-100">
@@ -489,21 +494,21 @@ export default function IncomeCalendar({
                       <div key={period.periodId} className="py-2.5">
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{period.lessonName}</p>
-                          <p className="text-xs text-neutral-400">
+                          <p className="text-xs text-neutral-500">
                             出席 {period.attendanceCount} 人
                           </p>
-                          <p className="ml-auto font-semibold text-primary-700">
+                          <p className="ml-auto font-semibold text-primary-900">
                             ${formatMoney(period.revenue)}
                           </p>
                         </div>
                         {period.pendingStudents.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-primary-100">
-                            <p className="text-xs font-semibold text-danger-600 mb-1">
+                          <div className="mt-2 pt-2 border-t border-neutral-100">
+                            <p className="text-xs font-semibold text-danger-700 mb-1">
                               尚未扣卡:{period.pendingStudents.join("、")}
                             </p>
                             <Link
                               href={`/lessons/${period.lessonId}/periods/${period.periodId}/check-success`}
-                              className="text-xs text-primary-700 underline"
+                              className="text-xs font-medium text-primary-700 underline underline-offset-4"
                             >
                               回到該堂點名頁
                             </Link>
@@ -528,31 +533,27 @@ export default function IncomeCalendar({
                     <span className="text-xs text-neutral-500">{shownPurchases.length} 筆</span>
                   )}
                   {selectedDate && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="link"
                       onClick={() => setSelectedDate(null)}
-                      className="flex items-center gap-0.5 text-xs text-primary-700 hover:underline cursor-pointer"
+                      className="gap-0.5 text-xs"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="size-3" />
                       看整月
-                    </button>
+                    </Button>
                   )}
                   {monthPurchases.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={downloadCsv}
-                      className="ml-auto flex items-center gap-1 text-sm font-semibold text-primary-700 hover:bg-primary-50 rounded-lg px-2.5 py-1.5 cursor-pointer"
-                    >
-                      <Download className="w-4 h-4" />
+                    <Button variant="secondary" size="sm" onClick={downloadCsv} className="ml-auto">
+                      <Download className="size-4" />
                       匯出 CSV
-                    </button>
+                    </Button>
                   )}
                 </div>
                 {loadingCardMonth === monthKey && monthPurchases.length === 0 && (
                   <DetailRowsSkeleton />
                 )}
                 {loadingCardMonth !== monthKey && shownPurchases.length === 0 && (
-                  <p className="text-sm text-neutral-500 py-6 text-center">這段期間沒有購買紀錄。</p>
+                  <EmptyState kind="inline" title="這段期間沒有購買紀錄。" />
                 )}
                 {shownPurchases.length > 0 && (
                   <div className="divide-y divide-neutral-100">
@@ -577,12 +578,12 @@ export default function IncomeCalendar({
                           <p
                             className={cn(
                               "text-base font-bold",
-                              purchase.isPaid ? "text-neutral-900" : "text-danger-600"
+                              purchase.isPaid ? "text-neutral-900" : "text-danger-700"
                             )}
                           >
                             ${formatMoney(purchase.finalPrice)}
                           </p>
-                          {!purchase.isPaid && <p className="text-xs text-danger-600">未付款</p>}
+                          {!purchase.isPaid && <StatusTag tone="danger">未付款</StatusTag>}
                         </div>
                       </Link>
                     ))}
@@ -592,13 +593,12 @@ export default function IncomeCalendar({
             )}
 
             {!isLoading && type === "session" && !selectedDate && (
-              <div className="flex flex-col items-center justify-center text-center py-10 gap-2">
-                <div className="w-12 h-12 rounded-full bg-primary-50 flex items-center justify-center">
-                  <CalendarIcon className="w-5 h-5 text-primary-500" />
-                </div>
-                <p className="text-sm font-semibold">本月尚無{typeLabel}收入</p>
-                <p className="text-xs text-neutral-400">切換上方月份查看其他紀錄</p>
-              </div>
+              <EmptyState
+                kind="inline"
+                icon={<CalendarIcon />}
+                title={`本月尚無${typeLabel}收入`}
+                description="切換上方月份查看其他紀錄"
+              />
             )}
           </div>
         </div>
@@ -631,11 +631,11 @@ const KpiButton = ({
     className={cn(
       "flex flex-col items-start rounded-2xl border px-4 py-3 text-left cursor-pointer transition-colors",
       active
-        ? "border-primary-500 bg-white ring-2 ring-primary-100"
+        ? "border-primary-700 bg-white ring-[3px] ring-primary-100"
         : "border-neutral-200 bg-white hover:border-neutral-300"
     )}
   >
-    <span className={cn("text-xs", active ? "text-primary-700 font-semibold" : "text-neutral-500")}>
+    <span className={cn("text-xs", active ? "text-primary-900 font-semibold" : "text-neutral-500")}>
       {label}
     </span>
     {loading ? (

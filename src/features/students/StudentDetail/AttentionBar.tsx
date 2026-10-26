@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { StudentWithDetail } from "@/store/slices/students";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import ConfirmPaymentDrawer from "../ConfirmPaymentDrawer";
 import { attentionFor } from "./attention";
 
@@ -18,7 +19,7 @@ const AttentionBar = ({ student, className }: { student: StudentWithDetail; clas
 
   const tone =
     attention.kind === "idle"
-      ? "border-warning-200 bg-warning-50 text-warning-900"
+      ? "border-warning-300 bg-warning-50 text-warning-950"
       : "border-danger-200 bg-danger-50 text-danger-700";
   const payCard = attention.kind === "unpaid" ? attention.card : null;
 
@@ -28,13 +29,9 @@ const AttentionBar = ({ student, className }: { student: StudentWithDetail; clas
         <AlertCircle className="w-4 h-4 shrink-0" />
         <span className="flex-1 font-semibold">{attention.message}</span>
         {payCard && (
-          <button
-            type="button"
-            onClick={() => setPaying(true)}
-            className="shrink-0 h-9 px-3.5 rounded-lg bg-primary-700 text-white text-sm font-semibold hover:bg-primary-900 cursor-pointer"
-          >
+          <Button type="button" size="sm" onClick={() => setPaying(true)}>
             確認收款
-          </button>
+          </Button>
         )}
       </div>
       {payCard && (

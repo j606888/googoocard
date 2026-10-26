@@ -6,6 +6,7 @@ import AttendanceByLesson from "./AttendanceByLesson";
 import AttendanceByDate from "./AttendanceByDate";
 import { WeeklyHeatGrid } from "./AttendInsights";
 import { INSIGHT_WEEKS, countByStyle, flattenAttendances } from "./attendanceInsights";
+import EmptyState from "@/components/EmptyState";
 
 type AttendView = "by_date" | "by_lesson";
 
@@ -32,11 +33,7 @@ const AttendSection = ({ student, summary = false }: { student: StudentWithDetai
   );
 
   if (all.length === 0) {
-    return (
-      <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
-        還沒有上課紀錄
-      </div>
-    );
+    return <EmptyState kind="inline" title="還沒有上課紀錄" />;
   }
 
   return (
@@ -79,9 +76,7 @@ const AttendSection = ({ student, summary = false }: { student: StudentWithDetai
         filtered.length > 0 ? (
           <AttendanceByDate attendances={filtered} />
         ) : (
-          <div className="w-full p-6 bg-primary-50 text-primary-700 text-center rounded-2xl text-sm">
-            這個舞種還沒有出席紀錄
-          </div>
+          <EmptyState kind="inline" title="這個舞種還沒有出席紀錄" />
         )
       ) : (
         <AttendanceByLesson attendancesByLesson={attendancesByLesson} />

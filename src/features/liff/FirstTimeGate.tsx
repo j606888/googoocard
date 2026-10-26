@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Lock, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { FieldLabel, fieldControlClass } from "@/components/Field";
+import { cn } from "@/lib/utils";
 
 export interface FirstTimePrefill {
   classroomName: string;
@@ -59,14 +62,16 @@ export default function FirstTimeGate({
   const header = (
     <div className="flex items-center gap-2 px-5 pt-5 text-sm">
       {step !== "ask" && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           aria-label="返回"
           onClick={() => setStep("ask")}
-          className="-ml-3 flex h-11 w-11 items-center justify-center rounded-full active:bg-neutral-100"
+          className="-ml-3"
         >
           <ChevronLeft className="h-5 w-5" />
-        </button>
+        </Button>
       )}
       <span className="font-medium text-neutral-800">{prefill.classroomName}</span>
     </div>
@@ -74,43 +79,45 @@ export default function FirstTimeGate({
 
   if (step === "name") {
     return (
-      <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-neutral-50">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!submitting) handleRegister();
+        }}
+        className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-neutral-50"
+      >
         {header}
         <div className="flex flex-1 flex-col gap-6 px-5 py-6">
           <div className="flex flex-col items-center gap-2">
             {avatar}
             {prefill.linePicture && <p className="text-xs text-neutral-500">使用你的 LINE 頭像</p>}
           </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="liff-nickname" className="font-semibold">
-              大家要怎麼叫你？
-            </label>
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel htmlFor="liff-nickname">大家要怎麼叫你？</FieldLabel>
             <input
               id="liff-nickname"
               value={name}
               maxLength={30}
               onChange={(e) => setName(e.target.value)}
-              className="h-13 rounded-xl border-2 border-primary-600 bg-white px-4 text-lg focus:outline-none"
+              aria-describedby="liff-nickname-hint"
+              className={cn(fieldControlClass(), "h-12")}
               placeholder="暱稱或中文名"
             />
-            <p className="text-xs text-neutral-500">已先帶入你的 LINE 名稱，可以改成暱稱或中文名</p>
+            <p id="liff-nickname-hint" className="text-[13px] text-neutral-500">
+              已先帶入你的 LINE 名稱，可以改成暱稱或中文名
+            </p>
           </div>
-          <div className="flex gap-2.5 rounded-xl bg-white p-4 text-sm leading-relaxed text-neutral-600">
+          <div className="flex gap-2.5 rounded-2xl border border-neutral-200 bg-white p-4 text-sm leading-relaxed text-neutral-600">
             <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
             以後打開 LINE 選單就能報到、看剩幾堂、買課卡，不用註冊帳號密碼。
           </div>
         </div>
         <div className="px-5 pb-6">
-          <button
-            type="button"
-            disabled={!name.trim() || submitting}
-            onClick={handleRegister}
-            className="w-full rounded-xl bg-primary-700 py-3.5 text-lg font-medium text-white active:bg-primary-900 disabled:bg-neutral-300"
-          >
+          <Button type="submit" size="lg" disabled={!name.trim()} isLoading={submitting} className="w-full">
             {submitting ? "登記中…" : "下一步：選今天的課"}
-          </button>
+          </Button>
         </div>
-      </div>
+      </form>
     );
   }
 

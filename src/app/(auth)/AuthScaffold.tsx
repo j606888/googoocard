@@ -91,7 +91,3 @@ export default function AuthScaffold({
     </div>
   );
 }
-
-/** The auth pages' primary submit button. */
-export const authPrimaryButton =
-  "w-full min-h-[52px] rounded-xl bg-primary-900 text-white text-base font-bold cursor-pointer hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";

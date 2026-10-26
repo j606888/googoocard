@@ -4,24 +4,25 @@ import type { StudentAttendance } from "@/store/slices/students";
 import DanceBadge from "../../StudentList/DanceBadge";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { attendanceSourceLabel, groupByMonth, takeMonthsUntil } from "./attendanceInsights";
+import StatusTag, { type StatusTone } from "@/components/StatusTag";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 /** 第一次先列到這麼多筆（整月為單位），其餘收在「載入更早的紀錄」後面。 */
 const INITIAL_ROWS = 20;
 
-const SOURCE_TONE = {
-  self: "bg-primary-100 text-primary-900",
-  teacher: "bg-neutral-100 text-neutral-700",
-  pending: "bg-warning-100 text-warning-900",
-} as const;
+const SOURCE_TONE: Record<"self" | "teacher" | "pending", StatusTone> = {
+  self: "outline",
+  teacher: "neutral",
+  pending: "warning",
+};
 
 export const SourcePill = ({ attendance }: { attendance: Pick<StudentAttendance, "source" | "pending"> }) => {
   const { label, tone } = attendanceSourceLabel(attendance);
   return (
-    <span className={`shrink-0 justify-self-start text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${SOURCE_TONE[tone]}`}>
+    <StatusTag tone={SOURCE_TONE[tone]} className="justify-self-start">
       {label}
-    </span>
+    </StatusTag>
   );
 };
 

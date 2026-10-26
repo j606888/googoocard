@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, X } from "lucide-react";
 import { formatMoney } from "@/lib/money";
+import { Button } from "@/components/ui/button";
+import EmptyState from "@/components/EmptyState";
+import StatusTag from "@/components/StatusTag";
+import { fieldControlClass } from "@/components/Field";
+import { cn } from "@/lib/utils";
 import ChatPane from "./ChatPane";
 import {
   MOCK_CLOSE_MESSAGE,
@@ -44,21 +49,9 @@ const LAST_STUDENT_KEY = "liff:lastStudentId";
 
 const StudentBadges = ({ s }: { s: SimStudent }) => (
   <span className="flex flex-wrap gap-1">
-    <span
-      className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium ${
-        s.returning ? "bg-neutral-100 text-neutral-600" : "bg-blue-100 text-blue-800"
-      }`}
-    >
-      {s.returning ? "舊生" : "新學員"}
-    </span>
-    <span className="rounded-full bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-600">
-      可用卡 {s.usableCards}
-    </span>
-    {s.unpaidAmount > 0 && (
-      <span className="rounded-full bg-warning-100 px-1.5 py-0.5 text-[11px] font-bold text-warning-800">
-        未付 ${formatMoney(s.unpaidAmount)}
-      </span>
-    )}
+    <StatusTag tone={s.returning ? "neutral" : "positive"}>{s.returning ? "舊生" : "新學員"}</StatusTag>
+    <StatusTag tone="neutral">可用卡 {s.usableCards}</StatusTag>
+    {s.unpaidAmount > 0 && <StatusTag tone="danger">未付 ${formatMoney(s.unpaidAmount)}</StatusTag>}
   </span>
 );
 
@@ -156,16 +149,10 @@ const LineSimulator = () => {
       <header className="flex items-center gap-3 border-b border-neutral-200 bg-white px-4 py-3">
         <h1 className="text-lg font-semibold">LINE 模擬器</h1>
         {data && <span className="text-sm text-neutral-500">{data.classroomName}</span>}
-        <span className="rounded-full bg-warning-100 px-2 py-0.5 text-xs font-medium text-warning-800">
-          測試環境限定
-        </span>
-        <button
-          type="button"
-          onClick={load}
-          className="ml-auto flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-neutral-600 hover:bg-neutral-100 cursor-pointer"
-        >
+        <StatusTag tone="warning">測試環境限定</StatusTag>
+        <Button type="button" variant="ghost" size="sm" onClick={load} className="ml-auto text-neutral-600">
           <RefreshCw className="h-4 w-4" /> 重新整理身分
-        </button>
+        </Button>
       </header>
 
       {error && <p className="p-6 text-center text-neutral-600">{error}</p>}
@@ -174,7 +161,7 @@ const LineSimulator = () => {
         <div className="mx-auto flex max-w-[1600px] flex-col flex-wrap gap-6 p-4 lg:flex-row lg:items-start">
           {/* ---------- Personas ---------- */}
           <aside className="flex w-full flex-col gap-4 lg:w-80 lg:shrink-0">
-            <section className="flex flex-col gap-2 rounded-xl bg-white p-3">
+            <section className="flex flex-col gap-2 rounded-2xl border border-neutral-200 bg-white p-3">
               <h2 className="font-semibold">全新的 LINE</h2>
               <p className="text-xs text-neutral-500">沒來過的人掃門口 QR → 「第一次來嗎？」</p>
               <div className="flex gap-2">
@@ -182,22 +169,23 @@ const LineSimulator = () => {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="LINE 顯示名稱"
-                  className="min-w-0 flex-1 rounded bg-neutral-100 px-2 py-1.5 text-sm focus:outline-primary-500"
+                  aria-label="LINE 顯示名稱"
+                  className={cn(fieldControlClass(), "h-9 min-w-0 flex-1 rounded-lg px-3 text-sm")}
                 />
-                <button
+                <Button
                   type="button"
+                  size="sm"
                   onClick={() => open({ userId: newMockLineUserId(), name: newName.trim() || "新同學" }, "checkin")}
-                  className="rounded-lg bg-primary-700 px-3 py-1.5 text-sm font-medium text-white cursor-pointer"
                 >
                   開啟
-                </button>
+                </Button>
               </div>
             </section>
 
-            <section className="flex flex-col gap-1 rounded-xl bg-white p-3">
+            <section className="flex flex-col gap-1 rounded-2xl border border-neutral-200 bg-white p-3">
               <h2 className="mb-1 font-semibold">已綁 LINE（{data.lineAccounts.length}）</h2>
               {data.lineAccounts.length === 0 && (
-                <p className="text-xs text-neutral-500">還沒有。用上面的「全新的 LINE」登記，或從下面模擬綁定。</p>
+                <EmptyState kind="inline" title="還沒有。" description="用上面的「全新的 LINE」登記，或從下面模擬綁定。" />
               )}
               {data.lineAccounts.map((account) => {
                 const active = persona?.userId === account.lineUserId;
@@ -206,8 +194,8 @@ const LineSimulator = () => {
                     key={account.lineUserId}
                     type="button"
                     onClick={() => open({ userId: account.lineUserId, name: account.students[0].name })}
-                    className={`flex flex-col gap-1.5 rounded-lg px-2 py-2 text-left cursor-pointer ${
-                      active ? "bg-primary-50 ring-1 ring-primary-300" : "hover:bg-neutral-50"
+                    className={`flex flex-col gap-1.5 rounded-xl px-2 py-2 text-left cursor-pointer ${
+                      active ? "bg-primary-100 ring-1 ring-primary-300" : "hover:bg-neutral-50"
                     }`}
                   >
                     {account.students.length > 1 && (
@@ -219,7 +207,7 @@ const LineSimulator = () => {
                         <img src={s.avatarUrl} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
                         <span className="flex min-w-0 flex-col gap-1">
                           <span className="truncate text-sm font-medium">
-                            {s.name} <span className="font-mono text-xs text-neutral-400">#{s.number}</span>
+                            {s.name} <span className="font-mono text-xs text-neutral-500">#{s.number}</span>
                           </span>
                           <StudentBadges s={s} />
                         </span>
@@ -230,7 +218,7 @@ const LineSimulator = () => {
               })}
             </section>
 
-            <section className="flex flex-col gap-1 rounded-xl bg-white p-3">
+            <section className="flex flex-col gap-1 rounded-2xl border border-neutral-200 bg-white p-3">
               <h2 className="font-semibold">未綁 LINE（{data.unbound.length}）</h2>
               <p className="mb-1 text-xs text-neutral-500">「模擬綁定」＝ 代替傳綁定碼，給他一個測試用的 LINE。</p>
               <ul className="flex max-h-72 flex-col overflow-y-auto">
@@ -239,13 +227,15 @@ const LineSimulator = () => {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={s.avatarUrl} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
                     <span className="min-w-0 flex-1 truncate text-sm">{s.name}</span>
-                    <button
+                    <Button
                       type="button"
+                      variant="secondary"
+                      size="sm"
                       onClick={() => bindUnbound(s)}
-                      className="shrink-0 rounded-lg border border-neutral-300 px-2 py-1 text-xs cursor-pointer hover:bg-neutral-50"
+                      className="shrink-0 px-2.5 text-xs"
                     >
                       模擬綁定
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -254,15 +244,17 @@ const LineSimulator = () => {
 
           {/* ---------- Phone ---------- */}
           <main className="flex flex-col items-center gap-3">
-            <div className="flex gap-1 rounded-lg bg-white p-1">
+            <div className="flex gap-1 rounded-xl bg-white p-1">
               {PAGES.map((p) => (
                 <button
                   key={p.key}
                   type="button"
                   disabled={!persona}
                   onClick={() => persona && open(persona, p.key)}
-                  className={`rounded-md px-3 py-1.5 text-sm cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
-                    page.split("?")[0] === p.key ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"
+                  className={`rounded-lg px-3.5 py-1.5 text-sm cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 ${
+                    page.split("?")[0] === p.key
+                      ? "bg-primary-900 font-semibold text-white"
+                      : "text-neutral-600 hover:bg-neutral-100"
                   }`}
                 >
                   {p.label}
@@ -291,7 +283,7 @@ const LineSimulator = () => {
                   aria-label="關閉"
                   disabled={!persona}
                   onClick={() => setClosed(true)}
-                  className="rounded p-1 text-neutral-500 hover:bg-neutral-100 cursor-pointer disabled:opacity-40"
+                  className="rounded-lg p-1 text-neutral-500 hover:bg-neutral-100 cursor-pointer disabled:opacity-40"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -305,13 +297,9 @@ const LineSimulator = () => {
                 {persona && closed && (
                   <div className="flex h-full flex-col items-center justify-center gap-3 bg-neutral-50 text-sm text-neutral-600">
                     <p>LIFF 視窗已關閉</p>
-                    <button
-                      type="button"
-                      onClick={() => open(persona)}
-                      className="rounded-lg bg-primary-700 px-3 py-1.5 font-medium text-white cursor-pointer"
-                    >
+                    <Button type="button" size="sm" onClick={() => open(persona)}>
                       重新開啟
-                    </button>
+                    </Button>
                   </div>
                 )}
                 {persona && !closed && src && (
@@ -335,41 +323,37 @@ const LineSimulator = () => {
             {persona ? (
               <ChatPane key={persona.userId} persona={persona} onOpenLiff={(path) => open(persona, path)} />
             ) : (
-              <p className="w-[395px] rounded-xl bg-white p-6 text-center text-sm text-neutral-500">
+              <p className="w-[395px] rounded-2xl border border-neutral-200 bg-white p-6 text-center text-sm text-neutral-500">
                 從左邊挑一個 LINE 身分
               </p>
             )}
           </section>
 
           {/* ---------- Teacher side ---------- */}
-          <aside className="flex w-full flex-col gap-2 rounded-xl bg-white p-3 text-sm lg:w-64 lg:shrink-0">
+          <aside className="flex w-full flex-col gap-2 rounded-2xl border border-neutral-200 bg-white p-3 text-sm lg:w-64 lg:shrink-0">
             <h2 className="font-semibold">測試資料</h2>
             <p className="text-xs leading-relaxed text-neutral-500">
               一堂今天的課：這個整點起兩個時段，掛一般卡和體驗課卡（沒有就建測試卡）。
             </p>
-            <button
-              type="button"
-              onClick={createTodayLesson}
-              className="rounded-lg bg-primary-700 px-3 py-1.5 text-sm font-medium text-white cursor-pointer"
-            >
+            <Button type="button" size="sm" onClick={createTodayLesson}>
               建一堂今天的測試課
-            </button>
+            </Button>
             {lessonNote && <p className="text-xs text-neutral-600">{lessonNote}</p>}
 
             <h2 className="mt-3 font-semibold">對照老師端</h2>
             <p className="text-xs leading-relaxed text-neutral-500">
               另開分頁看自助簽到、新學員、未付的徽章，點名完成後的「今日收款」，以及待處理的「可能重複」。
             </p>
-            <a href="/lessons" target="_blank" className="text-primary-700 underline">
+            <a href="/lessons" target="_blank" className="text-primary-700 underline-offset-4 hover:underline">
               課程與點名
             </a>
-            <a href="/income" target="_blank" className="text-primary-700 underline">
+            <a href="/income" target="_blank" className="text-primary-700 underline-offset-4 hover:underline">
               收入（未付款）
             </a>
-            <a href="/students" target="_blank" className="text-primary-700 underline">
+            <a href="/students" target="_blank" className="text-primary-700 underline-offset-4 hover:underline">
               學生（合併、未綁定 LINE）
             </a>
-            <a href="/cards" target="_blank" className="text-primary-700 underline">
+            <a href="/cards" target="_blank" className="text-primary-700 underline-offset-4 hover:underline">
               課卡（體驗課卡）
             </a>
           </aside>

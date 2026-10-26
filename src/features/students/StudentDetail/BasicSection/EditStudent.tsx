@@ -1,7 +1,7 @@
 "use client";
 
 import { SquarePen, X, Plus } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import { StudentWithDetail } from "@/store/slices/students";
@@ -12,6 +12,10 @@ import type { DanceLevels } from "@/domains/qualification";
 import AvatarPicker from "@/features/students/AvatarPicker";
 import ArchiveStudentDialog from "../ArchiveStudentDialog";
 import { NEEDS_RENEWAL_TAG, tagLabel } from "../../StudentList/studentFilters";
+import { Button } from "@/components/ui/button";
+import { FieldLabel, fieldControlClass } from "@/components/Field";
+import StatusTag from "@/components/StatusTag";
+import { cn } from "@/lib/utils";
 
 const EditStudent = ({
   student,
@@ -34,6 +38,7 @@ const EditStudent = ({
   const { data: allTags = [] } = useGetTagsQuery();
   const [addStudentTag] = useAddStudentTagMutation();
   const [removeStudentTag] = useRemoveStudentTagMutation();
+  const noteId = useId();
   // 表單 state 只在掛載時初始化；分割畫面切換學生不會重新掛載，
   // 所以每次打開都從當下的 student 重設，避免沿用上一位學生的資料。
   const handleOpen = () => {
@@ -98,9 +103,16 @@ const EditStudent = ({
       {trigger ? (
         trigger(handleOpen)
       ) : (
-        <button type="button" onClick={handleOpen} aria-label={`編輯 ${student.name}`} className="cursor-pointer">
-          <SquarePen className="w-5 h-5 text-neutral-500" />
-        </button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="iconSm"
+          onClick={handleOpen}
+          aria-label={`編輯 ${student.name}`}
+          className="text-neutral-500"
+        >
+          <SquarePen className="w-5 h-5" />
+        </Button>
       )}
       <Drawer
         open={isOpen}
@@ -114,17 +126,25 @@ const EditStudent = ({
         secondaryText="取消"
         footerStart={
           !student.archivedAt && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setConfirmArchive(true)}
-              className="text-sm font-semibold text-danger-700 hover:text-danger-900 cursor-pointer py-2"
+              className="-ml-2 font-semibold text-danger-700 hover:bg-danger-50"
             >
               封存學生
-            </button>
+            </Button>
           )
         }
       >
-        <form className="mb-6 flex flex-col gap-5" onSubmit={(e) => e.preventDefault()}>
+        <form
+          className="mb-6 flex flex-col gap-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!isLoading && !avatarUploading) handleSubmit();
+          }}
+        >
           <AvatarPicker
             value={selectedAvatarUrl}
             onChange={setSelectedAvatarUrl}
@@ -158,12 +178,8 @@ const EditStudent = ({
             <div className="flex flex-wrap items-center gap-1.5">
               {studentTags.map((tag) =>
                 tag.name === NEEDS_RENEWAL_TAG ? (
-                  <span
-                    key={tag.id}
-                    title="由系統依剩餘堂數自動標記"
-                    className="text-xs font-semibold px-2.5 py-1 rounded-full text-danger-700 bg-danger-100"
-                  >
-                    {tagLabel(tag.name)}
+                  <span key={tag.id} title="由系統依剩餘堂數自動標記" className="inline-flex">
+                    <StatusTag tone="warning">{tagLabel(tag.name)}</StatusTag>
                   </span>
                 ) : (
                   <span
@@ -175,7 +191,7 @@ const EditStudent = ({
                       type="button"
                       aria-label={`移除 ${tag.name}`}
                       onClick={() => handleRemoveTag(tag.id)}
-                      className="p-0.5 text-neutral-500 hover:text-danger-600 cursor-pointer"
+                      className="p-0.5 text-neutral-500 hover:text-danger-700 cursor-pointer"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -187,7 +203,7 @@ const EditStudent = ({
                   key={tag.id}
                   type="button"
                   onClick={() => handleAddTag(tag.name)}
-                  className="inline-flex items-center gap-1 text-xs text-neutral-600 border border-dashed border-neutral-400 px-2.5 py-1 rounded-full hover:border-primary-500 hover:text-primary-700 cursor-pointer"
+                  className="inline-flex items-center gap-1 text-xs text-neutral-600 border border-dashed border-neutral-300 px-2.5 py-1 rounded-full hover:border-primary-300 hover:text-primary-700 cursor-pointer"
                 >
                   <Plus className="w-3 h-3" />
                   {tag.name}
@@ -207,31 +223,33 @@ const EditStudent = ({
                 }}
                 placeholder="新標籤名稱…"
                 aria-label="新標籤名稱"
-                className="flex-1 min-w-0 text-sm border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary-400"
+                className={cn(fieldControlClass(), "h-12 flex-1 min-w-0")}
               />
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                className="h-12"
                 onClick={() => handleAddTag(tagInput)}
                 disabled={!tagInput.trim()}
-                className="text-sm px-3 py-2 rounded-lg border border-neutral-300 font-semibold text-neutral-800 disabled:opacity-40 hover:bg-neutral-50 cursor-pointer"
               >
                 新增
-              </button>
+              </Button>
             </div>
             <p className="text-xs text-neutral-500">「需續約」由系統自動標記</p>
           </section>
 
-          <label className="flex flex-col gap-1.5 border-t border-neutral-100 pt-4">
-            <span className="text-sm font-bold text-neutral-700">
-              備註 <span className="font-normal text-neutral-500">（學生看不到）</span>
-            </span>
+          <div className="flex flex-col gap-1.5 border-t border-neutral-100 pt-4">
+            <FieldLabel htmlFor={noteId} hint="（學生看不到）">
+              備註
+            </FieldLabel>
             <textarea
+              id={noteId}
               value={note || ""}
               onChange={(e) => setNote(e.target.value)}
               rows={3}
-              className="w-full text-sm border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary-400"
+              className={cn(fieldControlClass(), "py-3")}
             />
-          </label>
+          </div>
         </form>
       </Drawer>
       <ArchiveStudentDialog

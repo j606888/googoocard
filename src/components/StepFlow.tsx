@@ -60,14 +60,14 @@ const StepFlow = ({
       {steps.map((step, index) => (
         <div
           key={step.key}
-          className="flex flex-col gap-4 bg-white border border-neutral-100 rounded-xl p-6 shadow-sm"
+          className="flex flex-col gap-4 bg-white border border-neutral-200 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between -mb-1">
-            <span className="text-base font-semibold text-neutral-800">
+            <span className="text-lg font-bold text-neutral-900">
               {step.title}
             </span>
             {step.aside && (
-              <span className="text-sm text-neutral-400">{step.aside}</span>
+              <span className="text-sm text-neutral-500">{step.aside}</span>
             )}
           </div>
           {step.content}

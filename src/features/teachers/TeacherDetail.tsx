@@ -8,7 +8,10 @@ import { toast } from "sonner";
 import { Archive, ArchiveRestore, ChevronLeft, ChevronRight, Pencil, Trash } from "lucide-react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import SegmentedTabs from "@/components/SegmentedTabs";
-import ListSkeleton from "@/components/skeletons/ListSkeleton";
+import EmptyState from "@/components/EmptyState";
+import StatusTag, { type StatusTone } from "@/components/StatusTag";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { danceStyleClasses, danceStyleMeta } from "@/lib/danceStyleColors";
 import { lessonLevelLabel } from "@/lib/danceLevels";
 import { studentDetailHref } from "@/lib/studentNav";
@@ -28,15 +31,13 @@ import { monthLabel, periodLabel, shortMonthLabel, sinceLabel } from "./format";
 
 type LessonTab = "inProgress" | "finished";
 
-const PERIOD_STATE: Record<PeriodState, { label: string; className: string }> = {
-  done: { label: "已點名", className: "bg-primary-100 text-primary-900" },
-  pending: { label: "待點名", className: "bg-warning-100 text-warning-900" },
-  upcoming: { label: "未開始", className: "bg-neutral-100 text-neutral-600" },
+const PERIOD_STATE: Record<PeriodState, { label: string; tone: StatusTone }> = {
+  done: { label: "已點名", tone: "positive" },
+  pending: { label: "待點名", tone: "warning" },
+  upcoming: { label: "未開始", tone: "neutral" },
 };
 
 const section = "rounded-2xl border border-neutral-200 bg-white p-5 flex flex-col gap-3";
-const outlineButton =
-  "h-10 px-4 rounded-full border border-neutral-200 bg-white flex items-center gap-2 text-sm font-medium hover:bg-neutral-50 cursor-pointer";
 
 function attendanceChange(detail: Detail): string | undefined {
   const previous = detail.previousMonthAttendance;
@@ -78,7 +79,7 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
       </div>
     );
   }
-  if (isLoading || !data) return <ListSkeleton />;
+  if (isLoading || !data) return <TeacherDetailSkeleton />;
 
   const { teacher, stats } = data;
   const archived = Boolean(teacher.archivedAt);
@@ -111,7 +112,7 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
       <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-8 flex flex-col gap-5">
         <Link
           href="/teachers"
-          className="self-start -ml-1 flex items-center gap-0.5 text-sm text-neutral-500 hover:text-neutral-800"
+          className="self-start -ml-1 flex items-center gap-0.5 text-sm text-neutral-500 hover:text-neutral-900"
         >
           <ChevronLeft className="w-4 h-4" />
           老師
@@ -122,11 +123,7 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
           <div className="flex flex-col gap-2 flex-[1_1_240px] min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold">{teacher.name}</h1>
-              {archived && (
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-600">
-                  已封存
-                </span>
-              )}
+              {archived && <StatusTag tone="neutral">已封存</StatusTag>}
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {data.danceStyles.map((style) => (
@@ -144,30 +141,29 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={outlineButton} onClick={() => setFormKey(Date.now())}>
-              <Pencil className="w-4 h-4" />
+            <Button variant="secondary" onClick={() => setFormKey(Date.now())}>
+              <Pencil className="size-4" />
               編輯
-            </button>
+            </Button>
             {data.lessons.length === 0 ? (
-              <button type="button" className={outlineButton} onClick={() => setConfirmDelete(true)}>
-                <Trash className="w-4 h-4" />
+              <Button variant="dangerSecondary" onClick={() => setConfirmDelete(true)}>
+                <Trash className="size-4" />
                 刪除
-              </button>
+              </Button>
             ) : archived ? (
-              <button type="button" className={outlineButton} onClick={() => setArchived(false)}>
-                <ArchiveRestore className="w-4 h-4" />
+              <Button variant="secondary" onClick={() => setArchived(false)}>
+                <ArchiveRestore className="size-4" />
                 還原
-              </button>
+              </Button>
             ) : (
-              <button
-                type="button"
-                className={outlineButton}
+              <Button
+                variant="secondary"
                 title="封存後不會出現在開課的老師選單，舊課照常顯示"
                 onClick={() => setArchived(true)}
               >
-                <Archive className="w-4 h-4" />
+                <Archive className="size-4" />
                 封存
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -205,9 +201,10 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
                 />
               </div>
               {lessons.length === 0 ? (
-                <p className="py-4 text-sm text-neutral-500">
-                  {lessonTab === "inProgress" ? "目前沒有進行中的課。新增課程時就能指定這位老師。" : "還沒有結束的課。"}
-                </p>
+                <EmptyState
+                  kind="inline"
+                  title={lessonTab === "inProgress" ? "目前沒有進行中的課。新增課程時就能指定這位老師。" : "還沒有結束的課。"}
+                />
               ) : (
                 <ul className="flex flex-col">
                   {lessons.map((lesson) => (
@@ -236,7 +233,7 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
             <section className={section}>
               <h3 className="font-semibold">{monthLabel(month)}的時段</h3>
               {data.periods.length === 0 ? (
-                <p className="py-4 text-sm text-neutral-500">這個月沒有排課。</p>
+                <EmptyState kind="inline" title="這個月沒有排課。" />
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[420px] text-sm">
@@ -263,9 +260,7 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
                               {period.state === "done" ? period.attendance : "–"}
                             </td>
                             <td className="py-2.5 text-right">
-                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${state.className}`}>
-                                {state.label}
-                              </span>
+                              <StatusTag tone={state.tone}>{state.label}</StatusTag>
                             </td>
                           </tr>
                         );
@@ -285,7 +280,7 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
                   <div key={bucket.month} className="flex-1 flex flex-col items-center justify-end gap-1 h-full">
                     <span className="text-[11px] text-neutral-500 tabular-nums">{bucket.attendance}</span>
                     <span
-                      className={`w-full rounded-md ${
+                      className={`w-full rounded-sm ${
                         i === data.trend.length - 1 ? danceStyleClasses(teacher.color).bg : "bg-neutral-200"
                       }`}
                       style={{ height: `${Math.max(3, Math.round((bucket.attendance / maxAttendance) * 80))}px` }}
@@ -299,7 +294,7 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
             <section className={section}>
               <h3 className="font-semibold">常來的學生</h3>
               {data.regulars.length === 0 ? (
-                <p className="text-sm text-neutral-500">近 6 個月還沒有點名紀錄。</p>
+                <EmptyState kind="inline" title="近 6 個月還沒有點名紀錄。" />
               ) : (
                 <ul className="flex flex-col gap-2.5">
                   {data.regulars.map((student) => (
@@ -330,13 +325,9 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
               {teacher.note ? (
                 <p className="text-sm whitespace-pre-line leading-relaxed">{teacher.note}</p>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setFormKey(Date.now())}
-                  className="self-start text-sm text-primary-700 hover:underline cursor-pointer"
-                >
+                <Button variant="link" onClick={() => setFormKey(Date.now())} className="self-start text-sm">
                   ＋ 加上備註（例如可排課的時段）
-                </button>
+                </Button>
               )}
             </section>
           </div>
@@ -347,6 +338,7 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
         <TeacherForm key={formKey} open teacher={teacher} onClose={() => setFormKey(null)} />
       )}
       <ConfirmDialog
+        variant="danger"
         open={confirmDelete}
         title={`刪除 ${teacher.name}？`}
         message="這位老師沒有教過任何課，刪除後無法復原。"
@@ -358,5 +350,51 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
     </>
   );
 };
+
+/** The detail page's shape while loading: back link is real, the rest mirrors the loaded layout. */
+const TeacherDetailSkeleton = () => (
+  <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-8 flex flex-col gap-5" aria-busy="true">
+    <Link
+      href="/teachers"
+      className="self-start -ml-1 flex items-center gap-0.5 text-sm text-neutral-500 hover:text-neutral-900"
+    >
+      <ChevronLeft className="w-4 h-4" />
+      老師
+    </Link>
+    <div className="rounded-2xl border border-neutral-200 bg-white p-5 lg:p-6 flex flex-wrap items-center gap-4">
+      <Skeleton className="size-16 shrink-0" />
+      <div className="flex flex-col gap-2.5 flex-[1_1_240px]">
+        <Skeleton className="h-6 w-32" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+      <div className="flex gap-2">
+        <Skeleton className="h-11 w-24 rounded-xl" />
+        <Skeleton className="h-11 w-24 rounded-xl" />
+      </div>
+    </div>
+    <h2 className="text-lg font-semibold">每月數字</h2>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="rounded-2xl border border-neutral-200 bg-white px-4 py-3.5 flex flex-col gap-2">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-7 w-14" />
+        </div>
+      ))}
+    </div>
+    <section className={section}>
+      <h3 className="font-semibold">課程</h3>
+      {["w-40", "w-28", "w-36"].map((width, i) => (
+        <div key={i} className={`flex items-center gap-3 py-3 ${i === 2 ? "opacity-50" : ""}`}>
+          <Skeleton className="w-1.5 h-10 shrink-0" />
+          <div className="flex flex-col gap-2 flex-1">
+            <Skeleton className={`h-4 ${width}`} />
+            <Skeleton className="h-3 w-48" />
+          </div>
+          <Skeleton className="h-5 w-8" />
+        </div>
+      ))}
+    </section>
+  </div>
+);
 
 export default TeacherDetail;

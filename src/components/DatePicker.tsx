@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { Button } from "@/components/ui/button"
+import { fieldControlClass } from "@/components/Field"
+import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
 import {
   Popover,
@@ -18,13 +19,13 @@ export function DatePicker({ date, setDate }: { date: Date | undefined, setDate:
     <div className="flex flex-col gap-3">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="secondary"
+          <button
+            type="button"
             id="date"
-            className="w-32 justify-between font-normal cursor-pointer"
+            className={cn(fieldControlClass(), "h-12 w-36 text-left cursor-pointer", !date && "text-neutral-400")}
           >
             {date ? date.toLocaleDateString("zh-TW") : "選擇日期"}
-          </Button>
+          </button>
         </PopoverTrigger>
         <PopoverContent className="w-auto overflow-hidden p-0" align="start">
           <Calendar
