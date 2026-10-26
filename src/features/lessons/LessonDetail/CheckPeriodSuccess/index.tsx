@@ -175,7 +175,7 @@ const CheckPeriodSuccess = () => {
         </div>
 
         {pendingRecords.length > 0 && (
-          <PendingStudents records={pendingRecords} lesson={lesson} />
+          <PendingStudents records={pendingRecords} lesson={lesson} periodId={Number(periodId)} />
         )}
         <div className="flex items-center justify-between w-full">
           <p className="text-sm font-medium text-neutral-700">顯示收入</p>
