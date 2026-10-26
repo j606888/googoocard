@@ -1,6 +1,6 @@
 # 模組化：權限 × 技能樹 × 水庫（規劃稿）
 
-> 狀態：第 1、2 階段完成（2026-10-27，分支 `claude/modules`），第 3 階段進行中。
+> 狀態：第 1～3 階段完成（2026-10-27，分支 `claude/modules`）。第 3 階段的水庫仍是示意資料；搬移時發現 water-tank 本身的不一致（§8.1 公式與範例不符、星期寫錯、月報水位變化算錯等）已在 `src/features/finance/mockData.ts` 修正或註明。
 > 來源：`~/projects/teach-what`（課綱＋技能樹，開發中、沒有使用者）、`~/projects/water-tank`（水庫財務，只有 UI 殼＋mock data）。兩者都改成在 googoocard 裡重寫，不做資料搬遷、不沿用它們的帳號系統。
 
 ## 已確認決策
