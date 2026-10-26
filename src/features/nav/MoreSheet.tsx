@@ -4,8 +4,16 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { LogOut, Smartphone } from "lucide-react";
-import { MODULE_LINKS, SECONDARY_LINKS, type NavLink } from "./navConfig";
+import { ChevronRight, LogOut, Smartphone } from "lucide-react";
+import {
+  ACCOUNT_LINK,
+  MODULE_LINKS,
+  SECONDARY_LINKS,
+  SETTINGS_ENTRY,
+  isSettingsPath,
+  type NavLink,
+} from "./navConfig";
+import { useGetMeQuery } from "@/store/slices/me";
 import { useAccess } from "@/hooks/useCan";
 import { useLogoutMutation } from "@/store/slices/me";
 import { disableWebPushOnLogout } from "@/hooks/useWebPush";
@@ -25,7 +33,8 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
   const install = useInstallState();
   const { can } = useAccess();
   const visible = (link: NavLink) => !link.permission || can(link.permission);
-  const links = [...SECONDARY_LINKS, ...MODULE_LINKS].filter(visible);
+  const moduleLinks = MODULE_LINKS.filter(visible);
+  const { data: me } = useGetMeQuery();
   const [installGuideOpen, setInstallGuideOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -58,24 +67,35 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
               <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-neutral-200" />
 
               <div className="grid grid-cols-3 gap-3">
-                {links.map((link) => {
-                  const active = pathname.startsWith(link.href);
-                  return (
-                    <Link
-                      key={link.name}
-                      href={link.href}
-                      onClick={onClose}
-                      className={`flex flex-col items-center gap-2 rounded-2xl border px-2 py-4 transition-colors ${
-                        active
-                          ? "border-primary-300 bg-primary-100 text-primary-900"
-                          : "border-neutral-200 bg-white text-neutral-600 active:bg-neutral-50"
-                      }`}
-                    >
-                      <link.icon className="h-6 w-6" />
-                      <span className="text-sm font-medium">{link.name}</span>
-                    </Link>
-                  );
-                })}
+                {SECONDARY_LINKS.filter(visible).map((link) => (
+                  <Tile key={link.href} link={link} active={pathname.startsWith(link.href)} onClose={onClose} />
+                ))}
+              </div>
+
+              {moduleLinks.length > 0 && (
+                <>
+                  <p className="mx-1 mb-2 mt-4 text-xs font-medium text-neutral-500">模組</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {moduleLinks.map((link) => (
+                      <Tile key={link.href} link={link} active={pathname.startsWith(link.href)} onClose={onClose} />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="mt-4 flex flex-col">
+                <Row
+                  link={SETTINGS_ENTRY}
+                  hint="舞種、分部、團隊、簽到 QR"
+                  active={isSettingsPath(pathname)}
+                  onClose={onClose}
+                />
+                <Row
+                  link={ACCOUNT_LINK}
+                  hint={me?.email}
+                  active={pathname.startsWith(ACCOUNT_LINK.href)}
+                  onClose={onClose}
+                />
               </div>
 
               {install.canGuide && (
@@ -119,5 +139,45 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
     </>
   );
 };
+
+const Tile = ({ link, active, onClose }: { link: NavLink; active: boolean; onClose: () => void }) => (
+  <Link
+    href={link.href}
+    onClick={onClose}
+    className={`flex flex-col items-center gap-2 rounded-2xl border px-2 py-4 transition-colors ${
+      active
+        ? "border-primary-300 bg-primary-100 text-primary-900"
+        : "border-neutral-200 bg-white text-neutral-600 active:bg-neutral-50"
+    }`}
+  >
+    <link.icon className="h-6 w-6" />
+    <span className="text-sm font-medium">{link.name}</span>
+  </Link>
+);
+
+const Row = ({
+  link,
+  hint,
+  active,
+  onClose,
+}: {
+  link: NavLink;
+  hint?: string;
+  active: boolean;
+  onClose: () => void;
+}) => (
+  <Link
+    href={link.href}
+    onClick={onClose}
+    className={`flex h-13 items-center gap-3 border-b border-neutral-200 px-1 ${
+      active ? "font-semibold text-primary-900" : "text-neutral-900"
+    }`}
+  >
+    <link.icon className={`h-5 w-5 shrink-0 ${active ? "text-primary-700" : "text-neutral-600"}`} />
+    <span className="flex-1">{link.name}</span>
+    {hint && <span className="truncate text-[13px] font-normal text-neutral-500">{hint}</span>}
+    <ChevronRight className="h-4 w-4 shrink-0 text-neutral-400" />
+  </Link>
+);
 
 export default MoreSheet;

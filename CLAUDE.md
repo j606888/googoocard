@@ -68,7 +68,8 @@ src/
 │   │   ├── cards/        # Student card (payment package) UI
 │   │   ├── students/     # Student management UI
 │   │   ├── income/       # Revenue analytics UI
-│   │   └── teachers/, teams/, dance-styles/, locations/, …
+│   │   ├── (settings)/   # 教室設定: dance-styles/, locations/, teams/, modules/, checkin-qr/ — one nav entry + shared tab bar, URLs unchanged
+│   │   └── teachers/, calendar/, curriculum/, finance/, …
 │   ├── liff/             # Student-facing LINE LIFF pages
 │   └── api/              # REST API endpoints
 ├── components/           # Shared UI components
