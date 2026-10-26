@@ -12,26 +12,26 @@ export const validateForm = (data: { name?: string; email: string; password: str
   // Name validation (only for signup)
   if (data.name !== undefined) {
     if (!data.name.trim()) {
-      errors.name = "Please enter a name";
+      errors.name = "請輸入名字";
     }
   }
 
   // Email validation
   if (!data.email.trim()) {
-    errors.email = "Email is required";
+    errors.email = "請輸入電子郵件";
   } else {
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(data.email)) {
-      errors.email = "Please enter a valid email address";
+      errors.email = "電子郵件格式不正確";
     }
   }
 
   // Password validation
   if (!data.password) {
-    errors.password = "Password is required";
+    errors.password = "請輸入密碼";
   } else {
     if (data.password.length < 8) {
-      errors.password = "At least 8 characters long";
+      errors.password = "密碼至少要 8 個字元";
     } else if (!isDevelopment) {
       // Additional password rules only for staging and production
       // if (!/[a-z]/.test(data.password)) {

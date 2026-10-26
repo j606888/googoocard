@@ -1,10 +1,10 @@
 "use client";
 
-import { Store } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCreateClassroomMutation } from "@/store/slices/classrooms";
-import AuthScaffold from "../AuthScaffold";
+import AuthScaffold, { authPrimaryButton } from "../AuthScaffold";
+import AuthField from "../AuthField";
 
 export default function OnboardingPage() {
   const [classroomName, setClassroomName] = useState("");
@@ -34,57 +34,21 @@ export default function OnboardingPage() {
   };
 
   return (
-    <AuthScaffold
-      heroTitle={
-        <>
-          歡迎使用 GooGoocard！
-          <br />
-          我們開始吧！
-        </>
-      }
-    >
-      <div className="w-full">
-        <h2 className="text-[28px] font-semibold mb-4">
-          你的教室叫什麼名字？
-        </h2>
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center gap-3">
-            <Store className="w-6 h-6 text-neutral-500" />
-            <div className="relative w-full">
-              <input
-                type="text"
-                placeholder="你的教室名稱"
-                className={`w-full border-b-2 ${
-                  error ? "border-danger-500" : "border-neutral-300"
-                } px-1.5 py-3 text-base focus:outline-none focus:border-primary-500`}
-                value={classroomName}
-                onChange={(e) => setClassroomName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleSubmit(e);
-                  }
-                }}
-              />
-              {error && (
-                <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
-                  {error}
-                </p>
-              )}
-            </div>
-          </div>
+    <AuthScaffold title="最後一步" subtitle="幫你的教室取個名字，學生在 LINE 上會看到">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-1 flex-col gap-4">
+        <AuthField
+          label="教室名稱"
+          placeholder="例如：小鳥舞蹈教室"
+          value={classroomName}
+          onChange={(e) => setClassroomName(e.target.value)}
+          error={error || undefined}
+        />
+        <div className="mt-auto lg:mt-4 pt-4">
+          <button type="submit" disabled={loading} className={authPrimaryButton}>
+            建立教室
+          </button>
         </div>
-      </div>
-      <div className="mt-auto lg:mt-10 w-full">
-        <button
-          className={`bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg ${
-            loading ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-          disabled={loading}
-          onClick={handleSubmit}
-        >
-          送出
-        </button>
-      </div>
+      </form>
     </AuthScaffold>
   );
 }

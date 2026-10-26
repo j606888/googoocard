@@ -90,6 +90,7 @@ export default function SocialLogin({
           theme: "outline",
           size: "large",
           shape: "rectangular",
+          logo_alignment: "center",
           text: "continue_with",
           locale: "zh-TW",
           width: Math.min(el.offsetWidth || 400, 400),
@@ -139,17 +140,16 @@ export default function SocialLogin({
   return (
     // Google 不允許在 App 的 WebView 裡登入；App 有自己的原生登入
     <div data-in-app="hide" className={`w-full ${loading ? "pointer-events-none opacity-60" : ""}`}>
-      <div className="flex items-center gap-3 my-6 text-sm text-neutral-400">
-        <div className="h-px flex-1 bg-neutral-200" />
-        或
-        <div className="h-px flex-1 bg-neutral-200" />
-      </div>
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col gap-2.5">
+        {GOOGLE_CLIENT_ID && (
+          // Google's own button (GSI renders it into this div); only its size and shape are ours.
+          <div ref={googleRef} className="w-full flex justify-center min-h-[44px]" />
+        )}
         {APPLE_SERVICE_ID && (
           <button
             type="button"
             onClick={signInWithApple}
-            className="w-full max-w-[400px] h-10 rounded bg-black text-white text-sm font-medium flex items-center justify-center gap-2 cursor-pointer hover:bg-neutral-800"
+            className="w-full min-h-[50px] rounded-xl bg-black text-white text-[15px] font-medium flex items-center justify-center gap-2.5 cursor-pointer hover:bg-neutral-800"
           >
             <svg viewBox="0 0 17 20" className="w-4 h-4 fill-current" aria-hidden>
               <path d="M14.1 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9 0 0-2.7-1-2.7-4.1zM11.6 3c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z" />
@@ -157,9 +157,13 @@ export default function SocialLogin({
             使用 Apple 繼續
           </button>
         )}
-        {GOOGLE_CLIENT_ID && <div ref={googleRef} className="w-full max-w-[400px] flex justify-center min-h-10" />}
       </div>
-      {error && <p className="text-danger-500 text-sm text-center mt-3">{error}</p>}
+      {error && <p className="text-danger-700 text-sm text-center mt-3">{error}</p>}
+      <div className="flex items-center gap-3 my-5 text-[13px] text-neutral-500">
+        <div className="h-px flex-1 bg-neutral-200" />
+        或用 Email
+        <div className="h-px flex-1 bg-neutral-200" />
+      </div>
     </div>
   );
 }

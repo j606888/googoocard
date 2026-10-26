@@ -1,25 +1,19 @@
 "use client";
 
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useLoginMutation } from "@/store/slices/me";
-import AuthScaffold from "../AuthScaffold";
+import AuthScaffold, { authPrimaryButton } from "../AuthScaffold";
+import AuthField from "../AuthField";
 import SocialLogin from "../SocialLogin";
 
-const HERO_TITLE = (
-  <>
-    還在用紙本課程卡嗎？
-    <br />
-    現在就把它丟掉吧！
-  </>
-);
+const TITLE = "歡迎回來";
+const SUBTITLE = "登入你的教室，繼續今天的課";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [errorField, setErrorField] = useState<"email" | "password">("password");
@@ -28,14 +22,6 @@ function LoginForm() {
   const redirect = searchParams.get("redirect");
   const token = searchParams.get("token");
   const [login] = useLoginMutation();
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-  };
-
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +38,7 @@ function LoginForm() {
         setError("這個 Email 還沒註冊");
         setErrorField("email");
       } else if (code === "SOCIAL_ONLY") {
-        setError("這個帳號是用 Google 或 Apple 註冊的，請用下方按鈕登入");
+        setError("這個帳號是用 Google 或 Apple 註冊的，請用上方按鈕登入");
         setErrorField("password");
       } else if (code === "INVALID_PASSWORD") {
         setError("密碼不正確");
@@ -67,116 +53,51 @@ function LoginForm() {
   };
 
   return (
-    <AuthScaffold heroTitle={HERO_TITLE}>
-      <div className="w-full">
-        <h2 className="text-[28px] font-semibold mb-4 text-center">登入</h2>
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center gap-3">
-            <Mail className="w-6 h-6 text-neutral-500" />
-            <div className="relative w-full">
-              <input
-                type="email"
-                placeholder="電子郵件"
-                className={`w-full border-b-2 ${
-                  error && errorField === "email"
-                    ? "border-danger-500"
-                    : "border-neutral-300"
-                } px-1.5 py-3 text-base focus:outline-none focus:border-primary-500`}
-                value={email}
-                onChange={handleEmailChange}
-              />
-              {error && errorField === "email" && (
-                <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
-                  {error}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="relative flex items-center gap-3">
-            <Lock className="w-6 h-6 text-neutral-500" />
-            <div className="relative w-full">
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="密碼"
-                className={`w-full border-b-2 ${
-                  error && errorField === "password"
-                    ? "border-danger-500"
-                    : "border-neutral-300"
-                } px-1.5 py-3 text-base focus:outline-none focus:border-primary-500`}
-                value={password}
-                onChange={handlePasswordChange}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleSubmit(e);
-                  }
-                }}
-              />
-              {error && errorField === "password" && (
-                <p className="text-danger-500 text-sm mt-1 absolute -bottom-5 left-0">
-                  {error}
-                </p>
-              )}
-            </div>
-            <button className="absolute right-0 top-0 bottom-0 p-3 cursor-pointer">
-              {showPassword ? (
-                <EyeOff
-                  className="w-6 h-6 text-neutral-500"
-                  onClick={() => setShowPassword(false)}
-                />
-              ) : (
-                <Eye
-                  className="w-6 h-6 text-neutral-500"
-                  onClick={() => setShowPassword(true)}
-                />
-              )}
-            </button>
-          </div>
+    <AuthScaffold title={TITLE} subtitle={SUBTITLE} backHref="/">
+      <SocialLogin inviteToken={token} redirect={redirect} />
+
+      <form onSubmit={handleSubmit} noValidate className="flex flex-1 flex-col gap-4">
+        <AuthField
+          label="電子郵件"
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          error={errorField === "email" ? error : undefined}
+        />
+        <AuthField
+          label="密碼"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          error={errorField === "password" ? error : undefined}
+        />
+
+        <div className="mt-auto lg:mt-4 flex flex-col gap-3 pt-4">
+          <button type="submit" disabled={loading} className={authPrimaryButton}>
+            登入
+          </button>
+          <p className="text-sm text-neutral-600 text-center">
+            還沒有帳號？{" "}
+            <Link href="/signup" className="font-bold text-primary-900 hover:text-primary-700">
+              建立帳號
+            </Link>
+          </p>
         </div>
-      </div>
-      <div className="mt-auto lg:mt-10 w-full">
-        <button
-          className={`bg-primary-500 w-full text-white px-4 py-3 rounded-md font-bold text-lg cursor-pointer hover:bg-primary-600 ${
-            loading ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-          disabled={loading}
-          onClick={handleSubmit}
-        >
-          登入
-        </button>
-        <SocialLogin inviteToken={token} redirect={redirect} />
-        <p className="text-sm text-neutral-500 text-center mt-3">
-          還沒有帳號嗎？{" "}
-          <Link href="/signup" className="text-primary-500 underline">
-            註冊
-          </Link>
-        </p>
-      </div>
+      </form>
     </AuthScaffold>
   );
 }
 
 function LoginPageFallback() {
   return (
-    <AuthScaffold heroTitle={HERO_TITLE}>
-      <div className="w-full">
-        <h2 className="text-[28px] font-semibold mb-4 text-center">登入</h2>
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center gap-3">
-            <Mail className="w-6 h-6 text-neutral-500" />
-            <div className="relative w-full">
-              <div className="w-full border-b-2 border-neutral-300 px-1.5 py-3 text-base bg-neutral-50 animate-pulse h-6"></div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 relative">
-            <Lock className="w-6 h-6 text-neutral-500" />
-            <div className="relative w-full">
-              <div className="w-full border-b-2 border-neutral-300 px-1.5 py-3 text-base bg-neutral-50 animate-pulse h-6"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="mt-auto lg:mt-10 w-full">
-        <div className="bg-neutral-200 w-full px-4 py-3 rounded-md animate-pulse h-12"></div>
+    <AuthScaffold title={TITLE} subtitle={SUBTITLE} backHref="/">
+      <div className="flex flex-1 flex-col gap-4 animate-pulse">
+        <div className="h-[50px] rounded-xl bg-neutral-100" />
+        <div className="h-[50px] rounded-xl bg-neutral-100" />
+        <div className="mt-auto lg:mt-4 h-[52px] rounded-xl bg-neutral-200" />
       </div>
     </AuthScaffold>
   );
