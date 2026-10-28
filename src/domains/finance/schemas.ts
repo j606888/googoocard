@@ -120,3 +120,6 @@ export const overrideLessonSchema = z.object({
 
 /** GET /api/finance/day?date=YYYY-MM-DD */
 export const dayBookQuerySchema = z.object({ date: dateKey });
+
+/** GET /api/finance/teachers?month=YYYY-MM（不送＝這個月）。 */
+export const teacherMonthSchema = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional() });

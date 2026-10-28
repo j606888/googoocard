@@ -106,6 +106,8 @@ export type LessonSplitRow = {
   attendeeCount: number;
   status: LessonSplitStatus;
   flags: (SplitFlag | "NO_LOCATION")[];
+  /** 課程設了比例、這堂卻沒掛到的老師（MISSING_SHARE_TEACHER）。 */
+  missingShareTeacherIds: number[];
   /** 現在算出來的（還沒點名的是 null）。 */
   split: SplitResult | null;
   /** 存過的驗收；CHANGED 時 revenueDiff ＝ 現在 − 驗收時。 */
@@ -188,7 +190,7 @@ async function computeLessonSplits(classroomId: number, from: string, to: string
       attendeeCount: p.attendanceRecords.length,
     };
     if (!input) {
-      return { ...base, status: p.startTime > now ? "UPCOMING" : "NOT_TAKEN", flags: [], split: null, verified: null };
+      return { ...base, status: p.startTime > now ? "UPCOMING" : "NOT_TAKEN", flags: [], missingShareTeacherIds: [], split: null, verified: null };
     }
     const split = splitPeriod(input, fees.get(p.id)!, { revenueOwnerTeacherId: owner?.id ?? null });
     const flags: LessonSplitRow["flags"] = [...split.flags];
@@ -202,6 +204,9 @@ async function computeLessonSplits(classroomId: number, from: string, to: string
       ...base,
       status,
       flags,
+      missingShareTeacherIds: input.rule.shares
+        .filter((share) => !input.teacherIds.includes(share.teacherId))
+        .map((share) => share.teacherId),
       split,
       verified: settlement
         ? {
@@ -390,6 +395,17 @@ export async function overrideLesson(input: {
   return { verified: [input.periodId] };
 }
 
+/** 這堂實際的分法：驗收過（而且沒被改）用存下的，其他用現在算的。 */
+function effective(row: LessonSplitRow) {
+  if (!row.split) return null;
+  if (row.status === "VERIFIED" && row.verified) {
+    return { lines: row.verified.lines, revenue: row.verified.revenue, fund: row.verified.fund };
+  }
+  return { lines: settlementLines(row.split), revenue: row.split.revenue, fund: row.split.fund };
+}
+
+const LINE_KEY = { TEACHER: "teach", VENUE: "venue", ASSISTANT: "assistant", REMAINDER: "remainder" } as const;
+
 /** 一批堂分給誰多少：驗收過的用存下的分法，其他用現在算的。 */
 export function distribution(rows: LessonSplitRow[]) {
   const people = new Map<number, { teacherId: number; teach: number; venue: number; assistant: number; remainder: number; total: number }>();
@@ -397,24 +413,101 @@ export function distribution(rows: LessonSplitRow[]) {
   let externalVenue = 0;
   let revenue = 0;
   for (const row of rows) {
-    if (!row.split) continue;
-    const useSaved = row.status === "VERIFIED" && row.verified;
-    const lines = useSaved ? row.verified!.lines : settlementLines(row.split);
-    revenue += useSaved ? row.verified!.revenue : row.split.revenue;
-    fund += useSaved ? row.verified!.fund : row.split.fund;
-    for (const line of lines) {
+    const e = effective(row);
+    if (!e) continue;
+    revenue += e.revenue;
+    fund += e.fund;
+    for (const line of e.lines) {
       if (line.teacherId === null) {
         externalVenue += line.amount;
         continue;
       }
       const p = people.get(line.teacherId) ?? { teacherId: line.teacherId, teach: 0, venue: 0, assistant: 0, remainder: 0, total: 0 };
-      const key = ({ TEACHER: "teach", VENUE: "venue", ASSISTANT: "assistant", REMAINDER: "remainder" } as const)[line.kind];
-      p[key] += line.amount;
+      p[LINE_KEY[line.kind]] += line.amount;
       p.total += line.amount;
       people.set(line.teacherId, p);
     }
   }
   return { revenue, fund, externalVenue, people: [...people.values()].sort((a, b) => b.total - a.total) };
+}
+
+// ---------- 老師薪水（月中累積）
+
+type Amounts = { teach: number; venue: number; assistant: number; remainder: number; total: number };
+const zero = (): Amounts => ({ teach: 0, venue: 0, assistant: 0, remainder: 0, total: 0 });
+
+/**
+ * 每位老師這個月到現在累積多少：每堂點完名就算進去（還沒驗收的照現在算的），
+ * 月結時才凍結成薪資單。canSeeAll ＝ 能改水庫的人看全部；其他人只看自己的老師資料。
+ */
+export async function getTeacherMonth(
+  classroomId: number,
+  monthKey: string,
+  viewer: { userId: number; canSeeAll: boolean },
+  now = new Date()
+) {
+  const { start, end } = parseTaipeiMonthRange(monthKey);
+  const [rows, teachers] = await Promise.all([
+    getLessonSplits(classroomId, toTaipeiDateKey(start), toTaipeiDateKey(new Date(end.getTime() - 1)), now),
+    prisma.teacher.findMany({
+      where: { classroomId },
+      select: { id: true, name: true, color: true, isAssistant: true, userId: true },
+    }),
+  ]);
+
+  type Item = Amounts & { periodId: number; dateKey: string; startTime: Date; lessonName: string; status: LessonSplitStatus };
+  const people = new Map<number, Amounts & { items: Item[]; missing: { periodId: number; dateKey: string; lessonName: string }[] }>();
+  const person = (teacherId: number) => {
+    if (!people.has(teacherId)) people.set(teacherId, { ...zero(), items: [], missing: [] });
+    return people.get(teacherId)!;
+  };
+
+  for (const row of rows) {
+    const e = effective(row);
+    if (!e) continue;
+    const items = new Map<number, Item>();
+    for (const line of e.lines) {
+      if (line.teacherId === null) continue;
+      const item = items.get(line.teacherId) ?? {
+        ...zero(),
+        periodId: row.periodId,
+        dateKey: row.dateKey,
+        startTime: row.startTime,
+        lessonName: row.lessonName,
+        status: row.status,
+      };
+      item[LINE_KEY[line.kind]] += line.amount;
+      item.total += line.amount;
+      items.set(line.teacherId, item);
+    }
+    for (const [teacherId, item] of items) {
+      const p = person(teacherId);
+      p.items.push(item);
+      for (const key of ["teach", "venue", "assistant", "remainder", "total"] as const) p[key] += item[key];
+    }
+    if (row.status !== "VERIFIED") {
+      for (const teacherId of row.missingShareTeacherIds) {
+        person(teacherId).missing.push({ periodId: row.periodId, dateKey: row.dateKey, lessonName: row.lessonName });
+      }
+    }
+  }
+
+  const byId = new Map(teachers.map((t) => [t.id, t]));
+  return {
+    month: monthKey,
+    people: [...people.entries()]
+      .map(([teacherId, p]) => {
+        const t = byId.get(teacherId)!;
+        return {
+          teacher: { id: t.id, name: t.name, color: t.color, isAssistant: t.isAssistant, hasAccount: t.userId !== null },
+          ...p,
+          lessonCount: p.items.filter((i) => i.teach > 0).length,
+          pendingCount: p.items.filter((i) => i.status !== "VERIFIED").length,
+        };
+      })
+      .filter((p) => viewer.canSeeAll || byId.get(p.teacher.id)?.userId === viewer.userId)
+      .sort((a, b) => b.total - a.total),
+  };
 }
 
 // ---------- 規則

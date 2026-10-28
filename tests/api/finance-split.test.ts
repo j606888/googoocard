@@ -7,6 +7,7 @@ import {
   createCard,
   createLesson,
   createLocation,
+  createMember,
   createStudent,
   enableModule,
   jsonRequest,
@@ -26,6 +27,7 @@ import { GET as LESSONS } from "@/app/api/finance/lessons/route";
 import { POST as VERIFY } from "@/app/api/finance/lessons/verify/route";
 import { POST as OVERRIDE } from "@/app/api/finance/lessons/[periodId]/override/route";
 import { GET as DAY } from "@/app/api/finance/day/route";
+import { GET as TEACHERS } from "@/app/api/finance/teachers/route";
 
 const saveRule = (body: unknown) => SAVE_RULE(jsonRequest("PUT", body), { params: Promise.resolve({}) });
 const lessons = (from: string, to = from) =>
@@ -223,6 +225,33 @@ describe("水庫第二步：分帳規則、每堂分帳、驗收", () => {
     expect(paid + book.distribution.fund + book.distribution.externalVenue).toBe(book.distribution.revenue);
     expect(book.vault.rows).toEqual([expect.objectContaining({ kind: "entry", label: "音響維修", amount: -180 })]);
     expect(book.vault.balance).toBe(-180);
+  });
+
+  it("老師薪水：每堂點完名就累積；課程比例少掛的老師標「可能少算」", async () => {
+    await attend(periods.body, 7);
+    await attend(periods.bachata, 9);
+    await attend(periods.salsa, 5);
+    const kathy = (await prisma.teacher.create({ data: { classroomId, name: "Kathy" } })).id;
+    const bachataLesson = (await prisma.lessonPeriod.findUniqueOrThrow({ where: { id: periods.bachata } })).lessonId;
+    await saveRule({ scope: "LESSON", lessonId: bachataLesson, shares: [{ teacherId: sean, pct: 60 }, { teacherId: kathy, pct: 40 }] });
+
+    const month = await (await TEACHERS(new Request("http://test.local/api/finance/teachers?month=2026-10"), { params: Promise.resolve({}) })).json();
+    const of = (id: number) => month.people.find((p: { teacher: { id: number } }) => p.teacher.id === id);
+    expect(of(dingding)).toMatchObject({ venue: 500, total: 500, lessonCount: 0 });
+    expect(of(akai)).toMatchObject({ assistant: 250, total: 250 });
+    expect(of(sean).lessonCount).toBe(2);
+    expect(of(kathy)).toMatchObject({ total: 0, missing: [expect.objectContaining({ periodId: periods.bachata })] });
+    expect(of(nini).items).toHaveLength(1);
+  });
+
+  it("老師薪水：不能改水庫的人只看得到自己的", async () => {
+    await attend(periods.body, 7);
+    await attend(periods.salsa, 5);
+    const member = await createMember(classroomId, { role: "teacher", email: "nini@test.local" });
+    await prisma.teacher.update({ where: { id: nini }, data: { userId: member.id } });
+    auth.userId = member.id;
+    const month = await (await TEACHERS(new Request("http://test.local/api/finance/teachers?month=2026-10"), { params: Promise.resolve({}) })).json();
+    expect(month.people.map((p: { teacher: { id: number } }) => p.teacher.id)).toEqual([nini]);
   });
 
   it("沒開水庫：404", async () => {

@@ -243,6 +243,7 @@ export interface LessonSplitRow {
   attendeeCount: number;
   status: LessonSplitStatus;
   flags: SplitFlag[];
+  missingShareTeacherIds: number[];
   split: {
     revenue: number;
     estimated: number;
@@ -266,6 +267,30 @@ export interface LessonSplitRow {
     overridden: boolean;
     overrideReason: string | null;
   } | null;
+}
+
+export interface TeacherMonthPerson {
+  teacher: { id: number; name: string; color: string; isAssistant: boolean; hasAccount: boolean };
+  teach: number;
+  venue: number;
+  assistant: number;
+  remainder: number;
+  total: number;
+  lessonCount: number;
+  pendingCount: number;
+  items: {
+    periodId: number;
+    dateKey: string;
+    startTime: string;
+    lessonName: string;
+    status: LessonSplitStatus;
+    teach: number;
+    venue: number;
+    assistant: number;
+    remainder: number;
+    total: number;
+  }[];
+  missing: { periodId: number; dateKey: string; lessonName: string }[];
 }
 
 export interface DayBook {
@@ -358,6 +383,10 @@ export const financeApi = api.injectEndpoints({
       query: ({ periodId, ...body }) => ({ url: `finance/lessons/${periodId}/override`, method: "POST", body }),
       invalidatesTags: TAG,
     }),
+    getTeacherMonth: builder.query<{ month: string; people: TeacherMonthPerson[] }, string>({
+      query: (month) => `finance/teachers?month=${month}`,
+      providesTags: TAG,
+    }),
     getDayBook: builder.query<DayBook, string>({ query: (date) => `finance/day?date=${date}`, providesTags: TAG }),
     getSplitRules: builder.query<SplitRuleRow[], void>({ query: () => "finance/split-rules", providesTags: TAG }),
     saveSplitRule: builder.mutation<SplitRuleRow, SplitRuleBody>({
@@ -395,6 +424,7 @@ export const {
   useVerifyLessonsMutation,
   useOverrideLessonMutation,
   useGetDayBookQuery,
+  useGetTeacherMonthQuery,
   useGetSplitRulesQuery,
   useSaveSplitRuleMutation,
 } = financeApi;

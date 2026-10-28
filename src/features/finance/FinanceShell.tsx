@@ -9,7 +9,7 @@ import { useGetFinanceSettingQuery } from "@/store/slices/finance";
 import NotBuilt from "./setup/NotBuilt";
 import { financeHref } from "./routes";
 
-type Tab = "home" | "ledger" | "verify" | "mine" | "vault" | "rules" | "settings";
+type Tab = "home" | "ledger" | "verify" | "teachers" | "mine" | "vault" | "rules" | "settings";
 
 /**
  * 水庫每一頁的外框：標題、分頁。還沒建城時整個換成建城任務（或施工中），
@@ -26,6 +26,7 @@ export default function FinanceShell({ children }: { children: ReactNode }) {
     { value: "home", label: "小鎮", href: financeHref.home },
     { value: "ledger", label: "帳本", href: financeHref.ledger },
     { value: "verify", label: "驗收", href: financeHref.verify },
+    { value: "teachers", label: "老師薪水", href: financeHref.teachers },
     ...(me && !data?.isRevenueOwner ? [{ value: "mine" as const, label: "我的背包", href: financeHref.holder(me.id) }] : []),
     { value: "vault", label: "大水庫", href: financeHref.vault },
     { value: "rules", label: "分帳規則", href: financeHref.rules },
