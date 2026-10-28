@@ -5,7 +5,10 @@ import { X } from "lucide-react";
 import ResponsiveDialog, { ResponsiveDialogTitle } from "@/components/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 
-/** A dialog with a title and a scrolling body, no submit button (`Drawer` always has one). */
+/**
+ * 技能樹的抽屜：標題、會捲的內容、可選的底部按鈕列（`Drawer` 一定有送出鈕，這裡沒有）。
+ * 桌面從右邊滑出，手機從下方。
+ */
 export default function Panel({
   open,
   title,
@@ -22,8 +25,8 @@ export default function Panel({
   footer?: ReactNode;
 }) {
   return (
-    <ResponsiveDialog open={open} onClose={onClose} className="max-h-[85vh] p-0 lg:max-w-[560px]">
-      <div className="flex items-start gap-3 px-5 pt-5 pb-3">
+    <ResponsiveDialog open={open} onClose={onClose} desktop="side" className="p-0 max-lg:max-h-[85vh]">
+      <div className="flex items-start gap-3 border-b border-neutral-200 px-5 pt-5 pb-3 lg:px-6">
         <div className="flex min-w-0 flex-1 flex-col">
           <ResponsiveDialogTitle className="text-lg font-bold text-neutral-900">{title}</ResponsiveDialogTitle>
           {subtitle && <p className="text-[13px] text-neutral-500">{subtitle}</p>}
@@ -32,8 +35,8 @@ export default function Panel({
           <X className="size-5" />
         </Button>
       </div>
-      <div className="flex-1 overflow-y-auto px-5 pb-5">{children}</div>
-      {footer && <div className="border-t border-neutral-200 px-5 py-3">{footer}</div>}
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 lg:px-6 lg:py-5">{children}</div>
+      {footer && <div className="border-t border-neutral-200 px-5 py-3 lg:px-6">{footer}</div>}
     </ResponsiveDialog>
   );
 }

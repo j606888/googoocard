@@ -5,8 +5,8 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fieldControlClass } from "@/components/Field";
+import Select from "@/components/Select";
 import { DANCE_STYLE_COLORS } from "@/lib/danceStyles";
-import { danceStyleClasses } from "@/lib/danceStyleColors";
 import { cn } from "@/lib/utils";
 import {
   CATEGORY_NAME_MAX,
@@ -30,6 +30,7 @@ import {
   type SkillTree,
 } from "@/store/slices/curriculum";
 import { CATEGORY_ICONS, CategoryMark } from "./categoryIcons";
+import { categoryColor } from "./categoryColors";
 import Panel from "./Panel";
 
 const iconButton = "text-neutral-500 disabled:opacity-30 disabled:hover:bg-transparent";
@@ -58,19 +59,16 @@ function DeleteChoice({
         刪除這個{what}？{count > 0 ? `上面有 ${count} 個技能：` : "上面沒有技能。"}
       </p>
       {count > 0 && (
-        <select
+        <Select
           aria-label="技能要搬去哪"
+          size="sm"
           value={moveTo}
-          onChange={(e) => setMoveTo(e.target.value)}
-          className={cn(fieldControlClass(), "h-11 text-sm")}
-        >
-          {options.map((o) => (
-            <option key={o.id} value={o.id}>
-              搬到「{o.name}」
-            </option>
-          ))}
-          <option value="archive">一起從樹上移除（封存）</option>
-        </select>
+          onChange={setMoveTo}
+          options={[
+            ...options.map((o) => ({ value: String(o.id), label: `搬到「${o.name}」` })),
+            { value: "archive", label: "一起從樹上移除（封存）" },
+          ]}
+        />
       )}
       <div className="flex gap-2">
         <Button
@@ -149,9 +147,9 @@ function CategoryRow({
                 aria-label={color}
                 aria-pressed={category.color === color}
                 onClick={() => save({ color })}
+                style={{ background: categoryColor(color).fill }}
                 className={cn(
                   "size-7 cursor-pointer rounded-full",
-                  danceStyleClasses(color).bg,
                   category.color === color && "ring-2 ring-primary-900 ring-offset-2"
                 )}
               />

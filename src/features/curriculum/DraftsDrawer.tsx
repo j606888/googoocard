@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Check, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fieldControlClass } from "@/components/Field";
+import Select from "@/components/Select";
 import EmptyState from "@/components/EmptyState";
 import { cn } from "@/lib/utils";
 import { MAX_DRAFT_PASTE, SKILL_NAME_MAX, draftNames, sorted, tierName } from "@/domains/curriculum/skillTree";
@@ -45,6 +46,8 @@ export default function DraftsDrawer({
   const [placeDrafts, { isLoading: placing }] = usePlaceDraftsMutation();
 
   const names = draftNames(text);
+  // 勾過、後來被刪掉或放進樹的卡不算
+  const chosen = tree.drafts.filter((d) => selected.has(d.id)).map((d) => d.id);
   const target = { categoryId: categoryId ?? categories[0]?.id, tierId: tierId ?? tiers[0]?.id };
 
   const add = async () => {
@@ -71,7 +74,7 @@ export default function DraftsDrawer({
     try {
       const { placed, skipped } = await placeDrafts({
         danceStyleId,
-        ids: [...selected],
+        ids: chosen,
         categoryId: target.categoryId,
         tierId: target.tierId,
       }).unwrap();
@@ -94,35 +97,26 @@ export default function DraftsDrawer({
   };
 
   const footer =
-    canEdit && selected.size > 0 && hasTree ? (
+    canEdit && chosen.length > 0 && hasTree ? (
       <div className="flex flex-wrap items-center gap-2">
-        <select
+        <Select
           aria-label="放進哪個分類"
+          size="sm"
+          className="min-w-0 flex-1"
           value={target.categoryId}
-          onChange={(e) => setCategoryId(Number(e.target.value))}
-          className={cn(fieldControlClass(), "h-11 min-w-0 flex-1 text-sm")}
-        >
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select
+          onChange={setCategoryId}
+          options={categories.map((c) => ({ value: c.id, label: c.name }))}
+        />
+        <Select
           aria-label="放進哪個等級"
+          size="sm"
+          className="w-auto"
           value={target.tierId}
-          onChange={(e) => setTierId(Number(e.target.value))}
-          className={cn(fieldControlClass(), "h-11 w-auto text-sm")}
-        >
-          {tiers.map((t, i) => (
-            <option key={t.id} value={t.id}>
-              {tierName(i)}
-              {t.label && ` · ${t.label}`}
-            </option>
-          ))}
-        </select>
+          onChange={setTierId}
+          options={tiers.map((t, i) => ({ value: t.id, label: t.label ? `${tierName(i)} · ${t.label}` : tierName(i) }))}
+        />
         <Button onClick={place} isLoading={placing} className="w-full sm:w-auto">
-          {selected.size} 張放進樹
+          {chosen.length} 張放進樹
         </Button>
       </div>
     ) : undefined;

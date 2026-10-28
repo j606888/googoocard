@@ -8,13 +8,16 @@ import type { Talk } from "@/domains/curriculum/talk";
 import type { Skill, SkillTree } from "@/store/slices/curriculum";
 import { CategoryMark } from "./categoryIcons";
 import { placeText } from "./format";
-import SkillContent from "./SkillContent";
+import SkillContent, { SkillActions } from "./SkillContent";
 import TalkBoard from "./talk/TalkBoard";
 import type { TalkContext } from "./useTalkContext";
 
 export type SkillTab = "content" | "talk";
 
-/** 點技能打開：桌面置中彈窗、手機底部面板，「內容」與「討論」兩個分頁。 */
+/**
+ * 點技能打開：桌面從右邊滑出、手機從下方，「內容」與「討論」兩個分頁。
+ * 內容分頁底部固定「從樹上移除／還原」，討論分頁底部固定留言框。
+ */
 export default function SkillDrawer({
   skill,
   tree,
@@ -36,14 +39,10 @@ export default function SkillDrawer({
   const commentCount = skill ? (talk?.comments.filter((c) => c.skillId === skill.id).length ?? 0) : 0;
 
   return (
-    <ResponsiveDialog
-      open={!!skill}
-      onClose={onClose}
-      className="h-[85vh] p-0 lg:h-[80vh] lg:max-w-[600px]"
-    >
+    <ResponsiveDialog open={!!skill} onClose={onClose} desktop="side" className="p-0 max-lg:h-[92vh]">
       {skill && (
         <>
-          <div className="flex items-start gap-3 px-5 pt-5">
+          <div className="flex items-start gap-3 px-5 pt-5 lg:px-6">
             <CategoryMark category={category} />
             <div className="flex min-w-0 flex-1 flex-col">
               <ResponsiveDialogTitle className="truncate text-lg font-bold text-neutral-900">
@@ -66,26 +65,26 @@ export default function SkillDrawer({
             ]}
             className="border-b border-neutral-200 px-3"
           />
-          <div className="flex-1 overflow-y-auto px-5 py-4">
-            {tab === "content" ? (
-              <SkillContent
-                key={skill.id}
-                skill={skill}
-                tree={tree}
-                canEdit={ctx.canEdit}
-                commentCount={commentCount}
-                onRemoved={onClose}
-              />
-            ) : (
-              <TalkBoard
-                key={skill.id}
-                ctx={ctx}
-                danceStyleId={tree.danceStyle.id}
-                skillId={skill.id}
-                comments={talk?.comments ?? []}
-              />
-            )}
-          </div>
+          {tab === "content" ? (
+            <>
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 lg:px-6 lg:py-5">
+                <SkillContent key={skill.id} skill={skill} tree={tree} canEdit={ctx.canEdit} />
+              </div>
+              {ctx.canEdit && (
+                <div className="border-t border-neutral-200 px-5 py-3 lg:px-6">
+                  <SkillActions key={skill.id} skill={skill} commentCount={commentCount} onRemoved={onClose} />
+                </div>
+              )}
+            </>
+          ) : (
+            <TalkBoard
+              key={skill.id}
+              ctx={ctx}
+              danceStyleId={tree.danceStyle.id}
+              skillId={skill.id}
+              comments={talk?.comments ?? []}
+            />
+          )}
         </>
       )}
     </ResponsiveDialog>

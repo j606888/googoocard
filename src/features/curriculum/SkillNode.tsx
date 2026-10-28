@@ -1,49 +1,63 @@
-import { Check, MessageCircle } from "lucide-react";
+import { Check } from "lucide-react";
 import type { TalkMark } from "@/domains/curriculum/talk";
 import type { Skill, SkillCategory } from "@/store/slices/curriculum";
 import { cn } from "@/lib/utils";
-import { CategoryMark } from "./categoryIcons";
+import { CATEGORY_ICONS } from "./categoryIcons";
+import { categoryVars } from "./categoryColors";
+import type { SkillCategoryIcon } from "@/domains/curriculum/skillTree";
 
-/** 樹上的一個技能：分類色的圓＋圖示＋名稱，右邊留言數（有新的換提醒色）。 */
+/**
+ * 樹上的一個技能（teach-what 的樣子）：分類色圓框＋圖示，下面是名稱；左上角的金色泡泡是留言數
+ * （討論中＝金色、有結論＝灰色勾、有新留言＝右上藍點）。`selected`＝抽屜正打開它。
+ */
 export default function SkillNode({
   skill,
   category,
   mark,
   dimmed,
+  selected = false,
   onOpen,
 }: {
   skill: Skill;
   category: SkillCategory | null;
   mark: TalkMark | undefined;
   dimmed: boolean;
+  selected?: boolean;
   onOpen: () => void;
 }) {
+  const Icon = CATEGORY_ICONS[category?.icon as SkillCategoryIcon] ?? CATEGORY_ICONS.star;
   return (
     <button
       type="button"
       onClick={onOpen}
+      aria-current={selected || undefined}
+      aria-label={`${skill.fullName || skill.name}${mark ? `，${mark.count} 則留言${mark.fresh ? "，有新的" : ""}${mark.concluded ? "，有結論" : ""}` : ""}`}
+      style={categoryVars(category?.color)}
       className={cn(
-        "flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-left transition-[opacity,border-color] hover:border-primary-300",
-        dimmed && "opacity-40"
+        "group flex cursor-pointer flex-col items-center rounded-xl border-[1.5px] px-1 pt-3 pb-2 transition-opacity",
+        selected ? "border-neutral-900 bg-[#F1EEFF]" : "border-transparent hover:bg-neutral-50",
+        dimmed && !selected && "opacity-35 hover:opacity-100"
       )}
     >
-      <CategoryMark category={category} />
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-[15px] font-medium text-neutral-900">{skill.name}</span>
-        {skill.fullName && <span className="truncate text-xs text-neutral-500">{skill.fullName}</span>}
+      <span className="relative grid size-11 shrink-0 place-items-center rounded-full border-2 border-(--sf) bg-white text-(--si) transition-transform group-hover:scale-105 [&_svg]:size-5">
+        <Icon />
+        {mark && (
+          <span
+            aria-hidden="true"
+            className={cn(
+              "absolute -top-2 -left-3 inline-flex h-[19px] min-w-5 items-center justify-center gap-0.5 rounded-[10px_10px_10px_3px] px-1.5 text-[11px] leading-none font-bold shadow-[0_0_0_2px_white]",
+              mark.concluded ? "bg-neutral-200 text-neutral-700" : "bg-[#F2B632] text-[#4A3305]"
+            )}
+          >
+            {mark.concluded && <Check className="size-2.5! stroke-3" />}
+            {mark.count}
+            {mark.fresh && (
+              <span className="absolute -top-[3px] -right-[3px] size-2 rounded-full bg-[#2E6A8E] shadow-[0_0_0_2px_white]" />
+            )}
+          </span>
+        )}
       </span>
-      {mark && (
-        <span
-          aria-label={`${mark.count} 則留言${mark.fresh ? "，有新的" : ""}${mark.concluded ? "，有結論" : ""}`}
-          className={cn(
-            "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
-            mark.fresh ? "bg-warning-100 text-warning-950" : "bg-neutral-100 text-neutral-600"
-          )}
-        >
-          {mark.concluded ? <Check className="size-3" /> : <MessageCircle className="size-3" />}
-          {mark.count}
-        </span>
-      )}
+      <span className="mt-1.5 line-clamp-2 text-center text-xs leading-[1.3] font-medium text-neutral-900">{skill.name}</span>
     </button>
   );
 }

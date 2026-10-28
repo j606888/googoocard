@@ -7,7 +7,7 @@ import { fieldControlClass } from "@/components/Field";
 import { SKILL_NAME_MAX } from "@/domains/curriculum/skillTree";
 import { useCreateSkillMutation } from "@/store/slices/curriculum";
 
-/** 等級欄底部的「＋ 新增技能」：點了變輸入框，Enter 加入、可以連續加。 */
+/** 等級欄最後一格的「＋ 新增技能」虛線格：點了變一整列輸入框，Enter 加入、可以連續加。 */
 export default function AddSkillInline({
   danceStyleId,
   categoryId,
@@ -40,9 +40,9 @@ export default function AddSkillInline({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-neutral-300 text-sm font-medium text-neutral-500 hover:border-primary-300 hover:text-primary-700"
+        className="flex min-h-[104px] w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed border-neutral-300 text-xs font-medium text-neutral-500 hover:border-neutral-900 hover:text-neutral-900"
       >
-        <Plus className="size-4" />
+        <Plus className="size-5" />
         新增技能
       </button>
     );
@@ -50,6 +50,7 @@ export default function AddSkillInline({
 
   return (
     <form
+      className="col-span-full"
       onSubmit={(e) => {
         e.preventDefault();
         submit();

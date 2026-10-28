@@ -12,8 +12,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { SkillCategoryIcon } from "@/domains/curriculum/skillTree";
-import { danceStyleClasses } from "@/lib/danceStyleColors";
 import { cn } from "@/lib/utils";
+import { CATEGORY_ON_FILL, categoryColor } from "./categoryColors";
 
 export const CATEGORY_ICONS: Record<SkillCategoryIcon, LucideIcon> = {
   lightbulb: Lightbulb,
@@ -28,24 +28,27 @@ export const CATEGORY_ICONS: Record<SkillCategoryIcon, LucideIcon> = {
   star: Star,
 };
 
-/** A 分類's colour disc with its icon — the node marker on the tree. */
+/** A 分類's colour chip with its icon (dark icon on the fill). `square` = the tab marker on the tree. */
 export function CategoryMark({
   category,
   size = "md",
+  shape = "circle",
   className,
 }: {
   category: { color: string; icon: string } | null;
   size?: "sm" | "md";
+  shape?: "circle" | "square";
   className?: string;
 }) {
   const Icon = category ? (CATEGORY_ICONS[category.icon as SkillCategoryIcon] ?? Star) : Star;
   return (
     <span
       aria-hidden="true"
+      style={{ background: categoryColor(category?.color).fill, color: CATEGORY_ON_FILL }}
       className={cn(
-        "grid shrink-0 place-items-center rounded-full text-white",
-        category ? danceStyleClasses(category.color).bg : "bg-neutral-300",
-        size === "sm" ? "size-5 [&_svg]:size-3" : "size-8 [&_svg]:size-4",
+        "grid shrink-0 place-items-center [&_svg]:stroke-[2.2]",
+        shape === "square" ? "rounded-[7px]" : "rounded-full",
+        size === "sm" ? "size-[26px] [&_svg]:size-3.5" : "size-8 [&_svg]:size-4",
         className
       )}
     >
