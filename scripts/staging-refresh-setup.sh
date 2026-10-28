@@ -4,18 +4,22 @@
 #   2. 貼上 staging Neon 的直連網址，存成 GitHub secret
 #   3. 選要保留 LINE 綁定的人（丁丁、Sean），存成 GitHub secret
 # 需要：docker（跑 psql）、gh（已登入）、.env.production 裡的正式 DATABASE_URL。
-# 密碼和網址都不會印在畫面上。
+# 密碼和網址都不會印在畫面上。要在自己的終端機跑（會問你要貼網址），在哪個分支都可以：
+#   bash <(git show chore/staging-refresh:scripts/staging-refresh-setup.sh)    # 還沒 merge 時
+#   scripts/staging-refresh-setup.sh                                          # merge 進 main 之後
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(git rev-parse --show-toplevel)"
+[[ -t 0 ]] || { echo "✋ 要在自己的終端機跑（會問你問題）" >&2; exit 1; }
 
 ADMIN=$(grep '^DATABASE_URL=' .env.production | sed -E 's/^DATABASE_URL="?([^"]*)"?$/\1/')
 [[ -n "$ADMIN" ]] || { echo "✋ .env.production 沒有 DATABASE_URL" >&2; exit 1; }
 DBNAME=$(sed -E 's#.*/([^/?]+)(\?.*)?$#\1#' <<<"$ADMIN")
-psql_prod() { docker run --rm -i postgres:16 psql "$ADMIN" -v ON_ERROR_STOP=1 "$@"; }
+psql_prod() { docker run --rm postgres:16 psql "$ADMIN" -v ON_ERROR_STOP=1 "$@"; }
+psql_prod_stdin() { docker run --rm -i postgres:16 psql "$ADMIN" -v ON_ERROR_STOP=1 "$@"; }
 
 echo "── 1/3 正式 RDS 唯讀帳號（資料庫 $DBNAME）"
 PW=$(openssl rand -hex 24)
-psql_prod -q -v pw="$PW" <<SQL
+psql_prod_stdin -q -v pw="$PW" <<SQL
 DO \$\$ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'googoocard_readonly') THEN
     CREATE ROLE googoocard_readonly LOGIN;
