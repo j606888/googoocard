@@ -1,8 +1,8 @@
 import prisma from "@/lib/prisma";
 import { apiRoute } from "@/lib/apiRoute";
-import { MODULES } from "@/lib/permissions";
+import { MODULES, isModuleLocked } from "@/lib/permissions";
 
-/** Every module, on or off, for the 功能模組 page. */
+/** Every module, on or off, for the 功能模組 page. `locked` = 準備中, can't be switched on. */
 export const GET = apiRoute(async ({ classroomId }) => {
   const rows = await prisma.classroomModule.findMany({
     where: { classroomId },
@@ -14,6 +14,7 @@ export const GET = apiRoute(async ({ classroomId }) => {
     return {
       module,
       enabled: Boolean(row),
+      locked: isModuleLocked(module),
       enabledAt: row?.enabledAt ?? null,
       enabledBy: row?.enabledBy ?? null,
     };

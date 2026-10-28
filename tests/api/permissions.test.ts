@@ -32,6 +32,8 @@ const as = (userId: number) => {
 // A stand-in for a module route: answers 200 only with the permission.
 const financeOnly = apiRoute(async () => ({ ok: true }), { permission: "finance.view" });
 const callFinance = () => financeOnly(jsonRequest("GET"), routeParams({}));
+const curriculumOnly = apiRoute(async () => ({ ok: true }), { permission: "curriculum.view" });
+const callCurriculum = () => curriculumOnly(jsonRequest("GET"), routeParams({}));
 
 const enable = (module: string) => ENABLE(jsonRequest("PUT"), routeParams({ module }));
 const disable = (module: string) => DISABLE(jsonRequest("DELETE"), routeParams({ module }));
@@ -112,13 +114,31 @@ describe("/api/classroom-modules", () => {
 
   it("開啟是冪等的；關掉後該模組的 API 變 404，資料表不動", async () => {
     await seed();
-    expect((await enable("finance")).status).toBe(200);
-    expect((await enable("finance")).status).toBe(200);
+    expect((await enable("curriculum")).status).toBe(200);
+    expect((await enable("curriculum")).status).toBe(200);
     expect(await prisma.classroomModule.count()).toBe(1);
-    expect((await callFinance()).status).toBe(200);
+    expect((await callCurriculum()).status).toBe(200);
 
+    expect((await disable("curriculum")).status).toBe(200);
+    expect((await callCurriculum()).status).toBe(404);
+  });
+
+  it("準備中的模組（水庫）開不了 → 403 MODULE_LOCKED；已經開著的還是關得掉", async () => {
+    const { classroom } = await seed();
+    const res = await enable("finance");
+    expect(res.status).toBe(403);
+    expect((await res.json()).code).toBe("MODULE_LOCKED");
+    expect(await prisma.classroomModule.count()).toBe(0);
+
+    const list = await (await LIST_MODULES(jsonRequest("GET"), routeParams({}))).json();
+    expect(list.map((m: { module: string; locked: boolean }) => [m.module, m.locked])).toEqual([
+      ["curriculum", false],
+      ["finance", true],
+    ]);
+
+    await enableModule(classroom.id, "finance");
     expect((await disable("finance")).status).toBe(200);
-    expect((await callFinance()).status).toBe(404);
+    expect(await prisma.classroomModule.count()).toBe(0);
   });
 
   it("沒有 modules.manage 的人不能開關 → 403", async () => {

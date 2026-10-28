@@ -45,7 +45,7 @@
 - **依賴單向**：模組可以 import 核心；核心不 import 模組。用 ESLint `no-restricted-imports` 擋（第 1 階段加，見 §1.7）。
 - **Prisma**：維持單一 `schema.prisma`，模組的 model 集中放在檔尾，用 `// ===== 模組：技能樹 =====` 分段。多檔 schema 等模組長大再說（要動 `scripts/` 裡的部署腳本，現在不值得）。
 - **iOS App**：三個階段都不動。App 的課程／學生／收入是 WebView，原生「更多」不加模組入口。
-- **設計系統**：所有新畫面照 `docs/design-system.md`，用現有的 `Button`／`Field`／`EmptyState`／`Skeleton`／`StatusTag`／`Drawer`；桌面版照 `docs/ui-responsive.md`。teach-what 和 water-tank 的配色、字型、`ui.tsx` 都**不搬**，只搬版面與互動。
+- **設計系統**：所有新畫面照 `docs/design-system.md`，用現有的 `Button`／`Field`／`EmptyState`／`Skeleton`／`StatusTag`／`Drawer`；桌面版照 `docs/ui-responsive.md`。teach-what 和 water-tank 的配色、字型、`ui.tsx` 都**不搬**，只搬版面與互動。**例外**：技能樹頁（`SkillTreeView`／`SkillNode`）照 teach-what 的樣子——分類分頁、黑底「一轉」標頭、圓形技能節點、金色留言泡泡，分類色用 teach-what 的調色盤（`src/features/curriculum/categoryColors.ts`，key 沿用 `DANCE_STYLE_COLORS`）；按鈕、篩選、抽屜仍用設計系統元件（2026-10-28）。
 
 ---
 
@@ -443,6 +443,8 @@ RTK Query：`src/store/slices/curriculum.ts`，tag `SkillTree`（樹的動作）
 
 目標：把 water-tank 的畫面搬進 `/finance`，**仍然用假資料**，先把流程和版面定下來。這個階段沒有資料表、沒有 API。
 
+> 2026-10-27：水庫先鎖起來（`LOCKED_MODULES`），專心把技能樹做完上線，免得推一個沒做完的水庫出去。畫面和程式都留著，要繼續做時把 `finance` 從 `LOCKED_MODULES` 拿掉。
+
 > 搬的是 water-tank 的**工作目錄**，不是 HEAD：`src/lib/settlement.ts`、`src/components/close/` 尚未 commit，`close/page.tsx`、`mock-data.ts` 有未 commit 的改動（`payroll[].cashOnHand` 已換成 `closeHoldings`／`closeTank`＋`planSettlement`）。
 
 ### 3.1 網址與頁面
@@ -450,7 +452,7 @@ RTK Query：`src/store/slices/curriculum.ts`，tag `SkillTree`（樹的動作）
 | googoocard | water-tank | 內容 |
 |---|---|---|
 | `/finance` | `/` | 儀表板：水庫水位（帳上餘額＋未認列預收）、本月收入／支出／流入水庫／距發薪日、每週收支長條、錢在誰手上、待處理、最近交易 |
-| `/finance/ledger` | `/ledger` | 流水帳（篩選＋表格）＋「記一筆」表單。只能新增與沖銷，不能修改 |
+| `/finance/ledger` | `/ledger` | 流水帳：依日期分組；「記一筆」「轉移」按了才彈出表單；點一列看誰記的、修改紀錄，可編輯（要寫原因）、封存（不算收支、可還原），不會真的刪掉 |
 | `/finance/funds` | `/funds` | 資金與繳回：大水庫、各據點小水庫、轉帳中待確認、繳回規則、繳回紀錄 |
 | `/finance/funds/settings` | `/funds/settings` | 各據點資金模式（集中繳回／直接入帳）、保管人、零用金、提醒門檻 |
 | `/finance/funds/[poolId]` | `/funds/tainan` | 單一小水庫：餘額／零用金／可繳回、現金在誰手上、上次繳回後的進出。**原本寫死台南，改成動態路由** |
@@ -526,7 +528,7 @@ water-tank 的 `globals.css` 主題（`ink`、`line`、`muted`、`field`…）**
 
 ### 3.7 桌面／手機
 
-照 `docs/ui-responsive.md`：water-tank 多是桌面雙欄（例如流水帳左表格右表單、月結左薪資右結算），在 `lg:` 以下改單欄。流水帳表格用 `DataView`（手機卡片、電腦表格）；「記一筆」在手機上改成 `Drawer`。
+照 `docs/ui-responsive.md`：water-tank 多是桌面雙欄（例如月結左薪資右結算），在 `lg:` 以下改單欄。流水帳表格用 `DataView`（手機卡片、電腦表格）；「記一筆」「轉移」一律按了才開 `Drawer`（桌面置中、手機底部），一筆的詳細桌面用 `SideSheet`。
 
 ### 3.8 完成條件
 
@@ -545,7 +547,7 @@ water-tank 的 `globals.css` 主題（`ink`、`line`、`muted`、`field`…）**
 
 - **收入只有一套定義**：直接用 `src/lib/income.ts` 的 `periodRevenue`（依上課攤提）＋`card-monthly`（依購買日，即預收）。water-tank §8.1 的「最後一堂補零頭」公式要併進 `periodRevenue`，否則收入頁和水庫會差幾分錢；併進去會讓收入頁的數字小幅變動，要先確認。
 - **錢在誰手上**：`StudentCard.paidByUserId`、`paymentMethod` 已經有了；缺「代收交接給誰、何時確認」，要在 `StudentCard` 加欄位（對應 §2.1 的 `handed_over_to`／`handed_over_confirmed_at`）。
-- **水庫自己的表**：流水帳（只新增與沖銷）、支出分類、資金池與保管人（以 `Location` 為據點）、繳回紀錄、分帳規則與版本、月結快照與薪資單。
+- **水庫自己的表**：流水帳（可編輯、封存，每次改動留歷程；金錢轉移要收的人確認）、支出分類、資金池與保管人（以 `Location` 為據點）、繳回紀錄、分帳規則與版本、月結快照與薪資單。
 - 自動帶入的列（課卡收款、點名認列）在水庫裡唯讀，標「來源：點名系統」，要改回核心改。
 - 月結後核心資料被改 → 在目前未關帳月份記調整分錄（§8.4）。
 - 待決定：欠卡暫估單價（§8.3）、課卡**轉換與轉讓**怎麼認列（原規格沒寫到）、退費、過期未用完的堂數、跨據點上課的拆帳（§10）。

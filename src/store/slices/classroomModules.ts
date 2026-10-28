@@ -4,6 +4,8 @@ import type { Module } from "@/lib/permissions";
 export interface ClassroomModuleState {
   module: Module;
   enabled: boolean;
+  /** 準備中：還不能開（已經開著的可以關）。 */
+  locked: boolean;
   enabledAt: string | null;
   enabledBy: { id: number; name: string } | null;
 }

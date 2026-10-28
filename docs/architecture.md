@@ -604,7 +604,7 @@ owner 不能「退出」——教室會變成沒有 owner，而 `Classroom.owner
 - 團隊頁「改角色與權限」送完整勾選清單，server 用 `overridesFor()` 換成 grants／revokes：不能改 owner、不能改自己、**改角色會清掉個人調整**、只能給自己有的權限（403 `CANNOT_GRANT_PERMISSION`，以全部模組都開的狀態比較）。沒開的模組的勾選框不列，它們的個人調整原封不動。
 - 「封存教室」「轉移教室」仍是 `requireOwner`，不是權限。
 
-**模組** `ClassroomModule`（`@@unique([classroomId, module])`）：有這列＝開著。關掉＝刪掉這列，模組自己的資料不動。`/modules` 頁開關（`modules.manage`，`PUT`／`DELETE /api/classroom-modules/[module]`，冪等）。
+**模組** `ClassroomModule`（`@@unique([classroomId, module])`）：有這列＝開著。關掉＝刪掉這列，模組自己的資料不動。`/modules` 頁開關（`modules.manage`，`PUT`／`DELETE /api/classroom-modules/[module]`，冪等）。 還沒做完的模組列在 `LOCKED_MODULES`（`src/lib/permissions.ts`，目前是水庫）：`/modules` 顯示「準備中」、開關按不了，`PUT` 回 403 `MODULE_LOCKED`；已經開著的仍可關。上線時從清單拿掉即可。
 
 **把關**：`decodeAuthToken()` 原本那次 membership 查詢一起帶回 `grants`／`revokes`／`modules`（`findMembershipAccess()`，`src/lib/access.ts`），`apiRoute` 算好放進 ctx 的 `permissions`／`modules`。
 `apiRoute(handler, { permission })`：模組沒開 → 404 `MODULE_NOT_ENABLED`（對這間教室來說功能不存在）；沒權限 → 403 `PERMISSION_DENIED`。handler 裡要條件式檢查用 `assertCan(ctx, permission)`。

@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { apiRoute } from "@/lib/apiRoute";
 import { ApiError } from "@/lib/apiError";
-import { isModule, type Module } from "@/lib/permissions";
+import { isModule, isModuleLocked, type Module } from "@/lib/permissions";
 
 type Params = { module: string };
 
@@ -10,9 +10,10 @@ function parseModule(raw: string): Module {
   return raw;
 }
 
-/** Switch a module on. Already on → 200 all the same. */
+/** Switch a module on. Already on → 200 all the same. A locked module (準備中) → 403. */
 export const PUT = apiRoute<Params>(async ({ params, userId, classroomId }) => {
   const module_ = parseModule(params.module);
+  if (isModuleLocked(module_)) throw new ApiError(403, "MODULE_LOCKED", "This module isn't available yet");
   await prisma.classroomModule.upsert({
     where: { classroomId_module: { classroomId, module: module_ } },
     create: { classroomId, module: module_, enabledById: userId },

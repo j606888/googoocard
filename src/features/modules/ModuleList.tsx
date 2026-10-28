@@ -71,6 +71,7 @@ const ModuleList = () => {
             const info = MODULE_INFO[module];
             const state = states.get(module);
             const enabled = state?.enabled ?? false;
+            const locked = (state?.locked ?? false) && !enabled;
             return (
               <li key={module} className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-5">
                 <div className="flex items-center gap-3">
@@ -81,6 +82,8 @@ const ModuleList = () => {
                     <span className="text-lg font-bold text-neutral-900">{info.name}</span>
                     {enabled ? (
                       <StatusTag tone="positive">已開啟</StatusTag>
+                    ) : locked ? (
+                      <StatusTag tone="outline">準備中</StatusTag>
                     ) : (
                       <StatusTag tone="neutral">未開啟</StatusTag>
                     )}
@@ -88,11 +91,12 @@ const ModuleList = () => {
                   <Switch
                     aria-label={`${enabled ? "關閉" : "開啟"}${info.name}`}
                     checked={enabled}
-                    disabled={!canManage || saving}
+                    disabled={!canManage || saving || locked}
                     onCheckedChange={(next) => (next ? toggle(module, true) : setConfirmOff(module))}
                   />
                 </div>
                 <p className="text-sm leading-relaxed text-neutral-600">{info.summary}</p>
+                {locked && <p className="text-[13px] text-neutral-500">還在做，做好之後才能開啟。</p>}
                 <dl className="flex flex-col gap-1 text-[13px] leading-relaxed text-neutral-500">
                   <div>
                     <dt className="inline font-medium text-neutral-700">開了會多什麼：</dt>
