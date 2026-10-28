@@ -72,7 +72,9 @@ model LessonPeriodAssistant {
 
 ### 4.1 `FinanceSplitRule`（三層＋版本）
 
-一列＝某一層在某天之後的設定。改規則＝新增一列，`effectiveFrom` 是下個月 1 號；如果下個月的那列已經有了，就直接改它（寫 `reason`）。歷史就是這些列本身，不另外開 revision 表。
+一列＝某一層在某天之後的設定。某一層（全教室、某個分部、某門課）**第一次設＝從頭算**（`effectiveFrom` = 1970-01-01）；之後改規則＝新增一列，`effectiveFrom` 預設是下個月 1 號（可以選從這個月 1 號）；如果那天生效的那列已經有了，就直接改它。歷史就是這些列本身，不另外開 revision 表。
+
+已實作（2026-10-29，分支 `feat/finance-split`）：`src/domains/finance/split.ts`（純計算＋單元測試）、`src/service/finance/split.ts`、`GET/PUT /api/finance/split-rules`、`GET /api/finance/lessons?from=&to=`、`POST /api/finance/lessons/verify`、畫面 `/finance/verify`（每堂驗收）、`/finance/rules`（分帳規則）。還沒做：手動改實拿／整堂手動結算、當天的帳、行事曆、第一次設定精靈、小鎮拆出待發與基金。
 
 ```prisma
 enum FinanceRuleScope { CLASSROOM LOCATION LESSON }

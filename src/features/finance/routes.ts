@@ -5,6 +5,8 @@ export const financeHref = {
   home: BASE,
   ledger: `${BASE}/ledger`,
   vault: `${BASE}/vault`,
+  verify: `${BASE}/verify`,
+  rules: `${BASE}/rules`,
   settings: `${BASE}/settings`,
   holder: (userId: number) => `${BASE}/holders/${userId}`,
 };

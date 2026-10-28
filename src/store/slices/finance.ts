@@ -188,6 +188,77 @@ export interface EntryBody {
   description?: string | null;
 }
 
+// ---------- 第二步：分帳規則、每堂驗收（src/service/finance/split.ts）
+
+export type TeacherPay = "NONE" | "HOURLY" | "SPLIT";
+export type FeeMode = "NONE" | "PER_LESSON" | "PER_DAY";
+export type VenuePayee = "MEMBER" | "EXTERNAL";
+export type RemainderTo = "REVENUE_OWNER" | "FUND";
+export type RuleScope = "CLASSROOM" | "LOCATION" | "LESSON";
+
+export interface SplitRuleKnobs {
+  teacherPay?: TeacherPay | null;
+  hourlyFee?: number | null;
+  venueMode?: FeeMode | null;
+  venueAmount?: number | null;
+  venuePayee?: VenuePayee | null;
+  venueTeacherId?: number | null;
+  assistantMode?: FeeMode | null;
+  assistantAmount?: number | null;
+  commissionPct?: number | null;
+  manual?: boolean | null;
+  roundTo?: 1 | 10 | 100 | null;
+  remainderTo?: RemainderTo | null;
+  shares?: { teacherId: number; pct: number }[];
+}
+
+export interface SplitRuleRow extends SplitRuleKnobs {
+  id: number;
+  scope: RuleScope;
+  locationId: number | null;
+  lessonId: number | null;
+  effectiveFrom: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface SplitRuleBody extends SplitRuleKnobs {
+  scope: RuleScope;
+  locationId?: number | null;
+  lessonId?: number | null;
+  applyFrom?: "THIS_MONTH" | "NEXT_MONTH";
+  reason?: string | null;
+}
+
+export type SplitFlag = "NO_CARD" | "MISSING_SHARE_TEACHER" | "NO_TEACHER" | "MANUAL" | "NO_LOCATION";
+export type LessonSplitStatus = "UPCOMING" | "NOT_TAKEN" | "PENDING" | "CHANGED" | "VERIFIED";
+
+export interface LessonSplitRow {
+  periodId: number;
+  lessonId: number;
+  lessonName: string;
+  startTime: string;
+  dateKey: string;
+  locationId: number | null;
+  attendeeCount: number;
+  status: LessonSplitStatus;
+  flags: SplitFlag[];
+  split: {
+    revenue: number;
+    estimated: number;
+    venueFee: number;
+    venueTeacherId: number | null;
+    assistantFee: number;
+    assistantLines: { teacherId: number; amount: number }[];
+    commission: number;
+    teacherLines: { teacherId: number; amount: number }[];
+    remainder: number;
+    remainderTeacherId: number | null;
+    fund: number;
+  } | null;
+  verified: { by: { id: number; name: string }; at: string; revenue: number; revenueDiff: number } | null;
+}
+
 const TAG = [{ type: "Finance" as const }];
 
 export const financeApi = api.injectEndpoints({
@@ -247,6 +318,22 @@ export const financeApi = api.injectEndpoints({
       query: ({ id, reason }) => ({ url: `finance/entries/${id}/void`, method: "POST", body: { reason } }),
       invalidatesTags: TAG,
     }),
+    getLessonSplits: builder.query<LessonSplitRow[], { from: string; to: string }>({
+      query: ({ from, to }) => `finance/lessons?from=${from}&to=${to}`,
+      providesTags: TAG,
+    }),
+    verifyLessons: builder.mutation<
+      { verified: number[]; skipped: { periodId: number; reason: string }[] },
+      { periodIds: number[]; batch?: boolean }
+    >({
+      query: (body) => ({ url: "finance/lessons/verify", method: "POST", body }),
+      invalidatesTags: TAG,
+    }),
+    getSplitRules: builder.query<SplitRuleRow[], void>({ query: () => "finance/split-rules", providesTags: TAG }),
+    saveSplitRule: builder.mutation<SplitRuleRow, SplitRuleBody>({
+      query: (body) => ({ url: "finance/split-rules", method: "PUT", body }),
+      invalidatesTags: TAG,
+    }),
     markFinanceQuest: builder.mutation<unknown, Quest>({
       query: (quest) => ({ url: "finance/quests", method: "POST", body: { quest } }),
       invalidatesTags: TAG,
@@ -274,6 +361,10 @@ export const {
   useUpdateEntryMutation,
   useVoidEntryMutation,
   useMarkFinanceQuestMutation,
+  useGetLessonSplitsQuery,
+  useVerifyLessonsMutation,
+  useGetSplitRulesQuery,
+  useSaveSplitRuleMutation,
 } = financeApi;
 
 /** RTK Query 錯誤裡的 API code。 */
