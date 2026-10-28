@@ -27,7 +27,7 @@ export const MODULE_LABELS: Record<Module, string> = {
  * 還沒做完、先不開放的模組：開關鎖住、API 不讓開（已經開著的還是可以關）。
  * 做完要上線時把它從這裡拿掉就好。
  */
-export const LOCKED_MODULES: readonly Module[] = ["finance"];
+export const LOCKED_MODULES: readonly Module[] = [];
 
 export function isModuleLocked(module: Module): boolean {
   return LOCKED_MODULES.includes(module);

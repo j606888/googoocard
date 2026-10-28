@@ -123,22 +123,16 @@ describe("/api/classroom-modules", () => {
     expect((await callCurriculum()).status).toBe(404);
   });
 
-  it("準備中的模組（水庫）開不了 → 403 MODULE_LOCKED；已經開著的還是關得掉", async () => {
-    const { classroom } = await seed();
-    const res = await enable("finance");
-    expect(res.status).toBe(403);
-    expect((await res.json()).code).toBe("MODULE_LOCKED");
-    expect(await prisma.classroomModule.count()).toBe(0);
-
+  // LOCKED_MODULES 目前是空的（水庫 2026-10-28 開放）。之後再有準備中的模組，
+  // 在這裡補「開不了 → 403 MODULE_LOCKED、已經開著的還關得掉」。
+  it("水庫已開放：開得起來，列表上不是準備中", async () => {
+    await seed();
+    expect((await enable("finance")).status).toBe(200);
     const list = await (await LIST_MODULES(jsonRequest("GET"), routeParams({}))).json();
     expect(list.map((m: { module: string; locked: boolean }) => [m.module, m.locked])).toEqual([
       ["curriculum", false],
-      ["finance", true],
+      ["finance", false],
     ]);
-
-    await enableModule(classroom.id, "finance");
-    expect((await disable("finance")).status).toBe(200);
-    expect(await prisma.classroomModule.count()).toBe(0);
   });
 
   it("沒有 modules.manage 的人不能開關 → 403", async () => {

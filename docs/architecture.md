@@ -598,13 +598,16 @@ owner 不能「退出」——教室會變成沒有 owner，而 `Classroom.owner
 | `members.manage`、`modules.manage` | ✓ | ✓ | | |
 | `curriculum.view` | ✓ | ✓ | ✓ | ✓ |
 | `curriculum.edit` | ✓ | ✓ | ✓ | |
-| `finance.view`、`finance.edit` | ✓ | ✓ | | |
+| `finance.view`（水庫全公開） | ✓ | ✓ | ✓ | ✓ |
+| `finance.edit` | ✓ | ✓ | | |
 
 - 實際權限＝owner 全部；其他人 `(ROLE_BUNDLES[role] ∪ Membership.grants) − Membership.revokes`，再拿掉「所屬模組沒開」的（`effectivePermissions`）。DB 只存跟預設組合的差異，新增權限改一行程式就全員生效。
 - 團隊頁「改角色與權限」送完整勾選清單，server 用 `overridesFor()` 換成 grants／revokes：不能改 owner、不能改自己、**改角色會清掉個人調整**、只能給自己有的權限（403 `CANNOT_GRANT_PERMISSION`，以全部模組都開的狀態比較）。沒開的模組的勾選框不列，它們的個人調整原封不動。
 - 「封存教室」「轉移教室」仍是 `requireOwner`，不是權限。
 
-**模組** `ClassroomModule`（`@@unique([classroomId, module])`）：有這列＝開著。關掉＝刪掉這列，模組自己的資料不動。`/modules` 頁開關（`modules.manage`，`PUT`／`DELETE /api/classroom-modules/[module]`，冪等）。 還沒做完的模組列在 `LOCKED_MODULES`（`src/lib/permissions.ts`，目前是水庫）：`/modules` 顯示「準備中」、開關按不了，`PUT` 回 403 `MODULE_LOCKED`；已經開著的仍可關。上線時從清單拿掉即可。
+**模組** `ClassroomModule`（`@@unique([classroomId, module])`）：有這列＝開著。關掉＝刪掉這列，模組自己的資料不動。`/modules` 頁開關（`modules.manage`，`PUT`／`DELETE /api/classroom-modules/[module]`，冪等）。 還沒做完的模組列在 `LOCKED_MODULES`（`src/lib/permissions.ts`，目前是空的；水庫 2026-10-28 開放）：`/modules` 顯示「準備中」、開關按不了，`PUT` 回 403 `MODULE_LOCKED`；已經開著的仍可關。上線時從清單拿掉即可。
+
+**水庫（finance）第一步**（規則在 `docs/finance-plan.md`）：代收＝課卡的 `paidByUserId`（只算啟用日之後、`origin = PURCHASE`、`finalPrice > 0`），繳回要營收負責人（`FinanceSetting.revenueOwnerUserId`）確認，大水庫＝期初＋營收負責人自己收的卡＋確認的繳回 ± 手記帳。帳全部在 `src/service/finance/money.ts` 現算，不存餘額。只有營收負責人能確認繳回、記帳（不是權限，是 service 檢查）；`finance.edit` 管建城前選負責人、換負責人。繳回推播用 `notifyUsers()`（`src/service/push.ts`，只發給指定的人、不看待處理的通知開關）。
 
 **把關**：`decodeAuthToken()` 原本那次 membership 查詢一起帶回 `grants`／`revokes`／`modules`（`findMembershipAccess()`，`src/lib/access.ts`），`apiRoute` 算好放進 ctx 的 `permissions`／`modules`。
 `apiRoute(handler, { permission })`：模組沒開 → 404 `MODULE_NOT_ENABLED`（對這間教室來說功能不存在）；沒權限 → 403 `PERMISSION_DENIED`。handler 裡要條件式檢查用 `assertCan(ctx, permission)`。

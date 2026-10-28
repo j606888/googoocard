@@ -1,7 +1,8 @@
 # 水庫（finance 模組）計劃書 v2
 
-> 狀態：設計中，**還沒開始開發**（2026-10-28）。先把設計全部想清楚再動工。
-> 取代 `docs/modules-plan.md` 第 3 階段那套 water-tank 搬過來的設計（多個小水庫、據點資金模式…）。舊畫面還在 `src/features/finance`，鎖在 `LOCKED_MODULES`，第一步做完後整套換掉。
+> 狀態：**第一步開發中**（2026-10-28，分支 `claude/finance-step1`）：後端（schema、API、測試）＋帳本模式畫面完成，奇異鳥小鎮畫面還沒疊上去。第二步（分帳）、第三步（月結）還沒開始。
+> 取代 `docs/modules-plan.md` 第 3 階段那套 water-tank 搬過來的設計。舊的示意畫面已刪（在 commit 56b0393 可以找到），水庫模組已從 `LOCKED_MODULES` 拿掉。
+> 程式：`src/service/finance/`（帳怎麼算全在 `money.ts`）、`src/domains/finance/`、`src/app/api/finance/`、`src/features/finance/`；測試 `tests/api/finance.test.ts`。
 > 設計稿：artifact `2XZWJaRqm6Fkq1otFXYixK`。第一排是第一步的 5 張（金流前提、我的代收、繳回、總覽、大水庫收支），下面兩排是定案的遊戲畫風（電腦版、手機版）。舊版和遊戲版 A／B／C 已刪掉（2026-10-28）。
 > **畫面風格：遊戲版 D「奇異鳥小鎮」**，見 [`finance-game-style.md`](finance-game-style.md)。這份計劃書管金流規則，那份管畫面。
 > **只做網頁版**：水庫不進 iOS App，推播走網頁推播（大家把網站加入主畫面）。
@@ -255,7 +256,7 @@ Excel 留著當**舊帳**（唯讀，不再更新）。歷史不逐筆匯入：�
 5. **丁丁對應哪位 `Teacher`**（Sean 已確認是老闆）。
 6. **台南週二**要不要抽 10%（目前先假設不抽）。台南週日抽（已確認）。
 7. **代收的「手上」要不要分現金和轉帳？** 目前不分。
-8. **全公開要多細**：學生名字和課卡金額大家都看得到嗎？還是只看得到彙總？
+8. ~~全公開要多細~~ → 大家都看得到所有東西（學生名字、每筆金額）。老師、小幫手預設就有 `finance.view`。
 9. ~~取整數~~ → 預設捨去到十位，月結前可以手動改（§6.1）。
 
 ## 12. 不做的事

@@ -21,6 +21,8 @@ export const TAG_TYPES = [
   // 模組：技能樹
   "SkillTree",
   "SkillTalk",
+  // 模組：水庫
+  "Finance",
 ]
 
 const rawBaseQuery = fetchBaseQuery({ baseUrl: "/api" });

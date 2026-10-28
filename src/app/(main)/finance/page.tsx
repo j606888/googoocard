@@ -1,5 +1,5 @@
-import Dashboard from "@/features/finance/dashboard/Dashboard";
+import Overview from "@/features/finance/overview/Overview";
 
-export default function FinanceDashboardPage() {
-  return <Dashboard />;
+export default function FinancePage() {
+  return <Overview />;
 }
