@@ -1,0 +1,53 @@
+# 每天台北 04:00 把正式資料庫複製到 staging（CLAUDE.md「Staging」）。
+#   暫停：gh variable set STAGING_REFRESH_PAUSED --body true   （恢復：--body false）
+#   手動跑一次（暫停中也會跑）：gh workflow run staging-refresh.yml
+# Secrets 由 scripts/staging-refresh-setup.sh 設定。
+name: Staging refresh
+
+on:
+  schedule:
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+
+concurrency: staging-refresh
+
+jobs:
+  refresh:
+    if: github.event_name == 'workflow_dispatch' || vars.STAGING_REFRESH_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # 腳本用 main 的；migration 用 staging 分支上的（現在在測哪個分支，就是它的 schema）。
+      - uses: actions/checkout@v4
+        with:
+          path: tools
+      - uses: actions/checkout@v4
+        with:
+          ref: staging
+          path: app
+
+      - name: Install PostgreSQL 16 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-16
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+
+      - name: Copy production → staging
+        env:
+          PROD_READONLY_DATABASE_URL: ${{ secrets.PROD_READONLY_DATABASE_URL }}
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          STAGING_KEEP_LINE_USER_IDS: ${{ secrets.STAGING_KEEP_LINE_USER_IDS }}
+        run: bash tools/scripts/staging-refresh.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply the staging branch's migrations
+        working-directory: app
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npx --yes prisma@$(node -p "require('./package.json').devDependencies?.prisma ?? require('./package.json').dependencies.prisma" | tr -d '^~') migrate deploy

@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { outboundPushDisabled } from "@/lib/appEnv";
 import { decodeMockToken, isLineMockEnabled, MOCK_TOKEN_PREFIX } from "@/lib/lineMock";
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET ?? "";
@@ -308,6 +309,10 @@ export async function pushMessage(
   to: string,
   messages: LineMessage[],
 ): Promise<boolean> {
+  if (outboundPushDisabled()) {
+    console.warn("[line] staging: push disabled, not sent");
+    return false;
+  }
   if (!CHANNEL_ACCESS_TOKEN) {
     console.warn("[line] LINE_CHANNEL_ACCESS_TOKEN not set; skipping push");
     return false;
