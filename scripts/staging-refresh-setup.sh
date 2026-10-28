@@ -17,7 +17,7 @@ DBNAME=$(sed -E 's#.*/([^/?]+)(\?.*)?$#\1#' <<<"$ADMIN")
 psql_prod() { docker run --rm postgres:16 psql "$ADMIN" -v ON_ERROR_STOP=1 "$@"; }
 psql_prod_stdin() { docker run --rm -i postgres:16 psql "$ADMIN" -v ON_ERROR_STOP=1 "$@"; }
 
-echo "── 1/3 正式 RDS 唯讀帳號（資料庫 $DBNAME）"
+echo "── 1/3 正式 RDS 唯讀帳號（資料庫 ${DBNAME}）"
 PW=$(openssl rand -hex 24)
 psql_prod_stdin -q -v pw="$PW" <<SQL
 DO \$\$ BEGIN
@@ -43,7 +43,7 @@ echo "── 2/3 staging Neon 直連網址"
 echo "   Neon 後台 → googoocard-staging → Connect → 關掉「Connection pooling」→ 複製網址（host 不能有 -pooler）"
 read -r -s -p "   貼上（不會顯示）：" NEON; echo
 NEON_HOST=$(sed -E 's#^[a-z]+://([^@]*@)?([^:/?]+).*#\2#' <<<"$NEON")
-[[ "$NEON_HOST" == *.neon.tech ]] || { echo "✋ 這不是 Neon 的網址（$NEON_HOST）" >&2; exit 1; }
+[[ "$NEON_HOST" == *.neon.tech ]] || { echo "✋ 這不是 Neon 的網址（${NEON_HOST}）" >&2; exit 1; }
 [[ "$NEON_HOST" != *-pooler* ]] || { echo "✋ 這是 pooler 網址，要直連的（關掉 Connection pooling）" >&2; exit 1; }
 gh secret set STAGING_DATABASE_URL --body "$NEON" >/dev/null
 echo "✓ 已存成 STAGING_DATABASE_URL"

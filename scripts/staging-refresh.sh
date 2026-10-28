@@ -19,10 +19,10 @@ DST_HOST=$(host "$STAGING_DATABASE_URL")
 
 # 安全檢查：寫入的對象一定要是 Neon（或明確允許的本機測試庫），而且不能跟來源同一台。
 if [[ "$DST_HOST" == "$SRC_HOST" ]]; then
-  echo "✋ 來源和目標是同一台（$DST_HOST），不跑。" >&2; exit 1
+  echo "✋ 來源和目標是同一台（${DST_HOST}），不跑。" >&2; exit 1
 fi
 if [[ "$DST_HOST" != *.neon.tech && "${ALLOW_LOCAL_TARGET:-}" != "1" ]]; then
-  echo "✋ 目標不是 Neon（$DST_HOST），不跑。" >&2; exit 1
+  echo "✋ 目標不是 Neon（${DST_HOST}），不跑。" >&2; exit 1
 fi
 if [[ "$DST_HOST" == *rds.amazonaws.com ]]; then
   echo "✋ 目標是 RDS，絕對不跑。" >&2; exit 1
