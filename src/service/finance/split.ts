@@ -13,6 +13,7 @@ import {
 } from "@/domains/finance/split";
 import type { SplitRuleInput } from "@/domains/finance/schemas";
 import { getVaultLedger } from "./money";
+import { ENTRY_CATEGORIES, isEntryCategory, signedEntryAmount } from "@/domains/finance/money";
 
 /**
  * 第二步：分帳規則、每堂分帳、驗收（docs/finance-db.md §4）。
@@ -677,4 +678,79 @@ export async function getDayBook(classroomId: number, dateKey: string, now = new
       holder: c.paidBy,
     })),
   };
+}
+
+// ---------- 行事曆
+
+export type CalendarDayStatus = "PENDING" | "NOT_TAKEN" | "VERIFIED" | "UPCOMING";
+
+/**
+ * 一個月的行事曆：每天的課一個狀態（還有一堂沒驗收就是待驗收），加上那天的錢的事
+ * （大水庫的帳、繳回、發薪日）。格子裡不寫堂數，點進去是當天的帳。
+ */
+export async function getFinanceCalendar(classroomId: number, monthKey: string, now = new Date()) {
+  const { start, end } = parseTaipeiMonthRange(monthKey);
+  const [rows, entries, remittances, setting] = await Promise.all([
+    getLessonSplits(classroomId, toTaipeiDateKey(start), toTaipeiDateKey(new Date(end.getTime() - 1)), now),
+    prisma.financeEntry.findMany({
+      where: { classroomId, voidedAt: null, date: { gte: start, lt: end } },
+      select: { date: true, category: true, amount: true, description: true },
+      orderBy: { date: "asc" },
+    }),
+    prisma.financeRemittance.findMany({
+      where: { classroomId, status: { in: ["PENDING", "CONFIRMED"] }, sentOn: { gte: start, lt: end } },
+      select: { sentOn: true, amount: true, status: true, fromUser: { select: { name: true } } },
+      orderBy: { sentOn: "asc" },
+    }),
+    prisma.financeSetting.findUnique({ where: { classroomId }, select: { payday: true } }),
+  ]);
+
+  type Day = {
+    dateKey: string;
+    status: CalendarDayStatus | null;
+    needsLook: boolean;
+    money: { kind: "entry" | "remittance" | "payday"; label: string; amount: number | null }[];
+  };
+  const days = new Map<string, Day>();
+  const day = (dateKey: string) => {
+    if (!days.has(dateKey)) days.set(dateKey, { dateKey, status: null, needsLook: false, money: [] });
+    return days.get(dateKey)!;
+  };
+
+  const byDay = new Map<string, LessonSplitRow[]>();
+  for (const row of rows) byDay.set(row.dateKey, [...(byDay.get(row.dateKey) ?? []), row]);
+  for (const [dateKey, list] of byDay) {
+    const statuses = list.map((r) => r.status);
+    const d = day(dateKey);
+    d.status = statuses.some((s) => s === "PENDING" || s === "CHANGED")
+      ? "PENDING"
+      : statuses.some((s) => s === "NOT_TAKEN")
+        ? "NOT_TAKEN"
+        : statuses.every((s) => s === "UPCOMING")
+          ? "UPCOMING"
+          : "VERIFIED";
+    d.needsLook = list.some((r) => (r.status === "PENDING" || r.status === "CHANGED") && r.flags.length > 0);
+  }
+  for (const e of entries) {
+    const category = isEntryCategory(e.category) ? ENTRY_CATEGORIES[e.category] : null;
+    day(toTaipeiDateKey(e.date)).money.push({
+      kind: "entry",
+      label: e.description || category?.label || e.category,
+      amount: signedEntryAmount(e.category, e.amount),
+    });
+  }
+  for (const r of remittances) {
+    day(toTaipeiDateKey(r.sentOn)).money.push({
+      kind: "remittance",
+      label: `${r.fromUser.name} 送回${r.status === "PENDING" ? "（等確認）" : ""}`,
+      amount: r.amount,
+    });
+  }
+  const payday = setting?.payday ?? 5;
+  const lastDay = new Date(end.getTime() - 1);
+  if (payday <= Number(toTaipeiDateKey(lastDay).slice(8))) {
+    day(`${monthKey}-${String(payday).padStart(2, "0")}`).money.unshift({ kind: "payday", label: "發薪日", amount: null });
+  }
+
+  return { month: monthKey, days: [...days.values()].sort((a, b) => a.dateKey.localeCompare(b.dateKey)) };
 }

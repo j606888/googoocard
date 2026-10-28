@@ -293,6 +293,16 @@ export interface TeacherMonthPerson {
   missing: { periodId: number; dateKey: string; lessonName: string }[];
 }
 
+export interface FinanceCalendar {
+  month: string;
+  days: {
+    dateKey: string;
+    status: "PENDING" | "NOT_TAKEN" | "VERIFIED" | "UPCOMING" | null;
+    needsLook: boolean;
+    money: { kind: "entry" | "remittance" | "payday"; label: string; amount: number | null }[];
+  }[];
+}
+
 export interface DayBook {
   date: string;
   lessons: LessonSplitRow[];
@@ -387,6 +397,10 @@ export const financeApi = api.injectEndpoints({
       query: (month) => `finance/teachers?month=${month}`,
       providesTags: TAG,
     }),
+    getFinanceCalendar: builder.query<FinanceCalendar, string>({
+      query: (month) => `finance/calendar?month=${month}`,
+      providesTags: TAG,
+    }),
     getDayBook: builder.query<DayBook, string>({ query: (date) => `finance/day?date=${date}`, providesTags: TAG }),
     getSplitRules: builder.query<SplitRuleRow[], void>({ query: () => "finance/split-rules", providesTags: TAG }),
     saveSplitRule: builder.mutation<SplitRuleRow, SplitRuleBody>({
@@ -425,6 +439,7 @@ export const {
   useOverrideLessonMutation,
   useGetDayBookQuery,
   useGetTeacherMonthQuery,
+  useGetFinanceCalendarQuery,
   useGetSplitRulesQuery,
   useSaveSplitRuleMutation,
 } = financeApi;

@@ -28,6 +28,7 @@ import { POST as VERIFY } from "@/app/api/finance/lessons/verify/route";
 import { POST as OVERRIDE } from "@/app/api/finance/lessons/[periodId]/override/route";
 import { GET as DAY } from "@/app/api/finance/day/route";
 import { GET as TEACHERS } from "@/app/api/finance/teachers/route";
+import { GET as CALENDAR } from "@/app/api/finance/calendar/route";
 
 const saveRule = (body: unknown) => SAVE_RULE(jsonRequest("PUT", body), { params: Promise.resolve({}) });
 const lessons = (from: string, to = from) =>
@@ -252,6 +253,26 @@ describe("水庫第二步：分帳規則、每堂分帳、驗收", () => {
     auth.userId = member.id;
     const month = await (await TEACHERS(new Request("http://test.local/api/finance/teachers?month=2026-10"), { params: Promise.resolve({}) })).json();
     expect(month.people.map((p: { teacher: { id: number } }) => p.teacher.id)).toEqual([nini]);
+  });
+
+  it("行事曆：一天只要還有一堂沒驗收就是待驗收；錢的事、發薪日也標上", async () => {
+    await attend(periods.body, 7);
+    await attend(periods.bachata, 8);
+    await attend(periods.bachata, 1, { withCard: false });
+    await verify([periods.body]);
+    await prisma.financeEntry.create({
+      data: { classroomId, date: new Date("2026-10-24T16:00:00Z"), category: "DRINKS", amount: 180, createdById: ownerId },
+    });
+    const cal = await (await CALENDAR(new Request("http://test.local/api/finance/calendar?month=2026-10"), { params: Promise.resolve({}) })).json();
+    const d25 = cal.days.find((d: { dateKey: string }) => d.dateKey === "2026-10-25");
+    expect(d25).toMatchObject({ status: "PENDING", needsLook: true });
+    expect(d25.money).toEqual([{ kind: "entry", label: "飲料費", amount: -180 }]);
+    expect(cal.days.find((d: { dateKey: string }) => d.dateKey === "2026-10-05").money).toEqual([{ kind: "payday", label: "發薪日", amount: null }]);
+
+    await verify([periods.bachata]);
+    await prisma.lessonPeriod.update({ where: { id: periods.salsa }, data: { startTime: new Date("2026-10-26T08:00:00Z"), endTime: new Date("2026-10-26T09:00:00Z") } });
+    const after = await (await CALENDAR(new Request("http://test.local/api/finance/calendar?month=2026-10"), { params: Promise.resolve({}) })).json();
+    expect(after.days.find((d: { dateKey: string }) => d.dateKey === "2026-10-25").status).toBe("VERIFIED");
   });
 
   it("沒開水庫：404", async () => {
