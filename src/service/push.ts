@@ -2,6 +2,7 @@ import type { TodoType } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { sendExpoPush } from "@/lib/expoPush";
 import { sendWebPush, webPushConfigured } from "@/lib/webPush";
+import { outboundPushDisabled } from "@/lib/appEnv";
 import { countTodos } from "@/service/todos";
 
 export type TodoPush = {
@@ -36,6 +37,11 @@ export async function notifyClassroom(classroomId: number, push: TodoPush): Prom
     const optedOutIds = new Set(optedOut.map((p) => p.userId));
     const userIds = members.map((m) => m.userId).filter((id) => !optedOutIds.has(id));
     if (userIds.length === 0) return;
+    // staging 的資料是正式環境複製來的，推播 token 都是真的手機（src/lib/appEnv.ts）。
+    if (outboundPushDisabled()) {
+      console.warn(`[push] staging: not sent — ${push.title}`);
+      return;
+    }
 
     // 圖示數字 = 這間教室的待處理總數。屬於多間教室的人只會看到觸發這次推播的
     // 那一間，打開後會用自己目前的教室重新算。只在真的有裝置要發時才算

@@ -3,6 +3,11 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/store/provider";
 import { Toaster } from "sonner";
+import StagingBanner from "@/components/StagingBanner";
+import { isStaging } from "@/lib/appEnv";
+
+// 測試環境的分頁標題、加到主畫面的名稱都標「測試」，跟正式的分得出來。
+const APP_NAME = isStaging() ? "Googoocard 測試" : "Googoocard";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -11,13 +16,13 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Googoocard",
+  title: APP_NAME,
   description: "讓你的教學更輕鬆",
   // 從主畫面開啟時的 App 名稱與狀態列。statusBarStyle "default" 讓內容
   // 從狀態列下方開始，不會被瀏海蓋住。
   appleWebApp: {
     capable: true,
-    title: "Googoocard",
+    title: APP_NAME,
     statusBarStyle: "default",
   },
   icons: {
@@ -44,6 +49,7 @@ export default function RootLayout({
       <body className={`${poppins.variable} font-sans antialiased`}>
         <Providers>
           {children}
+          <StagingBanner />
           <Toaster richColors />
         </Providers>
       </body>
