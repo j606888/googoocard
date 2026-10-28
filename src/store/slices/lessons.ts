@@ -149,6 +149,12 @@ export interface AttendanceRecord {
   source?: "TEACHER" | "STUDENT";
 }
 
+export interface PeriodAssistants {
+  assistants: { id: number; name: string; color: string; isAssistant: boolean }[];
+  /** true ＝ 這堂還沒記過助教，這是同一天上一堂帶過來的建議，還沒存。 */
+  suggested: boolean;
+}
+
 export interface UnbindAttendanceRecord {
   id: number;
   studentId: number;
@@ -305,6 +311,22 @@ const lessonsApi = api.injectEndpoints({
       }),
       providesTags: ["Lesson", "Attendance"],
     }),
+    // 這堂的助教；還沒記過時是同一天上一堂帶過來的建議（suggested）。
+    getPeriodAssistants: builder.query<PeriodAssistants, { id: number; periodId: number }>({
+      query: ({ id, periodId }) => `lessons/${id}/periods/${periodId}/assistants`,
+      providesTags: ["LessonAssistant"],
+    }),
+    setPeriodAssistants: builder.mutation<
+      PeriodAssistants,
+      { id: number; periodId: number; teacherIds: number[] }
+    >({
+      query: ({ id, periodId, teacherIds }) => ({
+        url: `lessons/${id}/periods/${periodId}/assistants`,
+        method: "PUT",
+        body: { teacherIds },
+      }),
+      invalidatesTags: ["LessonAssistant"],
+    }),
     resetAttendance: builder.mutation<void, { id: number; periodId: number }>({
       query: ({ id, periodId }) => ({
         url: `lessons/${id}/periods/${periodId}/reset`,
@@ -425,6 +447,8 @@ export const {
   useUpdateAttendanceMutation,
   useGetAttendanceQuery,
   useResetAttendanceMutation,
+  useGetPeriodAssistantsQuery,
+  useSetPeriodAssistantsMutation,
   useConsumeStudentCardMutation,
   useGetLessonStudentsQuery,
   useGetLessonTrialsQuery,

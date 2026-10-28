@@ -6,7 +6,7 @@ import { nextCardSerial } from "@/service/studentCardSerial";
 // Wipe all tables between tests (FK-safe via CASCADE).
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "AttendanceRecord", "LessonStudent", "LessonPeriod", "LessonTeacher",
+    `TRUNCATE "AttendanceRecord", "LessonPeriodAssistant", "LessonStudent", "LessonPeriod", "LessonTeacher",
       "LessonCard", "StudentDanceQualification", "StudentTag", "Tag", "Event",
       "StudentCard", "Lesson", "LessonGroup", "Location", "Card", "DanceStyle", "Student", "Teacher", "InviteToken",
       "Membership", "Classroom", "User", "LineAccount", "RenewalReminder", "PushToken", "WebPushSubscription",

@@ -12,6 +12,8 @@ export interface TeacherSummary {
 
 export interface Teacher extends TeacherSummary {
   note: string | null;
+  /** 只當助教：排課選老師時不列出，點名選助教時排前面。 */
+  isAssistant: boolean;
   /** The member this teacher is linked to (團隊), or null. */
   userId: number | null;
   archivedAt: string | null;
@@ -58,7 +60,7 @@ export interface TeacherLessonRow {
 }
 
 export interface TeacherDetail {
-  teacher: TeacherSummary & { note: string | null; archivedAt: string | null };
+  teacher: TeacherSummary & { note: string | null; isAssistant: boolean; archivedAt: string | null };
   month: string;
   danceStyles: DanceStyleSummary[];
   firstTaughtAt: string | null;
@@ -83,6 +85,7 @@ export interface TeacherFields {
   color?: DanceStyleColor;
   /** Blank clears it. */
   note?: string;
+  isAssistant?: boolean;
 }
 
 // A teacher's name and colour show up inside lessons too.

@@ -3,20 +3,24 @@ import SubNavbar from "@/features/SubNavbar";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import StudentSelectList from "./StudentSelectList";
 import Searchbar from "./Searchbar";
 import SelectedStudents from "./SelectedStudents";
 import PeriodInfo from "./PeriodInfo";
 import PeriodAttendanceSkeleton from "./PeriodAttendanceSkeleton";
+import PeriodAssistantsField from "./PeriodAssistantsField";
 import { useAttendanceFlow } from "@/hooks/useAttendanceFlow";
 import { useSizeClass } from "@/hooks/useMediaQuery";
+import { useGetPeriodAssistantsQuery } from "@/store/slices/lessons";
 
 type PeriodAttendanceFormProps = {
   defaultSelectedIds?: number[];
   selfCheckInStudentIds?: number[];
   /** 在課程頁體驗名單上登記、還沒上過的人——預設勾好並標「體驗報名」。 */
   trialStudentIds?: number[];
-  onSubmit: (studentIds: number[]) => Promise<void>;
+  /** assistantTeacherIds：「今天的助教」整組（含同一天上一堂帶過來、沒改過的建議）。 */
+  onSubmit: (studentIds: number[], assistantTeacherIds: number[]) => Promise<void>;
   submitLabel?: string;
   error?: string | null;
   isLoading?: boolean;
@@ -40,6 +44,7 @@ const PeriodAttendanceForm = ({
     period,
     isLoading: isFlowLoading,
     attendStudentIds,
+    lessonTeacherIds,
     selectedStudents,
     selectedIds,
     filteredStudents,
@@ -52,6 +57,14 @@ const PeriodAttendanceForm = ({
     periodId: Number(periodId),
     defaultSelectedIds,
   });
+  const { data: savedAssistants, isLoading: isAssistantsLoading } = useGetPeriodAssistantsQuery({
+    id: Number(id),
+    periodId: Number(periodId),
+  });
+  // null ＝ 還沒動過，照伺服器給的（存過的，或同一天上一堂帶過來的建議）。
+  const [pickedAssistantIds, setAssistantIds] = useState<number[] | null>(null);
+  const assistantIds =
+    pickedAssistantIds ?? savedAssistants?.assistants.map((teacher) => teacher.id) ?? [];
 
   const desktopHeader = (
     <div className="flex items-center gap-3 px-8 pt-6 pb-4">
@@ -65,7 +78,7 @@ const PeriodAttendanceForm = ({
     </div>
   );
 
-  if (isFlowLoading || isRecordsLoading || !period) {
+  if (isFlowLoading || isRecordsLoading || isAssistantsLoading || !period) {
     return (
       <>
         {isExpanded ? (
@@ -77,6 +90,14 @@ const PeriodAttendanceForm = ({
       </>
     );
   }
+
+  const assistants = (
+    <PeriodAssistantsField
+      value={assistantIds}
+      onChange={setAssistantIds}
+      lessonTeacherIds={lessonTeacherIds}
+    />
+  );
 
   const searchbar = (
     <Searchbar
@@ -111,7 +132,7 @@ const PeriodAttendanceForm = ({
 
   const submitButton = (
     <Button
-      onClick={() => onSubmit(selectedIds)}
+      onClick={() => onSubmit(selectedIds, assistantIds)}
       disabled={selectedStudents.length === 0}
       isLoading={isLoading}
       size="lg"
@@ -131,6 +152,7 @@ const PeriodAttendanceForm = ({
         <div className="px-8 pb-8 grid grid-cols-[minmax(0,1fr)_360px] gap-8 items-start">
           <div className="flex flex-col gap-4 min-w-0">
             <PeriodInfo period={period} />
+            {assistants}
             {searchbar}
             {roster}
           </div>
@@ -150,6 +172,7 @@ const PeriodAttendanceForm = ({
         <div>
           <PeriodInfo period={period} />
         </div>
+        {assistants}
         <div className="flex flex-col gap-4">
           {searchbar}
           {selected}

@@ -212,13 +212,20 @@ export const createTeacherSchema = z.object({
   /** Omitted: the first palette colour no active teacher uses. */
   color: danceStyleColor.optional(),
   note: teacherNote.nullish(),
+  isAssistant: z.boolean().optional(),
 });
 
 export const updateTeacherSchema = z.object({
   name: teacherName.optional(),
   color: danceStyleColor.optional(),
   note: teacherNote.nullish(),
+  isAssistant: z.boolean().optional(),
   archived: z.boolean().optional(),
+});
+
+/** PUT …/periods/[periodId]/assistants — the whole set, like attendance's studentIds. */
+export const setPeriodAssistantsSchema = z.object({
+  teacherIds: z.array(z.number().int().positive()).max(10),
 });
 
 /** `?month=YYYY-MM` on the teacher stats routes; omitted = this Taipei month. */

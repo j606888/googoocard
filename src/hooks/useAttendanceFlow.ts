@@ -40,6 +40,7 @@ export const useAttendanceFlow = ({
 
   const period = findPeriod(lesson, periodId);
   const attendStudentIds = useMemo(() => lessonStudentIds(lesson), [lesson]);
+  const lessonTeacherIds = useMemo(() => lesson?.teachers.map((teacher) => teacher.id) ?? [], [lesson]);
   const selectedStudents = useMemo(
     () => selectStudents(students, selectedIds),
     [students, selectedIds]
@@ -64,6 +65,8 @@ export const useAttendanceFlow = ({
     isLoading: isStudentsLoading || isLessonLoading,
     /** 已在課程名冊上的學生 id。 */
     attendStudentIds,
+    /** 這堂課的授課老師——「今天的助教」不列出他們。 */
+    lessonTeacherIds,
     /** 目前勾選的學生（維持 students 的原始順序）。 */
     selectedStudents,
     selectedIds,

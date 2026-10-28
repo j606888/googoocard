@@ -1,8 +1,10 @@
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   useGetAttendanceQuery,
   useGetLessonTrialsQuery,
+  useSetPeriodAssistantsMutation,
   useTakeAttendanceMutation,
 } from "@/store/slices/lessons";
 import PeriodAttendanceForm from "../PeriodAttendanceForm";
@@ -10,6 +12,7 @@ import PeriodAttendanceForm from "../PeriodAttendanceForm";
 const CheckPeriod = () => {
   const { id, periodId } = useParams();
   const [takeAttendance, { isLoading }] = useTakeAttendanceMutation();
+  const [setPeriodAssistants, { isLoading: isSavingAssistants }] = useSetPeriodAssistantsMutation();
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -44,7 +47,7 @@ const CheckPeriod = () => {
     [existingRecords]
   );
 
-  const handleSubmit = async (studentIds: number[]) => {
+  const handleSubmit = async (studentIds: number[], assistantTeacherIds: number[]) => {
     if (studentIds.length === 0) {
       setError("請至少選一位學生");
       return;
@@ -55,6 +58,12 @@ const CheckPeriod = () => {
       periodId: Number(periodId),
       studentIds,
     });
+    const saved = await setPeriodAssistants({
+      id: Number(id),
+      periodId: Number(periodId),
+      teacherIds: assistantTeacherIds,
+    });
+    if ("error" in saved) toast.error("助教沒存到，請到這堂的點名再存一次");
     // justSubmitted flags the celebratory "just checked in" framing — browsing
     // back to this same screen later (from the period timeline, unpaid bell,
     // income calendar) omits it and gets the plain record view instead.
@@ -70,7 +79,7 @@ const CheckPeriod = () => {
         onSubmit={handleSubmit}
         submitLabel="完成點名"
         error={error}
-        isLoading={isLoading}
+        isLoading={isLoading || isSavingAssistants}
         isRecordsLoading={isRecordsLoading || isTrialsLoading}
       />
     </>

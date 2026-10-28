@@ -8,10 +8,13 @@ const TeacherSelect = ({ selectedTeacherIds, onChange, error }: { selectedTeache
   const { data: teachers } = useGetTeachersQuery();
   const [formKey, setFormKey] = useState<number | null>(null);
 
-  // Archived teachers aren't offered for new picks, but a lesson that already
-  // has one keeps showing them.
+  // Archived teachers and assistant-only ones aren't offered for new picks, but
+  // a lesson that already has one keeps showing them.
   const teacherOptions = teachers
-    ?.filter((teacher) => !teacher.archivedAt || selectedTeacherIds.includes(teacher.id))
+    ?.filter(
+      (teacher) =>
+        (!teacher.archivedAt && !teacher.isAssistant) || selectedTeacherIds.includes(teacher.id)
+    )
     .map((teacher) => ({
       label: teacher.name,
       value: teacher.id,

@@ -41,5 +41,6 @@ export const teacherSummarySelect = {
 export const teacherPayloadSelect = {
   ...teacherSummarySelect,
   note: true,
+  isAssistant: true,
   archivedAt: true,
 } satisfies Prisma.TeacherSelect;

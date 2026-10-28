@@ -34,13 +34,17 @@ export const PATCH = apiRoute<{ id: string }>(async ({ request, params, classroo
   });
 });
 
-// Only a teacher who never had a lesson can be deleted (a typo, a mistake);
-// anyone with lessons is archived instead, so old lessons keep their teacher.
+// Only a teacher who never had a lesson — nor helped in one — can be deleted
+// (a typo, a mistake); anyone else is archived, so old lessons keep their teacher.
 export const DELETE = apiRoute<{ id: string }>(async ({ params, classroomId }) => {
   const id = parseId(params.id);
   if (!(await findTeacherInClassroom(id, classroomId))) throw notFound("Teacher");
 
-  if (await prisma.lessonTeacher.count({ where: { teacherId: id } })) {
+  const [taught, assisted] = await Promise.all([
+    prisma.lessonTeacher.count({ where: { teacherId: id } }),
+    prisma.lessonPeriodAssistant.count({ where: { teacherId: id } }),
+  ]);
+  if (taught || assisted) {
     throw new ApiError(409, "TEACHER_HAS_LESSONS", "Teacher has lessons; archive instead");
   }
 
