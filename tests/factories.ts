@@ -10,7 +10,9 @@ export async function resetDb() {
       "LessonCard", "StudentDanceQualification", "StudentTag", "Tag", "Event",
       "StudentCard", "Lesson", "LessonGroup", "Location", "Card", "DanceStyle", "Student", "Teacher", "InviteToken",
       "Membership", "Classroom", "User", "LineAccount", "RenewalReminder", "PushToken", "WebPushSubscription",
-      "NotificationPreference" RESTART IDENTITY CASCADE`
+      "NotificationPreference", "ClassroomModule", "SkillTalkRead", "SkillCommentMention", "SkillCommentReaction",
+      "SkillComment", "SkillChange", "Skill", "SkillTier", "SkillCategory", "FinanceSetting", "FinanceOpeningCustody",
+      "FinanceRemittance", "FinanceEntryRevision", "FinanceEntry", "FinanceSettingRevision", "FinanceQuestDone" RESTART IDENTITY CASCADE`
   );
 }
 
@@ -40,6 +42,11 @@ export async function createClassroom({
     data: { userId: user.id, classroomId: classroom.id, role: "owner" },
   });
   return classroom;
+}
+
+/** Switch a 功能模組 on (src/lib/permissions.ts MODULES). */
+export async function enableModule(classroomId: number, module: string) {
+  return prisma.classroomModule.create({ data: { classroomId, module } });
 }
 
 /** A second User in an existing classroom — an 助教 unless told otherwise. */

@@ -45,6 +45,8 @@ LINE is **student-only** (teachers use the website/App — teacher LINE binding 
 
 Staging rules: one branch at a time (`git push origin <branch>:staging -f`; say which one is up); when it's merged, put `main` back (`git push origin main:staging -f`); branches with migrations get tested on staging, not on a plain Preview. The nightly refresh rebuilds the DB from production + the current staging branch's migrations, so a dropped branch's migrations no longer strand the DB — they vanish the next morning.
 
+**Local data = production copy on demand**: `bash scripts/local-from-prod.sh` backs up the local DB to `~/googoocard-backups/`, rebuilds the schema from the current branch's migrations, loads production **data only** (`pg_dump --data-only` via a `postgres:16` container, read-only on prod; local is Postgres 10 so a full restore wouldn't work), then runs `scripts/staging-sanitize.sql` with **no** kept LINE bindings (local `.env` has the real OA token) unless `KEEP_LINE_USER_IDS` is set. The user runs it (it reads `.env.production`); log in with production passwords.
+
 Tests are safe by construction: they run against a separate `googoocard_test` database (auto-created/migrated by `tests/global-setup.ts`) and `tests/test-db-url.ts` refuses any non-localhost URL.
 
 ## Architecture
@@ -72,7 +74,8 @@ src/
 │   │   ├── cards/        # Student card (payment package) UI
 │   │   ├── students/     # Student management UI
 │   │   ├── income/       # Revenue analytics UI
-│   │   └── teachers/, teams/, dance-styles/, locations/, …
+│   │   ├── (settings)/   # 教室設定: dance-styles/, locations/, teams/, modules/, checkin-qr/ — one nav entry + shared tab bar, URLs unchanged
+│   │   └── teachers/, calendar/, curriculum/, finance/, …
 │   ├── liff/             # Student-facing LINE LIFF pages
 │   └── api/              # REST API endpoints
 ├── components/           # Shared UI components
@@ -97,7 +100,7 @@ mobile/                   # Teacher iOS App (Expo) — own package.json/tsconfig
 
 ### Data Flow
 
-1. **Auth**: Middleware (`src/middleware.ts`) guards all routes except `/`, `/login`, `/liff`, `/signup`, `/invitations`, `/checkin/`, `/api`, `/public-students`, `/privacy`, `/terms` (plus static assets). Token decoded in every API handler via `decodeAuthToken()`, which also re-verifies membership and returns `NO_CLASSROOM` (`-1`, from `src/lib/authz.ts`) when there is none — **never `undefined`**, because Prisma reads `where: { classroomId: undefined }` as "no filter" and would return every classroom's rows. The iOS App sends `Authorization: Bearer` instead of the cookie (App-only JWT whose classroom is `User.currentClassroomId` — see "老師端 iOS App" in `docs/architecture.md`). Route wrappers in `src/lib/apiRoute.ts`: `apiRoute` (needs a live membership), `sessionRoute` (login only — for the classroom-management routes), `publicApiRoute` (no auth).
+1. **Auth**: Middleware (`src/middleware.ts`) guards all routes except `/`, `/login`, `/liff`, `/signup`, `/invitations`, `/checkin/`, `/api`, `/public-students`, `/privacy`, `/terms` (plus static assets). Token decoded in every API handler via `decodeAuthToken()`, which also re-verifies membership and returns `NO_CLASSROOM` (`-1`, from `src/lib/authz.ts`) when there is none — **never `undefined`**, because Prisma reads `where: { classroomId: undefined }` as "no filter" and would return every classroom's rows. The iOS App sends `Authorization: Bearer` instead of the cookie (App-only JWT whose classroom is `User.currentClassroomId` — see "老師端 iOS App" in `docs/architecture.md`). Route wrappers in `src/lib/apiRoute.ts`: `apiRoute` (needs a live membership; `apiRoute(handler, { permission })` answers 404 `MODULE_NOT_ENABLED` when that permission's module is off, 403 `PERMISSION_DENIED` when the caller lacks it; ctx carries `permissions`/`modules`), `sessionRoute` (login only — for the classroom-management routes), `publicApiRoute` (no auth).
 
 2. **API**: Each resource has REST endpoints under `src/app/api/`. Handlers call Prisma directly or delegate to `src/service/`.
 
@@ -107,8 +110,8 @@ mobile/                   # Teacher iOS App (Expo) — own package.json/tsconfig
 
 ### Core Domain Model
 
-- `Classroom` — top-level container; all other entities belong to one. Users track a `currentClassroomId` for multi-classroom context switching. Deletion is a **soft delete** (`deletedAt`) — see "教室生命週期與角色" in `docs/architecture.md`.
-- `Membership` — (user, classroom, role) join. `role` (`src/lib/roles.ts`): `"owner"` (creator, one per classroom) and `"admin"` are 管理員 — they invite (with a role), change roles and remove members (`assertAdmin()`); `"teacher"` (老師, always linked to a `Teacher` via `Teacher.userId` — their lessons show as 我接下來的課) and `"assistant"` (小幫手) can do everything else, income and card prices included. Only the owner deletes or transfers a classroom; everyone else can leave. `decodeAuthToken()` re-reads this row on **every** request, so removals take effect immediately — don't bypass it.
+- `Classroom` — top-level container; all other entities belong to one. Optional 功能模組 (技能樹 `curriculum`, 水庫 `finance`) are switched on per classroom by a `ClassroomModule` row — plan in `docs/modules-plan.md`; core code never imports module code (ESLint-enforced). Users track a `currentClassroomId` for multi-classroom context switching. Deletion is a **soft delete** (`deletedAt`) — see "教室生命週期與角色" in `docs/architecture.md`.
+- `Membership` — (user, classroom, role) join. A role is only a **default bundle of permissions** (`src/lib/permissions.ts`); `grants`/`revokes` add/remove per person — see "權限與模組" in `docs/architecture.md`. `role` (`src/lib/roles.ts`): `"owner"` (creator, one per classroom, always every permission) and `"admin"` are 管理員 — by default they invite (with a role), change roles/permissions and remove members (`members.manage`); `"teacher"` (老師, always linked to a `Teacher` via `Teacher.userId` — their lessons show as 我接下來的課) and `"assistant"` (小幫手) can do everything else, income and card prices included. Only the owner deletes or transfers a classroom; everyone else can leave. `decodeAuthToken()` re-reads this row on **every** request, so removals take effect immediately — don't bypass it.
 - `Student` — enrolled in a classroom
 - `DanceStyle` — a classroom's own dance style (`name`, palette-key `color`, `hasLevels`, `sortOrder`, `archivedAt`), managed on `/dance-styles`. Replaced the old `DanceType` enum (2026-10). Archived, never deleted. Validate any incoming `danceStyleId` with `findDanceStyleInClassroom()` (`src/lib/authz.ts`).
 - `StudentDanceQualification` — (studentId, danceStyleId, level) rows: the highest level (1 初階 / 2 中階 / 3 進階, `src/lib/danceLevels.ts`) a student has completed in a dance style. Level ≥ 1 = may buy practice cards; a practice card is usable only in lessons with `Lesson.level` ≤ that level — **only when the style `hasLevels`**; otherwise every level counts as 1. APIs expose both `danceQualifications: number[]` (style ids) and `danceLevels: { [danceStyleId]: level }`.

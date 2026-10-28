@@ -1,10 +1,10 @@
 import Link from "next/link";
-import Select from "react-select";
 import { useSizeClass } from "@/hooks/useMediaQuery";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/EmptyState";
+import Select from "@/components/Select";
 import { FieldError, FieldLabel } from "@/components/Field";
 
 /** Where a classroom manages its dance styles (built in S4 of the dance-styles plan). */
@@ -75,12 +75,13 @@ const DanceStyleSelect = ({
           })}
         </div>
       ) : (
-        /* 手機：react-select 下拉 */
+        /* 手機：下拉 */
         <Select
-          value={options.find((o) => o.value === danceStyleId) ?? null}
+          aria-label="舞種"
+          value={danceStyleId ?? undefined}
           options={options}
           placeholder="選擇舞種"
-          onChange={(option) => option && onChange(option.value)}
+          onChange={onChange}
         />
       )}
       <FieldError>{error}</FieldError>

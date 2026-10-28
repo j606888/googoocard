@@ -73,6 +73,25 @@ model User {
   notificationPreferences NotificationPreference[]
   // 連到的老師資料（每間教室最多一筆，Teacher.userId）
   teacherProfiles         Teacher[]
+  enabledModules          ClassroomModule[]
+  // 模組：技能樹
+  skillsCreated           Skill[]
+  skillChanges            SkillChange[]
+  skillComments           SkillComment[]           @relation("SkillCommentAuthor")
+  skillConclusions        SkillComment[]           @relation("SkillCommentConclusion")
+  skillReactions          SkillCommentReaction[]
+  skillMentions           SkillCommentMention[]
+  skillTalkReads          SkillTalkRead[]
+  // 模組：水庫
+  financeRevenueOwnerOf   FinanceSetting[]         @relation("FinanceRevenueOwner")
+  financeOpeningCustody   FinanceOpeningCustody[]
+  financeRemittances      FinanceRemittance[]      @relation("FinanceRemittanceFrom")
+  financeReviewed         FinanceRemittance[]      @relation("FinanceRemittanceReviewer")
+  financeEntriesCreated   FinanceEntry[]           @relation("FinanceEntryCreator")
+  financeEntriesPaid      FinanceEntry[]           @relation("FinanceEntryPayee")
+  financeEntryRevisions   FinanceEntryRevision[]
+  financeSettingRevisions FinanceSettingRevision[]
+  financeQuests           FinanceQuestDone[]
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 }
@@ -105,6 +124,16 @@ model Classroom {
   teachers                Teacher[]
   User                    User[]
   notificationPreferences NotificationPreference[]
+  modules                 ClassroomModule[]
+  skillCategories         SkillCategory[]
+  skillTiers              SkillTier[]
+  skills                  Skill[]
+  financeSetting          FinanceSetting?
+  financeOpeningCustody   FinanceOpeningCustody[]
+  financeRemittances      FinanceRemittance[]
+  financeEntries          FinanceEntry[]
+  financeSettingRevisions FinanceSettingRevision[]
+  financeQuests           FinanceQuestDone[]
 }
 
 model Membership {
@@ -114,6 +143,10 @@ model Membership {
   classroomId Int
   classroom   Classroom @relation(fields: [classroomId], references: [id])
   role        String    @default("owner")
+  // 角色預設組合以外，多給／拿掉的權限（src/lib/permissions.ts）。只存差異，
+  // 預設組合寫在程式碼裡，所以新增權限不用跑資料遷移。
+  grants      String[]  @default([])
+  revokes     String[]  @default([])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -308,21 +341,24 @@ model Lesson {
 // managed on /dance-styles. Never deleted, only archived, so
 // old lessons and cards keep their style.
 model DanceStyle {
-  id             Int                         @id @default(autoincrement())
-  classroomId    Int
-  classroom      Classroom                   @relation(fields: [classroomId], references: [id])
-  name           String
+  id              Int                         @id @default(autoincrement())
+  classroomId     Int
+  classroom       Classroom                   @relation(fields: [classroomId], references: [id])
+  name            String
   // Palette key: green/orange/slate/stone/purple/blue/pink/teal/red/indigo.
-  color          String
+  color           String
   // On: 初階/中階/進階 (src/lib/danceLevels.ts). Off: qualified or not — level is always 1.
-  hasLevels      Boolean                     @default(false)
-  sortOrder      Int                         @default(0)
-  archivedAt     DateTime?
-  lessons        Lesson[]
-  cards          Card[]
-  qualifications StudentDanceQualification[]
-  createdAt      DateTime                    @default(now())
-  updatedAt      DateTime                    @updatedAt
+  hasLevels       Boolean                     @default(false)
+  sortOrder       Int                         @default(0)
+  archivedAt      DateTime?
+  lessons         Lesson[]
+  cards           Card[]
+  qualifications  StudentDanceQualification[]
+  skillCategories SkillCategory[]
+  skillTiers      SkillTier[]
+  skills          Skill[]
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
 
   // Leads with classroomId, so it also serves classroom lookups.
   @@unique([classroomId, name])
@@ -572,5 +608,305 @@ model NotificationPreference {
   updatedAt   DateTime  @updatedAt
 
   @@unique([userId, classroomId, type])
+  @@index([classroomId])
+}
+
+// 教室開了哪些功能模組（src/lib/permissions.ts 的 MODULES）。關閉＝刪掉這一列，
+// 模組自己的資料表不動，重新開啟資料就回來。見 docs/modules-plan.md。
+model ClassroomModule {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  module      String
+  enabledAt   DateTime  @default(now())
+  enabledById Int?
+  enabledBy   User?     @relation(fields: [enabledById], references: [id])
+
+  @@unique([classroomId, module])
+}
+
+// ===== 模組：技能樹（docs/modules-plan.md 第 2 階段）=====
+// 一個舞種一棵樹：分類（tab）× 等級（欄）× 技能。「這個舞種有樹」＝至少有一個分類。
+
+// 分類（teach-what: treeSchools）。color 是 DANCE_STYLE_COLORS 之一，icon 是 SKILL_CATEGORY_ICONS 之一
+// （src/domains/curriculum/skillTree.ts）。刪除前由 service 先把技能搬走或封存。
+model SkillCategory {
+  id           Int        @id @default(autoincrement())
+  classroomId  Int
+  classroom    Classroom  @relation(fields: [classroomId], references: [id])
+  danceStyleId Int
+  danceStyle   DanceStyle @relation(fields: [danceStyleId], references: [id])
+  name         String
+  color        String
+  icon         String
+  sortOrder    Int        @default(0)
+  skills       Skill[]
+  createdAt    DateTime   @default(now())
+
+  @@index([classroomId, danceStyleId])
+  @@index([danceStyleId])
+}
+
+// 等級欄（teach-what: treeTiers）。顯示名「一轉、二轉…」由位置決定，label 是自由標籤（例如 Lv1）。
+model SkillTier {
+  id           Int        @id @default(autoincrement())
+  classroomId  Int
+  classroom    Classroom  @relation(fields: [classroomId], references: [id])
+  danceStyleId Int
+  danceStyle   DanceStyle @relation(fields: [danceStyleId], references: [id])
+  label        String     @default("")
+  sortOrder    Int        @default(0)
+  skills       Skill[]
+  createdAt    DateTime   @default(now())
+
+  @@index([classroomId, danceStyleId])
+  @@index([danceStyleId])
+}
+
+// 技能。categoryId 是 null ＝ 在待定區；放進樹只是填上分類與等級，留言、已讀都不用搬。
+// 樹上的技能只封存（archivedAt），待定的可以真的刪除（留言等一起 cascade）。
+model Skill {
+  id           Int             @id @default(autoincrement())
+  classroomId  Int
+  classroom    Classroom       @relation(fields: [classroomId], references: [id])
+  danceStyleId Int
+  danceStyle   DanceStyle      @relation(fields: [danceStyleId], references: [id])
+  categoryId   Int?
+  category     SkillCategory?  @relation(fields: [categoryId], references: [id])
+  // 待定的可以沒有等級；放進樹時必填（service 檢查）
+  tierId       Int?
+  tier         SkillTier?      @relation(fields: [tierId], references: [id])
+  name         String
+  fullName     String          @default("")
+  description  String          @default("")
+  sortOrder    Int             @default(0)
+  createdById  Int?
+  createdBy    User?           @relation(fields: [createdById], references: [id])
+  createdAt    DateTime        @default(now())
+  archivedAt   DateTime?
+  changes      SkillChange[]
+  comments     SkillComment[]
+  reads        SkillTalkRead[]
+
+  @@index([classroomId, danceStyleId])
+  @@index([danceStyleId])
+  @@index([categoryId])
+  @@index([tierId])
+}
+
+// 修改紀錄（teach-what: treeSkillChanges）。from/to 存人看得懂的字（分類名、「二轉」）。
+// kind: add | place | rename | describe | move_tier | move_category | archive | restore
+model SkillChange {
+  id        Int      @id @default(autoincrement())
+  skillId   Int
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  skillName String
+  kind      String
+  fromValue String?
+  toValue   String?
+  actorId   Int?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([skillId, createdAt])
+}
+
+// 技能討論。回覆只有一層（回覆的回覆會被攤平到同一串）；每個技能最多一則結論。
+// 不放 classroomId：一律經由 skill.classroomId 驗證。
+model SkillComment {
+  id             Int                    @id @default(autoincrement())
+  skillId        Int
+  skill          Skill                  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  parentId       Int?
+  parent         SkillComment?          @relation("SkillCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies        SkillComment[]         @relation("SkillCommentReplies")
+  authorId       Int?
+  author         User?                  @relation("SkillCommentAuthor", fields: [authorId], references: [id])
+  text           String
+  conclusionAt   DateTime?
+  conclusionById Int?
+  conclusionBy   User?                  @relation("SkillCommentConclusion", fields: [conclusionById], references: [id])
+  createdAt      DateTime               @default(now())
+  editedAt       DateTime?
+  reactions      SkillCommentReaction[]
+  mentions       SkillCommentMention[]
+
+  @@index([skillId])
+  @@index([parentId])
+}
+
+// 表情：一人一則一個，換表情＝覆蓋。kind: like | love | haha | wow | think | down
+model SkillCommentReaction {
+  commentId Int
+  comment   SkillComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User         @relation(fields: [userId], references: [id])
+  kind      String
+  createdAt DateTime     @default(now())
+
+  @@id([commentId, userId])
+  @@index([userId])
+}
+
+// 被 @ 到。seenAt 是 null ＝ 還沒打開那串討論。
+model SkillCommentMention {
+  commentId Int
+  comment   SkillComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User         @relation(fields: [userId], references: [id])
+  seenAt    DateTime?
+
+  @@id([commentId, userId])
+  @@index([userId])
+}
+
+// 每個人最後一次打開某技能討論的時間。
+model SkillTalkRead {
+  userId  Int
+  user    User     @relation(fields: [userId], references: [id])
+  skillId Int
+  skill   Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  readAt  DateTime @default(now())
+
+  @@id([userId, skillId])
+  @@index([skillId])
+}
+
+// ---------- 模組：水庫（docs/finance-plan.md 第一步：代收＋繳回＋大水庫收支） ----------
+// 課卡收款不另存：直接讀 StudentCard（paidByUserId、paidAt、finalPrice，origin = PURCHASE、paidAt ≥ 啟用日）。
+
+// 一間教室一筆。setupCompletedAt 為 null ＝ 還沒建城。
+model FinanceSetting {
+  classroomId        Int       @id
+  classroom          Classroom @relation(fields: [classroomId], references: [id])
+  // 營收負責人（老闆）：確認繳回、記大水庫支出的人，推播也發給他。
+  revenueOwnerUserId Int?
+  revenueOwner       User?     @relation("FinanceRevenueOwner", fields: [revenueOwnerUserId], references: [id])
+  // 啟用日（台北時間當天 00:00）。這天之前付款的課卡不算代收。
+  startDate          DateTime?
+  // 啟用日當天大水庫的錢（現金＋銀行一個數）
+  openingBalance     Int       @default(0)
+  // 啟用日之前老闆放進來的錢（欠老闆的）。null ＝ 建城時略過，不顯示建城貸款。
+  openingOwnerLoan   Int?
+  // 手上的錢超過幾天沒繳回就標紅
+  overdueDays        Int       @default(7)
+  setupCompletedAt   DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([revenueOwnerUserId])
+}
+
+// 期初代收：啟用日那天，某人手上還沒交的課卡錢。
+model FinanceOpeningCustody {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  amount      Int
+
+  @@unique([classroomId, userId])
+  @@index([userId])
+}
+
+enum FinanceRemittanceStatus {
+  PENDING // 轉交中，等營收負責人確認
+  CONFIRMED // 收到了
+  REJECTED // 金額不對，退回（送的人可以改了再送）
+  WITHDRAWN // 送的人撤回
+}
+
+// 繳回：代收人把錢交進大水庫。
+model FinanceRemittance {
+  id           Int                     @id @default(autoincrement())
+  classroomId  Int
+  classroom    Classroom               @relation(fields: [classroomId], references: [id])
+  fromUserId   Int
+  fromUser     User                    @relation("FinanceRemittanceFrom", fields: [fromUserId], references: [id])
+  amount       Int
+  method       PaymentMethod
+  reference    String? // 轉帳末五碼
+  sentOn       DateTime // 交錢的日子（台北時間當天 00:00）
+  note         String?
+  status       FinanceRemittanceStatus @default(PENDING)
+  reviewedById Int?
+  reviewedBy   User?                   @relation("FinanceRemittanceReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  rejectReason String?
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  @@index([classroomId, status])
+  @@index([fromUserId])
+  @@index([reviewedById])
+}
+
+// 大水庫手記帳。金額一律是正數，進或出看分類（src/domains/finance/entries.ts）。
+model FinanceEntry {
+  id          Int                    @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom              @relation(fields: [classroomId], references: [id])
+  date        DateTime // 台北時間當天 00:00
+  category    String
+  amount      Int
+  payeeUserId Int?
+  payeeUser   User?                  @relation("FinanceEntryPayee", fields: [payeeUserId], references: [id])
+  payeeName   String? // 付給不是成員的人（例如 24steps）
+  description String?
+  createdById Int
+  createdBy   User                   @relation("FinanceEntryCreator", fields: [createdById], references: [id])
+  // 作廢（不真的刪除），作廢也寫一筆修改紀錄。
+  voidedAt    DateTime?
+  revisions   FinanceEntryRevision[]
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  @@index([classroomId, date])
+  @@index([payeeUserId])
+  @@index([createdById])
+}
+
+model FinanceEntryRevision {
+  id         Int          @id @default(autoincrement())
+  entryId    Int
+  entry      FinanceEntry @relation(fields: [entryId], references: [id])
+  editedById Int
+  editedBy   User         @relation(fields: [editedById], references: [id])
+  reason     String
+  before     Json
+  after      Json? // null ＝ 作廢
+  createdAt  DateTime     @default(now())
+
+  @@index([entryId])
+  @@index([editedById])
+}
+
+// 建城之後改期初數字、換營收負責人的紀錄。
+model FinanceSettingRevision {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  editedById  Int
+  editedBy    User      @relation(fields: [editedById], references: [id])
+  reason      String
+  before      Json
+  after       Json
+  createdAt   DateTime  @default(now())
+
+  @@index([classroomId])
+  @@index([editedById])
+}
+
+// 新手任務裡，資料推不出來的那幾項（試玩推車、看過背包、通知過大家）。
+model FinanceQuestDone {
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  quest       String
+  completedAt DateTime  @default(now())
+
+  @@id([userId, classroomId, quest])
   @@index([classroomId])
 }

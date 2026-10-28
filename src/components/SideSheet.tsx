@@ -2,6 +2,7 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
+import { keepOpenOnSelectEscape } from "./Select";
 
 /**
  * 桌面版的右側抽屜：點了列表上的一筆才滑出來看詳情，背景**調暗不模糊**——
@@ -27,9 +28,10 @@ const SideSheet = ({
 }) => (
   <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
     <Dialog.Portal>
-      <Dialog.Overlay className="rd-overlay fixed inset-0 bg-neutral-900/30 z-40" />
+      <Dialog.Overlay className="rd-overlay fixed inset-0 bg-neutral-900/30 z-50" />
       <Dialog.Content
         aria-describedby={undefined}
+        onEscapeKeyDown={keepOpenOnSelectEscape}
         // sonner 的 toast 在抽屜外（右下角，正好蓋住抽屜底部），點到它不該被當成點外面而關掉抽屜
         onInteractOutside={(e) => {
           if ((e.target as Element | null)?.closest?.("[data-sonner-toaster]")) e.preventDefault();

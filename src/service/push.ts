@@ -36,37 +36,57 @@ export async function notifyClassroom(classroomId: number, push: TodoPush): Prom
     ]);
     const optedOutIds = new Set(optedOut.map((p) => p.userId));
     const userIds = members.map((m) => m.userId).filter((id) => !optedOutIds.has(id));
-    if (userIds.length === 0) return;
-    // staging 的資料是正式環境複製來的，推播 token 都是真的手機（src/lib/appEnv.ts）。
-    if (outboundPushDisabled()) {
-      console.warn(`[push] staging: not sent — ${push.title}`);
-      return;
-    }
-
-    // 圖示數字 = 這間教室的待處理總數。屬於多間教室的人只會看到觸發這次推播的
-    // 那一間，打開後會用自己目前的教室重新算。只在真的有裝置要發時才算
-    // （每間教室都會走到這裡，大多數老師沒開通知）。
-    let counting: Promise<number> | undefined;
-    const badge = () => (counting ??= countTodos(classroomId));
-
-    // 兩個管道各自吞錯，一邊壞了不影響另一邊。
-    await Promise.all([
-      sendToApps(userIds, classroomId, push, badge).catch((error) =>
-        console.error("[push] app push failed", error)
-      ),
-      sendToBrowsers(userIds, classroomId, push, badge).catch((error) =>
-        console.error("[push] web push failed", error)
-      ),
-    ]);
+    await sendToUsers(userIds, classroomId, push);
   } catch (error) {
     console.error("[push] notifyClassroom failed", error);
   }
 }
 
+/** 推播的內容。`type` 會帶進通知的 data 和瀏覽器通知的 tag（同 tag 的會被取代）。 */
+export type PushMessage = { type: string; title: string; body: string; path: string };
+
+/**
+ * 推給指定的幾個人（例如水庫的繳回只發給營收負責人）。跟 notifyClassroom 一樣
+ * **永遠不 throw**，呼叫時機在交易 commit 之後。不看 NotificationPreference——
+ * 那是待處理事項的開關。
+ */
+export async function notifyUsers(classroomId: number, userIds: number[], push: PushMessage): Promise<void> {
+  try {
+    await sendToUsers([...new Set(userIds)], classroomId, push);
+  } catch (error) {
+    console.error("[push] notifyUsers failed", error);
+  }
+}
+
+async function sendToUsers(userIds: number[], classroomId: number, push: PushMessage) {
+  if (userIds.length === 0) return;
+  // staging 的資料是正式環境複製來的，推播 token 都是真的手機（src/lib/appEnv.ts）。
+  if (outboundPushDisabled()) {
+    console.warn(`[push] staging: not sent — ${push.title}`);
+    return;
+  }
+
+  // 圖示數字 = 這間教室的待處理總數。屬於多間教室的人只會看到觸發這次推播的
+  // 那一間，打開後會用自己目前的教室重新算。只在真的有裝置要發時才算
+  // （每間教室都會走到這裡，大多數老師沒開通知）。
+  let counting: Promise<number> | undefined;
+  const badge = () => (counting ??= countTodos(classroomId));
+
+  // 兩個管道各自吞錯，一邊壞了不影響另一邊。
+  await Promise.all([
+    sendToApps(userIds, classroomId, push, badge).catch((error) =>
+      console.error("[push] app push failed", error)
+    ),
+    sendToBrowsers(userIds, classroomId, push, badge).catch((error) =>
+      console.error("[push] web push failed", error)
+    ),
+  ]);
+}
+
 async function sendToApps(
   userIds: number[],
   classroomId: number,
-  push: TodoPush,
+  push: PushMessage,
   badge: () => Promise<number>
 ) {
   const tokens = await prisma.pushToken.findMany({
@@ -102,7 +122,7 @@ async function sendToApps(
 async function sendToBrowsers(
   userIds: number[],
   classroomId: number,
-  push: TodoPush,
+  push: PushMessage,
   badge: () => Promise<number>
 ) {
   if (!webPushConfigured()) return;

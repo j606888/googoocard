@@ -3,7 +3,8 @@ import { Prisma } from "@prisma/client";
 import { ZodError, type ZodType } from "zod";
 import { decodeAuthToken } from "@/lib/auth";
 import { ApiError } from "@/lib/apiError";
-import { NO_CLASSROOM } from "@/lib/authz";
+import { NO_CLASSROOM, assertCan } from "@/lib/authz";
+import { effectivePermissions, isModule, type Module, type Permission } from "@/lib/permissions";
 
 /**
  * Wrapper for Next.js route handlers that makes the two things we kept getting
@@ -30,7 +31,20 @@ type Handler<P, R> = (ctx: {
   classroomId: number;
   /** The caller's role in `classroomId` — "owner" | "admin" | "teacher" | "assistant" (src/lib/roles.ts). */
   role: string;
+  /** What the caller may do here: role bundle ± personal overrides, minus modules that are off (src/lib/permissions.ts). */
+  permissions: Set<Permission>;
+  /** Modules switched on in this classroom. */
+  modules: Set<Module>;
 }) => Promise<R>;
+
+type RouteOptions = {
+  /**
+   * Required permission. Belongs to a module that's off → 404
+   * `MODULE_NOT_ENABLED` (for this classroom the feature doesn't exist);
+   * module on but the caller lacks it → 403 `PERMISSION_DENIED`.
+   */
+  permission?: Permission;
+};
 
 type PublicHandler<P, R> = (ctx: { request: Request; params: P }) => Promise<R>;
 
@@ -117,20 +131,35 @@ function errorResponse(error: unknown, label: string): Response {
  * classrooms, switching, leaving, deleting — use `sessionRoute` instead;
  * otherwise a stale JWT would lock them out of their own recovery path.
  */
-export function apiRoute<P = Record<string, never>, R = unknown>(handler: Handler<P, R>) {
+export function apiRoute<P = Record<string, never>, R = unknown>(
+  handler: Handler<P, R>,
+  options: RouteOptions = {}
+) {
   return async (request: Request, segment: NextSegment<P>): Promise<Response> => {
     const label = `${request.method} ${new URL(request.url).pathname}`;
     try {
-      const { userId, classroomId, role } = await decodeAuthToken();
+      const session = await decodeAuthToken();
+      const { userId, classroomId } = session;
       if (!userId || !classroomId || classroomId === NO_CLASSROOM) {
         return NextResponse.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
       }
 
+      // `role` is only absent when the membership lookup was skipped, which
+      // the guard above already ruled out. The other three are absent when a
+      // test mocks `decodeAuthToken` without them — read as "none".
+      const role = session.role ?? "assistant";
+      const modules = new Set((session.modules ?? []).filter(isModule));
+      const permissions = effectivePermissions({
+        role,
+        grants: session.grants,
+        revokes: session.revokes,
+        modules: [...modules],
+      });
+      if (options.permission) assertCan({ permissions, modules }, options.permission);
+
       const params = ((await segment?.params) ?? {}) as P;
       return await toResponse(
-        // `role` is only absent when the membership lookup was skipped, which
-        // the guard above already ruled out.
-        await handler({ request, params, userId, classroomId, role: role ?? "assistant" })
+        await handler({ request, params, userId, classroomId, role, permissions, modules })
       );
     } catch (error) {
       return errorResponse(error, label);

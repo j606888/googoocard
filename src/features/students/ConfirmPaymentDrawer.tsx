@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
+import Select from "@/components/Select";
 import SegmentedTabs from "@/components/SegmentedTabs";
-import Field, { FieldLabel, fieldControlClass } from "@/components/Field";
-import { cn } from "@/lib/utils";
+import Field, { FieldLabel } from "@/components/Field";
 import { formatMoney } from "@/lib/money";
 import { formatCardSerial } from "@/lib/cardSerial";
 import {
@@ -123,19 +123,15 @@ export default function ConfirmPaymentDrawer({
 
         <div className="flex flex-col gap-1.5">
           <FieldLabel htmlFor="payment-receiver">錢現在在誰手上</FieldLabel>
-          <select
+          <Select
             id="payment-receiver"
-            className={cn(fieldControlClass(), "h-12")}
-            value={receiver ?? ""}
-            onChange={(e) => setReceiverUserId(Number(e.target.value))}
-          >
-            {(memberships ?? []).map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {m.user.name}
-                {m.userId === me?.id ? "（我）" : ""}
-              </option>
-            ))}
-          </select>
+            value={receiver ?? undefined}
+            onChange={setReceiverUserId}
+            options={(memberships ?? []).map((m) => ({
+              value: m.userId,
+              label: m.userId === me?.id ? `${m.user.name}（我）` : m.user.name,
+            }))}
+          />
           <p className="text-xs text-neutral-500">預設是你自己；學生轉到其他老師的帳戶就改選那位老師</p>
         </div>
       </div>

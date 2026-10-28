@@ -1,6 +1,6 @@
 import { useId } from "react";
-import Field, { FieldError, FieldLabel, fieldControlClass } from "@/components/Field";
-import { cn } from "@/lib/utils";
+import Field, { FieldError, FieldLabel } from "@/components/Field";
+import Select from "@/components/Select";
 import { useCreateTeacherMutation, useGetTeachersQuery } from "@/store/slices/teachers";
 
 /** Which Teacher row a member is: an existing one, a new one by name, or none. */
@@ -41,30 +41,27 @@ export default function TeacherPicker({
   return (
     <div className="flex flex-col gap-1.5">
       <FieldLabel htmlFor={id}>他是哪一位老師？</FieldLabel>
-      <select
+      <Select
         id={id}
-        className={cn(fieldControlClass(!!error), "h-12")}
         value={selectValue}
-        aria-invalid={error ? true : undefined}
+        error={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
-        onChange={(e) => {
-          const v = e.target.value;
+        placeholder="選擇老師"
+        onChange={(v) => {
           onChange(
             v === NEW ? { kind: "new", name: "" } : v === NONE ? { kind: "none" } : { kind: "existing", id: Number(v) }
           );
         }}
-      >
-        <option value={NONE} disabled={!optional}>
-          {optional ? "不連結" : "選擇老師"}
-        </option>
-        {linkable.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name}
-            {t.activeLessonCount > 0 ? `（${t.activeLessonCount} 堂進行中）` : ""}
-          </option>
-        ))}
-        <option value={NEW}>＋ 新增老師</option>
-      </select>
+        options={[
+          ...(optional ? [{ value: NONE, label: "不連結" }] : []),
+          ...linkable.map((t) => ({
+            value: String(t.id),
+            label: t.name,
+            hint: t.activeLessonCount > 0 ? `${t.activeLessonCount} 堂進行中` : undefined,
+          })),
+          { value: NEW, label: "＋ 新增老師" },
+        ]}
+      />
       {value.kind === "new" && (
         <Field
           label="新老師的名字"

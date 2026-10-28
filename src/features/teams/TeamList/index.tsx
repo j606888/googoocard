@@ -16,7 +16,7 @@ import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/EmptyState";
-import { isAdminRole } from "@/lib/roles";
+import { useCan } from "@/hooks/useCan";
 import InviteDrawer from "./InviteDrawer";
 import EditMemberDrawer from "./EditMemberDrawer";
 
@@ -66,7 +66,7 @@ const TeamList = () => {
   // powers the "You" pill, so no extra request is needed for it.
   const myRole = memberships?.find((membership) => membership.userId === me?.id)?.role;
   const isOwner = myRole === "owner";
-  const isAdmin = isAdminRole(myRole);
+  const isAdmin = useCan("members.manage");
 
   const handleRemoveMember = async (membership: Membership) => {
     if (!confirm(`確定要把 ${membership.user.name} 移出這間教室嗎？`)) {

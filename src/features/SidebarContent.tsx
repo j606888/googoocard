@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, ChevronsUpDown, Plus } from "lucide-react";
+import { LogOut, ChevronsUpDown, MoreHorizontal, Plus } from "lucide-react";
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -8,12 +8,22 @@ import {
   useGetClassroomsQuery,
   useSwitchClassroomMutation,
 } from "@/store/slices/classrooms";
-import { useLogoutMutation } from "@/store/slices/me";
+import { useGetMeQuery, useLogoutMutation } from "@/store/slices/me";
 import { disableWebPushOnLogout } from "@/hooks/useWebPush";
 import Menu from "@/components/Menu";
 import KiwiLogo from "@/components/KiwiLogo";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PRIMARY_LINKS, SECONDARY_LINKS, type NavLink } from "./nav/navConfig";
+import { useAccess } from "@/hooks/useCan";
+import { Button } from "@/components/ui/button";
+import {
+  ACCOUNT_LINK,
+  MODULE_LINKS,
+  PRIMARY_LINKS,
+  SECONDARY_LINKS,
+  SETTINGS_ENTRY,
+  isSettingsPath,
+  type NavLink,
+} from "./nav/navConfig";
 import TodoBell from "./TodoBell";
 
 interface SidebarContentProps {
@@ -23,10 +33,16 @@ interface SidebarContentProps {
 const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const [switchClassroomOpen, setSwitchClassroomOpen] = useState(false);
   const anchorRef = useRef<HTMLDivElement>(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountAnchorRef = useRef<HTMLButtonElement>(null);
+  const { data: me } = useGetMeQuery();
   const [switchClassroom] = useSwitchClassroomMutation();
   const pathname = usePathname();
   const router = useRouter();
   const [logout] = useLogoutMutation();
+  const { can } = useAccess();
+  const visible = (link: NavLink) => !link.permission || can(link.permission);
+  const moduleLinks = MODULE_LINKS.filter(visible);
   const { data } = useGetClassroomsQuery();
   const otherClassrooms = data?.classrooms.filter(
     (classroom) => classroom.id !== data.currentClassroomId
@@ -48,8 +64,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
     setSwitchClassroomOpen(false);
   };
 
-  const renderLink = (link: NavLink) => {
-    const active = pathname.startsWith(link.href);
+  const renderLink = (link: NavLink, active = pathname.startsWith(link.href)) => {
     return (
       <Link
         href={link.href}
@@ -146,20 +161,78 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
         </Link>
       </Menu>
       <nav className="mt-5 flex flex-col gap-0.5">
-        {PRIMARY_LINKS.map(renderLink)}
-        <div className="mx-3 my-3 h-px bg-neutral-200/70" />
-        {SECONDARY_LINKS.map(renderLink)}
+        {[...PRIMARY_LINKS, ...SECONDARY_LINKS].filter(visible).map((link) => renderLink(link))}
+        {moduleLinks.length > 0 && (
+          <>
+            <p className="mx-3 mb-1 mt-4 text-xs font-medium text-neutral-500">模組</p>
+            {moduleLinks.map((link) => renderLink(link))}
+          </>
+        )}
       </nav>
-      <div className="flex flex-col items-start mt-auto">
+      {/* 教室設定 and the account row sit at the bottom: set up once, rarely visited. */}
+      <div className="mt-auto flex flex-col gap-2 pt-4">
+        {renderLink(SETTINGS_ENTRY, isSettingsPath(pathname))}
+        <div className="flex items-center gap-2.5 border-t border-neutral-200 px-1 pt-3">
+          <div
+            aria-hidden="true"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-100 font-bold text-primary-900"
+          >
+            {me?.name.trim().charAt(0).toUpperCase()}
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col">
+            {me ? (
+              <>
+                <span className="truncate text-sm font-semibold text-neutral-900">{me.name}</span>
+                <span className="truncate text-xs text-neutral-500">{me.email}</span>
+              </>
+            ) : (
+              <>
+                <Skeleton className="my-0.5 h-3.5 w-20" />
+                <Skeleton className="my-0.5 h-3 w-28" />
+              </>
+            )}
+          </div>
+          <Button
+            ref={accountAnchorRef}
+            type="button"
+            variant="ghost"
+            size="iconSm"
+            aria-label="帳號與登出"
+            aria-expanded={accountMenuOpen}
+            onClick={() => setAccountMenuOpen((open) => !open)}
+            className={`text-neutral-600 ${pathname.startsWith(ACCOUNT_LINK.href) ? "bg-primary-100 text-primary-900" : ""}`}
+          >
+            <MoreHorizontal className="size-5" />
+          </Button>
+        </div>
+      </div>
+      <Menu
+        open={accountMenuOpen}
+        anchorEl={accountAnchorRef.current}
+        onClose={() => setAccountMenuOpen(false)}
+        placement="top-end"
+        className="z-50 flex w-48 flex-col rounded-2xl border border-neutral-200 bg-white p-1.5 shadow-[0_12px_40px_-12px_rgba(27,94,74,0.45)]"
+      >
+        <Link
+          href={ACCOUNT_LINK.href}
+          onClick={() => {
+            setAccountMenuOpen(false);
+            onClose?.();
+          }}
+          className="flex h-11 items-center gap-2.5 rounded-lg px-3 text-sm text-neutral-700 hover:bg-neutral-100"
+        >
+          <ACCOUNT_LINK.icon className="size-4" />
+          帳號
+        </Link>
         <button
           type="button"
-          className="flex h-11 w-full cursor-pointer items-center gap-3.5 rounded-xl px-3 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
           onClick={handleLogout}
+          className="flex h-11 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-left text-sm text-neutral-700 hover:bg-neutral-100"
         >
-          <LogOut className="h-5 w-5" />
-          <span>登出</span>
+          <LogOut className="size-4" />
+          登出
         </button>
-      </div>
+      </Menu>
     </>
   );
 };

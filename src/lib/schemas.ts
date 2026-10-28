@@ -268,4 +268,6 @@ export const createInviteSchema = z.object({
 export const updateMembershipSchema = z.object({
   role: assignableRole.optional(),
   teacherId: positiveInt.nullable().optional(),
+  /** The full list the member should end up with (src/lib/permissions.ts); stored as grants/revokes. */
+  permissions: z.array(z.string()).optional(),
 });

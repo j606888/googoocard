@@ -8,6 +8,7 @@ import {
   shift,
   autoUpdate,
   FloatingPortal,
+  type Placement,
 } from "@floating-ui/react";
 
 interface MenuProps {
@@ -16,16 +17,18 @@ interface MenuProps {
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
+  /** Defaults to "bottom-start"; "bottom-end" for a ⋯ button at the right edge. */
+  placement?: Placement;
 }
 
-const Menu = ({ open, anchorEl, onClose, children, className }: MenuProps) => {
+const Menu = ({ open, anchorEl, onClose, children, className, placement = "bottom-start" }: MenuProps) => {
   const { refs, floatingStyles } = useFloating({
     elements: {
       reference: anchorEl || undefined,
     },
     middleware: [offset(4), flip(), shift()],
     whileElementsMounted: autoUpdate,
-    placement: "bottom-start",
+    placement,
   });
 
   const menuRef = useRef<HTMLDivElement>(null);
