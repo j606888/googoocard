@@ -45,6 +45,8 @@ LINE is **student-only** (teachers use the website/App — teacher LINE binding 
 
 Staging rules: one branch at a time (`git push origin <branch>:staging -f`; say which one is up); when it's merged, put `main` back (`git push origin main:staging -f`); branches with migrations get tested on staging, not on a plain Preview. The nightly refresh rebuilds the DB from production + the current staging branch's migrations, so a dropped branch's migrations no longer strand the DB — they vanish the next morning.
 
+**Local data = production copy on demand**: `bash scripts/local-from-prod.sh` backs up the local DB to `~/googoocard-backups/`, rebuilds the schema from the current branch's migrations, loads production **data only** (`pg_dump --data-only` via a `postgres:16` container, read-only on prod; local is Postgres 10 so a full restore wouldn't work), then runs `scripts/staging-sanitize.sql` with **no** kept LINE bindings (local `.env` has the real OA token) unless `KEEP_LINE_USER_IDS` is set. The user runs it (it reads `.env.production`); log in with production passwords.
+
 Tests are safe by construction: they run against a separate `googoocard_test` database (auto-created/migrated by `tests/global-setup.ts`) and `tests/test-db-url.ts` refuses any non-localhost URL.
 
 ## Architecture
