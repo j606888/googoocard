@@ -56,6 +56,19 @@ const eslintConfig = [
     ignores: [...MODULE_FOLDERS.curriculum, ...MODULE_FOLDERS.finance],
     rules: restrict("curriculum", "finance"),
   },
+  {
+    // 下拉選單一律用 `@/components/Select`（docs/design-system.md「下拉選單」）。
+    files: ["src/**/*.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXOpeningElement[name.name='select']",
+          message: "用 @/components/Select，不用原生 <select>（docs/design-system.md「下拉選單」）。",
+        },
+      ],
+    },
+  },
   { files: MODULE_FOLDERS.curriculum, rules: restrict("finance") },
   { files: MODULE_FOLDERS.finance, rules: restrict("curriculum") },
 ];

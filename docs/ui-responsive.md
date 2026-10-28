@@ -190,6 +190,9 @@ hook——正好落在下面「已知取捨」寫的界線內：小塊靜態內�
   退場動畫跑完後節點不會被移除，留下一層 `opacity: 0` 的全螢幕遮罩把後續點擊全部吃掉。
   現在用 Radix 原生的 `data-state` + CSS keyframes（`globals.css` 的 `rd-*`），
   由 Radix 的 Presence 等 `animationend` 再卸載。已在瀏覽器實測 Esc 與點遮罩都能關乾淨。
+  2026-10-27 加 `desktop="side"`：桌面改成從右邊滑出的抽屜（跟 `SideSheet` 同樣子、背景調暗不模糊），
+  手機一樣是底部抽屜——看詳情、旁邊還想瞄列表的地方用它（技能樹的技能、待定區、分類與等級、已封存）。
+  遮罩跟面板都是 `z-50`，疊開的對話框（抽屜上的確認框、從待定區點開的技能）靠 DOM 順序連遮罩一起蓋住先開的。
 - **DataView** — 維持 `lg:contents` 的純 CSS 單樹寫法。grid track 沒辦法用 Tailwind class
   動態產生，改用 CSS 變數傳，但切換點仍走 `lg:`。`GroupRow` 的 `lg:` 從 11 降到 2。
 - **SplitView** — 版面 ＋ `useSelectionMirroredToUrl`。網址鏡射行為原封不動搬過去

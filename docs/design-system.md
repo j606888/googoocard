@@ -94,6 +94,7 @@ Token 全在 `src/app/globals.css` 的 `@theme`。
 |---|---|---|
 | `Button` | `src/components/ui/button.tsx` | 所有按鈕。`variant`：`primary`／`secondary`／`ghost`／`danger`／`dangerSecondary`／`link`；`size`：`sm`／`md`／`lg`／`icon`／`iconSm`；`isLoading` 會轉圈並停用 |
 | `Field` | `src/components/Field.tsx` | 有標籤的文字輸入（含密碼顯示切換）。`fieldControlClass(error)` 給下拉、日期、時間的觸發框和 textarea 用同一個外觀；`FieldLabel`、`FieldError` 給自己組的欄位 |
+| `Select` | `src/components/Select.tsx` | 下拉選單（見下）。**不用原生 `<select>`**，ESLint 會擋 |
 | `InputField` | `src/components/InputField.tsx` | 舊 API，內部已是 `Field`；新程式直接用 `Field` |
 | `EmptyState` | `src/components/EmptyState.tsx` | 空狀態，三種 `kind`（見下） |
 | `Skeleton` | `src/components/ui/skeleton.tsx` | 載入中（見下）。每個列表在自己的檔案旁邊畫一個跟真列同形狀的骨架（例：`StudentTableSkeleton`、`LessonTableSkeleton`） |
@@ -131,3 +132,14 @@ Token 全在 `src/app/globals.css` 的 `@theme`。
 - 標籤在上（`text-sm font-medium`），錯誤在下（`text-[13px] text-danger-700`），用 `aria-describedby` 連起來。
 - 用真的 `<form onSubmit>`，Enter 就能送出。
 - 白底框線輸入框；**不用灰底** `bg-neutral-100` 輸入框。
+
+### 下拉選單
+
+- 一律用 `Select`：觸發框跟輸入框同一個外觀，選單是白底圓角浮層，選中的那項綠字加打勾，滑過／鍵盤移到的那項 `neutral-100` 底。
+- `size`：`md`（48，表單預設）、`sm`（44，篩選列、表格內、同一列擠好幾個控制項時）。
+- 寬度：預設撐滿；篩選列這種要跟內容一樣寬的加 `className="w-auto"`，會撐到最長的選項，換選項不會跳。
+- 選項：`{ value, label, hint?, disabled? }`。`hint` 是跟在後面的灰色小字（餘額、「3 堂進行中」），只在選單裡出現。全是文字的選項用 `textOptions(["台南", "高雄"])`。
+- 標籤用 `FieldLabel htmlFor` 或 `aria-label`；錯誤傳 `error`，再用 `aria-describedby` 連到 `FieldError`。
+- 鍵盤：上下移、Enter／空白鍵選、Esc 關、打字跳到開頭相同的選項。
+- 在對話框、抽屜裡能直接用：選單會 portal 進那個對話框。按 Esc 只會關掉選單，對話框還開著。新做的 Radix 對話框容器也要掛上 `onEscapeKeyDown={keepOpenOnSelectEscape}`，才會是這個行為。
+- 選項少於 4 個、而且每個都要一眼看到時（收入／支出、現金／轉帳），用 `SegmentedTabs` 或 `OptionCard`，不要用下拉。
