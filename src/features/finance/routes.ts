@@ -6,6 +6,7 @@ export const financeHref = {
   ledger: `${BASE}/ledger`,
   vault: `${BASE}/vault`,
   verify: `${BASE}/verify`,
+  day: (date: string) => `${BASE}/day/${date}`,
   rules: `${BASE}/rules`,
   settings: `${BASE}/settings`,
   holder: (userId: number) => `${BASE}/holders/${userId}`,

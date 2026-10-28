@@ -111,3 +111,12 @@ export const verifyLessonsSchema = z.object({
   periodIds: z.array(id).min(1).max(200),
   batch: z.boolean().default(false),
 });
+
+/** 驗收時手動改老師實拿。 */
+export const overrideLessonSchema = z.object({
+  teacherLines: z.array(z.object({ teacherId: id, amount: money })).max(10),
+  reason,
+});
+
+/** GET /api/finance/day?date=YYYY-MM-DD */
+export const dayBookQuerySchema = z.object({ date: dateKey });

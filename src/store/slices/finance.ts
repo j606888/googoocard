@@ -256,7 +256,32 @@ export interface LessonSplitRow {
     remainderTeacherId: number | null;
     fund: number;
   } | null;
-  verified: { by: { id: number; name: string }; at: string; revenue: number; revenueDiff: number } | null;
+  verified: {
+    by: { id: number; name: string };
+    at: string;
+    revenue: number;
+    revenueDiff: number;
+    lines: { kind: "TEACHER" | "VENUE" | "ASSISTANT" | "REMAINDER"; teacherId: number | null; amount: number }[];
+    fund: number;
+    overridden: boolean;
+    overrideReason: string | null;
+  } | null;
+}
+
+export interface DayBook {
+  date: string;
+  lessons: LessonSplitRow[];
+  distribution: {
+    revenue: number;
+    fund: number;
+    externalVenue: number;
+    people: { teacherId: number; teach: number; venue: number; assistant: number; remainder: number; total: number }[];
+  };
+  vault: {
+    rows: { kind: "entry" | "card" | "remittance"; label: string; category: string | null; amount: number; by: string | null; voided: boolean }[];
+    balance: number | null;
+  };
+  custody: { studentCardId: number; label: string; amount: number; holder: { id: number; name: string } | null }[];
 }
 
 const TAG = [{ type: "Finance" as const }];
@@ -329,6 +354,11 @@ export const financeApi = api.injectEndpoints({
       query: (body) => ({ url: "finance/lessons/verify", method: "POST", body }),
       invalidatesTags: TAG,
     }),
+    overrideLesson: builder.mutation<unknown, { periodId: number; teacherLines: { teacherId: number; amount: number }[]; reason: string }>({
+      query: ({ periodId, ...body }) => ({ url: `finance/lessons/${periodId}/override`, method: "POST", body }),
+      invalidatesTags: TAG,
+    }),
+    getDayBook: builder.query<DayBook, string>({ query: (date) => `finance/day?date=${date}`, providesTags: TAG }),
     getSplitRules: builder.query<SplitRuleRow[], void>({ query: () => "finance/split-rules", providesTags: TAG }),
     saveSplitRule: builder.mutation<SplitRuleRow, SplitRuleBody>({
       query: (body) => ({ url: "finance/split-rules", method: "PUT", body }),
@@ -363,6 +393,8 @@ export const {
   useMarkFinanceQuestMutation,
   useGetLessonSplitsQuery,
   useVerifyLessonsMutation,
+  useOverrideLessonMutation,
+  useGetDayBookQuery,
   useGetSplitRulesQuery,
   useSaveSplitRuleMutation,
 } = financeApi;

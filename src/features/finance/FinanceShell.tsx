@@ -31,7 +31,9 @@ export default function FinanceShell({ children }: { children: ReactNode }) {
     { value: "rules", label: "分帳規則", href: financeHref.rules },
     { value: "settings", label: "設定", href: financeHref.settings },
   ];
-  const active = tabs.find((t) => t.value !== "home" && pathname === t.href)?.value ?? "home";
+  const active =
+    tabs.find((t) => t.value !== "home" && pathname === t.href)?.value ??
+    (pathname.startsWith(financeHref.day("")) ? "verify" : "home");
 
   return (
     <div className="flex w-full max-w-[1280px] flex-col gap-5 px-4 py-4 lg:px-8 lg:py-6">

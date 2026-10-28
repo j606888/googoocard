@@ -1,6 +1,6 @@
 import type { FinanceSplitRule, FinanceSplitShare, Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { badRequest } from "@/lib/apiError";
+import { badRequest, notFound } from "@/lib/apiError";
 import { parseTaipeiDateRange, parseTaipeiMonthRange, toTaipeiDateKey, toTaipeiMonthKey } from "@/lib/taipei-date";
 import {
   allocateFees,
@@ -12,6 +12,7 @@ import {
   type SplitResult,
 } from "@/domains/finance/split";
 import type { SplitRuleInput } from "@/domains/finance/schemas";
+import { getVaultLedger } from "./money";
 
 /**
  * 第二步：分帳規則、每堂分帳、驗收（docs/finance-db.md §4）。
@@ -108,8 +109,20 @@ export type LessonSplitRow = {
   /** 現在算出來的（還沒點名的是 null）。 */
   split: SplitResult | null;
   /** 存過的驗收；CHANGED 時 revenueDiff ＝ 現在 − 驗收時。 */
-  verified: { by: { id: number; name: string }; at: Date; revenue: number; revenueDiff: number } | null;
+  verified: {
+    by: { id: number; name: string };
+    at: Date;
+    revenue: number;
+    revenueDiff: number;
+    /** 驗收時存下的分法（手動改過的也在這裡）。 */
+    lines: SettlementLine[];
+    fund: number;
+    overridden: boolean;
+    overrideReason: string | null;
+  } | null;
 };
+
+type SettlementLine = { kind: "TEACHER" | "VENUE" | "ASSISTANT" | "REMAINDER"; teacherId: number | null; amount: number };
 
 /** from、to 是台北日期（含頭含尾）。一定整天整天算，每天固定的費用才平攤得對。 */
 export async function getLessonSplits(classroomId: number, from: string, to: string, now = new Date()) {
@@ -196,6 +209,10 @@ async function computeLessonSplits(classroomId: number, from: string, to: string
             at: settlement.verifiedAt,
             revenue: settlement.revenue,
             revenueDiff: split.revenue - settlement.revenue,
+            lines: settlement.lines,
+            fund: settlement.fund,
+            overridden: settlement.overridden,
+            overrideReason: settlement.overrideReason,
           }
         : null,
     };
@@ -217,7 +234,7 @@ function inputsKey(input: PeriodInput, split: SplitResult) {
 }
 
 function settlementLines(split: SplitResult) {
-  const lines: { kind: "TEACHER" | "VENUE" | "ASSISTANT" | "REMAINDER"; teacherId: number | null; amount: number }[] = [
+  const lines: SettlementLine[] = [
     ...split.teacherLines.map((l) => ({ kind: "TEACHER" as const, teacherId: l.teacherId, amount: l.amount })),
     ...split.assistantLines.map((l) => ({ kind: "ASSISTANT" as const, teacherId: l.teacherId, amount: l.amount })),
   ];
@@ -281,9 +298,18 @@ async function saveSettlement(
   userId: number,
   row: LessonSplitRow,
   meta: SettlementMeta,
-  at: Date
+  at: Date,
+  override?: { teacherLines: { teacherId: number; amount: number }[]; reason: string }
 ) {
   const split = row.split!;
+  const lines: SettlementLine[] = override
+    ? [
+        ...override.teacherLines.map((l) => ({ kind: "TEACHER" as const, ...l })),
+        ...settlementLines(split).filter((l) => l.kind === "VENUE" || l.kind === "ASSISTANT"),
+      ]
+    : settlementLines(split);
+  const paid = lines.filter((l) => l.kind !== "VENUE" || l.teacherId !== null).reduce((sum, l) => sum + l.amount, 0);
+  const externalVenue = lines.filter((l) => l.kind === "VENUE" && l.teacherId === null).reduce((sum, l) => sum + l.amount, 0);
   const data = {
     inputsKey: meta.inputsKey,
     ruleIds: meta.ruleIds,
@@ -293,12 +319,13 @@ async function saveSettlement(
     venueFee: split.venueFee,
     assistantFee: split.assistantFee,
     commission: split.commission,
-    remainder: split.remainder,
-    fund: split.fund,
+    remainder: override ? 0 : split.remainder,
+    fund: split.revenue - paid - externalVenue,
+    overridden: Boolean(override),
+    overrideReason: override?.reason ?? null,
     verifiedById: userId,
     verifiedAt: at,
   };
-  const lines = settlementLines(split);
 
   await prisma.$transaction(async (tx) => {
     const existing = await tx.financeLessonSettlement.findUnique({
@@ -314,18 +341,80 @@ async function saveSettlement(
     await tx.financeSettlementLine.deleteMany({ where: { settlementId: existing.id } });
     await tx.financeLessonSettlement.update({
       where: { id: existing.id },
-      data: { ...data, overridden: false, overrideReason: null, lines: { create: lines } },
+      data: { ...data, lines: { create: lines } },
     });
     await tx.financeSettlementRevision.create({
       data: {
         settlementId: existing.id,
         editedById: userId,
-        reason: "點名改過，重新驗收",
+        reason: override?.reason ?? "重新驗收",
         before: { revenue: existing.revenue, attendeeCount: existing.attendeeCount, lines: existing.lines },
         after: { revenue: data.revenue, attendeeCount: data.attendeeCount, lines },
       },
     });
   });
+}
+
+/**
+ * 驗收時手動改老師實拿（例如這堂少掛了一位老師）。場地費、助教費照算，
+ * 改過的差額由水庫基金吸收；不再算零頭。要寫原因，之後看得到原本的數字。
+ */
+export async function overrideLesson(input: {
+  classroomId: number;
+  userId: number;
+  periodId: number;
+  teacherLines: { teacherId: number; amount: number }[];
+  reason: string;
+  now?: Date;
+}) {
+  const period = await prisma.lessonPeriod.findFirst({
+    where: { id: input.periodId, lesson: { classroomId: input.classroomId } },
+    select: { startTime: true },
+  });
+  if (!period) throw notFound("Lesson period");
+  const ids = [...new Set(input.teacherLines.map((l) => l.teacherId))];
+  if (ids.length !== input.teacherLines.length) throw badRequest("DUPLICATE_TEACHER");
+  if (ids.length > 0 && (await prisma.teacher.count({ where: { id: { in: ids }, classroomId: input.classroomId } })) !== ids.length) {
+    throw badRequest("TEACHER_NOT_FOUND");
+  }
+
+  const day = toTaipeiDateKey(period.startTime);
+  const { rows, meta } = await computeLessonSplits(input.classroomId, day, day, input.now ?? new Date());
+  const row = rows.find((r) => r.periodId === input.periodId)!;
+  if (!row.split) throw badRequest("NOT_TAKEN", "這堂還沒點名");
+  if (row.flags.includes("MANUAL")) throw badRequest("MANUAL", "手動結算的課還不支援");
+  await saveSettlement(input.classroomId, input.userId, row, meta.get(row.periodId)!, input.now ?? new Date(), {
+    teacherLines: input.teacherLines,
+    reason: input.reason,
+  });
+  return { verified: [input.periodId] };
+}
+
+/** 一批堂分給誰多少：驗收過的用存下的分法，其他用現在算的。 */
+export function distribution(rows: LessonSplitRow[]) {
+  const people = new Map<number, { teacherId: number; teach: number; venue: number; assistant: number; remainder: number; total: number }>();
+  let fund = 0;
+  let externalVenue = 0;
+  let revenue = 0;
+  for (const row of rows) {
+    if (!row.split) continue;
+    const useSaved = row.status === "VERIFIED" && row.verified;
+    const lines = useSaved ? row.verified!.lines : settlementLines(row.split);
+    revenue += useSaved ? row.verified!.revenue : row.split.revenue;
+    fund += useSaved ? row.verified!.fund : row.split.fund;
+    for (const line of lines) {
+      if (line.teacherId === null) {
+        externalVenue += line.amount;
+        continue;
+      }
+      const p = people.get(line.teacherId) ?? { teacherId: line.teacherId, teach: 0, venue: 0, assistant: 0, remainder: 0, total: 0 };
+      const key = ({ TEACHER: "teach", VENUE: "venue", ASSISTANT: "assistant", REMAINDER: "remainder" } as const)[line.kind];
+      p[key] += line.amount;
+      p.total += line.amount;
+      people.set(line.teacherId, p);
+    }
+  }
+  return { revenue, fund, externalVenue, people: [...people.values()].sort((a, b) => b.total - a.total) };
 }
 
 // ---------- 規則
@@ -421,4 +510,78 @@ export async function saveSplitRule(classroomId: number, userId: number, input: 
       include: { shares: { select: { teacherId: true, pct: true } } },
     });
   });
+}
+
+// ---------- 當天的帳
+
+type DayVaultRow = {
+  kind: "entry" | "card" | "remittance";
+  label: string;
+  category: string | null;
+  amount: number;
+  by: string | null;
+  voided: boolean;
+};
+
+/**
+ * 一天一頁：這天每堂的分帳、分給誰多少，以及這天真的收付的錢
+ * （大水庫的進出＋結餘、收款人自己收的課卡錢）。
+ */
+export async function getDayBook(classroomId: number, dateKey: string, now = new Date()) {
+  const { start, end } = parseTaipeiDateRange(dateKey);
+  const [rows, ledger, setting] = await Promise.all([
+    getLessonSplits(classroomId, dateKey, dateKey, now),
+    getVaultLedger(classroomId),
+    prisma.financeSetting.findUnique({ where: { classroomId }, select: { revenueOwnerUserId: true } }),
+  ]);
+
+  // ledger.entries 是新到舊、每列帶當下的結餘
+  const vaultRows = ledger.entries.filter((e) => e.kind !== "opening" && e.at >= start && e.at < end);
+  const balance = ledger.entries.find((e) => e.at < end)?.balance ?? null;
+
+  const custody = await prisma.studentCard.findMany({
+    where: {
+      student: { classroomId },
+      isPaid: true,
+      origin: "PURCHASE",
+      finalPrice: { gt: 0 },
+      paidAt: { gte: start, lt: end },
+      NOT: { paidByUserId: setting?.revenueOwnerUserId ?? -1 },
+    },
+    select: {
+      id: true,
+      finalPrice: true,
+      student: { select: { name: true } },
+      card: { select: { name: true } },
+      paidBy: { select: { id: true, name: true } },
+    },
+    orderBy: { paidAt: "asc" },
+  });
+
+  return {
+    date: dateKey,
+    lessons: rows,
+    distribution: distribution(rows),
+    vault: {
+      rows: vaultRows.reverse().flatMap((e): DayVaultRow[] => {
+        switch (e.kind) {
+          case "entry":
+            return [{ kind: e.kind, label: e.description || e.category, category: e.category, amount: e.voidedAt ? 0 : e.signed, by: e.createdBy.name, voided: Boolean(e.voidedAt) }];
+          case "card":
+            return [{ kind: e.kind, label: `${e.studentName} · ${e.cardName}`, category: null, amount: e.amount, by: null, voided: false }];
+          case "remittance":
+            return [{ kind: e.kind, label: `${e.from.name} 送回`, category: null, amount: e.amount, by: null, voided: false }];
+          default:
+            return [];
+        }
+      }),
+      balance,
+    },
+    custody: custody.map((c) => ({
+      studentCardId: c.id,
+      label: `${c.student.name} · ${c.card.name}`,
+      amount: c.finalPrice,
+      holder: c.paidBy,
+    })),
+  };
 }

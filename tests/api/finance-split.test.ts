@@ -24,12 +24,18 @@ vi.mock("@/lib/auth", () => ({
 import { GET as RULES, PUT as SAVE_RULE } from "@/app/api/finance/split-rules/route";
 import { GET as LESSONS } from "@/app/api/finance/lessons/route";
 import { POST as VERIFY } from "@/app/api/finance/lessons/verify/route";
+import { POST as OVERRIDE } from "@/app/api/finance/lessons/[periodId]/override/route";
+import { GET as DAY } from "@/app/api/finance/day/route";
 
 const saveRule = (body: unknown) => SAVE_RULE(jsonRequest("PUT", body), { params: Promise.resolve({}) });
 const lessons = (from: string, to = from) =>
   LESSONS(new Request(`http://test.local/api/finance/lessons?from=${from}&to=${to}`), { params: Promise.resolve({}) });
 const verify = (periodIds: number[], batch = false) =>
   VERIFY(jsonRequest("POST", { periodIds, batch }), { params: Promise.resolve({}) });
+const override = (periodId: number, body: unknown) =>
+  OVERRIDE(jsonRequest("POST", body), { params: Promise.resolve({ periodId: String(periodId) }) });
+const day = (date: string) =>
+  DAY(new Request(`http://test.local/api/finance/day?date=${date}`), { params: Promise.resolve({}) });
 
 /** 10/25（日）台北時間 hh:00。 */
 const at = (hour: number) => new Date(`2026-10-25T${String(hour - 8).padStart(2, "0")}:00:00Z`);
@@ -65,7 +71,9 @@ describe("水庫第二步：分帳規則、每堂分帳、驗收", () => {
     auth.classroomId = classroomId;
     auth.userId = ownerId;
     await enableModule(classroomId, "finance");
-    await prisma.financeSetting.create({ data: { classroomId, revenueOwnerUserId: ownerId } });
+    await prisma.financeSetting.create({
+      data: { classroomId, revenueOwnerUserId: ownerId, startDate: new Date("2026-09-30T16:00:00Z"), setupCompletedAt: new Date() },
+    });
 
     sean = (await prisma.teacher.create({ data: { classroomId, name: "Sean", userId: ownerId } })).id;
     nini = (await prisma.teacher.create({ data: { classroomId, name: "Nini" } })).id;
@@ -175,6 +183,46 @@ describe("水庫第二步：分帳規則、每堂分帳、驗收", () => {
     await attend(periods.salsa, 5);
     const rows = await (await lessons("2026-10-25")).json();
     expect(rows.find((r: { periodId: number }) => r.periodId === periods.body).status).toBe("CHANGED");
+  });
+
+  it("手動改實拿：要寫原因；場地費、助教費照算，差額進水庫基金", async () => {
+    await attend(periods.body, 7);
+    const kathy = (await prisma.teacher.create({ data: { classroomId, name: "Kathy" } })).id;
+    expect((await override(periods.body, { teacherLines: [{ teacherId: sean, amount: 1000 }], reason: "" })).status).toBe(400);
+
+    const res = await override(periods.body, {
+      teacherLines: [{ teacherId: sean, amount: 1000 }, { teacherId: kathy, amount: 300 }],
+      reason: "Kathy 那天一起教，課程忘了掛",
+    });
+    expect(res.status).toBe(200);
+    const row = (await (await lessons("2026-10-25")).json()).find((r: { periodId: number }) => r.periodId === periods.body);
+    expect(row.status).toBe("VERIFIED");
+    expect(row.verified).toMatchObject({ overridden: true, overrideReason: "Kathy 那天一起教，課程忘了掛" });
+    // 只有這堂點過名：場地 $500（丁丁）、助教 $250（阿凱）全在這堂
+    expect(row.verified.fund).toBe(2100 - 1000 - 300 - 500 - 250);
+    expect(row.verified.lines.filter((l: { kind: string }) => l.kind === "REMAINDER")).toEqual([]);
+  });
+
+  it("當天的帳：分給誰多少（驗收過的照存下的）＋這天大水庫的進出", async () => {
+    await attend(periods.body, 7);
+    await attend(periods.salsa, 5);
+    await verify([periods.salsa]);
+    await prisma.financeEntry.create({
+      data: { classroomId, date: new Date("2026-10-24T16:00:00Z"), category: "DRINKS", amount: 180, createdById: ownerId, description: "音響維修" },
+    });
+
+    const res = await day("2026-10-25");
+    expect(res.status).toBe(200);
+    const book = await res.json();
+    expect(book.lessons).toHaveLength(3);
+    const byTeacher = Object.fromEntries(book.distribution.people.map((p: { teacherId: number; total: number }) => [p.teacherId, p.total]));
+    expect(byTeacher[dingding]).toBe(500);
+    expect(byTeacher[akai]).toBe(250);
+    expect(book.distribution.revenue).toBe(2100 + 1500);
+    const paid = book.distribution.people.reduce((sum: number, p: { total: number }) => sum + p.total, 0);
+    expect(paid + book.distribution.fund + book.distribution.externalVenue).toBe(book.distribution.revenue);
+    expect(book.vault.rows).toEqual([expect.objectContaining({ kind: "entry", label: "音響維修", amount: -180 })]);
+    expect(book.vault.balance).toBe(-180);
   });
 
   it("沒開水庫：404", async () => {
