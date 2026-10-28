@@ -26,6 +26,7 @@ import { financeHref } from "../routes";
 import type { PendingTaskTone, Transaction } from "../types";
 import { LaterAction, Panel, PanelTitle } from "../ui";
 import { remittable } from "../funds/poolMath";
+import { isArchived } from "../ledger/ledgerHistory";
 import WeeklyChart from "./WeeklyChart";
 
 function greeting(hour: number) {
@@ -95,7 +96,7 @@ export default function Dashboard() {
         <PendingTasks />
       </div>
 
-      <RecentTransactions rows={transactions.slice(0, 4)} />
+      <RecentTransactions rows={transactions.filter((tx) => !isArchived(tx)).slice(0, 4)} />
     </div>
   );
 }

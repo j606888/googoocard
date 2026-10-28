@@ -1,0 +1,55 @@
+/* 奇異鳥小鎮的字型與動畫（docs/finance-game-style.md §3.3、§3.6）。
+   小鎮裡的元素用 town-* 的全域 class，只在 .root 底下生效；抽屜 portal 到 body，也要掛 .root。 */
+
+.root {
+  font-family: var(--font-fredoka), "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  color: #4d4239;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0) }
+  50% { transform: translateY(-5px) }
+}
+@keyframes hop {
+  0%, 100% { transform: translateY(0) }
+  50% { transform: translateY(-6px) }
+}
+@keyframes wave {
+  0%, 100% { transform: skewY(0) }
+  50% { transform: skewY(-9deg) }
+}
+@keyframes puff {
+  0% { opacity: 0; transform: translateY(4px) }
+  40% { opacity: .9 }
+  100% { opacity: 0; transform: translateY(-12px) }
+}
+@keyframes rise {
+  0% { opacity: 0; transform: translateY(8px) }
+  15% { opacity: 1 }
+  75% { opacity: 1 }
+  100% { opacity: 0; transform: translateY(-26px) }
+}
+@keyframes drop {
+  from { opacity: 0; transform: translateY(-40px) }
+  to { opacity: 1; transform: translateY(0) }
+}
+
+.root :global(.town-bob) { animation: bob 1.6s ease-in-out infinite }
+.root :global(.town-hop) { animation: hop .9s ease-in-out infinite }
+.root :global(.town-delay) { animation-delay: .45s }
+.root :global(.town-wave) { animation: wave 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: left center }
+.root :global(.town-puff) { animation: puff 2.6s ease-out infinite }
+.root :global(.town-rise) { animation: rise 1.8s ease-out forwards }
+.root :global(.town-drop) { animation: drop .5s cubic-bezier(.3, 1.4, .5, 1) both }
+
+.root :global(.town-hit) { cursor: pointer; outline: none }
+.root :global(.town-hit:focus-visible .town-hit-ring) { stroke: #1b5e4a; stroke-width: 3; stroke-dasharray: 6 4 }
+
+@media (prefers-reduced-motion: reduce) {
+  .root :global(.town-bob),
+  .root :global(.town-hop),
+  .root :global(.town-wave),
+  .root :global(.town-puff),
+  .root :global(.town-rise),
+  .root :global(.town-drop) { animation: none }
+}

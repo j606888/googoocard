@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowDown, ArrowRight, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { FieldError, FieldLabel, fieldControlClass } from "@/components/Field";
+import Select, { textOptions } from "@/components/Select";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Money, { EXPENSE_TEXT, moneyText } from "../Money";
@@ -143,10 +144,12 @@ export default function RemitForm({
               hint="對方在系統按「確認收到」才算完成，不用另外簽收單。"
               className="max-w-[320px]"
             >
-              <select id={`${id}-to`} disabled={locked} className={cn(fieldControlClass(), "h-12")}>
-                <option>{mainPool.accountant}</option>
-                <option>{mainPool.owner}</option>
-              </select>
+              <Select
+                id={`${id}-to`}
+                disabled={locked}
+                defaultValue={mainPool.accountant}
+                options={textOptions([mainPool.accountant, mainPool.owner])}
+              />
             </LabeledControl>
           )}
 

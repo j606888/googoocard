@@ -4,6 +4,7 @@ import { useId, useState, type FormEvent } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { fieldControlClass } from "@/components/Field";
+import Select, { textOptions } from "@/components/Select";
 import { Button } from "@/components/ui/button";
 import { useCan } from "@/hooks/useCan";
 import { cn } from "@/lib/utils";
@@ -102,11 +103,11 @@ function BranchSettingsForm({
               {mode === "pool" ? (
                 <div className="grid gap-3 sm:grid-cols-3">
                   <LabeledControl label="保管人" htmlFor={`${id}-${s.branch}-keeper`}>
-                    <select id={`${id}-${s.branch}-keeper`} className={control}>
-                      {s.keeperOptions.map((k) => (
-                        <option key={k}>{k}</option>
-                      ))}
-                    </select>
+                    <Select
+                      id={`${id}-${s.branch}-keeper`}
+                      defaultValue={s.keeperOptions[0]}
+                      options={textOptions(s.keeperOptions)}
+                    />
                   </LabeledControl>
                   <LabeledControl label="保留零用金" htmlFor={`${id}-${s.branch}-reserve`}>
                     <input
@@ -128,9 +129,11 @@ function BranchSettingsForm({
               ) : (
                 <div className="flex flex-col gap-3">
                   <LabeledControl label="現場收到的錢交給" htmlFor={`${id}-${s.branch}-to`} className="max-w-[320px]">
-                    <select id={`${id}-${s.branch}-to`} className={control}>
-                      <option>{owner}（大水庫）</option>
-                    </select>
+                    <Select
+                      id={`${id}-${s.branch}-to`}
+                      defaultValue={owner}
+                      options={[{ value: owner, label: `${owner}（大水庫）` }]}
+                    />
                   </LabeledControl>
                   <div className="rounded-xl bg-neutral-50 px-4 py-3.5 text-sm leading-7 text-neutral-700">
                     {owner}自己收的錢：記帳時就算在大水庫，<b>不用任何動作</b>。

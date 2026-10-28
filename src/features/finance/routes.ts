@@ -6,11 +6,12 @@
 const BASE = "/finance";
 
 /** 不需要參數的頁面。 */
-export type FinancePage = "dashboard" | "ledger" | "funds" | "fundSettings" | "sessions" | "rules" | "close";
+export type FinancePage = "town" | "dashboard" | "ledger" | "funds" | "fundSettings" | "sessions" | "rules" | "close";
 /** 某個小水庫底下的頁面。 */
 export type PoolPage = "pool" | "remit";
 
 const PATHS: Record<FinancePage, string> = {
+  town: `${BASE}/town`,
   dashboard: BASE,
   ledger: `${BASE}/ledger`,
   funds: `${BASE}/funds`,

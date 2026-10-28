@@ -4,9 +4,10 @@ import { usePathname, useRouter } from "next/navigation";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import { financeHref, type FinancePage } from "./routes";
 
-type Tab = Extract<FinancePage, "dashboard" | "ledger" | "funds" | "sessions" | "rules" | "close">;
+type Tab = Extract<FinancePage, "town" | "dashboard" | "ledger" | "funds" | "sessions" | "rules" | "close">;
 
 const TABS: { value: Tab; label: string }[] = [
+  { value: "town", label: "小鎮（新）" },
   { value: "dashboard", label: "儀表板" },
   { value: "ledger", label: "流水帳" },
   { value: "funds", label: "資金" },

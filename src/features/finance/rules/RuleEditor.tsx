@@ -3,6 +3,7 @@
 import { Fragment, useId, useState } from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import { toast } from "sonner";
+import Select, { textOptions } from "@/components/Select";
 import StatusTag from "@/components/StatusTag";
 import { fieldControlClass } from "@/components/Field";
 import { Button } from "@/components/ui/button";
@@ -82,7 +83,7 @@ export default function RuleEditor() {
     water: { box: "bg-primary-50", step: "text-primary-900", note: "text-primary-900", title: "text-neutral-900" },
   };
 
-  const select = cn(fieldControlClass(), "h-11 px-3 text-[15px]");
+  const control = cn(fieldControlClass(), "h-11 px-3 text-[15px]");
 
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
@@ -202,32 +203,26 @@ export default function RuleEditor() {
                     key={a.id}
                     className={cn("grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_64px] items-center gap-2", a.optional && "opacity-75")}
                   >
-                    <select
+                    <Select
                       aria-label="角色"
+                      size="sm"
                       value={a.role}
-                      onChange={(e) => updateAllocation(a.id, { role: e.target.value })}
-                      className={select}
-                    >
-                      {ROLE_OPTIONS.map((role) => (
-                        <option key={role}>{role}</option>
-                      ))}
-                    </select>
-                    <select
+                      onChange={(role) => updateAllocation(a.id, { role })}
+                      options={textOptions(ROLE_OPTIONS)}
+                    />
+                    <Select
                       aria-label="權重方式"
+                      size="sm"
                       value={a.method}
-                      onChange={(e) => updateAllocation(a.id, { method: e.target.value as AllocationMethod })}
-                      className={select}
-                    >
-                      {METHODS.map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
+                      onChange={(method) => updateAllocation(a.id, { method })}
+                      options={METHODS.map((m) => ({ value: m, label: m }))}
+                    />
                     <input
                       aria-label="值"
                       inputMode="numeric"
                       value={a.value}
                       onChange={(e) => updateAllocation(a.id, { value: e.target.value })}
-                      className={cn(select, "tabular-nums")}
+                      className={cn(control, "tabular-nums")}
                     />
                   </div>
                 ))}
@@ -245,32 +240,28 @@ export default function RuleEditor() {
               <fieldset disabled={!canEdit} className="flex flex-col gap-3.5">
                 <div className="grid grid-cols-2 gap-3">
                   <LabeledControl label="單位" htmlFor={`${id}-unit`}>
-                    <select
+                    <Select
                       id={`${id}-unit`}
+                      size="sm"
                       value={roundUnit}
-                      onChange={(e) => setRoundUnit(Number(e.target.value) as RoundUnit)}
-                      className={select}
-                    >
-                      {ROUND_UNITS.map((u) => (
-                        <option key={u} value={u}>
-                          {u} 元
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setRoundUnit}
+                      options={ROUND_UNITS.map((u) => ({ value: u, label: `${u} 元` }))}
+                    />
                   </LabeledControl>
                   <LabeledControl label="方式" htmlFor={`${id}-mode`}>
-                    <select id={`${id}-mode`} defaultValue="floor" className={select}>
-                      <option value="floor">無條件捨去</option>
-                      <option value="round" disabled>
-                        四捨五入（之後）
-                      </option>
-                    </select>
+                    <Select
+                      id={`${id}-mode`}
+                      size="sm"
+                      defaultValue="floor"
+                      options={[
+                        { value: "floor", label: "無條件捨去" },
+                        { value: "round", label: "四捨五入", hint: "之後", disabled: true },
+                      ]}
+                    />
                   </LabeledControl>
                 </div>
                 <LabeledControl label="零頭歸屬" htmlFor={`${id}-leftover`}>
-                  <select id={`${id}-leftover`} className={select}>
-                    <option>水庫</option>
-                  </select>
+                  <Select id={`${id}-leftover`} size="sm" defaultValue="水庫" options={textOptions(["水庫"])} />
                 </LabeledControl>
               </fieldset>
               <div className="rounded-xl bg-neutral-50 px-4 py-3.5 text-sm leading-8 text-neutral-900">

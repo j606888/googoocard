@@ -1,61 +1,126 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { ArrowLeftRight, Plus } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { useCan } from "@/hooks/useCan";
-import { useSizeClass } from "@/hooks/useMediaQuery";
 import FinancePageHeader from "../FinancePageHeader";
-import { transactions } from "../mockData";
-import type { Transaction } from "../types";
-import { LaterAction } from "../ui";
-import { EntryFormDrawer, EntryFormPanel, type TransactionDraft } from "./EntryForm";
-import LedgerTable from "./LedgerTable";
+import { stampNow, transactions, transfers } from "../mockData";
+import type { Transaction, Transfer } from "../types";
+import { LaterAction, Panel } from "../ui";
+import { EntryFormDrawer, type NewEntry } from "./EntryForm";
+import LedgerDetail from "./LedgerDetail";
+import { EMPTY_FILTERS, filterItems, isFiltered, itemKey, ledgerItems, ledgerTotals, type LedgerFilters } from "./ledgerFilters";
+import { isArchived } from "./ledgerHistory";
+import LedgerList, { LedgerSummary, LedgerToolbar } from "./LedgerList";
+import { TransferFormDrawer, type NewTransfer } from "./TransferForm";
 
 /**
- * 流水帳：桌面左表格右「記一筆」；手機單欄，「記一筆」開抽屜。
- * 只掛一棵（useSizeClass）：表單有狀態，兩邊都掛會各自一份（docs/ui-responsive.md）。
+ * 流水帳：依日期分組的每一筆收支與轉移。「記一筆」「轉移」按下去才打開表單；
+ * 點一列看誰記的、改過什麼，並在那裡編輯、封存、還原。
+ * 示意：改動只留在畫面上，重新整理就回到示意資料。
  */
 export default function Ledger() {
   const canEdit = useCan("finance.edit");
-  const sizeClass = useSizeClass();
-  const [rows, setRows] = useState<Transaction[]>(transactions);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [entries, setEntries] = useState<Transaction[]>(transactions);
+  const [moves, setMoves] = useState<Transfer[]>(transfers);
+  const [filters, setFilters] = useState<LedgerFilters>(EMPTY_FILTERS);
+  const [form, setForm] = useState<"entry" | "transfer" | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
-  // 示意：新的一筆只加在畫面上，重新整理就不見。
-  const add = (draft: TransactionDraft) =>
-    setRows((current) => [{ ...draft, id: Math.max(0, ...current.map((tx) => tx.id)) + 1 }, ...current]);
+  const all = ledgerItems(entries, moves);
+  const visible = filterItems(all, filters);
+  const selected = all.find((item) => itemKey(item) === selectedKey) ?? null;
+  const filtered = isFiltered(filters);
 
-  const sidePanel = canEdit && sizeClass === "expanded";
+  const addEntry = (entry: NewEntry) => {
+    const created = { type: "created" as const, ...stampNow() };
+    setEntries((current) => [
+      { ...entry, id: Math.max(0, ...current.map((tx) => tx.id)) + 1, history: [created] },
+      ...current,
+    ]);
+  };
+  const addTransfer = (transfer: NewTransfer) =>
+    setMoves((current) => [
+      { ...transfer, id: `T-${Math.max(1000, ...current.map((t) => Number(t.id.slice(2)))) + 1}` },
+      ...current,
+    ]);
+  const changeEntry = (tx: Transaction) => setEntries((current) => current.map((t) => (t.id === tx.id ? tx : t)));
+  const changeTransfer = (transfer: Transfer) =>
+    setMoves((current) => current.map((t) => (t.id === transfer.id ? transfer : t)));
 
   return (
-    <div className={sidePanel ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]" : "flex flex-col"}>
-      <div className="flex min-w-0 flex-col gap-4">
-        <FinancePageHeader
-          title="流水帳"
-          description="每一筆錢的進出 · 只能新增與沖銷，不能修改"
-          actions={
-            <>
-              <LaterAction size="sm">匯出 CSV</LaterAction>
-              {canEdit && sizeClass === "compact" && (
-                <Button onClick={() => setDrawerOpen(true)}>
+    <div className="flex flex-col gap-5">
+      <FinancePageHeader
+        title="流水帳"
+        description="每一筆錢的進出。可以編輯和封存，每次改動都留下紀錄。"
+        actions={
+          <>
+            <LaterAction size="sm">匯出 CSV</LaterAction>
+            {canEdit && (
+              <>
+                <Button variant="secondary" onClick={() => setForm("transfer")}>
+                  <ArrowLeftRight className="size-4" />
+                  轉移
+                </Button>
+                <Button onClick={() => setForm("entry")}>
                   <Plus className="size-4" />
                   記一筆
                 </Button>
-              )}
-            </>
-          }
-        />
-        <LedgerTable rows={rows} />
-      </div>
+              </>
+            )}
+          </>
+        }
+      />
 
-      {sidePanel && (
-        <div className="sticky top-6">
-          <EntryFormPanel onSave={add} />
-        </div>
+      <LedgerToolbar
+        filters={filters}
+        onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+        archivedCount={entries.filter(isArchived).length}
+      />
+      <LedgerSummary totals={ledgerTotals(visible)} filtered={filtered} />
+
+      {visible.length === 0 ? (
+        <Panel>
+          <EmptyState
+            kind="filtered"
+            title={filters.query.trim() ? `沒有符合「${filters.query.trim()}」的紀錄` : "沒有符合條件的紀錄"}
+            description="換個條件，或清除篩選看全部。"
+            action={
+              filtered ? (
+                <Button variant="secondary" size="sm" onClick={() => setFilters(EMPTY_FILTERS)}>
+                  清除篩選
+                </Button>
+              ) : undefined
+            }
+          />
+        </Panel>
+      ) : (
+        <LedgerList
+          items={visible}
+          selectedKey={detailOpen ? selectedKey : null}
+          onSelect={(item) => {
+            setSelectedKey(itemKey(item));
+            setDetailOpen(true);
+          }}
+        />
       )}
-      {canEdit && sizeClass === "compact" && (
-        <EntryFormDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onSave={add} />
+
+      <LedgerDetail
+        open={detailOpen}
+        item={selected}
+        canEdit={canEdit}
+        onClose={() => setDetailOpen(false)}
+        onChangeEntry={changeEntry}
+        onChangeTransfer={changeTransfer}
+      />
+      {canEdit && (
+        <>
+          <EntryFormDrawer open={form === "entry"} onClose={() => setForm(null)} onSave={addEntry} />
+          <TransferFormDrawer open={form === "transfer"} onClose={() => setForm(null)} onSave={addTransfer} />
+        </>
       )}
     </div>
   );

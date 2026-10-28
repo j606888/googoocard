@@ -13,9 +13,11 @@ export type Branch = string;
 
 export type Direction = "income" | "expense";
 
-/** 流水帳的一筆。金額正數是收入、負數是支出；只能新增與沖銷，不能修改。 */
-export type Transaction = {
-  id: number;
+/** 誰、什麼時候。`at` 是「MM/DD HH:mm」。 */
+export type Stamp = { by: string; at: string };
+
+/** 流水帳一筆裡可以編輯的欄位。 */
+export type EntryValues = {
   /** 「MM/DD」 */
   date: string;
   category: string;
@@ -23,12 +25,61 @@ export type Transaction = {
   branch: Branch;
   /** 錢現在在誰手上／放在哪 */
   holder: string;
+  /** 正數是收入、負數是支出 */
   amount: number;
+};
+
+export type EntryField = keyof EntryValues;
+
+export type FieldChange = { field: EntryField; from: string | number; to: string | number };
+
+/** 一筆帳發生過的事（舊到新）。記錄、修改、封存、還原都留著，不會消失。 */
+export type EntryEvent =
+  | (Stamp & { type: "created" })
+  | (Stamp & { type: "edited"; reason: string; changes: FieldChange[] })
+  | (Stamp & { type: "archived"; reason: string })
+  | (Stamp & { type: "restored" });
+
+/**
+ * 流水帳的一筆。可以編輯和封存，但每次改動都記在 `history`（第一筆一定是 `created`），
+ * 封存的不算進收支、也不會真的刪掉。
+ */
+export type Transaction = EntryValues & {
+  id: number;
   missingReceipt?: boolean;
-  /** 被哪一筆沖銷 */
-  reversedBy?: number;
-  /** 沖銷哪一筆 */
-  reverses?: number;
+  history: EntryEvent[];
+};
+
+/** 錢放在哪：某個人手上的現金、教室帳戶、零用金盒。 */
+export type FundHolder = {
+  name: string;
+  /** 據點；教室帳戶是「大水庫」 */
+  branch: string;
+  /** 轉移給這個位置時，誰要按「確認收到」 */
+  keeper: string;
+  balance: number;
+};
+
+export type TransferMethod = "cash" | "bank";
+
+/** 金錢轉移：錢從一個資金位置交給另一個。不算收入也不算支出；收的人確認收到才算完成。 */
+export type Transfer = {
+  id: string;
+  /** 「MM/DD」 */
+  date: string;
+  from: string;
+  to: string;
+  fromBranch: string;
+  toBranch: string;
+  /** 要確認收到的人 */
+  receiver: string;
+  amount: number;
+  method: TransferMethod;
+  /** 轉帳末五碼 */
+  ref?: string;
+  note?: string;
+  sent: Stamp;
+  confirmed?: Stamp;
 };
 
 // ── 儀表板 ──

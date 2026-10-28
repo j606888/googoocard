@@ -1,13 +1,17 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { Info } from "lucide-react";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import FinanceTabs from "./FinanceTabs";
+import { financeHref } from "./routes";
 
-/** 水庫每一頁的外框：頁面標題、子分頁、「示意資料」提示。 */
+/** 水庫每一頁的外框：頁面標題、子分頁、「示意資料」提示。小鎮是滿版的遊戲畫面，自己畫外框。 */
 export default function FinanceShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const { data } = useGetClassroomsQuery();
+  if (pathname === financeHref("town")) return <>{children}</>;
   const classroom = data?.classrooms.find((c) => c.id === data.currentClassroomId);
 
   return (

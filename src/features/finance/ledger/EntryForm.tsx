@@ -1,13 +1,13 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState } from "react";
 import { Camera, Plus } from "lucide-react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import FilterChip from "@/components/FilterChip";
+import Select, { textOptions } from "@/components/Select";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import { FieldError, FieldLabel, fieldControlClass } from "@/components/Field";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   BRANCHES,
@@ -16,21 +16,22 @@ import {
   EXPENSE_CATEGORIES,
   FUND_HOLDERS,
   INCOME_CATEGORIES,
+  currentUser,
   monthSessions,
   period,
+  shortDateFromISO,
 } from "../mockData";
-import type { Direction, Transaction } from "../types";
-import { LaterAction, LabeledControl, Panel } from "../ui";
+import type { Direction, EntryValues, Transaction } from "../types";
+import { LaterAction, LabeledControl } from "../ui";
 
-export type TransactionDraft = Omit<Transaction, "id">;
+/** 記一筆送出的內容；編號和「誰、什麼時候記的」由流水帳補上。 */
+export type NewEntry = EntryValues & Pick<Transaction, "missingReceipt">;
 
-const categoriesFor = (direction: Direction) => (direction === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES);
+export const categoriesFor = (direction: Direction) =>
+  direction === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
-/** 「2026-10-24」→「10/24」 */
-const toShortDate = (iso: string) => iso.slice(5).replace("-", "/");
-
-/** 記一筆的狀態與送出；桌面的側欄卡片和手機的抽屜共用。 */
-function useEntryForm(onSave: (draft: TransactionDraft) => void) {
+/** 記一筆的狀態與送出。 */
+function useEntryForm(onSave: (entry: NewEntry) => void) {
   const [direction, setDirection] = useState<Direction>("income");
   const [category, setCategory] = useState(INCOME_CATEGORIES[0]);
   const [amountText, setAmountText] = useState("");
@@ -59,12 +60,14 @@ function useEntryForm(onSave: (draft: TransactionDraft) => void) {
     }
     const session = monthSessions.find((s) => s.id === sessionId);
     onSave({
-      date: toShortDate(date),
+      date: shortDateFromISO(date),
       category,
       description: note.trim() || (session ? `${session.title} · ${session.date}` : category),
       branch,
       holder,
       amount: direction === "income" ? amount : -amount,
+      // 示意：還不能附收據，支出一律先標「缺收據」
+      missingReceipt: direction === "expense" || undefined,
     });
     toast.success("（示意）已記錄");
     setAmountText("");
@@ -103,7 +106,6 @@ type EntryFormState = ReturnType<typeof useEntryForm>;
 
 function EntryFields({ form }: { form: EntryFormState }) {
   const id = useId();
-  const select = cn(fieldControlClass(), "h-12");
 
   return (
     <div className="flex flex-col gap-4">
@@ -157,52 +159,43 @@ function EntryFields({ form }: { form: EntryFormState }) {
 
       <div className="grid grid-cols-2 gap-3">
         <LabeledControl label="據點" htmlFor={`${id}-branch`}>
-          <select id={`${id}-branch`} className={select} value={form.branch} onChange={(e) => form.setBranch(e.target.value)}>
-            {BRANCH_OPTIONS.map((b) => (
-              <option key={b}>{b}</option>
-            ))}
-          </select>
+          <Select id={`${id}-branch`} value={form.branch} onChange={form.setBranch} options={textOptions(BRANCH_OPTIONS)} />
         </LabeledControl>
         <LabeledControl label="日期" htmlFor={`${id}-date`}>
           <input
             id={`${id}-date`}
             type="date"
-            className={select}
+            className={cn(fieldControlClass(), "h-12")}
             value={form.date}
             onChange={(e) => form.setDate(e.target.value)}
           />
         </LabeledControl>
       </div>
 
-      <LabeledControl label="錢現在在誰手上？" htmlFor={`${id}-holder`}>
-        <select id={`${id}-holder`} className={select} value={form.holder} onChange={(e) => form.setHolder(e.target.value)}>
-          {FUND_HOLDERS.map((h) => (
-            <option key={h}>{h}</option>
-          ))}
-        </select>
+      <LabeledControl
+        label={form.direction === "income" ? "錢收到誰手上？" : "錢從誰手上付的？"}
+        htmlFor={`${id}-holder`}
+      >
+        <Select id={`${id}-holder`} value={form.holder} onChange={form.setHolder} options={textOptions(FUND_HOLDERS)} />
       </LabeledControl>
 
       <LabeledControl label={<>關聯<span className="ml-1 font-normal text-neutral-500">（選填）</span></>} htmlFor={`${id}-session`}>
-        <select
+        <Select
           id={`${id}-session`}
-          className={select}
           value={form.sessionId}
-          onChange={(e) => form.setSessionId(e.target.value)}
-        >
-          <option value="">無</option>
-          {monthSessions.map((s) => (
-            <option key={s.id} value={s.id}>
-              課程場次：{s.title} {s.date}
-            </option>
-          ))}
-        </select>
+          onChange={form.setSessionId}
+          options={[
+            { value: "", label: "無" },
+            ...monthSessions.map((s) => ({ value: s.id, label: `課程場次：${s.title} ${s.date}` })),
+          ]}
+        />
       </LabeledControl>
 
-      <LabeledControl label="備註" htmlFor={`${id}-note`}>
+      <LabeledControl label="說明" htmlFor={`${id}-note`}>
         <input
           id={`${id}-note`}
           className={cn(fieldControlClass(), "h-12")}
-          placeholder="例：體驗課 8 人"
+          placeholder="例：萬聖節舞會 酒水"
           value={form.note}
           onChange={(e) => form.setNote(e.target.value)}
         />
@@ -216,31 +209,7 @@ function EntryFields({ form }: { form: EntryFormState }) {
   );
 }
 
-const RULE_HINT = "儲存後無法修改；打錯了請用「沖銷」再記一筆正確的。";
-
-/** 桌面：流水帳右邊的「記一筆」卡片。 */
-export function EntryFormPanel({ onSave }: { onSave: (draft: TransactionDraft) => void }) {
-  const form = useEntryForm(onSave);
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    form.submit();
-  };
-
-  return (
-    <Panel aria-label="記一筆" className="p-6">
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <h3 className="text-lg font-bold text-neutral-900">記一筆</h3>
-        <EntryFields form={form} />
-        <Button type="submit" size="lg">
-          儲存這一筆
-        </Button>
-        <p className="text-[13px] leading-relaxed text-neutral-500">{RULE_HINT}</p>
-      </form>
-    </Panel>
-  );
-}
-
-/** 手機：「記一筆」打開的抽屜。 */
+/** 「記一筆」按下去才打開（桌面置中彈窗、手機底部抽屜）。 */
 export function EntryFormDrawer({
   open,
   onClose,
@@ -248,7 +217,7 @@ export function EntryFormDrawer({
 }: {
   open: boolean;
   onClose: () => void;
-  onSave: (draft: TransactionDraft) => void;
+  onSave: (entry: NewEntry) => void;
 }) {
   const form = useEntryForm(onSave);
   const save = () => {
@@ -256,7 +225,15 @@ export function EntryFormDrawer({
   };
 
   return (
-    <Drawer open={open} onClose={onClose} onSubmit={save} title="記一筆" subtitle={RULE_HINT} submitText="儲存這一筆">
+    <Drawer
+      open={open}
+      onClose={onClose}
+      onSubmit={save}
+      title="記一筆"
+      subtitle={`記錄人：${currentUser}。送出的時間會自動記下，之後的修改也都留紀錄。`}
+      secondaryText="取消"
+      submitText="儲存"
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();

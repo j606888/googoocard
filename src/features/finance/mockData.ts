@@ -9,6 +9,8 @@ import type {
   BranchSettlement,
   CashHolding,
   CloseStep,
+  EntryEvent,
+  FundHolder,
   InTransitRemit,
   MainPool,
   MonthlyReport,
@@ -23,9 +25,11 @@ import type {
   RuleVersion,
   SessionDraft,
   SplitRule,
+  Stamp,
   Tank,
   TankLevel,
   Transaction,
+  Transfer,
   WeeklyFigure,
 } from "./types";
 
@@ -57,6 +61,19 @@ export function dayLabel(day: number): string {
   const d = new Date(YEAR, MONTH - 1, day);
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日（${WEEKDAYS[d.getDay()]}）`;
 }
+
+/** 「10/24」→「10 月 24 日（六）」（示意資料都在同一年）。 */
+export function shortDateLabel(date: string): string {
+  const [m, d] = date.split("/").map(Number);
+  const day = new Date(YEAR, m - 1, d);
+  return `${m} 月 ${d} 日（${WEEKDAYS[day.getDay()]}）`;
+}
+
+/** 「2026-10-24」→「10/24」 */
+export const shortDateFromISO = (iso: string) => iso.slice(5).replace("-", "/");
+
+/** 「10/24」→「2026-10-24」，給 `<input type="date">`。 */
+export const isoFromShortDate = (date: string) => `${YEAR}-${date.replace("/", "-")}`;
 
 const today = new Date(YEAR, MONTH - 1, TODAY);
 /** 月底關帳 */
@@ -107,37 +124,105 @@ const TEACHER_D = "老師 D";
 
 const HOLDER_ACCOUNT = ACCOUNT;
 const HOLDER_DINGDING = `${DINGDING} · 現金`;
+const HOLDER_B = `${TEACHER_B} · 現金`;
 const HOLDER_C = `${TEACHER_C} · 現金`;
 const HOLDER_OWNER = `${OWNER} · 現金`;
 const HOLDER_KS_BOX = `${KAOHSIUNG}零用金盒`;
 
-/** 錢現在在誰手上／放在哪（流水帳的「經手人／資金位置」）。 */
-export const FUND_HOLDERS: string[] = [HOLDER_ACCOUNT, HOLDER_DINGDING, HOLDER_C, HOLDER_OWNER, HOLDER_KS_BOX];
+/** 示意：登入的人。第 4 階段換成目前登入的成員。 */
+export const currentUser = DINGDING;
+
+/** 錢放在哪、屬於哪個據點、手上現在有多少（流水帳的「錢在誰手上」、轉移的從／交給）。 */
+export const fundHolders: FundHolder[] = [
+  { name: HOLDER_ACCOUNT, branch: "大水庫", keeper: ACCOUNTANT, balance: 52300 },
+  { name: HOLDER_DINGDING, branch: TAINAN, keeper: DINGDING, balance: 10650 },
+  { name: HOLDER_C, branch: TAINAN, keeper: TEACHER_C, balance: 1800 },
+  { name: HOLDER_B, branch: KAOHSIUNG, keeper: TEACHER_B, balance: 3200 },
+  { name: HOLDER_OWNER, branch: KAOHSIUNG, keeper: OWNER, balance: 5300 },
+  { name: HOLDER_KS_BOX, branch: KAOHSIUNG, keeper: OWNER, balance: 3000 },
+];
+export const FUND_HOLDERS: string[] = fundHolders.map((h) => h.name);
 export const DEFAULT_HOLDER = HOLDER_DINGDING;
 
-// ── 流水帳分類（記一筆與篩選共用同一份）──
+/** 示意：現在這一刻，以登入的人的名義（日期固定是示意的今天，時間是真的）。 */
+export function stampNow(): Stamp {
+  const now = new Date();
+  return { by: currentUser, at: `${period.todayShort} ${pad(now.getHours())}:${pad(now.getMinutes())}` };
+}
+
+// ── 流水帳（記一筆與篩選共用同一份分類）──
 
 export const INCOME_CATEGORIES = ["點名收入", "課卡（預收）", "單堂", "體驗課", "活動"];
 export const EXPENSE_CATEGORIES = ["場租", "飲料", "廣告", "教師費", "活動"];
-/** 沖銷：抵掉打錯的那一筆，自己不算收入或支出。 */
-export const REVERSAL_CATEGORY = "沖銷";
 /** 課卡賣出時記為預收，上課才認列。 */
 export const PREPAID_CATEGORY = "課卡（預收）";
-export const LEDGER_CATEGORIES = [...new Set([...INCOME_CATEGORIES, ...EXPENSE_CATEGORIES, REVERSAL_CATEGORY])];
+export const LEDGER_CATEGORIES = [...new Set([...INCOME_CATEGORIES, ...EXPENSE_CATEGORIES])];
 
+/** 「10/23 21:15」：某一天的幾點幾分。 */
+const at = (day: number, time: string) => `${mockDate(day)} ${time}`;
+const created = (by: string, day: number, time: string): EntryEvent => ({ type: "created", by, at: at(day, time) });
+
+/** 新到舊。編號照記錄的先後，所以 10/18 補記的酒水（#1035）排在 10/17 那一天。 */
 export const transactions: Transaction[] = [
-  { id: 1046, date: mockDate(24), category: "點名收入", description: "SALSA 體驗 · 20:00", branch: TAINAN, holder: HOLDER_DINGDING, amount: 2000 },
-  { id: 1045, date: mockDate(24), category: "場租", description: "SALSA 體驗 場地 2 小時", branch: TAINAN, holder: HOLDER_DINGDING, amount: -250 },
-  { id: 1044, date: mockDate(23), category: PREPAID_CATEGORY, description: "一般課卡 6 堂 × 2 張", branch: KAOHSIUNG, holder: HOLDER_OWNER, amount: 4000 },
-  { id: 1043, date: mockDate(23), category: "飲料", description: "練習夜 礦泉水兩箱", branch: KAOHSIUNG, holder: HOLDER_OWNER, amount: -360, missingReceipt: true },
-  { id: 1042, date: mockDate(22), category: REVERSAL_CATEGORY, description: "#1040 更正：實為 2 人，原金額打錯", branch: TAINAN, holder: HOLDER_DINGDING, amount: -1200, reverses: 1040 },
-  { id: 1041, date: mockDate(22), category: "單堂", description: "BACHATA 初級 單堂 × 2", branch: TAINAN, holder: HOLDER_DINGDING, amount: 800 },
-  { id: 1040, date: mockDate(22), category: "單堂", description: "BACHATA 初級 單堂 × 3", branch: TAINAN, holder: HOLDER_DINGDING, amount: 1200, reversedBy: 1042 },
-  { id: 1039, date: mockDate(22), category: "廣告", description: "IG 廣告", branch: SHARED_BRANCH, holder: HOLDER_ACCOUNT, amount: -1200 },
-  { id: 1038, date: mockDate(20), category: "點名收入", description: "ZOUK 中級 · 20:00", branch: KAOHSIUNG, holder: HOLDER_OWNER, amount: 3000 },
-  { id: 1037, date: mockDate(20), category: "場租", description: "ZOUK 中級 場地 2 小時", branch: KAOHSIUNG, holder: HOLDER_OWNER, amount: -500 },
-  { id: 1036, date: mockDate(19), category: "活動", description: "萬聖節舞會 門票", branch: TAINAN, holder: HOLDER_DINGDING, amount: 4500 },
-  { id: 1035, date: mockDate(19), category: "活動", description: "萬聖節舞會 布置", branch: TAINAN, holder: HOLDER_DINGDING, amount: -1090, missingReceipt: true },
+  { id: 1044, date: mockDate(24), category: "場租", description: "SALSA 體驗 場地 2 小時", branch: TAINAN, holder: HOLDER_DINGDING, amount: -250, history: [created(DINGDING, 24, "22:33")] },
+  { id: 1043, date: mockDate(24), category: "點名收入", description: "SALSA 體驗 · 20:00", branch: TAINAN, holder: HOLDER_DINGDING, amount: 2000, history: [created(DINGDING, 24, "22:31")] },
+  {
+    id: 1042, date: mockDate(23), category: "飲料", description: "練習夜 礦泉水兩箱", branch: KAOHSIUNG, holder: HOLDER_B, amount: -360,
+    history: [created(TEACHER_B, 23, "21:16"), { type: "archived", by: TEACHER_B, at: at(23, "21:20"), reason: "重複記了" }],
+  },
+  {
+    id: 1041, date: mockDate(23), category: "飲料", description: "練習夜 礦泉水兩箱", branch: KAOHSIUNG, holder: HOLDER_B, amount: -360, missingReceipt: true,
+    history: [
+      created(TEACHER_B, 23, "21:15"),
+      {
+        type: "edited", by: DINGDING, at: at(24, "09:12"), reason: "收據上是 360，原本打錯",
+        changes: [
+          { field: "amount", from: -380, to: -360 },
+          { field: "description", from: "礦泉水兩箱", to: "練習夜 礦泉水兩箱" },
+        ],
+      },
+    ],
+  },
+  { id: 1040, date: mockDate(23), category: PREPAID_CATEGORY, description: "一般課卡 6 堂 × 2 張", branch: KAOHSIUNG, holder: HOLDER_B, amount: 4000, history: [created(TEACHER_B, 23, "21:12")] },
+  {
+    id: 1039, date: mockDate(22), category: "單堂", description: "BACHATA 初級 單堂 × 2", branch: TAINAN, holder: HOLDER_DINGDING, amount: 800,
+    history: [
+      created(DINGDING, 22, "21:50"),
+      {
+        type: "edited", by: DINGDING, at: at(22, "22:40"), reason: "實際只來 2 人",
+        changes: [
+          { field: "amount", from: 1200, to: 800 },
+          { field: "description", from: "BACHATA 初級 單堂 × 3", to: "BACHATA 初級 單堂 × 2" },
+        ],
+      },
+    ],
+  },
+  { id: 1038, date: mockDate(22), category: "廣告", description: "IG 廣告", branch: SHARED_BRANCH, holder: HOLDER_ACCOUNT, amount: -1200, history: [created(OWNER, 22, "10:02")] },
+  { id: 1037, date: mockDate(20), category: "場租", description: "ZOUK 中級 場地 2 小時", branch: KAOHSIUNG, holder: HOLDER_OWNER, amount: -500, history: [created(OWNER, 20, "22:06")] },
+  { id: 1036, date: mockDate(20), category: "點名收入", description: "ZOUK 中級 · 20:00", branch: KAOHSIUNG, holder: HOLDER_OWNER, amount: 3000, history: [created(OWNER, 20, "22:05")] },
+  { id: 1035, date: mockDate(17), category: "飲料", description: "萬聖節舞會 酒水", branch: TAINAN, holder: HOLDER_DINGDING, amount: -1850, history: [created(DINGDING, 18, "10:16")] },
+  { id: 1034, date: mockDate(17), category: "教師費", description: "萬聖節舞會 DJ 車馬費", branch: TAINAN, holder: HOLDER_DINGDING, amount: -1000, history: [created(DINGDING, 17, "23:58")] },
+  { id: 1033, date: mockDate(17), category: "活動", description: "萬聖節舞會 布置", branch: TAINAN, holder: HOLDER_DINGDING, amount: -1090, missingReceipt: true, history: [created(TEACHER_C, 17, "23:55")] },
+  {
+    id: 1032, date: mockDate(17), category: "飲料", description: "萬聖節舞會 酒水", branch: TAINAN, holder: HOLDER_DINGDING, amount: -2850,
+    history: [created(DINGDING, 17, "23:51"), { type: "archived", by: DINGDING, at: at(18, "10:15"), reason: "金額打錯，重記一筆（#1035）" }],
+  },
+  { id: 1031, date: mockDate(17), category: "場租", description: "萬聖節舞會 場地 5 小時", branch: TAINAN, holder: HOLDER_DINGDING, amount: -3000, history: [created(DINGDING, 17, "23:50")] },
+  { id: 1030, date: mockDate(17), category: "活動", description: "萬聖節舞會 門票 × 30", branch: TAINAN, holder: HOLDER_DINGDING, amount: 9000, history: [created(DINGDING, 17, "23:48")] },
+];
+
+/** 金錢轉移（新到舊）。10/20 那筆就是資金頁「轉帳中」的繳回。 */
+export const transfers: Transfer[] = [
+  {
+    id: "T-1021", date: mockDate(24), from: HOLDER_DINGDING, to: HOLDER_B, fromBranch: TAINAN, toBranch: KAOHSIUNG, receiver: TEACHER_B,
+    amount: 6000, method: "cash", note: "高雄下週場租週轉",
+    sent: { by: DINGDING, at: at(24, "23:05") }, confirmed: { by: TEACHER_B, at: at(24, "23:40") },
+  },
+  {
+    id: "T-1020", date: mockDate(20), from: HOLDER_DINGDING, to: HOLDER_ACCOUNT, fromBranch: TAINAN, toBranch: "大水庫", receiver: ACCOUNTANT,
+    amount: 6000, method: "bank", ref: "38211", note: "繳回大水庫",
+    sent: { by: DINGDING, at: at(20, "22:10") },
+  },
 ];
 
 // ── 儀表板 ──

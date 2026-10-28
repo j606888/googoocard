@@ -3,6 +3,7 @@
 import { useId, useState, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import Select from "@/components/Select";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import StatusTag from "@/components/StatusTag";
 import { FieldLabel, fieldControlClass } from "@/components/Field";
@@ -89,23 +90,17 @@ export default function SplitCalculator({ session }: { session: SessionDraft }) 
             </div>
 
             <LabeledControl label="套用規則" htmlFor={`${id}-rule`}>
-              <select
+              <Select
                 id={`${id}-rule`}
                 value={rule.id}
-                onChange={(e) => {
-                  const next = activeRules.find((r) => r.id === e.target.value);
+                onChange={(ruleId) => {
+                  const next = activeRules.find((r) => r.id === ruleId);
                   if (!next) return;
                   setRuleId(next.id);
                   setRoundUnit(next.roundUnit);
                 }}
-                className={cn(fieldControlClass(), "h-12")}
-              >
-                {activeRules.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {ruleLabel(r)}
-                  </option>
-                ))}
-              </select>
+                options={activeRules.map((r) => ({ value: r.id, label: ruleLabel(r) }))}
+              />
             </LabeledControl>
 
             <div className="flex flex-col gap-2">
