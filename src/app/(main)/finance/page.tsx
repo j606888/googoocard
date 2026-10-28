@@ -1,5 +1,5 @@
-import Overview from "@/features/finance/overview/Overview";
+import Town from "@/features/finance/town/Town";
 
 export default function FinancePage() {
-  return <Overview />;
+  return <Town />;
 }
