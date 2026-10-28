@@ -30,7 +30,7 @@ const as = (userId: number) => {
 };
 
 // A stand-in for a module route: answers 200 only with the permission.
-const financeOnly = apiRoute(async () => ({ ok: true }), { permission: "finance.view" });
+const financeOnly = apiRoute(async () => ({ ok: true }), { permission: "finance.edit" });
 const callFinance = () => financeOnly(jsonRequest("GET"), routeParams({}));
 const curriculumOnly = apiRoute(async () => ({ ok: true }), { permission: "curriculum.view" });
 const callCurriculum = () => curriculumOnly(jsonRequest("GET"), routeParams({}));
@@ -80,7 +80,7 @@ describe("apiRoute 的 permission 選項", () => {
   it("個人多給的權限立刻生效", async () => {
     const { classroom, teacher } = await seed();
     await enableModule(classroom.id, "finance");
-    await prisma.membership.updateMany({ where: { userId: teacher.id }, data: { grants: ["finance.view"] } });
+    await prisma.membership.updateMany({ where: { userId: teacher.id }, data: { grants: ["finance.edit"] } });
     as(teacher.id);
     expect((await callFinance()).status).toBe(200);
   });
@@ -170,16 +170,16 @@ describe("PATCH /api/memberships/[id] — 權限", () => {
     await enableModule(classroom.id, "curriculum");
     const target = await membershipOf(teacher.id);
 
-    const res = await patchMember(target.id, { permissions: ["curriculum.view", "finance.view"] });
+    const res = await patchMember(target.id, { permissions: ["curriculum.view", "finance.view", "finance.edit"] });
     expect(res.status).toBe(200);
     const saved = await membershipOf(teacher.id);
-    expect(saved.grants).toEqual(["finance.view"]);
+    expect(saved.grants).toEqual(["finance.edit"]);
     expect(saved.revokes).toEqual(["curriculum.edit"]);
 
     const members = await (await LIST_MEMBERS(jsonRequest("GET"), routeParams({}))).json();
     const row = members.find((m: { userId: number }) => m.userId === teacher.id);
     expect(row.customized).toBe(true);
-    expect(row.permissions.sort()).toEqual(["curriculum.view", "finance.view"]);
+    expect(row.permissions.sort()).toEqual(["curriculum.view", "finance.edit", "finance.view"]);
     expect(members.find((m: { userId: number }) => m.userId === OWNER_ID).customized).toBe(false);
   });
 
@@ -198,11 +198,11 @@ describe("PATCH /api/memberships/[id] — 權限", () => {
   it("模組沒開時，那個模組的個人調整原封不動", async () => {
     const { teacher } = await seed();
     const target = await membershipOf(teacher.id);
-    await prisma.membership.update({ where: { id: target.id }, data: { grants: ["finance.view"] } });
+    await prisma.membership.update({ where: { id: target.id }, data: { grants: ["finance.edit"] } });
 
     await patchMember(target.id, { permissions: ["members.manage"] });
     const saved = await membershipOf(teacher.id);
-    expect(saved.grants.sort()).toEqual(["finance.view", "members.manage"]);
+    expect(saved.grants.sort()).toEqual(["finance.edit", "members.manage"]);
   });
 
   it("不能改 owner、不能改自己 → 403", async () => {
@@ -222,12 +222,12 @@ describe("PATCH /api/memberships/[id] — 權限", () => {
   it("只能給自己有的權限 → 403 CANNOT_GRANT_PERMISSION", async () => {
     const { classroom, admin, teacher } = await seed();
     await enableModule(classroom.id, "finance");
-    await prisma.membership.updateMany({ where: { userId: admin.id }, data: { revokes: ["finance.view"] } });
+    await prisma.membership.updateMany({ where: { userId: admin.id }, data: { revokes: ["finance.edit"] } });
     const target = await membershipOf(teacher.id);
 
     as(admin.id);
     const res = await patchMember(target.id, {
-      permissions: ["curriculum.view", "curriculum.edit", "finance.view"],
+      permissions: ["curriculum.view", "curriculum.edit", "finance.view", "finance.edit"],
     });
     expect(res.status).toBe(403);
     expect((await res.json()).code).toBe("CANNOT_GRANT_PERMISSION");

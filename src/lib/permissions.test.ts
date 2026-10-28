@@ -16,18 +16,20 @@ describe("effectivePermissions — 角色預設組合", () => {
     }
   });
 
-  it("老師：看＋編輯技能樹；小幫手：只能看技能樹", () => {
+  it("老師：看＋編輯技能樹、看水庫；小幫手：看技能樹、看水庫（水庫全公開）", () => {
     expect(sorted(effectivePermissions({ role: "teacher", modules: ALL_MODULES }))).toEqual([
       "curriculum.edit",
       "curriculum.view",
+      "finance.view",
     ]);
     expect(sorted(effectivePermissions({ role: "assistant", modules: ALL_MODULES }))).toEqual([
       "curriculum.view",
+      "finance.view",
     ]);
   });
 
   it("不認得的角色當成小幫手", () => {
-    expect(sorted(effectivePermissions({ role: "ghost", modules: ALL_MODULES }))).toEqual(["curriculum.view"]);
+    expect(sorted(effectivePermissions({ role: "ghost", modules: ALL_MODULES }))).toEqual(["curriculum.view", "finance.view"]);
   });
 });
 
@@ -35,11 +37,11 @@ describe("effectivePermissions — 個人加減", () => {
   it("grants 加上、revokes 拿掉", () => {
     const result = effectivePermissions({
       role: "teacher",
-      grants: ["finance.view"],
+      grants: ["finance.edit"],
       revokes: ["curriculum.edit"],
       modules: ALL_MODULES,
     });
-    expect(sorted(result)).toEqual(["curriculum.view", "finance.view"]);
+    expect(sorted(result)).toEqual(["curriculum.view", "finance.edit", "finance.view"]);
   });
 
   it("owner 的權限拿不掉，也不需要加", () => {
@@ -49,7 +51,7 @@ describe("effectivePermissions — 個人加減", () => {
 
   it("不認得的字串直接忽略", () => {
     const result = effectivePermissions({ role: "assistant", grants: ["root.everything"], modules: ALL_MODULES });
-    expect(sorted(result)).toEqual(["curriculum.view"]);
+    expect(sorted(result)).toEqual(["curriculum.view", "finance.view"]);
   });
 });
 
@@ -60,7 +62,7 @@ describe("effectivePermissions — 模組沒開", () => {
   });
 
   it("沒開任何模組時，個人多給的模組權限也不算", () => {
-    const result = effectivePermissions({ role: "teacher", grants: ["finance.view"], modules: [] });
+    const result = effectivePermissions({ role: "teacher", grants: ["finance.edit"], modules: [] });
     expect(result.size).toBe(0);
   });
 });
@@ -69,15 +71,15 @@ describe("overridesFor", () => {
   const visible = visiblePermissions(ALL_MODULES);
 
   it("跟角色預設一樣 → 不存任何差異", () => {
-    expect(overridesFor("teacher", ["curriculum.view", "curriculum.edit"], visible)).toEqual({
+    expect(overridesFor("teacher", ["curriculum.view", "curriculum.edit", "finance.view"], visible)).toEqual({
       grants: [],
       revokes: [],
     });
   });
 
   it("多勾的存成 grants、取消的存成 revokes", () => {
-    expect(overridesFor("teacher", ["curriculum.view", "finance.view"], visible)).toEqual({
-      grants: ["finance.view"],
+    expect(overridesFor("teacher", ["curriculum.view", "finance.view", "finance.edit"], visible)).toEqual({
+      grants: ["finance.edit"],
       revokes: ["curriculum.edit"],
     });
   });
@@ -85,10 +87,10 @@ describe("overridesFor", () => {
   it("畫面上沒列出的（模組沒開）保留原本的差異", () => {
     const shown = visiblePermissions(["curriculum"]);
     const result = overridesFor("teacher", ["curriculum.view", "curriculum.edit"], shown, {
-      grants: ["finance.view"],
+      grants: ["finance.edit"],
       revokes: [],
     });
-    expect(result).toEqual({ grants: ["finance.view"], revokes: [] });
+    expect(result).toEqual({ grants: ["finance.edit"], revokes: [] });
   });
 });
 

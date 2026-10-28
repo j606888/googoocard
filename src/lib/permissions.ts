@@ -60,8 +60,9 @@ export const PERMISSION_GROUPS: { group: PermissionGroup; label: string }[] = [
  */
 export const ROLE_BUNDLES: Record<Exclude<MemberRole, "owner">, readonly Permission[]> = {
   admin: PERMISSION_KEYS,
-  teacher: ["curriculum.view", "curriculum.edit"],
-  assistant: ["curriculum.view"],
+  // 水庫第一版全公開（docs/finance-plan.md §3）：大家都看得到所有帳。
+  teacher: ["curriculum.view", "curriculum.edit", "finance.view"],
+  assistant: ["curriculum.view", "finance.view"],
 };
 
 export function isPermission(value: string): value is Permission {

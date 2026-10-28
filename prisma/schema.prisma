@@ -82,6 +82,16 @@ model User {
   skillReactions          SkillCommentReaction[]
   skillMentions           SkillCommentMention[]
   skillTalkReads          SkillTalkRead[]
+  // 模組：水庫
+  financeRevenueOwnerOf   FinanceSetting[]         @relation("FinanceRevenueOwner")
+  financeOpeningCustody   FinanceOpeningCustody[]
+  financeRemittances      FinanceRemittance[]      @relation("FinanceRemittanceFrom")
+  financeReviewed         FinanceRemittance[]      @relation("FinanceRemittanceReviewer")
+  financeEntriesCreated   FinanceEntry[]           @relation("FinanceEntryCreator")
+  financeEntriesPaid      FinanceEntry[]           @relation("FinanceEntryPayee")
+  financeEntryRevisions   FinanceEntryRevision[]
+  financeSettingRevisions FinanceSettingRevision[]
+  financeQuests           FinanceQuestDone[]
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 }
@@ -118,6 +128,12 @@ model Classroom {
   skillCategories         SkillCategory[]
   skillTiers              SkillTier[]
   skills                  Skill[]
+  financeSetting          FinanceSetting?
+  financeOpeningCustody   FinanceOpeningCustody[]
+  financeRemittances      FinanceRemittance[]
+  financeEntries          FinanceEntry[]
+  financeSettingRevisions FinanceSettingRevision[]
+  financeQuests           FinanceQuestDone[]
 }
 
 model Membership {
@@ -754,4 +770,143 @@ model SkillTalkRead {
 
   @@id([userId, skillId])
   @@index([skillId])
+}
+
+// ---------- 模組：水庫（docs/finance-plan.md 第一步：代收＋繳回＋大水庫收支） ----------
+// 課卡收款不另存：直接讀 StudentCard（paidByUserId、paidAt、finalPrice，origin = PURCHASE、paidAt ≥ 啟用日）。
+
+// 一間教室一筆。setupCompletedAt 為 null ＝ 還沒建城。
+model FinanceSetting {
+  classroomId        Int       @id
+  classroom          Classroom @relation(fields: [classroomId], references: [id])
+  // 營收負責人（老闆）：確認繳回、記大水庫支出的人，推播也發給他。
+  revenueOwnerUserId Int?
+  revenueOwner       User?     @relation("FinanceRevenueOwner", fields: [revenueOwnerUserId], references: [id])
+  // 啟用日（台北時間當天 00:00）。這天之前付款的課卡不算代收。
+  startDate          DateTime?
+  // 啟用日當天大水庫的錢（現金＋銀行一個數）
+  openingBalance     Int       @default(0)
+  // 啟用日之前老闆放進來的錢（欠老闆的）。null ＝ 建城時略過，不顯示建城貸款。
+  openingOwnerLoan   Int?
+  // 手上的錢超過幾天沒繳回就標紅
+  overdueDays        Int       @default(7)
+  setupCompletedAt   DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([revenueOwnerUserId])
+}
+
+// 期初代收：啟用日那天，某人手上還沒交的課卡錢。
+model FinanceOpeningCustody {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  amount      Int
+
+  @@unique([classroomId, userId])
+  @@index([userId])
+}
+
+enum FinanceRemittanceStatus {
+  PENDING // 轉交中，等營收負責人確認
+  CONFIRMED // 收到了
+  REJECTED // 金額不對，退回（送的人可以改了再送）
+  WITHDRAWN // 送的人撤回
+}
+
+// 繳回：代收人把錢交進大水庫。
+model FinanceRemittance {
+  id           Int                     @id @default(autoincrement())
+  classroomId  Int
+  classroom    Classroom               @relation(fields: [classroomId], references: [id])
+  fromUserId   Int
+  fromUser     User                    @relation("FinanceRemittanceFrom", fields: [fromUserId], references: [id])
+  amount       Int
+  method       PaymentMethod
+  reference    String? // 轉帳末五碼
+  sentOn       DateTime // 交錢的日子（台北時間當天 00:00）
+  note         String?
+  status       FinanceRemittanceStatus @default(PENDING)
+  reviewedById Int?
+  reviewedBy   User?                   @relation("FinanceRemittanceReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  rejectReason String?
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  @@index([classroomId, status])
+  @@index([fromUserId])
+  @@index([reviewedById])
+}
+
+// 大水庫手記帳。金額一律是正數，進或出看分類（src/domains/finance/entries.ts）。
+model FinanceEntry {
+  id          Int                    @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom              @relation(fields: [classroomId], references: [id])
+  date        DateTime // 台北時間當天 00:00
+  category    String
+  amount      Int
+  payeeUserId Int?
+  payeeUser   User?                  @relation("FinanceEntryPayee", fields: [payeeUserId], references: [id])
+  payeeName   String? // 付給不是成員的人（例如 24steps）
+  description String?
+  createdById Int
+  createdBy   User                   @relation("FinanceEntryCreator", fields: [createdById], references: [id])
+  // 作廢（不真的刪除），作廢也寫一筆修改紀錄。
+  voidedAt    DateTime?
+  revisions   FinanceEntryRevision[]
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  @@index([classroomId, date])
+  @@index([payeeUserId])
+  @@index([createdById])
+}
+
+model FinanceEntryRevision {
+  id         Int          @id @default(autoincrement())
+  entryId    Int
+  entry      FinanceEntry @relation(fields: [entryId], references: [id])
+  editedById Int
+  editedBy   User         @relation(fields: [editedById], references: [id])
+  reason     String
+  before     Json
+  after      Json? // null ＝ 作廢
+  createdAt  DateTime     @default(now())
+
+  @@index([entryId])
+  @@index([editedById])
+}
+
+// 建城之後改期初數字、換營收負責人的紀錄。
+model FinanceSettingRevision {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  editedById  Int
+  editedBy    User      @relation(fields: [editedById], references: [id])
+  reason      String
+  before      Json
+  after       Json
+  createdAt   DateTime  @default(now())
+
+  @@index([classroomId])
+  @@index([editedById])
+}
+
+// 新手任務裡，資料推不出來的那幾項（試玩推車、看過背包、通知過大家）。
+model FinanceQuestDone {
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  quest       String
+  completedAt DateTime  @default(now())
+
+  @@id([userId, classroomId, quest])
+  @@index([classroomId])
 }
