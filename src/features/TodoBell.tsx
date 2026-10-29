@@ -184,7 +184,11 @@ const UrgentTab = ({
   onBind: (target: BindCardTarget) => void;
   onPay: (target: ConfirmPaymentTarget) => void;
 }) => {
-  const unpaidTotal = todos.unpaidCards.reduce((sum, item) => sum + item.finalPrice, 0);
+  // 舊版 API（App 還沒更新時）沒有 unpaidDropIns。
+  const unpaidDropIns = todos.unpaidDropIns ?? [];
+  const unpaidTotal =
+    todos.unpaidCards.reduce((sum, item) => sum + item.finalPrice, 0) +
+    unpaidDropIns.reduce((sum, item) => sum + item.amount, 0);
   const otherReminders =
     todos.trialFollowUps.length + todos.possibleDuplicates.length;
 
@@ -203,8 +207,8 @@ const UrgentTab = ({
           />
           <SummaryTile
             tone="warning"
-            title="買卡未付款"
-            value={todos.unpaidCards.length}
+            title="未付款"
+            value={todos.unpaidCards.length + unpaidDropIns.length}
             unit="筆"
             hint={`共 NT$${formatMoney(unpaidTotal)} 待收`}
           />
@@ -296,6 +300,25 @@ const UrgentTab = ({
             />
           );
         })}
+      </TodoSection>
+
+      <TodoSection title="單堂未付" count={unpaidDropIns.length} dot="bg-warning-600">
+        {unpaidDropIns.map((item) => (
+          <TodoRow
+            key={`dropin-${item.id}`}
+            href={`/lessons/${item.lessonId}/periods/${item.lessonPeriodId}/check-success`}
+            student={item.student}
+            onNavigate={onNavigate}
+            subtitle={
+              <span className="block truncate">
+                {formatDate(item.lessonPeriodStartTime)} {item.lessonName}
+              </span>
+            }
+            action={
+              <span className="text-sm font-semibold text-neutral-900">${formatMoney(item.amount)}</span>
+            }
+          />
+        ))}
       </TodoSection>
 
       {todos.reminderCount > 0 && (

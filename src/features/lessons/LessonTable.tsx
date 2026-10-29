@@ -118,6 +118,7 @@ const LessonTable = ({
       level: lesson.level,
       kind: lesson.kind,
       sessionsPerAttendance: lesson.sessionsPerAttendance,
+      dropInPrice: lesson.dropInPrice,
       groupId: lesson.groupId,
       locationId: lesson.location?.id ?? null,
       initialPeriod,

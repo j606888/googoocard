@@ -18,6 +18,7 @@ export async function GET() {
         select: {
           studentCard: { select: { finalPrice: true, totalSessions: true } },
           sessionsUsed: true,
+          dropInCharge: { select: { amount: true } },
         },
       },
     },

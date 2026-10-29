@@ -129,6 +129,7 @@ export const attendanceHistoryInclude = {
       },
     },
     studentCard: { select: { id: true, serialNumber: true, card: { select: { name: true } } } },
+    dropInCharge: { select: { amount: true, isPaid: true } },
   },
   orderBy: { lessonPeriod: { startTime: "desc" } },
 } as const;
@@ -209,6 +210,8 @@ export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryR
         pending: boolean;
         // 這次扣了幾格（外師課 = 2）
         sessionsUsed: number;
+        // 付單堂（不扣卡）時的金額與付了沒
+        dropIn: { amount: number; isPaid: boolean } | null;
       }[];
     }
   >();
@@ -254,6 +257,7 @@ export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryR
       source: record.source,
       pending,
       sessionsUsed: record.sessionsUsed,
+      dropIn: record.dropInCharge,
     });
     byDate.set(dateKey, day);
 

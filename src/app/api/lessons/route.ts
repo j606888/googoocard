@@ -10,6 +10,7 @@ import {
   DEFAULT_SESSIONS_PER_ATTENDANCE,
   isValidLessonKind,
   isValidSessionsPerAttendance,
+  isValidDropInPrice,
 } from "@/lib/lessonKind";
 import {
   allTeachersInClassroom,
@@ -115,6 +116,7 @@ export async function GET(request: Request) {
       kind: lesson.kind,
       endedAt: lesson.endedAt,
       sessionsPerAttendance: lesson.sessionsPerAttendance,
+      dropInPrice: lesson.dropInPrice,
       studentCount: lesson._count.students,
       teachers: lesson.teachers.map((t) => t.teacher),
       cardIds: lesson.cards.map((c) => c.cardId),
@@ -209,6 +211,9 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json({ error: "Invalid sessionsPerAttendance" }, { status: 400 });
   }
+  if (draftLesson.dropInPrice !== undefined && !isValidDropInPrice(draftLesson.dropInPrice)) {
+    return NextResponse.json({ error: "Invalid dropInPrice" }, { status: 400 });
+  }
 
   // A groupId is caller-controlled input — verify it names a group in this
   // classroom before attaching it (same IDOR guard as findLessonInClassroom),
@@ -271,6 +276,7 @@ export async function POST(request: Request) {
         level: draftLesson.level ?? DEFAULT_DANCE_LEVEL,
         kind: draftLesson.kind ?? DEFAULT_LESSON_KIND,
         sessionsPerAttendance: draftLesson.sessionsPerAttendance ?? DEFAULT_SESSIONS_PER_ATTENDANCE,
+        dropInPrice: draftLesson.dropInPrice ?? null,
         groupId: draftLesson.groupId ?? null,
         locationId: draftLesson.locationId ?? null,
       },

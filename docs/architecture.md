@@ -190,6 +190,19 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - **剩不夠扣的卡不能用**，不拆到兩張卡：`fetchStudentsWithValidCards(…, sessionsNeeded)` 只撈剩餘 ≥ N 的卡，所以點名引擎、名單卡況、LIFF 都自然排除；只剩不夠扣的卡 → `no_card`，老師「買卡並使用」或學生當場買卡。LIFF 不賣堂數 < N 的卡。
 - 體驗卡、複習卡不另外處理（目前不會遇到扣多格）。
 
+## 單堂付費（2026-10）
+
+「單堂」不再做成一張 1 堂的課卡，而是課程的價格：`Lesson.dropInPrice`（null = 不開放）。一筆出席可以改付單堂——`DropInCharge`（attendanceRecordId unique，`amount` 抄自課程單堂價，收款欄位同 StudentCard：`isPaid`／`paidAt`／`paymentMethod`／`paymentReference`／`paidByUserId`），不扣課卡。邏輯在 `src/service/dropIn.ts`。
+
+- **算已解決**：有 DropInCharge 的出席不算「出席沒綁課卡」——一律用 `UNRESOLVED_ATTENDANCE`（`studentCardId: null` 且沒有 dropInCharge）查待處理／未扣卡名單。
+- **待處理**：沒付的單堂進「要處理」（`todos.unpaidDropIns`，紅色數字也算）；確認收款 `POST /api/drop-in-charges/[id]/confirm-payment`。
+- **營收**：單堂金額照上課日認列（`periodRevenue`、水庫分帳），付了沒都算，同課卡。
+- **老師端**：點名結果頁沒綁卡的人多一個「單堂 $X」（`POST .../attendance/[studentId]/drop-in`，現金／轉帳／下課再付）。開了單堂的課可以不收任何課卡。
+- **學生端 LIFF**：沒卡時「這堂怎麼付？」多一個「單堂付費」選項（`dropIn: true`），記成未付、下課付，`requireCard` 視為已付款方式。
+- 取消勾選、重設時段刪掉出席紀錄時，DropInCharge 跟著刪（DB cascade）。
+- 舊的「單堂」1 堂卡不自動轉換，歷史紀錄照舊；不想再賣就把那張卡下架。
+- 尚未做：教室預設單堂價、iOS App 的待處理列表顯示單堂（App 的 badge 數字已含）。
+
 ## 學生自助簽到（LIFF 單一入口、點名一定綁卡）
 
 2026-10 起自助簽到**只走 LINE LIFF**，每一筆都知道是誰本人。兩種進來的方式、同一個頁面 `/liff/checkin`：

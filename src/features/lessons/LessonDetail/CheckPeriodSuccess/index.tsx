@@ -6,6 +6,7 @@ import SubNavbar from "@/features/SubNavbar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import {
+  type AttendanceRecord,
   useGetAttendanceQuery,
   useGetLessonQuery,
   useGetLessonStudentsQuery,
@@ -19,6 +20,8 @@ import { toTaipeiDateKey } from "@/lib/taipei-date";
 import { useSizeClass } from "@/hooks/useMediaQuery";
 import { Button } from "@/components/ui/button";
 import StatusTag from "@/components/StatusTag";
+import { formatMoney } from "@/lib/money";
+import { ConfirmDropInForm } from "./DropInForm";
 
 const CheckPeriodSuccess = () => {
   const [showIncome, setShowIncome] = useState(false);
@@ -45,10 +48,10 @@ const CheckPeriodSuccess = () => {
     period?.attendanceTakenAt &&
     format(period?.attendanceTakenAt, "yyyy/MM/dd, hh:mm a");
 
-  const pendingRecords =
-    attendanceRecords?.filter((record) => !record.income) || [];
-  const paidRecords =
-    attendanceRecords?.filter((record) => record.income) || [];
+  // 已解決 = 扣了卡或付了單堂（$0 的體驗卡 income 是 0，不能拿 income 判斷）。
+  const isResolved = (record: AttendanceRecord) => Boolean(record.cardName || record.dropIn);
+  const pendingRecords = attendanceRecords?.filter((record) => !isResolved(record)) || [];
+  const paidRecords = attendanceRecords?.filter(isResolved) || [];
 
   // Enrolled students the roster marks absent for this exact period — visible
   // here for the first time (the old success screen only ever listed who
@@ -184,7 +187,7 @@ const CheckPeriodSuccess = () => {
         <div className="flex flex-col gap-2 w-full">
           {paidRecords?.map((attendanceRecord) => (
             <div
-              className="flex gap-2 items-center"
+              className="flex flex-wrap gap-2 items-center"
               key={attendanceRecord.studentId}
             >
               <StudentInfo
@@ -194,19 +197,28 @@ const CheckPeriodSuccess = () => {
                 size="small"
                 className="mr-auto"
               />
-              <StatusTag tone="positive">
-                {attendanceRecord?.cardName}
-                {attendanceRecord.sessionsUsed > 1 && ` −${attendanceRecord.sessionsUsed}`}
-              </StatusTag>
+              {attendanceRecord.dropIn ? (
+                <DropInStatus dropIn={attendanceRecord.dropIn} studentName={attendanceRecord.studentName} />
+              ) : (
+                <StatusTag tone="positive">
+                  {attendanceRecord?.cardName}
+                  {attendanceRecord.sessionsUsed > 1 && ` −${attendanceRecord.sessionsUsed}`}
+                </StatusTag>
+              )}
+              {/* 沒付的單堂：右邊放「收款」按鈕，不再佔一欄文字 */}
+              {(showIncome || !attendanceRecord.dropIn || attendanceRecord.dropIn.isPaid) && (
               <div className="text-sm text-neutral-600 w-24 text-right">
                 {showIncome ? (
                   <span className="font-semibold text-neutral-900">${Math.round(attendanceRecord?.income)}</span>
+                ) : attendanceRecord.dropIn ? (
+                  <span>{attendanceRecord.dropIn.paymentMethod === "TRANSFER" ? "轉帳" : "現金"}</span>
                 ) : (
                   <span>
                     剩 {attendanceRecord?.remainingSessions} 堂
                   </span>
                 )}
               </div>
+              )}
             </div>
           ))}
           {showIncome && (
@@ -260,3 +272,20 @@ const CheckPeriodSuccess = () => {
 };
 
 export default CheckPeriodSuccess;
+
+/** 這筆出席付單堂：已付是灰色標籤，沒付是淡橘標籤＋收款。 */
+const DropInStatus = ({
+  dropIn,
+  studentName,
+}: {
+  dropIn: NonNullable<AttendanceRecord["dropIn"]>;
+  studentName: string;
+}) =>
+  dropIn.isPaid ? (
+    <StatusTag tone="neutral">單堂 ${formatMoney(dropIn.amount)}</StatusTag>
+  ) : (
+    <>
+      <StatusTag tone="warning">單堂未付 ${formatMoney(dropIn.amount)}</StatusTag>
+      <ConfirmDropInForm chargeId={dropIn.id} amount={dropIn.amount} studentName={studentName} />
+    </>
+  );

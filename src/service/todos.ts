@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { UNRESOLVED_ATTENDANCE } from "@/service/dropIn";
 // 同 src/service/renewalReminder.ts：tag 名稱就是這個字串，系統各處直接比對它。
 const NEEDS_RENEWAL_TAG = "Needs Renewal";
 
@@ -15,8 +16,8 @@ export const TRIAL_FOLLOW_UP_DAYS = 14;
  * 分兩層：
  *
  * **要處理**（`urgentCount`，紅色數字、App badge、推播 badge 只算這兩類）——已經發生、要現在補的：
- *  - 待確認收款：`StudentCard.isPaid = false`
- *  - 出席沒綁課卡：`AttendanceRecord.studentCardId = null`
+ *  - 待確認收款：`StudentCard.isPaid = false`，以及沒付的單堂費（`DropInCharge.isPaid = false`）
+ *  - 出席沒綁課卡：沒綁卡、也沒付單堂（`UNRESOLVED_ATTENDANCE`）
  *
  * **提醒**（`reminderCount`，只顯示灰點，不進紅色數字）：
  *  - 需續約：學生身上有「Needs Renewal」tag（由 refreshNeedsRenewalTag 維護），
@@ -29,7 +30,7 @@ export const TRIAL_FOLLOW_UP_DAYS = 14;
  * 要改「什麼算待處理」就改這裡。`total` 跟 `urgentCount` 相同（App 拿它設圖示數字）。
  */
 export async function getTodos(classroomId: number, now = new Date()) {
-  const [unpaidCards, renewal, unboundRecords, trialFollowUps, duplicates] = await Promise.all([
+  const [unpaidCards, unpaidDropIns, renewal, unboundRecords, trialFollowUps, duplicates] = await Promise.all([
     // 未付款的卡即使學生已封存也還是欠款，所以不排除封存學生。
     prisma.studentCard.findMany({
       where: { isPaid: false, student: { classroomId } },
@@ -47,9 +48,26 @@ export async function getTodos(classroomId: number, now = new Date()) {
       // 拖越久的排越前面——追帳先追最久的。
       orderBy: { createdAt: "asc" },
     }),
+    prisma.dropInCharge.findMany({
+      where: { isPaid: false, attendanceRecord: { student: { classroomId } } },
+      select: {
+        id: true,
+        amount: true,
+        createdAt: true,
+        attendanceRecord: {
+          select: {
+            student: { select: { id: true, name: true, avatarUrl: true } },
+            lessonPeriod: {
+              select: { id: true, startTime: true, lesson: { select: { id: true, name: true } } },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
     findNeedsRenewal(classroomId, now),
     prisma.attendanceRecord.findMany({
-      where: { student: { classroomId }, studentCardId: null },
+      where: { student: { classroomId }, ...UNRESOLVED_ATTENDANCE },
       select: {
         id: true,
         source: true,
@@ -64,7 +82,7 @@ export async function getTodos(classroomId: number, now = new Date()) {
     findPossibleDuplicates(classroomId),
   ]);
 
-  const urgentCount = unpaidCards.length + unboundRecords.length;
+  const urgentCount = unpaidCards.length + unpaidDropIns.length + unboundRecords.length;
   const reminderCount = renewal.active.length + trialFollowUps.length + duplicates.length;
 
   return {
@@ -78,6 +96,16 @@ export async function getTodos(classroomId: number, now = new Date()) {
       totalSessions: sc.totalSessions,
       createdAt: sc.createdAt,
       student: sc.student,
+    })),
+    unpaidDropIns: unpaidDropIns.map((charge) => ({
+      id: charge.id,
+      amount: charge.amount,
+      createdAt: charge.createdAt,
+      student: charge.attendanceRecord.student,
+      lessonId: charge.attendanceRecord.lessonPeriod.lesson.id,
+      lessonName: charge.attendanceRecord.lessonPeriod.lesson.name,
+      lessonPeriodId: charge.attendanceRecord.lessonPeriod.id,
+      lessonPeriodStartTime: charge.attendanceRecord.lessonPeriod.startTime,
     })),
     needsRenewal: renewal.active,
     inactiveRenewalCount: renewal.inactiveCount,
@@ -229,9 +257,10 @@ export type Todos = Awaited<ReturnType<typeof getTodos>>;
 
 /** 只要「要處理」的數字（推播的 App 圖示數字用），不撈明細。提醒類不算，見 getTodos。 */
 export async function countTodos(classroomId: number): Promise<number> {
-  const [unpaid, unbound] = await Promise.all([
+  const [unpaid, unpaidDropIns, unbound] = await Promise.all([
     prisma.studentCard.count({ where: { isPaid: false, student: { classroomId } } }),
-    prisma.attendanceRecord.count({ where: { student: { classroomId }, studentCardId: null } }),
+    prisma.dropInCharge.count({ where: { isPaid: false, attendanceRecord: { student: { classroomId } } } }),
+    prisma.attendanceRecord.count({ where: { student: { classroomId }, ...UNRESOLVED_ATTENDANCE } }),
   ]);
-  return unpaid + unbound;
+  return unpaid + unpaidDropIns + unbound;
 }

@@ -63,6 +63,7 @@ model User {
   memberships             Membership[]
   purchasedStudentCards   StudentCard[]             @relation("PurchasedStudentCards")
   confirmedStudentCards   StudentCard[]             @relation("ConfirmedStudentCards")
+  confirmedDropIns        DropInCharge[]            @relation("ConfirmedDropIns")
   currentClassroomId      Int?
   currentClassroom        Classroom?                @relation(fields: [currentClassroomId], references: [id])
   // 帳號已刪除（匿名化）。非 null = decodeAuthToken 把這個人當成沒登入，
@@ -337,6 +338,8 @@ model Lesson {
   level             Int                @default(1)
   // 每次出席扣幾格課卡（外師課常用 2）。點名當下抄到 AttendanceRecord.sessionsUsed。
   sessionsPerAttendance Int            @default(1)
+  // 單堂價（現場付費，不扣課卡）。null = 這堂不開放單堂付費。
+  dropInPrice       Int?
   // 分部（台南／高雄…）。選填；課卡不分部限定。
   locationId        Int?
   location          Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
@@ -502,6 +505,8 @@ model AttendanceRecord {
   // 這筆出席從 studentCard 扣了幾格（扣卡當下抄自 Lesson.sessionsPerAttendance；
   // 沒綁卡時是將來綁卡要扣的格數）。退卡退同樣格數、收入照它認列。
   sessionsUsed   Int              @default(1)
+  // 這次付單堂（不扣卡）。有它就不算「出席沒綁課卡」。
+  dropInCharge   DropInCharge?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -1102,4 +1107,21 @@ model FinanceSettlementRevision {
   createdAt    DateTime                @default(now())
 
   @@index([settlementId])
+}
+
+// 一筆出席改付單堂費（Lesson.dropInPrice），不扣課卡。跟著出席紀錄走：
+// 取消點名、重設時段刪掉出席紀錄時一起刪。收款欄位同 StudentCard。
+model DropInCharge {
+  id                 Int              @id @default(autoincrement())
+  attendanceRecordId Int              @unique
+  attendanceRecord   AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
+  amount             Int
+  isPaid             Boolean          @default(false)
+  paidAt             DateTime?
+  paymentMethod      PaymentMethod?
+  paymentReference   String?
+  // 收款人：錢在誰手上。
+  paidByUserId       Int?
+  paidBy             User?            @relation("ConfirmedDropIns", fields: [paidByUserId], references: [id])
+  createdAt          DateTime         @default(now())
 }

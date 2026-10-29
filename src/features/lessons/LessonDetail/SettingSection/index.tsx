@@ -6,6 +6,7 @@ import { useDanceStyles } from "@/hooks/useDanceStyles";
 import LevelSelect from "@/features/lessons/newLesson/LevelSelect";
 import LessonKindSelect from "@/features/lessons/newLesson/LessonKindSelect";
 import SessionsPerAttendanceSelect from "@/features/lessons/newLesson/SessionsPerAttendanceSelect";
+import DropInPriceField, { parseDropInPrice } from "@/features/lessons/newLesson/DropInPriceField";
 import type { LessonKind } from "@/lib/lessonKind";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
@@ -25,6 +26,7 @@ const validationErrors = {
   teachers: "請至少選擇一位老師",
   cards: "請至少選擇一張課卡",
   danceStyle: "請選擇舞種",
+  dropInPrice: "請輸入單堂價",
 };
 
 const SettingSection = ({ lesson }: { lesson: Lesson }) => {
@@ -41,6 +43,10 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
   const [kind, setKind] = useState<LessonKind>(lesson.kind);
   const [sessionsPerAttendance, setSessionsPerAttendance] = useState<number>(
     lesson.sessionsPerAttendance
+  );
+  const [dropInEnabled, setDropInEnabled] = useState<boolean>(lesson.dropInPrice !== null);
+  const [dropInAmount, setDropInAmount] = useState<string>(
+    lesson.dropInPrice !== null ? String(lesson.dropInPrice) : ""
   );
   const [endLesson, { isLoading: isEnding }] = useEndLessonMutation();
   const [reopenLesson, { isLoading: isReopening }] = useReopenLessonMutation();
@@ -59,6 +65,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
     teachers?: string;
     cards?: string;
     danceStyle?: string;
+    dropInPrice?: string;
   }>({});
   const [updateLesson, { isLoading }] = useUpdateLessonMutation();
   const [deleteLesson, { isLoading: isDeleting }] = useDeleteLessonMutation();
@@ -105,10 +112,13 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
       teachers: selectedTeacherIds,
       cards: selectedCardIds,
       danceStyleId,
+      dropInEnabled,
+      dropInPrice: parseDropInPrice(dropInEnabled, dropInAmount),
     });
     setErrors(errors);
-    if (Object.keys(errors).length === 0 && danceStyleId !== null) {
-      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId, level, kind, sessionsPerAttendance, groupId, locationId } });
+    const dropInPrice = parseDropInPrice(dropInEnabled, dropInAmount);
+    if (Object.keys(errors).length === 0 && danceStyleId !== null && dropInPrice !== undefined) {
+      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId, level, kind, sessionsPerAttendance, dropInPrice, groupId, locationId } });
     }
   };
 
@@ -130,6 +140,19 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
           {hasLevels && <LevelSelect level={level} onChange={setLevel} />}
           <LessonKindSelect kind={kind} onChange={setKind} />
           <SessionsPerAttendanceSelect value={sessionsPerAttendance} onChange={setSessionsPerAttendance} />
+          <DropInPriceField
+            enabled={dropInEnabled}
+            amount={dropInAmount}
+            onEnabledChange={(enabled) => {
+              setDropInEnabled(enabled);
+              setErrors((prev) => ({ ...prev, dropInPrice: undefined, cards: undefined }));
+            }}
+            onAmountChange={(amount) => {
+              setDropInAmount(amount);
+              setErrors((prev) => ({ ...prev, dropInPrice: undefined }));
+            }}
+            error={errors.dropInPrice}
+          />
           <LocationSelect locationId={locationId} onChange={setLocationId} />
           <LessonGroupSelect
             groupId={groupId}
@@ -189,12 +212,15 @@ const validateForm = (data: {
   teachers: number[];
   cards: number[];
   danceStyleId: number | null;
+  dropInEnabled: boolean;
+  dropInPrice: number | null | undefined;
 }) => {
   const errors: {
     lessonName?: string;
     teachers?: string;
     cards?: string;
     danceStyle?: string;
+    dropInPrice?: string;
   } = {};
   if (data.danceStyleId === null) {
     errors.danceStyle = validationErrors.danceStyle;
@@ -205,8 +231,12 @@ const validateForm = (data: {
   if (data.teachers.length === 0) {
     errors.teachers = validationErrors.teachers;
   }
-  if (data.cards.length === 0) {
+  // 開了單堂付費的課可以不收課卡（全場付現）。
+  if (data.cards.length === 0 && !data.dropInEnabled) {
     errors.cards = validationErrors.cards;
+  }
+  if (data.dropInPrice === undefined) {
+    errors.dropInPrice = validationErrors.dropInPrice;
   }
   return errors;
 };

@@ -5,6 +5,7 @@ import { refreshNeedsRenewalTags } from "@/service/studentTag";
 import { notifyClassroom } from "@/service/push";
 import { canBuyCard, canUseCard, cardMatchesLesson, isQualified, requiredDanceStyleFor, requiredLevelFor, toDanceLevels } from "@/domains/qualification";
 import { createStudentCardInTx } from "@/service/studentCard";
+import { createDropInChargeInTx } from "@/service/dropIn";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
 import {
@@ -503,14 +504,19 @@ function isDuplicateAttendance(e: unknown): boolean {
 
 export type SelfCheckInResult = {
   periodId: number;
-  status: "checked" | "already_checked" | "no_card";
+  /** drop_in = 不扣卡、記一筆單堂費（下課付） */
+  status: "checked" | "already_checked" | "no_card" | "drop_in";
+  dropInAmount?: number;
   cardName?: string;
   remainingSessions?: number;
   exhausted?: boolean;
 };
 
-/** How the student pays for this check-in: a card they hold, or one bought now. */
-export type SelfCheckInCardChoice = { studentCardId: number } | { buyCardId: number };
+/** How the student pays for this check-in: a card they hold, one bought now, or the lesson's drop-in price. */
+export type SelfCheckInCardChoice =
+  | { studentCardId: number }
+  | { buyCardId: number }
+  | { dropIn: true };
 
 /**
  * A self check-in the engine refuses before writing anything. `status` is the
@@ -522,7 +528,8 @@ export class SelfCheckInError extends Error {
       | "card_required" // requireCard, and some period would end up without a card
       | "card_not_usable" // studentCardId isn't one of this lesson's usable cards
       | "card_not_offered" // buyCardId isn't attached to this lesson
-      | "not_qualified", // buyCardId is a practice card the student can't buy
+      | "not_qualified" // buyCardId is a practice card the student can't buy
+      | "drop_in_not_offered", // dropIn, but the lesson takes no drop-in payments
     public status: 400 | 403
   ) {
     super(code);
@@ -533,6 +540,8 @@ export type SelfCheckInOutcome = {
   results: SelfCheckInResult[];
   /** The card bought during this check-in, if any. */
   purchased: { id: number; serialNumber: number; name: string; finalPrice: number; isPaid: boolean } | null;
+  /** Drop-in fees recorded during this check-in (unpaid — paid after class). */
+  dropInDue: number;
 };
 
 // The card each new period would be charged to, simulated on a copy of the
@@ -633,8 +642,11 @@ export async function selfCheckIn({
   // ----- Validate the card choice and plan every period before writing -----
   let chosenId: number | null = null;
   let buying: (typeof lesson.cards)[number]["card"] | null = null;
+  const dropIn = Boolean(choice && "dropIn" in choice);
 
-  if (choice && "studentCardId" in choice) {
+  if (dropIn) {
+    if (lesson.dropInPrice === null) throw new SelfCheckInError("drop_in_not_offered", 400);
+  } else if (choice && "studentCardId" in choice) {
     const { usable } = cardOptionsFor(student, lesson);
     if (!usable.some((c) => c.id === choice.studentCardId)) {
       throw new SelfCheckInError("card_not_usable", 400);
@@ -659,8 +671,11 @@ export async function selfCheckIn({
     } as CandidateCard);
   }
 
-  const plan = planPeriodCards(student, lesson, newPeriods.length, chosenId);
-  if (requireCard && plan.some((id) => id === null)) {
+  // 單堂付費：每個時段都不扣卡，各記一筆單堂費。
+  const plan = dropIn
+    ? newPeriods.map(() => null)
+    : planPeriodCards(student, lesson, newPeriods.length, chosenId);
+  if (requireCard && !dropIn && plan.some((id) => id === null)) {
     throw new SelfCheckInError("card_required", 400);
   }
 
@@ -730,6 +745,15 @@ export async function selfCheckIn({
 
         if (studentCard) {
           await processStudentCardUsage(tx, studentCard, student.id, lesson.sessionsPerAttendance);
+        } else if (dropIn) {
+          await createDropInChargeInTx(tx, {
+            attendanceRecordId: attendanceRecord.id,
+            studentId: student.id,
+            lessonName: lesson.name,
+            amount: lesson.dropInPrice!,
+            payment: { isPaid: false },
+            receiverUserId: null,
+          });
         }
       });
     } catch (e) {
@@ -744,7 +768,11 @@ export async function selfCheckIn({
     }
 
     if (!studentCard) {
-      results.push({ periodId: period.id, status: "no_card" });
+      results.push(
+        dropIn
+          ? { periodId: period.id, status: "drop_in", dropInAmount: lesson.dropInPrice! }
+          : { periodId: period.id, status: "no_card" }
+      );
       continue;
     }
 
@@ -773,8 +801,18 @@ export async function selfCheckIn({
     });
   }
 
+  const dropInDue = results.reduce((sum, r) => sum + (r.status === "drop_in" ? r.dropInAmount ?? 0 : 0), 0);
+  if (dropInDue > 0) {
+    await notifyClassroom(lesson.classroomId, {
+      type: "UNPAID_CARD",
+      title: "待確認收款",
+      body: `${student.name} 自助簽到「${lesson.name}」選了單堂，NT$${formatMoney(dropInDue)} 下課付`,
+      path: `/lessons/${lesson.id}/periods/${newPeriods[0].id}/check-success`,
+    });
+  }
+
   results.sort(
     (a, b) => periods.findIndex((p) => p.id === a.periodId) - periods.findIndex((p) => p.id === b.periodId)
   );
-  return { results, purchased };
+  return { results, purchased, dropInDue };
 }

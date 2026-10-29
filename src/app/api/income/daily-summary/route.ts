@@ -42,6 +42,7 @@ export async function GET(request: Request) {
         include: {
           student: true,
           studentCard: true,
+          dropInCharge: { select: { amount: true } },
         },
       },
     },
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
     const pendingStudents = [
       ...new Set(
         period.attendanceRecords
-          .filter((record) => record.studentCardId === null)
+          .filter((record) => record.studentCardId === null && !record.dropInCharge)
           .map((record) => record.student.name)
       ),
     ];

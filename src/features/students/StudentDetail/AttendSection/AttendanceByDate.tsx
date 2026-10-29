@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import type { StudentAttendance } from "@/store/slices/students";
 import DanceBadge from "../../StudentList/DanceBadge";
 import { formatCardSerial } from "@/lib/cardSerial";
+import { formatMoney } from "@/lib/money";
 import { attendanceSourceLabel, groupByMonth, takeMonthsUntil } from "./attendanceInsights";
 import StatusTag, { type StatusTone } from "@/components/StatusTag";
 
@@ -71,11 +72,15 @@ const AttendanceByDate = ({ attendances }: { attendances: StudentAttendance[] })
                       </span>
                       {/* 窄槽位：時間和卡號併到課名下面 */}
                       <span className="@lg:hidden block text-xs text-neutral-500 tabular-nums">
-                        {format(at, "HH:mm")} · {serial ?? "未扣卡"}
+                        {format(at, "HH:mm")} · {dropInLabel(attendance) ?? serial ?? "未扣卡"}
                       </span>
                     </span>
                     <span className="hidden @lg:block min-w-0 truncate text-xs">
-                      {attendance.studentCard ? (
+                      {attendance.dropIn ? (
+                        <span className={attendance.dropIn.isPaid ? "text-neutral-700" : "font-semibold text-warning-950"}>
+                          {dropInLabel(attendance)}
+                        </span>
+                      ) : attendance.studentCard ? (
                         <>
                           {attendance.studentCard.name}{" "}
                           <span className="text-neutral-500 tabular-nums">{serial}</span>
@@ -109,3 +114,9 @@ const AttendanceByDate = ({ attendances }: { attendances: StudentAttendance[] })
 };
 
 export default AttendanceByDate;
+
+/** 付單堂的那一筆：「單堂 $900」，沒付加「未付」。 */
+function dropInLabel(attendance: StudentAttendance) {
+  if (!attendance.dropIn) return null;
+  return `單堂 $${formatMoney(attendance.dropIn.amount)}${attendance.dropIn.isPaid ? "" : " 未付"}`;
+}

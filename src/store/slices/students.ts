@@ -113,6 +113,8 @@ export interface StudentAttendance {
   pending: boolean;
   /** 這次扣了幾堂（外師課 = 2） */
   sessionsUsed: number;
+  /** 付單堂（不扣卡）；null = 用課卡或還沒處理 */
+  dropIn: { amount: number; isPaid: boolean } | null;
 }
 
 export interface StudentCardWithCard extends StudentCard {

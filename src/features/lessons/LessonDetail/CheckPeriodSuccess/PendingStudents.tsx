@@ -4,6 +4,7 @@ import { AttendanceRecord, Lesson } from "@/store/slices/lessons";
 import { MdOutlineWarning } from "react-icons/md";
 import ChooseCardForm from "./ChooseCardForm";
 import UseNowButton from "./UseNowButton";
+import { DropInForm } from "./DropInForm";
 import { DEFAULT_DANCE_LEVEL, danceLevelLabel } from "@/lib/danceLevels";
 
 const UNCHECK_DESCRIPTION_MAP = {
@@ -13,7 +14,10 @@ const UNCHECK_DESCRIPTION_MAP = {
   not_checked: "課卡未消耗",
   not_qualified: "未具備複習卡資格",
 };
-/** 一筆沒綁卡的出席該怎麼補：沒卡 → 買卡並使用；多張 → 選一張；只差扣卡 → 現在使用。 */
+/**
+ * 一筆沒綁卡的出席該怎麼補：沒卡 → 買卡並使用；多張 → 選一張；只差扣卡 → 現在使用。
+ * 課程開放單堂付費時，旁邊再多一個「單堂 $X」。
+ */
 export const PendingRecordAction = ({
   record,
   lesson,
@@ -29,13 +33,22 @@ export const PendingRecordAction = ({
   onDone?: () => void;
 }) => {
   const props = { record, lesson, studentId: record.studentId, periodId, inline, onDone };
-  if (["no_card", "no_practice_card", "not_qualified"].includes(record.uncheckedType)) {
-    return <BuyAndUseForm {...props} />;
-  }
-  if (record.uncheckedType === "multiple_cards") {
-    return <ChooseCardForm {...props} />;
-  }
-  return <UseNowButton lesson={lesson} studentId={record.studentId} periodId={periodId} onDone={onDone} />;
+  const cardAction = ["no_card", "no_practice_card", "not_qualified"].includes(record.uncheckedType) ? (
+    <BuyAndUseForm {...props} />
+  ) : record.uncheckedType === "multiple_cards" ? (
+    <ChooseCardForm {...props} />
+  ) : (
+    <UseNowButton lesson={lesson} studentId={record.studentId} periodId={periodId} onDone={onDone} />
+  );
+  // inline（已在對話框裡）只放得下一張表單：沒卡的人才給單堂。
+  if (lesson.dropInPrice === null || (inline && record.uncheckedType !== "no_card")) return cardAction;
+  if (inline) return <DropInForm record={record} lesson={lesson} periodId={periodId} inline onDone={onDone} />;
+  return (
+    <>
+      {cardAction}
+      <DropInForm record={record} lesson={lesson} periodId={periodId} onDone={onDone} />
+    </>
+  );
 };
 
 export const uncheckedDescription = (record: AttendanceRecord, lesson: Lesson) =>

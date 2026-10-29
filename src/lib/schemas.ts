@@ -50,6 +50,16 @@ export const confirmPaymentSchema = z.object({
 });
 
 /**
+ * 一筆出席改付單堂（POST .../attendance/[studentId]/drop-in）。金額照課程的
+ * 單堂價，不讓前端帶。`isPaid:false` = 下課再付，收款欄位一律忽略。
+ */
+export const chargeDropInSchema = z.object({
+  isPaid: z.boolean(),
+  paymentMethod: z.enum(PaymentMethod).nullish(),
+  paymentReference: z.string().trim().max(20).nullish(),
+});
+
+/**
  * 登記體驗課（POST /api/lessons/[id]/trials）：選既有學生（`studentId`）或
  * 直接打名字建新學生（`newStudentName`），二擇一。`finalPrice` 省略 = 依
  * 新舊生帶預設價（src/lib/trialPrice.ts）；$0 一律視為已付。

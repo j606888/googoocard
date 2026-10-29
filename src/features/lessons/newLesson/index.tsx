@@ -15,6 +15,7 @@ import DanceStyleSelect from "./DanceStyleSelect";
 import LevelSelect from "./LevelSelect";
 import LessonKindSelect from "./LessonKindSelect";
 import SessionsPerAttendanceSelect from "./SessionsPerAttendanceSelect";
+import DropInPriceField, { parseDropInPrice } from "./DropInPriceField";
 import {
   DEFAULT_LESSON_KIND,
   DEFAULT_SESSIONS_PER_ATTENDANCE,
@@ -42,6 +43,7 @@ const validationErrors = {
   cards: "請至少選擇一張課卡",
   periods: "請至少新增一個時段",
   danceStyle: "請選擇舞種",
+  dropInPrice: "請輸入單堂價",
 };
 
 const NewLesson = () => {
@@ -84,6 +86,12 @@ const NewLesson = () => {
   const [sessionsPerAttendance, setSessionsPerAttendance] = useState<number>(
     initialClone?.sessionsPerAttendance ?? DEFAULT_SESSIONS_PER_ATTENDANCE
   );
+  const [dropInEnabled, setDropInEnabled] = useState<boolean>(
+    initialClone?.dropInPrice != null
+  );
+  const [dropInAmount, setDropInAmount] = useState<string>(
+    initialClone?.dropInPrice != null ? String(initialClone.dropInPrice) : ""
+  );
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(
     initialClone?.teacherIds ?? []
   );
@@ -117,6 +125,7 @@ const NewLesson = () => {
     cards?: string;
     periods?: string;
     danceStyle?: string;
+    dropInPrice?: string;
   }>({});
   const [createLesson, { isLoading }] = useCreateLessonMutation();
   const router = useRouter();
@@ -170,9 +179,12 @@ const NewLesson = () => {
       cards: selectedCardIds,
       periods,
       danceStyleId,
+      dropInEnabled,
+      dropInPrice: parseDropInPrice(dropInEnabled, dropInAmount),
     });
     setErrors(errors);
-    if (Object.keys(errors).length === 0 && danceStyleId !== null) {
+    const dropInPrice = parseDropInPrice(dropInEnabled, dropInAmount);
+    if (Object.keys(errors).length === 0 && danceStyleId !== null && dropInPrice !== undefined) {
       await createLesson({
         lessonName,
         teacherIds: selectedTeacherIds,
@@ -182,6 +194,7 @@ const NewLesson = () => {
         level: hasLevels ? level : DEFAULT_DANCE_LEVEL,
         kind,
         sessionsPerAttendance,
+        dropInPrice,
         groupId: selectedGroupId,
         locationId,
         periods,
@@ -243,6 +256,19 @@ const NewLesson = () => {
                   value={sessionsPerAttendance}
                   onChange={setSessionsPerAttendance}
                 />
+                <DropInPriceField
+                  enabled={dropInEnabled}
+                  amount={dropInAmount}
+                  onEnabledChange={(enabled) => {
+                    setDropInEnabled(enabled);
+                    setErrors((prev) => ({ ...prev, dropInPrice: undefined, cards: undefined }));
+                  }}
+                  onAmountChange={(amount) => {
+                    setDropInAmount(amount);
+                    setErrors((prev) => ({ ...prev, dropInPrice: undefined }));
+                  }}
+                  error={errors.dropInPrice}
+                />
                 <LocationSelect locationId={locationId} onChange={setPickedLocationId} />
                 <LessonGroupSelect
                   groupId={selectedGroupId}
@@ -290,6 +316,8 @@ const validateForm = (data: {
   cards: number[];
   periods: { startTime: string; endTime: string }[];
   danceStyleId: number | null;
+  dropInEnabled: boolean;
+  dropInPrice: number | null | undefined;
 }) => {
   const errors: {
     lessonName?: string;
@@ -297,6 +325,7 @@ const validateForm = (data: {
     cards?: string;
     periods?: string;
     danceStyle?: string;
+    dropInPrice?: string;
   } = {};
   if (data.danceStyleId === null) {
     errors.danceStyle = validationErrors.danceStyle;
@@ -307,8 +336,12 @@ const validateForm = (data: {
   if (data.teachers.length === 0) {
     errors.teachers = validationErrors.teachers;
   }
-  if (data.cards.length === 0) {
+  // 開了單堂付費的課可以不收課卡（全場付現）。
+  if (data.cards.length === 0 && !data.dropInEnabled) {
     errors.cards = validationErrors.cards;
+  }
+  if (data.dropInPrice === undefined) {
+    errors.dropInPrice = validationErrors.dropInPrice;
   }
   if (data.periods.length === 0) {
     errors.periods = validationErrors.periods;

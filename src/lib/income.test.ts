@@ -41,4 +41,8 @@ describe("periodRevenue", () => {
     // 3000 / 10 = 300，扣 2 格 → 600
     expect(periodRevenue([{ ...withCard(3000, 10), sessionsUsed: 2 }])).toBe(600);
   });
+
+  it("單堂付費 → 照單堂金額認列", () => {
+    expect(periodRevenue([{ studentCard: null, dropInCharge: { amount: 900 } }, withCard(3000, 10)])).toBe(1200);
+  });
 });

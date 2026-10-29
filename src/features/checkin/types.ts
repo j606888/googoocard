@@ -29,6 +29,8 @@ export interface BuyableCardOption {
 export interface LessonCardStatus {
   /** 每次出席扣幾堂（外師課 = 2）；剩不夠的卡不在 usable 裡。 */
   sessionsPerAttendance: number;
+  /** 單堂價（不扣卡、下課付）；null = 這堂不開放單堂。 */
+  dropInPrice: number | null;
   usable: UsableCardOption[];
   autoPickId: number | null;
   buyable: BuyableCardOption[];
@@ -83,7 +85,9 @@ export interface TodayResponse {
 
 export interface CheckinResult {
   periodId: number;
-  status: "checked" | "already_checked" | "no_card";
+  status: "checked" | "already_checked" | "no_card" | "drop_in";
+  /** status = drop_in：這個時段的單堂費（下課付） */
+  dropInAmount?: number;
   cardName?: string;
   remainingSessions?: number;
   exhausted?: boolean;

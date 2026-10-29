@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
+import { UNRESOLVED_ATTENDANCE } from "@/service/dropIn";
 
 export async function GET() {
   const { classroomId } = await decodeAuthToken();
@@ -10,7 +11,7 @@ export async function GET() {
       student: {
         classroomId,
       },
-      studentCardId: null,
+      ...UNRESOLVED_ATTENDANCE,
     },
     include: {
       student: true,

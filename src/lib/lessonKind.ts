@@ -26,6 +26,11 @@ export function isValidSessionsPerAttendance(value: unknown): value is number {
   return SESSIONS_PER_ATTENDANCE_OPTIONS.some((option) => option === value);
 }
 
+/** 單堂價：null = 不開放單堂付費；否則 0–100000 的整數。 */
+export function isValidDropInPrice(value: unknown): value is number | null {
+  return value === null || (Number.isInteger(value) && (value as number) >= 0 && (value as number) <= 100000);
+}
+
 export type LessonStatus = "inProgress" | "finished";
 
 /** The single rule for Lesson.status — refreshLesson() writes what this returns. */

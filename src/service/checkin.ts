@@ -43,6 +43,8 @@ export interface BuyableCardOption {
 export interface LessonCardStatus {
   /** Sessions one attendance deducts (外師課 = 2); cards with fewer left aren't in `usable`. */
   sessionsPerAttendance: number;
+  /** Drop-in price (no card, paid after class); null = the lesson takes none. */
+  dropInPrice: number | null;
   usable: UsableCardOption[];
   /** The card the engine would use on its own; null = the student must choose or buy. */
   autoPickId: number | null;
@@ -344,13 +346,15 @@ async function lessonCardStatus(
     classroomId,
     sessionsPerAttendance
   );
-  if (!student) return { sessionsPerAttendance, usable: [], autoPickId: null, buyable: [] };
+  const dropInPrice = lesson.dropInPrice;
+  if (!student) return { sessionsPerAttendance, dropInPrice, usable: [], autoPickId: null, buyable: [] };
 
   const { usable, autoPick } = cardOptionsFor(student, lesson);
   const levels = toDanceLevels(student.danceQualifications);
 
   return {
     sessionsPerAttendance,
+    dropInPrice,
     usable: usable.map((sc) => ({
       studentCardId: sc.id,
       name: sc.card.name,

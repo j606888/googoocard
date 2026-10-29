@@ -96,7 +96,11 @@ const periodInclude = {
     },
   },
   attendanceRecords: {
-    select: { sessionsUsed: true, studentCard: { select: { finalPrice: true, totalSessions: true } } },
+    select: {
+      sessionsUsed: true,
+      studentCard: { select: { finalPrice: true, totalSessions: true } },
+      dropInCharge: { select: { amount: true } },
+    },
   },
   assistants: { select: { teacherId: true } },
   financeSettlement: {
@@ -174,7 +178,9 @@ export async function computeLessonSplits(classroomId: number, from: string, to:
     let cardRevenue = 0;
     let estimated = 0;
     for (const record of p.attendanceRecords) {
-      if (record.studentCard) {
+      if (record.dropInCharge) {
+        cardRevenue += record.dropInCharge.amount;
+      } else if (record.studentCard) {
         cardRevenue +=
           (record.studentCard.finalPrice / record.studentCard.totalSessions) * record.sessionsUsed;
       } else estimated += perHead * record.sessionsUsed;

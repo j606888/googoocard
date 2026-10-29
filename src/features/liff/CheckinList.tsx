@@ -26,7 +26,7 @@ import {
 } from "@/features/checkin/types";
 
 // What pays for one lesson: one of the student's cards, or one bought now.
-type Payment = { studentCardId: number } | { buyCardId: number };
+type Payment = { studentCardId: number } | { buyCardId: number } | { dropIn: true };
 
 type Done = {
   lessons: TodayLesson[];
@@ -102,6 +102,10 @@ export default function CheckinList({
   );
   const lessonsToBuy = selectedLessons.filter((l) => (l.cardStatus?.usable.length ?? 0) === 0);
   const amountToPay = lessonsToBuy.reduce((sum, l) => {
+    if (buyChoice[l.lessonId] === DROP_IN) {
+      const periods = l.periods.filter((p) => selected.has(p.periodId)).length;
+      return sum + (l.cardStatus?.dropInPrice ?? 0) * periods;
+    }
     const card = l.cardStatus?.buyable.find((c) => c.cardId === buyChoice[l.lessonId]);
     return sum + (card?.price ?? 0);
   }, 0);
@@ -123,6 +127,7 @@ export default function CheckinList({
       return { studentCardId: id };
     }
     const buy = buyChoice[lesson.lessonId];
+    if (buy === DROP_IN) return { dropIn: true };
     return buy ? { buyCardId: buy } : null;
   };
 
@@ -135,9 +140,9 @@ export default function CheckinList({
     setBuyChoice((prev) => {
       const next = { ...prev };
       lessonsToBuy.forEach((l) => {
-        if (!next[l.lessonId] && l.cardStatus?.buyable[0]) {
-          next[l.lessonId] = l.cardStatus.buyable[0].cardId;
-        }
+        if (next[l.lessonId]) return;
+        if (l.cardStatus?.buyable[0]) next[l.lessonId] = l.cardStatus.buyable[0].cardId;
+        else if (l.cardStatus?.dropInPrice != null) next[l.lessonId] = DROP_IN;
       });
       return next;
     });
@@ -219,7 +224,9 @@ export default function CheckinList({
           {lessonsToBuy.map((lesson) => (
             <fieldset key={lesson.lessonId} className="flex flex-col gap-3">
               <legend className="mb-3">
-                <span className="block text-lg font-semibold">這堂要用哪張卡？</span>
+                <span className="block text-lg font-semibold">
+                  {lesson.cardStatus!.dropInPrice != null ? "這堂怎麼付？" : "這堂要用哪張卡？"}
+                </span>
                 <span className="block text-sm text-neutral-500">{lesson.lessonName}</span>
               </legend>
               {lesson.cardStatus!.buyable.map((card) => {
@@ -252,6 +259,26 @@ export default function CheckinList({
                   </label>
                 );
               })}
+              {lesson.cardStatus!.dropInPrice != null && (
+                <label
+                  className={`flex items-center gap-3 rounded-2xl border bg-white p-4 ${
+                    buyChoice[lesson.lessonId] === DROP_IN ? "border-2 border-primary-800" : "border-neutral-200"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name={`buy-${lesson.lessonId}`}
+                    checked={buyChoice[lesson.lessonId] === DROP_IN}
+                    onChange={() => setBuyChoice((prev) => ({ ...prev, [lesson.lessonId]: DROP_IN }))}
+                    className="h-5 w-5 accent-primary-800"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold">單堂付費</span>
+                    <span className="block text-sm text-neutral-500">不買卡，只付這一堂</span>
+                  </span>
+                  <span className="text-lg font-bold">${formatMoney(lesson.cardStatus!.dropInPrice)}</span>
+                </label>
+              )}
             </fieldset>
           ))}
           <p className="flex gap-2 text-sm leading-relaxed text-neutral-600">
@@ -311,7 +338,7 @@ export default function CheckinList({
           {submitting
             ? "報到中…"
             : lessonsToBuy.length > 0
-              ? "下一步：選課卡"
+              ? "下一步：選付款方式"
               : `確認報到${selected.size ? `（${selected.size}）` : ""}`}
         </Button>
       </div>
@@ -319,10 +346,15 @@ export default function CheckinList({
   );
 }
 
+/** buyChoice 裡代表「單堂付費」的值（真正的卡 id 都是正數）。 */
+const DROP_IN = -1;
+
 // A lesson the student can pay for — with a card they hold, or one they can buy.
 function canPay(lesson: TodayLesson) {
   const status = lesson.cardStatus;
-  return Boolean(status && (status.usable.length > 0 || status.buyable.length > 0));
+  return Boolean(
+    status && (status.usable.length > 0 || status.buyable.length > 0 || status.dropInPrice != null)
+  );
 }
 
 function LessonBlock({
@@ -453,7 +485,7 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
     l.periods.forEach((p) => periodInfo.set(p.periodId, { lessonName: l.lessonName, start: p.startTime }))
   );
   const results = done.responses.flatMap((r) => r.response.results);
-  const checkedCount = results.filter((r) => r.status === "checked").length;
+  const checkedCount = results.filter((r) => r.status === "checked" || r.status === "drop_in").length;
   const amountDue = done.responses.reduce((sum, r) => sum + r.response.amountDue, 0);
   const justBought = new Set(done.responses.map((r) => r.response.purchased?.id).filter(Boolean));
   // The latest response has the most up-to-date unpaid list.
@@ -503,7 +535,9 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
                     ? "先前已簽到"
                     : r.status === "checked"
                       ? `${r.cardName}${typeof r.remainingSessions === "number" ? ` · 剩 ${r.remainingSessions} 堂` : ""}`
-                      : "沒有綁到課卡，請找小幫手"}
+                      : r.status === "drop_in"
+                        ? `單堂 $${formatMoney(r.dropInAmount ?? 0)} · 下課付`
+                        : "沒有綁到課卡，請找小幫手"}
                 </p>
               </div>
               <span className="text-sm text-neutral-500">

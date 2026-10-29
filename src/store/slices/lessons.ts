@@ -28,6 +28,8 @@ export interface Lesson {
   endedAt: string | null;
   /** 每次出席扣幾格課卡（外師課 = 2）。 */
   sessionsPerAttendance: number;
+  /** 單堂價；null = 不開放單堂付費。 */
+  dropInPrice: number | null;
   cards: Card[];
   groupId: number | null;
   group: { id: number; name: string } | null;
@@ -55,6 +57,7 @@ export interface LessonSummary {
   kind: LessonKind;
   endedAt: string | null;
   sessionsPerAttendance: number;
+  dropInPrice: number | null;
   studentCount: number;
   teachers: TeacherSummary[];
   cardIds: number[];
@@ -147,6 +150,8 @@ export interface DraftLesson {
   kind?: LessonKind;
   /** 每次出席扣幾格課卡（1–3）。Omitted on create = 1; omitted on update = unchanged. */
   sessionsPerAttendance?: number;
+  /** 單堂價；null = 不開放單堂付費。Omitted on update = unchanged. */
+  dropInPrice?: number | null;
   /** LessonGroup to file this lesson under — null means 未分類 (ungrouped). */
   groupId?: number | null;
   /** 分部 — null/omitted = not set (PUT clears it when omitted). */
@@ -176,6 +181,8 @@ export interface AttendanceRecord {
   source?: "TEACHER" | "STUDENT";
   /** 這筆出席扣了（或綁卡時要扣）幾格。 */
   sessionsUsed: number;
+  /** 改付單堂（不扣卡）。有它就沒有 cardName / uncheckedType。 */
+  dropIn?: { id: number; amount: number; isPaid: boolean; paymentMethod: "CASH" | "TRANSFER" | null };
 }
 
 export interface PeriodAssistants {
@@ -378,6 +385,36 @@ const lessonsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Lesson", "StudentCard", "Card", "Attendance", "AttendanceRecord"],
     }),
+    /** 這筆出席改付單堂（不扣卡）。金額由後端照課程單堂價決定。 */
+    chargeDropIn: builder.mutation<
+      void,
+      {
+        id: number;
+        periodId: number;
+        studentId: number;
+        isPaid: boolean;
+        paymentMethod?: "CASH" | "TRANSFER" | null;
+        paymentReference?: string | null;
+      }
+    >({
+      query: ({ id, periodId, studentId, ...body }) => ({
+        url: `lessons/${id}/periods/${periodId}/attendance/${studentId}/drop-in`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Lesson", "Student", "Attendance", "AttendanceRecord"],
+    }),
+    confirmDropInPayment: builder.mutation<
+      void,
+      { chargeId: number; paymentMethod?: "CASH" | "TRANSFER"; paymentReference?: string | null }
+    >({
+      query: ({ chargeId, ...body }) => ({
+        url: `drop-in-charges/${chargeId}/confirm-payment`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Lesson", "Student", "Attendance", "AttendanceRecord"],
+    }),
     getLessonTrials: builder.query<TrialRoster, { id: number }>({
       query: ({ id }) => `lessons/${id}/trials`,
       // 點名（Attendance）會把「已登記」變成「已上課」，買卡／刪卡也會動到名單。
@@ -469,6 +506,8 @@ const lessonsApi = api.injectEndpoints({
 });
 
 export const {
+  useChargeDropInMutation,
+  useConfirmDropInPaymentMutation,
   useCreateLessonMutation,
   useUpdateLessonMutation,
   useDeleteLessonMutation,

@@ -18,6 +18,17 @@ export interface Todos {
     createdAt: string;
     student: TodoStudent;
   }[];
+  /** 付單堂但還沒收到錢 */
+  unpaidDropIns: {
+    id: number;
+    amount: number;
+    createdAt: string;
+    student: TodoStudent;
+    lessonId: number;
+    lessonName: string;
+    lessonPeriodId: number;
+    lessonPeriodStartTime: string;
+  }[];
   /** 需續約、且近 30 天有來上課的人（更久沒來的只在 inactiveRenewalCount） */
   needsRenewal: {
     student: TodoStudent;
@@ -49,7 +60,7 @@ export interface Todos {
     name: string;
     students: (TodoStudent & { lineBound: boolean; createdAt: string })[];
   }[];
-  /** 要處理（未付款 + 出席沒綁課卡）：紅色數字、圖示 badge */
+  /** 要處理（未付款課卡 + 未付單堂 + 出席沒綁課卡）：紅色數字、圖示 badge */
   urgentCount: number;
   /** 提醒（需續約 + 體驗後沒買卡 + 可能重複）：只顯示灰點 */
   reminderCount: number;

@@ -91,6 +91,9 @@ export async function GET(
               card: true,
             },
           },
+          dropInCharge: {
+            select: { id: true, amount: true, isPaid: true, paymentMethod: true },
+          },
         },
       },
     },
@@ -123,7 +126,12 @@ export async function GET(
     const studentCard = record.studentCard;
     let studentCardData = {};
 
-    if (studentCard) {
+    if (record.dropInCharge) {
+      studentCardData = {
+        dropIn: record.dropInCharge,
+        income: record.dropInCharge.amount,
+      };
+    } else if (studentCard) {
       studentCardData = {
         cardId: studentCard.cardId,
         cardName: studentCard.card.name,

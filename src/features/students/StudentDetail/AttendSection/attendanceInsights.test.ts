@@ -24,6 +24,7 @@ const at = (startTime: string, extra: Partial<StudentAttendance> = {}): StudentA
   source: "TEACHER",
   pending: false,
   sessionsUsed: 1,
+  dropIn: null,
   ...extra,
 });
 

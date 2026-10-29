@@ -12,12 +12,13 @@ import {
 // period(s) of a lesson (source = STUDENT, does NOT finalize the period — the
 // teacher still reviews). Idempotent per period.
 //
-// Every self check-in is bound to a card: the student either has one the
-// engine picks, chooses one of theirs (`studentCardId`), or buys one of the
-// lesson's cards on the spot (`buyCardId`, unpaid — paid after class). Anything
-// that would leave a period unbound is refused with `card_required`.
+// Every self check-in is paid for: the student either has a card the engine
+// picks, chooses one of theirs (`studentCardId`), buys one of the lesson's cards
+// on the spot (`buyCardId`, unpaid — paid after class), or pays the lesson's
+// drop-in price (`dropIn: true`, no card, paid after class). Anything that would
+// leave a period unpaid for is refused with `card_required`.
 export async function POST(request: Request) {
-  const { studentId, lessonId, periodIds, studentCardId, buyCardId } = await request.json();
+  const { studentId, lessonId, periodIds, studentCardId, buyCardId, dropIn } = await request.json();
 
   const resolved = await resolveOwnedStudent(bearerToken(request), studentId);
   if (!resolved.ok) {
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
   let card: SelfCheckInCardChoice | undefined;
   if (studentCardId) card = { studentCardId: Number(studentCardId) };
   else if (buyCardId) card = { buyCardId: Number(buyCardId) };
+  else if (dropIn === true) card = { dropIn: true };
 
   let outcome;
   try {
@@ -66,7 +68,8 @@ export async function POST(request: Request) {
   return NextResponse.json({
     results: outcome.results,
     purchased: outcome.purchased,
-    amountDue: outcome.purchased && !outcome.purchased.isPaid ? outcome.purchased.finalPrice : 0,
+    amountDue:
+      (outcome.purchased && !outcome.purchased.isPaid ? outcome.purchased.finalPrice : 0) + outcome.dropInDue,
     unpaidCards: unpaidCards.map((sc) => ({
       id: sc.id,
       serialNumber: sc.serialNumber,
