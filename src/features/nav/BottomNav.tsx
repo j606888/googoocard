@@ -9,12 +9,17 @@ import { ACCOUNT_LINK, MODULE_LINKS, PRIMARY_LINKS, SECONDARY_LINKS, isSettingsP
 import { useGetUnpaidStudentCardsQuery } from "@/store/slices/students";
 import MoreSheet from "./MoreSheet";
 
+// 點名（check／check-edit）有自己的貼底動作列，導覽列會蓋住它、也會誤觸，所以不掛。
+const HIDDEN_ON = /^\/lessons\/[^/]+\/periods\/[^/]+\/check(-edit)?\/?$/;
+
 const BottomNav = () => {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
   const { data: unpaidCards } = useGetUnpaidStudentCardsQuery();
   const unpaidCount = unpaidCards?.length ?? 0;
+
+  if (HIDDEN_ON.test(pathname)) return null;
 
   // "More" counts as active on any page it leads to.
   const moreActive =
