@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Copy, Pencil, Search, Trash } from "lucide-react";
+import { Copy, Ellipsis, Pencil, Search, Trash2 } from "lucide-react";
 import {
   Card,
   CardDetail,
@@ -20,7 +20,10 @@ import EmptyState from "@/components/EmptyState";
 import FilterChip from "@/components/FilterChip";
 import StatusTag from "@/components/StatusTag";
 import { fieldControlClass } from "@/components/Field";
+import InfoTip from "@/components/InfoTip";
+import MenuItem from "@/components/MenuItem";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   cardKind,
@@ -35,11 +38,20 @@ import { CardKindBadge } from "../CardKindBadge";
 
 type HolderFilter = "all" | "runningOut" | "unpaid";
 
-const KIND_LONG = {
-  general: "一般方案・所有學生可買",
-  practice: "複習卡・有資格的學生才買得到",
-  trial: "體驗課・老師登記時用",
+/** 只有複習卡／體驗課掛標籤（一般方案佔大多數，不標）；說明收在 ⓘ 裡。 */
+const KIND_INFO = {
+  practice: { label: "複習卡", explain: "複習卡：有這個舞種資格的學生才買得到。" },
+  trial: { label: "體驗課", explain: "體驗課：老師在課程頁的體驗名單登記時用，學生自助簽到買不到。" },
 } as const;
+
+/** 已發出的卡裡跟現在價格不同的那幾張，例：「有 3 張是舊價 $3,600」。 */
+const oldPriceText = (issuedPrices: CardDetail["issuedPrices"], currentPrice: number): string | null => {
+  const old = issuedPrices.filter(({ price }) => price !== currentPrice);
+  if (old.length === 0) return null;
+  return `有 ${old
+    .map(({ price, count }, index) => `${count} 張是${index === 0 ? "舊價 " : ""}$${price.toLocaleString()}`)
+    .join("、")}`;
+};
 
 /** 詳情 API 的形狀轉回列表的 `Card`，給編輯／複製表單當起點。 */
 export const cardFromDetail = (detail: CardDetail): Card => ({
@@ -51,7 +63,7 @@ export const cardFromDetail = (detail: CardDetail): Card => ({
 });
 
 /**
- * 一個課卡方案的詳情：開放購買開關、價格、統計、已發出的價格、持卡學生。
+ * 一個課卡方案的詳情：開放購買開關、價格與累積賣出、編輯／⋯（複製、刪除）、持卡學生。
  * 桌面在右側抽屜裡、手機是整頁，兩邊渲染同一份。
  */
 const CardDetailBody = ({
@@ -67,6 +79,9 @@ const CardDetailBody = ({
 }) => {
   const { card, purchasedCount, activeHolderCount, totalRevenue, issuedPrices, holders } = detail;
   const kind = cardKind(card);
+  const kindInfo = kind === "general" ? null : KIND_INFO[kind];
+  const oldPrices = oldPriceText(issuedPrices, card.price);
+  const [moreOpen, setMoreOpen] = useState(false);
   const isOpen = !card.expiredAt;
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -91,15 +106,23 @@ const CardDetailBody = ({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-2 min-w-0">
-          <div className="flex flex-wrap gap-1.5">
-            <CardKindBadge kind={kind} label={KIND_LONG[kind]} />
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700">
-              <span className={`w-1.5 h-1.5 rounded-full ${card.danceStyle ? danceStyleMeta(card.danceStyle).dot : "bg-neutral-400"}`} />
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <h2 className="text-2xl font-bold text-neutral-900 break-words">{card.name}</h2>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-neutral-600">
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className={`size-2 rounded-full ${card.danceStyle ? danceStyleMeta(card.danceStyle).dot : "bg-neutral-400"}`}
+              />
               {card.danceStyle?.name ?? "不限舞種"}
             </span>
+            {kindInfo && (
+              <span className="inline-flex items-center">
+                <CardKindBadge kind={kind} label={kindInfo.label} />
+                <InfoTip label={`${kindInfo.label}說明`}>{kindInfo.explain}</InfoTip>
+              </span>
+            )}
           </div>
-          <h2 className="text-2xl font-bold text-neutral-900 break-words">{card.name}</h2>
         </div>
         <button
           type="button"
@@ -149,50 +172,66 @@ const CardDetailBody = ({
         </div>
       )}
 
-      <div className="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl bg-neutral-50 px-5 py-4">
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold tracking-tight">${card.price.toLocaleString()}</span>
-          <span className="text-sm text-neutral-500">/ {card.sessions} 堂</span>
+      <div className="flex flex-col gap-2 rounded-2xl bg-neutral-50 px-5 py-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold tracking-tight">${card.price.toLocaleString()}</span>
+            <span className="text-sm text-neutral-500">/ {card.sessions} 堂</span>
+            {oldPrices && (
+              <InfoTip label="已發出的卡的價格" className="self-center">
+                已發出的卡，用的是當時的價格。{oldPrices}。
+              </InfoTip>
+            )}
+          </div>
+          {card.sessions !== 1 && (
+            <span className="text-sm font-semibold text-primary-900">
+              單堂 ${perSessionPrice(card).toLocaleString()}
+            </span>
+          )}
         </div>
-        <span className="text-sm font-semibold text-primary-900">
-          單堂 ${perSessionPrice(card).toLocaleString()}
-        </span>
+        <p className="text-[13px] text-neutral-500">
+          累積賣出 {purchasedCount} 張 · ${totalRevenue.toLocaleString()}
+        </p>
       </div>
 
       <div className="flex gap-2">
-        <ActionButton icon={<Pencil className="w-4 h-4" />} onClick={onEdit}>
-          改價格或內容
-        </ActionButton>
-        <ActionButton icon={<Copy className="w-4 h-4" />} onClick={onDuplicate}>
-          複製成新方案
-        </ActionButton>
+        <Button variant="secondary" onClick={onEdit} className="flex-1">
+          <Pencil className="size-4" />
+          編輯
+        </Button>
+        <Popover open={moreOpen} onOpenChange={setMoreOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="secondary" size="icon" aria-label="更多動作" className="border-neutral-300 text-neutral-700">
+              <Ellipsis className="size-5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-64 p-1.5">
+            <MenuItem
+              icon={<Copy className="size-4" aria-hidden />}
+              onClick={() => {
+                setMoreOpen(false);
+                onDuplicate();
+              }}
+            >
+              複製成新方案
+            </MenuItem>
+            <MenuItem
+              danger
+              disabled={purchasedCount > 0}
+              hint={purchasedCount > 0 ? "賣出過的方案不能刪，可以下架" : undefined}
+              icon={<Trash2 className="size-4" aria-hidden />}
+              onClick={() => {
+                setMoreOpen(false);
+                setConfirmDelete(true);
+              }}
+            >
+              刪除
+            </MenuItem>
+          </PopoverContent>
+        </Popover>
       </div>
-
-      <div className="grid grid-cols-3 gap-2">
-        <Stat value={activeHolderCount} label="持卡中" highlight />
-        <Stat value={purchasedCount} label="累積售出" />
-        <Stat value={`$${totalRevenue.toLocaleString()}`} label="累積收入" />
-      </div>
-
-      {issuedPrices.length > 0 && (
-        <div className="flex flex-col gap-1 text-[13px] leading-relaxed">
-          <span className="text-neutral-500">已發出的卡，用的是當時的價格</span>
-          <span className="text-neutral-900">
-            {issuedPrices
-              .map(({ price, count }) => `$${price.toLocaleString()} × ${count} 張`)
-              .join("・")}
-          </span>
-        </div>
-      )}
 
       <Holders holders={holders} isTrial={kind === "trial"} cardId={card.id} />
-
-      {purchasedCount === 0 && (
-        <Button variant="dangerSecondary" size="sm" className="self-start" onClick={() => setConfirmDelete(true)}>
-          <Trash className="size-4" />
-          刪除這個方案（還沒賣出過才能刪）
-        </Button>
-      )}
 
       <ConfirmDialog
         variant="danger"
@@ -235,11 +274,12 @@ const Holders = ({
     return sortHolders(filtered, sort);
   }, [holders, query, sort, filter]);
 
+  // 只列有人的篩選；快用完、未付款都沒人時整排不放。
   const chips: { value: HolderFilter; label: string; count: number }[] = [
-    { value: "all", label: "全部", count: holders.length },
-    { value: "runningOut", label: "快用完", count: runningOut },
-    { value: "unpaid", label: "未付款", count: unpaid },
-  ];
+    { value: "all" as const, label: "全部", count: holders.length },
+    { value: "runningOut" as const, label: "快用完", count: runningOut },
+    { value: "unpaid" as const, label: "未付款", count: unpaid },
+  ].filter((chip) => chip.value === "all" || chip.count > 0);
 
   const emptyText =
     holders.length === 0
@@ -255,10 +295,12 @@ const Holders = ({
   return (
     <div className="flex flex-col gap-3 border-t border-neutral-100 pt-4">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-[15px] font-bold">持卡中的學生</h3>
+        <h3 className="text-base font-bold">
+          持卡中的學生 <span className="font-medium text-neutral-500">{holders.length}</span>
+        </h3>
         {holders.length > 1 && <SortMenu sort={sort} options={HOLDER_SORT_OPTIONS} onChange={setSort} />}
       </div>
-      {holders.length > 0 && (
+      {chips.length > 1 && (
         <div className="flex flex-wrap gap-1.5">
           {chips.map((chip) => (
             <FilterChip
@@ -309,10 +351,6 @@ const Holders = ({
         <ul className="flex flex-col">
           {visible.map((holder) => {
             const low = isRunningOut(holder);
-            const pct =
-              holder.totalSessions > 0
-                ? Math.min(100, Math.round((holder.remainingSessions / holder.totalSessions) * 100))
-                : 0;
             return (
               <li key={holder.id}>
                 <Link
@@ -324,27 +362,21 @@ const Holders = ({
                     alt=""
                     className="w-9 h-9 rounded-full object-cover shrink-0"
                   />
-                  <span className="flex-1 min-w-0 flex flex-col gap-1.5">
-                    <span className="flex items-center gap-1.5 text-sm">
+                  <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+                    <span className="flex items-center gap-1.5 text-[15px]">
                       <span className="font-semibold truncate">{holder.student.name}</span>
                       <CardSerial serialNumber={holder.serialNumber} />
                       {!holder.isPaid && <StatusTag tone="danger">未付款</StatusTag>}
                     </span>
-                    <span className="block h-1.5 rounded-full bg-neutral-100 overflow-hidden">
-                      <span
-                        className={`block h-full rounded-full ${low ? "bg-warning-500" : "bg-primary-600"}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </span>
-                    <span className="text-[11px] text-neutral-500">
+                    <span className="text-xs text-neutral-500">
                       {formatDate(holder.createdAt, "M/d")} 購買
                     </span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className={`text-base font-bold ${low ? "text-warning-950" : "text-neutral-900"}`}>
+                    <span className={`text-[17px] font-bold ${low ? "text-warning-950" : "text-neutral-900"}`}>
                       {holder.remainingSessions}
                     </span>
-                    <span className="text-xs text-neutral-500"> / {holder.totalSessions}</span>
+                    <span className="text-[13px] text-neutral-500"> / {holder.totalSessions}</span>
                   </span>
                 </Link>
               </li>
@@ -356,70 +388,29 @@ const Holders = ({
   );
 };
 
-const ActionButton = ({
-  icon,
-  children,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  onClick: () => void;
-}) => (
-  <Button variant="secondary" onClick={onClick} className="flex-1 px-3 text-sm">
-    {icon}
-    {children}
-  </Button>
-);
-
-const Stat = ({
-  value,
-  label,
-  highlight,
-}: {
-  value: number | string;
-  label: string;
-  highlight?: boolean;
-}) => (
-  <div className="flex flex-col gap-0.5 rounded-2xl border border-neutral-200 p-3">
-    <span className={`text-xl font-bold ${highlight ? "text-primary-900" : "text-neutral-900"}`}>{value}</span>
-    <span className="text-xs text-neutral-500">{label}</span>
-  </div>
-);
-
 /** `CardDetailBody` while the detail loads — same blocks, data skeleton-ed. */
 export const CardDetailSkeleton = () => (
   <div className="flex flex-col gap-5" aria-busy="true">
     <div className="flex items-start justify-between gap-3">
       <div className="flex flex-col gap-2.5">
-        <div className="flex gap-1.5">
-          <Skeleton className="h-5.5 w-40" />
-          <Skeleton className="h-5.5 w-16" />
-        </div>
-        <Skeleton className="h-6 w-44" />
+        <Skeleton className="h-7 w-44" />
+        <Skeleton className="h-3.5 w-20" />
       </div>
       <Skeleton className="h-6 w-11 shrink-0 mt-2.5" />
     </div>
-    <Skeleton className="h-[68px] w-full rounded-2xl" />
+    <Skeleton className="h-[96px] w-full rounded-2xl" />
     <div className="flex gap-2">
       <Skeleton className="h-11 flex-1 rounded-xl" />
-      <Skeleton className="h-11 flex-1 rounded-xl" />
-    </div>
-    <div className="grid grid-cols-3 gap-2">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="flex flex-col gap-2 rounded-2xl border border-neutral-200 p-3">
-          <Skeleton className="h-6 w-10" />
-          <Skeleton className="h-3 w-12" />
-        </div>
-      ))}
+      <Skeleton className="size-11 rounded-xl" />
     </div>
     <div className="flex flex-col gap-3 border-t border-neutral-100 pt-4">
-      <h3 className="text-[15px] font-bold">持卡中的學生</h3>
+      <h3 className="text-base font-bold">持卡中的學生</h3>
       {["w-24", "w-16", "w-20"].map((width, i) => (
         <div key={i} className={`flex items-center gap-3 py-2.5 ${i === 2 ? "opacity-50" : ""}`}>
           <Skeleton className="size-9 shrink-0" />
           <div className="flex flex-1 flex-col gap-2">
             <Skeleton className={`h-3.5 ${width}`} />
-            <Skeleton className="h-1.5 w-full" />
+            <Skeleton className="h-3 w-16" />
           </div>
           <Skeleton className="h-5 w-10" />
         </div>

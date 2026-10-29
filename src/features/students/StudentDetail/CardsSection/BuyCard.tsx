@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
-import { Student, StudentCardWithCard } from "@/store/slices/students";
+import { PaymentMethod, Student, StudentCardWithCard } from "@/store/slices/students";
 import SegmentedTabs, { type SegmentedOption } from "@/components/SegmentedTabs";
 import { useCreateStudentCardMutation } from "@/store/slices/students";
 import { Card, useGetCardsQuery } from "@/store/slices/cards";
@@ -10,7 +10,7 @@ import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { FieldError, FieldLabel, fieldControlClass } from "@/components/Field";
+import Field, { FieldError, FieldLabel, fieldControlClass } from "@/components/Field";
 import EmptyState from "@/components/EmptyState";
 import StatusTag from "@/components/StatusTag";
 
@@ -19,10 +19,16 @@ type BuyableStudent = Pick<Student, "id" | "name" | "danceLevels"> & {
   studentCards?: Pick<StudentCardWithCard, "cardId" | "createdAt" | "remainingSessions" | "expiredAt">[];
 };
 
-const PAYMENT_OPTIONS: SegmentedOption<"paid" | "unpaid">[] = [
-  { value: "paid", label: "已付款" },
-  { value: "unpaid", label: "尚未付款" },
+/** 付款：當場收現金、轉帳（可記末五碼），或還沒付（卡照樣能用，之後再確認收款）。 */
+type Payment = PaymentMethod | "UNPAID";
+
+const PAYMENT_OPTIONS: SegmentedOption<Payment>[] = [
+  { value: "CASH", label: "現金" },
+  { value: "TRANSFER", label: "轉帳" },
+  { value: "UNPAID", label: "還沒付" },
 ];
+
+const PAYMENT_LABEL: Record<Payment, string> = { CASH: "現金", TRANSFER: "轉帳", UNPAID: "還沒付" };
 
 // 沒有課程脈絡：複習卡只看學生有沒有這張卡自己舞種的資格。
 export const buyBlockedReason = (card: Card, student: Pick<Student, "danceLevels">): string | null => {
@@ -34,7 +40,11 @@ export const buyBlockedReason = (card: Card, student: Pick<Student, "danceLevels
   return "複習卡未設定舞種，請先至課卡頁設定";
 };
 
-/** 卡種清單先顯示幾張，其餘收在「顯示其他 N 種卡」。 */
+/**
+ * 卡種不超過 `COLLAPSE_ABOVE` 種就全部列出；更多時只先列 `VISIBLE_CARD_COUNT` 種，
+ * 其餘收在「顯示其他 N 種卡」——不會為了藏一兩張多一顆按鈕。
+ */
+const COLLAPSE_ABOVE = 6;
 const VISIBLE_CARD_COUNT = 4;
 const NOTE_MAX = 500;
 
@@ -79,7 +89,8 @@ export const BuyCardDialog = ({
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
-  const [isPaid, setIsPaid] = useState(true);
+  const [payment, setPayment] = useState<Payment>("CASH");
+  const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [errors, setErrors] = useState<{ selectedCardId?: string; cardSessions?: string }>({});
@@ -116,7 +127,8 @@ export const BuyCardDialog = ({
       setCardSessions("");
       setCardPrice("");
     }
-    setIsPaid(true);
+    setPayment("CASH");
+    setReference("");
     setNote("");
     setShowAll(false);
     setErrors({});
@@ -158,7 +170,9 @@ export const BuyCardDialog = ({
         cardId: selectedCardId,
         sessions,
         price: parseInt(cardPrice) || 0,
-        isPaid,
+        isPaid: payment !== "UNPAID",
+        paymentMethod: payment === "UNPAID" ? null : payment,
+        paymentReference: payment === "TRANSFER" ? reference.trim() || null : null,
         note: note.trim() || undefined,
       }).unwrap();
       toast.success(`已為 ${student.name} 購買課卡`);
@@ -172,7 +186,8 @@ export const BuyCardDialog = ({
   const selectedIndex = cardOptions.findIndex((card) => card.id === selectedCardId);
   // 選到的卡就算排在後面也要看得到
   const visibleCount = Math.max(VISIBLE_CARD_COUNT, selectedIndex + 1);
-  const visibleCards = showAll ? cardOptions : cardOptions.slice(0, visibleCount);
+  const visibleCards =
+    showAll || cardOptions.length <= COLLAPSE_ABOVE ? cardOptions : cardOptions.slice(0, visibleCount);
   const hiddenCount = cardOptions.length - visibleCards.length;
   const price = parseInt(cardPrice) || 0;
   const sessions = parseInt(cardSessions) || 0;
@@ -194,7 +209,9 @@ export const BuyCardDialog = ({
         selectedCardId && (
           <div className="leading-tight">
             <div className="text-lg font-bold text-neutral-900 tabular-nums">${formatMoney(price)}</div>
-            <div className="text-xs text-neutral-500">{sessions} 堂</div>
+            <div className="text-xs text-neutral-500">
+              {sessions} 堂 · {PAYMENT_LABEL[payment]}
+            </div>
           </div>
         )
       }
@@ -309,14 +326,25 @@ export const BuyCardDialog = ({
             <div>
               <div className="text-sm font-medium text-neutral-900 mb-1.5">付款</div>
               <SegmentedTabs
-                ariaLabel="付款狀態"
+                ariaLabel="付款方式"
                 options={PAYMENT_OPTIONS}
-                value={isPaid ? "paid" : "unpaid"}
-                onChange={(value) => setIsPaid(value === "paid")}
+                value={payment}
+                onChange={setPayment}
                 fill
               />
-              {!isPaid && <p className="mt-1.5 text-xs text-neutral-500">尚未付款，卡片照樣可以用</p>}
+              {payment === "UNPAID" && <p className="mt-1.5 text-xs text-neutral-500">尚未付款，卡片照樣可以用</p>}
             </div>
+
+            {payment === "TRANSFER" && (
+              <Field
+                label="轉帳末五碼"
+                hint="（選填）"
+                inputMode="numeric"
+                maxLength={20}
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+              />
+            )}
 
             <div className="flex flex-col gap-1.5">
               <FieldLabel htmlFor={`${fieldId}-note`} hint="（選填）">

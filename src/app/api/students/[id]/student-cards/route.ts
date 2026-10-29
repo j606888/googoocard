@@ -22,7 +22,7 @@ export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
 
 export const POST = apiRoute<Params>(async ({ request, params, userId, classroomId }) => {
   const studentId = parseId(params.id, "student id");
-  const { cardId, sessions, price, lessonId, isPaid, note } = await parseBody(
+  const { cardId, sessions, price, lessonId, isPaid, paymentMethod, paymentReference, note } = await parseBody(
     request,
     buyStudentCardSchema
   );
@@ -74,6 +74,8 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
       isPaid,
       // When paid at point of sale, the seller is also the payment receiver.
       paidByUserId: userId,
+      paymentMethod: paymentMethod ?? null,
+      paymentReference: paymentMethod === "TRANSFER" ? paymentReference || null : null,
       note: note?.trim() || null,
       eventDescription: `購買新課卡 ${card.name}`,
     })

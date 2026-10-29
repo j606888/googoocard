@@ -213,6 +213,73 @@ describe("POST /api/students/[id]/student-cards (購買驗證)", () => {
   });
 });
 
+describe("POST /api/students/[id]/student-cards（購買當下的付款方式）", () => {
+  let classroomId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    const classroom = await createClassroom();
+    classroomId = classroom.id;
+    auth.classroomId = classroomId;
+  });
+
+  const buy = async (body: Record<string, unknown>) => {
+    const student = await createStudent(classroomId);
+    const card = await createCard(classroomId, { name: "一般卡" });
+    const res = await POST(
+      jsonRequest("POST", { cardId: card.id, sessions: 8, price: 3200, ...body }),
+      routeParams({ id: String(student.id) })
+    );
+    expect(res.status).toBe(200);
+    return prisma.studentCard.findFirstOrThrow({ where: { studentId: student.id } });
+  };
+
+  it("轉帳＋末五碼 → 已付款，記下方式、末五碼與收款人", async () => {
+    const sc = await buy({ isPaid: true, paymentMethod: "TRANSFER", paymentReference: " 12345 " });
+    expect(sc.isPaid).toBe(true);
+    expect(sc.paymentMethod).toBe("TRANSFER");
+    expect(sc.paymentReference).toBe("12345");
+    expect(sc.paidByUserId).toBe(auth.userId);
+    expect(sc.paidAt).not.toBeNull();
+  });
+
+  it("現金 → 已付款、方式是現金；誤帶的末五碼不存", async () => {
+    const sc = await buy({ isPaid: true, paymentMethod: "CASH", paymentReference: "99999" });
+    expect(sc.isPaid).toBe(true);
+    expect(sc.paymentMethod).toBe("CASH");
+    expect(sc.paymentReference).toBeNull();
+    expect(sc.paidByUserId).toBe(auth.userId);
+  });
+
+  it("還沒付 → 未付款，帶了付款方式也不存", async () => {
+    const sc = await buy({ isPaid: false, paymentMethod: "TRANSFER", paymentReference: "12345" });
+    expect(sc.isPaid).toBe(false);
+    expect(sc.paymentMethod).toBeNull();
+    expect(sc.paymentReference).toBeNull();
+    expect(sc.paidByUserId).toBeNull();
+    expect(sc.paidAt).toBeNull();
+  });
+
+  it("舊版只送 isPaid:true → 照樣已付款，方式留空", async () => {
+    const sc = await buy({ isPaid: true });
+    expect(sc.isPaid).toBe(true);
+    expect(sc.paymentMethod).toBeNull();
+    expect(sc.paymentReference).toBeNull();
+    expect(sc.paidByUserId).toBe(auth.userId);
+  });
+
+  it("付款方式不合法 → 400，不建卡", async () => {
+    const student = await createStudent(classroomId);
+    const card = await createCard(classroomId, { name: "一般卡" });
+    const res = await POST(
+      jsonRequest("POST", { cardId: card.id, sessions: 8, price: 3200, paymentMethod: "BITCOIN" }),
+      routeParams({ id: String(student.id) })
+    );
+    expect(res.status).toBe(400);
+    expect(await prisma.studentCard.count({ where: { studentId: student.id } })).toBe(0);
+  });
+});
+
 describe("POST .../confirm-payment", () => {
   let classroomId: number;
 

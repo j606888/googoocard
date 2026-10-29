@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { StudentWithDetail, useSetStudentArchivedMutation } from "@/store/slices/students";
 import EditStudent from "./BasicSection/EditStudent";
 import BuyCard from "./CardsSection/BuyCard";
-import StudentStats from "./StudentStats";
 import StudentActionsMenu from "./StudentActionsMenu";
 import { DanceBadges } from "../StudentList/DanceBadge";
 import { NEEDS_RENEWAL_TAG, tagLabel } from "../StudentList/studentFilters";
@@ -63,7 +62,7 @@ const StudentBadges = ({ student }: { student: StudentWithDetail }) => {
 };
 
 /**
- * 手機版頁首：白色 app bar（返回／編輯／⋯）、大頭貼與姓名、三格數字。
+ * 手機版頁首：白色 app bar（返回／編輯／⋯）、大頭貼與姓名。
  * 購買課卡不在這裡——手機的課卡分頁底部有一顆固定的。
  */
 const CompactHeader = ({
@@ -105,21 +104,19 @@ const CompactHeader = ({
           </div>
         </div>
       </div>
-      <div className="mt-3.5">
-        <StudentStats student={student} variant="compact" />
-      </div>
     </div>
   </div>
 );
 
 /**
- * 學生詳情的頁首：大頭貼、姓名、舞種資格與標籤、動作按鈕、一行數據列。
+ * 學生詳情的頁首：大頭貼、姓名、舞種資格與標籤、動作按鈕。剩幾堂看課卡分頁、
+ * 出席數字看出席分頁，頁首不再放數據列。
  * 分頁列接在它下面（StudentDetail），兩者合起來是一塊白色頁首。桌面刻意壓矮，
  * 把高度留給分頁內容。
  *
  * "page"    —— 桌面獨立學生頁，多一行返回名單的麵包屑。
  * "pane"    —— 右側抽屜：頭像縮小；抽屜自己的「開啟完整頁／關閉」從 `trailing` 接在動作按鈕後面。
- * "compact" —— 手機：app bar ＋ 三格數字。
+ * "compact" —— 手機：app bar ＋ 大頭貼與姓名。
  */
 const StudentDetailHeader = ({
   student,
@@ -187,10 +184,6 @@ const StudentDetailHeader = ({
             </>
           )}
         </div>
-      </div>
-
-      <div className={isPane ? "mt-3" : "mt-4"}>
-        <StudentStats student={student} />
       </div>
     </div>
   );
