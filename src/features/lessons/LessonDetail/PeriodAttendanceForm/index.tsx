@@ -12,8 +12,10 @@ import CreateStudent from "./CreateStudent";
 import AttendanceReview from "./AttendanceReview";
 import PeriodInfo from "./PeriodInfo";
 import PeriodAttendanceSkeleton from "./PeriodAttendanceSkeleton";
+import PeriodAssistantsField from "./PeriodAssistantsField";
 import { useAttendanceFlow } from "@/hooks/useAttendanceFlow";
 import { useSizeClass } from "@/hooks/useMediaQuery";
+import { useGetPeriodAssistantsQuery } from "@/store/slices/lessons";
 
 const WEEKDAY = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -22,7 +24,8 @@ type PeriodAttendanceFormProps = {
   selfCheckInStudentIds?: number[];
   /** 在課程頁體驗名單上登記、還沒上過的人——預設勾好並標「體驗報名」。 */
   trialStudentIds?: number[];
-  onSubmit: (studentIds: number[]) => Promise<void>;
+  /** assistantTeacherIds：「今天的助教」整組（含同一天上一堂帶過來、沒改過的建議）。 */
+  onSubmit: (studentIds: number[], assistantTeacherIds: number[]) => Promise<void>;
   submitLabel?: string;
   error?: string | null;
   isLoading?: boolean;
@@ -49,6 +52,7 @@ const PeriodAttendanceForm = ({
     lesson,
     isLoading: isFlowLoading,
     attendStudentIds,
+    lessonTeacherIds,
     selectedStudents,
     selectedIds,
     rosterStudents,
@@ -66,6 +70,14 @@ const PeriodAttendanceForm = ({
     periodId: Number(periodId),
     defaultSelectedIds,
   });
+  const { data: savedAssistants, isLoading: isAssistantsLoading } = useGetPeriodAssistantsQuery({
+    id: Number(id),
+    periodId: Number(periodId),
+  });
+  // null ＝ 還沒動過，照伺服器給的（存過的，或同一天上一堂帶過來的建議）。
+  const [pickedAssistantIds, setAssistantIds] = useState<number[] | null>(null);
+  const assistantIds =
+    pickedAssistantIds ?? savedAssistants?.assistants.map((teacher) => teacher.id) ?? [];
 
   const desktopHeader = (
     <div className="flex items-center gap-3 px-8 pt-6 pb-4">
@@ -79,7 +91,7 @@ const PeriodAttendanceForm = ({
     </div>
   );
 
-  if (isFlowLoading || isRecordsLoading || !period) {
+  if (isFlowLoading || isRecordsLoading || isAssistantsLoading || !period) {
     return (
       <>
         {isExpanded ? (
@@ -103,7 +115,15 @@ const PeriodAttendanceForm = ({
     .filter(Boolean)
     .join(" · ");
 
-  const submit = () => onSubmit(selectedIds);
+  const submit = () => onSubmit(selectedIds, assistantIds);
+
+  const assistants = (
+    <PeriodAssistantsField
+      value={assistantIds}
+      onChange={setAssistantIds}
+      lessonTeacherIds={lessonTeacherIds}
+    />
+  );
 
   const searchbar = (
     <Searchbar
@@ -160,6 +180,7 @@ const PeriodAttendanceForm = ({
         <div className="px-8 pb-8 grid grid-cols-[minmax(0,1fr)_360px] gap-8 items-start">
           <div className="flex flex-col gap-4 min-w-0">
             <PeriodInfo period={period} />
+            {assistants}
             {searchbar}
             {list}
           </div>
@@ -187,6 +208,7 @@ const PeriodAttendanceForm = ({
       <SubNavbar title={"點名"} backUrl={`/lessons/${id}`} />
       <div className="px-5 pt-4 pb-32 flex flex-col gap-3">
         <PeriodInfo period={period} />
+        {assistants}
         {searchbar}
         {list}
       </div>

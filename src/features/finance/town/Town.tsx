@@ -8,7 +8,7 @@ import { useSizeClass } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 import { useGetMeQuery } from "@/store/slices/me";
 import { useGetLocationsQuery } from "@/store/slices/locations";
-import { useGetFinanceOverviewQuery } from "@/store/slices/finance";
+import { useGetFinanceOverviewQuery, useGetFinanceQuestsQuery } from "@/store/slices/finance";
 import { financeHref } from "../routes";
 import RemitDialog from "../holder/RemitDialog";
 import EntryDialog from "../vault/EntryDialog";
@@ -24,7 +24,7 @@ import TownScene from "./TownScene";
 import { buildTownView } from "./townView";
 import { useTownMotion } from "./useTownMotion";
 
-type Drawer = { kind: "keep" } | { kind: "person"; userId: number } | { kind: "legend" };
+type Drawer = { kind: "keep" } | { kind: "person"; userId: number } | { kind: "legend" } | { kind: "quests" };
 
 /** 量元素的寬度（地圖縮小時，泡泡要反向放大才讀得到）。 */
 function useElementWidth() {
@@ -53,6 +53,7 @@ export default function Town() {
   const { data: overview } = useGetFinanceOverviewQuery(undefined, { pollingInterval: 30_000 });
   const { data: me } = useGetMeQuery();
   const { data: locations } = useGetLocationsQuery();
+  const { data: quests } = useGetFinanceQuestsQuery();
   const [measure, width] = useElementWidth();
   const [drawer, setDrawer] = useState<Drawer | null>(null);
   const [shown, setShown] = useState<Drawer | null>(null);
@@ -80,6 +81,7 @@ export default function Town() {
   const scale = width > 0 ? width / layout.viewBox[2] : 1;
   const bubbleScale = clamp(layout.bubbleTarget / scale, 1, 1.6);
   const openLedger = () => router.push(financeHref.ledger);
+  const questsLeft = quests && !quests.allDone ? quests.quests.filter((q) => !q.done).length : 0;
   const openPerson = (userId: number) => setDrawer({ kind: "person", userId });
   const openKeep = () => setDrawer({ kind: "keep" });
   const remit = () => {
@@ -115,7 +117,7 @@ export default function Town() {
             style={{ aspectRatio: "1280 / 800", maxWidth: "min(1280px, calc((100dvh - 180px) * 1.6))", background: GROUND }}
           >
             {scene}
-            <HudTop view={view} variant="wide" onLedger={openLedger} onLegend={() => setDrawer({ kind: "legend" })} />
+            <HudTop view={view} variant="wide" onLedger={openLedger} onLegend={() => setDrawer({ kind: "legend" })} questsLeft={questsLeft} onQuests={() => setDrawer({ kind: "quests" })} />
             <div className="absolute bottom-28 left-3.5 top-[128px] flex">
               <div className="max-h-full overflow-y-auto rounded-[20px] [scrollbar-width:none]">
                 <Backpacks view={view} variant="card" onOpen={openPerson} onKeep={openKeep} />
@@ -125,7 +127,7 @@ export default function Town() {
           </div>
         ) : (
           <div className="-mx-4 overflow-hidden" style={{ background: GROUND }}>
-            <HudTop view={view} variant="tall" onLedger={openLedger} onLegend={() => setDrawer({ kind: "legend" })} />
+            <HudTop view={view} variant="tall" onLedger={openLedger} onLegend={() => setDrawer({ kind: "legend" })} questsLeft={questsLeft} onQuests={() => setDrawer({ kind: "quests" })} />
             <div ref={measure}>{scene}</div>
             <div className="flex items-center gap-2 pb-3 pl-3 pt-2">
               {actions("bar")}
@@ -133,10 +135,6 @@ export default function Town() {
             </div>
           </div>
         )}
-      </div>
-
-      <div className="lg:max-w-[420px]">
-        <QuestPanel />
       </div>
 
       <ResponsiveDialog
@@ -148,6 +146,7 @@ export default function Town() {
         {content?.kind === "keep" && <KeepPanel view={view} onConfirmed={markConfirmed} onClose={() => setDrawer(null)} />}
         {content?.kind === "person" && <PersonPanel view={view} userId={content.userId} onRemit={remit} onClose={() => setDrawer(null)} />}
         {content?.kind === "legend" && <LegendPanel onClose={() => setDrawer(null)} />}
+        {content?.kind === "quests" && <QuestPanel onClose={() => setDrawer(null)} />}
       </ResponsiveDialog>
 
       {remitting && <RemitDialog open onClose={() => setRemitting(false)} inHand={view.viewer.inHand} ownerName={view.owner?.name ?? "營收負責人"} />}

@@ -1,4 +1,5 @@
 import { api } from "../api";
+import type { TeacherKind } from "@/lib/teachers";
 import type { EntryCategory } from "@/domains/finance/money";
 import type { Quest } from "@/domains/finance/schemas";
 
@@ -19,6 +20,8 @@ export interface FinanceSettingState {
     openingCustody: { userId: number; amount: number }[];
   } | null;
   members: (FinanceUser & { role: string })[];
+  /** 建城第 2～4 章（居民、場地、分帳）蓋好了沒。 */
+  splitBuilt: boolean;
   canEdit: boolean;
   isRevenueOwner: boolean;
 }
@@ -188,6 +191,162 @@ export interface EntryBody {
   description?: string | null;
 }
 
+// ---------- 第二步：分帳規則、每堂驗收（src/service/finance/split.ts）
+
+export type TeacherPay = "NONE" | "HOURLY" | "SPLIT";
+export type FeeMode = "NONE" | "PER_LESSON" | "PER_DAY";
+export type VenuePayee = "MEMBER" | "EXTERNAL";
+export type RemainderTo = "REVENUE_OWNER" | "FUND";
+export type RuleScope = "CLASSROOM" | "LOCATION" | "LESSON";
+
+export interface SplitRuleKnobs {
+  teacherPay?: TeacherPay | null;
+  hourlyFee?: number | null;
+  venueMode?: FeeMode | null;
+  venueAmount?: number | null;
+  venuePayee?: VenuePayee | null;
+  venueTeacherId?: number | null;
+  assistantMode?: FeeMode | null;
+  assistantAmount?: number | null;
+  commissionPct?: number | null;
+  manual?: boolean | null;
+  roundTo?: 1 | 10 | 100 | null;
+  remainderTo?: RemainderTo | null;
+  shares?: { teacherId: number; pct: number }[];
+}
+
+export interface SplitRuleRow extends SplitRuleKnobs {
+  id: number;
+  scope: RuleScope;
+  locationId: number | null;
+  lessonId: number | null;
+  effectiveFrom: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface SplitRuleBody extends SplitRuleKnobs {
+  scope: RuleScope;
+  locationId?: number | null;
+  lessonId?: number | null;
+  applyFrom?: "THIS_MONTH" | "NEXT_MONTH";
+  reason?: string | null;
+}
+
+/** 建城第 2～4 章一次送的答案（POST finance/build、finance/build/preview）。 */
+export interface BuildBody {
+  teacherPay: TeacherPay;
+  hourlyFee?: number | null;
+  assistantMode: FeeMode;
+  assistantAmount?: number | null;
+  commissionPct?: number | null;
+  roundTo: 1 | 10 | 100;
+  remainderTo: RemainderTo;
+  /** locationId null ＝ 沒有分部，掛在全教室。 */
+  venues: { locationId: number | null; venueMode: FeeMode; venueAmount?: number | null; venuePayee?: VenuePayee | null; venueTeacherId?: number | null }[];
+}
+
+/** 用還沒存的答案算最近一堂；沒有點過名的課是 null。 */
+export type BuildPreview = {
+  periodId: number;
+  lessonName: string;
+  startTime: string;
+  dateKey: string;
+  locationId: number | null;
+  attendeeCount: number;
+  periodsThatDay: number;
+  split: NonNullable<LessonSplitRow["split"]>;
+} | null;
+
+export type SplitFlag = "NO_CARD" | "MISSING_SHARE_TEACHER" | "NO_TEACHER" | "MANUAL" | "NO_LOCATION";
+export type LessonSplitStatus = "UPCOMING" | "NOT_TAKEN" | "PENDING" | "CHANGED" | "VERIFIED";
+
+export interface LessonSplitRow {
+  periodId: number;
+  lessonId: number;
+  lessonName: string;
+  startTime: string;
+  dateKey: string;
+  locationId: number | null;
+  attendeeCount: number;
+  status: LessonSplitStatus;
+  flags: SplitFlag[];
+  missingShareTeacherIds: number[];
+  split: {
+    revenue: number;
+    estimated: number;
+    venueFee: number;
+    venueTeacherId: number | null;
+    assistantFee: number;
+    assistantLines: { teacherId: number; amount: number }[];
+    commission: number;
+    teacherLines: { teacherId: number; amount: number }[];
+    remainder: number;
+    remainderTeacherId: number | null;
+    fund: number;
+  } | null;
+  verified: {
+    by: { id: number; name: string };
+    at: string;
+    revenue: number;
+    revenueDiff: number;
+    lines: { kind: "TEACHER" | "VENUE" | "ASSISTANT" | "REMAINDER"; teacherId: number | null; amount: number }[];
+    fund: number;
+    overridden: boolean;
+    overrideReason: string | null;
+  } | null;
+}
+
+export interface TeacherMonthPerson {
+  teacher: { id: number; name: string; color: string; kind: TeacherKind; hasAccount: boolean };
+  teach: number;
+  venue: number;
+  assistant: number;
+  remainder: number;
+  total: number;
+  lessonCount: number;
+  pendingCount: number;
+  items: {
+    periodId: number;
+    dateKey: string;
+    startTime: string;
+    lessonName: string;
+    status: LessonSplitStatus;
+    teach: number;
+    venue: number;
+    assistant: number;
+    remainder: number;
+    total: number;
+  }[];
+  missing: { periodId: number; dateKey: string; lessonName: string }[];
+}
+
+export interface FinanceCalendar {
+  month: string;
+  days: {
+    dateKey: string;
+    status: "PENDING" | "NOT_TAKEN" | "VERIFIED" | "UPCOMING" | null;
+    needsLook: boolean;
+    money: { kind: "entry" | "remittance" | "payday"; label: string; amount: number | null }[];
+  }[];
+}
+
+export interface DayBook {
+  date: string;
+  lessons: LessonSplitRow[];
+  distribution: {
+    revenue: number;
+    fund: number;
+    externalVenue: number;
+    people: { teacherId: number; teach: number; venue: number; assistant: number; remainder: number; total: number }[];
+  };
+  vault: {
+    rows: { kind: "entry" | "card" | "remittance"; label: string; category: string | null; amount: number; by: string | null; voided: boolean }[];
+    balance: number | null;
+  };
+  custody: { studentCardId: number; label: string; amount: number; holder: { id: number; name: string } | null }[];
+}
+
 const TAG = [{ type: "Finance" as const }];
 
 export const financeApi = api.injectEndpoints({
@@ -247,6 +406,42 @@ export const financeApi = api.injectEndpoints({
       query: ({ id, reason }) => ({ url: `finance/entries/${id}/void`, method: "POST", body: { reason } }),
       invalidatesTags: TAG,
     }),
+    getLessonSplits: builder.query<LessonSplitRow[], { from: string; to: string }>({
+      query: ({ from, to }) => `finance/lessons?from=${from}&to=${to}`,
+      providesTags: TAG,
+    }),
+    verifyLessons: builder.mutation<
+      { verified: number[]; skipped: { periodId: number; reason: string }[] },
+      { periodIds: number[]; batch?: boolean }
+    >({
+      query: (body) => ({ url: "finance/lessons/verify", method: "POST", body }),
+      invalidatesTags: TAG,
+    }),
+    overrideLesson: builder.mutation<unknown, { periodId: number; teacherLines: { teacherId: number; amount: number }[]; reason: string }>({
+      query: ({ periodId, ...body }) => ({ url: `finance/lessons/${periodId}/override`, method: "POST", body }),
+      invalidatesTags: TAG,
+    }),
+    getTeacherMonth: builder.query<{ month: string; people: TeacherMonthPerson[] }, string>({
+      query: (month) => `finance/teachers?month=${month}`,
+      providesTags: TAG,
+    }),
+    getFinanceCalendar: builder.query<FinanceCalendar, string>({
+      query: (month) => `finance/calendar?month=${month}`,
+      providesTags: TAG,
+    }),
+    getDayBook: builder.query<DayBook, string>({ query: (date) => `finance/day?date=${date}`, providesTags: TAG }),
+    getSplitRules: builder.query<SplitRuleRow[], void>({ query: () => "finance/split-rules", providesTags: TAG }),
+    saveSplitRule: builder.mutation<SplitRuleRow, SplitRuleBody>({
+      query: (body) => ({ url: "finance/split-rules", method: "PUT", body }),
+      invalidatesTags: TAG,
+    }),
+    previewBuild: builder.mutation<BuildPreview, BuildBody>({
+      query: (body) => ({ url: "finance/build/preview", method: "POST", body }),
+    }),
+    saveBuild: builder.mutation<unknown, BuildBody>({
+      query: (body) => ({ url: "finance/build", method: "POST", body }),
+      invalidatesTags: TAG,
+    }),
     markFinanceQuest: builder.mutation<unknown, Quest>({
       query: (quest) => ({ url: "finance/quests", method: "POST", body: { quest } }),
       invalidatesTags: TAG,
@@ -274,6 +469,16 @@ export const {
   useUpdateEntryMutation,
   useVoidEntryMutation,
   useMarkFinanceQuestMutation,
+  usePreviewBuildMutation,
+  useSaveBuildMutation,
+  useGetLessonSplitsQuery,
+  useVerifyLessonsMutation,
+  useOverrideLessonMutation,
+  useGetDayBookQuery,
+  useGetTeacherMonthQuery,
+  useGetFinanceCalendarQuery,
+  useGetSplitRulesQuery,
+  useSaveSplitRuleMutation,
 } = financeApi;
 
 /** RTK Query 錯誤裡的 API code。 */

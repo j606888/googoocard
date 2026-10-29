@@ -3,7 +3,7 @@ import { questSchema } from "@/domains/finance/schemas";
 import { getQuests, markQuest } from "@/service/finance/quests";
 
 /** 我的新手任務（依角色合併）。 */
-export const GET = apiRoute(async ({ classroomId, userId, role }) => getQuests(classroomId, userId, role), {
+export const GET = apiRoute(async ({ classroomId, userId, role, permissions }) => getQuests(classroomId, userId, role, permissions.has("finance.edit")), {
   permission: "finance.view",
 });
 

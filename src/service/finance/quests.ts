@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import type { Quest } from "@/domains/finance/schemas";
 import { getSetting } from "./setting";
+import { isSplitBuilt } from "./build";
 
 /**
  * 新手任務（docs/finance-plan.md §4.4）：依角色合併、去重；真的做到才打勾。
@@ -11,14 +12,15 @@ import { getSetting } from "./setting";
 type Role = "owner" | "revenueOwner" | "holder";
 type QuestItem = { key: string; label: string; hint?: string; done: boolean; roles: Role[] };
 
-export async function getQuests(classroomId: number, userId: number, role: string) {
-  const [setting, rows, pushCount, entryCount, confirmCount, remitCount] = await Promise.all([
+export async function getQuests(classroomId: number, userId: number, role: string, canEdit: boolean) {
+  const [setting, rows, pushCount, entryCount, confirmCount, remitCount, splitBuilt] = await Promise.all([
     getSetting(classroomId),
     prisma.financeQuestDone.findMany({ where: { classroomId, userId }, select: { quest: true } }),
     prisma.webPushSubscription.count({ where: { userId } }),
     prisma.financeEntry.count({ where: { classroomId, createdById: userId } }),
     prisma.financeRemittance.count({ where: { classroomId, reviewedById: userId, status: "CONFIRMED" } }),
     prisma.financeRemittance.count({ where: { classroomId, fromUserId: userId, status: { not: "WITHDRAWN" } } }),
+    isSplitBuilt(classroomId),
   ]);
   const done = new Set(rows.map((r) => r.quest as Quest));
   const isRevenueOwner = setting?.revenueOwnerUserId === userId;
@@ -31,7 +33,11 @@ export async function getQuests(classroomId: number, userId: number, role: strin
     { key: "module", label: "開啟水庫模組", done: true, roles: ["owner"] },
     { key: "chooseOwner", label: "選營收負責人", hint: "保管公司的錢、確認繳回的人", done: Boolean(setting?.revenueOwnerUserId), roles: ["owner"] },
     { key: "notifiedMembers", label: "通知大家加入主畫面", hint: "複製一段訊息貼到 LINE 群組", done: done.has("notifiedMembers"), roles: ["owner"] },
-    { key: "setup", label: "建城 5 題", done: Boolean(setting?.setupCompletedAt), roles: ["revenueOwner"] },
+    { key: "setup", label: "建城：主堡", done: Boolean(setting?.setupCompletedAt), roles: ["revenueOwner"] },
+    // 居民、場地、分帳：要能改水庫設定的人蓋，誰都行。
+    ...(canEdit
+      ? [{ key: "build", label: "繼續蓋：居民、場地、分帳", hint: "老師怎麼分錢，大約 5 分鐘", done: splitBuilt, roles: ["owner", "revenueOwner", "holder"] as Role[] }]
+      : []),
     { key: "push", label: "加入主畫面、開通知", hint: "有人送錢來時手機會響", done: pushCount > 0, roles: ["revenueOwner", "holder"] },
     { key: "trial", label: "試玩推車", hint: "練習按一次「收到了」", done: done.has("trial"), roles: ["revenueOwner"] },
     { key: "firstEntry", label: "記第一筆支出", hint: "例如丁丁的場地費", done: entryCount > 0, roles: ["revenueOwner"] },

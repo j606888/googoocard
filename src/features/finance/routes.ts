@@ -3,8 +3,14 @@ const BASE = "/finance";
 
 export const financeHref = {
   home: BASE,
+  build: `${BASE}/build`,
   ledger: `${BASE}/ledger`,
   vault: `${BASE}/vault`,
+  verify: `${BASE}/verify`,
+  calendar: `${BASE}/calendar`,
+  teachers: `${BASE}/teachers`,
+  day: (date: string) => `${BASE}/day/${date}`,
+  rules: `${BASE}/rules`,
   settings: `${BASE}/settings`,
   holder: (userId: number) => `${BASE}/holders/${userId}`,
 };

@@ -48,23 +48,23 @@ enum LineMenuMode {
 }
 
 model User {
-  id                      Int                      @id @default(autoincrement())
-  email                   String                   @unique
+  id                      Int                       @id @default(autoincrement())
+  email                   String                    @unique
   name                    String
   password                String
-  randomKey               String?                  @unique // one-time key shown on the website; sent to the LINE bot to bind
-  lineUserId              String?                  @unique // bound LINE userId; used for LIFF auto-login
-  googleSub               String?                  @unique // Google 帳號的 sub（Google 登入）
-  appleSub                String?                  @unique // Apple 帳號的 sub（Sign in with Apple）
+  randomKey               String?                   @unique // one-time key shown on the website; sent to the LINE bot to bind
+  lineUserId              String?                   @unique // bound LINE userId; used for LIFF auto-login
+  googleSub               String?                   @unique // Google 帳號的 sub（Google 登入）
+  appleSub                String?                   @unique // Apple 帳號的 sub（Sign in with Apple）
   // 刪帳號時要拿它向 Apple 撤銷授權（App Store 5.1.1(v)）。秘密：永遠不要放進 API 回應
   appleRefreshToken       String?
   appleClientId           String? // 拿到 refresh token 的 client（App 的 bundle ID 或網頁的 Services ID）
-  classrooms              Classroom[]              @relation("OwnedClassrooms")
+  classrooms              Classroom[]               @relation("OwnedClassrooms")
   memberships             Membership[]
-  purchasedStudentCards   StudentCard[]            @relation("PurchasedStudentCards")
-  confirmedStudentCards   StudentCard[]            @relation("ConfirmedStudentCards")
+  purchasedStudentCards   StudentCard[]             @relation("PurchasedStudentCards")
+  confirmedStudentCards   StudentCard[]             @relation("ConfirmedStudentCards")
   currentClassroomId      Int?
-  currentClassroom        Classroom?               @relation(fields: [currentClassroomId], references: [id])
+  currentClassroom        Classroom?                @relation(fields: [currentClassroomId], references: [id])
   // 帳號已刪除（匿名化）。非 null = decodeAuthToken 把這個人當成沒登入，
   // 其他裝置上還沒過期的 JWT 也就跟著失效（見 DELETE /api/me）。
   deletedAt               DateTime?
@@ -77,33 +77,34 @@ model User {
   // 模組：技能樹
   skillsCreated           Skill[]
   skillChanges            SkillChange[]
-  skillComments           SkillComment[]           @relation("SkillCommentAuthor")
-  skillConclusions        SkillComment[]           @relation("SkillCommentConclusion")
+  skillComments           SkillComment[]            @relation("SkillCommentAuthor")
+  skillConclusions        SkillComment[]            @relation("SkillCommentConclusion")
   skillReactions          SkillCommentReaction[]
   skillMentions           SkillCommentMention[]
   skillTalkReads          SkillTalkRead[]
   // 模組：水庫
-  financeRevenueOwnerOf   FinanceSetting[]         @relation("FinanceRevenueOwner")
+  financeRevenueOwnerOf   FinanceSetting[]          @relation("FinanceRevenueOwner")
   financeOpeningCustody   FinanceOpeningCustody[]
-  financeRemittances      FinanceRemittance[]      @relation("FinanceRemittanceFrom")
-  financeReviewed         FinanceRemittance[]      @relation("FinanceRemittanceReviewer")
-  financeEntriesCreated   FinanceEntry[]           @relation("FinanceEntryCreator")
-  financeEntriesPaid      FinanceEntry[]           @relation("FinanceEntryPayee")
+  financeRemittances      FinanceRemittance[]       @relation("FinanceRemittanceFrom")
+  financeReviewed         FinanceRemittance[]       @relation("FinanceRemittanceReviewer")
+  financeEntriesCreated   FinanceEntry[]            @relation("FinanceEntryCreator")
+  financeEntriesPaid      FinanceEntry[]            @relation("FinanceEntryPayee")
+  financeVerifications    FinanceLessonSettlement[] @relation("FinanceSettlementVerifier")
   financeEntryRevisions   FinanceEntryRevision[]
   financeSettingRevisions FinanceSettingRevision[]
   financeQuests           FinanceQuestDone[]
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
 }
 
 model Classroom {
-  id                      Int                      @id @default(autoincrement())
+  id                      Int                       @id @default(autoincrement())
   ownerId                 Int
-  owner                   User                     @relation("OwnedClassrooms", fields: [ownerId], references: [id])
+  owner                   User                      @relation("OwnedClassrooms", fields: [ownerId], references: [id])
   name                    String
-  checkinKey              String?                  @unique // 現場 QR 自助簽到金鑰（貼在教室看板）；可重新產生以作廢舊看板
-  nextStudentNumber       Int                      @default(1) // 下一個要指派的學生編號（每教室各自從 1 開始，遞增不回收）
-  nextCardSerial          Int                      @default(1) // 下一個要指派的課卡流水號（每教室各自從 1 開始；顯示格式見 src/lib/cardSerial.ts）
+  checkinKey              String?                   @unique // 現場 QR 自助簽到金鑰（貼在教室看板）；可重新產生以作廢舊看板
+  nextStudentNumber       Int                       @default(1) // 下一個要指派的學生編號（每教室各自從 1 開始，遞增不回收）
+  nextCardSerial          Int                       @default(1) // 下一個要指派的課卡流水號（每教室各自從 1 開始；顯示格式見 src/lib/cardSerial.ts）
   // 軟刪除／封存。非 null = 教室已收掉：從切換選單消失、無法再切進去、
   // 成員的舊 JWT 也進不來（apiRoute 每次請求會重查 membership 並 join 這個條件）。
   // 資料完整保留以便救回；真正清資料留給日後的 purge script。
@@ -118,9 +119,9 @@ model Classroom {
   danceStyles             DanceStyle[]
   locations               Location[]
   // 在 LINE 官方帳號公開課表與價目表——沒綁定的人也看得到（src/service/lineBot.ts）。
-  lineListed              Boolean                  @default(false)
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
+  lineListed              Boolean                   @default(false)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
   teachers                Teacher[]
   User                    User[]
   notificationPreferences NotificationPreference[]
@@ -129,6 +130,8 @@ model Classroom {
   skillTiers              SkillTier[]
   skills                  Skill[]
   financeSetting          FinanceSetting?
+  financeSplitRules       FinanceSplitRule[]
+  financeSettlements      FinanceLessonSettlement[]
   financeOpeningCustody   FinanceOpeningCustody[]
   financeRemittances      FinanceRemittance[]
   financeEntries          FinanceEntry[]
@@ -158,24 +161,37 @@ model Membership {
   @@index([classroomId])
 }
 
+/// 老師在教室裡做什麼：TEACHER 只教課、ASSISTANT 只當助教、BOTH 都會。
+enum TeacherKind {
+  TEACHER
+  ASSISTANT
+  BOTH
+}
+
 model Teacher {
-  id          Int             @id @default(autoincrement())
-  name        String
+  id                     Int                     @id @default(autoincrement())
+  name                   String
   // Palette key (DANCE_STYLE_COLORS, src/lib/danceStyles.ts) for the avatar.
-  color       String          @default("blue")
-  note        String?
+  color                  String                  @default("blue")
+  note                   String?
   // Archived, not deleted, once a teacher has lessons — old lessons keep them.
-  archivedAt  DateTime?
-  classroomId Int
-  classroom   Classroom       @relation(fields: [classroomId], references: [id])
-  lessons     LessonTeacher[]
+  archivedAt             DateTime?
+  classroomId            Int
+  classroom              Classroom               @relation(fields: [classroomId], references: [id])
+  lessons                LessonTeacher[]
   // The member (role teacher, or an admin) this teacher is. Their lessons show
   // under 我接下來的課 on the lessons page. One per user per classroom.
-  userId      Int?
-  user        User?           @relation(fields: [userId], references: [id])
-  invites     InviteToken[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  userId                 Int?
+  user                   User?                   @relation(fields: [userId], references: [id])
+  // 老師／助教／都是：只當助教的，排課選老師時不列出；只教課的，點名選助教時不列出。
+  kind                   TeacherKind             @default(TEACHER)
+  assistedPeriods        LessonPeriodAssistant[]
+  financeSplitShares     FinanceSplitShare[]
+  financeVenueRules      FinanceSplitRule[]      @relation("FinanceVenueTeacher")
+  financeSettlementLines FinanceSettlementLine[]
+  invites                InviteToken[]
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
 
   @@unique([classroomId, userId])
   @@index([classroomId])
@@ -304,32 +320,33 @@ model StudentCard {
 }
 
 model Lesson {
-  id           Int             @id @default(autoincrement())
-  name         String
-  classroomId  Int
-  classroom    Classroom       @relation(fields: [classroomId], references: [id])
-  status       String          @default("inProgress")
-  endAt        DateTime?
+  id                Int                @id @default(autoincrement())
+  name              String
+  classroomId       Int
+  classroom         Classroom          @relation(fields: [classroomId], references: [id])
+  status            String             @default("inProgress")
+  endAt             DateTime?
   // "fixed" = a set run of dates, finished once every period is checked;
   // "ongoing" = keeps adding periods, never auto-finishes (src/lib/lessonKind.ts).
-  kind         String          @default("fixed")
+  kind              String             @default("fixed")
   // Set when a teacher ends a lesson by hand — finished regardless of kind.
-  endedAt      DateTime?
-  danceStyleId Int
-  danceStyle   DanceStyle      @relation(fields: [danceStyleId], references: [id])
+  endedAt           DateTime?
+  danceStyleId      Int
+  danceStyle        DanceStyle         @relation(fields: [danceStyleId], references: [id])
   // Level taught (1 = 初階, 2 = 中階, 3 = 進階 — src/lib/danceLevels.ts).
-  level        Int             @default(1)
+  level             Int                @default(1)
   // 分部（台南／高雄…）。選填；課卡不分部限定。
-  locationId   Int?
-  location     Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  groupId      Int?
-  group        LessonGroup?    @relation(fields: [groupId], references: [id])
-  teachers     LessonTeacher[]
-  cards        LessonCard[]
-  periods      LessonPeriod[]
-  students     LessonStudent[]
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  locationId        Int?
+  location          Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  groupId           Int?
+  group             LessonGroup?       @relation(fields: [groupId], references: [id])
+  teachers          LessonTeacher[]
+  cards             LessonCard[]
+  periods           LessonPeriod[]
+  students          LessonStudent[]
+  financeSplitRules FinanceSplitRule[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@index([classroomId])
   @@index([groupId])
@@ -367,16 +384,18 @@ model DanceStyle {
 // 分部：同一間教室的不同上課地點（台南、高雄…）。Classroom data managed on
 // /locations; archived, never deleted. Cards are NOT location-bound.
 model Location {
-  id          Int       @id @default(autoincrement())
-  classroomId Int
-  classroom   Classroom @relation(fields: [classroomId], references: [id])
-  name        String
-  address     String?
-  sortOrder   Int       @default(0)
-  archivedAt  DateTime?
-  lessons     Lesson[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                Int                @id @default(autoincrement())
+  classroomId       Int
+  classroom         Classroom          @relation(fields: [classroomId], references: [id])
+  name              String
+  address           String?
+  sortOrder         Int                @default(0)
+  archivedAt        DateTime?
+  lessons           Lesson[]
+  financeSplitRules FinanceSplitRule[]
+  financeEntries    FinanceEntry[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   // Leads with classroomId, so it also serves classroom lookups.
   @@unique([classroomId, name])
@@ -427,18 +446,33 @@ model LessonCard {
 }
 
 model LessonPeriod {
-  id                Int                @id @default(autoincrement())
+  id                Int                      @id @default(autoincrement())
   lessonId          Int
-  lesson            Lesson             @relation(fields: [lessonId], references: [id])
+  lesson            Lesson                   @relation(fields: [lessonId], references: [id])
   attendanceRecords AttendanceRecord[]
+  assistants        LessonPeriodAssistant[]
+  financeSettlement FinanceLessonSettlement?
   startTime         DateTime
   endTime           DateTime
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
   attendanceTakenAt DateTime?
 
   // Daily revenue and the calendar both filter a lesson's periods by date.
   @@index([lessonId, startTime])
+}
+
+// 這一堂誰來當助教（點名頁「今天的助教」）。不開水庫也記；水庫照分帳規則算助教費。
+model LessonPeriodAssistant {
+  id             Int          @id @default(autoincrement())
+  lessonPeriodId Int
+  lessonPeriod   LessonPeriod @relation(fields: [lessonPeriodId], references: [id], onDelete: Cascade)
+  teacherId      Int
+  teacher        Teacher      @relation(fields: [teacherId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@unique([lessonPeriodId, teacherId])
+  @@index([teacherId])
 }
 
 model LessonStudent {
@@ -790,6 +824,8 @@ model FinanceSetting {
   openingOwnerLoan   Int?
   // 手上的錢超過幾天沒繳回就標紅
   overdueDays        Int       @default(7)
+  // 每月幾號發薪（第三步月結用）
+  payday             Int       @default(5)
   setupCompletedAt   DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -853,6 +889,9 @@ model FinanceEntry {
   payeeUserId Int?
   payeeUser   User?                  @relation("FinanceEntryPayee", fields: [payeeUserId], references: [id])
   payeeName   String? // 付給不是成員的人（例如 24steps）
+  // 場租掛分部：場租帳＝這個分部的場租支出 − 這個分部已經算掉的場地費（docs/finance-db.md §4.3）
+  locationId  Int?
+  location    Location?              @relation(fields: [locationId], references: [id], onDelete: SetNull)
   description String?
   createdById Int
   createdBy   User                   @relation("FinanceEntryCreator", fields: [createdById], references: [id])
@@ -909,4 +948,153 @@ model FinanceQuestDone {
 
   @@id([userId, classroomId, quest])
   @@index([classroomId])
+}
+
+// ===== 水庫第二步：分帳規則、每堂驗收（docs/finance-db.md §4）=====
+
+enum FinanceRuleScope {
+  CLASSROOM
+  LOCATION
+  LESSON
+}
+
+enum FinanceTeacherPay {
+  NONE // 不用算：收入全部留在教室
+  HOURLY // 鐘點費：老師每堂拿固定的錢
+  SPLIT // 拆帳：扣掉場地費、助教費、抽成，剩下的給老師
+}
+
+enum FinanceFeeMode {
+  NONE
+  PER_LESSON
+  PER_DAY // 當天的課平攤，早的堂多 1 元
+}
+
+enum FinanceVenuePayee {
+  MEMBER // 付給成員（老師資料）→ 進他的薪資單
+  EXTERNAL // 付給外面的場地 → 場租帳
+}
+
+enum FinanceRemainderTo {
+  REVENUE_OWNER
+  FUND
+}
+
+// 一列＝某一層在 effectiveFrom（月初）之後的設定；改規則＝新增一列。設定欄位 null ＝ 沿用上一層。
+model FinanceSplitRule {
+  id              Int                 @id @default(autoincrement())
+  classroomId     Int
+  classroom       Classroom           @relation(fields: [classroomId], references: [id])
+  scope           FinanceRuleScope
+  locationId      Int?
+  location        Location?           @relation(fields: [locationId], references: [id])
+  lessonId        Int?
+  lesson          Lesson?             @relation(fields: [lessonId], references: [id])
+  effectiveFrom   DateTime
+  teacherPay      FinanceTeacherPay?
+  hourlyFee       Int?
+  venueMode       FinanceFeeMode?
+  venueAmount     Int?
+  venuePayee      FinanceVenuePayee?
+  venueTeacherId  Int?
+  venueTeacher    Teacher?            @relation("FinanceVenueTeacher", fields: [venueTeacherId], references: [id])
+  assistantMode   FinanceFeeMode?
+  assistantAmount Int?
+  commissionPct   Int?
+  // 只在 LESSON 層：整門課手動結算
+  manual          Boolean?
+  // 只在 CLASSROOM 層
+  roundTo         Int?
+  remainderTo     FinanceRemainderTo?
+  shares          FinanceSplitShare[]
+  reason          String?
+  createdById     Int
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([classroomId, scope, effectiveFrom])
+  @@index([locationId])
+  @@index([lessonId])
+  @@index([venueTeacherId])
+}
+
+// 只在 LESSON 層：多位老師的比例（加起來 100）；沒有＝平分。
+model FinanceSplitShare {
+  id        Int              @id @default(autoincrement())
+  ruleId    Int
+  rule      FinanceSplitRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  teacherId Int
+  teacher   Teacher          @relation(fields: [teacherId], references: [id])
+  pct       Int
+
+  @@unique([ruleId, teacherId])
+  @@index([teacherId])
+}
+
+// 每堂驗收：按驗收那一刻存下算出來的結果。驗收前全部即時算，不存。
+model FinanceLessonSettlement {
+  id             Int                         @id @default(autoincrement())
+  classroomId    Int
+  classroom      Classroom                   @relation(fields: [classroomId], references: [id])
+  lessonPeriodId Int                         @unique
+  lessonPeriod   LessonPeriod                @relation(fields: [lessonPeriodId], references: [id])
+  // 算這堂用到的輸入（收入、人數、老師、助教、規則版本）。跟現在重算的不一樣＝點名改過，退回待驗收。
+  inputsKey      String
+  ruleIds        Int[]
+  revenue        Int
+  estimated      Int                         @default(0)
+  attendeeCount  Int
+  venueFee       Int
+  assistantFee   Int
+  commission     Int
+  remainder      Int
+  // 這堂留在教室的錢（抽成，加上零頭歸基金、鐘點費制的餘額；可能是負的）
+  fund           Int
+  overridden     Boolean                     @default(false)
+  overrideReason String?
+  lines          FinanceSettlementLine[]
+  revisions      FinanceSettlementRevision[]
+  verifiedById   Int
+  verifiedBy     User                        @relation("FinanceSettlementVerifier", fields: [verifiedById], references: [id])
+  verifiedAt     DateTime
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  @@index([classroomId, verifiedAt])
+  @@index([verifiedById])
+}
+
+enum FinanceLineKind {
+  TEACHER
+  VENUE
+  ASSISTANT
+  REMAINDER
+}
+
+model FinanceSettlementLine {
+  id           Int                     @id @default(autoincrement())
+  settlementId Int
+  settlement   FinanceLessonSettlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  kind         FinanceLineKind
+  // VENUE 付給外面的場地時是 null
+  teacherId    Int?
+  teacher      Teacher?                @relation(fields: [teacherId], references: [id])
+  amount       Int
+
+  @@index([settlementId])
+  @@index([teacherId])
+}
+
+// 重新驗收、改數字的紀錄。
+model FinanceSettlementRevision {
+  id           Int                     @id @default(autoincrement())
+  settlementId Int
+  settlement   FinanceLessonSettlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  editedById   Int
+  reason       String
+  before       Json
+  after        Json
+  createdAt    DateTime                @default(now())
+
+  @@index([settlementId])
 }

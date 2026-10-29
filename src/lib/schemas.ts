@@ -3,6 +3,7 @@ import { PaymentMethod, TodoType } from "@prisma/client";
 import { DANCE_STYLE_COLORS } from "@/lib/danceStyles";
 import { isExpoPushToken } from "@/lib/expoPush";
 import { ASSIGNABLE_ROLES } from "@/lib/roles";
+import { TEACHER_KINDS } from "@/lib/teachers";
 
 /**
  * Request schemas for the routes with money or card-balance semantics.
@@ -216,13 +217,20 @@ export const createTeacherSchema = z.object({
   /** Omitted: the first palette colour no active teacher uses. */
   color: danceStyleColor.optional(),
   note: teacherNote.nullish(),
+  kind: z.enum(TEACHER_KINDS).optional(),
 });
 
 export const updateTeacherSchema = z.object({
   name: teacherName.optional(),
   color: danceStyleColor.optional(),
   note: teacherNote.nullish(),
+  kind: z.enum(TEACHER_KINDS).optional(),
   archived: z.boolean().optional(),
+});
+
+/** PUT …/periods/[periodId]/assistants — the whole set, like attendance's studentIds. */
+export const setPeriodAssistantsSchema = z.object({
+  teacherIds: z.array(z.number().int().positive()).max(10),
 });
 
 /** `?month=YYYY-MM` on the teacher stats routes; omitted = this Taipei month. */

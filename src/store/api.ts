@@ -12,6 +12,7 @@ export const TAG_TYPES = [
   "InviteToken",
   "Attendance",
   "AttendanceRecord",
+  "LessonAssistant",
   "Tag",
   "LessonGroup",
   "DanceStyle",

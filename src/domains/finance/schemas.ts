@@ -67,3 +67,86 @@ export type SetupInput = z.infer<typeof setupSchema>;
 export type RemittanceInput = z.infer<typeof remittanceSchema>;
 export type EntryInput = z.infer<typeof entrySchema>;
 export type PatchSettingInput = z.infer<typeof patchSettingSchema>;
+
+// ---------- 第二步：分帳規則、驗收
+
+const feeMode = z.enum(["NONE", "PER_LESSON", "PER_DAY"]);
+const pct = z.number().int().min(0).max(100);
+
+/** 存一層分帳規則。欄位不送或 null ＝ 沿用上一層。 */
+export const splitRuleSchema = z.object({
+  scope: z.enum(["CLASSROOM", "LOCATION", "LESSON"]),
+  locationId: id.nullish(),
+  lessonId: id.nullish(),
+  /** 不送：這一層第一次設＝從頭算，之後＝下個月 1 號。 */
+  applyFrom: z.enum(["THIS_MONTH", "NEXT_MONTH"]).optional(),
+  teacherPay: z.enum(["NONE", "HOURLY", "SPLIT"]).nullish(),
+  hourlyFee: money.nullish(),
+  venueMode: feeMode.nullish(),
+  venueAmount: money.nullish(),
+  venuePayee: z.enum(["MEMBER", "EXTERNAL"]).nullish(),
+  venueTeacherId: id.nullish(),
+  assistantMode: feeMode.nullish(),
+  assistantAmount: money.nullish(),
+  commissionPct: pct.nullish(),
+  manual: z.boolean().nullish(),
+  roundTo: z.union([z.literal(1), z.literal(10), z.literal(100)]).nullish(),
+  remainderTo: z.enum(["REVENUE_OWNER", "FUND"]).nullish(),
+  shares: z.array(z.object({ teacherId: id, pct })).max(10).optional(),
+  reason: optionalText(200),
+});
+export type SplitRuleInput = z.infer<typeof splitRuleSchema>;
+
+/**
+ * 建城第 2～4 章（居民、場地、分帳）一次存：全教室一層＋每個分部的場地費，都從頭算。
+ * venues 的 locationId 是 null ＝ 沒有分部，場地費掛在全教室那一層。
+ */
+export const buildSplitSchema = z.object({
+  teacherPay: z.enum(["NONE", "HOURLY", "SPLIT"]),
+  hourlyFee: money.nullish(),
+  assistantMode: feeMode.default("NONE"),
+  assistantAmount: money.nullish(),
+  commissionPct: pct.nullish(),
+  roundTo: z.union([z.literal(1), z.literal(10), z.literal(100)]).default(1),
+  remainderTo: z.enum(["REVENUE_OWNER", "FUND"]).default("FUND"),
+  venues: z
+    .array(
+      z.object({
+        locationId: id.nullable(),
+        venueMode: feeMode,
+        venueAmount: money.nullish(),
+        venuePayee: z.enum(["MEMBER", "EXTERNAL"]).nullish(),
+        venueTeacherId: id.nullish(),
+      })
+    )
+    .max(50)
+    .default([]),
+});
+export type BuildSplitInput = z.infer<typeof buildSplitSchema>;
+
+/** GET /api/finance/lessons?from=&to=（台北日期，含頭含尾，最多 62 天）。 */
+export const lessonSplitsQuerySchema = z
+  .object({ from: dateKey, to: dateKey })
+  .refine(({ from, to }) => from <= to, "from 要在 to 之前")
+  .refine(
+    ({ from, to }) => (Date.parse(to) - Date.parse(from)) / 86_400_000 <= 62,
+    "一次最多 62 天"
+  );
+
+/** 驗收：batch ＝ 整批，只收沒有任何提醒的堂。 */
+export const verifyLessonsSchema = z.object({
+  periodIds: z.array(id).min(1).max(200),
+  batch: z.boolean().default(false),
+});
+
+/** 驗收時手動改老師實拿。 */
+export const overrideLessonSchema = z.object({
+  teacherLines: z.array(z.object({ teacherId: id, amount: money })).max(10),
+  reason,
+});
+
+/** GET /api/finance/day?date=YYYY-MM-DD */
+export const dayBookQuerySchema = z.object({ date: dateKey });
+
+/** GET /api/finance/teachers?month=YYYY-MM（不送＝這個月）。 */
+export const teacherMonthSchema = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional() });

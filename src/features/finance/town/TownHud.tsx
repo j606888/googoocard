@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { BookOpen, CircleHelp, PencilLine } from "lucide-react";
+import { BookOpen, CircleHelp, ListChecks, PencilLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toTaipeiDateKey } from "@/lib/taipei-date";
 import { CartIcon, CoinIcon, CrateIcon, HammerIcon, KeepIcon } from "./icons";
@@ -51,10 +51,37 @@ function Badge({ size }: { size: "lg" | "sm" }) {
 }
 
 /** 上方的資源列：公司的錢、財庫、還在路上、建城貸款；電腦版第二排是預收／其他。 */
-export function HudTop({ view, variant, onLedger, onLegend }: { view: TownView; variant: "wide" | "tall"; onLedger: () => void; onLegend: () => void }) {
+export function HudTop({
+  view,
+  variant,
+  onLedger,
+  onLegend,
+  questsLeft = 0,
+  onQuests,
+}: {
+  view: TownView;
+  variant: "wide" | "tall";
+  onLedger: () => void;
+  onLegend: () => void;
+  /** 新手任務還有幾項；0 就不顯示那顆按鈕。 */
+  questsLeft?: number;
+  onQuests?: () => void;
+}) {
   const f = view.figures;
   const buttons = (
     <>
+      {onQuests && questsLeft > 0 && (
+        <button type="button" onClick={onQuests} aria-label={`新手任務，還有 ${questsLeft} 項`} className={cn(squareButton, "relative")}>
+          <ListChecks className="size-5" aria-hidden="true" />
+          <span
+            aria-hidden="true"
+            className="absolute grid place-items-center rounded-full font-bold tabular-nums"
+            style={{ right: -4, top: -4, minWidth: 20, height: 20, padding: "0 5px", fontSize: 11, lineHeight: 1, background: "#F4A23C", color: "#4D2A00", border: "2px solid #FFFDF7" }}
+          >
+            {questsLeft}
+          </span>
+        </button>
+      )}
       <button type="button" onClick={onLedger} aria-label="帳本模式" className={squareButton}>
         <BookOpen className="size-5" aria-hidden="true" />
       </button>

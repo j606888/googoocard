@@ -6,13 +6,14 @@ import { nextCardSerial } from "@/service/studentCardSerial";
 // Wipe all tables between tests (FK-safe via CASCADE).
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "AttendanceRecord", "LessonStudent", "LessonPeriod", "LessonTeacher",
+    `TRUNCATE "AttendanceRecord", "LessonPeriodAssistant", "LessonStudent", "LessonPeriod", "LessonTeacher",
       "LessonCard", "StudentDanceQualification", "StudentTag", "Tag", "Event",
       "StudentCard", "Lesson", "LessonGroup", "Location", "Card", "DanceStyle", "Student", "Teacher", "InviteToken",
       "Membership", "Classroom", "User", "LineAccount", "RenewalReminder", "PushToken", "WebPushSubscription",
       "NotificationPreference", "ClassroomModule", "SkillTalkRead", "SkillCommentMention", "SkillCommentReaction",
       "SkillComment", "SkillChange", "Skill", "SkillTier", "SkillCategory", "FinanceSetting", "FinanceOpeningCustody",
-      "FinanceRemittance", "FinanceEntryRevision", "FinanceEntry", "FinanceSettingRevision", "FinanceQuestDone" RESTART IDENTITY CASCADE`
+      "FinanceRemittance", "FinanceEntryRevision", "FinanceEntry", "FinanceSettingRevision", "FinanceQuestDone",
+      "FinanceSettlementRevision", "FinanceSettlementLine", "FinanceLessonSettlement", "FinanceSplitShare", "FinanceSplitRule" RESTART IDENTITY CASCADE`
   );
 }
 

@@ -64,15 +64,17 @@ model LessonPeriodAssistant {
   @@index([teacherId])
 }
 
-// Teacher 加一欄：只當助教的人，排課選老師時不列出（點名選助教時列在最前面）。
-//   isAssistant Boolean @default(false)
+// Teacher 加一欄：老師／助教／都是。只當助教的，排課選老師時不列出（點名選助教時列在最前面）；只教課的，選助教時不列出。
+//   kind TeacherKind @default(TEACHER)   // TEACHER 只教課／ASSISTANT 只當助教／BOTH 都是（原本是 isAssistant，2026-10-29 改）
 ```
 
 ## 4. 第二步：分帳規則、驗收
 
 ### 4.1 `FinanceSplitRule`（三層＋版本）
 
-一列＝某一層在某天之後的設定。改規則＝新增一列，`effectiveFrom` 是下個月 1 號；如果下個月的那列已經有了，就直接改它（寫 `reason`）。歷史就是這些列本身，不另外開 revision 表。
+一列＝某一層在某天之後的設定。某一層（全教室、某個分部、某門課）**第一次設＝從頭算**（`effectiveFrom` = 1970-01-01）；之後改規則＝新增一列，`effectiveFrom` 預設是下個月 1 號（可以選從這個月 1 號）；如果那天生效的那列已經有了，就直接改它。歷史就是這些列本身，不另外開 revision 表。
+
+已實作（2026-10-29，分支 `feat/finance-split`）：`src/domains/finance/split.ts`（純計算＋單元測試）、`src/service/finance/split.ts`、`GET/PUT /api/finance/split-rules`、`GET /api/finance/lessons?from=&to=`、`POST /api/finance/lessons/verify`、畫面 `/finance/verify`（每堂驗收）、`/finance/rules`（分帳規則）；`POST /api/finance/lessons/[periodId]/override`（改實拿，要 `finance.edit`、要寫原因）、`GET /api/finance/day?date=` ＋ `/finance/day/[date]`（當天的帳）、`GET /api/finance/teachers?month=` ＋ `/finance/teachers`（老師薪水月中累積；能改水庫的人看全部，其他人只看自己的）。`GET /api/finance/calendar?month=` ＋ `/finance/calendar`（行事曆：每天的驗收狀態、錢的事、發薪日）。建城精靈 `/finance/build`（`src/features/finance/build/`，設計稿 artifact「水庫建城（第一次設定）」`Ybxg2W2hY2EY3UojhuMueP`）：四章 11 題，第 1 章答完送 `finance/setup`；居民（`Teacher.kind`）、場地（分部）當場存；分帳在「開城」時 `POST /api/finance/build` 一次存全教室＋各分部場地費（從頭算，設過了 409），之前用 `POST /api/finance/build/preview` 以最近一堂試算。`GET finance/setting` 多回 `splitBuilt`；新手任務多一項「繼續蓋」。還沒做：整堂手動結算、小鎮拆出待發與基金、活動。
 
 ```prisma
 enum FinanceRuleScope { CLASSROOM LOCATION LESSON }
@@ -455,7 +457,7 @@ model FinanceReconcile {
 
 ## 10. 建議的 migration 順序
 
-1. **核心**：`LessonPeriodAssistant`、`Teacher.isAssistant`，點名頁加「今天的助教」（另一個分支）。
+1. **核心**：`LessonPeriodAssistant`、`Teacher.kind`，點名頁加「今天的助教」（另一個分支）。
 2. **第二步**：`FinanceSplitRule`、`FinanceSplitShare`、`FinanceLessonSettlement`、`FinanceSettlementLine`、`FinanceSettlementRevision`、`FinanceEntry.locationId`、`FinanceSetting.payday`。
 3. **活動**：`FinanceActivity`、`FinanceActivityLine`。
 4. **第三步**：`FinanceMonth`、`FinancePayslip`、`FinancePayslipLine`、`FinanceAdjustment`、`FinanceClaim`、`FinanceClaimPhoto`，`FinanceRemittance`／`FinanceEntry` 加連結欄位。
