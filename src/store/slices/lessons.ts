@@ -383,7 +383,8 @@ const lessonsApi = api.injectEndpoints({
         method: "POST",
         body: { studentCardId },
       }),
-      invalidatesTags: ["Lesson", "StudentCard", "Card", "Attendance", "AttendanceRecord"],
+      // 學生頁的課卡跟著 getStudent（"Student"）走，扣了格數要一起刷新。
+      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "Attendance", "AttendanceRecord"],
     }),
     /** 這筆出席改付單堂（不扣卡）。金額由後端照課程單堂價決定。 */
     chargeDropIn: builder.mutation<
