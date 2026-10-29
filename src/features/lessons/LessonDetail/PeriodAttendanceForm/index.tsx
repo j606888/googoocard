@@ -1,15 +1,21 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import SubNavbar from "@/features/SubNavbar";
+import Drawer from "@/components/Drawer";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronUp } from "lucide-react";
 import { useParams } from "next/navigation";
+import { format } from "date-fns";
 import StudentSelectList from "./StudentSelectList";
 import Searchbar from "./Searchbar";
-import SelectedStudents from "./SelectedStudents";
+import CreateStudent from "./CreateStudent";
+import AttendanceReview from "./AttendanceReview";
 import PeriodInfo from "./PeriodInfo";
 import PeriodAttendanceSkeleton from "./PeriodAttendanceSkeleton";
 import { useAttendanceFlow } from "@/hooks/useAttendanceFlow";
 import { useSizeClass } from "@/hooks/useMediaQuery";
+
+const WEEKDAY = ["日", "一", "二", "三", "四", "五", "六"];
 
 type PeriodAttendanceFormProps = {
   defaultSelectedIds?: number[];
@@ -36,17 +42,25 @@ const PeriodAttendanceForm = ({
 }: PeriodAttendanceFormProps) => {
   const { id, periodId } = useParams();
   const isExpanded = useSizeClass() === "expanded";
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
   const {
     period,
+    lesson,
     isLoading: isFlowLoading,
     attendStudentIds,
     selectedStudents,
     selectedIds,
-    filteredStudents,
+    rosterStudents,
+    otherStudents,
+    allRosterStudents,
+    rowTags,
+    keyword,
     search,
     addStudent,
     removeStudent,
-    setSelectedIds,
+    toggleStudent,
+    setMany,
   } = useAttendanceFlow({
     lessonId: id as string,
     periodId: Number(periodId),
@@ -78,52 +92,67 @@ const PeriodAttendanceForm = ({
     );
   }
 
+  const count = selectedStudents.length;
+  const selected = new Set(selectedIds);
+  const missingRosterStudents = allRosterStudents.filter((student) => !selected.has(student.id));
+  const start = new Date(period.startTime);
+  const reviewSubtitle = [
+    lesson?.name,
+    `${format(start, "M/d")}（${WEEKDAY[start.getDay()]}）${format(start, "HH:mm")}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const submit = () => onSubmit(selectedIds);
+
   const searchbar = (
     <Searchbar
+      value={keyword}
       error={error || null}
       onSearch={search}
-      selectedStudents={selectedStudents}
-      onCreateStudent={addStudent}
+      onCreateClick={() => setIsCreateOpen(true)}
     />
   );
 
-  const roster = (
+  const list = (
     <StudentSelectList
-      students={filteredStudents}
-      attendStudentIds={attendStudentIds}
-      selectedStudents={selectedStudents}
+      rosterStudents={rosterStudents}
+      otherStudents={otherStudents}
+      selectedIds={selectedIds}
+      keyword={keyword}
+      rowTags={rowTags}
       selfCheckInStudentIds={selfCheckInStudentIds}
       trialStudentIds={trialStudentIds}
-      setSelectedStudents={(students) => {
-        setSelectedIds(students.map((student) => student.id));
+      onToggle={toggleStudent}
+      onSetMany={setMany}
+      onCreateClick={() => setIsCreateOpen(true)}
+    />
+  );
+
+  const review = (
+    <AttendanceReview
+      selectedStudents={selectedStudents}
+      missingRosterStudents={missingRosterStudents}
+      rosterIds={attendStudentIds}
+      onAdd={addStudent}
+      onRemove={removeStudent}
+    />
+  );
+
+  const createStudent = (
+    <CreateStudent
+      open={isCreateOpen}
+      onClose={() => setIsCreateOpen(false)}
+      defaultName={keyword}
+      onCreate={(student) => {
+        addStudent(student.id);
+        search("");
       }}
     />
   );
 
-  const selected = (
-    <SelectedStudents
-      selectedStudents={selectedStudents}
-      onRemoveStudent={removeStudent}
-      selfCheckInStudentIds={selfCheckInStudentIds}
-      trialStudentIds={trialStudentIds}
-    />
-  );
-
-  const submitButton = (
-    <Button
-      onClick={() => onSubmit(selectedIds)}
-      disabled={selectedStudents.length === 0}
-      isLoading={isLoading}
-      size="lg"
-      className="w-full"
-    >
-      {submitLabel}
-      {selectedStudents.length > 0 && `（${selectedStudents.length} 人）`}
-    </Button>
-  );
-
-  // 桌面：左邊勾名單、右邊看已選並送出。側邊欄已經是導航，所以不出
-  // 手機的綠色 app-bar；送出按鈕跟著已選清單黏在右欄，不必捲到底。
+  // 桌面：左邊勾名單、右邊就是送出前的對照（沒勾的、勾了的）＋送出。
+  // 側邊欄已經是導航，所以不出手機的綠色 app-bar；右欄 sticky，不必捲到底。
   if (isExpanded) {
     return (
       <>
@@ -132,13 +161,23 @@ const PeriodAttendanceForm = ({
           <div className="flex flex-col gap-4 min-w-0">
             <PeriodInfo period={period} />
             {searchbar}
-            {roster}
+            {list}
           </div>
           <div className="flex flex-col gap-4 sticky top-6">
-            {selected}
-            {submitButton}
+            {review}
+            <Button
+              onClick={submit}
+              disabled={count === 0}
+              isLoading={isLoading}
+              size="lg"
+              className="w-full"
+            >
+              {submitLabel}
+              {count > 0 && `（${count} 人）`}
+            </Button>
           </div>
         </div>
+        {createStudent}
       </>
     );
   }
@@ -146,22 +185,47 @@ const PeriodAttendanceForm = ({
   return (
     <>
       <SubNavbar title={"點名"} backUrl={`/lessons/${id}`} />
-      <div className="px-5 pt-5 pb-40 flex flex-col gap-5">
-        <div>
-          <PeriodInfo period={period} />
-        </div>
-        <div className="flex flex-col gap-4">
-          {searchbar}
-          {selected}
-          <div className="flex flex-col gap-4 pb-4 ">{roster}</div>
-        </div>
-        {/* Lifted above the mobile BottomNav (floating pill, fixed bottom-0
-            z-40) so the button stays tappable. In the iOS App that nav is
-            hidden (the tabs are native), so `flush-bottom` drops it to 0. */}
-        <div data-in-app="flush-bottom" className="fixed left-0 right-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] bg-white/90 backdrop-blur-md border-t border-neutral-100 flex gap-4 px-5 py-4 z-30">
-          {submitButton}
-        </div>
+      <div className="px-5 pt-4 pb-32 flex flex-col gap-3">
+        <PeriodInfo period={period} />
+        {searchbar}
+        {list}
       </div>
+      {/* 點名頁不掛 BottomNav（見 BottomNav.tsx），動作列直接貼底、留安全區。 */}
+      <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2.5 border-t border-neutral-200 bg-white px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <Button
+          variant="secondary"
+          size="lg"
+          className="px-3.5 text-[15px]"
+          aria-haspopup="dialog"
+          onClick={() => setIsReviewOpen(true)}
+        >
+          已勾 {count} 人
+          <ChevronUp className="size-4" aria-hidden="true" />
+        </Button>
+        <Button
+          onClick={submit}
+          disabled={count === 0}
+          isLoading={isLoading}
+          size="lg"
+          className="flex-1"
+        >
+          {submitLabel}
+        </Button>
+      </div>
+      <Drawer
+        open={isReviewOpen}
+        onClose={() => setIsReviewOpen(false)}
+        title={`已勾 ${count} 人`}
+        subtitle={reviewSubtitle}
+        secondaryText="繼續勾"
+        submitText={`${submitLabel}（${count} 人）`}
+        disabled={count === 0}
+        isLoading={isLoading}
+        onSubmit={submit}
+      >
+        <div className="pb-4">{review}</div>
+      </Drawer>
+      {createStudent}
     </>
   );
 };

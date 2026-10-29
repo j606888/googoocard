@@ -2,12 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useGetStudentsQuery } from "@/store/slices/students";
-import { useGetLessonQuery } from "@/store/slices/lessons";
+import { useGetAttendanceQuery, useGetLessonQuery } from "@/store/slices/lessons";
 import {
+  attendanceRowTag,
   filterByKeyword,
   findPeriod,
+  lessonCardStatus,
   lessonStudentIds,
   selectStudents,
+  splitByRoster,
+  type RowTag,
 } from "./attendanceFlow";
 
 /**
@@ -28,6 +32,8 @@ export const useAttendanceFlow = ({
 }) => {
   const { data: students, isLoading: isStudentsLoading } = useGetStudentsQuery();
   const { data: lesson, isLoading: isLessonLoading } = useGetLessonQuery(lessonId);
+  // 外殼（CheckPeriod / EditPeriod）也抓同一份，RTK Query 會共用快取、不會多打一次。
+  const { data: records } = useGetAttendanceQuery({ id: Number(lessonId), periodId });
 
   const [selectedIds, setSelectedIds] = useState<number[]>(defaultSelectedIds);
   const [keyword, setKeyword] = useState("");
@@ -49,6 +55,34 @@ export const useAttendanceFlow = ({
     [students, keyword]
   );
 
+  const { roster: rosterStudents, others: otherStudents } = useMemo(
+    () => splitByRoster(filteredStudents, attendStudentIds),
+    [filteredStudents, attendStudentIds]
+  );
+  /** 名冊全員（不受搜尋影響）——審核抽屜要列出「還沒勾」的人。 */
+  const allRosterStudents = useMemo(
+    () => splitByRoster(students ?? [], attendStudentIds).roster,
+    [students, attendStudentIds]
+  );
+
+  // 每列尾端的狀態標籤（最多一個）。這個時段已經扣到卡的（自助簽到當下扣的）
+  // 今天已經付掉，不再標沒卡／剩幾堂。
+  const rowTags = useMemo(() => {
+    const covered = new Set(
+      (records ?? []).filter((record) => record.cardId).map((record) => record.studentId)
+    );
+    const tags = new Map<number, RowTag>();
+    for (const student of students ?? []) {
+      const tag = attendanceRowTag({
+        cardStatus: lesson ? lessonCardStatus(student, lesson) : undefined,
+        unpaidAmount: student.unpaidAmount,
+        cardCovered: covered.has(student.id),
+      });
+      if (tag) tags.set(student.id, tag);
+    }
+    return tags;
+  }, [students, lesson, records]);
+
   const addStudent = (studentId: number) =>
     setSelectedIds((prev) =>
       prev.includes(studentId) ? prev : [...prev, studentId]
@@ -56,6 +90,19 @@ export const useAttendanceFlow = ({
 
   const removeStudent = (studentId: number) =>
     setSelectedIds((prev) => prev.filter((id) => id !== studentId));
+
+  const toggleStudent = (studentId: number) =>
+    setSelectedIds((prev) =>
+      prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]
+    );
+
+  /** 一次勾／取消一批（「全選」「全不選」）。 */
+  const setMany = (studentIds: number[], checked: boolean) =>
+    setSelectedIds((prev) => {
+      const ids = new Set(studentIds);
+      const rest = prev.filter((id) => !ids.has(id));
+      return checked ? [...rest, ...studentIds] : rest;
+    });
 
   return {
     /** 這次要點名的時段；undefined 代表 lesson 還沒載入或時段不屬於這堂課。 */
@@ -69,10 +116,20 @@ export const useAttendanceFlow = ({
     selectedIds,
     /** 依搜尋關鍵字過濾後的完整名單。 */
     filteredStudents,
+    /** 過濾後、在這門課名冊上的學生。 */
+    rosterStudents,
+    /** 過濾後、不在名冊上的學生。 */
+    otherStudents,
+    allRosterStudents,
+    /** 學生 id → 列尾狀態標籤；沒問題的學生不在裡面。 */
+    rowTags,
+    lesson,
     keyword,
     search: setKeyword,
     addStudent,
     removeStudent,
+    toggleStudent,
+    setMany,
     setSelectedIds,
   };
 };

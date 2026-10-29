@@ -219,6 +219,7 @@ hook——正好落在下面「已知取捨」寫的界線內：小塊靜態內�
 + 硬重整 fallback 的機器太多，而收益（桌面不離開課程詳情）對單人教室工具不成比例。
 
 - `PeriodAttendanceForm` 桌面改兩欄：左邊搜尋＋名單、右邊已選清單與送出按鈕（sticky）。
+  （2026-10-29 點名頁改版：右欄改成跟手機「已勾 N 人」抽屜同一個 `AttendanceReview`——這門課還沒勾的人可補勾、已勾的兩欄格子可取消；手機點名頁不掛 BottomNav，動作列貼底。）
 - 兩個畫面的 `SubNavbar` 都改成只在 compact 渲染，桌面不再同時出現手機 app-bar 與側邊欄。
 - `CheckPeriodSuccess` 從 `max-w-md` 放寬到 `lg:max-w-3xl`（手機維持窄欄——那是逐列清單，
   全寬拉開反而難讀）。
