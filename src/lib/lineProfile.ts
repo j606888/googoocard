@@ -32,11 +32,16 @@ export async function fetchLineProfile(lineUserId: string): Promise<LineProfile 
   }
 }
 
-export const LINE_PICTURE_PREFIX = "https://profile.line-scdn.net/";
+// LINE serves profile pictures from both hosts (sprofile = newer accounts).
+export const LINE_PICTURE_PREFIXES = [
+  "https://profile.line-scdn.net/",
+  "https://sprofile.line-scdn.net/",
+] as const;
 export const PRESET_AVATAR_PREFIX = "/images/avatars/";
 
 /** A LINE profile picture (set from LINE, so it goes when the LINE binding goes). */
-export const isLinePicture = (avatarUrl: string) => avatarUrl.startsWith(LINE_PICTURE_PREFIX);
+export const isLinePicture = (avatarUrl: string) =>
+  LINE_PICTURE_PREFIXES.some((prefix) => avatarUrl.startsWith(prefix));
 
 /**
  * May LINE's picture replace this avatar? Yes for a built-in preset or an older

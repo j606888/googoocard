@@ -4,7 +4,7 @@ import {
   fetchLineProfile,
   isLinePicture,
   isReplaceableByLinePicture,
-  LINE_PICTURE_PREFIX,
+  LINE_PICTURE_PREFIXES,
   PRESET_AVATAR_PREFIX,
   type LineProfile,
 } from "@/lib/lineProfile";
@@ -118,7 +118,7 @@ export async function syncLineProfile(lineUserId: string, { name, picture }: { n
         lineUserId,
         NOT: { avatarUrl: picture },
         OR: [
-          { avatarUrl: { startsWith: LINE_PICTURE_PREFIX } },
+          ...LINE_PICTURE_PREFIXES.map((prefix) => ({ avatarUrl: { startsWith: prefix } })),
           { lineDisplayName: null, avatarUrl: { startsWith: PRESET_AVATAR_PREFIX } },
         ],
       },
