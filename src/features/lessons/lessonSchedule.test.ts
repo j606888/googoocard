@@ -54,6 +54,16 @@ describe("pickHero", () => {
     expect(pickHero([periods[0]], NOW)).toBeNull();
   });
 
+  it("連著老師時先挑自己教的課，自己沒課才看全教室", () => {
+    const periods = [
+      period(1, at(29, 15), at(29, 16)),
+      period(2, at(30, 20), at(30, 21)),
+    ];
+    const mine = (p: { id: number }) => p.id === 2;
+    expect(pickHero(periods, NOW, mine)).toEqual({ kind: "next", period: periods[1] });
+    expect(pickHero(periods, NOW, () => false)).toEqual({ kind: "inClass", period: periods[0] });
+  });
+
   it("剛好下課的那一刻不算上課中", () => {
     expect(inClassPeriod([period(1, at(29, 14, 20), at(29, 15, 20))], NOW)).toBeNull();
   });

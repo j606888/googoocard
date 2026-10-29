@@ -29,7 +29,12 @@ export const useLessonAgenda = () => {
 
   return useMemo(() => {
     const periods = data?.periods ?? [];
-    const hero = pickHero(periods, now);
+    const myTeacherId = data?.myTeacherId ?? null;
+    const hero = pickHero(
+      periods,
+      now,
+      myTeacherId === null ? undefined : (p) => p.lesson.teachers.some((t) => t.id === myTeacherId)
+    );
     return {
       now,
       isLoading,

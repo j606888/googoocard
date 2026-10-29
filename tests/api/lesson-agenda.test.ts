@@ -51,6 +51,23 @@ describe("getLessonAgenda", () => {
     expect(current.lesson).toMatchObject({ name: "Bachata", totalPeriods: 4, studentCount: 0 });
   });
 
+  it("returns the member's own teacher and their next period even past the classroom-wide cut", async () => {
+    const user = await prisma.user.create({ data: { email: "mia@test.local", password: "x", name: "Mia" } });
+    const mia = await prisma.teacher.create({ data: { classroomId, name: "Mia", userId: user.id } });
+    const { lesson: busy } = await createLesson(classroomId, { name: "Busy" });
+    for (let d = 1; d <= 12; d++) {
+      await addPeriod(busy.id, `2026-11-${String(d).padStart(2, "0")}T07:00:00Z`, `2026-11-${String(d).padStart(2, "0")}T08:00:00Z`);
+    }
+    const { lesson: mine } = await createLesson(classroomId, { name: "Mine" });
+    await prisma.lessonTeacher.create({ data: { lessonId: mine.id, teacherId: mia.id } });
+    const myNext = await addPeriod(mine.id, "2026-11-20T07:00:00Z", "2026-11-20T08:00:00Z");
+
+    const result = await getLessonAgenda(classroomId, NOW, user.id);
+    expect(result.myTeacherId).toBe(mia.id);
+    expect(result.periods.map((p) => p.id)).toContain(myNext.id);
+    expect((await getLessonAgenda(classroomId, NOW)).myTeacherId).toBeNull();
+  });
+
   it("lists who already has a record for the period", async () => {
     const { lesson } = await createLesson(classroomId);
     const period = await addPeriod(lesson.id, "2026-10-29T07:00:00Z", "2026-10-29T08:00:00Z", true);

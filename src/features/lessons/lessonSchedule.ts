@@ -41,13 +41,22 @@ export const nextPeriod = <P extends ScheduledPeriod>(periods: P[], now: Date): 
   return [...periods].filter((p) => new Date(p.startTime).getTime() > t).sort(byStart)[0] ?? null;
 };
 
-/** 列表頂端的主角：上課中優先，沒有就是下一堂；都沒有回 null。 */
-export const pickHero = <P extends ScheduledPeriod>(periods: P[], now: Date): AgendaHero<P> => {
+const heroFrom = <P extends ScheduledPeriod>(periods: P[], now: Date): AgendaHero<P> => {
   const current = inClassPeriod(periods, now);
   if (current) return { kind: "inClass", period: current };
   const next = nextPeriod(periods, now);
   return next ? { kind: "next", period: next } : null;
 };
+
+/**
+ * 列表頂端的主角：上課中優先，沒有就是下一堂；都沒有回 null。
+ * 有 `isMine`（成員連著老師）時先只看自己教的課，自己沒課可挑才看全教室。
+ */
+export const pickHero = <P extends ScheduledPeriod>(
+  periods: P[],
+  now: Date,
+  isMine?: (period: P) => boolean
+): AgendaHero<P> => (isMine && heroFrom(periods.filter(isMine), now)) || heroFrom(periods, now);
 
 /**
  * 還沒點名：已經開始、還沒點名的時段，舊的在前。主角那一堂（上課中）不重複列；

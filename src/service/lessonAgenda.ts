@@ -34,10 +34,16 @@ const periodSelect = {
  *
  * 只撈「可能相關」的集合；挑哪一堂當主角由前端的 `pickHero()`
  * （`src/features/lessons/lessonSchedule.ts`）照當下時間決定。
+ *
+ * `myTeacherId` = 這位成員連著的老師（`Teacher.userId`，取代舊的「我接下來的課」）：
+ * 主角優先挑自己教的課。全教室往後只撈 10 堂，自己的下一堂可能不在裡面，所以另外撈。
  */
-export async function getLessonAgenda(classroomId: number, now = new Date()) {
+export async function getLessonAgenda(classroomId: number, now = new Date(), userId?: number) {
   const lessonWhere = { classroomId, status: "inProgress" };
-  const [started, upcoming] = await Promise.all([
+  const myTeacher = userId
+    ? await prisma.teacher.findFirst({ where: { classroomId, userId }, select: { id: true } })
+    : null;
+  const [started, upcoming, myUpcoming] = await Promise.all([
     prisma.lessonPeriod.findMany({
       where: {
         lesson: lessonWhere,
@@ -54,9 +60,23 @@ export async function getLessonAgenda(classroomId: number, now = new Date()) {
       take: UPCOMING_TAKE,
       select: periodSelect,
     }),
+    myTeacher
+      ? prisma.lessonPeriod.findMany({
+          where: {
+            lesson: { ...lessonWhere, teachers: { some: { teacherId: myTeacher.id } } },
+            startTime: { gt: now },
+          },
+          orderBy: { startTime: "asc" },
+          take: 1,
+          select: periodSelect,
+        })
+      : [],
   ]);
 
-  const periods = [...started, ...upcoming];
+  const seen = new Set<number>();
+  const periods = [...started, ...upcoming, ...myUpcoming].filter((p) =>
+    seen.has(p.id) ? false : (seen.add(p.id), true)
+  );
   const lessonIds = [...new Set(periods.map((p) => p.lessonId))];
 
   // 「第 N 堂」要知道整門課的時段順序：一次撈這幾門課的所有時段 id。
@@ -73,6 +93,7 @@ export async function getLessonAgenda(classroomId: number, now = new Date()) {
   }
 
   return {
+    myTeacherId: myTeacher?.id ?? null,
     periods: periods.map(({ lesson, attendanceRecords, lessonId, ...period }) => {
       const order = orderByLesson.get(lessonId) ?? [];
       return {

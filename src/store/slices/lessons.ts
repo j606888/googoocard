@@ -260,7 +260,7 @@ const lessonsApi = api.injectEndpoints({
       query: (id) => `lessons/${id}`,
       providesTags: ["Lesson"],
     }),
-    getLessonAgenda: builder.query<{ periods: AgendaPeriod[] }, void>({
+    getLessonAgenda: builder.query<{ periods: AgendaPeriod[]; myTeacherId: number | null }, void>({
       query: () => "lessons/agenda",
       providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
     }),
