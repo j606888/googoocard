@@ -6,7 +6,11 @@ import {
   findPeriod,
   selectStudents,
   filterByKeyword,
+  splitByRoster,
+  lessonCardStatus,
+  attendanceRowTag,
 } from "./attendanceFlow";
+import type { CardStatus } from "@/domains/attendance/rosterInsights";
 
 const student = (id: number, name: string) => ({ id, name }) as Student;
 
@@ -83,5 +87,113 @@ describe("filterByKeyword", () => {
 
   it("沒有符合的回空陣列", () => {
     expect(filterByKeyword(students, "zzz")).toEqual([]);
+  });
+});
+
+describe("splitByRoster", () => {
+  it("依名冊拆成兩組，各自維持原本順序", () => {
+    const students = [student(3, "C"), student(1, "A"), student(2, "B")];
+    expect(splitByRoster(students, [2, 3])).toEqual({
+      roster: [student(3, "C"), student(2, "B")],
+      others: [student(1, "A")],
+    });
+  });
+});
+
+describe("lessonCardStatus", () => {
+  const lesson = {
+    cards: [{ id: 10 }, { id: 11 }],
+    danceStyleId: 5,
+    level: 2,
+    danceStyle: { hasLevels: true },
+  } as unknown as Lesson;
+  const sc = (cardId: number, remainingSessions: number, card: { isPracticeCard: boolean; danceStyleId: number | null }) =>
+    ({ cardId, remainingSessions, card });
+
+  it("只算這堂課掛的卡", () => {
+    const status = lessonCardStatus(
+      {
+        studentCards: [
+          sc(10, 3, { isPracticeCard: false, danceStyleId: null }),
+          sc(99, 8, { isPracticeCard: false, danceStyleId: null }),
+        ],
+        danceLevels: {},
+      } as unknown as Student,
+      lesson
+    );
+    expect(status.usableSessions).toBe(3);
+    expect(status.level).toBe("ok");
+  });
+
+  it("複習卡資格不夠時算 blocked", () => {
+    const status = lessonCardStatus(
+      {
+        studentCards: [sc(11, 4, { isPracticeCard: true, danceStyleId: 5 })],
+        danceLevels: { 5: 1 },
+      } as unknown as Student,
+      lesson
+    );
+    expect(status).toMatchObject({ level: "none", blockedCardCount: 1, usableCardCount: 0 });
+  });
+
+  it("沒有卡的學生是 none", () => {
+    expect(
+      lessonCardStatus({ studentCards: [], danceLevels: {} } as unknown as Student, lesson).level
+    ).toBe("none");
+  });
+});
+
+describe("attendanceRowTag", () => {
+  const status = (over: Partial<CardStatus>): CardStatus => ({
+    usableSessions: 5,
+    usableCardCount: 1,
+    blockedCardCount: 0,
+    otherSessions: 0,
+    level: "ok",
+    ...over,
+  });
+  const none = status({ usableSessions: 0, usableCardCount: 0, level: "none" });
+
+  it("卡況正常、沒欠錢：不顯示", () => {
+    expect(attendanceRowTag({ cardStatus: status({}) })).toBeNull();
+  });
+
+  it("沒卡優先於未付", () => {
+    expect(attendanceRowTag({ cardStatus: none, unpaidAmount: 3200 })).toEqual({
+      tone: "warning",
+      label: "沒卡",
+    });
+  });
+
+  it("只有不能用的複習卡：資格不符", () => {
+    expect(
+      attendanceRowTag({ cardStatus: status({ ...none, blockedCardCount: 1 }) })
+    ).toEqual({ tone: "warning", label: "資格不符" });
+  });
+
+  it("未付優先於剩 1 堂", () => {
+    expect(
+      attendanceRowTag({
+        cardStatus: status({ usableSessions: 1, level: "low" }),
+        unpaidAmount: 3200,
+      })
+    ).toEqual({ tone: "danger", label: "未付 $3,200" });
+  });
+
+  it("剩 1 堂", () => {
+    expect(
+      attendanceRowTag({ cardStatus: status({ usableSessions: 1, level: "low" }) })
+    ).toEqual({ tone: "warning", label: "剩 1 堂" });
+  });
+
+  it("這個時段已扣到卡：不標沒卡／剩幾堂，但仍標未付", () => {
+    expect(attendanceRowTag({ cardStatus: none, cardCovered: true })).toBeNull();
+    expect(
+      attendanceRowTag({ cardStatus: none, cardCovered: true, unpaidAmount: 500 })
+    ).toEqual({ tone: "danger", label: "未付 $500" });
+  });
+
+  it("不知道卡況時只看未付", () => {
+    expect(attendanceRowTag({})).toBeNull();
   });
 });

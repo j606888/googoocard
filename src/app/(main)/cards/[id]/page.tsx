@@ -30,13 +30,13 @@ const CardPage = () => {
 
   return (
     <>
-      <div className="relative h-14 bg-white border-b border-neutral-200 w-full flex items-center justify-center">
+      <div className="relative h-14 bg-white border-b border-neutral-200 w-full flex items-center justify-center px-14">
         <div className="absolute left-2 top-1/2 -translate-y-1/2">
           <Link href="/cards" aria-label="回課卡" className={buttonVariants({ variant: "ghost", size: "icon" })}>
             <ChevronLeft className="size-6 text-neutral-900" />
           </Link>
         </div>
-        <h2 className="text-lg font-bold text-neutral-900">課卡</h2>
+        <h2 className="text-lg font-bold text-neutral-900 truncate">{data?.card.name ?? "課卡"}</h2>
       </div>
 
       {isLoading || !data ? (

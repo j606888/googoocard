@@ -76,6 +76,27 @@ export interface LessonSummary {
   lastPeriodEnd: string | null;
 }
 
+/** One period of GET /lessons/agenda — the lessons list's 下一堂／上課中／還沒點名. */
+export interface AgendaPeriod {
+  id: number;
+  startTime: string;
+  endTime: string;
+  attendanceTakenAt: string | null;
+  /** 1-based position among the lesson's periods (第 N 堂). */
+  number: number;
+  /** Students with a record for this period — self check-ins included. */
+  attendeeIds: number[];
+  lesson: {
+    id: number;
+    name: string;
+    kind: LessonKind;
+    danceStyle: DanceStyleSummary;
+    teachers: TeacherSummary[];
+    studentCount: number;
+    totalPeriods: number;
+  };
+}
+
 /** One session (LessonPeriod) as returned by GET /lessons/calendar. */
 export interface CalendarPeriod {
   periodId: number;
@@ -245,6 +266,10 @@ const lessonsApi = api.injectEndpoints({
     getLesson: builder.query<Lesson, string | number>({
       query: (id) => `lessons/${id}`,
       providesTags: ["Lesson"],
+    }),
+    getLessonAgenda: builder.query<{ periods: AgendaPeriod[]; myTeacherId: number | null }, void>({
+      query: () => "lessons/agenda",
+      providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
     }),
     getCalendarPeriods: builder.query<
       CalendarPeriod[],
@@ -443,6 +468,8 @@ export const {
   useGetLessonsQuery,
   useGetLessonQuery,
   useGetCalendarPeriodsQuery,
+  useGetLessonAgendaQuery,
+  useLazyGetAttendanceQuery,
   useLazyCheckStudentCardsQuery,
   useTakeAttendanceMutation,
   useUpdateAttendanceMutation,

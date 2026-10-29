@@ -75,7 +75,7 @@
 
 ### 3. 用 `variant` prop，不要平行元件樹
 
-同一個元件用 `variant` / `layout` 多工，是本專案已確立的慣例：`StudentList variant="page"|"table"`（2026-10-26 起名單列改由 `DataView` 同一份 DOM 畫，兩個 variant 只差「點了進整頁」還是「開抽屜」）、`StudentDetail variant="page"|"pane"`（2026-10 起，取代 `layout="auto"|"tabs"`）、`StudentDetailHeader variant="page"|"pane"|"compact"`（`compact` 是手機的白色 app bar＋三格數字，2026-10-13 加）。
+同一個元件用 `variant` / `layout` 多工，是本專案已確立的慣例：`StudentList variant="page"|"table"`（2026-10-26 起名單列改由 `DataView` 同一份 DOM 畫，兩個 variant 只差「點了進整頁」還是「開抽屜」）、`StudentDetail variant="page"|"pane"`（2026-10 起，取代 `layout="auto"|"tabs"`）、`StudentDetailHeader variant="page"|"pane"|"compact"`（`compact` 是手機的白色 app bar，2026-10-13 加）。
 
 但要小心別讓它變成「把 breakpoint 用 props 重新實作一遍」。判準：**prop 名稱描述的是「用途」（`roster` / `pane`）還是「寬度」（`isDesktop` / `columns`）？** 前者健康，後者是味道（曾經的例子：`CardsSection` 的 `columns={isPane ? 2 : 1}`，2026-10 改成課卡網格 `auto-fill minmax(280px,1fr)` 依自身寬度排欄後移除）。
 
@@ -219,6 +219,7 @@ hook——正好落在下面「已知取捨」寫的界線內：小塊靜態內�
 + 硬重整 fallback 的機器太多，而收益（桌面不離開課程詳情）對單人教室工具不成比例。
 
 - `PeriodAttendanceForm` 桌面改兩欄：左邊搜尋＋名單、右邊已選清單與送出按鈕（sticky）。
+  （2026-10-29 點名頁改版：右欄改成跟手機「已勾 N 人」抽屜同一個 `AttendanceReview`——這門課還沒勾的人可補勾、已勾的兩欄格子可取消；手機點名頁不掛 BottomNav，動作列貼底。）
 - 兩個畫面的 `SubNavbar` 都改成只在 compact 渲染，桌面不再同時出現手機 app-bar 與側邊欄。
 - `CheckPeriodSuccess` 從 `max-w-md` 放寬到 `lg:max-w-3xl`（手機維持窄欄——那是逐列清單，
   全寬拉開反而難讀）。

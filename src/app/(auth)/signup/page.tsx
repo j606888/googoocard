@@ -14,14 +14,15 @@ const TITLE = "建立你的帳號";
 const SUBTITLE = "免費開始，下一步再建立教室";
 
 function SignupForm() {
+  const searchParams = useSearchParams();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  // Prefilled when the login page sends an unregistered email over (「用它建立帳號」).
+  const [email, setEmail] = useState(() => searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [loading, setLoading] = useState(false);
   const [signup] = useSignupMutation();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const redirect = searchParams.get("redirect");
 

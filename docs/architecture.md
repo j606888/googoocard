@@ -572,13 +572,13 @@ App 換教室時重新走一次（`epoch` 當 WebView 的 key）。
 |---|---|---|---|
 | `owner` | 管理員（皇冠） | 建立教室的人，恰好一位（`Classroom.ownerId`）。管理員能做的全部＋封存教室、把教室交給別人 | 退出教室（要先轉出去）、被移除、被改角色 |
 | `admin` | 管理員 | 邀請（指定角色）、改別人的角色、連結老師資料、移除成員（建立者除外） | 封存／轉移教室、改自己的角色 |
-| `teacher` | 老師 | 日常功能全部；**一定連著一筆 `Teacher`**，課程頁最上面有「我接下來的課」 | 邀請、改角色、移除成員 |
+| `teacher` | 老師 | 日常功能全部；**一定連著一筆 `Teacher`**，課程列表最上面的「下一堂／上課中」大卡優先挑自己教的課 | 邀請、改角色、移除成員 |
 | `assistant` | 小幫手 | 日常功能全部（跟老師一樣，收入頁、課卡價格也看得到改得到——刻意的決定） | 同老師；不能連老師資料 |
 
 **角色只是權限的預設組合**（見下一節「權限與模組」）。日常功能不分權限，其他所有 route 對三種角色一視同仁；「管人」是 `members.manage`（邀請連結的建立／刪除、`PATCH`／`DELETE /api/memberships/[id]`，沒有就 403 `PERMISSION_DENIED`），預設只有管理員有。
 
 **老師 ↔ 老師資料**：`Teacher.userId`（nullable，`@@unique([classroomId, userId])`——一個人在一間教室最多是一位老師）。
-課程本來就有 `LessonTeacher`，所以「我接下來的課」直接從「掛著我這位老師的課」推導（`getMyUpcomingPeriods()`，`src/service/myLessons.ts`，`GET /api/me/lessons`：今天起 7 天、手動結束的課不算），**不做釘選**。
+課程本來就有 `LessonTeacher`，所以「我的課」直接從「掛著我這位老師的課」推導，**不做釘選**：課程列表頂端的大卡（`GET /api/lessons/agenda` 回 `myTeacherId`，`pickHero()` 先挑自己教的課，自己沒課才看全教室，`src/features/lessons/lessonSchedule.ts`）。舊的「我接下來的課」區塊已拿掉；`GET /api/me/lessons`（`getMyUpcomingPeriods()`）還在，目前網頁沒在用。
 - `teacher` 一定要連（`TEACHER_REQUIRED`）；`admin`／`owner` 可選（會教課的管理員）；`assistant` 一律不連，改成小幫手會自動解除。
 - 一筆老師資料只能連一個人（409 `TEACHER_ALREADY_LINKED`）；換連另一筆時舊的自動解除（`linkTeacher()`，`src/service/team.ts`）。
 - 退出、被移除、刪帳號都會解除連結，`Teacher` 本身留著（舊課還掛著它）。
@@ -730,7 +730,7 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 選取狀態同時活在 React state 與網址：**state 是畫面的真相**（`router.replace` 只改 query 時不會讓這頁的 `useSearchParams()` 重繪，靠網址驅動會整個選不動），**網址是可分享的鏡射**，用 `history.replaceState` 寫回，所以連續看十位學生不會在瀏覽紀錄堆十筆。
 
 抽屜與獨立學生頁 `/students/[id]`（桌面）是**同一套**版面（2026-10 改版，舊的三欄完整頁已移除）：
-頁首（大頭貼、舞種 pill、標籤、編輯／⋯／購買課卡、四格統計 `StudentStats`）＋ 底線分頁 課卡／出席／動態 ＋
+頁首（大頭貼、舞種 pill、標籤、編輯／⋯／購買課卡；2026-10-29 起不放統計列，剩幾堂看課卡分頁、出席數字看出席分頁）＋ 底線分頁 課卡／出席／動態 ＋
 右側欄 `ProfilePanels`（舞種資格點一下就存、學生資料、公開頁）。側欄要內容寬度 ≥ `SIDE_PANEL_MIN_WIDTH`
 （1000px，`useElementWidth` 量的是詳情容器，不是 viewport）才擺在右邊；不夠寬就收成第四個「資料」分頁。
 ⋯ 選單：複製公開頁連結、複製 LINE 綁定連結（未綁定時）、合併到另一位學員、封存／還原學生。

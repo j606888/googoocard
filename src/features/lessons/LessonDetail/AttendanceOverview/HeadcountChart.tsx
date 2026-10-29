@@ -13,10 +13,14 @@ const COMPACT_MAX_PERIODS = 4;
 const HeadcountChart = ({
   lessonId,
   data,
+  variant = "expanded",
 }: {
   lessonId: number;
   data: PeriodHeadcount[];
+  /** `compact` (phones): no chips row for short courses and no 平均 — the roster already says it. */
+  variant?: "compact" | "expanded";
 }) => {
+  const compact = variant === "compact";
   const router = useRouter();
 
   if (data.length === 0) {
@@ -39,6 +43,7 @@ const HeadcountChart = ({
   // A short course says little as a chart and pushes the roster below the fold:
   // one line per period instead.
   if (data.length <= COMPACT_MAX_PERIODS) {
+    if (compact) return null;
     return (
       <section className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h3 className="text-sm font-bold text-neutral-700">到課</h3>
@@ -80,7 +85,7 @@ const HeadcountChart = ({
     <section>
       <div className="flex items-baseline justify-between mb-3">
         <h3 className="text-sm font-bold text-neutral-700">每堂到課人數</h3>
-        {average && (
+        {average && !compact && (
           <span className="text-xs text-neutral-500">
             平均 <span className="font-bold text-neutral-900">{average}</span> /{" "}
             {rosterSize} 人

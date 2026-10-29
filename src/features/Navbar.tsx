@@ -5,7 +5,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import ClassroomSwitcher from "./nav/ClassroomSwitcher";
 import TodoBell from "./TodoBell";
 
-const Navbar = () => {
+/**
+ * `actions`: icon buttons for this page, shown left of the bell (the lessons
+ * list puts its search there).
+ */
+const Navbar = ({ actions }: { actions?: React.ReactNode } = {}) => {
   const { data, isLoading, error } = useGetClassroomsQuery();
   const router = useRouter();
 
@@ -38,7 +42,14 @@ const Navbar = () => {
   return (
     <div className="lg:hidden w-full h-15 bg-white border-b border-neutral-200 flex items-center px-5 gap-3 sticky top-0 z-10">
       <ClassroomSwitcher />
-      <TodoBell />
+      {actions ? (
+        <div className="ml-auto flex items-center">
+          {actions}
+          <TodoBell className="" />
+        </div>
+      ) : (
+        <TodoBell />
+      )}
     </div>
   );
 };

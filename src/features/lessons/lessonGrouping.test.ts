@@ -5,7 +5,6 @@ import {
   isFlattenedView,
   shouldUseGroupedView,
   lessonRowAction,
-  listAttention,
   nextPeriodDefault,
   groupByEndMonth,
   formatPeriodRange,
@@ -136,18 +135,6 @@ describe("lessonRowAction", () => {
 
   it("固定期數沒有下一堂 → 不催排課", () => {
     expect(lessonRowAction(lesson({ id: 1 }))).toEqual({ type: "none" });
-  });
-});
-
-describe("listAttention", () => {
-  it("加總待點名堂數與待排課的課數", () => {
-    expect(
-      listAttention([
-        lesson({ id: 1, dueForAttendanceCount: 2 }),
-        lesson({ id: 2, kind: "ongoing" }),
-        lesson({ id: 3, kind: "ongoing", nextSessionDate: "2030-01-01T10:00:00.000Z" }),
-      ])
-    ).toEqual({ dueCount: 2, needsNextCount: 1 });
   });
 });
 

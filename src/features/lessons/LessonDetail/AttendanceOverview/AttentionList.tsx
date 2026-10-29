@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { format } from "date-fns";
-import { AlertCircle, ChevronRight } from "lucide-react";
+import { ChevronRight, Info } from "lucide-react";
 import { studentDetailHref } from "@/lib/studentNav";
 import {
   MAX_ATTENTION_ROWS,
@@ -12,15 +12,18 @@ import {
 } from "@/domains/attendance/rosterInsights";
 import BuyCardDrawer from "../BuyCardDrawer";
 import { Button } from "@/components/ui/button";
+import StatusTag from "@/components/StatusTag";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // The only rows on this screen that ask for a decision. Everything else is
 // reference — so this list stays short, and each row carries the action.
+// One bordered card, a divider between rows; the reason sits behind ⓘ.
 const AttentionList = ({
   items,
   acceptedCardNames,
 }: {
   items: AttentionItem[];
-  /** The lesson's cards — named in the「沒有這門課可用的卡」row. */
+  /** The lesson's cards — named in the「沒有這門課可用的卡」reason. */
   acceptedCardNames: string[];
 }) => {
   const pathname = usePathname();
@@ -33,13 +36,11 @@ const AttentionList = ({
   return (
     <section>
       <div className="flex items-center gap-2 mb-2.5">
-        <h3 className="text-sm font-bold text-neutral-700">需要注意</h3>
-        <span className="text-[10.5px] font-bold text-white bg-danger-600 rounded-full px-1.5 py-px">
-          {items.length}
-        </span>
+        <h3 className="text-base font-bold text-neutral-900">需要注意</h3>
+        <span className="text-sm text-neutral-500">{items.length}</span>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <ul className="divide-y divide-neutral-200 rounded-2xl border border-neutral-200 bg-white">
         {shown.map((item) => (
           <AttentionRow
             key={item.student.id}
@@ -48,12 +49,10 @@ const AttentionList = ({
             acceptedCardNames={acceptedCardNames}
           />
         ))}
-        {overflow > 0 && (
-          <p className="text-xs text-neutral-500 pl-1 pt-0.5">
-            還有 {overflow} 位
-          </p>
-        )}
-      </div>
+      </ul>
+      {overflow > 0 && (
+        <p className="text-[13px] text-neutral-500 pl-1 pt-2">還有 {overflow} 位</p>
+      )}
     </section>
   );
 };
@@ -68,7 +67,6 @@ const AttentionRow = ({
   acceptedCardNames: string[];
 }) => {
   const { student, kind, severity } = item;
-  const danger = severity === "danger";
 
   // "No card" splits three ways: a lesson card they may not spend yet
   // (qualification), sessions only on cards this lesson doesn't take, or
@@ -100,40 +98,47 @@ const AttentionRow = ({
         : ""
       : "再上一次就歸零，是續卡的好時機";
 
+  // The tag says what; ⓘ says why. "No card" splits three ways in the reason
+  // only — the tag and the action (買卡) are the same for all three.
+  const tag = kind === "no_card" ? "沒有可用的卡" : title;
+  const reason = kind === "no_card" ? [title, detail].filter(Boolean).join("：") : detail;
+
   return (
-    <div
-      className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 ${
-        danger ? "bg-danger-50 border-danger-200" : "bg-warning-50 border-warning-300"
-      }`}
-    >
+    <li className="flex min-h-15 items-center gap-2.5 py-2 pr-3 pl-3.5">
       <Image
         src={student.avatarUrl}
-        alt={student.name}
-        width={30}
-        height={30}
+        alt=""
+        width={34}
+        height={34}
         className="rounded-full shrink-0"
       />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[13px] font-semibold text-neutral-900 truncate">
-            {student.name}
-          </span>
-          <span
-            className={`flex items-center gap-1 text-[10.5px] font-bold shrink-0 ${
-              danger ? "text-danger-700" : "text-warning-950"
-            }`}
-          >
-            <AlertCircle className="w-3 h-3" />
-            {title}
-          </span>
-        </div>
-        {detail && (
-          <p className="text-[11px] text-neutral-500 line-clamp-2">{detail}</p>
-        )}
-      </div>
+      <Link
+        href={studentDetailHref(student.id, pathname)}
+        className="min-w-0 truncate text-[15px] font-semibold text-neutral-900 hover:text-primary-700"
+      >
+        {student.name}
+      </Link>
+      <StatusTag tone={severity}>{tag}</StatusTag>
+      {reason && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label={`${student.name}：為什麼`}
+              className="-ml-1 grid size-7 shrink-0 cursor-pointer place-items-center rounded-lg text-neutral-400 hover:text-neutral-600"
+            >
+              <Info className="size-4" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64 p-3 text-[13px] text-neutral-700">
+            {reason}
+          </PopoverContent>
+        </Popover>
+      )}
+      <span className="flex-1" />
 
       {kind === "consecutive_absence" ? (
-        <Button asChild variant="dangerSecondary" size="sm" className="gap-0.5 pr-2.5">
+        <Button asChild variant="secondary" size="sm" className="gap-0.5 pr-2.5">
           <Link href={studentDetailHref(student.id, pathname)}>
             看學生
             <ChevronRight className="size-4" />
@@ -143,18 +148,13 @@ const AttentionRow = ({
         <BuyCardDrawer
           student={student}
           trigger={(open) => (
-            <Button
-              type="button"
-              variant={danger ? "dangerSecondary" : "secondary"}
-              size="sm"
-              onClick={open}
-            >
+            <Button type="button" variant="secondary" size="sm" onClick={open}>
               買卡
             </Button>
           )}
         />
       )}
-    </div>
+    </li>
   );
 };
 

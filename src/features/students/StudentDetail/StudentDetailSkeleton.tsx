@@ -27,7 +27,7 @@ const CardSkeleton = ({ className = "" }: { className?: string }) => (
 
 /**
  * 學生詳情載入中：跟 `StudentDetailHeader` ＋ `StudentDetail` 同一個版面——大頭貼、
- * 姓名、數字格（桌面是一行數據列）、分頁列、課卡。返回連結與分頁名稱是真的，只有資料是骨架。
+ * 姓名、分頁列、課卡。返回連結與分頁名稱是真的，只有資料是骨架。
  */
 const StudentDetailSkeleton = ({
   variant = "page",
@@ -65,15 +65,6 @@ const StudentDetailSkeleton = ({
               </div>
             </div>
           </div>
-          {compact ? (
-            <div className="mt-3.5 grid grid-cols-3 gap-2">
-              {Array.from({ length: 3 }, (_, i) => (
-                <Skeleton key={i} className="rounded-xl h-[70px]" />
-              ))}
-            </div>
-          ) : (
-            <Skeleton className={`${variant === "pane" ? "mt-3" : "mt-4"} rounded-xl h-10`} />
-          )}
         </div>
       </div>
 

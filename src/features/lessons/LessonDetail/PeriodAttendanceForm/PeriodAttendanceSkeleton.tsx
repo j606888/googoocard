@@ -11,12 +11,9 @@ const PeriodInfoSkeleton = () => (
 );
 
 const SearchbarSkeleton = () => (
-  <div className="flex flex-col gap-3">
-    <div className="flex items-center justify-between">
-      <Skeleton className="h-5 w-24" />
-      <Skeleton className="h-9 w-20 rounded-lg" />
-    </div>
-    <Skeleton className="h-12 w-full rounded-xl" />
+  <div className="flex gap-2">
+    <Skeleton className="h-12 flex-1 rounded-xl" />
+    <Skeleton className="size-12 shrink-0 rounded-xl" />
   </div>
 );
 
@@ -24,15 +21,18 @@ const NAME_WIDTHS = ["w-28", "w-20", "w-24", "w-16", "w-24", "w-20"];
 const ROW_FADE = ["", "", "opacity-75", "opacity-50", "opacity-25", "opacity-25"];
 
 const StudentOptionSkeleton = ({ index }: { index: number }) => (
-  <div className={`flex items-center gap-3 px-3 py-2.5 ${ROW_FADE[index]}`}>
-    <Skeleton className="w-9 h-9 rounded-full shrink-0" />
+  <div className={`flex items-center gap-3 px-3 h-[52px] ${ROW_FADE[index]}`}>
+    <Skeleton className="size-8 rounded-full shrink-0" />
     <Skeleton className={`h-4 ${NAME_WIDTHS[index]}`} />
     <Skeleton className="ml-auto w-6 h-6 rounded-full shrink-0" />
   </div>
 );
 
 const RosterSkeleton = () => (
-  <div className="flex flex-col gap-1">
+  <div className="flex flex-col gap-1.5">
+    <div className="flex h-9 items-center">
+      <Skeleton className="h-4 w-28" />
+    </div>
     {Array.from({ length: 6 }).map((_, index) => (
       <StudentOptionSkeleton key={index} index={index} />
     ))}
@@ -49,12 +49,10 @@ const PeriodAttendanceSkeleton = ({ variant }: { variant: "compact" | "expanded"
           <RosterSkeleton />
         </div>
         <div className="flex flex-col gap-4 sticky top-6">
-          <div className="flex gap-4">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="flex flex-col gap-1 items-center">
-                <Skeleton className="w-9 h-9 rounded-full" />
-                <Skeleton className="h-4 w-10" />
-              </div>
+          <Skeleton className="h-4 w-16" />
+          <div className="grid grid-cols-2 gap-1.5">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-11 rounded-xl" />
             ))}
           </div>
           <Skeleton className="h-13 w-full rounded-xl" />
@@ -64,12 +62,10 @@ const PeriodAttendanceSkeleton = ({ variant }: { variant: "compact" | "expanded"
   }
 
   return (
-    <div className="px-5 pt-5 pb-40 flex flex-col gap-5">
+    <div className="px-5 pt-4 pb-32 flex flex-col gap-3">
       <PeriodInfoSkeleton />
-      <div className="flex flex-col gap-4">
-        <SearchbarSkeleton />
-        <RosterSkeleton />
-      </div>
+      <SearchbarSkeleton />
+      <RosterSkeleton />
     </div>
   );
 };

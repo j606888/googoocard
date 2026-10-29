@@ -25,15 +25,19 @@ const validateForm = (data: { name: string }) => {
   return errors;
 };
 
+/** 點名頁的「新增學生」抽屜。開關由呼叫端控制（搜尋列的圖示按鈕、搜尋沒結果時的按鈕）。 */
 const CreateStudent = ({
+  open,
+  onClose,
   defaultName,
   onCreate,
 }: {
+  open: boolean;
+  onClose: () => void;
   defaultName: string;
   onCreate: (student: Student) => void;
 }) => {
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(DEFAULT_AVATAR);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState("");
   const [note, setNote] = useState("");
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -80,16 +84,17 @@ const CreateStudent = ({
       setPendingTags([]);
       setTagInput("");
       setSelectedAvatarUrl(DEFAULT_AVATAR);
-      setIsDrawerOpen(false);
+      onClose();
     } catch (error) {
       setErrors({ name: "學生已存在" });
       console.error(error);
     }
   };
 
+  // 每次打開都帶入目前的搜尋字（搜尋「小美」沒結果 →「新增「小美」為學生」）。
   useEffect(() => {
-    setNewStudentName(defaultName);
-  }, [defaultName]);
+    if (open) setNewStudentName(defaultName.trim());
+  }, [open, defaultName]);
 
   const selectableTags = allTags.filter(
     (t) => t.name !== "Needs Renewal" && !pendingTags.includes(t.name)
@@ -97,14 +102,10 @@ const CreateStudent = ({
 
   return (
     <>
-      <Button size="sm" onClick={() => setIsDrawerOpen(true)}>
-        <Plus className="size-4" />
-        新增
-      </Button>
       <Drawer
         title="新增學生"
-        open={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        open={open}
+        onClose={onClose}
         onSubmit={handleSubmit}
         isLoading={isCreatingStudent}
         disabled={avatarUploading}

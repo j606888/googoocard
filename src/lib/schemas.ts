@@ -31,6 +31,10 @@ export const buyStudentCardSchema = z.object({
   price: money,
   lessonId: positiveInt.optional(),
   isPaid: z.boolean().optional().default(true),
+  // 當場收款時怎麼付的（同確認收款）。選填：只送 isPaid 的舊版 App 照常可買；
+  // isPaid:false 時兩者都忽略。末五碼只對轉帳有意義，路由會丟掉現金帶來的。
+  paymentMethod: z.enum(PaymentMethod).nullish(),
+  paymentReference: z.string().trim().max(20).nullish(),
   // 卡片備註（學生看不到），跟事後 PATCH 改的是同一欄；空白 = 不填。
   note: z.string().max(500).nullish(),
 });

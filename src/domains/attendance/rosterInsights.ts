@@ -236,7 +236,8 @@ export function attentionItems(students: RosterStudent[]): AttentionItem[] {
     items.push({
       student,
       kind,
-      severity: kind === "low_sessions" ? "warning" : "danger",
+      // Only drifting is red: "no card" is a sale to make, not an alarm.
+      severity: kind === "consecutive_absence" ? "danger" : "warning",
       absenceRun,
       lastAttendedStartTime: lastAttended,
       usableSessions,
@@ -285,6 +286,24 @@ export function buildRosterRows(
     absenceRun: trailingAbsenceRun(student.attendances),
     lastAttendedStartTime: lastAttendedStartTime(student.attendances),
   }));
+}
+
+/**
+ * The window of cells a phone roster row has room for: up to `max`, ending
+ * just after the latest taken period (so the next session shows as the one
+ * still to come). Short lessons come back whole.
+ */
+export function recentCells<T extends { status: AttendanceStatus }>(
+  cells: T[],
+  max: number
+): T[] {
+  if (cells.length <= max) return cells;
+  let lastTaken = -1;
+  cells.forEach((cell, index) => {
+    if (cell.status !== "not_started") lastTaken = index;
+  });
+  const end = Math.min(cells.length, Math.max(lastTaken + 2, max));
+  return cells.slice(end - max, end);
 }
 
 /** Same ranking the triage list uses, so the two agree about who is worrying. */
