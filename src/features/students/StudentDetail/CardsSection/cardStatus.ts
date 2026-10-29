@@ -14,7 +14,7 @@ type CardLike = {
   attendanceRecords: { periodStartTime: number | string }[];
 };
 
-/** 有效 = 還有堂數而且沒被停用；其餘歸「已結束」。StudentStats 用同一條規則。 */
+/** 有效 = 還有堂數而且沒被停用；其餘歸「已結束」。 */
 export const isCardEnded = (card: Pick<CardLike, "remainingSessions" | "expiredAt">) =>
   card.remainingSessions === 0 || !!card.expiredAt;
 

@@ -14,14 +14,14 @@ type Dot = "left" | "low" | "used" | "transferred" | "unused";
 
 const DOT_CLASS: Record<Dot, string> = {
   left: "bg-primary-600",
-  low: "bg-danger-600",
+  low: "bg-warning-500",
   used: "bg-neutral-200",
   transferred: "border-2 border-dashed border-primary-700",
   unused: "border-[1.5px] border-neutral-300",
 };
 
 /**
- * 一堂一顆圓點（設計稿「票根」）。有效的卡：可用的在前（綠，快用完時紅），
+ * 一堂一顆圓點（設計稿「票根」）。有效的卡：可用的在前（綠，快用完時橘），
  * 已上課的在後（灰）。已結束的卡：上過的在前（灰），剩下的依結束方式——
  * 轉讓出去是綠色虛線圈，轉換／停用時沒用到的是灰色空心圈。
  * 純裝飾：堂數一定另外有文字，所以整組 aria-hidden。
@@ -49,7 +49,7 @@ const SessionDots = ({
     return (
       <div aria-hidden className={cn("h-1.5 w-24 rounded-full bg-neutral-100 overflow-hidden", className)}>
         <div
-          className={cn("h-full rounded-full", outcome ? "bg-neutral-300" : low ? "bg-danger-600" : "bg-primary-600")}
+          className={cn("h-full rounded-full", outcome ? "bg-neutral-300" : low ? "bg-warning-500" : "bg-primary-600")}
           style={{ width: `${ratio}%` }}
         />
       </div>

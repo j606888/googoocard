@@ -91,7 +91,7 @@ const StudentsTableView = () => {
                   </>
                 }
               />
-              <AttentionBar student={student} hideRenewal className="flex-none px-6 pt-3 bg-white" />
+              <AttentionBar student={student} className="flex-none px-6 pt-3 bg-white" />
               <StudentDetail student={student} variant="pane" />
             </>
           )}

@@ -86,7 +86,7 @@ const StudentCard = ({
         </div>
         <div className="flex items-end justify-between gap-3">
           <div className="flex items-baseline gap-1.5 leading-none tabular-nums">
-            <span className={cn("text-[40px] font-extrabold tracking-tight", low ? "text-danger-700" : "text-neutral-900")}>
+            <span className="text-[40px] font-extrabold tracking-tight text-neutral-900">
               {studentCard.remainingSessions}
             </span>
             <span className="text-sm font-medium text-neutral-600">/ {studentCard.totalSessions} 堂</span>
@@ -105,7 +105,7 @@ const StudentCard = ({
       <div className="flex items-center justify-between gap-2 min-h-[26px] px-5 pt-3 pb-3.5">
         <span className="flex items-center gap-1.5">
           {unpaid && <StatusTag tone="warning">未付 ${formatMoney(studentCard.finalPrice)}</StatusTag>}
-          {low && <StatusTag tone="danger">快用完</StatusTag>}
+          {low && <StatusTag tone="warning">快用完</StatusTag>}
         </span>
         <span className="text-[13px] text-neutral-500 tabular-nums">
           {lastUse === null ? "還沒用過" : `上次 ${isToday(lastUse) ? "今天" : shortDate(lastUse)}`}

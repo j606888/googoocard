@@ -354,11 +354,24 @@ const studentsApi = api.injectEndpoints({
       query: ({ id }) => `students/${id}/student-cards`,
       providesTags: ["StudentCard"],
     }),
-    createStudentCard: builder.mutation<StudentCard, { id: number; cardId: number; sessions: number; price: number; lessonId?: number; isPaid?: boolean; note?: string }>({
-      query: ({ id, cardId, sessions, price, lessonId, isPaid, note }) => ({
+    createStudentCard: builder.mutation<
+      StudentCard,
+      {
+        id: number;
+        cardId: number;
+        sessions: number;
+        price: number;
+        lessonId?: number;
+        isPaid?: boolean;
+        paymentMethod?: PaymentMethod | null;
+        paymentReference?: string | null;
+        note?: string;
+      }
+    >({
+      query: ({ id, ...body }) => ({
         url: `students/${id}/student-cards`,
         method: "POST",
-        body: { cardId, sessions, price, lessonId, isPaid, note },
+        body,
       }),
       invalidatesTags: ["StudentCard", "Student"],
     }),

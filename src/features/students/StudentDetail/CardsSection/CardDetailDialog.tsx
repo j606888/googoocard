@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { fieldControlClass } from "@/components/Field";
 import StatusTag from "@/components/StatusTag";
+import MenuItem from "@/components/MenuItem";
 import { cn } from "@/lib/utils";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -354,7 +355,7 @@ const CardDetailDialog = ({
                       <span
                         className={cn(
                           "text-[56px] font-extrabold tracking-tight",
-                          low ? "text-danger-700" : "text-primary-900"
+                          low ? "text-warning-950" : "text-primary-900"
                         )}
                       >
                         {studentCard.remainingSessions}
@@ -652,29 +653,5 @@ const EndedHero = ({
     </div>
   );
 };
-
-const MenuItem = ({
-  icon,
-  danger = false,
-  onClick,
-  children,
-}: {
-  icon: React.ReactNode;
-  danger?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cn(
-      "w-full h-11 flex items-center gap-2.5 rounded-lg px-3 text-sm font-medium text-left cursor-pointer",
-      danger ? "text-danger-700 hover:bg-danger-50" : "text-neutral-700 hover:bg-neutral-50"
-    )}
-  >
-    {icon}
-    {children}
-  </button>
-);
 
 export default CardDetailDialog;
