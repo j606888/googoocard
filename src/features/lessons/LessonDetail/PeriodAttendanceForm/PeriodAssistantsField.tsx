@@ -2,10 +2,11 @@ import { useState } from "react";
 import MultiSelect from "@/components/MultiSelect";
 import { FieldLabel } from "@/components/Field";
 import TeacherForm from "@/features/teachers/TeacherForm";
+import { canAssist } from "@/lib/teachers";
 import { useGetTeachersQuery } from "@/store/slices/teachers";
 
 /**
- * 「今天的助教」：這堂誰來幫忙。這堂的授課老師不列出；只當助教的排前面；
+ * 「今天的助教」：這堂誰來幫忙。這堂的授課老師、只教課的老師不列出；只當助教的排前面；
  * 封存的老師不能新選，已經掛著的照樣顯示。
  */
 const PeriodAssistantsField = ({
@@ -23,9 +24,10 @@ const PeriodAssistantsField = ({
   const options = (teachers ?? [])
     .filter(
       (teacher) =>
-        !lessonTeacherIds.includes(teacher.id) && (!teacher.archivedAt || value.includes(teacher.id))
+        !lessonTeacherIds.includes(teacher.id) &&
+        ((!teacher.archivedAt && canAssist(teacher.kind)) || value.includes(teacher.id))
     )
-    .sort((a, b) => Number(b.isAssistant) - Number(a.isAssistant))
+    .sort((a, b) => Number(b.kind === "ASSISTANT") - Number(a.kind === "ASSISTANT"))
     .map((teacher) => ({ label: teacher.name, value: teacher.id }));
 
   return (
@@ -43,7 +45,7 @@ const PeriodAssistantsField = ({
         <TeacherForm
           key={formKey}
           open
-          defaultIsAssistant
+          defaultKind="ASSISTANT"
           onClose={() => setFormKey(null)}
           onCreated={(teacher) => onChange([...value, teacher.id])}
         />

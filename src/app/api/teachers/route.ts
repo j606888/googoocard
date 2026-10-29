@@ -33,7 +33,7 @@ export const GET = apiRoute(async ({ classroomId }) => {
 });
 
 export const POST = apiRoute(async ({ request, classroomId }) => {
-  const { name, color, note, isAssistant } = await parseBody(request, createTeacherSchema);
+  const { name, color, note, kind } = await parseBody(request, createTeacherSchema);
 
   const taken = color
     ? []
@@ -48,7 +48,7 @@ export const POST = apiRoute(async ({ request, classroomId }) => {
       name,
       color: color ?? firstFreeTeacherColor(taken),
       note: note ?? null,
-      isAssistant: isAssistant ?? false,
+      kind: kind ?? "TEACHER",
     },
     select: teacherPayloadSelect,
   });

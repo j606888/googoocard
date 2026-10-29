@@ -161,6 +161,13 @@ model Membership {
   @@index([classroomId])
 }
 
+/// 老師在教室裡做什麼：TEACHER 只教課、ASSISTANT 只當助教、BOTH 都會。
+enum TeacherKind {
+  TEACHER
+  ASSISTANT
+  BOTH
+}
+
 model Teacher {
   id                     Int                     @id @default(autoincrement())
   name                   String
@@ -176,8 +183,8 @@ model Teacher {
   // under 我接下來的課 on the lessons page. One per user per classroom.
   userId                 Int?
   user                   User?                   @relation(fields: [userId], references: [id])
-  // 只當助教：排課選老師時不列出，點名選助教時排前面。
-  isAssistant            Boolean                 @default(false)
+  // 老師／助教／都是：只當助教的，排課選老師時不列出；只教課的，點名選助教時不列出。
+  kind                   TeacherKind             @default(TEACHER)
   assistedPeriods        LessonPeriodAssistant[]
   financeSplitShares     FinanceSplitShare[]
   financeVenueRules      FinanceSplitRule[]      @relation("FinanceVenueTeacher")

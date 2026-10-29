@@ -7,6 +7,7 @@ import type { LocationSummary } from "@/lib/locations";
 import type { CardStatus } from "@/domains/attendance/rosterInsights";
 import type { DanceLevels } from "@/domains/qualification";
 import type { LessonKind } from "@/lib/lessonKind";
+import type { TeacherKind } from "@/lib/teachers";
 
 export interface Lesson {
   id: number;
@@ -150,7 +151,7 @@ export interface AttendanceRecord {
 }
 
 export interface PeriodAssistants {
-  assistants: { id: number; name: string; color: string; isAssistant: boolean }[];
+  assistants: { id: number; name: string; color: string; kind: TeacherKind }[];
   /** true ＝ 這堂還沒記過助教，這是同一天上一堂帶過來的建議，還沒存。 */
   suggested: boolean;
 }

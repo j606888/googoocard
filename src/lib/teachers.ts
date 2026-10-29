@@ -25,6 +25,13 @@ export function firstFreeTeacherColor(taken: { color: string }[]): DanceStyleCol
   return TEACHER_COLOR_ORDER.find((color) => !used.has(color)) ?? TEACHER_COLOR_ORDER[0];
 }
 
+/** 老師在教室裡做什麼（`Teacher.kind`）。只當助教的不列在排課的老師選單；只教課的不列在點名的助教選單。 */
+export const TEACHER_KINDS = ["TEACHER", "ASSISTANT", "BOTH"] as const;
+export type TeacherKind = (typeof TEACHER_KINDS)[number];
+export const TEACHER_KIND_LABELS: Record<TeacherKind, string> = { TEACHER: "老師", ASSISTANT: "助教", BOTH: "都是" };
+export const canTeach = (kind: TeacherKind) => kind !== "ASSISTANT";
+export const canAssist = (kind: TeacherKind) => kind !== "TEACHER";
+
 /** The avatar letter: first character (a whole CJK character or emoji), upper-cased. */
 export function teacherInitial(name: string): string {
   return (Array.from(name.trim())[0] ?? "?").toUpperCase();
@@ -41,6 +48,6 @@ export const teacherSummarySelect = {
 export const teacherPayloadSelect = {
   ...teacherSummarySelect,
   note: true,
-  isAssistant: true,
+  kind: true,
   archivedAt: true,
 } satisfies Prisma.TeacherSelect;

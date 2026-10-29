@@ -2,6 +2,7 @@ import { useState } from "react";
 import MultiSelect from "@/components/MultiSelect";
 import { FieldLabel } from "@/components/Field";
 import TeacherForm from "@/features/teachers/TeacherForm";
+import { canTeach } from "@/lib/teachers";
 import { useGetTeachersQuery } from "@/store/slices/teachers";
 
 const TeacherSelect = ({ selectedTeacherIds, onChange, error }: { selectedTeacherIds: number[], onChange: (value: number[]) => void, error?: string }) => {
@@ -13,7 +14,7 @@ const TeacherSelect = ({ selectedTeacherIds, onChange, error }: { selectedTeache
   const teacherOptions = teachers
     ?.filter(
       (teacher) =>
-        (!teacher.archivedAt && !teacher.isAssistant) || selectedTeacherIds.includes(teacher.id)
+        (!teacher.archivedAt && canTeach(teacher.kind)) || selectedTeacherIds.includes(teacher.id)
     )
     .map((teacher) => ({
       label: teacher.name,

@@ -25,7 +25,7 @@ const get = (lessonId: number, periodId: number) =>
 const put = (lessonId: number, periodId: number, teacherIds: number[]) =>
   PUT(jsonRequest("PUT", { teacherIds }), params(lessonId, periodId));
 
-const teacher = (classroomId: number, name: string, data: { archivedAt?: Date; isAssistant?: boolean } = {}) =>
+const teacher = (classroomId: number, name: string, data: { archivedAt?: Date; kind?: "TEACHER" | "ASSISTANT" | "BOTH" } = {}) =>
   prisma.teacher.create({ data: { classroomId, name, ...data } });
 
 /** 10/25（日）台北時間 hh:00 那一堂。 */
@@ -51,7 +51,7 @@ describe("/api/lessons/[id]/periods/[periodId]/assistants", () => {
     classroomId = (await createClassroom()).id;
     auth.classroomId = classroomId;
     sean = await teacher(classroomId, "Sean");
-    akai = await teacher(classroomId, "阿凱", { isAssistant: true });
+    akai = await teacher(classroomId, "阿凱", { kind: "ASSISTANT" });
     nini = await teacher(classroomId, "Nini");
     const { lesson } = await createLesson(classroomId, { name: "Body movement" });
     lessonId = lesson.id;
@@ -163,12 +163,18 @@ describe("/api/lessons/[id]/periods/[periodId]/assistants", () => {
     expect(res.status).toBe(409);
   });
 
-  it("老師資料可以標成只當助教", async () => {
-    let res = await CREATE_TEACHER(jsonRequest("POST", { name: "小幫手", isAssistant: true }), routeParams({}));
-    const created = await res.json();
-    expect(created.isAssistant).toBe(true);
+  it("老師的身分：預設只教課，可以改成助教或都是", async () => {
+    let res = await CREATE_TEACHER(jsonRequest("POST", { name: "新老師" }), routeParams({}));
+    expect((await res.json()).kind).toBe("TEACHER");
 
-    res = await UPDATE_TEACHER(jsonRequest("PATCH", { isAssistant: false }), routeParams({ id: String(created.id) }));
-    expect((await res.json()).isAssistant).toBe(false);
+    res = await CREATE_TEACHER(jsonRequest("POST", { name: "小幫手", kind: "ASSISTANT" }), routeParams({}));
+    const created = await res.json();
+    expect(created.kind).toBe("ASSISTANT");
+
+    res = await UPDATE_TEACHER(jsonRequest("PATCH", { kind: "BOTH" }), routeParams({ id: String(created.id) }));
+    expect((await res.json()).kind).toBe("BOTH");
+
+    res = await UPDATE_TEACHER(jsonRequest("PATCH", { kind: "BOSS" }), routeParams({ id: String(created.id) }));
+    expect(res.status).toBe(400);
   });
 });

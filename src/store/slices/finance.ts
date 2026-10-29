@@ -1,4 +1,5 @@
 import { api } from "../api";
+import type { TeacherKind } from "@/lib/teachers";
 import type { EntryCategory } from "@/domains/finance/money";
 import type { Quest } from "@/domains/finance/schemas";
 
@@ -270,7 +271,7 @@ export interface LessonSplitRow {
 }
 
 export interface TeacherMonthPerson {
-  teacher: { id: number; name: string; color: string; isAssistant: boolean; hasAccount: boolean };
+  teacher: { id: number; name: string; color: string; kind: TeacherKind; hasAccount: boolean };
   teach: number;
   venue: number;
   assistant: number;

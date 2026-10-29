@@ -2,6 +2,7 @@ import { api } from '../api';
 import type { DanceStyleColor, DanceStyleSummary } from '@/lib/danceStyles';
 import type { MonthSummary, PeriodState } from '@/lib/teacherStats';
 import type { LessonKind } from '@/lib/lessonKind';
+import type { TeacherKind } from '@/lib/teachers';
 
 /** What lessons embed about their teachers. */
 export interface TeacherSummary {
@@ -12,8 +13,8 @@ export interface TeacherSummary {
 
 export interface Teacher extends TeacherSummary {
   note: string | null;
-  /** 只當助教：排課選老師時不列出，點名選助教時排前面。 */
-  isAssistant: boolean;
+  /** 老師／助教／都是：只當助教的排課時不列出，只教課的選助教時不列出。 */
+  kind: TeacherKind;
   /** The member this teacher is linked to (團隊), or null. */
   userId: number | null;
   archivedAt: string | null;
@@ -60,7 +61,7 @@ export interface TeacherLessonRow {
 }
 
 export interface TeacherDetail {
-  teacher: TeacherSummary & { note: string | null; isAssistant: boolean; archivedAt: string | null };
+  teacher: TeacherSummary & { note: string | null; kind: TeacherKind; archivedAt: string | null };
   month: string;
   danceStyles: DanceStyleSummary[];
   firstTaughtAt: string | null;
@@ -85,7 +86,7 @@ export interface TeacherFields {
   color?: DanceStyleColor;
   /** Blank clears it. */
   note?: string;
-  isAssistant?: boolean;
+  kind?: TeacherKind;
 }
 
 // A teacher's name and colour show up inside lessons too.

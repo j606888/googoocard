@@ -81,7 +81,7 @@ describe("水庫第二步：分帳規則、每堂分帳、驗收", () => {
     sean = (await prisma.teacher.create({ data: { classroomId, name: "Sean", userId: ownerId } })).id;
     nini = (await prisma.teacher.create({ data: { classroomId, name: "Nini" } })).id;
     dingding = (await prisma.teacher.create({ data: { classroomId, name: "丁丁" } })).id;
-    akai = (await prisma.teacher.create({ data: { classroomId, name: "阿凱", isAssistant: true } })).id;
+    akai = (await prisma.teacher.create({ data: { classroomId, name: "阿凱", kind: "ASSISTANT" } })).id;
     tenCardId = (await createCard(classroomId, { name: "10 堂", price: 3000, sessions: 10 })).id;
     await createCard(classroomId, { name: "單堂", price: 350, sessions: 1 });
     const tainan = await createLocation(classroomId, { name: "台南" });

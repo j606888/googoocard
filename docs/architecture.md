@@ -25,7 +25,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 │             └── Event（學生事件日誌：簽到、買卡、課卡用完）
 ├── DanceStyle（教室自訂舞種：name / color 色盤 key / hasLevels 分階 / sortOrder / archivedAt）
 ├── Card（課卡種類：價格/堂數；isPracticeCard + danceStyleId 定義複習卡）
-├── Teacher（教室內的老師實體，不是 User：name / color 色盤 key / note / isAssistant 只當助教 / archivedAt）
+├── Teacher（教室內的老師實體，不是 User：name / color 色盤 key / note / kind 老師・助教・都是 / archivedAt）
 └── Lesson（danceStyleId + level 初/中/進階 + kind fixed/ongoing + status inProgress/finished）
     ├── LessonCard（此課程接受哪些課卡）
     ├── LessonTeacher
@@ -122,7 +122,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 入口：`src/app/api/lessons/[id]/periods/[periodId]/attendance/route.ts`
 邏輯：`src/domains/attendance/attendance.service.ts`
 
-**今天的助教**（`…/periods/[periodId]/assistants`，`src/service/lessonAssistants.ts`）：點名頁一行選這堂誰來幫忙，送出點名後整組 PUT（跟 studentIds 一樣以送來的為準）。沒記過、也還沒點名的堂，GET 會帶同一天、同一分部、比這堂早、有記助教的最近一堂當建議（`suggested: true`，還沒存）。這堂的授課老師不能當助教；封存的老師不能新加。`Teacher.isAssistant`＝只當助教：開課的老師選單不列出，選助教時排前面。當過助教的老師跟教過課一樣不能刪、只能封存。點名的 GET 回傳形狀沒變（iOS App 也讀它），助教另開一支。助教費是水庫的事（`docs/finance-db.md`）。
+**今天的助教**（`…/periods/[periodId]/assistants`，`src/service/lessonAssistants.ts`）：點名頁一行選這堂誰來幫忙，送出點名後整組 PUT（跟 studentIds 一樣以送來的為準）。沒記過、也還沒點名的堂，GET 會帶同一天、同一分部、比這堂早、有記助教的最近一堂當建議（`suggested: true`，還沒存）。這堂的授課老師不能當助教；封存的老師不能新加。`Teacher.kind`（`TEACHER` 只教課／`ASSISTANT` 只當助教／`BOTH` 都是，`src/lib/teachers.ts` 的 `canTeach`／`canAssist`）：只當助教的，開課的老師選單不列出、選助教時排前面；只教課的，選助教時不列出。新增的老師預設只教課；加這欄的 migration 把原有的老師都設成「都是」，維持原本誰都能選當助教。當過助教的老師跟教過課一樣不能刪、只能封存。點名的 GET 回傳形狀沒變（iOS App 也讀它），助教另開一支。助教費是水庫的事（`docs/finance-db.md`）。
 
 ### 自動選卡（POST/PUT 點名時，`selectStudentCard`）
 

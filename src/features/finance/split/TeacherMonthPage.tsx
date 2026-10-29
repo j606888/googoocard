@@ -93,7 +93,7 @@ export default function TeacherMonthPage() {
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="flex items-center gap-2">
                         <span className="font-bold text-neutral-900">{p.teacher.name}</span>
-                        <span className="text-xs text-neutral-500">{p.teacher.isAssistant ? "助教" : p.teacher.hasAccount ? "成員" : "沒帳號"}</span>
+                        <span className="text-xs text-neutral-500">{p.teacher.kind === "ASSISTANT" ? "助教" : p.teacher.hasAccount ? "成員" : "沒帳號"}</span>
                       </span>
                       <span className="truncate text-[13px] text-neutral-500">{parts(p)}</span>
                       {p.missing.length > 0 && <span className="mt-1"><StatusTag tone="warning">可能少算 {p.missing.length} 堂</StatusTag></span>}

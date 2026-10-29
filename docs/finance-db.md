@@ -64,8 +64,8 @@ model LessonPeriodAssistant {
   @@index([teacherId])
 }
 
-// Teacher 加一欄：只當助教的人，排課選老師時不列出（點名選助教時列在最前面）。
-//   isAssistant Boolean @default(false)
+// Teacher 加一欄：老師／助教／都是。只當助教的，排課選老師時不列出（點名選助教時列在最前面）；只教課的，選助教時不列出。
+//   kind TeacherKind @default(TEACHER)   // TEACHER 只教課／ASSISTANT 只當助教／BOTH 都是（原本是 isAssistant，2026-10-29 改）
 ```
 
 ## 4. 第二步：分帳規則、驗收
@@ -457,7 +457,7 @@ model FinanceReconcile {
 
 ## 10. 建議的 migration 順序
 
-1. **核心**：`LessonPeriodAssistant`、`Teacher.isAssistant`，點名頁加「今天的助教」（另一個分支）。
+1. **核心**：`LessonPeriodAssistant`、`Teacher.kind`，點名頁加「今天的助教」（另一個分支）。
 2. **第二步**：`FinanceSplitRule`、`FinanceSplitShare`、`FinanceLessonSettlement`、`FinanceSettlementLine`、`FinanceSettlementRevision`、`FinanceEntry.locationId`、`FinanceSetting.payday`。
 3. **活動**：`FinanceActivity`、`FinanceActivityLine`。
 4. **第三步**：`FinanceMonth`、`FinancePayslip`、`FinancePayslipLine`、`FinanceAdjustment`、`FinanceClaim`、`FinanceClaimPhoto`，`FinanceRemittance`／`FinanceEntry` 加連結欄位。

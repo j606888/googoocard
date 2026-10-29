@@ -1,17 +1,17 @@
 import prisma from "@/lib/prisma";
 import { badRequest, notFound } from "@/lib/apiError";
 import { parseTaipeiDateRange, toTaipeiDateKey } from "@/lib/taipei-date";
-import { teacherSummarySelect } from "@/lib/teachers";
+import { teacherSummarySelect, type TeacherKind } from "@/lib/teachers";
 
 /**
  * 每堂的助教（點名頁「今天的助教」）。核心資料：不開水庫也記誰來幫忙；
  * 水庫照分帳規則算助教費（docs/finance-db.md §3）。
  */
 
-const assistantSelect = { ...teacherSummarySelect, isAssistant: true } as const;
+const assistantSelect = { ...teacherSummarySelect, kind: true } as const;
 
 export type PeriodAssistants = {
-  assistants: { id: number; name: string; color: string; isAssistant: boolean }[];
+  assistants: { id: number; name: string; color: string; kind: TeacherKind }[];
   /** true ＝ 這堂還沒記過助教，這是同一天上一堂帶過來的建議，還沒存。 */
   suggested: boolean;
 };

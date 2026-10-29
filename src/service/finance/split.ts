@@ -452,7 +452,7 @@ export async function getTeacherMonth(
     getLessonSplits(classroomId, toTaipeiDateKey(start), toTaipeiDateKey(new Date(end.getTime() - 1)), now),
     prisma.teacher.findMany({
       where: { classroomId },
-      select: { id: true, name: true, color: true, isAssistant: true, userId: true },
+      select: { id: true, name: true, color: true, kind: true, userId: true },
     }),
   ]);
 
@@ -500,7 +500,7 @@ export async function getTeacherMonth(
       .map(([teacherId, p]) => {
         const t = byId.get(teacherId)!;
         return {
-          teacher: { id: t.id, name: t.name, color: t.color, isAssistant: t.isAssistant, hasAccount: t.userId !== null },
+          teacher: { id: t.id, name: t.name, color: t.color, kind: t.kind, hasAccount: t.userId !== null },
           ...p,
           lessonCount: p.items.filter((i) => i.teach > 0).length,
           pendingCount: p.items.filter((i) => i.status !== "VERIFIED").length,
