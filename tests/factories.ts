@@ -197,9 +197,11 @@ export async function createLesson(
     locationId = null,
     level = 1,
     kind = "fixed",
+    sessionsPerAttendance = 1,
   }: {
     name?: string;
     kind?: "fixed" | "ongoing";
+    sessionsPerAttendance?: number;
     /** Omitted: the classroom's default "Bachata" style (created on first use). */
     danceStyleId?: number;
     level?: number;
@@ -216,6 +218,7 @@ export async function createLesson(
       danceStyleId: danceStyleId ?? (await defaultDanceStyle(classroomId)).id,
       level,
       kind,
+      sessionsPerAttendance,
       status: "inProgress",
       groupId,
       locationId,

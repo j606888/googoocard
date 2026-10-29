@@ -111,6 +111,8 @@ export interface StudentAttendance {
   source: "TEACHER" | "STUDENT";
   /** 學生自助簽到、老師還沒定案這個時段 */
   pending: boolean;
+  /** 這次扣了幾堂（外師課 = 2） */
+  sessionsUsed: number;
 }
 
 export interface StudentCardWithCard extends StudentCard {
@@ -122,6 +124,8 @@ export interface StudentCardWithCard extends StudentCard {
     source: "TEACHER" | "STUDENT";
     /** 學生自助簽到、老師還沒定案這個時段 */
     pending: boolean;
+    /** 這次扣了幾堂（外師課 = 2） */
+    sessionsUsed: number;
   }[];
 }
 

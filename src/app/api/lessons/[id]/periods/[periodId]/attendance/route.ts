@@ -128,7 +128,7 @@ export async function GET(
         cardId: studentCard.cardId,
         cardName: studentCard.card.name,
         remainingSessions: studentCard.remainingSessions,
-        income: studentCard.finalPrice / studentCard.totalSessions,
+        income: (studentCard.finalPrice / studentCard.totalSessions) * record.sessionsUsed,
       };
     } else {
       const { uncheckedType, recommendedStudentCardId, reason } =
@@ -145,6 +145,7 @@ export async function GET(
       studentAvatarUrl: record.student.avatarUrl,
       studentName: record.student.name,
       source: record.source,
+      sessionsUsed: record.sessionsUsed,
       ...studentCardData,
     };
   });
@@ -235,7 +236,8 @@ function shouldUsePracticePriority(lesson: LessonWithCards, student: StudentWith
 function getMatchedCards(lesson: LessonWithCards, student: StudentWithCards) {
   return student.studentCards.filter(
     (studentCard) =>
-      studentCard.remainingSessions > 0 &&
+      // 一次扣不只一格的課（外師課）：剩餘不夠扣的卡不算。
+      studentCard.remainingSessions >= lesson.sessionsPerAttendance &&
       !studentCard.expiredAt &&
       lesson.cards.some((lessonCard) => lessonCard.cardId === studentCard.cardId)
   );

@@ -32,8 +32,10 @@ export async function POST(
       // Re-binding would charge a second card without refunding the first.
       throw new ApiError(409, "Attendance record already has a card");
     }
-    if (studentCard.remainingSessions <= 0) {
-      throw new ApiError(400, "Student card has no sessions left");
+    // 外師課一次扣好幾格：不夠扣就不能用（不拆到兩張卡），請學生買新卡。
+    const sessions = attendanceRecord.sessionsUsed;
+    if (studentCard.remainingSessions < sessions) {
+      throw new ApiError(400, "Student card has not enough sessions left");
     }
 
     await prisma.$transaction(async (tx) => {
@@ -41,7 +43,7 @@ export async function POST(
         where: { id: studentCard.id },
         data: {
           remainingSessions: {
-            decrement: 1,
+            decrement: sessions,
           },
         },
         include: {

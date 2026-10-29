@@ -28,11 +28,16 @@ export type StudentWithLessonCards = Prisma.StudentGetPayload<{
  * student ids from another classroom and have their cards read or deducted —
  * the route guards only prove the LESSON belongs to the caller, not the
  * students. See docs/roadmap.md P0-3.
+ *
+ * `sessionsNeeded` = the lesson's `sessionsPerAttendance`: a card with fewer
+ * sessions left can't pay for one attendance (no splitting across cards — the
+ * student buys a new card instead).
  */
 export async function fetchStudentsWithValidCards(
   studentIds: number[],
   validCardIds: number[],
-  classroomId: number
+  classroomId: number,
+  sessionsNeeded = 1
 ): Promise<StudentWithLessonCards[]> {
   return prisma.student.findMany({
     where: {
@@ -43,7 +48,7 @@ export async function fetchStudentsWithValidCards(
       studentCards: {
         where: {
           cardId: { in: validCardIds },
-          remainingSessions: { gt: 0 },
+          remainingSessions: { gte: Math.max(1, sessionsNeeded) },
           expiredAt: null,
         },
         include: {

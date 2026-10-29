@@ -72,8 +72,13 @@ const BuyAndUseForm = ({
     [cardOptions, qualifications, lesson, allowManualOverride]
   );
 
+  // 外師課一次扣好幾格：新卡至少要夠扣這一次。
+  const sessionsNeeded = record.sessionsUsed ?? 1;
+  const sessionsTooFew = !!cardSessions && parseInt(cardSessions) < sessionsNeeded;
+
   const isCardDisabled = (card: Card) => {
     if (isCardForbidden(card)) return true;
+    if (card.sessions < sessionsNeeded) return true;
     return shouldLockGeneralCards && !card.isPracticeCard;
   };
 
@@ -163,9 +168,9 @@ const BuyAndUseForm = ({
         onOpenChange={(next) => (next ? setOpen(true) : handleClose())}
         inline={inline}
         onSubmit={handleSubmit}
-        submitText="買卡並使用"
+        submitText={sessionsNeeded > 1 ? `買卡並扣 ${sessionsNeeded} 格` : "買卡並使用"}
         isLoading={isLoading || isConsumeLoading}
-        disabled={!selectedCardId || !cardSessions || !cardPrice}
+        disabled={!selectedCardId || !cardSessions || !cardPrice || sessionsTooFew}
       >
         <div className="mb-4">
           <FieldLabel>選擇課卡</FieldLabel>
@@ -234,7 +239,10 @@ const BuyAndUseForm = ({
                   value={cardSessions}
                   onChange={handleCardSessionsChange}
                   type="number"
-                  error={errors.cardSessions}
+                  error={
+                    errors.cardSessions ||
+                    (sessionsTooFew ? `這堂要扣 ${sessionsNeeded} 格` : undefined)
+                  }
                 />
               </div>
             </div>

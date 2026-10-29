@@ -23,6 +23,7 @@ const at = (startTime: string, extra: Partial<StudentAttendance> = {}): StudentA
   studentCard: null,
   source: "TEACHER",
   pending: false,
+  sessionsUsed: 1,
   ...extra,
 });
 

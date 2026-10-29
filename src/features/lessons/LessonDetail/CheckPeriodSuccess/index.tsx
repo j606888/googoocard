@@ -194,7 +194,10 @@ const CheckPeriodSuccess = () => {
                 size="small"
                 className="mr-auto"
               />
-              <StatusTag tone="positive">{attendanceRecord?.cardName}</StatusTag>
+              <StatusTag tone="positive">
+                {attendanceRecord?.cardName}
+                {attendanceRecord.sessionsUsed > 1 && ` −${attendanceRecord.sessionsUsed}`}
+              </StatusTag>
               <div className="text-sm text-neutral-600 w-24 text-right">
                 {showIncome ? (
                   <span className="font-semibold text-neutral-900">${Math.round(attendanceRecord?.income)}</span>

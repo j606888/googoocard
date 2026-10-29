@@ -196,6 +196,7 @@ async function createAttendanceRecord(
   lessonPeriodId: number,
   studentId: number,
   studentCardId: number | null,
+  sessionsUsed: number,
   source: AttendanceSource = AttendanceSource.TEACHER
 ) {
   // Ensure lesson-student relationship exists
@@ -219,6 +220,7 @@ async function createAttendanceRecord(
       lessonPeriodId,
       studentId,
       studentCardId,
+      sessionsUsed,
       source,
     },
   });
@@ -246,15 +248,16 @@ async function createAttendanceEvent(
 async function processStudentCardUsage(
   tx: Prisma.TransactionClient,
   studentCard: StudentCard,
-  studentId: number
+  studentId: number,
+  sessions: number
 ) {
-  // Guarded decrement: only deduct while sessions remain, so a card can never
-  // be driven negative by a concurrent deduction (race between self check-in and
-  // teacher finalize, or two requests on the same card).
+  // Guarded decrement: only deduct while enough sessions remain, so a card can
+  // never be driven negative by a concurrent deduction (race between self
+  // check-in and teacher finalize, or two requests on the same card).
   const { count } = await tx.studentCard.updateMany({
-    where: { id: studentCard.id, remainingSessions: { gt: 0 } },
+    where: { id: studentCard.id, remainingSessions: { gte: sessions } },
     data: {
-      remainingSessions: { decrement: 1 },
+      remainingSessions: { decrement: sessions },
     },
   });
 
@@ -295,13 +298,14 @@ async function processStudentAttendance(
     lesson.id,
     lessonPeriodId,
     student.id,
-    studentCard?.id ?? null
+    studentCard?.id ?? null,
+    lesson.sessionsPerAttendance
   );
 
   await createAttendanceEvent(tx, lesson.name, student.id, attendanceRecord.id);
 
   if (studentCard) {
-    await processStudentCardUsage(tx, studentCard, student.id);
+    await processStudentCardUsage(tx, studentCard, student.id, lesson.sessionsPerAttendance);
   }
 }
 
@@ -341,14 +345,14 @@ async function getAttendanceDifferences(
 
 async function removeAttendanceRecord(
   tx: Prisma.TransactionClient,
-  attendanceRecord: { id: number; studentCardId: number | null }
+  attendanceRecord: { id: number; studentCardId: number | null; sessionsUsed: number }
 ) {
-  // Refund the card session if a card was used
+  // Refund what this record deducted (sessionsUsed, not the lesson's current setting)
   if (attendanceRecord.studentCardId) {
     await tx.studentCard.update({
       where: { id: attendanceRecord.studentCardId },
       data: {
-        remainingSessions: { increment: 1 },
+        remainingSessions: { increment: attendanceRecord.sessionsUsed },
       },
     });
 
@@ -403,7 +407,12 @@ async function reconcileAndFinalize(
   // Fetch new students with their valid cards
   const newStudents =
     newStudentIds.length > 0
-      ? await fetchStudentsWithValidCards(newStudentIds, validCardIds, lesson.classroomId)
+      ? await fetchStudentsWithValidCards(
+          newStudentIds,
+          validCardIds,
+          lesson.classroomId,
+          lesson.sessionsPerAttendance
+        )
       : [];
 
   // Any id that didn't come back belongs to another classroom (or no longer
@@ -527,8 +536,8 @@ export type SelfCheckInOutcome = {
 };
 
 // The card each new period would be charged to, simulated on a copy of the
-// student's cards: the chosen card while it has sessions, then the engine's own
-// pick. Null = that period would go unbound.
+// student's cards: the chosen card while it has enough sessions, then the
+// engine's own pick. Null = that period would go unbound.
 function planPeriodCards(
   student: StudentWithCards,
   lesson: LessonWithCards,
@@ -539,14 +548,16 @@ function planPeriodCards(
     ...student,
     studentCards: student.studentCards.map((c) => ({ ...c })),
   };
+  const need = lesson.sessionsPerAttendance;
+  sim.studentCards = sim.studentCards.filter((c) => c.remainingSessions >= need);
   const plan: (number | null)[] = [];
   for (let i = 0; i < periodCount; i++) {
     const chosen = chosenId !== null ? sim.studentCards.find((c) => c.id === chosenId) : undefined;
     const pick = chosen ?? selectStudentCard(sim, lesson);
     plan.push(pick?.id ?? null);
     if (pick) {
-      pick.remainingSessions -= 1;
-      if (pick.remainingSessions <= 0) {
+      pick.remainingSessions -= need;
+      if (pick.remainingSessions < need) {
         sim.studentCards = sim.studentCards.filter((c) => c.id !== pick.id);
       }
     }
@@ -599,7 +610,8 @@ export async function selfCheckIn({
   const [student] = await fetchStudentsWithValidCards(
     [studentId],
     validCardIds,
-    lesson.classroomId
+    lesson.classroomId,
+    lesson.sessionsPerAttendance
   );
   if (!student) {
     throw new Error("Student not found");
@@ -711,12 +723,13 @@ export async function selfCheckIn({
           period.id,
           student.id,
           studentCard?.id ?? null,
+          lesson.sessionsPerAttendance,
           AttendanceSource.STUDENT
         );
         await createAttendanceEvent(tx, lesson.name, student.id, attendanceRecord.id);
 
         if (studentCard) {
-          await processStudentCardUsage(tx, studentCard, student.id);
+          await processStudentCardUsage(tx, studentCard, student.id, lesson.sessionsPerAttendance);
         }
       });
     } catch (e) {
@@ -736,7 +749,7 @@ export async function selfCheckIn({
     }
 
     // Keep the in-memory card in sync for the next period's result.
-    studentCard.remainingSessions -= 1;
+    studentCard.remainingSessions -= lesson.sessionsPerAttendance;
     results.push({
       periodId: period.id,
       status: "checked",

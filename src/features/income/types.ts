@@ -17,6 +17,8 @@ export interface DailySummaryPeriod {
   lessonId: number;
   periodId: number;
   lessonName: string;
+  /** 每次出席扣幾格（外師課 = 2）。 */
+  sessionsPerAttendance: number;
   attendanceCount: number;
   revenue: number;
   pendingStudents: string[];

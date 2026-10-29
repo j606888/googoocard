@@ -117,6 +117,7 @@ const LessonTable = ({
       danceStyleId: lesson.danceStyleId,
       level: lesson.level,
       kind: lesson.kind,
+      sessionsPerAttendance: lesson.sessionsPerAttendance,
       groupId: lesson.groupId,
       locationId: lesson.location?.id ?? null,
       initialPeriod,

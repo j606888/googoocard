@@ -653,7 +653,10 @@ const SessionPeriods = ({
         <div key={period.periodId} className="py-2.5">
           <div className="flex items-center gap-2">
             <p className="font-medium">{period.lessonName}</p>
-            <p className="text-xs text-neutral-500">出席 {period.attendanceCount} 人</p>
+            <p className="text-xs text-neutral-500">
+              出席 {period.attendanceCount} 人
+              {period.sessionsPerAttendance > 1 && ` · 每人扣 ${period.sessionsPerAttendance} 格`}
+            </p>
             <p className="ml-auto font-semibold text-primary-900">
               ${formatMoney(period.revenue)}
             </p>

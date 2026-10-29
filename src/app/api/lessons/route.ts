@@ -5,7 +5,12 @@ import prisma from "@/lib/prisma";
 import { refreshLesson, summarizeLessonPeriods } from "@/service/lesson";
 import { cardMatchesLesson } from "@/domains/qualification";
 import { DEFAULT_DANCE_LEVEL, isValidDanceLevel } from "@/lib/danceLevels";
-import { DEFAULT_LESSON_KIND, isValidLessonKind } from "@/lib/lessonKind";
+import {
+  DEFAULT_LESSON_KIND,
+  DEFAULT_SESSIONS_PER_ATTENDANCE,
+  isValidLessonKind,
+  isValidSessionsPerAttendance,
+} from "@/lib/lessonKind";
 import {
   allTeachersInClassroom,
   findDanceStyleInClassroom,
@@ -109,6 +114,7 @@ export async function GET(request: Request) {
       status: lesson.status,
       kind: lesson.kind,
       endedAt: lesson.endedAt,
+      sessionsPerAttendance: lesson.sessionsPerAttendance,
       studentCount: lesson._count.students,
       teachers: lesson.teachers.map((t) => t.teacher),
       cardIds: lesson.cards.map((c) => c.cardId),
@@ -197,6 +203,12 @@ export async function POST(request: Request) {
   if (draftLesson.kind !== undefined && !isValidLessonKind(draftLesson.kind)) {
     return NextResponse.json({ error: "Invalid kind" }, { status: 400 });
   }
+  if (
+    draftLesson.sessionsPerAttendance !== undefined &&
+    !isValidSessionsPerAttendance(draftLesson.sessionsPerAttendance)
+  ) {
+    return NextResponse.json({ error: "Invalid sessionsPerAttendance" }, { status: 400 });
+  }
 
   // A groupId is caller-controlled input — verify it names a group in this
   // classroom before attaching it (same IDOR guard as findLessonInClassroom),
@@ -258,6 +270,7 @@ export async function POST(request: Request) {
         danceStyleId: draftLesson.danceStyleId,
         level: draftLesson.level ?? DEFAULT_DANCE_LEVEL,
         kind: draftLesson.kind ?? DEFAULT_LESSON_KIND,
+        sessionsPerAttendance: draftLesson.sessionsPerAttendance ?? DEFAULT_SESSIONS_PER_ATTENDANCE,
         groupId: draftLesson.groupId ?? null,
         locationId: draftLesson.locationId ?? null,
       },

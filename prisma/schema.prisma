@@ -335,6 +335,8 @@ model Lesson {
   danceStyle        DanceStyle         @relation(fields: [danceStyleId], references: [id])
   // Level taught (1 = 初階, 2 = 中階, 3 = 進階 — src/lib/danceLevels.ts).
   level             Int                @default(1)
+  // 每次出席扣幾格課卡（外師課常用 2）。點名當下抄到 AttendanceRecord.sessionsUsed。
+  sessionsPerAttendance Int            @default(1)
   // 分部（台南／高雄…）。選填；課卡不分部限定。
   locationId        Int?
   location          Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
@@ -497,6 +499,9 @@ model AttendanceRecord {
   studentCardId  Int?
   studentCard    StudentCard?     @relation(fields: [studentCardId], references: [id])
   source         AttendanceSource @default(TEACHER)
+  // 這筆出席從 studentCard 扣了幾格（扣卡當下抄自 Lesson.sessionsPerAttendance；
+  // 沒綁卡時是將來綁卡要扣的格數）。退卡退同樣格數、收入照它認列。
+  sessionsUsed   Int              @default(1)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 

@@ -26,6 +26,8 @@ export interface Lesson {
   kind: LessonKind;
   /** Set when ended by hand; finished regardless of kind. */
   endedAt: string | null;
+  /** 每次出席扣幾格課卡（外師課 = 2）。 */
+  sessionsPerAttendance: number;
   cards: Card[];
   groupId: number | null;
   group: { id: number; name: string } | null;
@@ -52,6 +54,7 @@ export interface LessonSummary {
   status: string;
   kind: LessonKind;
   endedAt: string | null;
+  sessionsPerAttendance: number;
   studentCount: number;
   teachers: TeacherSummary[];
   cardIds: number[];
@@ -142,6 +145,8 @@ export interface DraftLesson {
   level?: number;
   /** Omitted on create = "fixed"; omitted on update = unchanged. */
   kind?: LessonKind;
+  /** 每次出席扣幾格課卡（1–3）。Omitted on create = 1; omitted on update = unchanged. */
+  sessionsPerAttendance?: number;
   /** LessonGroup to file this lesson under — null means 未分類 (ungrouped). */
   groupId?: number | null;
   /** 分部 — null/omitted = not set (PUT clears it when omitted). */
@@ -169,6 +174,8 @@ export interface AttendanceRecord {
   recommendedStudentCardId?: number | null;
   reason?: "PRACTICE_PRIORITY" | null;
   source?: "TEACHER" | "STUDENT";
+  /** 這筆出席扣了（或綁卡時要扣）幾格。 */
+  sessionsUsed: number;
 }
 
 export interface PeriodAssistants {

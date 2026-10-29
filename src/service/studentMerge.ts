@@ -45,6 +45,7 @@ async function findAttendanceClashes(db: Db, sourceId: number, targetId: number)
       id: true,
       lessonPeriodId: true,
       studentCardId: true,
+      sessionsUsed: true,
       studentCard: { select: { card: { select: { name: true } }, serialNumber: true } },
       lessonPeriod: { select: { startTime: true, lesson: { select: { name: true } } } },
     },
@@ -55,6 +56,7 @@ async function findAttendanceClashes(db: Db, sourceId: number, targetId: number)
       id: true,
       lessonPeriodId: true,
       studentCardId: true,
+      sessionsUsed: true,
       studentCard: { select: { card: { select: { name: true } }, serialNumber: true } },
     },
   });
@@ -75,6 +77,7 @@ async function findAttendanceClashes(db: Db, sourceId: number, targetId: number)
         keepFrom: (keepSource ? "source" : "target") as KeepLineFrom,
         // Refunded back to this card (the dropped record had charged it).
         refundStudentCardId: drop.studentCardId,
+        refundSessions: drop.sessionsUsed,
         refundCardName: drop.studentCard?.card.name ?? null,
         refundCardSerial: drop.studentCard?.serialNumber ?? null,
       },
@@ -145,7 +148,7 @@ export async function mergeStudents(
       if (clash.refundStudentCardId !== null) {
         await tx.studentCard.update({
           where: { id: clash.refundStudentCardId },
-          data: { remainingSessions: { increment: 1 } },
+          data: { remainingSessions: { increment: clash.refundSessions } },
         });
       }
     }

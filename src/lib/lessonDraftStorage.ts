@@ -44,6 +44,7 @@ export interface LessonCloneSource {
   danceStyleId: number | null;
   level?: number;
   kind?: LessonKind;
+  sessionsPerAttendance?: number;
   groupId?: number | null;
   locationId?: number | null;
   initialPeriod?: { startTime: string; endTime: string };

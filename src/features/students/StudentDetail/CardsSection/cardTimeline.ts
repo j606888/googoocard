@@ -11,7 +11,14 @@ export type CardTimelineEntry =
   | { kind: "convertedFrom"; at: number }
   | { kind: "transferredIn"; at: number }
   | { kind: "payment"; at: number }
-  | { kind: "use"; at: number; lessonName: string; source: "TEACHER" | "STUDENT"; pending: boolean }
+  | {
+      kind: "use";
+      at: number;
+      lessonName: string;
+      source: "TEACHER" | "STUDENT";
+      pending: boolean;
+      sessionsUsed: number;
+    }
   | { kind: "transferredOut"; at: number }
   | { kind: "convertedTo"; at: number }
   | { kind: "expired"; at: number };
@@ -39,6 +46,7 @@ export function buildCardTimeline(card: StudentCardWithCard): CardTimelineEntry[
       lessonName: record.lessonName,
       source: record.source,
       pending: record.pending,
+      sessionsUsed: record.sessionsUsed,
     });
   }
 

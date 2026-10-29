@@ -63,6 +63,7 @@ export async function GET(request: Request) {
       lessonId: period.lessonId,
       periodId: period.id,
       lessonName: period.lesson.name,
+      sessionsPerAttendance: period.lesson.sessionsPerAttendance,
       attendanceCount: period.attendanceRecords.length,
       revenue,
       pendingStudents,

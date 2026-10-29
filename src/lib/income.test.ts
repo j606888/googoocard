@@ -36,4 +36,9 @@ describe("periodRevenue", () => {
     // 學生實付 2400（原價 3000 打八折），6 堂 → 單堂 400
     expect(periodRevenue([withCard(2400, 6)])).toBe(400);
   });
+
+  it("一次扣多格（外師課）→ 單格價 × sessionsUsed", () => {
+    // 3000 / 10 = 300，扣 2 格 → 600
+    expect(periodRevenue([{ ...withCard(3000, 10), sessionsUsed: 2 }])).toBe(600);
+  });
 });

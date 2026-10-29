@@ -29,8 +29,8 @@ describe("buildCardTimeline", () => {
     const timeline = buildCardTimeline({
       ...base,
       attendanceRecords: [
-        { lessonName: "Bachata", periodStartTime: Date.parse("2026-10-08T11:30:00Z"), source: "TEACHER", pending: false },
-        { lessonName: "Bachata", periodStartTime: Date.parse("2026-10-15T11:30:00Z"), source: "STUDENT", pending: true },
+        { lessonName: "Bachata", periodStartTime: Date.parse("2026-10-08T11:30:00Z"), source: "TEACHER", pending: false, sessionsUsed: 1 },
+        { lessonName: "Bachata", periodStartTime: Date.parse("2026-10-15T11:30:00Z"), source: "STUDENT", pending: true, sessionsUsed: 2 },
       ],
     });
     expect(timeline.map((e) => e.kind)).toEqual(["use", "use", "purchase"]);

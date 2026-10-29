@@ -70,6 +70,9 @@ const LessonDetailHeader = ({
               </span>
             )}
             <LocationBadge location={lesson.location} className="px-2.5 py-1 font-semibold" />
+            {lesson.sessionsPerAttendance > 1 && (
+              <StatusTag tone="warning">每次扣 {lesson.sessionsPerAttendance} 格</StatusTag>
+            )}
             <StatusTag tone={isFinished ? "neutral" : "positive"}>
               {isFinished ? "已結束" : "進行中"}
             </StatusTag>

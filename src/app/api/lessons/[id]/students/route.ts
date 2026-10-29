@@ -70,7 +70,8 @@ export async function GET(
   const withCards = await fetchStudentsWithValidCards(
     rosterIds,
     validCardIds,
-    lesson.classroomId
+    lesson.classroomId,
+    lesson.sessionsPerAttendance
   );
 
   // Sessions on cards this lesson does NOT accept, one grouped query for the

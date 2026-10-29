@@ -183,6 +183,13 @@ Classroom（頂層容器，所有實體都屬於一間教室）
   待點名 > 持續開課且沒排下一堂（「＋下一堂」，預設沿用上一堂的星期與時間、推到今天以後）> 無。
 - 新增課程時選型態；上次選的型態依教室記在 localStorage 當預設。
 
+## 一次扣多格（外師課，2026-10）
+
+`Lesson.sessionsPerAttendance`（1–3，預設 1，`src/lib/lessonKind.ts`）＝學生來上一次扣幾堂課卡；開課／課程設定都能改。建出席紀錄時把它抄到 `AttendanceRecord.sessionsUsed`，之後一律看這個快照：扣卡、退卡（取消勾選、重設點名、合併學員）、手動綁卡（consume）、收入（`periodRevenue`、水庫分帳 = 單堂價 × sessionsUsed）。改課程設定不會改寫已點名的紀錄。
+
+- **剩不夠扣的卡不能用**，不拆到兩張卡：`fetchStudentsWithValidCards(…, sessionsNeeded)` 只撈剩餘 ≥ N 的卡，所以點名引擎、名單卡況、LIFF 都自然排除；只剩不夠扣的卡 → `no_card`，老師「買卡並使用」或學生當場買卡。LIFF 不賣堂數 < N 的卡。
+- 體驗卡、複習卡不另外處理（目前不會遇到扣多格）。
+
 ## 學生自助簽到（LIFF 單一入口、點名一定綁卡）
 
 2026-10 起自助簽到**只走 LINE LIFF**，每一筆都知道是誰本人。兩種進來的方式、同一個頁面 `/liff/checkin`：

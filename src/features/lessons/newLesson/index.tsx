@@ -14,7 +14,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import DanceStyleSelect from "./DanceStyleSelect";
 import LevelSelect from "./LevelSelect";
 import LessonKindSelect from "./LessonKindSelect";
-import { DEFAULT_LESSON_KIND, type LessonKind } from "@/lib/lessonKind";
+import SessionsPerAttendanceSelect from "./SessionsPerAttendanceSelect";
+import {
+  DEFAULT_LESSON_KIND,
+  DEFAULT_SESSIONS_PER_ATTENDANCE,
+  type LessonKind,
+} from "@/lib/lessonKind";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { DEFAULT_DANCE_LEVEL } from "@/lib/danceLevels";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
@@ -76,6 +81,9 @@ const NewLesson = () => {
     pickedKind ??
     (classroomId != null ? getLastLessonKind(classroomId) : null) ??
     DEFAULT_LESSON_KIND;
+  const [sessionsPerAttendance, setSessionsPerAttendance] = useState<number>(
+    initialClone?.sessionsPerAttendance ?? DEFAULT_SESSIONS_PER_ATTENDANCE
+  );
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(
     initialClone?.teacherIds ?? []
   );
@@ -173,6 +181,7 @@ const NewLesson = () => {
         // A style without levels has no 階級 picker; its lessons are 初階.
         level: hasLevels ? level : DEFAULT_DANCE_LEVEL,
         kind,
+        sessionsPerAttendance,
         groupId: selectedGroupId,
         locationId,
         periods,
@@ -230,6 +239,10 @@ const NewLesson = () => {
                 />
                 {hasLevels && <LevelSelect level={level} onChange={setLevel} />}
                 <LessonKindSelect kind={kind} onChange={setPickedKind} />
+                <SessionsPerAttendanceSelect
+                  value={sessionsPerAttendance}
+                  onChange={setSessionsPerAttendance}
+                />
                 <LocationSelect locationId={locationId} onChange={setPickedLocationId} />
                 <LessonGroupSelect
                   groupId={selectedGroupId}

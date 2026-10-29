@@ -27,6 +27,8 @@ export interface BuyableCardOption {
 }
 
 export interface LessonCardStatus {
+  /** 每次出席扣幾堂（外師課 = 2）；剩不夠的卡不在 usable 裡。 */
+  sessionsPerAttendance: number;
   usable: UsableCardOption[];
   autoPickId: number | null;
   buyable: BuyableCardOption[];

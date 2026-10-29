@@ -41,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         where: {
           cardId: { in: validCardIds },
           remainingSessions: {
-            gt: 0,
+            gte: lesson.sessionsPerAttendance,
           }
         }
       }

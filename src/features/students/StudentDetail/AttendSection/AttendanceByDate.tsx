@@ -79,6 +79,9 @@ const AttendanceByDate = ({ attendances }: { attendances: StudentAttendance[] })
                         <>
                           {attendance.studentCard.name}{" "}
                           <span className="text-neutral-500 tabular-nums">{serial}</span>
+                          {attendance.sessionsUsed > 1 && (
+                            <span className="text-neutral-500"> · 扣 {attendance.sessionsUsed} 堂</span>
+                          )}
                         </>
                       ) : (
                         <span className="text-neutral-500">未扣卡</span>

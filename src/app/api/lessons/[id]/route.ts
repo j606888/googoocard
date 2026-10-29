@@ -15,7 +15,7 @@ import { DraftLesson } from "@/store/slices/lessons";
 import { toStudentPayload } from "@/service/studentDetail";
 import { cardMatchesLesson } from "@/domains/qualification";
 import { isValidDanceLevel } from "@/lib/danceLevels";
-import { isValidLessonKind } from "@/lib/lessonKind";
+import { isValidLessonKind, isValidSessionsPerAttendance } from "@/lib/lessonKind";
 import { refreshLesson } from "@/service/lesson";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -89,6 +89,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (draftLesson.kind !== undefined && !isValidLessonKind(draftLesson.kind)) {
     return NextResponse.json({ error: "Invalid kind" }, { status: 400 });
   }
+  if (
+    draftLesson.sessionsPerAttendance !== undefined &&
+    !isValidSessionsPerAttendance(draftLesson.sessionsPerAttendance)
+  ) {
+    return NextResponse.json({ error: "Invalid sessionsPerAttendance" }, { status: 400 });
+  }
 
   if (typeof draftLesson.danceStyleId !== "number") {
     return NextResponse.json({ error: "DANCE_STYLE_REQUIRED" }, { status: 400 });
@@ -141,6 +147,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       danceStyleId: draftLesson.danceStyleId,
       level: draftLesson.level,
       kind: draftLesson.kind,
+      sessionsPerAttendance: draftLesson.sessionsPerAttendance,
       groupId: draftLesson.groupId ?? null,
       locationId: draftLesson.locationId ?? null,
     },

@@ -95,7 +95,9 @@ const periodInclude = {
       cards: { select: { card: { select: { price: true, sessions: true, isTrial: true } } } },
     },
   },
-  attendanceRecords: { select: { studentCard: { select: { finalPrice: true, totalSessions: true } } } },
+  attendanceRecords: {
+    select: { sessionsUsed: true, studentCard: { select: { finalPrice: true, totalSessions: true } } },
+  },
   assistants: { select: { teacherId: true } },
   financeSettlement: {
     include: {
@@ -172,8 +174,10 @@ export async function computeLessonSplits(classroomId: number, from: string, to:
     let cardRevenue = 0;
     let estimated = 0;
     for (const record of p.attendanceRecords) {
-      if (record.studentCard) cardRevenue += record.studentCard.finalPrice / record.studentCard.totalSessions;
-      else estimated += perHead;
+      if (record.studentCard) {
+        cardRevenue +=
+          (record.studentCard.finalPrice / record.studentCard.totalSessions) * record.sessionsUsed;
+      } else estimated += perHead * record.sessionsUsed;
     }
     inputs.set(p.id, {
       periodId: p.id,

@@ -360,6 +360,13 @@ function LessonBlock({
         <LocationBadge location={lesson.location} />
       </div>
 
+      {(status?.sessionsPerAttendance ?? 1) > 1 && (
+        <p className="flex items-center gap-2 rounded-xl bg-warning-50 px-3 py-2 text-sm text-warning-950">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          這堂課每次扣 {status!.sessionsPerAttendance} 堂
+        </p>
+      )}
+
       <div className="flex flex-col gap-2">
         {lesson.periods.map((period) => {
           const checked = selected.has(period.periodId);

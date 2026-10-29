@@ -5,6 +5,7 @@ import DanceStyleSelect from "@/features/lessons/newLesson/DanceStyleSelect";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import LevelSelect from "@/features/lessons/newLesson/LevelSelect";
 import LessonKindSelect from "@/features/lessons/newLesson/LessonKindSelect";
+import SessionsPerAttendanceSelect from "@/features/lessons/newLesson/SessionsPerAttendanceSelect";
 import type { LessonKind } from "@/lib/lessonKind";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
@@ -38,6 +39,9 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
   const [groupId, setGroupId] = useState<number | null>(lesson.groupId);
   const [locationId, setLocationId] = useState<number | null>(lesson.location?.id ?? null);
   const [kind, setKind] = useState<LessonKind>(lesson.kind);
+  const [sessionsPerAttendance, setSessionsPerAttendance] = useState<number>(
+    lesson.sessionsPerAttendance
+  );
   const [endLesson, { isLoading: isEnding }] = useEndLessonMutation();
   const [reopenLesson, { isLoading: isReopening }] = useReopenLessonMutation();
   const isEndedByHand = lesson.endedAt !== null;
@@ -104,7 +108,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
     });
     setErrors(errors);
     if (Object.keys(errors).length === 0 && danceStyleId !== null) {
-      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId, level, kind, groupId, locationId } });
+      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId, level, kind, sessionsPerAttendance, groupId, locationId } });
     }
   };
 
@@ -125,6 +129,7 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
           />
           {hasLevels && <LevelSelect level={level} onChange={setLevel} />}
           <LessonKindSelect kind={kind} onChange={setKind} />
+          <SessionsPerAttendanceSelect value={sessionsPerAttendance} onChange={setSessionsPerAttendance} />
           <LocationSelect locationId={locationId} onChange={setLocationId} />
           <LessonGroupSelect
             groupId={groupId}

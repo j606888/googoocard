@@ -41,6 +41,8 @@ export interface BuyableCardOption {
 }
 
 export interface LessonCardStatus {
+  /** Sessions one attendance deducts (外師課 = 2); cards with fewer left aren't in `usable`. */
+  sessionsPerAttendance: number;
   usable: UsableCardOption[];
   /** The card the engine would use on its own; null = the student must choose or buy. */
   autoPickId: number | null;
@@ -335,17 +337,20 @@ async function lessonCardStatus(
   studentId: number,
   classroomId: number
 ): Promise<LessonCardStatus> {
+  const sessionsPerAttendance = lesson.sessionsPerAttendance;
   const [student] = await fetchStudentsWithValidCards(
     [studentId],
     lesson.cards.map((lc) => lc.cardId),
-    classroomId
+    classroomId,
+    sessionsPerAttendance
   );
-  if (!student) return { usable: [], autoPickId: null, buyable: [] };
+  if (!student) return { sessionsPerAttendance, usable: [], autoPickId: null, buyable: [] };
 
   const { usable, autoPick } = cardOptionsFor(student, lesson);
   const levels = toDanceLevels(student.danceQualifications);
 
   return {
+    sessionsPerAttendance,
     usable: usable.map((sc) => ({
       studentCardId: sc.id,
       name: sc.card.name,
@@ -357,7 +362,11 @@ async function lessonCardStatus(
     buyable: lesson.cards
       .map((lc) => lc.card)
       .filter(
-        (card) => !card.expiredAt && !card.isTrial && canBuyCard(card, levels, lesson).allowed
+        (card) =>
+          !card.expiredAt &&
+          !card.isTrial &&
+          card.sessions >= sessionsPerAttendance &&
+          canBuyCard(card, levels, lesson).allowed
       )
       .sort((a, b) => a.price - b.price)
       .map((card) => ({

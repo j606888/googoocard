@@ -36,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         await tx.studentCard.update({
           where: { id: attendanceRecord.studentCardId },
           data: {
-            remainingSessions: { increment: 1 },
+            remainingSessions: { increment: attendanceRecord.sessionsUsed },
           },
         });
       }

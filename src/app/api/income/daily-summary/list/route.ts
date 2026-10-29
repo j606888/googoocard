@@ -17,6 +17,7 @@ export async function GET() {
       attendanceRecords: {
         select: {
           studentCard: { select: { finalPrice: true, totalSessions: true } },
+          sessionsUsed: true,
         },
       },
     },

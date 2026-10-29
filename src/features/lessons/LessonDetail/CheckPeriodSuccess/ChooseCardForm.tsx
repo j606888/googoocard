@@ -45,6 +45,9 @@ const ChooseCardForm = ({
     [record.recommendedStudentCardId, studentCards]
   );
   const shouldLockGeneralCards = isPracticePriority && !!recommendedPracticeCard && !allowManualOverride;
+  // 外師課一次扣好幾格：剩不夠的卡不能用（不拆到兩張卡），請學生買新卡。
+  const sessionsNeeded = record.sessionsUsed ?? 1;
+  const isShort = (remainingSessions: number) => remainingSessions < sessionsNeeded;
 
   useEffect(() => {
     if (recommendedPracticeCard?.id) {
@@ -59,6 +62,9 @@ const ChooseCardForm = ({
       clickedCard &&
       !clickedCard.card.isPracticeCard
     ) {
+      return;
+    }
+    if (clickedCard && isShort(clickedCard.remainingSessions)) {
       return;
     }
     setSelectedCardId(cardId);
@@ -93,7 +99,7 @@ const ChooseCardForm = ({
         onOpenChange={(next) => (next ? setOpen(true) : handleClose())}
         inline={inline}
         onSubmit={handleSubmit}
-        submitText="使用這張"
+        submitText={sessionsNeeded > 1 ? `扣 ${sessionsNeeded} 格` : "使用這張"}
         disabled={!selectedCardId}
         isLoading={isLoading}
       >
@@ -117,7 +123,8 @@ const ChooseCardForm = ({
             <div
               key={studentCard.id}
               className={`relative flex flex-col gap-2 p-3 rounded-xl border border-neutral-200 ${
-                shouldLockGeneralCards && !studentCard.card.isPracticeCard
+                (shouldLockGeneralCards && !studentCard.card.isPracticeCard) ||
+                isShort(studentCard.remainingSessions)
                   ? "opacity-50 cursor-not-allowed"
                   : "cursor-pointer"
               } ${
@@ -133,6 +140,11 @@ const ChooseCardForm = ({
                   <h4 className="text-base font-light">
                     {studentCard.card.name}
                   </h4>
+                  {isShort(studentCard.remainingSessions) && (
+                    <span className="shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
+                      不夠扣
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-col w-32 gap-1 font-normal text-neutral-700">
                   <div className="flex justify-between">

@@ -39,7 +39,9 @@ export const PendingRecordAction = ({
 };
 
 export const uncheckedDescription = (record: AttendanceRecord, lesson: Lesson) =>
-  record.uncheckedType === "not_qualified" && lesson.danceStyle?.hasLevels && lesson.level > DEFAULT_DANCE_LEVEL
+  record.uncheckedType === "no_card" && record.sessionsUsed > 1
+    ? `沒有夠扣 ${record.sessionsUsed} 格的課卡`
+    : record.uncheckedType === "not_qualified" && lesson.danceStyle?.hasLevels && lesson.level > DEFAULT_DANCE_LEVEL
     ? `未具備${danceLevelLabel(lesson.level)}複習資格`
     : UNCHECK_DESCRIPTION_MAP[record.uncheckedType];
 

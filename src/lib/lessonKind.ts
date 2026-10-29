@@ -17,6 +17,15 @@ export function isValidLessonKind(value: unknown): value is LessonKind {
   return LESSON_KINDS.some((kind) => kind.value === value);
 }
 
+// 每次出席扣幾格課卡（Lesson.sessionsPerAttendance）。外師課常用 2。
+export const SESSIONS_PER_ATTENDANCE_OPTIONS = [1, 2, 3] as const;
+
+export const DEFAULT_SESSIONS_PER_ATTENDANCE = 1;
+
+export function isValidSessionsPerAttendance(value: unknown): value is number {
+  return SESSIONS_PER_ATTENDANCE_OPTIONS.some((option) => option === value);
+}
+
 export type LessonStatus = "inProgress" | "finished";
 
 /** The single rule for Lesson.status — refreshLesson() writes what this returns. */

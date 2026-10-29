@@ -238,7 +238,7 @@ const CardDetailDialog = ({
       case "use":
         return {
           title: `上課 · ${entry.lessonName}`,
-          meta: `${format(entry.at, "HH:mm")} · 扣 1 堂 · ${entry.source === "STUDENT" ? "學生自助簽到" : "老師點名"}`,
+          meta: `${format(entry.at, "HH:mm")} · 扣 ${entry.sessionsUsed} 堂 · ${entry.source === "STUDENT" ? "學生自助簽到" : "老師點名"}`,
           tag: entry.pending ? <StatusTag tone="warning">待老師確認</StatusTag> : undefined,
         };
       case "transferredOut":

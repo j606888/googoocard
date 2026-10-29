@@ -207,12 +207,20 @@ export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryR
         source: AttendanceSource;
         // 學生自助簽到、老師還沒定案這個時段
         pending: boolean;
+        // 這次扣了幾格（外師課 = 2）
+        sessionsUsed: number;
       }[];
     }
   >();
   const studentCardAttendances = new Map<
     number,
-    { lessonName: string; periodStartTime: Date; source: AttendanceSource; pending: boolean }[]
+    {
+      lessonName: string;
+      periodStartTime: Date;
+      source: AttendanceSource;
+      pending: boolean;
+      sessionsUsed: number;
+    }[]
   >();
 
   // Records arrive newest class first, so every list below is newest first too.
@@ -245,6 +253,7 @@ export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryR
       studentCard,
       source: record.source,
       pending,
+      sessionsUsed: record.sessionsUsed,
     });
     byDate.set(dateKey, day);
 
@@ -255,6 +264,7 @@ export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryR
         periodStartTime: lessonPeriod.startTime,
         source: record.source,
         pending,
+        sessionsUsed: record.sessionsUsed,
       });
       studentCardAttendances.set(record.studentCardId, usage);
     }
