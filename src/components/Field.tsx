@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * The boxed control look shared by every text input, select trigger, date/time trigger and
- * textarea (docs/design-system.md「輸入框」): white, 1.5px neutral-300 border, radius 14,
+ * textarea: white, 1.5px neutral-300 border, radius 14,
  * primary-700 border + primary-100 glow on focus (`focus-within` too, for a box wrapping an input), danger-600 border on error
  * (danger-100 glow when an erroring control has focus, so moving focus to it doesn't hide the error).
  * Height is the caller's (`h-12` for single-line controls).

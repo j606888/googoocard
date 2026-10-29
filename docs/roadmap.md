@@ -11,14 +11,13 @@
 |---|---|
 | [`architecture.md`](architecture.md) | 系統**現在是什麼**——領域模型、資格規則、點名流程、部署注意 |
 | **本文** | 系統**還缺什麼、下一步做什麼**——技術債、安全缺口、功能藍圖 |
-| [`design-system-audit.md`](design-system-audit.md) | 色彩 token 與元件收斂（**已全部完成**，保留作為決策紀錄） |
 | [`ui-responsive.md`](ui-responsive.md) | 手機／桌面版型**該用哪種機制**——五種並存機制的現況、決策規則、收斂待辦 |
 | [`student-login-checkin-payment-plan.md`](student-login-checkin-payment-plan.md) | LINE 綁定 → 自助簽到 → 購卡對帳的原始規劃稿（Phase 1–2 已上線，Phase 3 由下一份取代） |
 | [`onsite-checkin-newcomer-plan.md`](onsite-checkin-newcomer-plan.md) | 門口 QR 走 LIFF、新同學自助登記、點名必綁卡、體驗課、收款欄位、合併學員（**已實作**，2026-10-25） |
 
 **動手改任何區塊前，先在本文搜尋該檔名**，確認沒有已知未修的安全或效能問題會被你的改動放大。
 
-格式沿用 design-system-audit 的慣例：完成的項目改成 `[x]` 並註記 `✅ 日期` 與實際做法，
+格式慣例：完成的項目改成 `[x]` 並註記 `✅ 日期` 與實際做法，
 **不要刪除**——保留下來就是決策紀錄。
 
 ---
@@ -603,5 +602,5 @@ framer-motion `AnimatePresence` + Radix `forceMount` 模式寫，**在這個專�
 - **`prisma db push` 與 `migrate reset` 全面禁用** — 見 `architecture.md`「環境與部署注意」。
 - **`Event` 表沒有 FK/cascade** — 刻意的鬆散引用，由讀取端過濾失效事件
   （`src/app/api/students/[id]/events/route.ts`）。
-- **design-system-audit 的兩個保留 hex** — `#06C755`（LINE 品牌綠）與
+- **色彩 token 的兩個保留 hex** — `#06C755`（LINE 品牌綠）與
   `#55BD95`（react-spinners 的 JS color prop）。

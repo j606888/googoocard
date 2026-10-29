@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /**
- * The one button (docs/design-system.md「按鈕」). Five uses × three sizes:
+ * The one button. Five uses × three sizes:
  * - `primary` — the one main action on a screen. White text only ever sits on primary-900.
  * - `secondary` — white + primary-300 border (「複製課程」「-1 週」).
  * - `ghost` — text-only (取消、清除篩選).

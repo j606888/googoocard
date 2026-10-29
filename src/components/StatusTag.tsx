@@ -17,7 +17,7 @@ const TONES = {
 export type StatusTone = keyof typeof TONES;
 
 /**
- * A small status pill (docs/design-system.md「狀態標籤」): 22px tall, fully rounded,
+ * A small status pill: 22px tall, fully rounded,
  * 12px semibold, always a tint + dark text pair. Dance-style badges are not this —
  * they stay on `danceStyleMeta()`.
  */

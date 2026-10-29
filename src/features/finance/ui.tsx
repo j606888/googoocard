@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { fieldControlClass } from "@/components/Field";
 import { money } from "./format";
 
-/** 卡片外框：框線、不加陰影（docs/design-system.md）。 */
+/** 卡片外框：框線、不加陰影。 */
 export function Panel({ title, action, children, className }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <section className={cn("flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4 lg:p-5", className)}>

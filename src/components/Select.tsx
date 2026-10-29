@@ -31,7 +31,7 @@ export interface SelectOption<T extends string | number> {
 }
 
 /**
- * 下拉選單（docs/design-system.md「下拉選單」）。不用原生 `<select>`：各平台長得不一樣，也改不了樣式。
+ * 下拉選單。不用原生 `<select>`：各平台長得不一樣，也改不了樣式。
  *
  * 觸發框和輸入框同一個外觀（`fieldControlClass`），寬度跟原生一樣撐到最長的選項；
  * 選單用 floating-ui（跟 `Menu` 同一套），鍵盤上下、Enter、Esc、打字跳選項都有。

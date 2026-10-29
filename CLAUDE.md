@@ -167,7 +167,7 @@ Unresolved attendance cases surface as `uncheckedType` on the `AttendanceRecord`
 
 ### Design system
 
-Colours, radii, sizes and the shared components (`Button`, `Field`, `EmptyState`, `Skeleton`, `StatusTag`…) are specified in **[`docs/design-system.md`](docs/design-system.md)** — read it before building or restyling UI; don't hand-roll a button, input, empty state or skeleton.
+Being redesigned (2026-10-29) — the old written spec was removed; colour tokens in `src/app/globals.css` remain until the new palette replaces them. Still reuse the shared components (`Button`, `Field`, `EmptyState`, `Skeleton`, `StatusTag`…) rather than hand-rolling one.
 
 ### Mobile-First, but not 480px-only
 

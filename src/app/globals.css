@@ -49,7 +49,7 @@
 .rd-side[data-state="open"] { animation: rd-side-in 0.25s ease-out }
 .rd-side[data-state="closed"] { animation: rd-side-out 0.2s ease-in }
 
-/* Skeleton：一道慢慢掃過的亮光（docs/design-system.md「骨架」）。只設 background-image，
+/* Skeleton：一道慢慢掃過的亮光。只設 background-image，
    底色交給 `bg-*` class（預設 neutral-100），深色底上也能用。 */
 @keyframes sk-shimmer { from { background-position: 150% 0 } to { background-position: -50% 0 } }
 .sk-shimmer {
@@ -65,6 +65,8 @@
 @theme {
     /* Primary Colors */
     --color-primary-900: #1B5E4A;
+    /* 行動綠：主要按鈕、選取中。白字對比 ≥4.5（2026-10-29 課程頁改版起用）。 */
+    --color-primary-800: #2E7D62;
     --color-primary-700: #2B8E6E;
     --color-primary-600: #4BB38B;
     --color-primary-500: #55BD95;

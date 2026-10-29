@@ -30,7 +30,7 @@ type FormState = { open: false } | { open: true; location?: Location; key: numbe
 
 const iconButton = "text-neutral-500 disabled:opacity-30 disabled:hover:bg-transparent";
 
-/** 每列寬度不同、越往下越淡（docs/design-system.md「骨架」）。 */
+/** 每列寬度不同、越往下越淡。 */
 const SKELETON_ROWS = [
   { width: "w-28", fade: "" },
   { width: "w-20", fade: "" },

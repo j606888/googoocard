@@ -17,7 +17,7 @@ const KiwiCardIllustration = () => (
 );
 
 /**
- * The one empty state (docs/design-system.md「空狀態」), three kinds:
+ * The one empty state, three kinds:
  * - `page` — nothing exists yet (還沒有課程): kiwi illustration, one-line why, the primary action.
  * - `filtered` — a search/filter matched nothing: search icon, how to recover, usually 「清除篩選」.
  * - `inline` — an empty section inside a card or tab (還沒有出席紀錄): dashed box, one row.

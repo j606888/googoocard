@@ -63,7 +63,7 @@ const OverdueList = ({
                 </p>
                 <p className="truncate text-xs text-neutral-500">{metaFor(period)}</p>
               </Link>
-              <Button asChild size="sm">
+              <Button asChild size="sm" className="bg-primary-800 hover:bg-primary-900">
                 <Link href={`/lessons/${period.lesson.id}/periods/${period.id}/check`}>點名</Link>
               </Button>
             </li>

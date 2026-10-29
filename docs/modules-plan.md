@@ -45,7 +45,7 @@
 - **依賴單向**：模組可以 import 核心；核心不 import 模組。用 ESLint `no-restricted-imports` 擋（第 1 階段加，見 §1.7）。
 - **Prisma**：維持單一 `schema.prisma`，模組的 model 集中放在檔尾，用 `// ===== 模組：技能樹 =====` 分段。多檔 schema 等模組長大再說（要動 `scripts/` 裡的部署腳本，現在不值得）。
 - **iOS App**：三個階段都不動。App 的課程／學生／收入是 WebView，原生「更多」不加模組入口。
-- **設計系統**：所有新畫面照 `docs/design-system.md`，用現有的 `Button`／`Field`／`EmptyState`／`Skeleton`／`StatusTag`／`Drawer`；桌面版照 `docs/ui-responsive.md`。teach-what 和 water-tank 的配色、字型、`ui.tsx` 都**不搬**，只搬版面與互動。**例外**：技能樹頁（`SkillTreeView`／`SkillNode`）照 teach-what 的樣子——分類分頁、黑底「一轉」標頭、圓形技能節點、金色留言泡泡，分類色用 teach-what 的調色盤（`src/features/curriculum/categoryColors.ts`，key 沿用 `DANCE_STYLE_COLORS`）；按鈕、篩選、抽屜仍用設計系統元件（2026-10-28）。
+- **設計系統**：用現有的 `Button`／`Field`／`EmptyState`／`Skeleton`／`StatusTag`／`Drawer`；桌面版照 `docs/ui-responsive.md`。teach-what 和 water-tank 的配色、字型、`ui.tsx` 都**不搬**，只搬版面與互動。**例外**：技能樹頁（`SkillTreeView`／`SkillNode`）照 teach-what 的樣子——分類分頁、黑底「一轉」標頭、圓形技能節點、金色留言泡泡，分類色用 teach-what 的調色盤（`src/features/curriculum/categoryColors.ts`，key 沿用 `DANCE_STYLE_COLORS`）；按鈕、篩選、抽屜仍用設計系統元件（2026-10-28）。
 
 ---
 
