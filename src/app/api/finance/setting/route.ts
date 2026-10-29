@@ -2,11 +2,12 @@ import { apiRoute, parseBody } from "@/lib/apiRoute";
 import prisma from "@/lib/prisma";
 import { patchSettingSchema } from "@/domains/finance/schemas";
 import { getSetting, patchSetting } from "@/service/finance/setting";
+import { isSplitBuilt } from "@/service/finance/build";
 
 /** 建城前後都能讀：還沒建城時畫面用它決定顯示建城任務還是施工中。 */
 export const GET = apiRoute(
   async ({ classroomId, userId, permissions }) => {
-    const [setting, members, custody] = await Promise.all([
+    const [setting, members, custody, splitBuilt] = await Promise.all([
       getSetting(classroomId),
       prisma.membership.findMany({
         where: { classroomId },
@@ -14,6 +15,7 @@ export const GET = apiRoute(
         orderBy: { createdAt: "asc" },
       }),
       prisma.financeOpeningCustody.findMany({ where: { classroomId }, select: { userId: true, amount: true } }),
+      isSplitBuilt(classroomId),
     ]);
     return {
       setting: setting && {
@@ -26,6 +28,8 @@ export const GET = apiRoute(
         openingCustody: custody,
       },
       members: members.map((m) => ({ ...m.user, role: m.role })),
+      /** 建城第 2～4 章（居民、場地、分帳）蓋好了沒。 */
+      splitBuilt,
       canEdit: permissions.has("finance.edit"),
       isRevenueOwner: setting?.revenueOwnerUserId === userId,
     };

@@ -21,7 +21,7 @@ import { ENTRY_CATEGORIES, isEntryCategory, signedEntryAmount } from "@/domains/
  * 輸入不一樣＝點名改過，退回待驗收。算法本身在 src/domains/finance/split.ts。
  */
 
-type RuleRow = FinanceSplitRule & { shares: FinanceSplitShare[] };
+export type RuleRow = FinanceSplitRule & { shares: FinanceSplitShare[] };
 
 const toLayer = (row: RuleRow): RuleLayer => ({
   ...row,
@@ -38,12 +38,22 @@ function effectiveAt(rows: RuleRow[], at: Date): RuleRow | null {
   return best;
 }
 
-async function loadRules(classroomId: number) {
-  const rows = await prisma.financeSplitRule.findMany({
+export function loadRuleRows(classroomId: number): Promise<RuleRow[]> {
+  return prisma.financeSplitRule.findMany({
     where: { classroomId },
     include: { shares: true },
     orderBy: { effectiveFrom: "asc" },
   });
+}
+
+async function loadRules(classroomId: number) {
+  return rulesFromRows(await loadRuleRows(classroomId));
+}
+
+export type Rules = ReturnType<typeof rulesFromRows>;
+
+/** 三層規則查表：某堂（課程、分部、時間）用哪一套。 */
+export function rulesFromRows(rows: RuleRow[]) {
   const classroom = rows.filter((r) => r.scope === "CLASSROOM");
   const byLocation = new Map<number, RuleRow[]>();
   const byLesson = new Map<number, RuleRow[]>();
@@ -134,7 +144,8 @@ export async function getLessonSplits(classroomId: number, from: string, to: str
 
 type SettlementMeta = { inputsKey: string; ruleIds: number[] };
 
-async function computeLessonSplits(classroomId: number, from: string, to: string, now: Date) {
+/** `rules` 不給就讀資料庫的規則；建城試算時給還沒存的那套。 */
+export async function computeLessonSplits(classroomId: number, from: string, to: string, now: Date, rulesOverride?: Rules) {
   const start = parseTaipeiDateRange(from).start;
   const end = parseTaipeiDateRange(to).end;
 
@@ -144,7 +155,7 @@ async function computeLessonSplits(classroomId: number, from: string, to: string
       include: periodInclude,
       orderBy: [{ startTime: "asc" }, { id: "asc" }],
     }),
-    loadRules(classroomId),
+    rulesOverride ?? loadRules(classroomId),
     prisma.financeSetting.findUnique({ where: { classroomId }, select: { revenueOwnerUserId: true } }),
   ]);
   const owner = setting?.revenueOwnerUserId
@@ -513,7 +524,7 @@ export async function getTeacherMonth(
 
 // ---------- 規則
 
-const EPOCH = new Date(0);
+export const EPOCH = new Date(0);
 
 function monthStart(date: Date) {
   return parseTaipeiMonthRange(toTaipeiMonthKey(date)).start;
@@ -587,22 +598,42 @@ export async function saveSplitRule(classroomId: number, userId: number, input: 
   };
   const shares = target.scope === "LESSON" ? input.shares ?? [] : [];
 
-  return prisma.$transaction(async (tx) => {
-    const existing = await tx.financeSplitRule.findFirst({
-      where: { classroomId, ...target, effectiveFrom },
-      select: { id: true },
-    });
-    const rule = existing
-      ? await tx.financeSplitRule.update({ where: { id: existing.id }, data: knobs })
-      : await tx.financeSplitRule.create({ data: { classroomId, ...target, effectiveFrom, createdById: userId, ...knobs } });
-    await tx.financeSplitShare.deleteMany({ where: { ruleId: rule.id } });
-    if (shares.length > 0) {
-      await tx.financeSplitShare.createMany({ data: shares.map((s) => ({ ruleId: rule.id, teacherId: s.teacherId, pct: s.pct })) });
-    }
-    return tx.financeSplitRule.findUniqueOrThrow({
-      where: { id: rule.id },
-      include: { shares: { select: { teacherId: true, pct: true } } },
-    });
+  return prisma.$transaction((tx) => writeRule(tx, { classroomId, userId, target, effectiveFrom, knobs, shares }));
+}
+
+export type RuleTarget = { scope: "CLASSROOM" | "LOCATION" | "LESSON"; locationId: number | null; lessonId: number | null };
+export type RuleKnobs = Pick<
+  FinanceSplitRule,
+  | "teacherPay" | "hourlyFee" | "venueMode" | "venueAmount" | "venuePayee" | "venueTeacherId"
+  | "assistantMode" | "assistantAmount" | "commissionPct" | "manual" | "roundTo" | "remainderTo" | "reason"
+>;
+
+/** 寫一層規則：同一層同一天生效的那列已經有了就改它，沒有就新增。 */
+export async function writeRule(
+  tx: Prisma.TransactionClient,
+  { classroomId, userId, target, effectiveFrom, knobs, shares }: {
+    classroomId: number;
+    userId: number;
+    target: RuleTarget;
+    effectiveFrom: Date;
+    knobs: RuleKnobs;
+    shares: { teacherId: number; pct: number }[];
+  }
+) {
+  const existing = await tx.financeSplitRule.findFirst({
+    where: { classroomId, ...target, effectiveFrom },
+    select: { id: true },
+  });
+  const rule = existing
+    ? await tx.financeSplitRule.update({ where: { id: existing.id }, data: knobs })
+    : await tx.financeSplitRule.create({ data: { classroomId, ...target, effectiveFrom, createdById: userId, ...knobs } });
+  await tx.financeSplitShare.deleteMany({ where: { ruleId: rule.id } });
+  if (shares.length > 0) {
+    await tx.financeSplitShare.createMany({ data: shares.map((s) => ({ ruleId: rule.id, teacherId: s.teacherId, pct: s.pct })) });
+  }
+  return tx.financeSplitRule.findUniqueOrThrow({
+    where: { id: rule.id },
+    include: { shares: { select: { teacherId: true, pct: true } } },
   });
 }
 

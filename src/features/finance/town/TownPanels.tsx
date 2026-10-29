@@ -25,7 +25,7 @@ const dollars = (n: number) => (n < 0 ? `−$${num(-n)}` : `$${num(n)}`);
 const methodText = (c: TownCart) => (c.method === "CASH" ? "現金" : `轉帳${c.reference ? ` · 末五碼 ${c.reference}` : ""}`);
 
 /** 抽屜的標題列：圖示、標題、一行說明、關閉。 */
-function PanelHeader({ icon, title, sub, onClose }: { icon: ReactNode; title: string; sub: ReactNode; onClose: () => void }) {
+export function PanelHeader({ icon, title, sub, onClose }: { icon: ReactNode; title: string; sub: ReactNode; onClose: () => void }) {
   return (
     <div className="flex items-center gap-3">
       {icon}

@@ -97,6 +97,33 @@ export const splitRuleSchema = z.object({
 });
 export type SplitRuleInput = z.infer<typeof splitRuleSchema>;
 
+/**
+ * 建城第 2～4 章（居民、場地、分帳）一次存：全教室一層＋每個分部的場地費，都從頭算。
+ * venues 的 locationId 是 null ＝ 沒有分部，場地費掛在全教室那一層。
+ */
+export const buildSplitSchema = z.object({
+  teacherPay: z.enum(["NONE", "HOURLY", "SPLIT"]),
+  hourlyFee: money.nullish(),
+  assistantMode: feeMode.default("NONE"),
+  assistantAmount: money.nullish(),
+  commissionPct: pct.nullish(),
+  roundTo: z.union([z.literal(1), z.literal(10), z.literal(100)]).default(1),
+  remainderTo: z.enum(["REVENUE_OWNER", "FUND"]).default("FUND"),
+  venues: z
+    .array(
+      z.object({
+        locationId: id.nullable(),
+        venueMode: feeMode,
+        venueAmount: money.nullish(),
+        venuePayee: z.enum(["MEMBER", "EXTERNAL"]).nullish(),
+        venueTeacherId: id.nullish(),
+      })
+    )
+    .max(50)
+    .default([]),
+});
+export type BuildSplitInput = z.infer<typeof buildSplitSchema>;
+
 /** GET /api/finance/lessons?from=&to=（台北日期，含頭含尾，最多 62 天）。 */
 export const lessonSplitsQuerySchema = z
   .object({ from: dateKey, to: dateKey })

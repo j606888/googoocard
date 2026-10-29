@@ -3,6 +3,7 @@ const BASE = "/finance";
 
 export const financeHref = {
   home: BASE,
+  build: `${BASE}/build`,
   ledger: `${BASE}/ledger`,
   vault: `${BASE}/vault`,
   verify: `${BASE}/verify`,

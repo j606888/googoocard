@@ -13,7 +13,7 @@ type Tab = "home" | "ledger" | "calendar" | "verify" | "teachers" | "mine" | "va
 
 /**
  * 水庫每一頁的外框：標題、分頁。還沒建城時整個換成建城任務（或施工中），
- * 哪一頁都一樣。
+ * 哪一頁都一樣；建城頁本身不帶分頁。
  */
 export default function FinanceShell({ children }: { children: ReactNode }) {
   const { data, isLoading } = useGetFinanceSettingQuery();
@@ -22,6 +22,7 @@ export default function FinanceShell({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   const ready = Boolean(data?.setting?.setupCompletedAt);
+  const building = pathname === financeHref.build;
   const tabs: { value: Tab; label: string; href: string }[] = [
     { value: "home", label: "小鎮", href: financeHref.home },
     { value: "ledger", label: "帳本", href: financeHref.ledger },
@@ -50,6 +51,8 @@ export default function FinanceShell({ children }: { children: ReactNode }) {
           <Skeleton className="h-40 w-full rounded-2xl" />
           <Skeleton className="h-40 w-full rounded-2xl opacity-50" />
         </div>
+      ) : building ? (
+        children
       ) : ready ? (
         <>
           <div className="-mx-4 overflow-x-auto border-b border-neutral-200 px-4 [scrollbar-width:none] lg:mx-0 lg:px-0">
@@ -65,7 +68,7 @@ export default function FinanceShell({ children }: { children: ReactNode }) {
           {children}
         </>
       ) : (
-        <NotBuilt state={data} meId={me.id} />
+        <NotBuilt state={data} />
       )}
     </div>
   );

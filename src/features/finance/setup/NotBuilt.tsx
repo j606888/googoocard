@@ -1,18 +1,29 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Hammer } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { FinanceSettingState } from "@/store/slices/finance";
 import { Panel } from "../ui";
 import PushAction from "../quests/PushAction";
-import SetupWizard from "./SetupWizard";
+import { financeHref } from "../routes";
 
 /**
- * 還沒建城。能建城的人（有 finance.edit，或已經被選為營收負責人）看到建城任務；
+ * 還沒建城。能建城的人（有 finance.edit，或已經被選為營收負責人）帶去建城頁；
  * 其他人看到「主堡施工中」，只能先開通知。
  */
-export default function NotBuilt({ state, meId }: { state: FinanceSettingState; meId: number }) {
-  if (state.canEdit || state.isRevenueOwner) return <SetupWizard state={state} meId={meId} />;
+export default function NotBuilt({ state }: { state: FinanceSettingState }) {
+  const router = useRouter();
+  const canBuild = state.canEdit || state.isRevenueOwner;
+  useEffect(() => {
+    if (canBuild) router.replace(financeHref.build);
+  }, [canBuild, router]);
+  if (canBuild) return <Skeleton className="h-[680px] w-full rounded-3xl" />;
+  return <UnderConstruction state={state} />;
+}
 
+export function UnderConstruction({ state }: { state: FinanceSettingState }) {
   const owner = state.members.find((m) => m.id === state.setting?.revenueOwnerUserId);
   return (
     <Panel className="max-w-[560px]">

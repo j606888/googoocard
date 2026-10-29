@@ -20,6 +20,8 @@ export interface FinanceSettingState {
     openingCustody: { userId: number; amount: number }[];
   } | null;
   members: (FinanceUser & { role: string })[];
+  /** 建城第 2～4 章（居民、場地、分帳）蓋好了沒。 */
+  splitBuilt: boolean;
   canEdit: boolean;
   isRevenueOwner: boolean;
 }
@@ -231,6 +233,31 @@ export interface SplitRuleBody extends SplitRuleKnobs {
   reason?: string | null;
 }
 
+/** 建城第 2～4 章一次送的答案（POST finance/build、finance/build/preview）。 */
+export interface BuildBody {
+  teacherPay: TeacherPay;
+  hourlyFee?: number | null;
+  assistantMode: FeeMode;
+  assistantAmount?: number | null;
+  commissionPct?: number | null;
+  roundTo: 1 | 10 | 100;
+  remainderTo: RemainderTo;
+  /** locationId null ＝ 沒有分部，掛在全教室。 */
+  venues: { locationId: number | null; venueMode: FeeMode; venueAmount?: number | null; venuePayee?: VenuePayee | null; venueTeacherId?: number | null }[];
+}
+
+/** 用還沒存的答案算最近一堂；沒有點過名的課是 null。 */
+export type BuildPreview = {
+  periodId: number;
+  lessonName: string;
+  startTime: string;
+  dateKey: string;
+  locationId: number | null;
+  attendeeCount: number;
+  periodsThatDay: number;
+  split: NonNullable<LessonSplitRow["split"]>;
+} | null;
+
 export type SplitFlag = "NO_CARD" | "MISSING_SHARE_TEACHER" | "NO_TEACHER" | "MANUAL" | "NO_LOCATION";
 export type LessonSplitStatus = "UPCOMING" | "NOT_TAKEN" | "PENDING" | "CHANGED" | "VERIFIED";
 
@@ -408,6 +435,13 @@ export const financeApi = api.injectEndpoints({
       query: (body) => ({ url: "finance/split-rules", method: "PUT", body }),
       invalidatesTags: TAG,
     }),
+    previewBuild: builder.mutation<BuildPreview, BuildBody>({
+      query: (body) => ({ url: "finance/build/preview", method: "POST", body }),
+    }),
+    saveBuild: builder.mutation<unknown, BuildBody>({
+      query: (body) => ({ url: "finance/build", method: "POST", body }),
+      invalidatesTags: TAG,
+    }),
     markFinanceQuest: builder.mutation<unknown, Quest>({
       query: (quest) => ({ url: "finance/quests", method: "POST", body: { quest } }),
       invalidatesTags: TAG,
@@ -435,6 +469,8 @@ export const {
   useUpdateEntryMutation,
   useVoidEntryMutation,
   useMarkFinanceQuestMutation,
+  usePreviewBuildMutation,
+  useSaveBuildMutation,
   useGetLessonSplitsQuery,
   useVerifyLessonsMutation,
   useOverrideLessonMutation,
