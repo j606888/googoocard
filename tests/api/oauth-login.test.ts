@@ -136,7 +136,7 @@ describe("Google／Apple 登入", () => {
       })
     );
     expect(res.status).toBe(401);
-    expect((await res.json()).code).toBe("SOCIAL_ONLY");
+    expect(await res.json()).toMatchObject({ code: "SOCIAL_ONLY", provider: "google" });
   });
 
   it("Apple 登入帶 code → 換成 refresh token 存起來；刪帳號時撤銷並清掉", async () => {

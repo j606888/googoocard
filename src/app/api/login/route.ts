@@ -35,10 +35,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Created by Google／Apple sign-in, so there's no password to check.
+    // Created by Google／Apple sign-in, so there's no password to check. Name the
+    // provider so the login page can point at the right button.
     if (user.password === "!") {
+      const provider = user.googleSub ? "google" : user.appleSub ? "apple" : null;
       return NextResponse.json(
-        { error: "Use Google or Apple to sign in", code: "SOCIAL_ONLY" },
+        { error: "Use Google or Apple to sign in", code: "SOCIAL_ONLY", provider },
         { status: 401 }
       );
     }
