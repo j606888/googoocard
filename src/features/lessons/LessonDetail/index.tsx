@@ -3,6 +3,7 @@ import LessonTabs from "./LessonTabs";
 import {
   useGetLessonQuery,
   useGetLessonStudentsQuery,
+  type Lesson,
 } from "@/store/slices/lessons";
 import SubNavbar from "@/features/SubNavbar";
 import { useState } from "react";
@@ -12,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import LessonDetailHeader from "./LessonDetailHeader";
 import AttendanceOverview from "./AttendanceOverview";
 import { useSizeClass } from "@/hooks/useMediaQuery";
+import { weeklyScheduleLabel } from "../lessonSchedule";
 
 export const TABS = [
   { name: "時段", query: "periods" },
@@ -37,7 +39,7 @@ const LessonDetail = () => {
       {!isExpanded && (
         <SubNavbar
           title={lesson?.name || ""}
-          subtitle={lesson?.group?.name}
+          subtitle={lesson ? lessonSubtitle(lesson) : undefined}
           backUrl="/lessons"
           withTodoBell
         />
@@ -116,7 +118,7 @@ const LessonDetail = () => {
           )}
           {activeTab === "students" && (
             <div className="px-5 pb-4">
-              <AttendanceOverview lesson={lesson} students={students || []} />
+              <AttendanceOverview lesson={lesson} students={students || []} variant="compact" />
             </div>
           )}
           {activeTab === "settings" && <SettingSection lesson={lesson} />}
@@ -125,6 +127,12 @@ const LessonDetail = () => {
     </>
   );
 };
+
+/** 手機頁首的副標：「Sean · 每週五 20:00–21:00」；時段不規則時只寫老師。 */
+const lessonSubtitle = (lesson: Lesson) =>
+  [lesson.teachers.map((t) => t.name).join("、"), weeklyScheduleLabel(lesson.periods ?? [])]
+    .filter(Boolean)
+    .join(" · ") || undefined;
 
 const TIMELINE_FADE = ["", "", "opacity-75", "opacity-50", "opacity-25"];
 

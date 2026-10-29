@@ -1,13 +1,8 @@
 "use client";
 
 import LessonsList from "@/features/lessons/LessonsList";
-import Navbar from "@/features/Navbar";
 
-const LessonsPage = () => {
-  return <>
-    <Navbar />
-    <LessonsList />
-  </>;
-};
+// LessonsList mounts its own Navbar: on phones the search icon lives in it.
+const LessonsPage = () => <LessonsList />;
 
 export default LessonsPage;

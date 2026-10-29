@@ -9,7 +9,6 @@ import {
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import {
   buildLessonSections,
-  listAttention,
   shouldUseGroupedView,
   type SectionId,
 } from "./lessonGrouping";
@@ -100,14 +99,6 @@ export const useLessonsList = () => {
     [useGroupedView, lessons, groups]
   );
 
-  const attention = useMemo(
-    () =>
-      activeTab === "inProgress" && lessons
-        ? listAttention(lessons.lessons)
-        : { dueCount: 0, needsNextCount: 0 },
-    [activeTab, lessons]
-  );
-
   const toggleSection = (id: SectionId) => {
     setCollapsed((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
@@ -130,7 +121,6 @@ export const useLessonsList = () => {
     isFetching,
     sections,
     useGroupedView,
-    attention,
     isCollapsed: (id: SectionId) => collapsed.includes(id),
     toggleSection,
     /** 有在篩選（關鍵字或舞種）——空狀態的文案靠它分岔。 */

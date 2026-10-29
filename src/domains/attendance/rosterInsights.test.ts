@@ -6,6 +6,7 @@ import {
   headcountByPeriod,
   lastAttendedStartTime,
   lessonAttendanceRate,
+  recentCells,
   sortRosterRows,
   trailingAbsenceRun,
   type AttendanceCell,
@@ -341,5 +342,39 @@ describe("lessonAttendanceRate", () => {
       ])
     ).toEqual({ attended: 0, possible: 0, rate: 0 });
     expect(lessonAttendanceRate([])).toEqual({ attended: 0, possible: 0, rate: 0 });
+  });
+});
+
+describe("attentionItems severity", () => {
+  it("no card is a warning; only drifting is danger", () => {
+    const items = attentionItems([
+      student(1, "甲", cells(P, ["attended", "attended", "attended"]), okCards(0)),
+      student(2, "乙", cells(P, ["attended", "absent", "absent"])),
+    ]);
+    expect(items.map((i) => [i.kind, i.severity])).toEqual([
+      ["no_card", "warning"],
+      ["consecutive_absence", "danger"],
+    ]);
+  });
+});
+
+describe("recentCells", () => {
+  const row = (statuses: AttendanceStatus[]) => statuses.map((status, i) => ({ periodId: i, status }));
+
+  it("returns short lessons whole", () => {
+    expect(recentCells(row(["attended", "not_started"]), 4)).toHaveLength(2);
+  });
+
+  it("ends just after the latest taken period", () => {
+    const cells = row(["attended", "absent", "attended", "attended", "absent", "not_started", "not_started", "not_started"]);
+    expect(recentCells(cells, 4).map((c) => c.periodId)).toEqual([2, 3, 4, 5]);
+  });
+
+  it("shows the first ones when nothing has been taken yet", () => {
+    expect(recentCells(row(Array(6).fill("not_started")), 4).map((c) => c.periodId)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("shows the last ones once everything is taken", () => {
+    expect(recentCells(row(Array(6).fill("attended")), 4).map((c) => c.periodId)).toEqual([2, 3, 4, 5]);
   });
 });

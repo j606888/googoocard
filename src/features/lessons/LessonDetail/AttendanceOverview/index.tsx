@@ -24,9 +24,12 @@ import TrialRoster from "../TrialRoster";
 const AttendanceOverview = ({
   lesson,
   students,
+  variant = "expanded",
 }: {
   lesson: Lesson;
   students: LessonStudent[];
+  /** `compact` = the phone 學生 tab: slimmer chart and roster. */
+  variant?: "compact" | "expanded";
 }) => {
   // Memoised for the identity, not the cost: the `?? []` would otherwise hand
   // the two memos below a fresh array on every render of a lesson with no
@@ -44,14 +47,14 @@ const AttendanceOverview = ({
   );
 
   return (
-    <div className="flex flex-col gap-6 max-w-5xl">
+    <div className={variant === "compact" ? "flex flex-col gap-5" : "flex flex-col gap-6 max-w-5xl"}>
       <TrialRoster lesson={lesson} />
-      <HeadcountChart lessonId={lesson.id} data={headcounts} />
+      <HeadcountChart lessonId={lesson.id} data={headcounts} variant={variant} />
       <AttentionList
         items={items}
         acceptedCardNames={(lesson.cards ?? []).map((card) => card.name)}
       />
-      <RosterList rows={rows} />
+      <RosterList rows={rows} variant={variant} />
     </div>
   );
 };

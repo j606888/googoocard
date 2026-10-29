@@ -23,19 +23,11 @@ const formatDay = (date: Date) => {
   return `${format(date, "M/d")}（${WEEKDAYS[date.getDay()]}）`;
 };
 
-/** 「下一堂」那格：待點名 > 下一堂 > 已結束 / 尚未排。 */
+/**
+ * 「下一堂」那格：還沒開始的下一堂 > 已結束 / 尚未排。永遠不寫過去的日期——
+ * 逾期沒點名的時段在列表上方的「還沒點名」與這一列的「補點名」按鈕。
+ */
 const NextCell = ({ lesson }: { lesson: LessonSummary }) => {
-  if (lesson.dueForAttendanceCount > 0 && lesson.dueForAttendanceDate) {
-    const due = new Date(lesson.dueForAttendanceDate);
-    return (
-      <span className="font-semibold text-warning-900 truncate">
-        {lesson.dueForAttendanceIsBacklog
-          ? `${formatDay(due)} 未點名`
-          : `${formatDay(due)} ${format(due, "HH:mm")}`}
-        {lesson.dueForAttendanceCount > 1 && ` · ${lesson.dueForAttendanceCount} 堂待點名`}
-      </span>
-    );
-  }
   if (lesson.nextSessionDate) {
     const next = new Date(lesson.nextSessionDate);
     const until = daysUntilLabel(next, new Date());

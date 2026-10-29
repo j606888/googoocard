@@ -98,12 +98,6 @@ export const lessonRowAction = (lesson: LessonSummary): LessonRowAction => {
   return { type: "none" };
 };
 
-/** 列表頂端的提醒條：幾堂待點名、幾門持續開課的課還沒排下一堂。 */
-export const listAttention = (lessons: LessonSummary[]) => ({
-  dueCount: lessons.reduce((sum, l) => sum + l.dueForAttendanceCount, 0),
-  needsNextCount: lessons.filter(needsNextPeriod).length,
-});
-
 /**
  * 「＋下一堂」的預設時段：沿用上一堂的星期與時間，往後推整週，
  * 推到今天或之後為止（停了幾週的課不會預設排在過去）。沒有上一堂時回 null。
