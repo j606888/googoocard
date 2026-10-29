@@ -94,6 +94,52 @@ describe("單堂付費", () => {
     expect((await getTodos(classroomId)).unpaidDropIns).toHaveLength(0);
   });
 
+  it("改價：實收照老師填的金額，動態標原價，營收算實收", async () => {
+    const { lesson, period, student } = await setup();
+    await createPendingAttendance(period.id, student.id);
+
+    const res = await charge(lesson.id, period.id, student.id, { amount: 500, isPaid: true, paymentMethod: "CASH" });
+    expect(res.status).toBe(200);
+
+    const record = await prisma.attendanceRecord.findFirstOrThrow({
+      where: { studentId: student.id },
+      include: { dropInCharge: true },
+    });
+    expect(record.dropInCharge).toMatchObject({ amount: 500, isPaid: true });
+    const event = await prisma.event.findFirstOrThrow({ where: { studentId: student.id, title: "單堂付費" } });
+    expect(event.description).toContain("$500（原價 $900）");
+
+    const rows = await (
+      await getAttendance(new Request("http://t"), routeParams({ id: String(lesson.id), periodId: String(period.id) }))
+    ).json();
+    expect(rows[0]).toMatchObject({ dropIn: { amount: 500 }, income: 500 });
+  });
+
+  it("確認收款時改價（學生在 LINE 選單堂記的是牌價）", async () => {
+    const { lesson, period, student } = await setup();
+    await createPendingAttendance(period.id, student.id);
+    await charge(lesson.id, period.id, student.id, { isPaid: false });
+    const [unpaid] = (await getTodos(classroomId)).unpaidDropIns;
+
+    const res = await confirmRoute(
+      jsonRequest("POST", { amount: 500, paymentMethod: "CASH" }),
+      routeParams({ id: String(unpaid.id) })
+    );
+    expect(res.status).toBe(200);
+    expect(await prisma.dropInCharge.findUniqueOrThrow({ where: { id: unpaid.id } })).toMatchObject({
+      amount: 500,
+      isPaid: true,
+      paymentMethod: "CASH",
+    });
+  });
+
+  it("金額不能是負數", async () => {
+    const { lesson, period, student } = await setup();
+    await createPendingAttendance(period.id, student.id);
+    expect((await charge(lesson.id, period.id, student.id, { amount: -100, isPaid: true })).status).toBe(400);
+    expect(await prisma.dropInCharge.count()).toBe(0);
+  });
+
   it("沒開放單堂、或已綁卡的出席不能改單堂", async () => {
     const closed = await setup(null);
     await createPendingAttendance(closed.period.id, closed.student.id);

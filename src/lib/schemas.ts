@@ -49,11 +49,18 @@ export const confirmPaymentSchema = z.object({
   receiverUserId: positiveInt.optional(),
 });
 
+/** 單堂費確認收款：多一個 `amount`，收的時候才打折（學生在 LINE 自己選單堂時記的是牌價）。 */
+export const confirmDropInPaymentSchema = confirmPaymentSchema.extend({
+  amount: money.optional(),
+});
+
 /**
- * 一筆出席改付單堂（POST .../attendance/[studentId]/drop-in）。金額照課程的
- * 單堂價，不讓前端帶。`isPaid:false` = 下課再付，收款欄位一律忽略。
+ * 一筆出席改付單堂（POST .../attendance/[studentId]/drop-in）。`amount` 省略 =
+ * 課程的單堂價；老師可以當場打折（同 buyStudentCardSchema 的 price）。
+ * `isPaid:false` = 下課再付，收款欄位一律忽略。
  */
 export const chargeDropInSchema = z.object({
+  amount: money.optional(),
   isPaid: z.boolean(),
   paymentMethod: z.enum(PaymentMethod).nullish(),
   paymentReference: z.string().trim().max(20).nullish(),

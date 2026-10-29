@@ -386,13 +386,14 @@ const lessonsApi = api.injectEndpoints({
       // 學生頁的課卡跟著 getStudent（"Student"）走，扣了格數要一起刷新。
       invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "Attendance", "AttendanceRecord"],
     }),
-    /** 這筆出席改付單堂（不扣卡）。金額由後端照課程單堂價決定。 */
+    /** 這筆出席改付單堂（不扣卡）。`amount` 省略 = 課程單堂價。 */
     chargeDropIn: builder.mutation<
       void,
       {
         id: number;
         periodId: number;
         studentId: number;
+        amount?: number;
         isPaid: boolean;
         paymentMethod?: "CASH" | "TRANSFER" | null;
         paymentReference?: string | null;
@@ -407,7 +408,7 @@ const lessonsApi = api.injectEndpoints({
     }),
     confirmDropInPayment: builder.mutation<
       void,
-      { chargeId: number; paymentMethod?: "CASH" | "TRANSFER"; paymentReference?: string | null }
+      { chargeId: number; amount?: number; paymentMethod?: "CASH" | "TRANSFER"; paymentReference?: string | null }
     >({
       query: ({ chargeId, ...body }) => ({
         url: `drop-in-charges/${chargeId}/confirm-payment`,
