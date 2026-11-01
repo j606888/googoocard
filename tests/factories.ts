@@ -6,14 +6,11 @@ import { nextCardSerial } from "@/service/studentCardSerial";
 // Wipe all tables between tests (FK-safe via CASCADE).
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "AttendanceRecord", "LessonPeriodAssistant", "LessonStudent", "LessonPeriod", "LessonTeacher",
+    `TRUNCATE "AttendanceRecord", "LessonStudent", "LessonPeriod", "LessonTeacher",
       "LessonCard", "StudentDanceQualification", "StudentTag", "Tag", "Event",
       "StudentCard", "Lesson", "LessonGroup", "Location", "Card", "DanceStyle", "Student", "Teacher", "InviteToken",
       "Membership", "Classroom", "User", "LineAccount", "RenewalReminder", "PushToken", "WebPushSubscription",
-      "NotificationPreference", "ClassroomModule", "SkillTalkRead", "SkillCommentMention", "SkillCommentReaction",
-      "SkillComment", "SkillChange", "Skill", "SkillTier", "SkillCategory", "FinanceSetting", "FinanceOpeningCustody",
-      "FinanceRemittance", "FinanceEntryRevision", "FinanceEntry", "FinanceSettingRevision", "FinanceQuestDone",
-      "FinanceSettlementRevision", "FinanceSettlementLine", "FinanceLessonSettlement", "FinanceSplitShare", "FinanceSplitRule" RESTART IDENTITY CASCADE`
+      "NotificationPreference" RESTART IDENTITY CASCADE`
   );
 }
 
@@ -43,11 +40,6 @@ export async function createClassroom({
     data: { userId: user.id, classroomId: classroom.id, role: "owner" },
   });
   return classroom;
-}
-
-/** Switch a 功能模組 on (src/lib/permissions.ts MODULES). */
-export async function enableModule(classroomId: number, module: string) {
-  return prisma.classroomModule.create({ data: { classroomId, module } });
 }
 
 /** A second User in an existing classroom — an 助教 unless told otherwise. */

@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { badRequest } from "@/lib/apiError";
+import { assertAdmin } from "@/lib/authz";
 import { createInviteSchema } from "@/lib/schemas";
 import { canLinkTeacher } from "@/lib/roles";
 import { findLinkableTeacher } from "@/service/team";
@@ -16,8 +17,9 @@ const inviteSelect = {
   teacher: { select: { id: true, name: true, color: true } },
 } as const;
 
-/** `members.manage` only: an invite link that hands out `role` (and, for a teacher, a Teacher row). */
-export const POST = apiRoute(async ({ request, classroomId }) => {
+/** 管理員 only: an invite link that hands out `role` (and, for a teacher, a Teacher row). */
+export const POST = apiRoute(async ({ request, classroomId, role: callerRole }) => {
+  assertAdmin(callerRole);
   const { maxUses, role, teacherId } = await parseBody(request, createInviteSchema);
 
   if (role === "teacher" && !teacherId) {
@@ -33,7 +35,7 @@ export const POST = apiRoute(async ({ request, classroomId }) => {
     data: { classroomId, maxUses: role === "teacher" ? 1 : maxUses, uses: 0, role, teacherId: linkTo, token: nanoid(8) },
     select: inviteSelect,
   });
-}, { permission: "members.manage" });
+});
 
 export const GET = apiRoute(async ({ classroomId }) => {
   return prisma.inviteToken.findMany({

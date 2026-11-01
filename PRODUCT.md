@@ -8,7 +8,7 @@ web
 
 ## Users
 
-- **Primary — teachers and assistants (老師／小幫手) of small Taiwanese partner-dance studios** (Bachata, Salsa, Kizomba…; e.g. Bailamore, HustleHustle). Mid-class and at the door they use a phone to take attendance, sell and confirm payment for class cards, and resolve "待處理" items; after class they use a desktop to review income, students and settings. Studio owners/admins also manage members, permissions and classroom settings.
+- **Primary — teachers and assistants (老師／小幫手) of small Taiwanese partner-dance studios** (Bachata, Salsa, Kizomba…; e.g. Bailamore, HustleHustle). Mid-class and at the door they use a phone to take attendance, sell and confirm payment for class cards, and resolve "待處理" items; after class they use a desktop to review income, students and settings. Studio owners/admins also manage members and classroom settings.
 - **Secondary — students**, who only touch the product inside LINE (LIFF pages): self check-in at the door, today's schedule, card prices, their own cards. They never log into the website.
 
 ## Product Purpose
@@ -37,7 +37,6 @@ Built around how partner-dance studios actually run: practice-card qualification
 
 - Name **Googoocard** and its existing logo stay.
 - **Kiwi-bird characters** stay: default student avatars are kiwi birds by role (`public/kiwi-bird.svg`, avatar set).
-- The 水庫 (finance) module keeps its own game-style world, 「奇異鳥小鎮」 (`docs/finance-game-style.md`); the redesign does not touch it.
 - UI copy is Traditional Chinese.
 - The user prefers a clean interface: explanations tucked behind ⓘ, no decorative stat rows, no numbers written inside grid cells.
 

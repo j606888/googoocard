@@ -245,11 +245,6 @@ export const updateTeacherSchema = z.object({
   archived: z.boolean().optional(),
 });
 
-/** PUT …/periods/[periodId]/assistants — the whole set, like attendance's studentIds. */
-export const setPeriodAssistantsSchema = z.object({
-  teacherIds: z.array(z.number().int().positive()).max(10),
-});
-
 /** `?month=YYYY-MM` on the teacher stats routes; omitted = this Taipei month. */
 export const teacherMonthQuerySchema = z.object({
   month: z
@@ -297,6 +292,4 @@ export const createInviteSchema = z.object({
 export const updateMembershipSchema = z.object({
   role: assignableRole.optional(),
   teacherId: positiveInt.nullable().optional(),
-  /** The full list the member should end up with (src/lib/permissions.ts); stored as grants/revokes. */
-  permissions: z.array(z.string()).optional(),
 });

@@ -3,6 +3,7 @@
 > 建立：2026-08-23（全專案掃描：21.8k 行 / 64 個 API route / 23 支整合測試）
 > 更新：2026-09-16（P2-1 續卡提醒推播，專案有了第一個 cron）
 > 更新：2026-10-26（對照程式碼校正各項狀態：P3-1／P3-2／營收 CSV 標註部分完成、更新路徑與 route 清點）
+> 更新：2026-11-01（移除功能模組：水庫、技能樹、模組開關、權限同捆包、今天的助教，見下方「已移除」）
 > 前提：**production 上已有多間教室在使用**——跨教室資料邊界是實質風險，不是理論問題。
 
 ## 這份文件是什麼
@@ -21,6 +22,14 @@
 **不要刪除**——保留下來就是決策紀錄。
 
 ---
+
+# 已移除
+
+- [x] **功能模組整套移除** ✅ 2026-11-01 — 水庫（finance，建城／代收／繳回／分帳／驗收／行事曆／老師薪水）、技能樹（curriculum）、模組開關（`ClassroomModule`、`/modules`）、權限同捆包＋個人加減（`Membership.grants`／`revokes`、`src/lib/permissions.ts`、`useCan`、`/api/me/access`）、點名頁「今天的助教」（`LessonPeriodAssistant`）。
+  - **為什麼**：架構想得不夠清楚，表與介面多數沒人用；正式環境上也沒有教室在用。想之後從乾淨的狀態重新設計金流。
+  - **怎麼做**：沒有 `git revert`（後面疊了核心改動）；往前刪程式，權限相關核心檔案直接還原成 `f32a752^`（之後沒人動過），新 migration `20261101120000_remove_modules` drop 掉模組自己的表／enum 與 grants/revokes。舊 migration 資料夾保留。
+  - **保留**：`Teacher.kind`（老師／助教／都是——開課選老師會隱藏純助教）、`StudentCard.paidByUserId`（收款人，比水庫早）。
+  - **附帶修好**：水庫的 RESTRICT 外鍵（`FinanceLessonSettlement`、`FinanceSplitShare`）曾讓「刪已驗收的時段」「刪有分帳的老師」500。
 
 # P0 — 安全性 ✅ 全數完成 2026-08-23
 
