@@ -7,14 +7,12 @@ import { useState } from "react";
 import { ChevronRight, LogOut, Smartphone } from "lucide-react";
 import {
   ACCOUNT_LINK,
-  MODULE_LINKS,
   SECONDARY_LINKS,
   SETTINGS_ENTRY,
   isSettingsPath,
   type NavLink,
 } from "./navConfig";
 import { useGetMeQuery } from "@/store/slices/me";
-import { useAccess } from "@/hooks/useCan";
 import { useLogoutMutation } from "@/store/slices/me";
 import { disableWebPushOnLogout } from "@/hooks/useWebPush";
 import { useInstallState } from "@/hooks/useInstallState";
@@ -31,9 +29,6 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
   const router = useRouter();
   const [logout] = useLogoutMutation();
   const install = useInstallState();
-  const { can } = useAccess();
-  const visible = (link: NavLink) => !link.permission || can(link.permission);
-  const moduleLinks = MODULE_LINKS.filter(visible);
   const { data: me } = useGetMeQuery();
   const [installGuideOpen, setInstallGuideOpen] = useState(false);
 
@@ -67,21 +62,10 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
               <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-neutral-200" />
 
               <div className="grid grid-cols-3 gap-3">
-                {SECONDARY_LINKS.filter(visible).map((link) => (
+                {SECONDARY_LINKS.map((link) => (
                   <Tile key={link.href} link={link} active={pathname.startsWith(link.href)} onClose={onClose} />
                 ))}
               </div>
-
-              {moduleLinks.length > 0 && (
-                <>
-                  <p className="mx-1 mb-2 mt-4 text-xs font-medium text-neutral-500">模組</p>
-                  <div className="grid grid-cols-3 gap-3">
-                    {moduleLinks.map((link) => (
-                      <Tile key={link.href} link={link} active={pathname.startsWith(link.href)} onClose={onClose} />
-                    ))}
-                  </div>
-                </>
-              )}
 
               <div className="mt-4 flex flex-col">
                 <Row

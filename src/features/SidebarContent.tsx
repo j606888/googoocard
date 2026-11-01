@@ -13,11 +13,9 @@ import { disableWebPushOnLogout } from "@/hooks/useWebPush";
 import Menu from "@/components/Menu";
 import KiwiLogo from "@/components/KiwiLogo";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAccess } from "@/hooks/useCan";
 import { Button } from "@/components/ui/button";
 import {
   ACCOUNT_LINK,
-  MODULE_LINKS,
   PRIMARY_LINKS,
   SECONDARY_LINKS,
   SETTINGS_ENTRY,
@@ -40,9 +38,6 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const [logout] = useLogoutMutation();
-  const { can } = useAccess();
-  const visible = (link: NavLink) => !link.permission || can(link.permission);
-  const moduleLinks = MODULE_LINKS.filter(visible);
   const { data } = useGetClassroomsQuery();
   const otherClassrooms = data?.classrooms.filter(
     (classroom) => classroom.id !== data.currentClassroomId
@@ -161,13 +156,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
         </Link>
       </Menu>
       <nav className="mt-5 flex flex-col gap-0.5">
-        {[...PRIMARY_LINKS, ...SECONDARY_LINKS].filter(visible).map((link) => renderLink(link))}
-        {moduleLinks.length > 0 && (
-          <>
-            <p className="mx-3 mb-1 mt-4 text-xs font-medium text-neutral-500">模組</p>
-            {moduleLinks.map((link) => renderLink(link))}
-          </>
-        )}
+        {[...PRIMARY_LINKS, ...SECONDARY_LINKS].map((link) => renderLink(link))}
       </nav>
       {/* 教室設定 and the account row sit at the bottom: set up once, rarely visited. */}
       <div className="mt-auto flex flex-col gap-2 pt-4">

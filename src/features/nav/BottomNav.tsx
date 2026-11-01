@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { MoreHorizontal } from "lucide-react";
-import { ACCOUNT_LINK, MODULE_LINKS, PRIMARY_LINKS, SECONDARY_LINKS, isSettingsPath } from "./navConfig";
+import { ACCOUNT_LINK, PRIMARY_LINKS, SECONDARY_LINKS, isSettingsPath } from "./navConfig";
 import { useGetUnpaidStudentCardsQuery } from "@/store/slices/students";
 import MoreSheet from "./MoreSheet";
 
@@ -23,7 +23,7 @@ const BottomNav = () => {
 
   // "More" counts as active on any page it leads to.
   const moreActive =
-    [...SECONDARY_LINKS, ...MODULE_LINKS, ACCOUNT_LINK].some((l) => pathname.startsWith(l.href)) ||
+    [...SECONDARY_LINKS, ACCOUNT_LINK].some((l) => pathname.startsWith(l.href)) ||
     isSettingsPath(pathname);
 
   return (
