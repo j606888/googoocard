@@ -178,6 +178,12 @@ export interface StudentCard {
   createdAt: string;
   updatedAt: string;
   expiredAt: string | null;
+  /** 財務教室的到期日；沒開財務為 null */
+  expiresAt?: string | null;
+  /** 贈送卡指回綁課卡；不是贈送卡為 null */
+  giftFromId?: number | null;
+  /** 缺席但仍扣格的時段（date = 台北 YYYY-MM-DD），新的在前；學生詳情才會帶 */
+  absences?: { date: string; lessonName: string }[];
 }
 
 export interface UnpaidStudentCard {

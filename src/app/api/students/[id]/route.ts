@@ -11,6 +11,7 @@ import {
   transferLinksInclude,
   toLastAttendance,
   toStudentPayload,
+  loadCardAbsences,
 } from "@/service/studentDetail";
 import { DEFAULT_DANCE_LEVEL, isValidDanceLevel } from "@/lib/danceLevels";
 import { toDanceLevels } from "@/domains/qualification";
@@ -192,9 +193,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { attendancesByLesson, attendancesByDate, studentCardAttendances } =
     await buildAttendanceViews(attendanceRecords);
 
+  const absencesByCard = await loadCardAbsences(studentCards.map((card) => card.id));
   const studentCardsWithAttendances = studentCards.map((card) => ({
     ...card,
     attendanceRecords: studentCardAttendances.get(card.id) ?? [],
+    absences: absencesByCard.get(card.id) ?? [],
   }));
 
   return NextResponse.json({

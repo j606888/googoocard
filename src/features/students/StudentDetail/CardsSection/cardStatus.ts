@@ -88,3 +88,19 @@ export function cardPeriodLabel(
   const endLabel = shortDate(endValue, now);
   return endLabel === startLabel ? startLabel : `${startLabel} – ${endLabel}`;
 }
+
+/** 「到期 2027/5/4」：台北日期；沒有到期日（沒開財務）回 null。 */
+export function expiryLabel(expiresAt: string | null | undefined): string | null {
+  if (!expiresAt) return null;
+  const [y, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" })
+    .format(new Date(expiresAt))
+    .split("-")
+    .map(Number);
+  return `到期 ${y}/${m}/${d}`;
+}
+
+/** 「11/12 缺席（已扣）」：date 是台北 YYYY-MM-DD。 */
+export function absenceLabel(date: string): string {
+  const [, m, d] = date.split("-").map(Number);
+  return `${m}/${d} 缺席（已扣）`;
+}

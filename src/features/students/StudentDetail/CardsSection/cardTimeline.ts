@@ -19,6 +19,7 @@ export type CardTimelineEntry =
       pending: boolean;
       sessionsUsed: number;
     }
+  | { kind: "absence"; at: number; date: string; lessonName: string }
   | { kind: "transferredOut"; at: number }
   | { kind: "convertedTo"; at: number }
   | { kind: "expired"; at: number };
@@ -47,6 +48,16 @@ export function buildCardTimeline(card: StudentCardWithCard): CardTimelineEntry[
       source: record.source,
       pending: record.pending,
       sessionsUsed: record.sessionsUsed,
+    });
+  }
+
+  for (const absence of card.absences ?? []) {
+    // date 是台北日期；取當天中午避開時區邊界，排序只需要大致位置。
+    entries.push({
+      kind: "absence",
+      at: new Date(`${absence.date}T12:00:00+08:00`).getTime(),
+      date: absence.date,
+      lessonName: absence.lessonName,
     });
   }
 

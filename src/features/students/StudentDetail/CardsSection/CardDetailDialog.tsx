@@ -34,7 +34,7 @@ import ConvertCard from "./ConvertCard";
 import TransferCard from "./TransferCard";
 import SessionDots from "./SessionDots";
 import { buildCardTimeline, paidAtPurchase, type CardTimelineEntry } from "./cardTimeline";
-import { cardOutcome, isCardEnded, isLowRemaining, lastUsedAt, type CardOutcome } from "./cardStatus";
+import { absenceLabel, cardOutcome, expiryLabel, isCardEnded, isLowRemaining, lastUsedAt, type CardOutcome } from "./cardStatus";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { fieldControlClass } from "@/components/Field";
@@ -248,6 +248,8 @@ const CardDetailDialog = ({
           meta: `${format(entry.at, "HH:mm")} · 扣 ${entry.sessionsUsed} 堂 · ${entry.source === "STUDENT" ? "學生自助簽到" : "老師點名"}`,
           tag: entry.pending ? <StatusTag tone="warning">待老師確認</StatusTag> : undefined,
         };
+      case "absence":
+        return { title: absenceLabel(entry.date), meta: entry.lessonName };
       case "transferredOut":
         return {
           title: transferredTo ? (
@@ -282,6 +284,8 @@ const CardDetailDialog = ({
         return "bg-primary-900";
       case "payment":
         return "bg-white border-2 border-primary-700";
+      case "absence":
+        return "bg-warning-200";
       case "transferredOut":
         return "border-2 border-dashed border-primary-700";
       case "convertedTo":
@@ -312,6 +316,10 @@ const CardDetailDialog = ({
               <span className="truncate">{studentName}</span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {studentCard.card.isGift && <StatusTag tone="neutral">贈送</StatusTag>}
+              {!ended && expiryLabel(studentCard.expiresAt) && (
+                <StatusTag tone="neutral">{expiryLabel(studentCard.expiresAt)}</StatusTag>
+              )}
               {outcome && <StatusTag tone="neutral">{OUTCOME_TAG[outcome]}</StatusTag>}
               <Button
                 type="button"

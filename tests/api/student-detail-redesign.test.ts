@@ -111,6 +111,9 @@ describe("學生詳情 API 的新欄位", () => {
     expect(usage).toHaveLength(1);
     expect(usage[0]).toMatchObject({ lessonName: "Bachata Lv2", source: "TEACHER", pending: false });
 
+    // 沒有缺席扣格 → absences 是空陣列（財務沒開）
+    expect(body.studentCards.find((c: { id: number }) => c.id === studentCard.id).absences).toEqual([]);
+
     // 依課程：課的舞種／階級／狀態，每個時段帶第 N 堂、扣的卡與 pending
     const [byLesson] = body.attendancesByLesson;
     expect(byLesson).toMatchObject({ lessonId: lesson.id, level: lesson.level, status: "inProgress", totalPeriods: 2 });

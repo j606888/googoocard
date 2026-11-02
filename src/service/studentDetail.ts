@@ -283,6 +283,29 @@ export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryR
 }
 
 /**
+ * 缺席（已扣）：每張卡因缺席被扣格的時段，新的在前。顯示「11/12 缺席（已扣）」。
+ * 沒開財務的教室不會有這種紀錄，所以是空陣列。欄位明列，不 spread row。
+ */
+export async function loadCardAbsences(studentCardIds: number[]) {
+  const byCard = new Map<number, { date: string; lessonName: string }[]>();
+  if (studentCardIds.length === 0) return byCard;
+  const rows = await prisma.attendanceAbsence.findMany({
+    where: { studentCardId: { in: studentCardIds } },
+    select: {
+      studentCardId: true,
+      lessonPeriod: { select: { startTime: true, lesson: { select: { name: true } } } },
+    },
+    orderBy: { lessonPeriod: { startTime: "desc" } },
+  });
+  for (const row of rows) {
+    const list = byCard.get(row.studentCardId) ?? [];
+    list.push({ date: toTaipeiDateKey(row.lessonPeriod.startTime), lessonName: row.lessonPeriod.lesson.name });
+    byCard.set(row.studentCardId, list);
+  }
+  return byCard;
+}
+
+/**
  * Assemble the full student-detail payload (overview, cards with their
  * attendance, attendance grouped by lesson and by date, dance qualifications)
  * for a single student. Shared by the public share page (`/public-students`)
@@ -341,9 +364,11 @@ export async function buildStudentDetailPayload(studentId: number) {
   const { attendancesByLesson, attendancesByDate, studentCardAttendances } =
     await buildAttendanceViews(attendanceRecords);
 
+  const absencesByCard = await loadCardAbsences(studentCards.map((card) => card.id));
   const studentCardsWithAttendances = studentCards.map((card) => ({
     ...card,
     attendanceRecords: studentCardAttendances.get(card.id) ?? [],
+    absences: absencesByCard.get(card.id) ?? [],
   }));
 
   return {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import prisma from "@/lib/prisma";
-import { resetDb, createClassroom, createStudent } from "../factories";
+import { resetDb, createClassroom, createStudent, createCard, createStudentCard, createLesson } from "../factories";
 
 // The LIFF ID token is verified by LINE's external endpoint — mock it so the
 // token string IS the resolved lineUserId ("bad" → invalid token).
@@ -112,5 +112,50 @@ describe("GET /api/liff/me", () => {
     expect(body.boundStudents.map((s: { id: number }) => s.id).sort()).toEqual(
       [s1.id, s2.id].sort()
     );
+  });
+
+  describe("到期日與缺席（財務）", () => {
+    async function cardWithAbsence() {
+      const student = await createStudent(classroomId, { name: "Amy" });
+      await bindStudent(student.id, "lineFin");
+      const card = await createCard(classroomId, { name: "8 堂卡" });
+      const studentCard = await createStudentCard(student.id, card.id);
+      const { lesson } = await createLesson(classroomId, { name: "Salsa" });
+      const period = await prisma.lessonPeriod.create({
+        data: {
+          lessonId: lesson.id,
+          startTime: new Date("2026-11-12T11:30:00Z"),
+          endTime: new Date("2026-11-12T13:00:00Z"),
+        },
+      });
+      await prisma.attendanceAbsence.create({
+        data: { lessonPeriodId: period.id, studentId: student.id, studentCardId: studentCard.id, sessionsUsed: 1 },
+      });
+      return studentCard;
+    }
+
+    it("liff me returns expiresAt and absences for bound card", async () => {
+      const studentCard = await cardWithAbsence();
+      await prisma.studentCard.update({
+        where: { id: studentCard.id },
+        data: { expiresAt: new Date("2099-05-04T00:00:00Z") },
+      });
+      const res = await GET(liffRequest("lineFin"));
+      const body = await res.json();
+      const c = body.studentCards.find((x: { id: number }) => x.id === studentCard.id);
+      expect(c.expiresAt).toBe("2099-05-04T00:00:00.000Z");
+      expect(c.absences).toEqual([{ date: "2026-11-12", lessonName: "Salsa" }]);
+    });
+
+    it("finance disabled returns nulls", async () => {
+      const student = await createStudent(classroomId, { name: "Bob" });
+      await bindStudent(student.id, "lineNoFin");
+      const card = await createCard(classroomId);
+      const studentCard = await createStudentCard(student.id, card.id);
+      const res = await GET(liffRequest("lineNoFin"));
+      const c = (await res.json()).studentCards.find((x: { id: number }) => x.id === studentCard.id);
+      expect(c.expiresAt).toBeNull();
+      expect(c.absences).toEqual([]);
+    });
   });
 });

@@ -7,7 +7,7 @@ import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { cn } from "@/lib/utils";
 import StatusTag from "@/components/StatusTag";
 import SessionDots from "./SessionDots";
-import { isLowRemaining, lastUsedAt, shortDate } from "./cardStatus";
+import { expiryLabel, isLowRemaining, lastUsedAt, shortDate } from "./cardStatus";
 
 /** 卡名下面那一行：這張卡從哪來（轉讓／轉換／買的），複習卡帶舞種。 */
 export const CardOrigin = ({ studentCard }: { studentCard: StudentCardWithCard }) => {
@@ -106,6 +106,8 @@ const StudentCard = ({
         <span className="flex items-center gap-1.5">
           {unpaid && <StatusTag tone="warning">未付 ${formatMoney(studentCard.finalPrice)}</StatusTag>}
           {low && <StatusTag tone="warning">快用完</StatusTag>}
+          {studentCard.card.isGift && <StatusTag tone="neutral">贈送</StatusTag>}
+          {expiryLabel(studentCard.expiresAt) && <StatusTag tone="neutral">{expiryLabel(studentCard.expiresAt)}</StatusTag>}
         </span>
         <span className="text-[13px] text-neutral-500 tabular-nums">
           {lastUse === null ? "還沒用過" : `上次 ${isToday(lastUse) ? "今天" : shortDate(lastUse)}`}
