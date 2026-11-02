@@ -103,8 +103,103 @@ export interface PackInput {
   purchasedAt: string;
 }
 
+export type ChecklistKey =
+  | "branches"
+  | "lessonBranches"
+  | "teachers"
+  | "venues"
+  | "rules"
+  | "funds"
+  | "legacyPrepaid";
+
+export interface SetupResponse {
+  items: { key: ChecklistKey; done: boolean; detail?: string }[];
+  complete: boolean;
+}
+
+export interface FinanceLocation {
+  id: number;
+  name: string;
+  keeperUserId: number | null;
+  expiryTo: "FUND" | "USER";
+  expiryUserId: number | null;
+  fundOpening: number;
+  fundOpeningConfirmedAt: string | null;
+}
+
+export interface FinanceLocationPatch {
+  keeperUserId?: number | null;
+  expiryTo?: "FUND" | "USER";
+  expiryUserId?: number | null;
+}
+
+export interface FinanceTeacher {
+  id: number;
+  name: string;
+  userId: number | null;
+  payerUserId: number | null;
+}
+
 const financeApi = api.injectEndpoints({
   endpoints: (builder) => ({
+    getFinanceSetup: builder.query<SetupResponse, void>({
+      query: () => "finance/setup",
+      providesTags: ["Finance", "Lesson", "Teacher", "Location"],
+    }),
+    enableFinance: builder.mutation<unknown, { launchDate: string; legacyCustodianUserId: number }>({
+      query: (body) => ({ url: "finance/enable", method: "POST", body }),
+      invalidatesTags: ["Classroom", "Membership", "Finance"],
+    }),
+    updateFinanceSettings: builder.mutation<
+      unknown,
+      { roundTo?: 1 | 10 | 100; legacyCustodianUserId?: number }
+    >({
+      query: (body) => ({ url: "finance/settings", method: "PATCH", body }),
+      invalidatesTags: ["Classroom", "Finance"],
+    }),
+    setMemberFinance: builder.mutation<unknown, { userId: number; isFinance: boolean }>({
+      query: ({ userId, isFinance }) => ({ url: `finance/members/${userId}`, method: "PATCH", body: { isFinance } }),
+      invalidatesTags: ["Membership", "Classroom", "Finance"],
+    }),
+    getFinanceLocations: builder.query<{ locations: FinanceLocation[] }, void>({
+      query: () => "finance/locations",
+      providesTags: ["Finance", "Location"],
+    }),
+    updateFinanceLocation: builder.mutation<unknown, { id: number } & FinanceLocationPatch>({
+      query: ({ id, ...body }) => ({ url: `finance/locations/${id}`, method: "PATCH", body }),
+      invalidatesTags: ["Finance"],
+    }),
+    confirmFundOpening: builder.mutation<unknown, { id: number; fundOpening: number }>({
+      query: ({ id, fundOpening }) => ({
+        url: `finance/locations/${id}/confirm-opening`,
+        method: "POST",
+        body: { fundOpening },
+      }),
+      invalidatesTags: ["Finance"],
+    }),
+    confirmLegacyPrepaid: builder.mutation<unknown, void>({
+      query: () => ({ url: "finance/legacy-prepaid/confirm", method: "POST" }),
+      invalidatesTags: ["Finance"],
+    }),
+    createFinanceVenue: builder.mutation<unknown, { name: string; landlordUserId?: number | null }>({
+      query: (body) => ({ url: "finance/venues", method: "POST", body }),
+      invalidatesTags: ["Finance"],
+    }),
+    updateFinanceVenue: builder.mutation<
+      unknown,
+      { id: number; name?: string; landlordUserId?: number | null; archived?: boolean }
+    >({
+      query: ({ id, ...body }) => ({ url: `finance/venues/${id}`, method: "PATCH", body }),
+      invalidatesTags: ["Finance"],
+    }),
+    getFinanceTeachers: builder.query<{ teachers: FinanceTeacher[] }, void>({
+      query: () => "finance/teachers",
+      providesTags: ["Finance", "Teacher"],
+    }),
+    setTeacherPayer: builder.mutation<unknown, { id: number; payerUserId: number | null }>({
+      query: ({ id, payerUserId }) => ({ url: `finance/teachers/${id}`, method: "PATCH", body: { payerUserId } }),
+      invalidatesTags: ["Finance"],
+    }),
     getFinanceSettings: builder.query<FinanceSettings, void>({
       query: () => "finance/settings",
       providesTags: ["Classroom", "Membership"],
@@ -208,6 +303,18 @@ const financeApi = api.injectEndpoints({
 });
 
 export const {
+  useGetFinanceSetupQuery,
+  useEnableFinanceMutation,
+  useUpdateFinanceSettingsMutation,
+  useSetMemberFinanceMutation,
+  useGetFinanceLocationsQuery,
+  useUpdateFinanceLocationMutation,
+  useConfirmFundOpeningMutation,
+  useConfirmLegacyPrepaidMutation,
+  useCreateFinanceVenueMutation,
+  useUpdateFinanceVenueMutation,
+  useGetFinanceTeachersQuery,
+  useSetTeacherPayerMutation,
   useGetMonthStatementQuery,
   useLockMonthMutation,
   useGetFinanceTransfersQuery,

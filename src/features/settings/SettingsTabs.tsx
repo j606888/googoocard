@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SETTINGS_LINKS } from "@/features/nav/navConfig";
+import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 
 /**
  * The 教室設定 tab bar over 舞種／分部／團隊／簽到 QR. Links, not
@@ -11,6 +12,10 @@ import { SETTINGS_LINKS } from "@/features/nav/navConfig";
  */
 export default function SettingsTabs() {
   const pathname = usePathname();
+  const { data } = useGetClassroomsQuery();
+  // 財務還沒開時，導覽列沒有「財務」；只有擁有者看得到入口。
+  const current = data?.classrooms.find((c) => c.id === data.currentClassroomId);
+  const showEnableFinance = current?.role === "owner" && !current.financeEnabled;
 
   return (
     <div className="px-4 pt-3 lg:px-8 lg:pt-6">
@@ -34,6 +39,14 @@ export default function SettingsTabs() {
               </Link>
             );
           })}
+          {showEnableFinance && (
+            <Link
+              href="/finance"
+              className="-mb-px inline-flex min-h-11 items-center whitespace-nowrap border-b-2 border-transparent px-3.5 text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800"
+            >
+              開啟財務
+            </Link>
+          )}
         </div>
       </nav>
     </div>

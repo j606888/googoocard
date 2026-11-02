@@ -15,11 +15,13 @@ import {
 import { useGetLocationsQuery } from "@/store/slices/locations";
 import { useGetTeachersQuery } from "@/store/slices/teachers";
 import { fundDeficits, unsettledNotice, warningsNotice } from "./custodyNotices";
+import EnableFinance from "./EnableFinance";
+import SetupChecklist from "./SetupChecklist";
 import CustodyCard from "./CustodyCard";
 import { custodyRows } from "./custodyRows";
 import type { NameMaps } from "./custodyRows";
 
-/** `banner`: 上方的提醒位置（開帳清單，Task 17 放進來）。 */
+/** `banner`: 上方的額外提醒位置；開帳清單（未完成時）固定顯示在它下面。 */
 export default function FinanceHome({ banner }: { banner?: ReactNode }) {
   const { data: settings, isLoading: settingsLoading } = useGetFinanceSettingsQuery();
   const enabled = !!settings?.enabled;
@@ -39,7 +41,7 @@ export default function FinanceHome({ banner }: { banner?: ReactNode }) {
     );
   }
   if (!enabled) {
-    return <EmptyState kind="page" title="這間教室還沒開財務" />;
+    return <EnableFinance />;
   }
   if (isError || !custody) {
     return <EmptyState kind="inline" title="讀不到財務資料，請稍後再試" />;
@@ -68,6 +70,7 @@ export default function FinanceHome({ banner }: { banner?: ReactNode }) {
   return (
     <div className="flex flex-col gap-4 p-4 lg:p-6">
       {banner}
+      <SetupChecklist />
       {unsettled && months && (
         <Link
           href={`/finance/settle/${months.openMonth}`}
@@ -81,6 +84,7 @@ export default function FinanceHome({ banner }: { banner?: ReactNode }) {
           ...(months ? [{ href: `/finance/settle/${months.openMonth}`, label: "月結算單" }] : []),
           { href: "/finance/expenses", label: "支出與轉帳" },
           { href: "/finance/report", label: "月報表" },
+          { href: "/finance/settings", label: "財務設定" },
         ].map((l) => (
           <Link
             key={l.href}
