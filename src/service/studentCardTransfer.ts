@@ -58,8 +58,12 @@ export async function performTransfer({
     // 新卡沿用舊卡的到期日與賣卡分部（spec §5.1–5.2），不重新算 6 個月。
     const inherited = await tx.studentCard.findUniqueOrThrow({
       where: { id: sourceCard.id },
-      select: { expiresAt: true, soldLocationId: true },
+      select: { expiresAt: true, soldLocationId: true, paidByUserId: true },
     });
+    // 財務開啟時保管人也沿用舊卡（沒有新的錢進來；舊卡 null = 照樣歸 legacy custodian）。
+    const financeOn = !!(
+      await tx.classroom.findUnique({ where: { id: classroomId }, select: { financeEnabledAt: true } })
+    )?.financeEnabledAt;
 
     const newCard = await tx.studentCard.create({
       data: {
@@ -80,7 +84,7 @@ export async function performTransfer({
         // 錢在原卡收過了：視為已付清（不進未付款清單），但沒有收款人。
         isPaid: true,
         paidAt: new Date(),
-        paidByUserId: null,
+        paidByUserId: financeOn ? inherited.paidByUserId : null,
       },
     });
 

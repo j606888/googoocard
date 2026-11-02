@@ -119,17 +119,21 @@ describe("finance card expiry", () => {
     const expiresAt = new Date("2027-03-01T16:00:00Z");
 
     const src = await createStudentCard(student.id, card.id, { remainingSessions: 4 });
+    const keeper = await createMember(classroomId, { email: "keeper@test.local" });
     await prisma.studentCard.update({
       where: { id: src.id },
-      data: { expiresAt, soldLocationId: loc.id },
+      data: { expiresAt, soldLocationId: loc.id, paidByUserId: keeper.id },
     });
     const converted = await performConversion({
       sourceCard: { ...src, card: { name: card.name } },
       targetCard: target,
       sessions: 4,
+      actorUserId: ownerId,
     });
     expect(converted.expiresAt?.toISOString()).toBe(expiresAt.toISOString());
     expect(converted.soldLocationId).toBe(loc.id);
+    // 保管人沿用舊卡，不是操作的人
+    expect(converted.paidByUserId).toBe(keeper.id);
     expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: src.id } })).closedReason).toBeNull();
 
     const transferred = await performTransfer({
@@ -138,12 +142,53 @@ describe("finance card expiry", () => {
     });
     expect(transferred?.expiresAt?.toISOString()).toBe(expiresAt.toISOString());
     expect(transferred?.soldLocationId).toBe(loc.id);
+    expect(transferred?.paidByUserId).toBe(keeper.id);
     expect(
       (await prisma.studentCard.findUniqueOrThrow({ where: { id: converted.id } })).closedReason
     ).toBeNull();
 
     // 轉換／轉讓關閉的卡不算過期收入
     expect(await expiryEvents(classroomId)).toEqual([]);
+  });
+
+  it("legacy source card (no holder) keeps a null holder through conversion and transfer", async () => {
+    await enable();
+    const student = await createStudent(classroomId, { name: "A" });
+    const toStudent = await createStudent(classroomId, { name: "B" });
+    const card = await createCard(classroomId, { name: "Level 1", price: 3000, sessions: 6 });
+    const target = await createCard(classroomId, { name: "Level 2", price: 3000, sessions: 6 });
+    const src = await createStudentCard(student.id, card.id, { remainingSessions: 4 });
+    expect(src.paidByUserId).toBeNull();
+
+    const converted = await performConversion({
+      sourceCard: { ...src, card: { name: card.name } },
+      targetCard: target,
+      sessions: 4,
+      actorUserId: ownerId,
+    });
+    expect(converted.paidByUserId).toBeNull();
+    const transferred = await performTransfer({
+      sourceCard: { ...converted, card: { name: target.name, classroomId }, student: { name: "A" } },
+      toStudent: { id: toStudent.id, name: "B" },
+      actorUserId: ownerId,
+    });
+    expect(transferred?.paidByUserId).toBeNull();
+  });
+
+  it("finance disabled: conversion holder is still the actor", async () => {
+    const keeper = await createMember(classroomId, { email: "keeper@test.local" });
+    const student = await createStudent(classroomId);
+    const card = await createCard(classroomId, { name: "Level 1", price: 3000, sessions: 6 });
+    const target = await createCard(classroomId, { name: "Level 2", price: 3000, sessions: 6 });
+    const src = await createStudentCard(student.id, card.id, { remainingSessions: 4 });
+    await prisma.studentCard.update({ where: { id: src.id }, data: { paidByUserId: keeper.id } });
+    const converted = await performConversion({
+      sourceCard: { ...src, card: { name: card.name } },
+      targetCard: target,
+      sessions: 4,
+      actorUserId: ownerId,
+    });
+    expect(converted.paidByUserId).toBe(ownerId);
   });
 
   it("manual void becomes expiry income to sold branch fund", async () => {
