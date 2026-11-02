@@ -14,6 +14,8 @@ import {
 } from "@/store/slices/students";
 import { useGetMembershipsQuery } from "@/store/slices/memberships";
 import { useGetMeQuery } from "@/store/slices/me";
+import { useGetFinanceSettingsQuery } from "@/store/slices/finance";
+import { useGetLocationsQuery } from "@/store/slices/locations";
 
 export interface ConfirmPaymentTarget {
   studentId: number;
@@ -43,11 +45,23 @@ export default function ConfirmPaymentDrawer({
   onConfirmed?: () => void;
 }) {
   const { data: me } = useGetMeQuery();
-  const { data: memberships } = useGetMembershipsQuery(undefined, { skip: !target });
-  const [confirmPayment, { isLoading }] = useConfirmStudentCardPaymentMutation();
+  const { data: memberships } = useGetMembershipsQuery(undefined, {
+    skip: !target,
+  });
+  const { data: finance } = useGetFinanceSettingsQuery(undefined, {
+    skip: !target,
+  });
+  const financeOn = !!finance?.enabled;
+  const { data: locationsData } = useGetLocationsQuery(undefined, {
+    skip: !target || !financeOn,
+  });
+  const [confirmPayment, { isLoading }] =
+    useConfirmStudentCardPaymentMutation();
   const [method, setMethod] = useState<PaymentMethod>("CASH");
   const [reference, setReference] = useState("");
   const [receiverUserId, setReceiverUserId] = useState<number | null>(null);
+  // null = follow the receiver's branch (server default); a number = overridden.
+  const [soldLocationId, setSoldLocationId] = useState<number | null>(null);
 
   // Reset per card; the receiver defaults to whoever is confirming.
   useEffect(() => {
@@ -55,11 +69,22 @@ export default function ConfirmPaymentDrawer({
     setMethod("CASH");
     setReference("");
     setReceiverUserId(null);
+    setSoldLocationId(null);
   }, [target]);
 
   if (!target) return null;
 
-  const receiver = receiverUserId ?? me?.id ?? null;
+  // 財務開啟：收款人只能是財務成員；預設是自己（若自己是財務）。
+  const financeIds = new Set(
+    (finance?.members ?? []).filter((m) => m.isFinance).map((m) => m.userId),
+  );
+  const defaultFinanceReceiver =
+    me && financeIds.has(me.id) ? me.id : ([...financeIds][0] ?? null);
+  const receiver =
+    receiverUserId ?? (financeOn ? defaultFinanceReceiver : (me?.id ?? null));
+  const locations = (locationsData?.locations ?? []).filter(
+    (l) => !l.archivedAt,
+  );
 
   const handleSubmit = async () => {
     try {
@@ -67,8 +92,10 @@ export default function ConfirmPaymentDrawer({
         id: target.studentId,
         studentCardId: target.studentCardId,
         paymentMethod: method,
-        paymentReference: method === "TRANSFER" ? reference.trim() || null : null,
+        paymentReference:
+          method === "TRANSFER" ? reference.trim() || null : null,
         receiverUserId: receiver ?? undefined,
+        ...(financeOn && soldLocationId !== null ? { soldLocationId } : {}),
       }).unwrap();
       toast.success("已確認收款");
       onConfirmed?.();
@@ -93,7 +120,9 @@ export default function ConfirmPaymentDrawer({
           <div className="min-w-0">
             <p className="font-semibold truncate">{target.cardName}</p>
             {target.serialNumber !== undefined && (
-              <p className="text-xs text-neutral-500">{formatCardSerial(target.serialNumber)}</p>
+              <p className="text-xs text-neutral-500">
+                {formatCardSerial(target.serialNumber)}
+              </p>
             )}
           </div>
           <p className="text-lg font-bold">${formatMoney(target.finalPrice)}</p>
@@ -127,13 +156,33 @@ export default function ConfirmPaymentDrawer({
             id="payment-receiver"
             value={receiver ?? undefined}
             onChange={setReceiverUserId}
-            options={(memberships ?? []).map((m) => ({
-              value: m.userId,
-              label: m.userId === me?.id ? `${m.user.name}（我）` : m.user.name,
-            }))}
+            options={(memberships ?? [])
+              .filter((m) => !financeOn || financeIds.has(m.userId))
+              .map((m) => ({
+                value: m.userId,
+                label:
+                  m.userId === me?.id ? `${m.user.name}（我）` : m.user.name,
+              }))}
           />
-          <p className="text-xs text-neutral-500">預設是你自己；學生轉到其他老師的帳戶就改選那位老師</p>
+          <p className="text-xs text-neutral-500">
+            {financeOn
+              ? "只能選財務成員；學生轉到其他財務成員的帳戶就改選那位"
+              : "預設是你自己；學生轉到其他老師的帳戶就改選那位老師"}
+          </p>
         </div>
+
+        {financeOn && (
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel htmlFor="payment-sold-location">賣卡分部</FieldLabel>
+            <Select
+              id="payment-sold-location"
+              value={soldLocationId ?? undefined}
+              onChange={setSoldLocationId}
+              placeholder="依收款人的分部"
+              options={locations.map((l) => ({ value: l.id, label: l.name }))}
+            />
+          </div>
+        )}
       </div>
     </Drawer>
   );

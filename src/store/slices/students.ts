@@ -389,6 +389,8 @@ const studentsApi = api.injectEndpoints({
         paymentMethod?: PaymentMethod;
         paymentReference?: string | null;
         receiverUserId?: number;
+        /** Finance only: the 賣卡分部. */
+        soldLocationId?: number | null;
       }
     >({
       query: ({ id, studentCardId, ...body }) => ({

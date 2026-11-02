@@ -43,6 +43,8 @@ describe("finance card expiry", () => {
     enableFinanceFor(classroomId, { launch: new Date("2026-10-31T16:00:00Z"), legacyCustodianUserId });
 
   async function buy(studentId: number) {
+    // 財務開啟後收款人必須是財務成員。
+    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isFinance: true } });
     const card = await createCard(classroomId, { price: 2000, sessions: 6 });
     return prisma.$transaction((tx) =>
       createStudentCardInTx(tx, {

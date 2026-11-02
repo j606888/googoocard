@@ -3,6 +3,8 @@ import { apiRoute, parseId } from "@/lib/apiRoute";
 import { badRequest, notFound } from "@/lib/apiError";
 import { findMembership } from "@/lib/authz";
 import { confirmPaymentSchema } from "@/lib/schemas";
+import { isFinanceEnabled } from "@/service/finance/access";
+import { assertReceiverIsFinance, defaultReceiver, soldLocationFor } from "@/service/finance/receiver";
 
 const PAYMENT_METHOD_LABEL = { CASH: "現金", TRANSFER: "轉帳" } as const;
 
@@ -46,9 +48,30 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
     throw badRequest("ALREADY_PAID");
   }
 
-  const receiverUserId = body.receiverUserId ?? userId;
-  if (receiverUserId !== userId && !(await findMembership(receiverUserId, classroomId))) {
+  const finance = await isFinanceEnabled(classroomId);
+  // 財務開啟：收款人必須是財務成員，並記下賣卡分部（預設 = 收款人保管的分部）。
+  const receiverUserId = finance
+    ? body.receiverUserId ?? (await defaultReceiver(classroomId, userId))
+    : body.receiverUserId ?? userId;
+  if (!finance && receiverUserId !== userId && !(await findMembership(receiverUserId, classroomId))) {
     throw badRequest("RECEIVER_NOT_MEMBER", "Receiver is not a member of this classroom");
+  }
+  let soldLocationId: number | null | undefined;
+  if (finance) {
+    if (!(await findMembership(receiverUserId, classroomId))) {
+      throw badRequest("RECEIVER_NOT_MEMBER", "Receiver is not a member of this classroom");
+    }
+    await assertReceiverIsFinance(receiverUserId, classroomId);
+    if (body.soldLocationId) {
+      const loc = await prisma.location.findFirst({
+        where: { id: body.soldLocationId, classroomId },
+        select: { id: true },
+      });
+      if (!loc) throw badRequest("INVALID_LOCATION", "Location not in this classroom");
+      soldLocationId = loc.id;
+    } else {
+      soldLocationId = await soldLocationFor(classroomId, receiverUserId);
+    }
   }
   const paymentReference = body.paymentReference || null;
 
@@ -61,6 +84,7 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
         isPaid: true,
         paidAt: new Date(),
         paidByUserId: receiverUserId,
+        ...(finance ? { soldLocationId } : {}),
         paymentMethod: body.paymentMethod ?? null,
         paymentReference,
       },

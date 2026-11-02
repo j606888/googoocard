@@ -1,6 +1,7 @@
 import { CardPurchaseSource, PaymentMethod, Prisma } from "@prisma/client";
 import { nextCardSerial } from "@/service/studentCardSerial";
 import { CARD_EXPIRY_MONTHS } from "@/service/finance/setup";
+import { assertReceiverIsFinance, soldLocationFor } from "@/service/finance/receiver";
 import { addMonthsTaipei, toTaipeiDateKey } from "@/lib/taipei-date";
 
 type CardForPurchase = { id: number; name: string; price: number; classroomId: number };
@@ -54,6 +55,13 @@ export async function createStudentCardInTx(
     ? addMonthsTaipei(toTaipeiDateKey(new Date()), CARD_EXPIRY_MONTHS)
     : null;
 
+  // 財務開啟、建卡當下就收了錢：收款人必須是財務成員，賣卡分部 = 收款人保管的分部。
+  let soldLocationId: number | null = null;
+  if (classroom?.financeEnabledAt && isPaid && paidByUserId) {
+    await assertReceiverIsFinance(paidByUserId, card.classroomId);
+    soldLocationId = await soldLocationFor(card.classroomId, paidByUserId);
+  }
+
   const created = await tx.studentCard.create({
     data: {
       serialNumber: await nextCardSerial(tx, card.classroomId),
@@ -70,6 +78,7 @@ export async function createStudentCardInTx(
       isPaid,
       paidAt: isPaid ? new Date() : null,
       paidByUserId: isPaid ? paidByUserId : null,
+      soldLocationId,
       paymentMethod: isPaid ? paymentMethod : null,
       paymentReference: isPaid ? paymentReference : null,
       note,

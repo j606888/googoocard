@@ -43,14 +43,19 @@ export const buyStudentCardSchema = z.object({
  * 確認收款（POST .../confirm-payment）。全部選填：舊版 App 不帶 body 也能確認。
  * `receiverUserId` = 收款人（錢現在在誰手上），預設是確認的人；必須是本教室成員。
  */
-export const confirmPaymentSchema = z.object({
+const paymentFieldsSchema = z.object({
   paymentMethod: z.enum(PaymentMethod).optional(),
   paymentReference: z.string().trim().max(20).nullish(),
   receiverUserId: positiveInt.optional(),
 });
 
+/** 課卡確認收款；財務開啟時可帶 `soldLocationId` 覆寫賣卡分部。 */
+export const confirmPaymentSchema = paymentFieldsSchema.extend({
+  soldLocationId: positiveInt.nullish(),
+});
+
 /** 單堂費確認收款：多一個 `amount`，收的時候才打折（學生在 LINE 自己選單堂時記的是牌價）。 */
-export const confirmDropInPaymentSchema = confirmPaymentSchema.extend({
+export const confirmDropInPaymentSchema = paymentFieldsSchema.extend({
   amount: money.optional(),
 });
 

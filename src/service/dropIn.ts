@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma";
 import { badRequest, notFound } from "@/lib/apiError";
 import { findMembership } from "@/lib/authz";
 import { formatMoney } from "@/lib/money";
+import { isFinanceEnabled } from "@/service/finance/access";
+import { assertReceiverIsFinance, defaultReceiver } from "@/service/finance/receiver";
 
 /**
  * 單堂付費：一筆出席不扣課卡，改收 `Lesson.dropInPrice`（DropInCharge）。
@@ -119,7 +121,7 @@ export async function chargeDropIn({
     },
     include: {
       dropInCharge: { select: { id: true } },
-      lessonPeriod: { select: { lesson: { select: { name: true, dropInPrice: true } } } },
+      lessonPeriod: { select: { lesson: { select: { name: true, dropInPrice: true, locationId: true } } } },
     },
   });
   if (!record) throw notFound("Attendance record");
@@ -132,6 +134,12 @@ export async function chargeDropIn({
     throw badRequest("ALREADY_RESOLVED", "Attendance already paid by card or drop-in");
   }
 
+  // 財務開啟、當場收款：收款人要是財務成員（呼叫者不是就找分部保管人）。
+  let receiverUserId = userId;
+  if (payment.isPaid && (await isFinanceEnabled(classroomId))) {
+    receiverUserId = await defaultReceiver(classroomId, userId, lesson.locationId);
+  }
+
   return prisma.$transaction((tx) =>
     createDropInChargeInTx(tx, {
       attendanceRecordId: record.id,
@@ -140,7 +148,7 @@ export async function chargeDropIn({
       amount: amount ?? listPrice,
       listPrice,
       payment,
-      receiverUserId: userId,
+      receiverUserId,
     })
   );
 }
@@ -170,17 +178,26 @@ export async function confirmDropInPayment({
     where: { id: chargeId, attendanceRecord: { student: { classroomId } } },
     include: {
       attendanceRecord: {
-        select: { studentId: true, lessonPeriod: { select: { lesson: { select: { name: true } } } } },
+        select: {
+          studentId: true,
+          lessonPeriod: { select: { lesson: { select: { name: true, locationId: true } } } },
+        },
       },
     },
   });
   if (!charge) throw notFound("Drop-in charge");
   if (charge.isPaid) throw badRequest("ALREADY_PAID");
 
-  const receiver = receiverUserId ?? userId;
-  if (receiver !== userId && !(await findMembership(receiver, classroomId))) {
+  const finance = await isFinanceEnabled(classroomId);
+  const receiver =
+    receiverUserId ??
+    (finance
+      ? await defaultReceiver(classroomId, userId, charge.attendanceRecord.lessonPeriod.lesson.locationId)
+      : userId);
+  if ((finance || receiver !== userId) && !(await findMembership(receiver, classroomId))) {
     throw badRequest("RECEIVER_NOT_MEMBER", "Receiver is not a member of this classroom");
   }
+  if (finance) await assertReceiverIsFinance(receiver, classroomId);
 
   return prisma.$transaction(async (tx) => {
     const finalAmount = amount ?? charge.amount;
