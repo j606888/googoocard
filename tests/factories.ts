@@ -10,7 +10,8 @@ export async function resetDb() {
       "LessonCard", "StudentDanceQualification", "StudentTag", "Tag", "Event",
       "StudentCard", "Lesson", "LessonGroup", "Location", "Card", "DanceStyle", "Student", "Teacher", "InviteToken",
       "Membership", "Classroom", "User", "LineAccount", "RenewalReminder", "PushToken", "WebPushSubscription",
-      "NotificationPreference" RESTART IDENTITY CASCADE`
+      "NotificationPreference", "Venue", "VenuePack", "LessonSplitRule", "PeriodSplitOverride",
+      "AttendanceAbsence", "FinanceExpense", "FinanceTransfer", "FinanceRefund", "FinanceSettlement" RESTART IDENTITY CASCADE`
   );
 }
 
@@ -300,4 +301,57 @@ export function jsonRequest(method: string, body?: unknown) {
 
 export function routeParams<T extends Record<string, string>>(params: T) {
   return { params: Promise.resolve(params) };
+}
+
+export async function createVenue(
+  classroomId: number,
+  { name = "Venue", landlordUserId = null }: { name?: string; landlordUserId?: number | null } = {}
+) {
+  return prisma.venue.create({ data: { classroomId, name, landlordUserId } });
+}
+
+export async function createVenuePack(
+  classroomId: number,
+  venueId: number,
+  {
+    sessions,
+    price,
+    paidByUserId,
+    purchasedAt = new Date(),
+  }: { sessions: number; price: number; paidByUserId: number; purchasedAt?: Date }
+) {
+  return prisma.venuePack.create({
+    data: { classroomId, venueId, sessions, price, paidByUserId, purchasedAt, createdById: paidByUserId },
+  });
+}
+
+/** Turn finance on by writing the columns directly (no service). */
+export async function enableFinanceFor(
+  classroomId: number,
+  { launch, legacyCustodianUserId }: { launch: Date; legacyCustodianUserId?: number }
+) {
+  return prisma.classroom.update({
+    where: { id: classroomId },
+    data: {
+      financeEnabledAt: launch,
+      ...(legacyCustodianUserId === undefined ? {} : { legacyCustodianUserId }),
+    },
+  });
+}
+
+export async function createTeacher(
+  classroomId: number,
+  {
+    name = "Teacher",
+    userId = null,
+    payerUserId = null,
+    kind = "TEACHER",
+  }: {
+    name?: string;
+    userId?: number | null;
+    payerUserId?: number | null;
+    kind?: "TEACHER" | "ASSISTANT" | "BOTH";
+  } = {}
+) {
+  return prisma.teacher.create({ data: { classroomId, name, userId, payerUserId, kind } });
 }
