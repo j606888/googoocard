@@ -40,7 +40,8 @@ export async function POST(
 
   await prisma.studentCard.update({
     where: { id: parseInt(studentCardId) },
-    data: { expiredAt: new Date() },
+    // 手動作廢＝過期（spec §5.2）：剩餘價值變成過期收入（財務沒開的教室無影響）。
+    data: { expiredAt: new Date(), closedReason: "VOIDED" },
   });
   // 停用的卡不再算「用完該續卡」——不刷新的話 tag 會一直掛著
   await refreshNeedsRenewalTag(studentCard.studentId, classroomId);

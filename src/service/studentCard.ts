@@ -1,5 +1,7 @@
 import { CardPurchaseSource, PaymentMethod, Prisma } from "@prisma/client";
 import { nextCardSerial } from "@/service/studentCardSerial";
+import { CARD_EXPIRY_MONTHS } from "@/service/finance/setup";
+import { addMonthsTaipei, toTaipeiDateKey } from "@/lib/taipei-date";
 
 type CardForPurchase = { id: number; name: string; price: number; classroomId: number };
 
@@ -43,9 +45,19 @@ export async function createStudentCardInTx(
     eventDescription: string;
   }
 ) {
+  // 財務開啟的教室：卡從台北今天起 6 個月到期（spec §5.2）。
+  const classroom = await tx.classroom.findUnique({
+    where: { id: card.classroomId },
+    select: { financeEnabledAt: true },
+  });
+  const expiresAt = classroom?.financeEnabledAt
+    ? addMonthsTaipei(toTaipeiDateKey(new Date()), CARD_EXPIRY_MONTHS)
+    : null;
+
   const created = await tx.studentCard.create({
     data: {
       serialNumber: await nextCardSerial(tx, card.classroomId),
+      expiresAt,
       studentId,
       cardId: card.id,
       basePrice: card.price,

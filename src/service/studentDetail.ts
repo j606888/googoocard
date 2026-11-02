@@ -1,5 +1,6 @@
 import { toDanceLevels } from "@/domains/qualification";
 import prisma from "@/lib/prisma";
+import { expireDueCards } from "@/service/finance/expiry";
 import type { AttendanceSource, Prisma } from "@prisma/client";
 import { danceStyleSummarySelect, type DanceStyleSummary } from "@/lib/danceStyles";
 import { parseTaipeiMonthRange, toTaipeiDateKey, toTaipeiMonthKey } from "@/lib/taipei-date";
@@ -293,6 +294,11 @@ export async function buildAttendanceViews(attendanceRecords: AttendanceHistoryR
  * Returns null if the student doesn't exist.
  */
 export async function buildStudentDetailPayload(studentId: number) {
+  // 到期的卡先關掉，畫面才不會顯示成還能用（懶惰到期，見 src/service/finance/expiry.ts）。
+  const owner = await prisma.student.findUnique({ where: { id: studentId }, select: { classroomId: true } });
+  if (!owner) return null;
+  await expireDueCards(owner.classroomId);
+
   const student = await prisma.student.findUnique({
     where: { id: studentId },
     include: {

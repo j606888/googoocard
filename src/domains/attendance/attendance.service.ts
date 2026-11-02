@@ -5,6 +5,7 @@ import { refreshNeedsRenewalTags } from "@/service/studentTag";
 import { notifyClassroom } from "@/service/push";
 import { canBuyCard, canUseCard, cardMatchesLesson, isQualified, requiredDanceStyleFor, requiredLevelFor, toDanceLevels } from "@/domains/qualification";
 import { createStudentCardInTx } from "@/service/studentCard";
+import { expireDueCards } from "@/service/finance/expiry";
 import { createDropInChargeInTx } from "@/service/dropIn";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
@@ -472,6 +473,8 @@ export async function takeAttendance({
     lessonId,
     lessonPeriodId
   );
+  // 到期的卡先關掉，才不會被選來扣（懶惰到期，見 src/service/finance/expiry.ts）。
+  await expireDueCards(lesson.classroomId);
 
   await reconcileAndFinalize(lesson, lessonPeriod.id, studentIds);
 }
@@ -490,6 +493,8 @@ export async function updateAttendance({
     lessonId,
     lessonPeriodId
   );
+  // 到期的卡先關掉，才不會被選來扣（懶惰到期，見 src/service/finance/expiry.ts）。
+  await expireDueCards(lesson.classroomId);
 
   await reconcileAndFinalize(lesson, lessonPeriod.id, studentIds);
 }
@@ -611,6 +616,7 @@ export async function selfCheckIn({
   if (!lesson) {
     throw new Error("Lesson not found");
   }
+  await expireDueCards(lesson.classroomId);
 
   const validCardIds = lesson.cards.map((card) => card.cardId);
   // Scoped to the lesson's classroom, which also enforces the "student and

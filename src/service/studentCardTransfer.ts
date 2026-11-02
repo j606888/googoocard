@@ -55,10 +55,17 @@ export async function performTransfer({
 
     const serialNumber = await nextCardSerial(tx, classroomId);
     const targetSerial = formatCardSerial(serialNumber);
+    // 新卡沿用舊卡的到期日與賣卡分部（spec §5.1–5.2），不重新算 6 個月。
+    const inherited = await tx.studentCard.findUniqueOrThrow({
+      where: { id: sourceCard.id },
+      select: { expiresAt: true, soldLocationId: true },
+    });
 
     const newCard = await tx.studentCard.create({
       data: {
         serialNumber,
+        expiresAt: inherited.expiresAt,
+        soldLocationId: inherited.soldLocationId,
         studentId: toStudent.id,
         cardId: sourceCard.cardId,
         // 不是折扣，basePrice 跟著實際帶過來的價值走，學生的「省下」才不會灌水。

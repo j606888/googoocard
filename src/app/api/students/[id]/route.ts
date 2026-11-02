@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
 import { findStudentInClassroom } from "@/lib/authz";
+import { expireDueCards } from "@/service/finance/expiry";
 import {
   attendanceCounts,
   attendanceHistoryInclude,
@@ -133,6 +134,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!classroomId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // 到期的卡先關掉（懶惰到期，見 src/service/finance/expiry.ts）。
+  await expireDueCards(classroomId);
 
   const student = await prisma.student.findFirst({
     // Scoped to the caller's classroom: this handler used to run with no auth

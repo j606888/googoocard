@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { bearerToken, resolveOwnedStudent } from "@/lib/liffAuth";
 import { getTodayLessons } from "@/service/checkin";
+import { expireDueCards } from "@/service/finance/expiry";
 
 // Data source for the LIFF「上課簽到」page. Auth is a LIFF ID token; the student
 // is resolved + ownership-checked via resolveOwnedStudent. Returns today's
@@ -17,6 +18,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: resolved.error }, { status: resolved.status });
   }
   const { student } = resolved;
+  await expireDueCards(student.classroomId);
 
   const data = await getTodayLessons(student.classroomId, student.id);
 

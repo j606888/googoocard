@@ -63,10 +63,17 @@ export async function performConversion({
     // 新卡的編號要先發出來，舊卡的備註才寫得出「已轉換為 #A0873」。
     const serialNumber = await nextCardSerial(tx, targetCard.classroomId);
     const targetSerial = formatCardSerial(serialNumber);
+    // 新卡沿用舊卡的到期日與賣卡分部（spec §5.1–5.2），不重新算 6 個月。
+    const inherited = await tx.studentCard.findUniqueOrThrow({
+      where: { id: sourceCard.id },
+      select: { expiresAt: true, soldLocationId: true },
+    });
 
     const created = await tx.studentCard.create({
       data: {
         serialNumber,
+        expiresAt: inherited.expiresAt,
+        soldLocationId: inherited.soldLocationId,
         studentId: sourceCard.studentId,
         cardId: targetCard.id,
         basePrice: targetCard.price,
