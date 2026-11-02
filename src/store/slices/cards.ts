@@ -7,6 +7,10 @@ export interface Card {
   price: number;
   isPracticeCard: boolean;
   isTrial: boolean;
+  /** 財務：贈送卡（買綁課卡時附送）。 */
+  isGift: boolean;
+  /** 財務：綁課卡只能用在這門課。 */
+  boundLessonId: number | null;
   danceStyleId: number | null;
   danceStyle?: DanceStyleSummary | null;
   sessions: number;
@@ -39,6 +43,8 @@ export interface CardDetail {
     sessions: number;
     isPracticeCard: boolean;
     isTrial: boolean;
+    isGift: boolean;
+    boundLessonId: number | null;
     danceStyleId: number | null;
     danceStyle: DanceStyleSummary | null;
     expiredAt: string | null;
@@ -62,7 +68,7 @@ const cardsApi = api.injectEndpoints({
       query: ({ id }) => `cards/${id}`,
       providesTags: ["Card", "StudentCard"],
     }),
-    createCard: builder.mutation<Card, { name: string; price: number; sessions: number; isPracticeCard: boolean; isTrial: boolean; danceStyleId: number | null }>({
+    createCard: builder.mutation<Card, { name: string; price: number; sessions: number; isPracticeCard: boolean; isTrial: boolean; danceStyleId: number | null; boundLessonId?: number | null }>({
       query: (card) => ({
         url: "cards",
         method: "POST",
@@ -91,11 +97,11 @@ const cardsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["Card", "Attendance"],
     }),
-    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number; isPracticeCard: boolean; isTrial: boolean; danceStyleId: number | null }>({
-      query: ({ id, name, price, sessions, isPracticeCard, isTrial, danceStyleId }) => ({
+    updateCard: builder.mutation<Card, { id: number; name: string; price: number; sessions: number; isPracticeCard: boolean; isTrial: boolean; danceStyleId: number | null; boundLessonId?: number | null }>({
+      query: ({ id, name, price, sessions, isPracticeCard, isTrial, danceStyleId, boundLessonId }) => ({
         url: `cards/${id}`,
         method: "PATCH",
-        body: { name, price, sessions, isPracticeCard, isTrial, danceStyleId },
+        body: { name, price, sessions, isPracticeCard, isTrial, danceStyleId, boundLessonId },
       }),
       invalidatesTags: ["Card", "Attendance"],
     }),

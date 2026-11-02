@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
 import { findLessonInClassroom } from "@/lib/authz";
 import { refreshLesson } from "@/service/lesson";
+import { refundAbsenceInTx } from "@/service/finance/bound";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; periodId: string }> }) {
   const { id, periodId } = await params;
@@ -62,6 +63,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           resourceId: { in: refundedCardIds },
         },
       });
+    }
+
+    // 綁課卡的缺席扣格一起退掉（重設 = 這個時段還沒點過名）。
+    const absences = await tx.attendanceAbsence.findMany({
+      where: { lessonPeriodId: parseInt(periodId) },
+    });
+    for (const absence of absences) {
+      await refundAbsenceInTx(tx, absence);
     }
 
     await tx.lessonPeriod.update({

@@ -1,5 +1,7 @@
 import { Info, Minus, Plus } from "lucide-react";
 import { useGetCardsQuery } from "@/store/slices/cards";
+import { useGetLessonsQuery } from "@/store/slices/lessons";
+import Select from "@/components/Select";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { cn } from "@/lib/utils";
@@ -42,7 +44,8 @@ const boxedControl = (error?: string) =>
  * 桌面右側抽屜和手機底部抽屜都渲染這一份。
  */
 const CardFormFields = ({ form }: { form: CardFormState }) => {
-  const { values, errors, name, issuedCount, setValue, setKind, setName, resetName } = form;
+  const { values, errors, name, issuedCount, financeEnabled, setValue, setKind, setName, resetName } =
+    form;
 
   return (
     <div className="flex flex-col gap-7">
@@ -99,6 +102,13 @@ const CardFormFields = ({ form }: { form: CardFormState }) => {
         error={errors.danceStyleId}
         onChange={(id) => setValue("danceStyleId", id)}
       />
+
+      {financeEnabled && values.kind === "general" && (
+        <BoundLessonField
+          value={values.boundLessonId}
+          onChange={(id) => setValue("boundLessonId", id)}
+        />
+      )}
 
       <fieldset className="flex flex-col gap-3">
         <legend className={`${sectionTitle} mb-2.5`}>堂數與價格</legend>
@@ -218,6 +228,42 @@ const DanceStyleField = ({
       )}
       <FieldError>{error}</FieldError>
     </fieldset>
+  );
+};
+
+/**
+ * 綁課卡（財務，spec §5.4）：只能用在一門固定期數的課，缺席那天點名時自動扣格，
+ * 買的時候附送一張贈送卡。選單只列固定期數的課；已結束的課只在本來就綁著時出現。
+ */
+const BoundLessonField = ({
+  value,
+  onChange,
+}: {
+  value: number | null;
+  onChange: (id: number | null) => void;
+}) => {
+  const { data } = useGetLessonsQuery({ tab: "all", sort: "name" });
+  const lessons = (data?.lessons ?? []).filter(
+    (lesson) => lesson.kind === "fixed" && (lesson.status !== "finished" || lesson.id === value)
+  );
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor="card-bound-lesson" className={sectionTitle}>
+        綁定課程
+      </label>
+      <Select<number>
+        id="card-bound-lesson"
+        value={value ?? 0}
+        onChange={(id) => onChange(id === 0 ? null : id)}
+        options={[
+          { value: 0, label: "不綁定" },
+          ...lessons.map((lesson) => ({ value: lesson.id, label: lesson.name })),
+        ]}
+      />
+      <span className="text-xs text-neutral-500">
+        綁課卡只能上這門課，缺席那天點名時自動扣一格，買的時候附送一張贈送卡。
+      </span>
+    </div>
   );
 };
 

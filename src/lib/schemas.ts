@@ -136,6 +136,8 @@ export const cardSchema = z
     // 體驗課卡：老師在課程頁登記體驗時用，舊生預設 $0（src/lib/trialPrice.ts）。
     isTrial: z.boolean().optional().default(false),
     danceStyleId: positiveInt.nullish(),
+    // 綁課卡（財務）：只能用在這門 fixed 課。undefined = 不動、null = 取消綁定。
+    boundLessonId: positiveInt.nullish(),
   })
   // Mirrors the rule in docs/architecture.md: a practice card's dance type is
   // what decides who may buy and use it, so it can't be left blank. Living in

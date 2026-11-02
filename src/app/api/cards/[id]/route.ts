@@ -4,6 +4,7 @@ import { notFound } from "@/lib/apiError";
 import { cardSchema } from "@/lib/schemas";
 import { requireDanceStyleInClassroom } from "@/lib/authz";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
+import { assertBoundLessonAllowed, ensureBoundLessonCard } from "@/service/finance/bound";
 
 type Params = { id: string };
 
@@ -41,6 +42,8 @@ export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
       sessions: card.sessions,
       isPracticeCard: card.isPracticeCard,
       isTrial: card.isTrial,
+      isGift: card.isGift,
+      boundLessonId: card.boundLessonId,
       danceStyleId: card.danceStyleId,
       danceStyle: card.danceStyle,
       expiredAt: card.expiredAt,
@@ -91,10 +94,8 @@ export const DELETE = apiRoute<Params>(async ({ params, classroomId }) => {
 
 export const PATCH = apiRoute<Params>(async ({ request, params, classroomId }) => {
   const cardId = parseId(params.id, "card id");
-  const { name, price, sessions, isPracticeCard, isTrial, danceStyleId } = await parseBody(
-    request,
-    cardSchema
-  );
+  const { name, price, sessions, isPracticeCard, isTrial, danceStyleId, boundLessonId } =
+    await parseBody(request, cardSchema);
 
   // GET and DELETE in this file were already classroom-scoped; PATCH was not,
   // so another classroom's card price and session count were editable.
@@ -104,8 +105,9 @@ export const PATCH = apiRoute<Params>(async ({ request, params, classroomId }) =
   });
   if (!existing) throw notFound("Card");
   if (danceStyleId) await requireDanceStyleInClassroom(danceStyleId, classroomId);
+  await assertBoundLessonAllowed(classroomId, boundLessonId);
 
-  return prisma.card.update({
+  const updated = await prisma.card.update({
     where: { id: existing.id },
     data: {
       name,
@@ -116,7 +118,13 @@ export const PATCH = apiRoute<Params>(async ({ request, params, classroomId }) =
       // General cards may carry a dance style as a category label (does not
       // restrict usage). Practice cards require it (guarded by the schema).
       danceStyleId: danceStyleId ?? null,
+      // undefined（舊表單沒送）= 不動。
+      ...(boundLessonId === undefined ? {} : { boundLessonId }),
     },
     include: { danceStyle: { select: danceStyleSummarySelect } },
   });
+  if (updated.boundLessonId !== null && boundLessonId) {
+    await ensureBoundLessonCard(updated.boundLessonId, updated.id);
+  }
+  return updated;
 });

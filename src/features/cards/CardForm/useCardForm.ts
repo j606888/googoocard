@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Card, useCreateCardMutation, useUpdateCardMutation } from "@/store/slices/cards";
+import { useGetFinanceSettingsQuery } from "@/store/slices/finance";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import { autoCardName, cardKind, CardKind, kindFlags } from "../cardInsights";
 
@@ -11,6 +12,8 @@ export interface CardFormValues {
   sessions: string;
   kind: CardKind;
   danceStyleId: number | null;
+  /** 財務：綁課卡綁的課（只有一般方案、財務開啟時能設）。 */
+  boundLessonId: number | null;
 }
 
 export interface CardFormErrors {
@@ -43,6 +46,7 @@ const initialValues = (target: CardFormTarget): CardFormValues => {
       sessions: "",
       kind: "general",
       danceStyleId: target.danceStyleId ?? null,
+      boundLessonId: null,
     };
   }
   const { card } = target;
@@ -53,6 +57,7 @@ const initialValues = (target: CardFormTarget): CardFormValues => {
     sessions: String(card.sessions),
     kind: cardKind(card),
     danceStyleId: card.danceStyleId ?? null,
+    boundLessonId: card.boundLessonId ?? null,
   };
 };
 
@@ -83,6 +88,7 @@ export function useCardForm(target: CardFormTarget) {
   const [createCard, { isLoading: isCreating }] = useCreateCardMutation();
   const [updateCard, { isLoading: isUpdating }] = useUpdateCardMutation();
   const { byId } = useDanceStyles();
+  const financeEnabled = useGetFinanceSettingsQuery().data?.enabled ?? false;
 
   const styleName =
     values.danceStyleId !== null ? byId.get(values.danceStyleId)?.name ?? null : null;
@@ -127,6 +133,10 @@ export function useCardForm(target: CardFormTarget) {
       sessions: Number(values.sessions),
       danceStyleId: values.danceStyleId,
       ...kindFlags(values.kind),
+      // 財務沒開就不送，伺服器端不動它（財務沒開時不能設綁課）。
+      ...(financeEnabled
+        ? { boundLessonId: values.kind === "general" ? values.boundLessonId : null }
+        : {}),
     };
     const result =
       target.mode === "edit"
@@ -143,6 +153,8 @@ export function useCardForm(target: CardFormTarget) {
     values,
     errors,
     name,
+    /** 綁定課程的欄位只在財務開啟時出現。 */
+    financeEnabled,
     autoName,
     setValue,
     setKind,

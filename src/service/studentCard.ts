@@ -2,6 +2,7 @@ import { CardPurchaseSource, PaymentMethod, Prisma } from "@prisma/client";
 import { nextCardSerial } from "@/service/studentCardSerial";
 import { CARD_EXPIRY_MONTHS } from "@/service/finance/setup";
 import { defaultReceiver, isFinanceMember, soldLocationFor } from "@/service/finance/receiver";
+import { issueGiftCardInTx } from "@/service/finance/bound";
 import { addMonthsTaipei, toTaipeiDateKey } from "@/lib/taipei-date";
 
 type CardForPurchase = { id: number; name: string; price: number; classroomId: number };
@@ -100,6 +101,21 @@ export async function createStudentCardInTx(
       resourceId: created.id,
     },
   });
+
+  // 財務開啟、賣的是綁課卡：同交易附送一張贈送卡（spec §5.5，不等付款）。
+  if (classroom?.financeEnabledAt) {
+    const { boundLessonId } = await tx.card.findUniqueOrThrow({
+      where: { id: card.id },
+      select: { boundLessonId: true },
+    });
+    if (boundLessonId !== null) {
+      await issueGiftCardInTx(tx, {
+        classroomId: card.classroomId,
+        studentId,
+        boundStudentCard: created,
+      });
+    }
+  }
 
   return created;
 }

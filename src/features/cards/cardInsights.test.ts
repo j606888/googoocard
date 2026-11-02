@@ -18,6 +18,8 @@ const card = (overrides: Partial<Card> & Pick<Card, "id" | "name">): Card => ({
   sessions: 6,
   isPracticeCard: false,
   isTrial: false,
+  isGift: false,
+  boundLessonId: null,
   danceStyleId: null,
   expiredAt: null,
   createdAt: "2026-01-01T00:00:00.000Z",

@@ -6,6 +6,7 @@ import { notifyClassroom } from "@/service/push";
 import { canBuyCard, canUseCard, cardMatchesLesson, isQualified, requiredDanceStyleFor, requiredLevelFor, toDanceLevels } from "@/domains/qualification";
 import { createStudentCardInTx } from "@/service/studentCard";
 import { expireDueCards } from "@/service/finance/expiry";
+import { reconcileAbsencesInTx, refundPresentAbsencesInTx } from "@/service/finance/bound";
 import { createDropInChargeInTx } from "@/service/dropIn";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
@@ -132,6 +133,23 @@ export function cardOptionsFor(
     return { usable: [...trialCards, ...others], autoPick: trialCards[0] };
   }
 
+  // 綁課卡在它那門課優先被自動選到（spec §5.4）。
+  const boundCards = sortRecommended(
+    student.studentCards.filter(
+      (studentCard) =>
+        studentCard.card.boundLessonId === lesson.id && canUseCard(studentCard.card, levels, lesson)
+    )
+  );
+  if (boundCards.length > 0) {
+    const others = sortRecommended(
+      student.studentCards.filter(
+        (studentCard) =>
+          studentCard.card.boundLessonId !== lesson.id && canUseCard(studentCard.card, levels, lesson)
+      )
+    );
+    return { usable: [...boundCards, ...others], autoPick: boundCards[0] };
+  }
+
   if (shouldUsePracticePriority(lesson, student)) {
     const practiceCards = sortRecommended(
       student.studentCards.filter(
@@ -142,10 +160,19 @@ export function cardOptionsFor(
     return { usable: practiceCards, autoPick: practiceCards[0] ?? null };
   }
 
-  const usable = sortRecommended(
-    student.studentCards.filter((studentCard) => canUseCard(studentCard.card, levels, lesson))
+  // 這堂課沒掛、但什麼課都能上的卡（贈送卡、課已結束的綁課卡）排在後面，
+  // 只有在沒有這堂課自己的卡時才自動選。
+  const offered = new Set(lesson.cards.map((lc) => lc.cardId));
+  const usable = student.studentCards.filter((studentCard) =>
+    canUseCard(studentCard.card, levels, lesson)
   );
-  return { usable, autoPick: usable.length === 1 ? usable[0] : null };
+  const ownCards = sortRecommended(usable.filter((sc) => offered.has(sc.cardId)));
+  const universal = sortRecommended(usable.filter((sc) => !offered.has(sc.cardId)));
+  const pickFrom = ownCards.length > 0 ? ownCards : universal;
+  return {
+    usable: [...ownCards, ...universal],
+    autoPick: pickFrom.length === 1 ? pickFrom[0] : null,
+  };
 }
 
 function selectStudentCard(student: StudentWithCards, lesson: LessonWithCards): CandidateCard | null {
@@ -406,26 +433,34 @@ async function reconcileAndFinalize(
     studentIds
   );
 
-  // Fetch new students with their valid cards
-  const newStudents =
-    newStudentIds.length > 0
-      ? await fetchStudentsWithValidCards(
-          newStudentIds,
-          validCardIds,
-          lesson.classroomId,
-          lesson.sessionsPerAttendance
-        )
-      : [];
-
-  // Any id that didn't come back belongs to another classroom (or no longer
-  // exists). Reject the whole batch rather than silently skipping it — a
-  // partial success here would leave the teacher's roster out of sync.
-  if (newStudents.length !== newStudentIds.length) {
-    throw new Error("Student not found in this classroom");
-  }
-
   // Process updates in a transaction
-  await prisma.$transaction(async (tx) => {
+  const absenceStudentIds = await prisma.$transaction(async (tx) => {
+    // 之前被缺席扣過、這次出席了：先刪缺席退格，那張綁課卡才能給這次的出席扣。
+    const refunded = await refundPresentAbsencesInTx(tx, {
+      lessonPeriodId,
+      presentStudentIds: newStudentIds,
+    });
+
+    // Fetch new students with their valid cards (inside the transaction, so
+    // cards freed by the refund above are candidates).
+    const newStudents =
+      newStudentIds.length > 0
+        ? await fetchStudentsWithValidCards(
+            newStudentIds,
+            validCardIds,
+            lesson.classroomId,
+            lesson.sessionsPerAttendance,
+            tx
+          )
+        : [];
+
+    // Any id that didn't come back belongs to another classroom (or no longer
+    // exists). Reject the whole batch rather than silently skipping it — a
+    // partial success here would leave the teacher's roster out of sync.
+    if (newStudents.length !== newStudentIds.length) {
+      throw new Error("Student not found in this classroom");
+    }
+
     // Add new attendance records
     for (const student of newStudents) {
       await processStudentAttendance(tx, lesson, lessonPeriodId, student);
@@ -445,15 +480,25 @@ async function reconcileAndFinalize(
       }
     }
 
+    // 持這門課綁課卡、沒出席的人：缺席扣格（財務沒開 → 不做）。
+    const absences = await reconcileAbsencesInTx(tx, {
+      lesson,
+      lessonPeriodId,
+      presentStudentIds: studentIds,
+    });
+
     // Mark attendance as taken
     await markAttendanceTaken(tx, lessonPeriodId);
+    return [...refunded, ...absences];
   });
 
   // Refresh lesson status
   await refreshLesson(lesson.id);
 
   // Refresh Needs Renewal tags for all affected students
-  const affectedStudentIds = [...new Set([...newStudentIds, ...removedStudentIds])];
+  const affectedStudentIds = [
+    ...new Set([...newStudentIds, ...removedStudentIds, ...absenceStudentIds]),
+  ];
   if (affectedStudentIds.length > 0) {
     await refreshNeedsRenewalTags(affectedStudentIds, lesson.classroomId);
   }
@@ -671,6 +716,7 @@ export async function selfCheckIn({
     chosenId = BUYING;
     student.studentCards.push({
       id: BUYING,
+      cardId: buying.id,
       remainingSessions: buying.sessions,
       expiredAt: null,
       card: buying,

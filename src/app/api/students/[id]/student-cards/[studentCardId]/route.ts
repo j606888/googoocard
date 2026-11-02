@@ -64,7 +64,7 @@ export async function DELETE(
   const studentCard = await prisma.studentCard.findUnique({
     where: { id: parseInt(studentCardId) },
     include: {
-      _count: { select: { attendanceRecords: true, convertedFrom: true } },
+      _count: { select: { attendanceRecords: true, convertedFrom: true, absences: true, gifts: true } },
       transferredFrom: { select: { id: true } },
       student: { select: { classroomId: true } },
     },
@@ -86,7 +86,8 @@ export async function DELETE(
     );
   }
 
-  if (studentCard._count.attendanceRecords > 0) {
+  // 缺席扣過格也算用過（財務綁課卡）。
+  if (studentCard._count.attendanceRecords > 0 || studentCard._count.absences > 0) {
     return NextResponse.json(
       { error: "Card has been used; expire it instead of deleting" },
       { status: 400 }
@@ -99,7 +100,9 @@ export async function DELETE(
     studentCard.convertedToId ||
     studentCard.transferredToId ||
     studentCard.transferredFrom ||
-    studentCard._count.convertedFrom > 0
+    studentCard._count.convertedFrom > 0 ||
+    // 綁課卡附送了贈送卡：刪掉它，贈送卡的「來自」就斷了。
+    studentCard._count.gifts > 0
   ) {
     return NextResponse.json(
       { error: "Card is part of a conversion or transfer; expire it instead of deleting" },

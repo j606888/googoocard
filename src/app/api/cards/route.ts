@@ -3,6 +3,7 @@ import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { cardSchema } from "@/lib/schemas";
 import { requireDanceStyleInClassroom } from "@/lib/authz";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
+import { assertBoundLessonAllowed, ensureBoundLessonCard } from "@/service/finance/bound";
 
 export const GET = apiRoute(async ({ classroomId }) => {
   // 購買人次與營收只算真的有金流的卡：origin = CONVERSION 是舊卡轉換來的，
@@ -41,6 +42,8 @@ export const GET = apiRoute(async ({ classroomId }) => {
     sessions: card.sessions,
     isPracticeCard: card.isPracticeCard,
     isTrial: card.isTrial,
+    isGift: card.isGift,
+    boundLessonId: card.boundLessonId,
     danceStyleId: card.danceStyleId,
     danceStyle: card.danceStyle,
     expiredAt: card.expiredAt,
@@ -61,13 +64,12 @@ export const GET = apiRoute(async ({ classroomId }) => {
 export const POST = apiRoute(async ({ request, classroomId }) => {
   // The practice-card-requires-a-dance-type rule now lives in the schema, so
   // POST and PATCH can't drift apart on it.
-  const { name, price, sessions, isPracticeCard, isTrial, danceStyleId } = await parseBody(
-    request,
-    cardSchema
-  );
+  const { name, price, sessions, isPracticeCard, isTrial, danceStyleId, boundLessonId } =
+    await parseBody(request, cardSchema);
   if (danceStyleId) await requireDanceStyleInClassroom(danceStyleId, classroomId);
+  await assertBoundLessonAllowed(classroomId, boundLessonId);
 
-  return prisma.card.create({
+  const created = await prisma.card.create({
     data: {
       name,
       price,
@@ -78,7 +80,10 @@ export const POST = apiRoute(async ({ request, classroomId }) => {
       // General cards may carry a dance style purely as a category label (it
       // does not restrict usage — see cardMatchesLesson). Practice cards require it.
       danceStyleId: danceStyleId ?? null,
+      boundLessonId: boundLessonId ?? null,
     },
     include: { danceStyle: { select: danceStyleSummarySelect } },
   });
+  if (created.boundLessonId !== null) await ensureBoundLessonCard(created.boundLessonId, created.id);
+  return created;
 });

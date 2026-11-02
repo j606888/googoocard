@@ -29,6 +29,9 @@ export type StudentWithLessonCards = Prisma.StudentGetPayload<{
  * the route guards only prove the LESSON belongs to the caller, not the
  * students. See docs/roadmap.md P0-3.
  *
+ * `db` lets the attendance engine read inside its transaction (after refunding
+ * absences, so a card freed by that refund is a candidate again).
+ *
  * `sessionsNeeded` = the lesson's `sessionsPerAttendance`: a card with fewer
  * sessions left can't pay for one attendance (no splitting across cards — the
  * student buys a new card instead).
@@ -37,9 +40,10 @@ export async function fetchStudentsWithValidCards(
   studentIds: number[],
   validCardIds: number[],
   classroomId: number,
-  sessionsNeeded = 1
+  sessionsNeeded = 1,
+  db: Prisma.TransactionClient = prisma
 ): Promise<StudentWithLessonCards[]> {
-  return prisma.student.findMany({
+  return db.student.findMany({
     where: {
       id: { in: studentIds },
       classroomId,
@@ -47,7 +51,13 @@ export async function fetchStudentsWithValidCards(
     include: {
       studentCards: {
         where: {
-          cardId: { in: validCardIds },
+          // 這堂課收的卡，加上什麼課都能上的卡（財務：贈送卡、所屬課程已結束的
+          // 綁課卡——跟 isUniversalCard 同口徑，src/service/finance/bound.ts）。
+          OR: [
+            { cardId: { in: validCardIds } },
+            { card: { isGift: true } },
+            { card: { boundLesson: { status: "finished" } } },
+          ],
           remainingSessions: { gte: Math.max(1, sessionsNeeded) },
           expiredAt: null,
         },
