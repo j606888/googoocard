@@ -10,6 +10,7 @@ import {
   CircleDollarSign,
   Ellipsis,
   Forward,
+  Undo2,
   PencilLine,
   Repeat2,
   Trash2,
@@ -39,6 +40,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { fieldControlClass } from "@/components/Field";
 import StatusTag from "@/components/StatusTag";
 import MenuItem from "@/components/MenuItem";
+import RefundDrawer from "@/features/finance/RefundDrawer";
+import { useIsFinance } from "@/features/finance/useIsFinance";
 import { cn } from "@/lib/utils";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -95,6 +98,8 @@ const CardDetailDialog = ({
   const [noteDraft, setNoteDraft] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [showAllEntries, setShowAllEntries] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const isFinance = useIsFinance();
 
   // 還沒點過任何一張卡。
   if (!studentCard) return null;
@@ -116,6 +121,8 @@ const CardDetailDialog = ({
   const canDelete = studentCard.attendanceRecords.length === 0 && !inChain;
   // 轉換、轉讓只對還有效、已收款的卡開放——未付款的卡轉過去，那筆欠款就消失了。
   const canMove = !ended && !isUnpaid;
+  // 退費：財務才有；已付款、還沒關閉的卡。
+  const canRefund = isFinance && !isUnpaid && !ended;
   const canTransfer = canMove && !studentCard.card.isTrial;
   const serial = formatCardSerial(studentCard.serialNumber);
   const ids = { id: studentCard.studentId, studentCardId: studentCard.id };
@@ -489,7 +496,7 @@ const CardDetailDialog = ({
               <PencilLine className="size-[17px] shrink-0" aria-hidden />
               {studentCard.note ? "編輯備註" : "備註"}
             </button>
-            {(canExpire || canDelete) && (
+            {(canExpire || canDelete || canRefund) && (
               <Popover open={moreOpen} onOpenChange={setMoreOpen}>
                 <PopoverTrigger asChild>
                   <button
@@ -501,6 +508,17 @@ const CardDetailDialog = ({
                   </button>
                 </PopoverTrigger>
                 <PopoverContent align="end" side="top" className="w-60 p-1.5">
+                  {canRefund && (
+                    <MenuItem
+                      icon={<Undo2 className="size-4" aria-hidden />}
+                      onClick={() => {
+                        setMoreOpen(false);
+                        setRefundOpen(true);
+                      }}
+                    >
+                      退費
+                    </MenuItem>
+                  )}
                   {canExpire && (
                     <MenuItem
                       icon={<Ban className="size-4" aria-hidden />}
@@ -531,6 +549,19 @@ const CardDetailDialog = ({
         )}
       </ResponsiveDialog>
 
+      {refundOpen && (
+        <RefundDrawer
+          open
+          onClose={() => setRefundOpen(false)}
+          studentCard={{
+            id: studentCard.id,
+            finalPrice: studentCard.finalPrice,
+            totalSessions: studentCard.totalSessions,
+            remainingSessions: studentCard.remainingSessions,
+            cardName: studentCard.card.name,
+          }}
+        />
+      )}
       <ConfirmPaymentDrawer
         target={
           pendingAction === "pay"

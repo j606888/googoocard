@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import { monthOf } from "@/domains/finance/months";
@@ -67,11 +68,29 @@ export default function FinanceHome({ banner }: { banner?: ReactNode }) {
   return (
     <div className="flex flex-col gap-4 p-4 lg:p-6">
       {banner}
-      {unsettled && (
-        <p className="rounded-xl bg-warning-100 px-4 py-3 text-sm font-medium text-warning-950">
-          {unsettled}
-        </p>
+      {unsettled && months && (
+        <Link
+          href={`/finance/settle/${months.openMonth}`}
+          className="rounded-xl bg-warning-100 px-4 py-3 text-sm font-medium text-warning-950"
+        >
+          {unsettled}　看結算單 →
+        </Link>
       )}
+      <nav aria-label="財務功能" className="flex flex-wrap gap-2">
+        {[
+          ...(months ? [{ href: `/finance/settle/${months.openMonth}`, label: "月結算單" }] : []),
+          { href: "/finance/expenses", label: "支出與轉帳" },
+          { href: "/finance/report", label: "月報表" },
+        ].map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="inline-flex h-11 items-center rounded-xl border-[1.5px] border-primary-300 bg-white px-4 text-[15px] font-bold text-primary-900 hover:bg-primary-50"
+          >
+            {l.label}
+          </Link>
+        ))}
+      </nav>
       {warning && <p className="rounded-xl bg-warning-100 px-4 py-3 text-sm text-warning-950">{warning}</p>}
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {custody.users.map((u) => {
