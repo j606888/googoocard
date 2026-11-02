@@ -724,7 +724,7 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 設計與所有取捨：[`docs/superpowers/specs/2026-11-02-finance-design.md`](superpowers/specs/2026-11-02-finance-design.md)（§10 說明跟已移除的「水庫」差在哪）。實作期間的決定以 spec 為準，下面只寫「程式現在怎麼運作」。
 
-**開關**：`Classroom.financeEnabledAt`（上線日）。`null` = 沒開，**行為完全不變**：卡不到期、收款人照舊可選任何成員、沒有綁課卡／贈送卡、`/finance` 的 API 回 404。開啟走 `POST /api/finance/enable`（owner，教室設定有連結入口；導覽在開啟前藏起「財務」）。上線日之前的課、過期事件都不算。
+**開關**：`Classroom.financeEnabledAt`（上線日）。`null` = 沒開，**行為完全不變**：卡不到期、收款人照舊可選任何成員、沒有綁課卡／贈送卡、`/finance` 的 API 回 404。開啟後每門課都要有分部（API 400 `LOCATION_REQUIRED`；新增／編輯課程表單的分部欄位變必填）。開啟走 `POST /api/finance/enable`（owner，教室設定有連結入口；導覽在開啟前藏起「財務」）。上線日之前的課、過期事件都不算。
 
 **權限**：`Membership.isFinance`（財務 = 保管人），跟 owner／admin／老師／小幫手四個角色分開，有勾才有（`src/service/finance/access.ts`）。只有財務能記支出／次數包／轉帳／退費、改分帳規則與分部設定、確認結算；其餘成員全部唯讀（第一階段全透明）。最後一位財務不能被取消或移除。分部負責人（`Location.keeperUserId`）、過期收入對象、`Teacher.payerUserId`、`Classroom.legacyCustodianUserId` 都必須是財務成員。
 
@@ -740,13 +740,15 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 **錢收到才算**：待收（未付款的卡、未付單堂）與待定（沒卡的人）**不進收入**，付款確認後才算，並依下方月份規則歸月。已扣格但時段還沒點名定案（自助簽到）的卡，仍計入「預收」直到定案，所以現金不會短少。
 
-**課卡到期（懶惰到期）**：沒有排程。`expireDueCards(classroomId)`（`service/finance/expiry.ts`，冪等）在點名（take／update／finalize）、LIFF 今天、學生詳情（`GET /api/students/[id]`、`studentDetail.ts`）、保管讀取（`custody.ts`）的開頭呼叫。**`expiresAt` = 到期日（計算值）；`expiredAt` = 真的關閉的時間**，到期時寫 `expiredAt = expiresAt` 與 `closedReason = EXPIRED`（另有 `VOIDED`／`REFUNDED`）。過期不能補錢續用；已付款卡的剩餘價值在過期那天變成賣卡分部「過期收入對象」的收入（未付款卡沒有錢）。上線日之前的過期不算。
+**課卡到期（懶惰到期）**：沒有排程。`expireDueCards(classroomId)`（`service/finance/expiry.ts`，冪等）在點名（take／update／finalize）、LIFF 今天、學生詳情（`GET /api/students/[id]`、`studentDetail.ts`）、保管讀取（`custody.ts`）的開頭呼叫。**`expiresAt` = 到期日（計算值）；`expiredAt` = 真的關閉的時間**，到期時寫 `expiredAt = expiresAt` 與 `closedReason = EXPIRED`（另有 `VOIDED`／`REFUNDED`）。過期不能補錢續用；已付款卡的剩餘價值在過期那天變成賣卡分部「過期收入對象」的收入（未付款卡沒有錢）。上線日之前的過期不算。財務開啟時，`consume`（手動指定用哪張卡）會先跑 `expireDueCards`，**已關閉的卡（`expiredAt` 有值：過期／作廢／退費／轉換／轉讓）回 400 `CARD_CLOSED`**——否則同一格會同時算進過期收入和那堂的收入。
+
+**退格跟著轉換鏈走**（`service/finance/sessionRefund.ts` 的 `refundSessionsInTx`）：取消點名、重設點名、退缺席、合併學員的重複出席都經過它。財務開啟時，原本那張卡已經轉換／轉讓 → 順著 `convertedToId`／`transferredToId` 退到鏈尾那張（剩餘價值跟著新卡走；退回舊卡的話那份錢既不在預收也不在過期收入，會消失）。鏈尾已過期也照退，它的過期收入變多，由下面的月結調整處理。財務沒開：照舊退回原卡。
 
 **綁課卡／缺席／贈送卡**：`Card` 可綁一門 `fixed` 課（不可與複習／體驗並用，不可綁已結束的課）。時段定案時，有綁課卡但沒出席的學生自動扣一格，寫進**獨立的 `AttendanceAbsence` 表**——算收入、**絕不當出席**（出席人數、紀錄、活躍度、`lastAttendAt` 都不碰它）；之後補點出席會把缺席換成出席，不重複扣。綁課卡剩格在那門課結束後變成「通用卡」（任何課可用，LIFF 自助簽到也可）。賣綁課卡時同交易自動發一張**贈送卡**（1 格、$0、通用、6 個月）；系統「贈送卡」卡種對外隱藏、不可販售，只由 `issueGiftCardInTx` 發。選卡優先序：該課自己的卡先；通用卡只在學生沒有該課的卡且恰好一張時自動選。
 
 **收款人規則**（`service/finance/receiver.ts`）：財務開啟時，收款人只能是財務成員（`assertReceiverIsFinance`）。非財務的賣卡者（小幫手代收）一律落到 `defaultReceiver`（該堂課分部的負責人）；找不到負責人且呼叫者不是財務 → 400 `RECEIVER_REQUIRED`。`soldLocationId` = 收款人負責的分部。轉換／轉讓的新卡繼承來源卡的保管人與賣卡分部（只在財務開啟時）。解不出保管人的錢進該持有人的「未分配」並出 `UNRESOLVED_KEEPER` 警告，**不丟錢**，且擋住結算。
 
-**月結**：財務按「確認結算」才鎖（`lockMonth`），沒有自動鎖；存快照（每堂分帳、每人應領、保管人各格、`byBranch`、已實現的來源 key）。一筆收入歸「那堂課的月份；已鎖就歸最早未鎖的月份」；鎖後的補點名／補收款／改單堂金額只產生**調整**行（新 − 快照，歸最早未鎖月），**已鎖月份永不改變**。只能鎖最早未鎖的月份（否則 409 `MONTH_NOT_OPEN`）。**作廢落在已鎖月份（或已被快照包含）的支出／轉帳／退費／次數包 → 409 `MONTH_LOCKED`**，要改請記一筆相反的新紀錄。`lockMonth` 只在三種情況擋：不是最早未鎖的月份（409 `MONTH_NOT_OPEN`）、該月在台北時間還沒結束（409 `MONTH_NOT_ENDED`）、結算單帶 `UNALLOCATED`（有錢找不到人，含解不出保管人；409 `UNALLOCATED`）。`UNCHECKED_PERIODS`／`NO_PACK`／`PACK_OVERDRAWN` 只在結算單上當提醒，**不擋**結算。**取整只在月結發錢時**：每人月合計取整到元，零頭進付款人負責分部的公積金；內部一律保留小數。
+**月結**：財務按「確認結算」才鎖（`lockMonth`），沒有自動鎖；存快照（每堂分帳、每人應領、保管人各格、`byBranch`、已實現的來源 key）。一筆收入歸「那堂課的月份；已鎖就歸最早未鎖的月份」；鎖後的補點名／補收款／改單堂金額只產生**調整**行（新 − 快照，歸最早未鎖月），**已鎖月份永不改變**。過期收入同理：快照的 `eventIds.expiries` 存 `{ id, value, holderUserId, to }`（鎖住當時的價值；舊格式只有 id），之後卡的剩格變了（例：退格到已過期的卡）→ 帳本在最早未鎖月放「沖銷快照那版＋現況」（`expiryHistoryEntries`，跟時段的 `periodHistoryEntries` 同一套），結算單列在 `expiryAdjustments`，下次鎖定時重存基準。只能鎖最早未鎖的月份（否則 409 `MONTH_NOT_OPEN`）。**作廢落在已鎖月份（或已被快照包含）的支出／轉帳／退費／次數包 → 409 `MONTH_LOCKED`**，要改請記一筆相反的新紀錄。`lockMonth` 只在三種情況擋：不是最早未鎖的月份（409 `MONTH_NOT_OPEN`）、該月在台北時間還沒結束（409 `MONTH_NOT_ENDED`）、結算單帶 `UNALLOCATED`（有錢找不到人，含解不出保管人；409 `UNALLOCATED`）。`UNCHECKED_PERIODS`／`NO_PACK`／`PACK_OVERDRAWN` 只在結算單上當提醒，**不擋**結算。**取整只在月結發錢時**：每人月合計取整到元，零頭進付款人負責分部的公積金；內部一律保留小數。
 
 **測試**：純函式 `src/domains/finance/*.test.ts`；整合 `tests/api/finance-*.test.ts`；測試編碼 spec §13／§14 的案例。
 
