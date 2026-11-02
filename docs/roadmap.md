@@ -10,7 +10,29 @@
 ## 這份文件是什麼
 
 | 文件 | 回答的問題 |
-|---|## 新版財務
+|---|---|
+| [`architecture.md`](architecture.md) | 系統**現在是什麼**——領域模型、資格規則、點名流程、部署注意 |
+| **本文** | 系統**還缺什麼、下一步做什麼**——技術債、安全缺口、功能藍圖 |
+| [`ui-responsive.md`](ui-responsive.md) | 手機／桌面版型**該用哪種機制**——五種並存機制的現況、決策規則、收斂待辦 |
+| [`student-login-checkin-payment-plan.md`](student-login-checkin-payment-plan.md) | LINE 綁定 → 自助簽到 → 購卡對帳的原始規劃稿（Phase 1–2 已上線，Phase 3 由下一份取代） |
+| [`onsite-checkin-newcomer-plan.md`](onsite-checkin-newcomer-plan.md) | 門口 QR 走 LIFF、新同學自助登記、點名必綁卡、體驗課、收款欄位、合併學員（**已實作**，2026-10-25） |
+
+**動手改任何區塊前，先在本文搜尋該檔名**，確認沒有已知未修的安全或效能問題會被你的改動放大。
+
+格式慣例：完成的項目改成 `[x]` 並註記 `✅ 日期` 與實際做法，
+**不要刪除**——保留下來就是決策紀錄。
+
+---
+
+# 已移除
+
+- [x] **功能模組整套移除** ✅ 2026-11-01 — 水庫（finance，建城／代收／繳回／分帳／驗收／行事曆／老師薪水）、技能樹（curriculum）、模組開關（`ClassroomModule`、`/modules`）、權限同捆包＋個人加減（`Membership.grants`／`revokes`、`src/lib/permissions.ts`、`useCan`、`/api/me/access`）、點名頁「今天的助教」（`LessonPeriodAssistant`）。
+  - **為什麼**：架構想得不夠清楚，表與介面多數沒人用；正式環境上也沒有教室在用。想之後從乾淨的狀態重新設計金流。
+  - **怎麼做**：沒有 `git revert`（後面疊了核心改動）；往前刪程式，權限相關核心檔案直接還原成 `f32a752^`（之後沒人動過），新 migration `20261101120000_remove_modules` drop 掉模組自己的表／enum 與 grants/revokes。舊 migration 資料夾保留。
+  - **保留**：`Teacher.kind`（老師／助教／都是——開課選老師會隱藏純助教）、`StudentCard.paidByUserId`（收款人，比水庫早）。
+  - **附帶修好**：水庫的 RESTRICT 外鍵（`FinanceLessonSettlement`、`FinanceSplitShare`）曾讓「刪已驗收的時段」「刪有分帳的老師」500。
+
+## 新版財務
 
 - [x] **財務（新版）** ✅ 2026-11-02（分支 `feat/finance`）— 每間教室自己開的分帳／保管中／月結，說明見 `architecture.md`「財務」，設計見 [`superpowers/specs/2026-11-02-finance-design.md`](superpowers/specs/2026-11-02-finance-design.md)。跟已移除的水庫差在哪見 spec §10。
   - **刻意不做**（第一階段）：包月場地（只有預付次數包）、小幫手保管（收款人只能是財務成員，小幫手代收記成分部負責人收的）、對帳輸入（銀行／實際現金核對）、iOS App 的財務介面（只有網站）、老師端逐人薪水頁。
@@ -23,28 +45,6 @@
     - `expireDueCards` 也會關掉 0 格的卡，可能順手清掉 Needs Renewal tag；沒有分部也沒有舊保管人時，過期事件會被靜默略過。
     - 有贈送卡的綁課卡刪不掉；`launchDate`／`purchasedAt` 只驗格式（2026-02-30 這類日期會 500 或進位）。
     - 沒有排程：到期只靠讀取時觸發，久沒人開的教室要等下次有人操作才會結。
-
----
-
----|
-| [`architecture.md`](architecture.md) | 系統**現在是什麼**——領域模型、資格規則、點名流程、部署注意 |
-| **本文** | 系統**還缺什麼、下一步做什麼**——技術債、安全缺口、功能藍圖 |
-| [`ui-responsive.md`](ui-responsive.md) | 手機／桌面版型**該用哪種機制**——五種並存機制的現況、決策規則、收斂待辦 |
-| [`student-login-checkin-payment-plan.md`](student-login-checkin-payment-plan.md) | LINE 綁定 → 自助簽到 → 購卡對帳的原始規劃稿（Phase 1–2 已上線，Phase 3 由下一份取代） |
-| [`onsite-checkin-newcomer-plan.md`](onsite-checkin-newcomer-plan.md) | 門口 QR 走 LIFF、新同學自助登記、點名必綁卡、體驗課、收款欄位、合併學員（**已實作**，2026-10-25） |
-
-**動手改任何區塊前，先在本文搜尋該檔名**，確認沒有已知未修的安全或效能問題會被你的改動放大。
-
-格式慣例：完成的項目改成 `[x]` 並註記 `✅ 日期` 與實際做法，
-**不要刪除**——保留下來就是決策紀錄。
-
-# 已移除
-
-- [x] **功能模組整套移除** ✅ 2026-11-01 — 水庫（finance，建城／代收／繳回／分帳／驗收／行事曆／老師薪水）、技能樹（curriculum）、模組開關（`ClassroomModule`、`/modules`）、權限同捆包＋個人加減（`Membership.grants`／`revokes`、`src/lib/permissions.ts`、`useCan`、`/api/me/access`）、點名頁「今天的助教」（`LessonPeriodAssistant`）。
-  - **為什麼**：架構想得不夠清楚，表與介面多數沒人用；正式環境上也沒有教室在用。想之後從乾淨的狀態重新設計金流。
-  - **怎麼做**：沒有 `git revert`（後面疊了核心改動）；往前刪程式，權限相關核心檔案直接還原成 `f32a752^`（之後沒人動過），新 migration `20261101120000_remove_modules` drop 掉模組自己的表／enum 與 grants/revokes。舊 migration 資料夾保留。
-  - **保留**：`Teacher.kind`（老師／助教／都是——開課選老師會隱藏純助教）、`StudentCard.paidByUserId`（收款人，比水庫早）。
-  - **附帶修好**：水庫的 RESTRICT 外鍵（`FinanceLessonSettlement`、`FinanceSplitShare`）曾讓「刪已驗收的時段」「刪有分帳的老師」500。
 
 # P0 — 安全性 ✅ 全數完成 2026-08-23
 
