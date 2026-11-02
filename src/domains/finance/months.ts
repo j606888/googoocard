@@ -115,6 +115,8 @@ export function periodHistoryEntries(
 export type SnapshotCore = {
   periods: Record<string, Allocation[] | null>;
   income: Record<string, IncomeSource[]>;
+  /** 每堂的課名與開始時間（ISO），時段之後被刪掉時調整行還能顯示 */
+  labels: Record<string, { lessonName: string; startTime: string }>;
   eventIds: { expiries: number[]; expenses: number[]; refunds: number[]; transfers: number[] };
   roundings: LedgerInput["roundings"];
 };

@@ -21,6 +21,9 @@ vi.mock("@/lib/auth", () => ({
 
 import { GET as listMonths } from "@/app/api/finance/settlements/route";
 import { GET as getStatementRoute, POST as lockRoute } from "@/app/api/finance/settlements/[month]/route";
+import { DELETE as voidExpense } from "@/app/api/finance/expenses/[id]/route";
+import { DELETE as voidTransfer } from "@/app/api/finance/transfers/[id]/route";
+import { DELETE as voidPack } from "@/app/api/finance/packs/[id]/route";
 import { getMonthStatement, lockMonth } from "@/service/finance/settlement";
 import type { MonthStatement } from "@/service/finance/settlement";
 import { getCustody } from "@/service/finance/custody";
@@ -317,6 +320,69 @@ describe("finance settlement", () => {
     await lockMonth({ classroomId, userId: dingId, month: "2026-12", now: JAN_3 });
     expect((await getMonthStatement(classroomId, "2027-01", JAN_3)).expenses).toEqual([]);
     expect((await custody("2026-12")).funds[tainanId]).toBeCloseTo(fundBefore - 500, 5);
+  });
+
+  it("late attendance on a locked-month period with no baseline → one adjustment in the open month", async () => {
+    await lockMonth({ classroomId, userId: dingId, month: "2026-11", now: DEC_3 });
+    const p = await addPeriod(l6LessonId, "2026-11-28T11:00:00Z");
+    await attend(p.id, dingId);
+    const dec = await getMonthStatement(classroomId, "2026-12", JAN_3);
+    expect(dec.periods).toEqual([]);
+    const adj = dec.adjustments.filter((a) => a.periodId === p.id);
+    expect(adj).toHaveLength(1);
+    expect(adj[0]).toMatchObject({ lessonName: "L6", date: "2026-11-28T11:00:00.000Z" });
+    expect(sumTo(adj[0].deltas, (x) => x.type === "teacher" && x.teacherId === charleneId)).toBeCloseTo(2000 / 18, 2);
+    await lockMonth({ classroomId, userId: dingId, month: "2026-12", now: JAN_3 });
+    expect((await getMonthStatement(classroomId, "2027-01", JAN_3)).adjustments).toEqual([]);
+  });
+
+  it("period moved into the open month after lock shows only as an adjustment", async () => {
+    await lockMonth({ classroomId, userId: dingId, month: "2026-11", now: DEC_3 });
+    const moved = new Date("2026-12-10T11:00:00Z");
+    await prisma.lessonPeriod.update({ where: { id: l6PeriodId }, data: { startTime: moved, attendanceTakenAt: moved } });
+    await payAjie();
+    const dec = await getMonthStatement(classroomId, "2026-12", JAN_3);
+    expect(dec.periods.map((p) => p.periodId)).not.toContain(l6PeriodId);
+    expect(dec.adjustments.map((a) => a.periodId)).toEqual([l6PeriodId]);
+    expect(dec.byPerson.find((x) => x.teacherId === charleneId)!.total).toBeCloseTo(111.11, 2);
+  });
+
+  it("period that leaves the live data after lock keeps its snapshot name/date in the adjustment", async () => {
+    await lockMonth({ classroomId, userId: dingId, month: "2026-11", now: DEC_3 });
+    const p2 = await prisma.lessonPeriod.findFirstOrThrow({ where: { lesson: { name: "L2" } } });
+    await prisma.lessonPeriod.update({ where: { id: p2.id }, data: { attendanceTakenAt: null } });
+    const dec = await getMonthStatement(classroomId, "2026-12", JAN_3);
+    const adj = dec.adjustments.find((a) => a.periodId === p2.id)!;
+    expect(adj).toMatchObject({ lessonName: "L2", date: p2.startTime.toISOString() });
+    expect(sumTo(adj.deltas, () => true)).toBeCloseTo(-2 * (2000 / 6), 2);
+  });
+
+  it("cannot void an expense, transfer or pack in a locked month", async () => {
+    const mk = async (date: Date) => ({
+      expense: await prisma.financeExpense.create({
+        data: { classroomId, date, amount: 100, locationId: tainanId, category: "x", paidByUserId: dingId, createdById: dingId },
+      }),
+      transfer: await prisma.financeTransfer.create({
+        data: { classroomId, date, amount: 100, fromUserId: dingId, toKind: "USER", toUserId: seanId, createdById: dingId },
+      }),
+      pack: await prisma.venuePack.create({
+        data: { classroomId, venueId: stepsId, sessions: 10, price: 4050, paidByUserId: seanId, purchasedAt: date, createdById: seanId },
+      }),
+    });
+    const nov = await mk(new Date("2026-11-15T04:00:00Z"));
+    await lockMonth({ classroomId, userId: dingId, month: "2026-11", now: DEC_3 });
+    const dec = await mk(new Date("2026-12-02T04:00:00Z"));
+    const del = (id: number) => [new Request("http://test.local", { method: "DELETE" }), { params: Promise.resolve({ id: String(id) }) }] as const;
+
+    for (const [route, rec] of [[voidExpense, nov.expense], [voidTransfer, nov.transfer], [voidPack, nov.pack]] as const) {
+      const res = await route(...del(rec.id));
+      expect(res.status).toBe(409);
+      expect((await res.json()).code).toBe("MONTH_LOCKED");
+    }
+    for (const [route, rec] of [[voidExpense, dec.expense], [voidTransfer, dec.transfer], [voidPack, dec.pack]] as const) {
+      expect((await route(...del(rec.id))).status).toBe(200);
+    }
+    expect(await prisma.financeExpense.count({ where: { id: nov.expense.id, voidedAt: null } })).toBe(1);
   });
 
   it("locked month snapshot unchanged after rule edit", async () => {

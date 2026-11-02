@@ -31,7 +31,8 @@ export type MonthStatement = {
   month: string;
   locked: boolean;
   periods: PeriodFinance[];
-  adjustments: { periodId: number; lessonName: string; date: Date; deltas: Allocation[]; reason: "late" }[];
+  /** date = 那堂的開始時間（ISO 字串；鎖住的結算單從 JSON 讀回也一樣） */
+  adjustments: { periodId: number; lessonName: string; date: string; deltas: Allocation[]; reason: "late" }[];
   byPerson: { teacherId: number; name: string; payerUserId: number | null; total: number; rounded: number }[];
   expenses: Ledger["context"]["expenses"];
   expiries: Ledger["context"]["expiries"];
@@ -99,7 +100,9 @@ async function computeStatement(
   const { financeEnabledAt, financeRoundTo } = await assertFinanceEnabled(classroomId);
   const ctx = ledger.context;
   const locked = new Set(ctx.lockedMonths);
-  const periods = ctx.livePeriods.filter((p) => p.month === month);
+  // 進過快照的時段（例：鎖住後被改到這個月）只算調整，不重複列成這個月的時段。
+  const periods = ctx.livePeriods.filter((p) => p.month === month && !ctx.baselines.has(p.periodId));
+  const liveById = new Map(ctx.livePeriods.map((p) => [p.periodId, p]));
 
   // 調整：鎖住月份的時段，現況跟快照（基準）不同 → 差額算進最早沒鎖的月份。
   const adjustments: MonthStatement["adjustments"] = [];
@@ -109,16 +112,6 @@ async function computeStatement(
       ...ctx.baselines.keys(),
       ...ctx.livePeriods.filter((p) => locked.has(p.month)).map((p) => p.periodId),
     ]);
-    const liveById = new Map(ctx.livePeriods.map((p) => [p.periodId, p]));
-    const missing = [...lockedPeriodIds].filter((id) => !liveById.has(id));
-    const gone = new Map(
-      (
-        await prisma.lessonPeriod.findMany({
-          where: { id: { in: missing } },
-          select: { id: true, startTime: true, lesson: { select: { name: true } } },
-        })
-      ).map((p) => [p.id, p]),
-    );
     for (const periodId of [...lockedPeriodIds].sort((a, b) => a - b)) {
       const live = ctx.liveStates.get(periodId) ?? EMPTY_PERIOD_STATE;
       const baseline = ctx.baselines.get(periodId) ?? EMPTY_PERIOD_STATE;
@@ -130,11 +123,14 @@ async function computeStatement(
       ).get(periodId);
       if (!deltas) continue;
       const lp = liveById.get(periodId);
-      const gp = gone.get(periodId);
+      // 現況沒有這堂（點名被取消、時段被刪）→ 用快照存的課名與時間；有 deltas 就一定有基準。
+      const label = lp
+        ? { lessonName: lp.lessonName, startTime: lp.startTime.toISOString() }
+        : ctx.baselineLabels.get(periodId)!;
       adjustments.push({
         periodId,
-        lessonName: lp?.lessonName ?? gp?.lesson.name ?? "",
-        date: lp?.startTime ?? gp?.startTime ?? new Date(0),
+        lessonName: label.lessonName,
+        date: label.startTime,
         deltas,
         reason: "late",
       });
@@ -220,16 +216,21 @@ async function computeStatement(
 
   const snapPeriods: SnapshotCore["periods"] = {};
   const snapIncome: SnapshotCore["income"] = {};
+  const snapLabels: SnapshotCore["labels"] = {};
   for (const periodId of [...periods.map((p) => p.periodId), ...absorbed]) {
     const state = ctx.liveStates.get(periodId) ?? EMPTY_PERIOD_STATE;
     snapPeriods[periodId] = state.allocations;
     snapIncome[periodId] = state.income;
+    const lp = liveById.get(periodId);
+    const label = lp ? { lessonName: lp.lessonName, startTime: lp.startTime.toISOString() } : ctx.baselineLabels.get(periodId);
+    if (label) snapLabels[periodId] = label;
   }
   const newEventIds = (kind: keyof SnapshotCore["eventIds"]) =>
     ctx.events[kind].filter((e) => e.month === month && !e.snapshotted).map((e) => e.id);
   const snapshot: SnapshotCore = {
     periods: snapPeriods,
     income: snapIncome,
+    labels: snapLabels,
     eventIds: {
       expiries: newEventIds("expiries"),
       expenses: newEventIds("expenses"),
@@ -316,4 +317,26 @@ export async function listSettlementMonths(classroomId: number, now = new Date()
     months.push({ month: m, locked: !!r, lockedAt: r?.lockedAt ?? null, lockedById: r?.lockedById ?? null });
   }
   return { openMonth: earliestOpenMonth(monthOf(financeEnabledAt), [...byMonth.keys()]), months };
+}
+
+/**
+ * 作廢支出／轉帳／次數包前呼叫：事件日期的月份已鎖，或它已經進了某份月結快照 → 409 MONTH_LOCKED
+ * （鎖住的月份永遠不變；ruling R20 選擇擋下而不是產生調整）。
+ */
+export async function assertVoidable(
+  classroomId: number,
+  { date, kind, id }: { date: Date; kind?: "expenses" | "transfers"; id?: number },
+): Promise<void> {
+  const rows = await prisma.financeSettlement.findMany({
+    where: { classroomId },
+    select: { month: true, snapshot: true },
+  });
+  const month = monthOf(date);
+  const inSnapshot =
+    kind !== undefined &&
+    id !== undefined &&
+    rows.some((r) => (r.snapshot as unknown as SnapshotCore).eventIds[kind].includes(id));
+  if (inSnapshot || rows.some((r) => r.month === month)) {
+    throw new ApiError(409, "MONTH_LOCKED", "This month is locked");
+  }
 }

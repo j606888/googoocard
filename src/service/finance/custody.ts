@@ -37,6 +37,8 @@ export type SettlementContext = {
   liveStates: Map<number, PeriodState>;
   /** 時段 → 最新一份包含它的快照裡的狀態 */
   baselines: Map<number, PeriodState>;
+  /** 時段 → 最新一份包含它的快照裡的課名／開始時間 */
+  baselineLabels: Map<number, { lessonName: string; startTime: string }>;
   events: Record<EventKind, AssignedEvent[]>;
   expenses: { id: number; date: Date; amount: number; locationId: number; category: string; paidByUserId: number }[];
   expiries: ExpiryEvent[];
@@ -211,7 +213,6 @@ export async function loadLedger(classroomId: number): Promise<Ledger> {
   const liveStates = new Map<number, PeriodState>(
     periods.map((p) => [p.periodId, { income: p.income.realized, allocations: p.allocations }]),
   );
-  const liveMonth = new Map(periods.map((p) => [p.periodId, assignMonth(p.month, locked, openMonth)]));
   const chains = new Map<number, { month: string; state: PeriodState }[]>();
   for (const { month, snapshot } of snapshots) {
     for (const [id, allocations] of Object.entries(snapshot.periods)) {
@@ -222,6 +223,14 @@ export async function loadLedger(classroomId: number): Promise<Ledger> {
     }
   }
   const baselines = new Map([...chains].map(([id, chain]) => [id, chain[chain.length - 1].state]));
+  const baselineLabels = new Map<number, { lessonName: string; startTime: string }>();
+  for (const { snapshot } of snapshots) {
+    for (const [id, label] of Object.entries(snapshot.labels ?? {})) baselineLabels.set(Number(id), label);
+  }
+  // 進過快照的時段：之後的變動一律是最早沒鎖月份的調整（就算時段被改到別的月份），跟結算單一致。
+  const liveMonth = new Map(
+    periods.map((p) => [p.periodId, chains.has(p.periodId) ? openMonth : assignMonth(p.month, locked, openMonth)]),
+  );
   const periodEntries: LedgerInput["periods"] = [];
   for (const periodId of new Set([...liveStates.keys(), ...chains.keys()])) {
     const live = liveStates.get(periodId);
@@ -281,6 +290,7 @@ export async function loadLedger(classroomId: number): Promise<Ledger> {
       livePeriods: periods,
       liveStates,
       baselines,
+      baselineLabels,
       events,
       expenses,
       expiries,
