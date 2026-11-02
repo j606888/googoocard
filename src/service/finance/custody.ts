@@ -21,11 +21,13 @@ export async function loadLedger(classroomId: number): Promise<{
   keepers: Keepers;
   warnings: CustodyWarning[];
 }> {
-  const { legacyCustodianUserId } = await assertFinanceEnabled(classroomId);
+  const { financeEnabledAt, legacyCustodianUserId } = await assertFinanceEnabled(classroomId);
   await expireDueCards(classroomId);
   const warnings: CustodyWarning[] = [];
 
-  const [periods, expiries, cards, expenses, packs, transfers, refunds, locations, venues, teachers, financeMembers] =
+  const untakenPeriod = { lesson: { classroomId }, attendanceTakenAt: null, startTime: { gte: financeEnabledAt } };
+  const paidCard = { select: { isPaid: true, finalPrice: true, totalSessions: true, paidByUserId: true } };
+  const [periods, expiries, cards, expenses, packs, transfers, refunds, locations, venues, teachers, financeMembers, untakenRecords, untakenAbsences] =
     await Promise.all([
       loadPeriodFinance(classroomId, {}),
       expiryEvents(classroomId),
@@ -64,6 +66,18 @@ export async function loadLedger(classroomId: number): Promise<{
       prisma.venue.findMany({ where: { classroomId }, select: { id: true, landlordUserId: true } }),
       prisma.teacher.findMany({ where: { classroomId }, select: { id: true, userId: true, payerUserId: true } }),
       prisma.membership.findMany({ where: { classroomId, isFinance: true }, select: { userId: true } }),
+      prisma.attendanceRecord.findMany({
+        where: { lessonPeriod: untakenPeriod },
+        select: {
+          sessionsUsed: true,
+          studentCard: paidCard,
+          dropInCharge: { select: { id: true, amount: true, isPaid: true, paidByUserId: true } },
+        },
+      }),
+      prisma.attendanceAbsence.findMany({
+        where: { lessonPeriod: untakenPeriod },
+        select: { sessionsUsed: true, studentCard: paidCard },
+      }),
     ]);
 
   const financeIds = new Set(financeMembers.map((m) => m.userId));
@@ -95,6 +109,31 @@ export async function loadLedger(classroomId: number): Promise<{
     const holder = c.paidByUserId ?? legacyCustodianUserId;
     if (holder === null) warnings.push({ code: "UNKNOWN_HOLDER", studentCardId: c.id });
     else prepaid.push({ holderUserId: holder, value });
+  }
+  // 還沒點名定案的時段（例：自助簽到）已經扣了格、但還不算收入：那份錢仍當作預收，
+  // 定案（attendanceTakenAt）後才移到那堂的已實現收入。已付的單堂同理。
+  const pendingSources = [
+    ...untakenRecords.map((r) =>
+      r.dropInCharge
+        ? { paid: r.dropInCharge.isPaid, value: r.dropInCharge.amount, paidByUserId: r.dropInCharge.paidByUserId }
+        : r.studentCard
+          ? { paid: r.studentCard.isPaid, value: cardUnitValue(r.studentCard) * r.sessionsUsed, paidByUserId: r.studentCard.paidByUserId }
+          : null,
+    ),
+    ...untakenAbsences.map((a) => ({
+      paid: a.studentCard.isPaid,
+      value: cardUnitValue(a.studentCard) * a.sessionsUsed,
+      paidByUserId: a.studentCard.paidByUserId,
+    })),
+  ];
+  for (const src of pendingSources) {
+    if (!src || !src.paid || src.value === 0) continue;
+    const holder = src.paidByUserId ?? legacyCustodianUserId;
+    if (holder === null) warnings.push({ code: "UNKNOWN_HOLDER" });
+    else prepaid.push({ holderUserId: holder, value: src.value });
+  }
+  for (const e of expiries) {
+    if (e.holderUserId === null) warnings.push({ code: "UNKNOWN_HOLDER", studentCardId: e.studentCardId });
   }
 
   const input: LedgerInput = {
@@ -147,6 +186,15 @@ function ledgerWarnings(input: LedgerInput, keepers: Keepers, through?: string):
       out.push({ code: "UNKNOWN_HOLDER", periodId: p.periodId });
     }
     if (p.allocations?.some((a) => a.amount !== 0 && !resolvePayee(a.payee, p.periodId, keepers))) {
+      out.push({ code: "UNRESOLVED_KEEPER", periodId: p.periodId });
+    }
+    // 沒有收入、但有固定金額要付（基金吸收）：要靠分部負責人當 holder，沒有就記不進去。
+    const realized = p.income.reduce((sum, s) => sum + (s.paid ? s.amount : 0), 0);
+    if (
+      realized === 0 &&
+      p.allocations?.some((a) => a.amount !== 0) &&
+      keepers.branchKeeperOfPeriod(p.periodId) === null
+    ) {
       out.push({ code: "UNRESOLVED_KEEPER", periodId: p.periodId });
     }
   }

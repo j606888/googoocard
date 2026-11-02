@@ -247,6 +247,41 @@ describe("computeCustody — spec §14", () => {
     expect(r[DINGDING].unallocated).toBeCloseTo(200, 5);
   });
 
+  it("refund paid by the card's own holder nets against the V−R expiry", () => {
+    const before = november();
+    before.prepaid.push({ holderUserId: DINGDING, value: 1000 }); // 還開著的卡
+    const base = computeCustody(before, keepers)[DINGDING];
+
+    const after = november(); // 退費後卡關閉，不在預收裡
+    after.refunds = [{ amount: 400, paidByUserId: DINGDING, holderUserId: DINGDING, month: "2026-11" }];
+    after.expiries = [
+      {
+        studentCardId: 97, date: new Date("2026-11-28T00:00:00+08:00"), value: 600,
+        holderUserId: DINGDING, soldLocationId: TAINAN, to: { type: "fund", locationId: TAINAN }, month: "2026-11",
+      },
+    ];
+    const r = computeCustody(after, keepers);
+    expect(() => assertCustodyInvariants(r)).not.toThrow();
+    const d = r[DINGDING];
+    expect(d.cash).toBeCloseTo(base.cash - 400, 5);
+    expect(d.prepaid).toBeCloseTo(base.prepaid - 1000, 5);
+    expect(d.funds[TAINAN]).toBeCloseTo(base.funds[TAINAN] + 600, 5);
+    expectRecord(d.peers, base.peers);
+  });
+
+  it("a slice with no holder is dropped together with its cash", () => {
+    const input = november();
+    const orphan: IncomeSource = { ...card(SEAN, 300), holderUserId: null };
+    input.periods = [period(4, [card(SEAN, 300), orphan], kaoLines, kaoRest, KAOHSIUNG)];
+    input.expenses = [];
+    const r = computeCustody(input, keepers); // 不變式不 throw
+    const s = r[SEAN];
+    expect(s.cash - s.prepaid + 4050).toBeCloseTo(300, 5); // 只有自己那份現金
+    // 分帳也只拿一半（600 的一半）
+    expect(s.self + s.teachers[PARTNER] + s.funds[KAOHSIUNG] + (s.packs[PACK] + 4050)).toBeCloseTo(300, 5);
+    expect(s.packs[PACK] + 4050).toBeCloseTo(405 / 2, 5);
+  });
+
   it("external venue per-session goes to the branch keeper's venues bucket", () => {
     const input = november();
     input.periods = [

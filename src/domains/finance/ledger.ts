@@ -135,12 +135,15 @@ export function computeCustody(
   // 每堂：每筆分帳依各 holder 在這堂已實現收入的比例拆。
   for (const period of input.periods) {
     if (!inRange(period.month)) continue;
+    // 比例用整堂已實現收入當分母：找不到 holder 的那份連同它的現金一起不進任何人的表。
     const byHolder = new Map<number, number>();
+    let total = 0;
     for (const s of period.income) {
-      if (!s.paid || s.holderUserId === null || s.amount === 0) continue;
+      if (!s.paid || s.amount === 0) continue;
+      total += s.amount;
+      if (s.holderUserId === null) continue;
       byHolder.set(s.holderUserId, (byHolder.get(s.holderUserId) ?? 0) + s.amount);
     }
-    const total = [...byHolder.values()].reduce((a, v) => a + v, 0);
     for (const [holder, amount] of byHolder) get(holder).cash += amount;
 
     if (period.allocations === null) {

@@ -149,6 +149,38 @@ describe("GET /api/finance/custody", () => {
     expect((await res.json()).code).toBe("FINANCE_DISABLED");
   });
 
+  it("untaken period (self check-in): deducted session stays prepaid until finalised", async () => {
+    await seed();
+    const before = (await (await GET(getReq(), noParams)).json()) as Body;
+    const ownerBefore = before.users.find((u) => u.userId === ownerId)!.buckets;
+
+    const lesson = await prisma.lesson.findFirstOrThrow({ where: { classroomId } });
+    const startTime = new Date("2026-11-16T02:00:00Z");
+    const period = await prisma.lessonPeriod.create({
+      data: { lessonId: lesson.id, startTime, endTime: new Date(startTime.getTime() + 3600_000) },
+    });
+    const cardA = await prisma.studentCard.findFirstOrThrow({ where: { paidByUserId: ownerId } });
+    // 自助簽到：扣格、建紀錄，但老師還沒定案
+    await prisma.studentCard.update({ where: { id: cardA.id }, data: { remainingSessions: { decrement: 1 } } });
+    await prisma.attendanceRecord.create({
+      data: { lessonPeriodId: period.id, studentId: cardA.studentId, studentCardId: cardA.id, sessionsUsed: 1, source: "STUDENT" },
+    });
+
+    const mid = (await (await GET(getReq(), noParams)).json()) as Body;
+    const ownerMid = mid.users.find((u) => u.userId === ownerId)!.buckets;
+    expect(ownerMid.cash).toBeCloseTo(ownerBefore.cash, 5);
+    expect(ownerMid.prepaid).toBeCloseTo(ownerBefore.prepaid, 5);
+
+    await prisma.lessonPeriod.update({ where: { id: period.id }, data: { attendanceTakenAt: startTime } });
+    const after = (await (await GET(getReq(), noParams)).json()) as Body;
+    const ownerAfter = after.users.find((u) => u.userId === ownerId)!.buckets;
+    expect(ownerAfter.cash).toBeCloseTo(ownerBefore.cash, 5);
+    expect(ownerAfter.prepaid).toBeCloseTo(ownerBefore.prepaid - 2000 / 6, 5);
+    // 那堂的 333.33：場地 300 → 自己的，剩下 33.33 → TS（第二位成員）
+    expect(ownerAfter.self).toBeCloseTo(ownerBefore.self + 300, 5);
+    expect(ownerAfter.peers[seanId]).toBeCloseTo(ownerBefore.peers[seanId] + 2000 / 6 - 300, 5);
+  });
+
   it("teacher without payer → unallocated + UNRESOLVED_KEEPER", async () => {
     await seed();
     const t = await createTeacher(classroomId, { name: "NoPayer" });
