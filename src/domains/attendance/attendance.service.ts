@@ -7,6 +7,7 @@ import { canBuyCard, canUseCard, cardMatchesLesson, isQualified, requiredDanceSt
 import { createStudentCardInTx } from "@/service/studentCard";
 import { expireDueCards } from "@/service/finance/expiry";
 import { reconcileAbsencesInTx, refundPresentAbsencesInTx } from "@/service/finance/bound";
+import { refundSessionsInTx } from "@/service/finance/sessionRefund";
 import { createDropInChargeInTx } from "@/service/dropIn";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
@@ -378,19 +379,19 @@ async function removeAttendanceRecord(
 ) {
   // Refund what this record deducted (sessionsUsed, not the lesson's current setting)
   if (attendanceRecord.studentCardId) {
-    await tx.studentCard.update({
-      where: { id: attendanceRecord.studentCardId },
-      data: {
-        remainingSessions: { increment: attendanceRecord.sessionsUsed },
-      },
-    });
+    // 財務開啟時，已轉換／轉讓的卡退到鏈尾那張（見 refundSessionsInTx）。
+    const refundedCardId = await refundSessionsInTx(
+      tx,
+      attendanceRecord.studentCardId,
+      attendanceRecord.sessionsUsed
+    );
 
     // The card is no longer exhausted — drop its stale "課卡使用完畢" event.
     await tx.event.deleteMany({
       where: {
         resourceType: "studentCard",
         title: "課卡使用完畢",
-        resourceId: attendanceRecord.studentCardId,
+        resourceId: refundedCardId,
       },
     });
   }

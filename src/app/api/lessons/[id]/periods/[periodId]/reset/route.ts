@@ -4,6 +4,7 @@ import { decodeAuthToken } from "@/lib/auth";
 import { findLessonInClassroom } from "@/lib/authz";
 import { refreshLesson } from "@/service/lesson";
 import { refundAbsenceInTx } from "@/service/finance/bound";
+import { refundSessionsInTx } from "@/service/finance/sessionRefund";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; periodId: string }> }) {
   const { id, periodId } = await params;
@@ -27,19 +28,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
   });
 
-  const refundedCardIds = attendanceRecords
-    .map((record) => record.studentCardId)
-    .filter((cardId): cardId is number => cardId !== null);
-
   await prisma.$transaction(async (tx) => {
+    const refundedCardIds: number[] = [];
     for (const attendanceRecord of attendanceRecords) {
       if (attendanceRecord.studentCardId) {
-        await tx.studentCard.update({
-          where: { id: attendanceRecord.studentCardId },
-          data: {
-            remainingSessions: { increment: attendanceRecord.sessionsUsed },
-          },
-        });
+        // 財務開啟時，已轉換／轉讓的卡退到鏈尾那張（見 refundSessionsInTx）。
+        refundedCardIds.push(
+          await refundSessionsInTx(tx, attendanceRecord.studentCardId, attendanceRecord.sessionsUsed)
+        );
       }
 
       await tx.attendanceRecord.delete({

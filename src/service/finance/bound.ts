@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { ApiError } from "@/lib/apiError";
 import { nextCardSerial } from "@/service/studentCardSerial";
 import { CARD_EXPIRY_MONTHS } from "@/service/finance/setup";
+import { refundSessionsInTx } from "@/service/finance/sessionRefund";
 import { addMonthsTaipei, toTaipeiDateKey } from "@/lib/taipei-date";
 
 // 綁課卡、缺席扣格、贈送卡（spec §5.4–5.5）。只在財務開啟的教室生效。
@@ -84,10 +85,7 @@ export async function refundAbsenceInTx(
   tx: Prisma.TransactionClient,
   absence: { id: number; studentCardId: number; sessionsUsed: number }
 ) {
-  await tx.studentCard.update({
-    where: { id: absence.studentCardId },
-    data: { remainingSessions: { increment: absence.sessionsUsed } },
-  });
+  await refundSessionsInTx(tx, absence.studentCardId, absence.sessionsUsed);
   await tx.attendanceAbsence.delete({ where: { id: absence.id } });
 }
 

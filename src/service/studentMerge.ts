@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { ApiError, notFound } from "@/lib/apiError";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { refundAbsenceInTx } from "@/service/finance/bound";
+import { refundSessionsInTx } from "@/service/finance/sessionRefund";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -147,10 +148,7 @@ export async function mergeStudents(
     for (const clash of clashes) {
       await tx.attendanceRecord.delete({ where: { id: clash.dropRecordId } });
       if (clash.refundStudentCardId !== null) {
-        await tx.studentCard.update({
-          where: { id: clash.refundStudentCardId },
-          data: { remainingSessions: { increment: clash.refundSessions } },
-        });
+        await refundSessionsInTx(tx, clash.refundStudentCardId, clash.refundSessions);
       }
     }
     await tx.attendanceRecord.updateMany({

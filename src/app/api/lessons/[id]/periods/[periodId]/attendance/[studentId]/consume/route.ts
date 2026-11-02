@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma, { ApiError } from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
 import { findLessonInClassroom } from "@/lib/authz";
+import { expireDueCards } from "@/service/finance/expiry";
 
 export async function POST(
   request: Request,
@@ -23,7 +24,19 @@ export async function POST(
     // classroom). Qualification is deliberately NOT checked — manual
     // consumption must always work for legacy and special cases.
     const lessonPeriod = await getLessonPeriod(periodId, parseInt(id));
+    // 財務開啟：到期的卡先關掉；關閉的卡（過期／作廢／退費／轉換／轉讓）不能再扣，
+    // 否則扣掉的格子會同時算進過期收入和這堂的收入。
+    const financeOn = !!(
+      await prisma.classroom.findUnique({ where: { id: classroomId }, select: { financeEnabledAt: true } })
+    )?.financeEnabledAt;
+    if (financeOn) await expireDueCards(classroomId);
     const studentCard = await getStudentCard(studentCardId, parseInt(studentId));
+    if (financeOn && studentCard.expiredAt !== null) {
+      return NextResponse.json(
+        { error: "Student card is closed", code: "CARD_CLOSED" },
+        { status: 400 }
+      );
+    }
     const attendanceRecord = await getAttendanceRecord(
       lessonPeriod.id,
       studentId
