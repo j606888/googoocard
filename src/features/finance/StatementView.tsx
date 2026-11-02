@@ -176,6 +176,8 @@ export default function StatementView({ month }: { month: string }) {
     setBusyKey(null);
   };
 
+  // 舊的鎖住結算單沒有這個欄位
+  const expiryAdjustments = statement.expiryAdjustments ?? [];
   const holderIds = Object.keys(statement.custodyBefore).map(Number);
   const pendingUnpaid = statement.pending.filter((n) => n.kind === "unpaid");
   const pendingUndecided = statement.pending.filter((n) => n.kind === "undecided");
@@ -227,10 +229,23 @@ export default function StatementView({ month }: { month: string }) {
               ))}
             </ul>
           )}
-          {statement.adjustments.length > 0 && (
+          {(statement.adjustments.length > 0 || expiryAdjustments.length > 0) && (
             <div className="mt-3 border-t border-neutral-100 pt-3">
               <h3 className="mb-1 text-sm font-medium text-neutral-900">調整（結算後才補的）</h3>
               <ul className="divide-y divide-neutral-100">
+                {expiryAdjustments.map((a) => (
+                  <li key={`x${a.studentCardId}`} className="py-2 text-sm">
+                    <div className="text-neutral-800">過期收入 · 課卡 {a.serial}</div>
+                    <div className="text-[13px] text-neutral-500">
+                      {a.deltas.map((d, i) => (
+                        <span key={i} className="mr-3">
+                          {d.to.type === "fund" ? `${locationNames[d.to.locationId] ?? "分部"}公積金` : userName(d.to.userId)}{" "}
+                          {d.amount >= 0 ? "+" : "−"}${formatMoney(Math.abs(d.amount))}
+                        </span>
+                      ))}
+                    </div>
+                  </li>
+                ))}
                 {statement.adjustments.map((a) => (
                   <li key={a.periodId} className="py-2 text-sm">
                     <div className="text-neutral-800">

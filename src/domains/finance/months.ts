@@ -2,6 +2,7 @@ import { toTaipeiMonthKey } from "@/lib/taipei-date";
 import type { IncomeSource } from "./income";
 import type { LedgerInput } from "./ledger";
 import type { Allocation, Payee } from "./types";
+import type { ExpiryTarget } from "@/service/finance/expiry";
 
 // 月份歸屬與月結快照（spec §7.2–7.3）。純函式。
 
@@ -108,6 +109,64 @@ export function periodHistoryEntries(
   return out;
 }
 
+/** 一張卡的過期收入在某個時點的狀態。快照存這個，鎖住的月份才不會跟著卡的現況變。 */
+export type ExpiryState = { value: number; holderUserId: number | null; to: ExpiryTarget };
+
+/** 快照裡的一筆過期收入：卡 id ＋ 鎖住當時的狀態。 */
+export type SnapshotExpiry = { id: number } & ExpiryState;
+
+const targetKey = (t: ExpiryTarget) => (t.type === "fund" ? `fund:${t.locationId}` : `user:${t.userId}`);
+
+export function expiryStateEquals(a: ExpiryState, b: ExpiryState): boolean {
+  if (Math.abs(a.value) < EPSILON && Math.abs(b.value) < EPSILON) return true;
+  return Math.abs(a.value - b.value) < EPSILON && a.holderUserId === b.holderUserId && targetKey(a.to) === targetKey(b.to);
+}
+
+/** 過期收入現況 − 基準，依對象相減，只回非零。給結算單的調整列。 */
+export function expiryDeltas(live: ExpiryState, baseline: ExpiryState): { to: ExpiryTarget; amount: number }[] {
+  const byKey = new Map<string, { to: ExpiryTarget; amount: number }>();
+  const add = (s: ExpiryState, sign: 1 | -1) => {
+    const key = targetKey(s.to);
+    const cur = byKey.get(key);
+    if (cur) cur.amount += sign * s.value;
+    else byKey.set(key, { to: s.to, amount: sign * s.value });
+  };
+  add(live, 1);
+  add(baseline, -1);
+  return [...byKey.values()].filter((d) => Math.abs(d.amount) >= EPSILON);
+}
+
+/**
+ * 一張卡過期收入的版本鏈（各快照裡的狀態、最後是現況）→ computeCustody 的過期條目，
+ * 跟 periodHistoryEntries 同一套：第一版照原樣；之後有變，在新版本的月份放「沖銷上一版」＋「新版」。
+ */
+export function expiryHistoryEntries(
+  studentCardId: number,
+  versions: { month: string; state: ExpiryState }[],
+): LedgerInput["expiries"] {
+  const out: LedgerInput["expiries"] = [];
+  let prev: ExpiryState | null = null;
+  for (const { month, state } of versions) {
+    if (prev ? expiryStateEquals(state, prev) : Math.abs(state.value) < EPSILON) continue;
+    if (prev && Math.abs(prev.value) >= EPSILON) out.push({ studentCardId, month, ...prev, value: -prev.value });
+    if (Math.abs(state.value) >= EPSILON) out.push({ studentCardId, month, ...state });
+    prev = state;
+  }
+  return out;
+}
+
+/** 快照的過期收入：舊格式（只有 id）沒有價值 → null，呼叫端照現況算。 */
+export function snapshotExpiries(snapshot: SnapshotCore): { id: number; state: ExpiryState | null }[] {
+  return snapshot.eventIds.expiries.map((e) =>
+    typeof e === "number" ? { id: e, state: null } : { id: e.id, state: { value: e.value, holderUserId: e.holderUserId, to: e.to } },
+  );
+}
+
+/** 快照裡某類事件的 id。 */
+export function snapshotEventIds(snapshot: SnapshotCore, kind: keyof SnapshotCore["eventIds"]): number[] {
+  return kind === "expiries" ? snapshotExpiries(snapshot).map((e) => e.id) : snapshot.eventIds[kind];
+}
+
 /**
  * 月結快照裡給帳本用的部分（結算單另外存在 statement）：鎖住時每堂的分帳與已實現收入來源、
  * 這次算進的事件 id、發錢的取整零頭。某堂的基準 = 最新一份包含它的快照。
@@ -117,6 +176,11 @@ export type SnapshotCore = {
   income: Record<string, IncomeSource[]>;
   /** 每堂的課名與開始時間（ISO），時段之後被刪掉時調整行還能顯示 */
   labels: Record<string, { lessonName: string; startTime: string }>;
-  eventIds: { expiries: number[]; expenses: number[]; refunds: number[]; transfers: number[] };
+  /**
+   * 這次算進的事件 id。過期收入連同鎖住當時的價值／保管人／對象一起存（卡的剩格之後還可能變，
+   * 例如取消點名退格到已過期的卡）；之後的差額跟時段一樣算進最早沒鎖的月份，並在那次鎖定時重存。
+   * 舊格式只有 id（number）。
+   */
+  eventIds: { expiries: (SnapshotExpiry | number)[]; expenses: number[]; refunds: number[]; transfers: number[] };
   roundings: LedgerInput["roundings"];
 };

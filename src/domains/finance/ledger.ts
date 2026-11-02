@@ -17,7 +17,8 @@ export type Keepers = {
 export type LedgerInput = {
   periods: { periodId: number; month: string; income: IncomeSource[]; allocations: Allocation[] | null }[];
   prepaid: { holderUserId: number; value: number }[]; // 已付款、未關閉卡的剩餘價值
-  expiries: (ExpiryEvent & { month: string })[];
+  /** 過期收入；value 可以是負的（鎖住後被沖銷的上一版）。 */
+  expiries: (Omit<ExpiryEvent, "date" | "soldLocationId"> & Partial<Pick<ExpiryEvent, "date" | "soldLocationId">> & { month: string })[];
   expenses: { amount: number; locationId: number; paidByUserId: number; month: string }[];
   packs: { packId: number; price: number; paidByUserId: number }[];
   transfers: {

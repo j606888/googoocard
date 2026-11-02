@@ -4,13 +4,24 @@ import { ApiError } from "@/lib/apiError";
 import { parseTaipeiMonthRange } from "@/lib/taipei-date";
 import type { Buckets, LedgerInput } from "@/domains/finance/ledger";
 import type { PendingNote } from "@/domains/finance/income";
-import { EMPTY_PERIOD_STATE, earliestOpenMonth, monthOf, nextMonth, periodDeltas, periodStateEquals } from "@/domains/finance/months";
-import type { SnapshotCore } from "@/domains/finance/months";
+import {
+  EMPTY_PERIOD_STATE,
+  earliestOpenMonth,
+  expiryDeltas,
+  expiryStateEquals,
+  monthOf,
+  nextMonth,
+  periodDeltas,
+  periodStateEquals,
+} from "@/domains/finance/months";
+import type { ExpiryState, SnapshotCore, SnapshotExpiry } from "@/domains/finance/months";
+import { formatCardSerial } from "@/lib/cardSerial";
 import type { Allocation } from "@/domains/finance/types";
 import { assertFinance, assertFinanceEnabled } from "./access";
 import { custodyFromLedger, ledgerWarnings, loadLedger } from "./custody";
 import type { Ledger } from "./custody";
 import type { PeriodFinance } from "./periods";
+import type { ExpiryTarget } from "./expiry";
 
 // 月結（spec §7.2–7.5）：結算單、鎖定與快照、鎖住後的調整、發錢取整。
 
@@ -33,6 +44,8 @@ export type MonthStatement = {
   periods: PeriodFinance[];
   /** date = 那堂的開始時間（ISO 字串；鎖住的結算單從 JSON 讀回也一樣） */
   adjustments: { periodId: number; lessonName: string; date: string; deltas: Allocation[]; reason: "late" }[];
+  /** 過期收入的調整：鎖住後卡的剩餘價值變了（例：取消點名退格到已過期的卡），差額算進最早沒鎖的月份。 */
+  expiryAdjustments: { studentCardId: number; serial: string; deltas: { to: ExpiryTarget; amount: number }[] }[];
   byPerson: { teacherId: number; name: string; payerUserId: number | null; total: number; rounded: number }[];
   expenses: Ledger["context"]["expenses"];
   expiries: Ledger["context"]["expiries"];
@@ -139,6 +152,33 @@ async function computeStatement(
     }
   }
 
+  // 過期收入的調整：進過快照的卡，現況跟快照不同 → 差額算進最早沒鎖的月份。
+  const expiryAdjustments: MonthStatement["expiryAdjustments"] = [];
+  const absorbedExpiries: SnapshotExpiry[] = [];
+  if (month === ctx.openMonth) {
+    const liveExpiry = new Map(ctx.expiries.map((e) => [e.studentCardId, e]));
+    const changed: { id: number; live: ExpiryState; baseline: ExpiryState }[] = [];
+    for (const [id, baseline] of [...ctx.expiryBaselines].sort(([a], [b]) => a - b)) {
+      const e = liveExpiry.get(id);
+      const live: ExpiryState = e ? { value: e.value, holderUserId: e.holderUserId, to: e.to } : { ...baseline, value: 0 };
+      if (expiryStateEquals(live, baseline)) continue;
+      absorbedExpiries.push({ id, ...live });
+      changed.push({ id, live, baseline });
+    }
+    const serials = new Map(
+      (
+        await prisma.studentCard.findMany({
+          where: { id: { in: changed.map((c) => c.id) } },
+          select: { id: true, serialNumber: true },
+        })
+      ).map((c) => [c.id, formatCardSerial(c.serialNumber)]),
+    );
+    for (const { id, live, baseline } of changed) {
+      const deltas = expiryDeltas(live, baseline);
+      if (deltas.length > 0) expiryAdjustments.push({ studentCardId: id, serial: serials.get(id) ?? "", deltas });
+    }
+  }
+
   // 每位老師這個月的合計（各堂＋調整）
   const teacherTotals = new Map<number, number>();
   const addTeacher = (allocations: Allocation[]) => {
@@ -233,6 +273,9 @@ async function computeStatement(
   for (const x of ctx.expiries.filter((e) => expiryIds.has(e.studentCardId))) {
     if (x.to.type === "fund") slot(x.to.locationId).fundChange += x.value;
   }
+  for (const a of expiryAdjustments) {
+    for (const d of a.deltas) if (d.to.type === "fund") slot(d.to.locationId).fundChange += d.amount;
+  }
   for (const r of roundings) slot(r.locationId).fundChange += r.amount;
   const branchNames = new Map(
     (await prisma.location.findMany({ where: { classroomId }, select: { id: true, name: true } })).map((l) => [l.id, l.name]),
@@ -254,6 +297,7 @@ async function computeStatement(
     locked: false,
     periods,
     adjustments,
+    expiryAdjustments,
     byPerson,
     expenses: ctx.expenses.filter((e) => expenseIds.has(e.id)),
     expiries: ctx.expiries.filter((e) => expiryIds.has(e.studentCardId)),
@@ -278,12 +322,20 @@ async function computeStatement(
   }
   const newEventIds = (kind: keyof SnapshotCore["eventIds"]) =>
     ctx.events[kind].filter((e) => e.month === month && !e.snapshotted).map((e) => e.id);
+  const liveExpiry = new Map(ctx.expiries.map((e) => [e.studentCardId, e]));
   const snapshot: SnapshotCore = {
     periods: snapPeriods,
     income: snapIncome,
     labels: snapLabels,
     eventIds: {
-      expiries: newEventIds("expiries"),
+      // 新的過期收入連同當時的價值一起存；進過快照、這次有差額的卡存新的基準。
+      expiries: [
+        ...newEventIds("expiries").map((id): SnapshotExpiry => {
+          const e = liveExpiry.get(id)!;
+          return { id, value: e.value, holderUserId: e.holderUserId, to: e.to };
+        }),
+        ...absorbedExpiries,
+      ],
       expenses: newEventIds("expenses"),
       refunds: newEventIds("refunds"),
       transfers: newEventIds("transfers"),

@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   assignMonth,
   earliestOpenMonth,
+  expiryDeltas,
+  expiryHistoryEntries,
   monthOf,
   nextMonth,
   periodDeltas,
@@ -158,5 +160,27 @@ describe("periodHistoryEntries → computeCustody", () => {
     expect(all[DINGDING].cash).toBeCloseTo(0, 5);
     expect(all[DINGDING].peers[SEAN] ?? 0).toBeCloseTo(0, 5);
     expect(all[SEAN].self).toBeCloseTo(0, 5);
+  });
+
+  it("expiryHistoryEntries: snapshot value stays in its month, later change is reversal + reapply in the open month", () => {
+    const fund = { type: "fund" as const, locationId: KAOHSIUNG };
+    const entries = expiryHistoryEntries(7, [
+      { month: "2026-11", state: { value: 300, holderUserId: DINGDING, to: fund } },
+      { month: "2026-12", state: { value: 400, holderUserId: DINGDING, to: fund } },
+    ]);
+    expect(entries.map((e) => [e.month, e.value])).toEqual([["2026-11", 300], ["2026-12", -300], ["2026-12", 400]]);
+    // 沒變 → 只有第一版；現況變 0 → 只沖銷
+    expect(expiryHistoryEntries(7, [
+      { month: "2026-11", state: { value: 300, holderUserId: DINGDING, to: fund } },
+      { month: "2026-12", state: { value: 300, holderUserId: DINGDING, to: fund } },
+    ])).toHaveLength(1);
+    expect(expiryHistoryEntries(7, [
+      { month: "2026-11", state: { value: 300, holderUserId: DINGDING, to: fund } },
+      { month: "2026-12", state: { value: 0, holderUserId: DINGDING, to: fund } },
+    ]).map((e) => e.value)).toEqual([300, -300]);
+    expect(expiryDeltas(
+      { value: 400, holderUserId: DINGDING, to: { type: "user", userId: SEAN } },
+      { value: 300, holderUserId: DINGDING, to: fund },
+    )).toEqual([{ to: { type: "user", userId: SEAN }, amount: 400 }, { to: fund, amount: -300 }]);
   });
 });

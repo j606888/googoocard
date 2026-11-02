@@ -27,6 +27,7 @@ import { DELETE as voidPack } from "@/app/api/finance/packs/[id]/route";
 import { getMonthStatement, lockMonth } from "@/service/finance/settlement";
 import type { MonthStatement } from "@/service/finance/settlement";
 import { getCustody } from "@/service/finance/custody";
+import { updateAttendance } from "@/domains/attendance/attendance.service";
 import type { SplitRule } from "@/domains/finance/types";
 
 // spec §14 的一部分：L2（週日台南、Sean 的課）、L4（高雄）、L6（台南週二，阿傑待收）。
@@ -363,6 +364,58 @@ describe("finance settlement", () => {
     const adj = dec.adjustments.find((a) => a.periodId === p2.id)!;
     expect(adj).toMatchObject({ lessonName: "L2", date: p2.startTime.toISOString() });
     expect(sumTo(adj.deltas, () => true)).toBeCloseTo(-2 * (2000 / 6), 2);
+  });
+
+  it("expiry in a locked month: a later refund to the expired card is an adjustment in the open month (R26)", async () => {
+    const p2 = await prisma.lessonPeriod.findFirstOrThrow({ where: { lesson: { name: "L2" } }, include: { lesson: true } });
+    const keep = (await prisma.attendanceRecord.findMany({ where: { lessonPeriodId: p2.id } })).map((r) => r.studentId);
+    // 一張 600／6 格的卡：上了 L2（十一月 9 日）、十一月 20 日過期時剩 3 格 → 過期收入 300 進台南公積金。
+    const student = await createStudent(classroomId, { name: "Exp" });
+    const sc = await createStudentCard(student.id, cardTypeId, { finalPrice: 600, totalSessions: 6, remainingSessions: 3, isPaid: true });
+    await prisma.studentCard.update({
+      where: { id: sc.id },
+      data: { paidByUserId: dingId, soldLocationId: tainanId, expiredAt: new Date("2026-11-20T04:00:00Z"), closedReason: "EXPIRED" },
+    });
+    await prisma.attendanceRecord.create({
+      data: { lessonPeriodId: p2.id, studentId: student.id, studentCardId: sc.id, sessionsUsed: 1 },
+    });
+
+    const locked = await lockMonth({ classroomId, userId: dingId, month: "2026-11", now: DEC_3 });
+    expect(locked.expiries.map((e) => [e.studentCardId, e.value])).toEqual([[sc.id, 300]]);
+    const row = await prisma.financeSettlement.findUniqueOrThrow({ where: { classroomId_month: { classroomId, month: "2026-11" } } });
+    expect((row.snapshot as { eventIds: { expiries: unknown[] } }).eventIds.expiries).toEqual([
+      { id: sc.id, value: 300, holderUserId: dingId, to: { type: "fund", locationId: tainanId } },
+    ]);
+    const novCustody = await getCustody(classroomId, "2026-11");
+
+    // 取消這位學生的出席 → 退 1 格到已過期的卡：過期收入變 400。
+    await updateAttendance({ lessonId: p2.lessonId, lessonPeriodId: p2.id, studentIds: keep });
+    expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } })).remainingSessions).toBe(4);
+
+    expect(await getCustody(classroomId, "2026-11")).toEqual(novCustody);
+    expect(await getMonthStatement(classroomId, "2026-11", DEC_3)).toEqual(locked);
+
+    const dec = await getMonthStatement(classroomId, "2026-12", JAN_3);
+    expect(dec.expiries).toEqual([]);
+    expect(dec.expiryAdjustments).toEqual([
+      { studentCardId: sc.id, serial: expect.any(String), deltas: [{ to: { type: "fund", locationId: tainanId }, amount: 100 }] },
+    ]);
+    const p2adj = dec.adjustments.find((a) => a.periodId === p2.id)!;
+    expect(sumTo(p2adj.deltas, () => true)).toBeCloseTo(-100, 5);
+    // 現金沒變：這堂少 100、過期收入多 100（computeCustody 在測試裡會檢查不變式）
+    const cash = (c: Awaited<ReturnType<typeof getCustody>>) => c.users.reduce((sum, u) => sum + u.buckets.cash, 0);
+    const decCustody = await getCustody(classroomId, "2026-12");
+    expect(cash(decCustody)).toBeCloseTo(cash(novCustody), 5);
+    const fund = (c: Awaited<ReturnType<typeof getCustody>>) => c.users.find((u) => u.userId === dingId)!.buckets.funds[tainanId];
+    // 公積金：過期 +100；L2 的剩餘本來全給老師，所以這堂的差額不動公積金
+    expect(fund(decCustody) - fund(novCustody)).toBeCloseTo(100, 5);
+    expect(dec.byBranch.find((b) => b.locationId === tainanId)!.fundChange).toBeCloseTo(100, 5);
+
+    // 下次鎖定吸收：一月沒有調整，帳本只算一次
+    await lockMonth({ classroomId, userId: dingId, month: "2026-12", now: JAN_3 });
+    const jan = await getMonthStatement(classroomId, "2027-01", new Date("2027-02-03T04:00:00Z"));
+    expect(jan.expiryAdjustments).toEqual([]);
+    expect(fund(await getCustody(classroomId))).toBeCloseTo(fund(decCustody), 5);
   });
 
   it("cannot void an expense, transfer or pack in a locked month", async () => {

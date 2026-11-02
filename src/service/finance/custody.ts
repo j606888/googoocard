@@ -6,10 +6,13 @@ import {
   EMPTY_PERIOD_STATE,
   assignMonth,
   earliestOpenMonth,
+  expiryHistoryEntries,
   monthOf,
   periodHistoryEntries,
+  snapshotEventIds,
+  snapshotExpiries,
 } from "@/domains/finance/months";
-import type { PeriodState, SnapshotCore } from "@/domains/finance/months";
+import type { ExpiryState, PeriodState, SnapshotCore } from "@/domains/finance/months";
 import { assertFinanceEnabled } from "./access";
 import { expireDueCards, expiryEvents } from "./expiry";
 import type { ExpiryEvent } from "./expiry";
@@ -42,6 +45,8 @@ export type SettlementContext = {
   events: Record<EventKind, AssignedEvent[]>;
   expenses: { id: number; date: Date; amount: number; locationId: number; category: string; paidByUserId: number }[];
   expiries: ExpiryEvent[];
+  /** 卡 → 最新一份包含它的快照裡的過期收入（只有新格式的快照） */
+  expiryBaselines: Map<number, ExpiryState>;
 };
 
 export type Ledger = {
@@ -186,7 +191,7 @@ export async function loadLedger(classroomId: number): Promise<Ledger> {
 
   const snapshotMonthOf = (kind: EventKind) => {
     const m = new Map<number, string>();
-    for (const s of snapshots) for (const id of s.snapshot.eventIds[kind]) m.set(id, s.month);
+    for (const s of snapshots) for (const id of snapshotEventIds(s.snapshot, kind)) m.set(id, s.month);
     return m;
   };
   const assignEvents = (kind: EventKind, rows: { id: number; date: Date }[]): AssignedEvent[] => {
@@ -242,7 +247,34 @@ export async function loadLedger(classroomId: number): Promise<Ledger> {
     );
   }
 
+  // 過期收入：快照存了當時的價值 → 跟時段一樣，之後的變動（例：退格到已過期的卡）沖銷＋重記在最早沒鎖的月份。
+  const expiryChains = new Map<number, { month: string; state: ExpiryState }[]>();
+  for (const { month, snapshot } of snapshots) {
+    for (const { id, state } of snapshotExpiries(snapshot)) {
+      if (!state) continue;
+      const chain = expiryChains.get(id) ?? [];
+      chain.push({ month, state });
+      expiryChains.set(id, chain);
+    }
+  }
+  const expiryBaselines = new Map([...expiryChains].map(([id, chain]) => [id, chain[chain.length - 1].state]));
   const expiryMonth = monthOfEvent("expiries");
+  const liveExpiries = new Map(expiries.map((e) => [e.studentCardId, e]));
+  const expiryEntries: LedgerInput["expiries"] = [];
+  for (const id of new Set([...liveExpiries.keys(), ...expiryChains.keys()])) {
+    const live = liveExpiries.get(id);
+    const chain = expiryChains.get(id);
+    if (!chain) {
+      expiryEntries.push({ ...live!, month: expiryMonth(id) });
+      continue;
+    }
+    const last = chain[chain.length - 1].state;
+    const liveState: ExpiryState = live
+      ? { value: live.value, holderUserId: live.holderUserId, to: live.to }
+      : { ...last, value: 0 };
+    expiryEntries.push(...expiryHistoryEntries(id, [...chain, { month: openMonth, state: liveState }]));
+  }
+
   const expenseMonth = monthOfEvent("expenses");
   const refundMonth = monthOfEvent("refunds");
   const transferMonth = monthOfEvent("transfers");
@@ -250,7 +282,7 @@ export async function loadLedger(classroomId: number): Promise<Ledger> {
   const input: LedgerInput = {
     periods: periodEntries,
     prepaid,
-    expiries: expiries.map((e) => ({ ...e, month: expiryMonth(e.studentCardId) })),
+    expiries: expiryEntries,
     expenses: expenses.map((e) => ({
       amount: e.amount,
       locationId: e.locationId,
@@ -294,6 +326,7 @@ export async function loadLedger(classroomId: number): Promise<Ledger> {
       events,
       expenses,
       expiries,
+      expiryBaselines,
     },
   };
 }
