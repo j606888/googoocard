@@ -4,12 +4,29 @@
 > 更新：2026-09-16（P2-1 續卡提醒推播，專案有了第一個 cron）
 > 更新：2026-10-26（對照程式碼校正各項狀態：P3-1／P3-2／營收 CSV 標註部分完成、更新路徑與 route 清點）
 > 更新：2026-11-01（移除功能模組：水庫、技能樹、模組開關、權限同捆包、今天的助教，見下方「已移除」）
+> 更新：2026-11-02（新版財務上線，見「已移除」下方）
 > 前提：**production 上已有多間教室在使用**——跨教室資料邊界是實質風險，不是理論問題。
 
 ## 這份文件是什麼
 
 | 文件 | 回答的問題 |
-|---|---|
+|---|## 新版財務
+
+- [x] **財務（新版）** ✅ 2026-11-02（分支 `feat/finance`）— 每間教室自己開的分帳／保管中／月結，說明見 `architecture.md`「財務」，設計見 [`superpowers/specs/2026-11-02-finance-design.md`](superpowers/specs/2026-11-02-finance-design.md)。跟已移除的水庫差在哪見 spec §10。
+  - **刻意不做**（第一階段）：包月場地（只有預付次數包）、小幫手保管（收款人只能是財務成員，小幫手代收記成分部負責人收的）、對帳輸入（銀行／實際現金核對）、iOS App 的財務介面（只有網站）、老師端逐人薪水頁。
+  - **已知小缺口／待追蹤**（實作期間 review 留下的，沒有一項會算錯已鎖月份）：
+    - 保管人／分部負責人／付款人是「永遠取現值」：鎖月之後改 `Location.keeperUserId`、`Teacher.payerUserId` 會讓已鎖月份的保管中顯示漂移（快照只存分帳與來源 key，不存當時的保管人）。
+    - `custodyBefore`（月結單的「月結前」）用現在的預收，不是歷史值；`?through` 的預收同為現況。
+    - 同儕／場地發款 `Math.round` 可能多付 ≤ 0.5 元。
+    - 退費、綁課卡鎖定（`BOUND_LESSON_LOCKED` 的計數在交易外）有 check-then-write 競態；最後一位財務的守門（count 再 update）也是。
+    - 人的欄位（`Venue.landlordUserId`、`Teacher.payerUserId`、`Location.keeperUserId`／`expiryUserId`、`Classroom.legacyCustodianUserId`、各 `paidByUserId`）都是純 Int：沒 FK、多數沒索引；`AttendanceAbsence.studentId` 沒有 Student 關聯。
+    - `expireDueCards` 也會關掉 0 格的卡，可能順手清掉 Needs Renewal tag；沒有分部也沒有舊保管人時，過期事件會被靜默略過。
+    - 有贈送卡的綁課卡刪不掉；`launchDate`／`purchasedAt` 只驗格式（2026-02-30 這類日期會 500 或進位）。
+    - 沒有排程：到期只靠讀取時觸發，久沒人開的教室要等下次有人操作才會結。
+
+---
+
+---|
 | [`architecture.md`](architecture.md) | 系統**現在是什麼**——領域模型、資格規則、點名流程、部署注意 |
 | **本文** | 系統**還缺什麼、下一步做什麼**——技術債、安全缺口、功能藍圖 |
 | [`ui-responsive.md`](ui-responsive.md) | 手機／桌面版型**該用哪種機制**——五種並存機制的現況、決策規則、收斂待辦 |
@@ -20,8 +37,6 @@
 
 格式慣例：完成的項目改成 `[x]` 並註記 `✅ 日期` 與實際做法，
 **不要刪除**——保留下來就是決策紀錄。
-
----
 
 # 已移除
 
