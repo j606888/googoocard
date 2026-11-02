@@ -19,11 +19,17 @@ export const GET = sessionRoute(async ({ userId }) => {
     // P0-2). Whitelist the fields instead.
     select: {
       role: true,
-      classroom: { select: { id: true, name: true } },
+      classroom: { select: { id: true, name: true, financeEnabledAt: true } },
     },
   });
 
-  const classrooms = memberships.map(({ classroom, role }) => ({ ...classroom, role }));
+  // Whitelist by hand: financeEnabledAt itself stays server-side, the nav only needs the flag.
+  const classrooms = memberships.map(({ classroom, role }) => ({
+    id: classroom.id,
+    name: classroom.name,
+    role,
+    financeEnabled: classroom.financeEnabledAt !== null,
+  }));
 
   // The JWT can outlive the membership it names. Only report a current
   // classroom that's actually still in the list, so the UI falls through to

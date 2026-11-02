@@ -321,7 +321,7 @@ const lessonsApi = api.injectEndpoints({
         method: "POST",
         body: { studentIds },
       }),
-      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "AttendanceRecord"],
+      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "AttendanceRecord", "Finance"],
     }),
     updateAttendance: builder.mutation<
       void,
@@ -332,7 +332,7 @@ const lessonsApi = api.injectEndpoints({
         method: "PUT",
         body: { studentIds },
       }),
-      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "AttendanceRecord"],
+      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "AttendanceRecord", "Finance"],
     }),
     getAttendance: builder.query<
       AttendanceRecord[],
@@ -361,7 +361,7 @@ const lessonsApi = api.injectEndpoints({
         body: { studentCardId },
       }),
       // 學生頁的課卡跟著 getStudent（"Student"）走，扣了格數要一起刷新。
-      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "Attendance", "AttendanceRecord"],
+      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "Attendance", "AttendanceRecord", "Finance"],
     }),
     /** 這筆出席改付單堂（不扣卡）。`amount` 省略 = 課程單堂價。 */
     chargeDropIn: builder.mutation<
@@ -381,7 +381,7 @@ const lessonsApi = api.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Lesson", "Student", "Attendance", "AttendanceRecord"],
+      invalidatesTags: ["Lesson", "Student", "Attendance", "AttendanceRecord", "Finance"],
     }),
     confirmDropInPayment: builder.mutation<
       void,
@@ -392,7 +392,7 @@ const lessonsApi = api.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Lesson", "Student", "Attendance", "AttendanceRecord"],
+      invalidatesTags: ["Lesson", "Student", "Attendance", "AttendanceRecord", "Finance"],
     }),
     getLessonTrials: builder.query<TrialRoster, { id: number }>({
       query: ({ id }) => `lessons/${id}/trials`,
@@ -404,7 +404,7 @@ const lessonsApi = api.injectEndpoints({
       { id: number } & RegisterTrialBody
     >({
       query: ({ id, ...body }) => ({ url: `lessons/${id}/trials`, method: "POST", body }),
-      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card"],
+      invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "Finance"],
     }),
     getLessonStudents: builder.query<LessonStudent[], { id: number }>({
       query: ({ id }) => ({

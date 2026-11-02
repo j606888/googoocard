@@ -7,11 +7,12 @@ import { useState } from "react";
 import { ChevronRight, LogOut, Smartphone } from "lucide-react";
 import {
   ACCOUNT_LINK,
-  SECONDARY_LINKS,
+  secondaryLinksFor,
   SETTINGS_ENTRY,
   isSettingsPath,
   type NavLink,
 } from "./navConfig";
+import { useFinanceEnabled } from "./useFinanceEnabled";
 import { useGetMeQuery } from "@/store/slices/me";
 import { useLogoutMutation } from "@/store/slices/me";
 import { disableWebPushOnLogout } from "@/hooks/useWebPush";
@@ -30,6 +31,7 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
   const [logout] = useLogoutMutation();
   const install = useInstallState();
   const { data: me } = useGetMeQuery();
+  const financeEnabled = useFinanceEnabled();
   const [installGuideOpen, setInstallGuideOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -62,7 +64,7 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
               <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-neutral-200" />
 
               <div className="grid grid-cols-3 gap-3">
-                {SECONDARY_LINKS.map((link) => (
+                {secondaryLinksFor(financeEnabled).map((link) => (
                   <Tile key={link.href} link={link} active={pathname.startsWith(link.href)} onClose={onClose} />
                 ))}
               </div>

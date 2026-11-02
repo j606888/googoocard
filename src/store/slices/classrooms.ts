@@ -5,6 +5,8 @@ export interface Classroom {
   name: string;
   /** The signed-in user's role in this classroom: "owner" | "admin" | "teacher" | "assistant" (src/lib/roles.ts). */
   role: string;
+  /** 這間教室開了財務（Classroom.financeEnabledAt）：導覽才出現「財務」。 */
+  financeEnabled: boolean;
 }
 
 export interface ClassroomDetail {

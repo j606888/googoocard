@@ -305,7 +305,7 @@ const studentsApi = api.injectEndpoints({
       { id: number; targetId: number; keepLineFrom?: "source" | "target" }
     >({
       query: ({ id, ...body }) => ({ url: `students/${id}/merge`, method: "POST", body }),
-      invalidatesTags: ["Student", "StudentCard", "AttendanceRecord", "Lesson", "Tag"],
+      invalidatesTags: ["Student", "StudentCard", "AttendanceRecord", "Lesson", "Tag", "Finance"],
     }),
     getLineInvites: builder.query<LineInviteList, void>({
       query: () => "students/line-invites",
@@ -379,7 +379,7 @@ const studentsApi = api.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["StudentCard", "Student"],
+      invalidatesTags: ["StudentCard", "Student", "Finance"],
     }),
     confirmStudentCardPayment: builder.mutation<
       StudentCard,
@@ -398,7 +398,7 @@ const studentsApi = api.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["StudentCard", "Student"],
+      invalidatesTags: ["StudentCard", "Student", "Finance"],
     }),
     getDayCollections: builder.query<DayCollections, { date: string }>({
       query: ({ date }) => `student-cards/collections?date=${date}`,
@@ -413,7 +413,7 @@ const studentsApi = api.injectEndpoints({
         url: `students/${id}/student-cards/${studentCardId}/expire`,
         method: "POST",
       }),
-      invalidatesTags: ["StudentCard", "Student"],
+      invalidatesTags: ["StudentCard", "Student", "Finance"],
     }),
     updateStudentCardNote: builder.mutation<StudentCard, { id: number; studentCardId: number; note: string | null }>({
       query: ({ id, studentCardId, note }) => ({
@@ -421,7 +421,7 @@ const studentsApi = api.injectEndpoints({
         method: "PATCH",
         body: { note },
       }),
-      invalidatesTags: ["StudentCard", "Student"],
+      invalidatesTags: ["StudentCard", "Student", "Finance"],
     }),
     convertStudentCard: builder.mutation<
       StudentCard,
@@ -432,7 +432,7 @@ const studentsApi = api.injectEndpoints({
         method: "POST",
         body: { targetCardId, sessions, note },
       }),
-      invalidatesTags: ["StudentCard", "Student"],
+      invalidatesTags: ["StudentCard", "Student", "Finance"],
     }),
     transferStudentCard: builder.mutation<
       StudentCard,
@@ -443,14 +443,14 @@ const studentsApi = api.injectEndpoints({
         method: "POST",
         body: { toStudentId, note },
       }),
-      invalidatesTags: ["StudentCard", "Student"],
+      invalidatesTags: ["StudentCard", "Student", "Finance"],
     }),
     deleteStudentCard: builder.mutation<{ success: boolean }, { id: number; studentCardId: number }>({
       query: ({ id, studentCardId }) => ({
         url: `students/${id}/student-cards/${studentCardId}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["StudentCard", "Student"],
+      invalidatesTags: ["StudentCard", "Student", "Finance"],
     }),
     getStudent: builder.query<StudentWithDetail, { id: number }>({
       query: ({ id }) => `students/${id}`,

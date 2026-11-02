@@ -83,7 +83,7 @@ describe("GET /api/classrooms", () => {
     const body = await (await listClassrooms()).json();
 
     expect(body.classrooms).toEqual([
-      { id: expect.any(Number), name: "Studio A", role: "owner" },
+      { id: expect.any(Number), name: "Studio A", role: "owner", financeEnabled: false },
     ]);
     expect(JSON.stringify(body)).not.toContain("wallkey123");
   });
