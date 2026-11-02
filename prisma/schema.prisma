@@ -295,7 +295,7 @@ model StudentCard {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   expiredAt         DateTime?
-  // 到期日；到了才由財務排程寫 expiredAt。
+  // 到期日；沒有排程，到期後由 expireDueCards() 在讀取時懶惰關卡（寫 expiredAt、closedReason）。
   expiresAt         DateTime?
   // 賣出時的分部（純 Int、沒有 FK，只供財務歸帳）。
   soldLocationId    Int?
