@@ -70,6 +70,7 @@ export function validateRows(rows: RuleRow[]): string | null {
   const rest = rows[rows.length - 1];
   if (!rest || rest.type !== "rest") return "缺少「剩下的」";
   if (rest.rest.type === "teachers" && rest.rest.shares.length === 0) return "「剩下的」至少選一位老師";
+  if (rest.rest.type === "teachers" && rest.rest.shares.some((s) => !(s.weight > 0))) return "比重要大於 0";
   for (const r of rows) {
     if ((r.type === "percentIncome" || r.type === "percentRemaining") && !(r.pct >= 0 && r.pct <= 100)) {
       return "比例要在 0 到 100 之間";
@@ -92,7 +93,9 @@ const pctText = (pct: number) => (Math.abs(pct - 100 / 3) < 1e-9 ? "1/3" : `${Ma
 export function describeRow(row: RuleRow, n: Namer): string {
   switch (row.type) {
     case "fixed":
-      return `$${row.amount} → ${n.payee(row.to)}`;
+      return row.to.type === "venue"
+        ? `場地 $${row.amount} → ${n.payee(row.to)}`
+        : `$${row.amount} → ${n.payee(row.to)}`;
     case "percentIncome":
       return `收入 ${pctText(row.pct)} → ${n.payee(row.to)}`;
     case "percentRemaining":

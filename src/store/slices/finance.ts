@@ -84,6 +84,10 @@ const financeApi = api.injectEndpoints({
       query: (lessonId) => `finance/periods?lessonId=${lessonId}`,
       providesTags: ["Finance", "Attendance", "AttendanceRecord", "StudentCard"],
     }),
+    getPeriodRule: builder.query<{ rule: SplitRule | null }, number>({
+      query: (periodId) => `finance/periods/${periodId}/rule`,
+      providesTags: ["Finance"],
+    }),
     savePeriodRule: builder.mutation<unknown, { periodId: number; rule: SplitRule }>({
       query: ({ periodId, rule }) => ({ url: `finance/periods/${periodId}/rule`, method: "PUT", body: rule }),
       invalidatesTags: ["Finance"],
@@ -101,6 +105,7 @@ export const {
   useCopyLessonRuleMutation,
   useGetLessonPeriodFinanceQuery,
   useSavePeriodRuleMutation,
+  useLazyGetPeriodRuleQuery,
   useDeletePeriodRuleMutation,
   useGetFinanceSettingsQuery,
   useGetCustodyQuery,

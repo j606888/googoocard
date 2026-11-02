@@ -14,6 +14,7 @@ import {
   useDeletePeriodRuleMutation,
   useGetLessonPeriodFinanceQuery,
   useGetLessonRuleQuery,
+  useLazyGetPeriodRuleQuery,
   useSaveLessonRuleMutation,
   useSavePeriodRuleMutation,
 } from "@/store/slices/finance";
@@ -32,13 +33,15 @@ export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson;
   const [copyRule, { isLoading: copying }] = useCopyLessonRuleMutation();
   const [savePeriod, { isLoading: savingPeriod }] = useSavePeriodRuleMutation();
   const [resetPeriod] = useDeletePeriodRuleMutation();
+  const [fetchPeriodRule] = useLazyGetPeriodRuleQuery();
+  const [seed, setSeed] = useState<RuleRow[] | null>(null);
   const [editing, setEditing] = useState<"lesson" | number | null>(null);
   const [copyFrom, setCopyFrom] = useState<number | null>(null);
 
   const parsed = ruleData?.rule ? splitRuleSchema.safeParse(ruleData.rule) : null;
   const rule = parsed?.success ? parsed.data : null;
   const defaultFund = lesson.locationId ?? names.locations[0]?.id ?? 0;
-  const startRows = rule ? ruleToRows(rule) : emptyRows(defaultFund);
+  const startRows = seed ?? (rule ? ruleToRows(rule) : emptyRows(defaultFund));
   const studentName = (id: number) => students.find((s) => s.id === id)?.name ?? "學員";
 
   if (ruleLoading || periodsLoading || !names.ready) {
@@ -50,14 +53,34 @@ export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson;
     );
   }
 
-  const run = async (p: Promise<unknown>, ok: string) => {
+  const close = () => {
+    setEditing(null);
+    setSeed(null);
+  };
+  const run = async (p: Promise<unknown>, ok: string): Promise<boolean> => {
     try {
       await p;
       toast.success(ok);
-      setEditing(null);
-    } catch {
-      toast.error("儲存失敗，請再試一次");
+      close();
+      return true;
+    } catch (e) {
+      const code = (e as { data?: { code?: string } })?.data?.code;
+      toast.error(code === "NO_RULE" ? "那門課還沒設分帳規則" : "儲存失敗，請再試一次");
+      return false;
     }
+  };
+  const openOverride = async (p: { periodId: number; ruleSource: string }) => {
+    if (p.ruleSource === "override") {
+      try {
+        const r = await fetchPeriodRule(p.periodId).unwrap();
+        const parsedOverride = r.rule ? splitRuleSchema.safeParse(r.rule) : null;
+        if (parsedOverride?.success) setSeed(ruleToRows(parsedOverride.data));
+      } catch {
+        toast.error("讀不到這一堂的規則");
+        return;
+      }
+    }
+    setEditing(p.periodId);
   };
   const onSave = (rows: RuleRow[]) => {
     const next = rowsToRule(rows);
@@ -110,8 +133,8 @@ export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson;
             isLoading={copying}
             onClick={() =>
               copyFrom !== null &&
-              run(copyRule({ lessonId: lesson.id, fromLessonId: copyFrom }).unwrap(), "已複製規則").then(() =>
-                setCopyFrom(null)
+              run(copyRule({ lessonId: lesson.id, fromLessonId: copyFrom }).unwrap(), "已複製規則").then(
+                (ok) => ok && setCopyFrom(null)
               )
             }
           >
@@ -130,7 +153,7 @@ export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson;
               names={names}
               studentName={studentName}
               canEdit={names.canEdit}
-              onOverride={() => setEditing(p.periodId)}
+              onOverride={() => openOverride(p)}
               onResetOverride={() => run(resetPeriod({ periodId: p.periodId }).unwrap(), "已還原成課程規則")}
             />
           ))}
@@ -147,7 +170,7 @@ export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson;
           initialRows={startRows}
           names={names}
           isLoading={savingLesson || savingPeriod}
-          onClose={() => setEditing(null)}
+          onClose={close}
           onSave={onSave}
         />
       )}

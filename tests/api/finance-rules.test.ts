@@ -18,7 +18,7 @@ vi.mock("@/lib/auth", () => ({ decodeAuthToken: async () => auth }));
 
 import { GET, PUT, DELETE } from "@/app/api/finance/lessons/[id]/rule/route";
 import { POST as COPY } from "@/app/api/finance/lessons/[id]/rule/copy/route";
-import { PUT as PUT_PERIOD, DELETE as DELETE_PERIOD } from "@/app/api/finance/periods/[periodId]/rule/route";
+import { GET as GET_PERIOD, PUT as PUT_PERIOD, DELETE as DELETE_PERIOD } from "@/app/api/finance/periods/[periodId]/rule/route";
 
 describe("finance split rule APIs", () => {
   let classroomId: number;
@@ -94,6 +94,17 @@ describe("finance split rule APIs", () => {
     const del = await DELETE_PERIOD(jsonRequest("DELETE"), routeParams({ periodId: String(periodId) }));
     expect(del.status).toBe(200);
     expect(await prisma.periodSplitOverride.count()).toBe(0);
+  });
+
+  it("GET period override returns the rule or null; other classroom is 404", async () => {
+    const pp = routeParams({ periodId: String(periodId) });
+    expect(await (await GET_PERIOD(jsonRequest("GET"), pp)).json()).toEqual({ rule: null });
+    await PUT_PERIOD(jsonRequest("PUT", rule), pp);
+    expect((await (await GET_PERIOD(jsonRequest("GET"), pp)).json()).rule).toEqual(rule);
+    const other = (await createClassroom({ email: "other2@test.local" })).id;
+    const { period } = await createLesson(other, { withPeriod: true });
+    const res = await GET_PERIOD(jsonRequest("GET"), routeParams({ periodId: String(period!.id) }));
+    expect(res.status).toBe(404);
   });
 
   it("period from another classroom is 404", async () => {

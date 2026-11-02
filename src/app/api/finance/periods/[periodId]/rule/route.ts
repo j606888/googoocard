@@ -1,8 +1,18 @@
 import prisma from "@/lib/prisma";
 import { apiRoute, parseBody, parseId } from "@/lib/apiRoute";
 import { splitRuleSchema } from "@/domains/finance/types";
-import { assertFinance } from "@/service/finance/access";
+import { assertFinance, assertFinanceEnabled } from "@/service/finance/access";
 import { requirePeriod, validateRule } from "@/service/finance/rules";
+
+export const GET = apiRoute<{ periodId: string }>(async ({ params, classroomId }) => {
+  await assertFinanceEnabled(classroomId);
+  const period = await requirePeriod(parseId(params.periodId), classroomId);
+  const row = await prisma.periodSplitOverride.findUnique({
+    where: { lessonPeriodId: period.id },
+    select: { rule: true },
+  });
+  return { rule: row?.rule ?? null };
+});
 
 export const PUT = apiRoute<{ periodId: string }>(async ({ request, params, userId, classroomId }) => {
   await assertFinance(userId, classroomId);

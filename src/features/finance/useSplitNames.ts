@@ -20,7 +20,15 @@ export function useSplitNames() {
 
   const teacher = (id: number) => teachers.find((t) => t.id === id)?.name ?? "（已刪除的老師）";
   const location = (id: number) => locations.find((l) => l.id === id)?.name ?? "（未知分部）";
+  /** 規則裡的說法：房東是成員 →「房東丁丁」，外部場地 → 場地名。 */
   const venue = (id: number) => {
+    const v = venues.find((x) => x.id === id);
+    if (!v) return "（未知場地）";
+    const landlord = members.find((m) => m.userId === v.landlordUserId)?.name;
+    return landlord ? `房東${landlord}` : v.name;
+  };
+  /** 下拉選單用：場地名＋房東，才分得出是哪個場地。 */
+  const venueLabel = (id: number) => {
     const v = venues.find((x) => x.id === id);
     if (!v) return "（未知場地）";
     const landlord = members.find((m) => m.userId === v.landlordUserId)?.name;
@@ -36,6 +44,7 @@ export function useSplitNames() {
     teacher,
     location,
     venue,
+    venueLabel,
     payee,
     canEdit: !!me && members.some((m) => m.userId === me.id && m.isFinance),
     ready: !!locationData && !!venueData,

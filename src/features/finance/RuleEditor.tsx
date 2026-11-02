@@ -48,7 +48,7 @@ function NumInput({
           const t = e.target.value;
           if (!/^\d*\.?\d{0,2}$/.test(t)) return;
           setText(t);
-          const n = t === "" ? 0 : Number(t);
+          const n = t === "" || t === "." ? 0 : Number(t);
           onChange(max !== undefined ? Math.min(n, max) : n);
         }}
       />
@@ -74,11 +74,20 @@ export default function RuleEditor({
   const lines = rows.slice(0, -1);
   const rest = rows[rows.length - 1];
 
-  const payeeOptions = [
+  const basePayeeOptions = [
     ...names.teachers.map((t) => ({ value: `t:${t.id}`, label: t.name, hint: "老師" })),
     ...names.locations.map((l) => ({ value: `f:${l.id}`, label: `${l.name}公積金` })),
-    ...names.venues.map((v) => ({ value: `v:${v.id}`, label: names.venue(v.id), hint: "場地" })),
+    ...names.venues.map((v) => ({ value: `v:${v.id}`, label: names.venueLabel(v.id), hint: "場地" })),
   ];
+  // 規則裡已經封存的對象也要留在選項裡，不然下拉會顯示空白
+  const payeeOptions = (current: Payee) => {
+    const key = payeeKey(current);
+    return basePayeeOptions.some((o) => o.value === key)
+      ? basePayeeOptions
+      : [...basePayeeOptions, { value: key, label: `${names.payee(current)}（已封存）`, hint: undefined }];
+  };
+  const withCurrent = (opts: { value: number; label: string }[], id: number) =>
+    opts.some((o) => o.value === id) ? opts : [...opts, { value: id, label: `${names.location(id)}公積金（已封存）` }];
   const locationOptions = names.locations.map((l) => ({ value: l.id, label: `${l.name}公積金` }));
   const defaultFund = locationOptions[0]?.value ?? 0;
   const firstPayee: Payee = names.teachers[0]
@@ -99,7 +108,7 @@ export default function RuleEditor({
       aria-label="給誰"
       className="min-w-0 flex-1"
       value={payeeKey(p)}
-      options={payeeOptions}
+      options={payeeOptions(p)}
       onChange={(k) => set(payeeFromKey(k, p))}
     />
   );
@@ -190,7 +199,7 @@ export default function RuleEditor({
               size="sm"
               aria-label="場地"
               value={row.venueId}
-              options={names.venues.map((v) => ({ value: v.id, label: names.venue(v.id) }))}
+              options={(names.venues.some((v) => v.id === row.venueId) ? names.venues.map((v) => v.id) : [...names.venues.map((v) => v.id), row.venueId]).map((id) => ({ value: id, label: names.venueLabel(id) }))}
               onChange={(venueId) => update(i, { type: "venuePack", venueId })}
             />
           )}
@@ -251,7 +260,7 @@ export default function RuleEditor({
               size="sm"
               aria-label="哪個公積金"
               value={rest.rest.locationId}
-              options={locationOptions}
+              options={withCurrent(locationOptions, rest.rest.locationId)}
               onChange={(locationId) => onChange([...lines, { ...rest, rest: { type: "fund", locationId } }])}
             />
           ) : (
@@ -269,7 +278,7 @@ export default function RuleEditor({
             size="sm"
             aria-label="這堂課的基金"
             value={rest.fundLocationId}
-            options={locationOptions}
+            options={withCurrent(locationOptions, rest.fundLocationId)}
             onChange={(fundLocationId) => onChange([...lines, { ...rest, fundLocationId }])}
           />
         </div>
@@ -314,7 +323,7 @@ function TeacherShares({
                   label={`${t.name}的比重`}
                   value={share.weight}
                   onChange={(weight) =>
-                    onChange(shares.map((s) => (s.teacherId === t.id ? { ...s, weight: weight > 0 ? weight : 1 } : s)))
+                    onChange(shares.map((s) => (s.teacherId === t.id ? { ...s, weight } : s)))
                   }
                 />
               </div>
