@@ -62,6 +62,9 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
   // a card that exists with no Event leaves a gap in the student's timeline,
   // and a stale "Needs Renewal" tag tells the teacher to chase a student who
   // just paid.
+  const lessonLocation = lessonId
+    ? await prisma.lesson.findFirst({ where: { id: lessonId, classroomId }, select: { locationId: true } })
+    : null;
   const studentCard = await prisma.$transaction((tx) =>
     createStudentCardInTx(tx, {
       studentId,
@@ -78,6 +81,7 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
       paymentReference: paymentMethod === "TRANSFER" ? paymentReference || null : null,
       note: note?.trim() || null,
       eventDescription: `購買新課卡 ${card.name}`,
+      lessonLocationId: lessonLocation?.locationId ?? null,
     })
   );
 

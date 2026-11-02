@@ -130,6 +130,10 @@ export async function registerTrial({
   const paymentMethod = isPaid && finalPrice > 0 ? input.paymentMethod ?? null : null;
   const paymentReference = paymentMethod === "TRANSFER" ? input.paymentReference || null : null;
 
+  const lessonLocation = await prisma.lesson.findFirst({
+    where: { id: lessonId, classroomId },
+    select: { locationId: true },
+  });
   return prisma.$transaction((tx) =>
     createStudentCardInTx(tx, {
       studentId,
@@ -142,6 +146,7 @@ export async function registerTrial({
       paidByUserId: isPaid && finalPrice > 0 ? userId : null,
       paymentMethod,
       paymentReference,
+      lessonLocationId: lessonLocation?.locationId ?? null,
       eventDescription: [
         `登記體驗 ${card.name}（$${formatMoney(finalPrice)}）`,
         finalPrice === 0 ? "免費" : isPaid ? "已收款" : "待付款",

@@ -8,6 +8,8 @@ import {
   createStudent,
   createCard,
   createStudentCard,
+  createLesson,
+  createPendingAttendance,
   enableFinanceFor,
   jsonRequest,
   routeParams,
@@ -18,7 +20,9 @@ vi.mock("@/lib/auth", () => ({
   decodeAuthToken: async () => auth,
 }));
 
+import { chargeDropIn } from "@/service/dropIn";
 import { createStudentCardInTx } from "@/service/studentCard";
+import { POST as BUY } from "@/app/api/students/[id]/student-cards/route";
 import { POST as CONFIRM } from "@/app/api/students/[id]/student-cards/[studentCardId]/confirm-payment/route";
 
 describe("finance receiver and sold branch", () => {
@@ -110,7 +114,61 @@ describe("finance receiver and sold branch", () => {
           eventDescription: "x",
         })
       );
-    await expect(make(assistantId)).rejects.toMatchObject({ code: "RECEIVER_NOT_FINANCE" });
     expect((await make(keeperId)).soldLocationId).toBe(locationId);
+  });
+
+  it("assistant sells a paid card in a lesson at a keeper's branch -> keeper receives", async () => {
+    await enable();
+    const card = await createCard(classroomId);
+    const { lesson } = await createLesson(classroomId, { cardIds: [card.id], locationId });
+    auth.userId = assistantId;
+    const res = await BUY(
+      jsonRequest("POST", { cardId: card.id, sessions: 6, price: 3000, lessonId: lesson.id, isPaid: true, paymentMethod: "CASH" }),
+      routeParams({ id: String(studentId) })
+    );
+    expect(res.status).toBe(200);
+    const row = await prisma.studentCard.findFirstOrThrow({ where: { studentId } });
+    expect(row.paidByUserId).toBe(keeperId);
+    expect(row.soldLocationId).toBe(locationId);
+    // no lesson context and no finance caller -> 400
+    const res2 = await BUY(
+      jsonRequest("POST", { cardId: card.id, sessions: 6, price: 3000, isPaid: true, paymentMethod: "CASH" }),
+      routeParams({ id: String(studentId) })
+    );
+    expect(res2.status).toBe(400);
+  });
+
+  async function dropInSetup() {
+    const card = await createCard(classroomId);
+    const { lesson, period } = await createLesson(classroomId, { cardIds: [card.id], withPeriod: true, locationId });
+    await prisma.lesson.update({ where: { id: lesson.id }, data: { dropInPrice: 900 } });
+    await createPendingAttendance(period!.id, studentId);
+    return { lesson, period: period! };
+  }
+  const chargePaid = (classroomId: number, userId: number, lessonId: number, lessonPeriodId: number) =>
+    chargeDropIn({
+      classroomId,
+      userId,
+      lessonId,
+      lessonPeriodId,
+      studentId,
+      payment: { isPaid: true, paymentMethod: "CASH" },
+    });
+
+  it("drop-in by a non-finance caller is recorded to the branch keeper", async () => {
+    await enable();
+    const { lesson, period } = await dropInSetup();
+    await chargePaid(classroomId, assistantId, lesson.id, period.id);
+    const charge = await prisma.dropInCharge.findFirstOrThrow();
+    expect(charge.paidByUserId).toBe(keeperId);
+  });
+
+  it("drop-in with a non-finance keeper -> RECEIVER_REQUIRED", async () => {
+    await enable();
+    await prisma.membership.updateMany({ where: { userId: keeperId, classroomId }, data: { isFinance: false } });
+    const { lesson, period } = await dropInSetup();
+    await expect(chargePaid(classroomId, assistantId, lesson.id, period.id)).rejects.toMatchObject({
+      code: "RECEIVER_REQUIRED",
+    });
   });
 });

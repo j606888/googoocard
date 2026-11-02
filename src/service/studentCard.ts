@@ -1,7 +1,7 @@
 import { CardPurchaseSource, PaymentMethod, Prisma } from "@prisma/client";
 import { nextCardSerial } from "@/service/studentCardSerial";
 import { CARD_EXPIRY_MONTHS } from "@/service/finance/setup";
-import { assertReceiverIsFinance, soldLocationFor } from "@/service/finance/receiver";
+import { defaultReceiver, isFinanceMember, soldLocationFor } from "@/service/finance/receiver";
 import { addMonthsTaipei, toTaipeiDateKey } from "@/lib/taipei-date";
 
 type CardForPurchase = { id: number; name: string; price: number; classroomId: number };
@@ -30,6 +30,7 @@ export async function createStudentCardInTx(
     paymentReference = null,
     note = null,
     eventDescription,
+    lessonLocationId = null,
   }: {
     studentId: number;
     card: CardForPurchase;
@@ -44,6 +45,8 @@ export async function createStudentCardInTx(
     paymentReference?: string | null;
     note?: string | null;
     eventDescription: string;
+    /** 在課堂裡買的卡：那堂課的分部，找收款人用。 */
+    lessonLocationId?: number | null;
   }
 ) {
   // 財務開啟的教室：卡從台北今天起 6 個月到期（spec §5.2）。
@@ -55,10 +58,13 @@ export async function createStudentCardInTx(
     ? addMonthsTaipei(toTaipeiDateKey(new Date()), CARD_EXPIRY_MONTHS)
     : null;
 
-  // 財務開啟、建卡當下就收了錢：收款人必須是財務成員，賣卡分部 = 收款人保管的分部。
+  // 財務開啟、建卡當下就收了錢：賣卡分部 = 收款人保管的分部。
+  // 賣的人不是財務 → 錢記在課所在分部的保管人（找不到 → 400 RECEIVER_REQUIRED）。
   let soldLocationId: number | null = null;
   if (classroom?.financeEnabledAt && isPaid && paidByUserId) {
-    await assertReceiverIsFinance(paidByUserId, card.classroomId);
+    if (!(await isFinanceMember(paidByUserId, card.classroomId))) {
+      paidByUserId = await defaultReceiver(card.classroomId, paidByUserId, lessonLocationId);
+    }
     soldLocationId = await soldLocationFor(card.classroomId, paidByUserId);
   }
 
