@@ -11,7 +11,7 @@ export const POST = apiRoute<{ id: string }>(async ({ request, params, userId, c
   await assertFinance(userId, classroomId);
   const id = parseId(params.id);
   const { fundOpening } = await parseBody(request, schema);
-  const current = await prisma.location.findFirst({ where: { id, classroomId }, select: { id: true } });
+  const current = await prisma.location.findFirst({ where: { id, classroomId, archivedAt: null }, select: { id: true } });
   if (!current) throw new ApiError(404, "NOT_FOUND", "Location not found");
   return prisma.location.update({
     where: { id },

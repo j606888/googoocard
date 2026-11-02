@@ -87,8 +87,8 @@ function venueIdsOfRule(rule: unknown): number[] {
 }
 
 /**
- * 開帳清單（spec §9），照順序。進行中的課相關項目要「至少有一門課」才算完成，
- * 新開的教室因此全部是未完成。
+ * 開帳清單（spec §9），照順序。沒有東西要設定時視為完成（R25）：
+ * 沒有進行中的課 → 課程相關項目完成；沒用到場地次數包 → 場地完成。
  */
 export async function setupChecklist(classroomId: number): Promise<ChecklistItem[]> {
   const classroom = await prisma.classroom.findUniqueOrThrow({
@@ -103,7 +103,7 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
     throw new ApiError(404, "FINANCE_DISABLED", "Finance is not enabled for this classroom");
   }
 
-  const [locations, lessons, financeMembers, venues, packs] = await Promise.all([
+  const [locations, lessons, financeMembers, overrides, packs] = await Promise.all([
     prisma.location.findMany({
       where: { classroomId, archivedAt: null },
       select: { keeperUserId: true, fundOpeningConfirmedAt: true },
@@ -117,14 +117,20 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
       },
     }),
     prisma.membership.findMany({ where: { classroomId, isFinance: true }, select: { userId: true } }),
-    prisma.venue.count({ where: { classroomId, archivedAt: null } }),
+    prisma.periodSplitOverride.findMany({
+      where: { lessonPeriod: { lesson: { classroomId, status: "inProgress" } } },
+      select: { rule: true },
+    }),
     prisma.venuePack.findMany({ where: { classroomId, voidedAt: null }, select: { venueId: true } }),
   ]);
   const financeUserIds = new Set(financeMembers.map((m) => m.userId));
   const venueIdsWithPack = new Set(packs.map((p) => p.venueId));
 
   const teachers = lessons.flatMap((l) => l.teachers.map((t) => t.teacher));
-  const usedVenueIds = new Set(lessons.flatMap((l) => (l.splitRule ? venueIdsOfRule(l.splitRule.rule) : [])));
+  const usedVenueIds = new Set([
+    ...lessons.flatMap((l) => (l.splitRule ? venueIdsOfRule(l.splitRule.rule) : [])),
+    ...overrides.flatMap((o) => venueIdsOfRule(o.rule)),
+  ]);
 
   const legacy = await legacyPrepaidSummary(classroomId, classroom.financeEnabledAt);
   let custodianName = "";
@@ -143,21 +149,20 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
     },
     {
       key: "lessonBranches",
-      done: lessons.length > 0 && lessons.every((l) => l.locationId != null),
+      done: lessons.every((l) => l.locationId != null),
     },
     {
       key: "teachers",
       done:
-        lessons.length > 0 &&
         teachers.every((t) => t.payerUserId != null || (t.userId != null && financeUserIds.has(t.userId))),
     },
     {
       key: "venues",
-      done: venues > 0 && [...usedVenueIds].every((id) => venueIdsWithPack.has(id)),
+      done: [...usedVenueIds].every((id) => venueIdsWithPack.has(id)),
     },
     {
       key: "rules",
-      done: lessons.length > 0 && lessons.every((l) => l.splitRule != null),
+      done: lessons.every((l) => l.splitRule != null),
     },
     {
       key: "funds",

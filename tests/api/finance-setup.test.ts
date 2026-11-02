@@ -47,7 +47,7 @@ describe("finance setup checklist", () => {
     await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isFinance: true } });
   });
 
-  it("fresh classroom: all seven items false, in spec order", async () => {
+  it("fresh classroom: items in spec order; nothing-to-configure items are vacuously done", async () => {
     const items = await setupChecklist(classroomId);
     expect(items.map((i) => i.key)).toEqual([
       "branches",
@@ -58,7 +58,16 @@ describe("finance setup checklist", () => {
       "funds",
       "legacyPrepaid",
     ]);
-    expect(items.every((i) => !i.done)).toBe(true);
+    const done = Object.fromEntries(items.map((i) => [i.key, i.done]));
+    expect(done).toEqual({
+      branches: false,
+      lessonBranches: true,
+      teachers: true,
+      venues: true,
+      rules: true,
+      funds: false,
+      legacyPrepaid: false,
+    });
     const res = await SETUP_GET(jsonRequest("GET"), routeParams({}));
     expect((await res.json()).complete).toBe(false);
   });
@@ -94,7 +103,7 @@ describe("finance setup checklist", () => {
     await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isFinance: true } });
 
     const venue = await createVenue(classroomId, { name: "V" });
-    expect((await byKey(classroomId)).venues.done).toBe(true);
+    expect((await byKey(classroomId)).venues.done).toBe(true); // no venuePack line yet
     expect((await byKey(classroomId)).rules.done).toBe(false);
     await prisma.lessonSplitRule.create({
       data: {
@@ -179,5 +188,54 @@ describe("finance setup checklist", () => {
     );
     const t = await (await TEACHERS_GET(jsonRequest("GET"), routeParams({}))).json();
     expect(Object.keys(t.teachers[0]).sort()).toEqual(["id", "name", "payerUserId", "userId"]);
+  });
+
+  it("venuePack in a period override also needs a pack", async () => {
+    const loc = await createLocation(classroomId);
+    const { lesson, period } = await createLesson(classroomId, { withPeriod: true, locationId: loc.id });
+    const venue = await createVenue(classroomId);
+    await prisma.periodSplitOverride.create({
+      data: {
+        lessonPeriodId: period!.id,
+        updatedById: ownerId,
+        rule: { lines: [{ kind: "venuePack", venueId: venue.id }], rest: { type: "fund", locationId: loc.id }, fundLocationId: loc.id },
+      },
+    });
+    expect(lesson.id).toBeGreaterThan(0);
+    expect((await byKey(classroomId)).venues.done).toBe(false);
+    await createVenuePack(classroomId, venue.id, { sessions: 5, price: 500, paidByUserId: ownerId });
+    expect((await byKey(classroomId)).venues.done).toBe(true);
+  });
+
+  it("another classroom's data does not affect checklist or lists", async () => {
+    const other = await createClassroom({ name: "Other", email: "o2@test.local" });
+    const oLoc = await createLocation(other.id, { name: "Other loc" });
+    await createTeacher(other.id, { name: "Other teacher" });
+    const oVenue = await createVenue(other.id, { name: "OV" });
+    await createLesson(other.id, { locationId: null });
+    await createVenuePack(other.id, oVenue.id, { sessions: 1, price: 1, paidByUserId: other.ownerId });
+    await prisma.location.update({ where: { id: oLoc.id }, data: { keeperUserId: other.ownerId, fundOpeningConfirmedAt: new Date() } });
+
+    const k = await byKey(classroomId);
+    expect(k.branches.done).toBe(false);
+    expect(k.funds.done).toBe(false);
+    expect(k.lessonBranches.done).toBe(true);
+    const l = await (await LOCATIONS_GET(jsonRequest("GET"), routeParams({}))).json();
+    expect(l.locations).toHaveLength(0);
+    const t = await (await TEACHERS_GET(jsonRequest("GET"), routeParams({}))).json();
+    expect(t.teachers).toHaveLength(0);
+    // cannot confirm another classroom's branch
+    const res = await CONFIRM_OPENING(jsonRequest("POST", { fundOpening: 1 }), routeParams({ id: String(oLoc.id) }));
+    expect(res.status).toBe(404);
+  });
+
+  it("legacy confirm needs a custodian; confirm-opening rejects archived branches", async () => {
+    const loc = await createLocation(classroomId, { archivedAt: new Date() });
+    const res = await CONFIRM_OPENING(jsonRequest("POST", { fundOpening: 1 }), routeParams({ id: String(loc.id) }));
+    expect(res.status).toBe(404);
+    await prisma.classroom.update({ where: { id: classroomId }, data: { legacyCustodianUserId: null } });
+    const bad = await LEGACY_CONFIRM(jsonRequest("POST"), routeParams({}));
+    expect(bad.status).toBe(400);
+    expect((await bad.json()).code).toBe("LEGACY_CUSTODIAN_REQUIRED");
   });
 });

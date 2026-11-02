@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { useIsFinance } from "./useIsFinance";
 import { useGetFinanceSetupQuery, type ChecklistKey } from "@/store/slices/finance";
 
 const ITEMS: Record<ChecklistKey, { label: string; href: string }> = {
@@ -17,7 +18,9 @@ const ITEMS: Record<ChecklistKey, { label: string; href: string }> = {
 /** 開帳清單：沒做完的項目一直顯示在 /finance 上方，做完整塊消失。 */
 export default function SetupChecklist() {
   const { data } = useGetFinanceSetupQuery();
+  const canEdit = useIsFinance();
   if (!data || data.complete) return null;
+  const Wrapper = (canEdit ? Link : "div") as React.ElementType;
   const total = data.items.length;
   const done = data.items.filter((i) => i.done).length;
 
@@ -31,9 +34,9 @@ export default function SetupChecklist() {
           const meta = ITEMS[item.key];
           return (
             <li key={item.key}>
-              <Link
-                href={meta.href}
-                className="flex min-h-11 items-center gap-3 rounded-lg px-1 py-1.5 text-sm hover:bg-warning-100"
+              <Wrapper
+                {...(canEdit ? { href: meta.href } : {})}
+                className={`flex min-h-11 items-center gap-3 rounded-lg px-1 py-1.5 text-sm ${canEdit ? "hover:bg-warning-100" : ""}`}
               >
                 <span
                   aria-hidden
@@ -51,8 +54,8 @@ export default function SetupChecklist() {
                     <span className="text-[13px] text-neutral-600">{item.detail}</span>
                   )}
                 </span>
-                {!item.done && <ChevronRight className="size-4 shrink-0 text-neutral-500" aria-hidden />}
-              </Link>
+                {!item.done && canEdit && <ChevronRight className="size-4 shrink-0 text-neutral-500" aria-hidden />}
+              </Wrapper>
             </li>
           );
         })}
