@@ -1,11 +1,20 @@
 import prisma from "@/lib/prisma";
-import { toTaipeiMonthKey } from "@/lib/taipei-date";
 import { cardUnitValue } from "@/domains/finance/income";
 import { computeCustody, emptyBuckets, resolvePayee } from "@/domains/finance/ledger";
 import type { Buckets, Keepers, LedgerInput } from "@/domains/finance/ledger";
+import {
+  EMPTY_PERIOD_STATE,
+  assignMonth,
+  earliestOpenMonth,
+  monthOf,
+  periodHistoryEntries,
+} from "@/domains/finance/months";
+import type { PeriodState, SnapshotCore } from "@/domains/finance/months";
 import { assertFinanceEnabled } from "./access";
 import { expireDueCards, expiryEvents } from "./expiry";
+import type { ExpiryEvent } from "./expiry";
 import { loadPeriodFinance } from "./periods";
+import type { PeriodFinance } from "./periods";
 
 export type CustodyWarning =
   // 找不到該付的人（老師沒設付款人、分部沒設負責人…）：錢先放在 holder 的「未分配」
@@ -15,19 +24,43 @@ export type CustodyWarning =
 
 export type CustodyUser = { userId: number; name: string; buckets: Buckets };
 
-/** 組 computeCustody 的輸入與負責人表。months 先用事件本身的台北月份（Task 13 改成 assignMonth）。 */
-export async function loadLedger(classroomId: number): Promise<{
+type EventKind = keyof SnapshotCore["eventIds"];
+/** 一筆事件算進的月份；snapshotted = 已經在某份月結快照裡。 */
+export type AssignedEvent = { id: number; month: string; snapshotted: boolean };
+
+/** 月結的狀態（Task 13）：鎖了哪些月、每堂的基準與現況、每筆事件算進哪個月。 */
+export type SettlementContext = {
+  launchMonth: string;
+  lockedMonths: string[];
+  openMonth: string;
+  livePeriods: PeriodFinance[];
+  liveStates: Map<number, PeriodState>;
+  /** 時段 → 最新一份包含它的快照裡的狀態 */
+  baselines: Map<number, PeriodState>;
+  events: Record<EventKind, AssignedEvent[]>;
+  expenses: { id: number; date: Date; amount: number; locationId: number; category: string; paidByUserId: number }[];
+  expiries: ExpiryEvent[];
+};
+
+export type Ledger = {
   input: LedgerInput;
   keepers: Keepers;
   warnings: CustodyWarning[];
-}> {
+  context: SettlementContext;
+};
+
+/**
+ * 組 computeCustody 的輸入與負責人表。月份照 spec §7.3：事件月份已鎖 → 最早沒鎖的月份；
+ * 已鎖月份的時段照快照當基準，之後的變動當差額算進最早沒鎖的月份（periodHistoryEntries）。
+ */
+export async function loadLedger(classroomId: number): Promise<Ledger> {
   const { financeEnabledAt, legacyCustodianUserId } = await assertFinanceEnabled(classroomId);
   await expireDueCards(classroomId);
   const warnings: CustodyWarning[] = [];
 
   const untakenPeriod = { lesson: { classroomId }, attendanceTakenAt: null, startTime: { gte: financeEnabledAt } };
   const paidCard = { select: { isPaid: true, finalPrice: true, totalSessions: true, paidByUserId: true } };
-  const [periods, expiries, cards, expenses, packs, transfers, refunds, locations, venues, teachers, financeMembers, untakenRecords, untakenAbsences] =
+  const [periods, expiries, cards, expenses, packs, transfers, refunds, locations, venues, teachers, financeMembers, untakenRecords, untakenAbsences, settlements] =
     await Promise.all([
       loadPeriodFinance(classroomId, {}),
       expiryEvents(classroomId),
@@ -37,7 +70,7 @@ export async function loadLedger(classroomId: number): Promise<{
       }),
       prisma.financeExpense.findMany({
         where: { classroomId, voidedAt: null },
-        select: { amount: true, locationId: true, paidByUserId: true, date: true },
+        select: { id: true, amount: true, locationId: true, category: true, paidByUserId: true, date: true },
       }),
       prisma.venuePack.findMany({
         where: { classroomId },
@@ -46,6 +79,7 @@ export async function loadLedger(classroomId: number): Promise<{
       prisma.financeTransfer.findMany({
         where: { classroomId, voidedAt: null },
         select: {
+          id: true,
           amount: true,
           fromUserId: true,
           toKind: true,
@@ -57,7 +91,7 @@ export async function loadLedger(classroomId: number): Promise<{
       }),
       prisma.financeRefund.findMany({
         where: { studentCard: { student: { classroomId } } },
-        select: { amount: true, paidByUserId: true, date: true, studentCard: { select: { paidByUserId: true } } },
+        select: { id: true, amount: true, paidByUserId: true, date: true, studentCard: { select: { paidByUserId: true } } },
       }),
       prisma.location.findMany({
         where: { classroomId },
@@ -77,6 +111,11 @@ export async function loadLedger(classroomId: number): Promise<{
       prisma.attendanceAbsence.findMany({
         where: { lessonPeriod: untakenPeriod },
         select: { sessionsUsed: true, studentCard: paidCard },
+      }),
+      prisma.financeSettlement.findMany({
+        where: { classroomId },
+        select: { month: true, snapshot: true },
+        orderBy: { month: "asc" },
       }),
     ]);
 
@@ -136,20 +175,78 @@ export async function loadLedger(classroomId: number): Promise<{
     if (e.holderUserId === null) warnings.push({ code: "UNKNOWN_HOLDER", studentCardId: e.studentCardId });
   }
 
+  // 月份歸屬
+  const snapshots = settlements.map((s) => ({ month: s.month, snapshot: s.snapshot as unknown as SnapshotCore }));
+  const launchMonth = monthOf(financeEnabledAt);
+  const lockedMonths = snapshots.map((s) => s.month);
+  const locked = new Set(lockedMonths);
+  const openMonth = earliestOpenMonth(launchMonth, lockedMonths);
+
+  const snapshotMonthOf = (kind: EventKind) => {
+    const m = new Map<number, string>();
+    for (const s of snapshots) for (const id of s.snapshot.eventIds[kind]) m.set(id, s.month);
+    return m;
+  };
+  const assignEvents = (kind: EventKind, rows: { id: number; date: Date }[]): AssignedEvent[] => {
+    const inSnapshot = snapshotMonthOf(kind);
+    return rows.map((r) => {
+      const month = inSnapshot.get(r.id);
+      return month !== undefined
+        ? { id: r.id, month, snapshotted: true }
+        : { id: r.id, month: assignMonth(monthOf(r.date), locked, openMonth), snapshotted: false };
+    });
+  };
+  const events: SettlementContext["events"] = {
+    expiries: assignEvents("expiries", expiries.map((e) => ({ id: e.studentCardId, date: e.date }))),
+    expenses: assignEvents("expenses", expenses),
+    refunds: assignEvents("refunds", refunds),
+    transfers: assignEvents("transfers", transfers),
+  };
+  const monthOfEvent = (kind: EventKind) => {
+    const m = new Map(events[kind].map((e) => [e.id, e.month]));
+    return (id: number) => m.get(id)!;
+  };
+
+  // 每堂：快照裡的各版本 → 現況
+  const liveStates = new Map<number, PeriodState>(
+    periods.map((p) => [p.periodId, { income: p.income.realized, allocations: p.allocations }]),
+  );
+  const liveMonth = new Map(periods.map((p) => [p.periodId, assignMonth(p.month, locked, openMonth)]));
+  const chains = new Map<number, { month: string; state: PeriodState }[]>();
+  for (const { month, snapshot } of snapshots) {
+    for (const [id, allocations] of Object.entries(snapshot.periods)) {
+      const periodId = Number(id);
+      const chain = chains.get(periodId) ?? [];
+      chain.push({ month, state: { income: snapshot.income[id] ?? [], allocations } });
+      chains.set(periodId, chain);
+    }
+  }
+  const baselines = new Map([...chains].map(([id, chain]) => [id, chain[chain.length - 1].state]));
+  const periodEntries: LedgerInput["periods"] = [];
+  for (const periodId of new Set([...liveStates.keys(), ...chains.keys()])) {
+    const live = liveStates.get(periodId);
+    periodEntries.push(
+      ...periodHistoryEntries(periodId, [
+        ...(chains.get(periodId) ?? []),
+        live ? { month: liveMonth.get(periodId)!, state: live } : { month: openMonth, state: EMPTY_PERIOD_STATE },
+      ]),
+    );
+  }
+
+  const expiryMonth = monthOfEvent("expiries");
+  const expenseMonth = monthOfEvent("expenses");
+  const refundMonth = monthOfEvent("refunds");
+  const transferMonth = monthOfEvent("transfers");
+
   const input: LedgerInput = {
-    periods: periods.map((p) => ({
-      periodId: p.periodId,
-      month: p.month,
-      income: p.income.realized,
-      allocations: p.allocations,
-    })),
+    periods: periodEntries,
     prepaid,
-    expiries: expiries.map((e) => ({ ...e, month: toTaipeiMonthKey(e.date) })),
+    expiries: expiries.map((e) => ({ ...e, month: expiryMonth(e.studentCardId) })),
     expenses: expenses.map((e) => ({
       amount: e.amount,
       locationId: e.locationId,
       paidByUserId: e.paidByUserId,
-      month: toTaipeiMonthKey(e.date),
+      month: expenseMonth(e.id),
     })),
     packs: packs
       .filter((p) => p.voidedAt === null)
@@ -161,23 +258,38 @@ export async function loadLedger(classroomId: number): Promise<{
       ...(t.toUserId !== null ? { toUserId: t.toUserId } : {}),
       ...(t.toTeacherId !== null ? { toTeacherId: t.toTeacherId } : {}),
       ...(t.toVenueId !== null ? { toVenueId: t.toVenueId } : {}),
-      month: toTaipeiMonthKey(t.date),
+      month: transferMonth(t.id),
     })),
     refunds: refunds.map((r) => ({
       amount: r.amount,
       paidByUserId: r.paidByUserId,
       holderUserId: r.studentCard.paidByUserId ?? legacyCustodianUserId,
-      month: toTaipeiMonthKey(r.date),
+      month: refundMonth(r.id),
     })),
     fundOpening: Object.fromEntries(locations.map((l) => [l.id, l.fundOpening])),
-    roundings: [],
+    roundings: snapshots.flatMap((s) => s.snapshot.roundings),
   };
 
-  return { input, keepers, warnings };
+  return {
+    input,
+    keepers,
+    warnings,
+    context: {
+      launchMonth,
+      lockedMonths,
+      openMonth,
+      livePeriods: periods,
+      liveStates,
+      baselines,
+      events,
+      expenses,
+      expiries,
+    },
+  };
 }
 
 /** computeCustody 會把找不到負責人的錢放進未分配；這裡列出是哪些，給畫面提醒。 */
-function ledgerWarnings(input: LedgerInput, keepers: Keepers, through?: string): CustodyWarning[] {
+export function ledgerWarnings(input: LedgerInput, keepers: Keepers, through?: string): CustodyWarning[] {
   const inRange = (month: string) => !through || month <= through;
   const out: CustodyWarning[] = [];
   for (const p of input.periods) {
@@ -218,7 +330,15 @@ export async function getCustody(
   classroomId: number,
   through?: string,
 ): Promise<{ users: CustodyUser[]; warnings: CustodyWarning[] }> {
-  const { input, keepers, warnings } = await loadLedger(classroomId);
+  return custodyFromLedger(classroomId, await loadLedger(classroomId), through);
+}
+
+/** getCustody 的計算部分：已經有 loadLedger 結果時（例：結算單）不必重讀。 */
+export async function custodyFromLedger(
+  classroomId: number,
+  { input, keepers, warnings }: Ledger,
+  through?: string,
+): Promise<{ users: CustodyUser[]; warnings: CustodyWarning[] }> {
   const custody = computeCustody(input, keepers, through ? { through } : undefined);
 
   const members = await prisma.membership.findMany({
