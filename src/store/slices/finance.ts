@@ -1,4 +1,6 @@
 import { api } from "../api";
+import type { SplitRule } from "@/domains/finance/types";
+import type { PeriodFinance as PeriodFinanceServer } from "@/service/finance/periods";
 import type { CustodyUser, CustodyWarning } from "@/service/finance/custody";
 
 export interface FinanceSettings {
@@ -37,6 +39,9 @@ export interface FinancePack {
   voidedAt: string | null;
 }
 
+/** GET /finance/periods — dates arrive as ISO strings. */
+export type PeriodFinance = Omit<PeriodFinanceServer, "startTime"> & { startTime: string };
+
 const financeApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getFinanceSettings: builder.query<FinanceSettings, void>({
@@ -59,10 +64,44 @@ const financeApi = api.injectEndpoints({
       query: () => "finance/venues",
       providesTags: ["Finance"],
     }),
+    getLessonRule: builder.query<{ rule: SplitRule | null }, number>({
+      query: (lessonId) => `finance/lessons/${lessonId}/rule`,
+      providesTags: ["Finance"],
+    }),
+    saveLessonRule: builder.mutation<unknown, { lessonId: number; rule: SplitRule }>({
+      query: ({ lessonId, rule }) => ({ url: `finance/lessons/${lessonId}/rule`, method: "PUT", body: rule }),
+      invalidatesTags: ["Finance"],
+    }),
+    copyLessonRule: builder.mutation<unknown, { lessonId: number; fromLessonId: number }>({
+      query: ({ lessonId, fromLessonId }) => ({
+        url: `finance/lessons/${lessonId}/rule/copy`,
+        method: "POST",
+        body: { fromLessonId },
+      }),
+      invalidatesTags: ["Finance"],
+    }),
+    getLessonPeriodFinance: builder.query<PeriodFinance[], number>({
+      query: (lessonId) => `finance/periods?lessonId=${lessonId}`,
+      providesTags: ["Finance", "Attendance", "AttendanceRecord", "StudentCard"],
+    }),
+    savePeriodRule: builder.mutation<unknown, { periodId: number; rule: SplitRule }>({
+      query: ({ periodId, rule }) => ({ url: `finance/periods/${periodId}/rule`, method: "PUT", body: rule }),
+      invalidatesTags: ["Finance"],
+    }),
+    deletePeriodRule: builder.mutation<unknown, { periodId: number }>({
+      query: ({ periodId }) => ({ url: `finance/periods/${periodId}/rule`, method: "DELETE" }),
+      invalidatesTags: ["Finance"],
+    }),
   }),
 });
 
 export const {
+  useGetLessonRuleQuery,
+  useSaveLessonRuleMutation,
+  useCopyLessonRuleMutation,
+  useGetLessonPeriodFinanceQuery,
+  useSavePeriodRuleMutation,
+  useDeletePeriodRuleMutation,
   useGetFinanceSettingsQuery,
   useGetCustodyQuery,
   useGetSettlementMonthsQuery,

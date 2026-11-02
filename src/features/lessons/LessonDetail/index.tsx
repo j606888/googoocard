@@ -13,6 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import LessonDetailHeader from "./LessonDetailHeader";
 import AttendanceOverview from "./AttendanceOverview";
 import { useSizeClass } from "@/hooks/useMediaQuery";
+import { useFinanceEnabled } from "@/features/nav/useFinanceEnabled";
+import LessonSplitPanel from "@/features/finance/LessonSplitPanel";
 import { weeklyScheduleLabel } from "../lessonSchedule";
 
 export const TABS = [
@@ -21,7 +23,10 @@ export const TABS = [
   { name: "設定", query: "settings" },
 ];
 
+export const FINANCE_TAB = { name: "分帳", query: "split" };
+
 const LessonDetail = () => {
+  const financeEnabled = useFinanceEnabled();
   const { id } = useParams();
   // 只掛載其中一棵樹。兩棵都掛的話 PeriodSection / AttendanceOverview /
   // SettingSection 會各跑兩次（見 docs/ui-responsive.md 的「代價一」）。
@@ -100,6 +105,11 @@ const LessonDetail = () => {
             {/* Center: Attendance matrix */}
             <div className="flex-1 overflow-auto p-6 bg-neutral-50/30">
               <AttendanceOverview lesson={lesson} students={students || []} />
+              {financeEnabled && (
+                <div className="mt-8 rounded-2xl border border-neutral-200 bg-white">
+                  <LessonSplitPanel lesson={lesson} students={students || []} />
+                </div>
+              )}
             </div>
             {/* Right: Settings (toggleable) */}
             {showSettings && (
@@ -112,7 +122,7 @@ const LessonDetail = () => {
       ) : (
         /* 手機：分頁 */
         <div>
-          <LessonTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <LessonTabs activeTab={activeTab} onTabChange={setActiveTab} showFinance={financeEnabled} />
           {activeTab === "periods" && (
             <PeriodSection lesson={lesson} periods={lesson?.periods || []} />
           )}
@@ -122,6 +132,9 @@ const LessonDetail = () => {
             </div>
           )}
           {activeTab === "settings" && <SettingSection lesson={lesson} />}
+          {financeEnabled && activeTab === "split" && (
+            <LessonSplitPanel lesson={lesson} students={students || []} />
+          )}
         </div>
       )}
     </>
