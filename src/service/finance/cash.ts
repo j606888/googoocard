@@ -3,17 +3,8 @@ import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 import { parseTaipeiDateRange, parseTaipeiMonthRange } from "@/lib/taipei-date";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
+import { ymdSchema } from "@/lib/schemas";
 import { assertFinanceMember, requireVenueInClassroom } from "./config";
-
-/** 真實日曆日期（2026-02-31 → 400）。 */
-export const ymdSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine((s) => {
-    const [y, m, d] = s.split("-").map(Number);
-    const dt = new Date(Date.UTC(y, m - 1, d));
-    return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
-  }, "Invalid date");
 
 export function dateOf(ymd: string): Date {
   return parseTaipeiDateRange(ymd).start;

@@ -20,9 +20,12 @@ export const DELETE = apiRoute<Params>(async ({ params, classroomId }) => {
   const lessonId = await requireLesson(params.id, classroomId);
   const periodId = parseId(params.periodId, "period id");
 
-  await prisma.lessonPeriod.delete({
-    where: { id: periodId, lessonId },
-  });
+  // 這個時段的分帳覆寫跟著刪（外鍵是 RESTRICT）。有出席／缺席紀錄的時段照舊刪不掉，
+  // 整筆 rollback、覆寫也留著。
+  await prisma.$transaction([
+    prisma.periodSplitOverride.deleteMany({ where: { lessonPeriodId: periodId, lessonPeriod: { lessonId } } }),
+    prisma.lessonPeriod.delete({ where: { id: periodId, lessonId } }),
+  ]);
 
   await refreshLesson(lessonId);
 

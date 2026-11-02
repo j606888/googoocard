@@ -196,10 +196,14 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
   }
 
-  await prisma.lessonTeacher.deleteMany({ where: { lessonId } });
-  await prisma.lessonCard.deleteMany({ where: { lessonId } });
-  await prisma.lessonStudent.deleteMany({ where: { lessonId } });
-  await prisma.lesson.delete({ where: { id: lessonId } });
+  // 分帳規則跟著刪（外鍵是 RESTRICT）；有時段的課照舊刪不掉，整筆 rollback。
+  await prisma.$transaction([
+    prisma.lessonTeacher.deleteMany({ where: { lessonId } }),
+    prisma.lessonCard.deleteMany({ where: { lessonId } }),
+    prisma.lessonStudent.deleteMany({ where: { lessonId } }),
+    prisma.lessonSplitRule.deleteMany({ where: { lessonId } }),
+    prisma.lesson.delete({ where: { id: lessonId } }),
+  ]);
 
   return NextResponse.json({});
 }

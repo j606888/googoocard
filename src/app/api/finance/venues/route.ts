@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { assertFinance } from "@/service/finance/access";
 import { assertClassroomMember } from "@/service/finance/setup";
+import { withVenueNameCheck } from "@/service/finance/config";
 
 const venueSelect = {
   id: true,
@@ -29,8 +30,10 @@ export const POST = apiRoute(async ({ request, userId, classroomId }) => {
   await assertFinance(userId, classroomId);
   const body = await parseBody(request, createSchema);
   if (body.landlordUserId != null) await assertClassroomMember(body.landlordUserId, classroomId);
-  return prisma.venue.create({
-    data: { classroomId, name: body.name, landlordUserId: body.landlordUserId ?? null },
-    select: venueSelect,
-  });
+  return withVenueNameCheck(
+    prisma.venue.create({
+      data: { classroomId, name: body.name, landlordUserId: body.landlordUserId ?? null },
+      select: venueSelect,
+    }),
+  );
 });

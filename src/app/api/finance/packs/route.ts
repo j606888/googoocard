@@ -1,5 +1,6 @@
 import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { ymdSchema } from "@/lib/schemas";
 import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { parseTaipeiDateRange } from "@/lib/taipei-date";
 import { assertFinance } from "@/service/finance/access";
@@ -30,7 +31,7 @@ const createSchema = z.object({
   sessions: z.number().int().min(1),
   price: z.number().int().min(0),
   paidByUserId: z.number().int().positive(),
-  purchasedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  purchasedAt: ymdSchema,
 });
 
 export const POST = apiRoute(async ({ request, userId, classroomId }) => {

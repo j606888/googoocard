@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 
@@ -20,4 +21,16 @@ export async function requireVenueInClassroom(venueId: number, classroomId: numb
   const v = await findVenueInClassroom(venueId, classroomId);
   if (!v) throw new ApiError(404, "NOT_FOUND", "Venue not found");
   return v;
+}
+
+/** 場地名稱在教室內唯一：撞名（P2002）→ 409 VENUE_NAME_TAKEN，其他錯誤原樣丟出。 */
+export async function withVenueNameCheck<T>(write: Promise<T>): Promise<T> {
+  try {
+    return await write;
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      throw new ApiError(409, "VENUE_NAME_TAKEN", "A venue with this name already exists");
+    }
+    throw e;
+  }
 }

@@ -3,6 +3,16 @@ import { PaymentMethod, TodoType } from "@prisma/client";
 import { DANCE_STYLE_COLORS } from "@/lib/danceStyles";
 import { isExpoPushToken } from "@/lib/expoPush";
 import { ASSIGNABLE_ROLES } from "@/lib/roles";
+
+/** 真實日曆日期 YYYY-MM-DD（2026-02-31 → 400）。 */
+export const ymdSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((s) => {
+    const [y, m, d] = s.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+  }, "Invalid date");
 import { TEACHER_KINDS } from "@/lib/teachers";
 
 /**

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { assertFinance } from "@/service/finance/access";
-import { dateOf, refundCard, ymdSchema } from "@/service/finance/cash";
+import { dateOf, refundCard } from "@/service/finance/cash";
+import { ymdSchema } from "@/lib/schemas";
 
 const schema = z.object({
   studentCardId: z.number().int().positive(),

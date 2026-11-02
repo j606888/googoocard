@@ -20,6 +20,9 @@ import {
   useReopenLessonMutation,
 } from "@/store/slices/lessons";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useFinanceEnabled } from "@/features/nav/useFinanceEnabled";
+import { isLocationRequiredError, lessonErrorText } from "@/features/lessons/lessonErrorText";
 
 const validationErrors = {
   lessonName: "請輸入課程名稱",
@@ -27,6 +30,7 @@ const validationErrors = {
   cards: "請至少選擇一張課卡",
   danceStyle: "請選擇舞種",
   dropInPrice: "請輸入單堂價",
+  location: "請選擇分部",
 };
 
 const SettingSection = ({ lesson }: { lesson: Lesson }) => {
@@ -66,8 +70,11 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
     cards?: string;
     danceStyle?: string;
     dropInPrice?: string;
+    location?: string;
   }>({});
   const [updateLesson, { isLoading }] = useUpdateLessonMutation();
+  // 財務開啟的教室：每門課都要有分部（server 回 LOCATION_REQUIRED）。
+  const financeOn = useFinanceEnabled();
   const [deleteLesson, { isLoading: isDeleting }] = useDeleteLessonMutation();
   const router = useRouter();
   const hasNoPeriods = lesson.periods.length === 0;
@@ -114,11 +121,18 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
       danceStyleId,
       dropInEnabled,
       dropInPrice: parseDropInPrice(dropInEnabled, dropInAmount),
+      locationRequired: financeOn,
+      locationId,
     });
     setErrors(errors);
     const dropInPrice = parseDropInPrice(dropInEnabled, dropInAmount);
     if (Object.keys(errors).length === 0 && danceStyleId !== null && dropInPrice !== undefined) {
-      await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId, level, kind, sessionsPerAttendance, dropInPrice, groupId, locationId } });
+      try {
+        await updateLesson({ id: lesson.id, draftLesson: { lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId, level, kind, sessionsPerAttendance, dropInPrice, groupId, locationId } }).unwrap();
+      } catch (e) {
+        if (isLocationRequiredError(e)) setErrors((prev) => ({ ...prev, location: validationErrors.location }));
+        toast.error(lessonErrorText(e, "儲存失敗，請再試一次"));
+      }
     }
   };
 
@@ -153,7 +167,15 @@ const SettingSection = ({ lesson }: { lesson: Lesson }) => {
             }}
             error={errors.dropInPrice}
           />
-          <LocationSelect locationId={locationId} onChange={setLocationId} />
+          <LocationSelect
+            locationId={locationId}
+            onChange={(value) => {
+              setLocationId(value);
+              setErrors((prev) => ({ ...prev, location: undefined }));
+            }}
+            required={financeOn}
+            error={errors.location}
+          />
           <LessonGroupSelect
             groupId={groupId}
             onChange={setGroupId}
@@ -214,6 +236,8 @@ const validateForm = (data: {
   danceStyleId: number | null;
   dropInEnabled: boolean;
   dropInPrice: number | null | undefined;
+  locationRequired: boolean;
+  locationId: number | null;
 }) => {
   const errors: {
     lessonName?: string;
@@ -221,6 +245,7 @@ const validateForm = (data: {
     cards?: string;
     danceStyle?: string;
     dropInPrice?: string;
+    location?: string;
   } = {};
   if (data.danceStyleId === null) {
     errors.danceStyle = validationErrors.danceStyle;
@@ -237,6 +262,9 @@ const validateForm = (data: {
   }
   if (data.dropInPrice === undefined) {
     errors.dropInPrice = validationErrors.dropInPrice;
+  }
+  if (data.locationRequired && data.locationId === null) {
+    errors.location = validationErrors.location;
   }
   return errors;
 };

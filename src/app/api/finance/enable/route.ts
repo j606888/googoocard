@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { ymdSchema } from "@/lib/schemas";
 import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { enableFinance } from "@/service/finance/setup";
 
 const schema = z.object({
-  launchDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  launchDate: ymdSchema,
   legacyCustodianUserId: z.number().int().positive(),
 });
 

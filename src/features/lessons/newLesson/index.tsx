@@ -36,6 +36,9 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useSizeClass } from "@/hooks/useMediaQuery";
 import StepFlow from "@/components/StepFlow";
+import { toast } from "sonner";
+import { useFinanceEnabled } from "@/features/nav/useFinanceEnabled";
+import { isLocationRequiredError, lessonErrorText } from "@/features/lessons/lessonErrorText";
 
 const validationErrors = {
   lessonName: "請輸入課程名稱",
@@ -44,6 +47,7 @@ const validationErrors = {
   periods: "請至少新增一個時段",
   danceStyle: "請選擇舞種",
   dropInPrice: "請輸入單堂價",
+  location: "請選擇分部",
 };
 
 const NewLesson = () => {
@@ -126,9 +130,12 @@ const NewLesson = () => {
     periods?: string;
     danceStyle?: string;
     dropInPrice?: string;
+    location?: string;
   }>({});
   const [createLesson, { isLoading }] = useCreateLessonMutation();
   const router = useRouter();
+  // 財務開啟的教室：每門課都要有分部（server 回 LOCATION_REQUIRED）。
+  const financeOn = useFinanceEnabled();
 
   const handleLessonNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (errors.lessonName) {
@@ -181,11 +188,14 @@ const NewLesson = () => {
       danceStyleId,
       dropInEnabled,
       dropInPrice: parseDropInPrice(dropInEnabled, dropInAmount),
+      locationRequired: financeOn,
+      locationId,
     });
     setErrors(errors);
     const dropInPrice = parseDropInPrice(dropInEnabled, dropInAmount);
     if (Object.keys(errors).length === 0 && danceStyleId !== null && dropInPrice !== undefined) {
-      await createLesson({
+      try {
+        await createLesson({
         lessonName,
         teacherIds: selectedTeacherIds,
         cardIds: selectedCardIds,
@@ -198,7 +208,12 @@ const NewLesson = () => {
         groupId: selectedGroupId,
         locationId,
         periods,
-      });
+        }).unwrap();
+      } catch (e) {
+        if (isLocationRequiredError(e)) setErrors((prev) => ({ ...prev, location: validationErrors.location }));
+        toast.error(lessonErrorText(e, "建立課程失敗，請再試一次"));
+        return;
+      }
       if (classroomId != null) {
         setLastLessonKind(classroomId, kind);
         setLastLessonLocation(classroomId, locationId);
@@ -269,7 +284,15 @@ const NewLesson = () => {
                   }}
                   error={errors.dropInPrice}
                 />
-                <LocationSelect locationId={locationId} onChange={setPickedLocationId} />
+                <LocationSelect
+                  locationId={locationId}
+                  onChange={(value) => {
+                    setPickedLocationId(value);
+                    setErrors((prev) => ({ ...prev, location: undefined }));
+                  }}
+                  required={financeOn}
+                  error={errors.location}
+                />
                 <LessonGroupSelect
                   groupId={selectedGroupId}
                   onChange={setSelectedGroupId}
@@ -318,6 +341,8 @@ const validateForm = (data: {
   danceStyleId: number | null;
   dropInEnabled: boolean;
   dropInPrice: number | null | undefined;
+  locationRequired: boolean;
+  locationId: number | null;
 }) => {
   const errors: {
     lessonName?: string;
@@ -326,6 +351,7 @@ const validateForm = (data: {
     periods?: string;
     danceStyle?: string;
     dropInPrice?: string;
+    location?: string;
   } = {};
   if (data.danceStyleId === null) {
     errors.danceStyle = validationErrors.danceStyle;
@@ -345,6 +371,9 @@ const validateForm = (data: {
   }
   if (data.periods.length === 0) {
     errors.periods = validationErrors.periods;
+  }
+  if (data.locationRequired && data.locationId === null) {
+    errors.location = validationErrors.location;
   }
   return errors;
 };

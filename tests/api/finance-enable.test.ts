@@ -75,6 +75,11 @@ describe("finance enable / permission", () => {
       routeParams({})
     );
     expect(bad.status).toBe(400);
+    const badDate = await ENABLE(
+      jsonRequest("POST", { launchDate: "2026-02-31", legacyCustodianUserId: ownerId }),
+      routeParams({})
+    );
+    expect(badDate.status).toBe(400);
     const ok = { launchDate: "2026-11-03", legacyCustodianUserId: ownerId };
     expect((await ENABLE(jsonRequest("POST", ok), routeParams({}))).status).toBe(200);
     const again = await ENABLE(jsonRequest("POST", ok), routeParams({}));

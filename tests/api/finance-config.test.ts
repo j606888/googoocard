@@ -94,6 +94,17 @@ describe("finance config APIs", () => {
     expect((await arch.json()).archivedAt).not.toBeNull();
   });
 
+  it("duplicate venue name → 409 VENUE_NAME_TAKEN (create and rename)", async () => {
+    expect((await POST_VENUE(jsonRequest("POST", { name: "A" }), routeParams({}))).status).toBe(200);
+    const dup = await POST_VENUE(jsonRequest("POST", { name: "A" }), routeParams({}));
+    expect(dup.status).toBe(409);
+    expect((await dup.json()).code).toBe("VENUE_NAME_TAKEN");
+    const b = await (await POST_VENUE(jsonRequest("POST", { name: "B" }), routeParams({}))).json();
+    const rename = await PATCH_VENUE(jsonRequest("PATCH", { name: "A" }), routeParams({ id: String(b.id) }));
+    expect(rename.status).toBe(409);
+    expect((await rename.json()).code).toBe("VENUE_NAME_TAKEN");
+  });
+
   it("pack voids instead of delete", async () => {
     const v = await createVenue(classroomId);
     const res = await POST_PACK(
@@ -103,7 +114,7 @@ describe("finance config APIs", () => {
     expect(res.status).toBe(200);
     const pack = await res.json();
 
-    for (const bad of [{ sessions: 0 }, { price: -1 }, { sessions: 1.5 }, { paidByUserId: nonFinanceId }]) {
+    for (const bad of [{ sessions: 0 }, { price: -1 }, { sessions: 1.5 }, { paidByUserId: nonFinanceId }, { purchasedAt: "2026-02-31" }]) {
       const r = await POST_PACK(
         jsonRequest("POST", { venueId: v.id, sessions: 10, price: 1000, paidByUserId: 1, purchasedAt: "2026-11-02", ...bad }),
         routeParams({})

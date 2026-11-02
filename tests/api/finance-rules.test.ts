@@ -8,6 +8,9 @@ import {
   createTeacher,
   createVenue,
   createLesson,
+  createStudent,
+  createCard,
+  createStudentCard,
   enableFinanceFor,
   jsonRequest,
   routeParams,
@@ -19,6 +22,8 @@ vi.mock("@/lib/auth", () => ({ decodeAuthToken: async () => auth }));
 import { GET, PUT, DELETE } from "@/app/api/finance/lessons/[id]/rule/route";
 import { POST as COPY } from "@/app/api/finance/lessons/[id]/rule/copy/route";
 import { GET as GET_PERIOD, PUT as PUT_PERIOD, DELETE as DELETE_PERIOD } from "@/app/api/finance/periods/[periodId]/rule/route";
+import { DELETE as DELETE_LESSON } from "@/app/api/lessons/[id]/route";
+import { DELETE as DELETE_LESSON_PERIOD } from "@/app/api/lessons/[id]/periods/[periodId]/route";
 
 describe("finance split rule APIs", () => {
   let classroomId: number;
@@ -118,6 +123,32 @@ describe("finance split rule APIs", () => {
     await put(rule);
     expect((await DELETE(jsonRequest("DELETE"), idp(lessonId))).status).toBe(200);
     expect(await prisma.lessonSplitRule.count()).toBe(0);
+  });
+
+  it("deleting a period / lesson removes its split override / rule", async () => {
+    await put(rule);
+    await PUT_PERIOD(jsonRequest("PUT", rule), routeParams({ periodId: String(periodId) }));
+    const del = await DELETE_LESSON_PERIOD(jsonRequest("DELETE"), routeParams({ id: String(lessonId), periodId: String(periodId) }));
+    expect(del.status).toBe(200);
+    expect(await prisma.lessonPeriod.count({ where: { id: periodId } })).toBe(0);
+    expect(await prisma.periodSplitOverride.count()).toBe(0);
+
+    const res = await DELETE_LESSON(jsonRequest("DELETE"), idp(lessonId));
+    expect(res.status).toBe(200);
+    expect(await prisma.lesson.count({ where: { id: lessonId } })).toBe(0);
+    expect(await prisma.lessonSplitRule.count()).toBe(0);
+  });
+
+  it("a period with an absence still can't be deleted, and keeps its override", async () => {
+    await PUT_PERIOD(jsonRequest("PUT", rule), routeParams({ periodId: String(periodId) }));
+    const student = await createStudent(classroomId);
+    const sc = await createStudentCard(student.id, (await createCard(classroomId)).id);
+    await prisma.attendanceAbsence.create({ data: { lessonPeriodId: periodId, studentId: student.id, studentCardId: sc.id, sessionsUsed: 1 } });
+    await expect(
+      DELETE_LESSON_PERIOD(jsonRequest("DELETE"), routeParams({ id: String(lessonId), periodId: String(periodId) })).then((r) => r.status),
+    ).resolves.not.toBe(200);
+    expect(await prisma.lessonPeriod.count({ where: { id: periodId } })).toBe(1);
+    expect(await prisma.periodSplitOverride.count()).toBe(1);
   });
 
   it("non-finance member: GET ok, writes 403", async () => {
