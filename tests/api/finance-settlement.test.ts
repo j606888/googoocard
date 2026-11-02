@@ -220,7 +220,9 @@ describe("finance settlement", () => {
     expect(s.adjustments).toEqual([]);
     expect(s.warnings).toContain("UNCHECKED_PERIODS");
     expect(s.uncheckedPeriods).toBe(1);
-    expect(s.pending).toEqual([expect.objectContaining({ periodId: l6PeriodId, kind: "unpaid" })]);
+    expect(s.pending).toEqual([expect.objectContaining({ periodId: l6PeriodId, kind: "unpaid", studentName: expect.any(String) })]);
+    expect(s.byBranch.length).toBeGreaterThan(0);
+    expect(s.byBranch.find((b) => b.locationId === kaoId)).toMatchObject({ name: expect.any(String) });
     const charlene = s.byPerson.find((p) => p.teacherId === charleneId)!;
     expect(charlene).toMatchObject({ name: "C", payerUserId: dingId, rounded: 333 });
     expect(charlene.total).toBeCloseTo(333.33, 2);
@@ -245,6 +247,12 @@ describe("finance settlement", () => {
     const seanSelf = roundings.find((r) => r.userId === seanId && r.bucket === "self")!;
     expect(seanSelf.locationId).toBe(kaoId);
     expect(seanSelf.amount).toBeCloseTo(-0.08, 2);
+
+    const locked = await getMonthStatement(classroomId, "2026-11", DEC_3);
+    const kaoBranch = locked.byBranch.find((b) => b.locationId === kaoId)!;
+    // 公積金變化含取整零頭：搭檔 +0.25、Sean 自己 −0.08（月結前的保管中不含零頭）
+    expect(kaoBranch.fundChange - kaoFundBefore).toBeCloseTo(0.25 - 0.0833, 1);
+    expect(locked.byBranch.every((b) => Number.isFinite(b.fundChange))).toBe(true);
 
     const after = (await getCustody(classroomId, "2026-11")).users.find((u) => u.userId === seanId)!.buckets;
     expect(after.self).toBeCloseTo(642, 5);

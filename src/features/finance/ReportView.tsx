@@ -7,10 +7,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { monthOf } from "@/domains/finance/months";
 import { formatMoney } from "@/lib/money";
 import { useGetFinanceSettingsQuery, useGetMonthStatementQuery } from "@/store/slices/finance";
-import { useGetLocationsQuery } from "@/store/slices/locations";
 import MonthSwitcher from "./MonthSwitcher";
 
-type Row = { key: string; label: string; income: number; sessions: number; students: Set<number> };
+type Row = { key: string; label: string; income: number; sessions: number; students: number };
 
 /** 月報表：各分部與全教室的已實現收入、上課人次、學生數，以及每位老師這個月賺多少。 */
 export default function ReportView() {
@@ -18,26 +17,22 @@ export default function ReportView() {
   const { data: settings, isLoading: settingsLoading } = useGetFinanceSettingsQuery();
   const enabled = !!settings?.enabled;
   const { data: statement, isLoading, isError } = useGetMonthStatementQuery(month, { skip: !enabled });
-  const { data: locationData } = useGetLocationsQuery(undefined, { skip: !enabled });
 
   if (settingsLoading) return <Skeleton className="m-4 h-56 rounded-2xl lg:m-6" />;
   if (!enabled) return <EmptyState kind="page" title="這間教室還沒開財務" />;
 
-  const rows = new Map<string, Row>();
-  const total: Row = { key: "all", label: "全教室", income: 0, sessions: 0, students: new Set() };
-  for (const p of statement?.periods ?? []) {
-    const id = p.locationId;
-    const key = id === null ? "none" : String(id);
-    const label = id === null ? "未指定分部" : (locationData?.locations.find((l) => l.id === id)?.name ?? "分部");
-    if (!rows.has(key)) rows.set(key, { key, label, income: 0, sessions: 0, students: new Set() });
-    const row = rows.get(key)!;
-    for (const r of [row, total]) {
-      r.income += p.income.total;
-      r.sessions += p.income.realized.length;
-      for (const s of p.income.realized) r.students.add(s.studentId);
-    }
-  }
-  const all = [...rows.values(), total];
+  const branches = statement?.byBranch ?? [];
+  const all: Row[] = [
+    ...branches.map((b) => ({ key: String(b.locationId), label: b.name, income: b.revenue, sessions: b.sessions, students: b.students })),
+    {
+      key: "all",
+      label: "全教室",
+      income: branches.reduce((s, b) => s + b.revenue, 0),
+      sessions: branches.reduce((s, b) => s + b.sessions, 0),
+      // 全教室的學生數：同一位學生跨分部只算一次
+      students: new Set((statement?.periods ?? []).flatMap((p) => p.income.realized.map((r) => r.studentId))).size,
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-4 p-4 lg:p-6">
@@ -69,7 +64,7 @@ export default function ReportView() {
                       <td className="py-2.5 text-neutral-900">{r.label}</td>
                       <td className="py-2.5 text-right tabular-nums">${formatMoney(r.income)}</td>
                       <td className="py-2.5 text-right tabular-nums">{r.sessions}</td>
-                      <td className="py-2.5 text-right tabular-nums">{r.students.size}</td>
+                      <td className="py-2.5 text-right tabular-nums">{r.students}</td>
                     </tr>
                   ))}
                 </tbody>

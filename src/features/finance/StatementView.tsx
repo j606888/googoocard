@@ -10,7 +10,6 @@ import StatusTag from "@/components/StatusTag";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { monthOf } from "@/domains/finance/months";
-import type { Allocation } from "@/domains/finance/types";
 import { formatMoney } from "@/lib/money";
 import { toTaipeiDateKey } from "@/lib/taipei-date";
 import type { Payout } from "@/service/finance/settlement";
@@ -36,7 +35,6 @@ import { fundDeficits } from "./custodyNotices";
 import { financeErrorText, isPayoutDone, matchingTransfers, monthLabel, todayKey } from "./financeUi";
 import { useSplitNames } from "./useSplitNames";
 
-const UNKNOWN_BRANCH = 0;
 const shortDate = (iso: string) => toTaipeiDateKey(new Date(iso)).slice(5).replace("-", "/");
 
 function Block({ title, tip, children }: { title: string; tip?: string; children: React.ReactNode }) {
@@ -96,10 +94,10 @@ export default function StatementView({ month }: { month: string }) {
   // 能不能按「確認結算」
   const ended = monthOf(new Date()) > month;
   const isOpen = months?.openMonth === month;
-  const blocker = locked
+  const blocker = locked || !months
     ? null
     : !isOpen
-      ? `要先結算 ${months?.openMonth ?? "更早"} 之前的月份`
+      ? `要先結算 ${months.openMonth}`
       : !ended
         ? "這個月還沒結束，月底過後才能確認結算"
         : statement.warnings.includes("UNALLOCATED")
@@ -148,7 +146,7 @@ export default function StatementView({ month }: { month: string }) {
     try {
       await createTransfer({
         date: todayKey(),
-        amount: p.amount,
+        amount: p.amount - matchingTransfers(p, transfers, month).reduce((sum, t) => sum + t.amount, 0),
         fromUserId: p.fromUserId,
         toKind: p.toKind,
         ...(p.toUserId !== undefined && p.toKind !== "SELF" ? { toUserId: p.toUserId } : {}),
@@ -163,10 +161,17 @@ export default function StatementView({ month }: { month: string }) {
   };
   const undo = async (p: Payout) => {
     setBusyKey(payoutKey(p));
+    const list = matchingTransfers(p, transfers, month);
+    let removed = 0;
     try {
-      for (const t of matchingTransfers(p, transfers, month)) await deleteTransfer(t.id).unwrap();
+      for (const t of list) {
+        await deleteTransfer(t.id).unwrap();
+        removed++;
+      }
     } catch (e) {
-      toast.error(financeErrorText(e, "取消失敗，請再試一次"));
+      toast.error(
+        `${financeErrorText(e, "取消失敗")}${removed > 0 ? `（已取消 ${removed} 筆，還有 ${list.length - removed} 筆沒取消，這一列可能還顯示已轉）` : ""}`,
+      );
     }
     setBusyKey(null);
   };
@@ -175,28 +180,6 @@ export default function StatementView({ month }: { month: string }) {
   const pendingUnpaid = statement.pending.filter((n) => n.kind === "unpaid");
   const pendingUndecided = statement.pending.filter((n) => n.kind === "undecided");
   const hasNotes = pendingUnpaid.length > 0 || pendingUndecided.length > 0 || statement.uncheckedPeriods > 0;
-
-  // 各分部
-  const branches = new Map<number, { income: number; fund: number; expenses: number }>();
-  const branch = (id: number | null) => {
-    const key = id ?? UNKNOWN_BRANCH;
-    if (!branches.has(key)) branches.set(key, { income: 0, fund: 0, expenses: 0 });
-    return branches.get(key)!;
-  };
-  const addFund = (allocations: Allocation[]) => {
-    for (const a of allocations) if (a.payee.type === "fund") branch(a.payee.locationId).fund += a.amount;
-  };
-  for (const p of statement.periods) {
-    branch(p.locationId).income += p.income.total;
-    addFund(p.allocations ?? []);
-  }
-  for (const a of statement.adjustments) addFund(a.deltas);
-  for (const e of statement.expenses) {
-    const b = branch(e.locationId);
-    b.expenses += e.amount;
-    b.fund -= e.amount;
-  }
-  for (const x of statement.expiries) if (x.to.type === "fund") branch(x.to.locationId).fund += x.value;
 
   return (
     <div className="flex flex-col gap-4 p-4 lg:p-6">
@@ -295,19 +278,17 @@ export default function StatementView({ month }: { month: string }) {
 
         <div className="flex flex-col gap-4">
           <Block title="各分部" tip="營收是這個月上課的已付款收入；公積金變化 = 分到公積金的錢（含過期收入）− 支出。">
-            {branches.size === 0 ? (
+            {statement.byBranch.length === 0 ? (
               <EmptyState kind="inline" title="這個月沒有營收或支出" />
             ) : (
               <ul className="divide-y divide-neutral-100">
-                {[...branches.entries()].map(([id, b]) => (
-                  <li key={id} className="py-2.5 text-sm">
-                    <div className="font-medium text-neutral-900">
-                      {id === UNKNOWN_BRANCH ? "未指定分部" : (locationNames[id] ?? "分部")}
-                    </div>
+                {statement.byBranch.map((b) => (
+                  <li key={b.locationId ?? "none"} className="py-2.5 text-sm">
+                    <div className="font-medium text-neutral-900">{b.name}</div>
                     <div className="mt-0.5 flex flex-wrap gap-x-4 text-[13px] text-neutral-600">
-                      <span>營收 ${formatMoney(b.income)}</span>
+                      <span>營收 ${formatMoney(b.revenue)}</span>
                       <span>支出 ${formatMoney(b.expenses)}</span>
-                      <span>公積金 {b.fund >= 0 ? "+" : ""}{formatSigned(b.fund)}</span>
+                      <span>公積金 {b.fundChange >= 0 ? "+" : ""}{formatSigned(b.fundChange)}</span>
                     </div>
                   </li>
                 ))}
@@ -317,15 +298,12 @@ export default function StatementView({ month }: { month: string }) {
           {hasNotes && (
             <Block title="還沒算進來的" tip="只提醒，不擋結算。補上之後如果月份已經結算，會變成下個月的調整。">
               <ul className="divide-y divide-neutral-100">
-                {pendingUnpaid.length > 0 && (
-                  <Line
-                    label="待收（上了課還沒付款）"
-                    value={`${pendingUnpaid.length} 筆 $${formatMoney(pendingUnpaid.reduce((s, n) => s + (n.amount ?? 0), 0))}`}
-                  />
-                )}
-                {pendingUndecided.length > 0 && (
-                  <Line label="待定（還沒決定用哪張卡）" value={`${pendingUndecided.length} 位`} />
-                )}
+                {pendingUnpaid.map((n, i) => (
+                  <Line key={`u${i}`} label={`待收 · ${n.studentName}`} value={`$${formatMoney(n.amount ?? 0)}`} />
+                ))}
+                {pendingUndecided.map((n, i) => (
+                  <Line key={`d${i}`} label={`待定 · ${n.studentName}`} value="還沒決定用哪張卡" />
+                ))}
                 {statement.uncheckedPeriods > 0 && <Line label="還沒點名的時段" value={`${statement.uncheckedPeriods} 堂`} />}
               </ul>
             </Block>

@@ -40,7 +40,9 @@ export type MonthStatement = {
   payouts: Payout[];
   warnings: StatementWarning[];
   uncheckedPeriods: number;
-  pending: (PendingNote & { periodId: number })[];
+  pending: (PendingNote & { periodId: number; studentName: string })[];
+  /** 各分部：營收（已實現）、人次、學生數、支出、公積金變化（分到的＋調整＋過期收入＋取整零頭−支出） */
+  byBranch: { locationId: number | null; name: string; revenue: number; sessions: number; students: number; expenses: number; fundChange: number }[];
 };
 
 export type SettlementSnapshot = SnapshotCore & { statement: MonthStatement };
@@ -199,6 +201,54 @@ async function computeStatement(
     if (periods.some((p) => p.warnings.includes(code))) warnings.push(code);
   }
 
+  const pendingRaw = periods.flatMap((p) => p.income.pending.map((n) => ({ ...n, periodId: p.periodId })));
+  const studentRows = await prisma.student.findMany({
+    where: { classroomId, id: { in: [...new Set(pendingRaw.map((n) => n.studentId))] } },
+    select: { id: true, name: true },
+  });
+  const studentName = new Map(studentRows.map((st) => [st.id, st.name]));
+
+  // 各分部
+  const acc = new Map<number | null, { revenue: number; sessions: number; students: Set<number>; expenses: number; fundChange: number }>();
+  const slot = (id: number | null) => {
+    if (!acc.has(id)) acc.set(id, { revenue: 0, sessions: 0, students: new Set(), expenses: 0, fundChange: 0 });
+    return acc.get(id)!;
+  };
+  const addFund = (allocations: Allocation[]) => {
+    for (const a of allocations) if (a.payee.type === "fund") slot(a.payee.locationId).fundChange += a.amount;
+  };
+  for (const p of periods) {
+    const b = slot(p.locationId);
+    b.revenue += p.income.total;
+    b.sessions += p.income.realized.length;
+    for (const r of p.income.realized) b.students.add(r.studentId);
+    addFund(p.allocations ?? []);
+  }
+  for (const a of adjustments) addFund(a.deltas);
+  for (const e of ctx.expenses.filter((x) => expenseIds.has(x.id))) {
+    const b = slot(e.locationId);
+    b.expenses += e.amount;
+    b.fundChange -= e.amount;
+  }
+  for (const x of ctx.expiries.filter((e) => expiryIds.has(e.studentCardId))) {
+    if (x.to.type === "fund") slot(x.to.locationId).fundChange += x.value;
+  }
+  for (const r of roundings) slot(r.locationId).fundChange += r.amount;
+  const branchNames = new Map(
+    (await prisma.location.findMany({ where: { classroomId }, select: { id: true, name: true } })).map((l) => [l.id, l.name]),
+  );
+  const byBranch: MonthStatement["byBranch"] = [...acc.entries()]
+    .sort(([a], [b]) => (a ?? Infinity) - (b ?? Infinity))
+    .map(([locationId, v]) => ({
+      locationId,
+      name: locationId === null ? "未指定分部" : (branchNames.get(locationId) ?? "分部"),
+      revenue: v.revenue,
+      sessions: v.sessions,
+      students: v.students.size,
+      expenses: v.expenses,
+      fundChange: v.fundChange,
+    }));
+
   const statement: MonthStatement = {
     month,
     locked: false,
@@ -211,7 +261,8 @@ async function computeStatement(
     payouts,
     warnings,
     uncheckedPeriods,
-    pending: periods.flatMap((p) => p.income.pending.map((n) => ({ ...n, periodId: p.periodId }))),
+    pending: pendingRaw.map((n) => ({ ...n, studentName: studentName.get(n.studentId) ?? "學生" })),
+    byBranch,
   };
 
   const snapPeriods: SnapshotCore["periods"] = {};
