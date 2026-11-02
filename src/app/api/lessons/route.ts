@@ -22,6 +22,7 @@ import { teacherSummarySelect } from "@/lib/teachers";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
 import { locationSummarySelect } from "@/lib/locations";
 import { Prisma } from "@prisma/client";
+import { isFinanceEnabled } from "@/service/finance/access";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -248,6 +249,11 @@ export async function POST(request: Request) {
     !(await findLocationInClassroom(draftLesson.locationId, classroomId))
   ) {
     return NextResponse.json({ error: "LOCATION_NOT_FOUND" }, { status: 400 });
+  }
+
+  // 財務開啟時，每堂課都要有分部（錢才知道歸哪個公積金）。
+  if (draftLesson.locationId == null && (await isFinanceEnabled(classroomId!))) {
+    return NextResponse.json({ error: "LOCATION_REQUIRED", code: "LOCATION_REQUIRED" }, { status: 400 });
   }
 
   const cards = await prisma.card.findMany({

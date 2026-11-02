@@ -17,6 +17,7 @@ import { cardMatchesLesson } from "@/domains/qualification";
 import { isValidDanceLevel } from "@/lib/danceLevels";
 import { isValidDropInPrice, isValidLessonKind, isValidSessionsPerAttendance } from "@/lib/lessonKind";
 import { refreshLesson } from "@/service/lesson";
+import { isFinanceEnabled } from "@/service/finance/access";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -125,6 +126,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     !(await findLocationInClassroom(draftLesson.locationId, classroomId))
   ) {
     return NextResponse.json({ error: "LOCATION_NOT_FOUND" }, { status: 400 });
+  }
+
+  if (draftLesson.locationId == null && (await isFinanceEnabled(classroomId!))) {
+    return NextResponse.json({ error: "LOCATION_REQUIRED", code: "LOCATION_REQUIRED" }, { status: 400 });
   }
 
   const cards = await prisma.card.findMany({
