@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ApiError, notFound } from "@/lib/apiError";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
+import { refundAbsenceInTx } from "@/service/finance/bound";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -157,6 +158,9 @@ export async function mergeStudents(
       data: { studentId: target.id },
     });
 
+    // ----- Absences (財務綁課卡缺席扣格): never two in one period, never next to attendance -----
+    await mergeAbsences(tx, source.id, target.id);
+
     // ----- Plain moves -----
     await tx.studentCard.updateMany({ where: { studentId: source.id }, data: { studentId: target.id } });
     await tx.event.updateMany({ where: { studentId: source.id }, data: { studentId: target.id } });
@@ -232,4 +236,35 @@ export async function mergeStudents(
   });
 
   await refreshNeedsRenewalTag(targetId, classroomId);
+}
+
+/**
+ * 把 source 的缺席扣格搬到 target。同一個時段 target 已經有缺席，或 target
+ * 在那個時段有出席（含剛從 source 搬過來的）→ 退掉多的那筆缺席的格子、刪掉，
+ * 一人一個時段最多一筆缺席、而且有出席就不會再有缺席。要在出席搬完之後跑。
+ */
+async function mergeAbsences(tx: Prisma.TransactionClient, sourceId: number, targetId: number) {
+  const targetAbsentPeriods = new Set(
+    (await tx.attendanceAbsence.findMany({ where: { studentId: targetId }, select: { lessonPeriodId: true } })).map(
+      (a) => a.lessonPeriodId
+    )
+  );
+  for (const absence of await tx.attendanceAbsence.findMany({ where: { studentId: sourceId } })) {
+    if (targetAbsentPeriods.has(absence.lessonPeriodId)) {
+      await refundAbsenceInTx(tx, absence);
+    } else {
+      await tx.attendanceAbsence.update({ where: { id: absence.id }, data: { studentId: targetId } });
+    }
+  }
+
+  const attendedPeriods = new Set(
+    (await tx.attendanceRecord.findMany({ where: { studentId: targetId }, select: { lessonPeriodId: true } })).map(
+      (r) => r.lessonPeriodId
+    )
+  );
+  for (const absence of await tx.attendanceAbsence.findMany({ where: { studentId: targetId } })) {
+    if (attendedPeriods.has(absence.lessonPeriodId)) {
+      await refundAbsenceInTx(tx, absence);
+    }
+  }
 }

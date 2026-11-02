@@ -106,6 +106,7 @@ const CardFormFields = ({ form }: { form: CardFormState }) => {
       {financeEnabled && values.kind === "general" && (
         <BoundLessonField
           value={values.boundLessonId}
+          locked={issuedCount > 0}
           onChange={(id) => setValue("boundLessonId", id)}
         />
       )}
@@ -237,9 +238,12 @@ const DanceStyleField = ({
  */
 const BoundLessonField = ({
   value,
+  locked,
   onChange,
 }: {
   value: number | null;
+  /** 已經賣出過：綁定不能再改（持卡人的缺席扣格、贈送卡都照買的時候算）。 */
+  locked: boolean;
   onChange: (id: number | null) => void;
 }) => {
   const { data } = useGetLessonsQuery({ tab: "all", sort: "name" });
@@ -254,6 +258,7 @@ const BoundLessonField = ({
       <Select<number>
         id="card-bound-lesson"
         value={value ?? 0}
+        disabled={locked}
         onChange={(id) => onChange(id === 0 ? null : id)}
         options={[
           { value: 0, label: "不綁定" },
@@ -261,7 +266,9 @@ const BoundLessonField = ({
         ]}
       />
       <span className="text-xs text-neutral-500">
-        綁課卡只能上這門課，缺席那天點名時自動扣一格，買的時候附送一張贈送卡。
+        {locked
+          ? "這個方案已經賣出過，綁定的課不能再改。"
+          : "綁課卡只能上這門課，缺席那天點名時自動扣一格，買的時候附送一張贈送卡。"}
       </span>
     </div>
   );

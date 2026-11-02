@@ -23,13 +23,14 @@ export const GET = apiRoute(async ({ classroomId }) => {
   };
 
   const activeCards = await prisma.card.findMany({
-    where: { classroomId, expiredAt: null },
+    // 系統的「贈送卡」卡種不賣，不出現在價目表與課程的卡片選單（isGift）。
+    where: { classroomId, expiredAt: null, isGift: false },
     include: cardInclude,
     orderBy: { createdAt: "desc" },
   });
 
   const expiredCards = await prisma.card.findMany({
-    where: { classroomId, expiredAt: { not: null } },
+    where: { classroomId, expiredAt: { not: null }, isGift: false },
     include: cardInclude,
     orderBy: { createdAt: "desc" },
   });
@@ -67,23 +68,27 @@ export const POST = apiRoute(async ({ request, classroomId }) => {
   const { name, price, sessions, isPracticeCard, isTrial, danceStyleId, boundLessonId } =
     await parseBody(request, cardSchema);
   if (danceStyleId) await requireDanceStyleInClassroom(danceStyleId, classroomId);
-  await assertBoundLessonAllowed(classroomId, boundLessonId);
 
-  const created = await prisma.card.create({
-    data: {
-      name,
-      price,
-      sessions,
-      classroomId,
-      isPracticeCard,
-      isTrial,
-      // General cards may carry a dance style purely as a category label (it
-      // does not restrict usage — see cardMatchesLesson). Practice cards require it.
-      danceStyleId: danceStyleId ?? null,
-      boundLessonId: boundLessonId ?? null,
-    },
-    include: { danceStyle: { select: danceStyleSummarySelect } },
+  // 驗證、建卡、掛上綁定的課是同一件事：中途失敗不留半套。
+  const created = await prisma.$transaction(async (tx) => {
+    await assertBoundLessonAllowed(tx, classroomId, boundLessonId, { isPracticeCard, isTrial });
+    const card = await tx.card.create({
+      data: {
+        name,
+        price,
+        sessions,
+        classroomId,
+        isPracticeCard,
+        isTrial,
+        // General cards may carry a dance style purely as a category label (it
+        // does not restrict usage — see cardMatchesLesson). Practice cards require it.
+        danceStyleId: danceStyleId ?? null,
+        boundLessonId: boundLessonId ?? null,
+      },
+      include: { danceStyle: { select: danceStyleSummarySelect } },
+    });
+    if (card.boundLessonId !== null) await ensureBoundLessonCard(tx, card.boundLessonId, card.id);
+    return card;
   });
-  if (created.boundLessonId !== null) await ensureBoundLessonCard(created.boundLessonId, created.id);
   return created;
 });

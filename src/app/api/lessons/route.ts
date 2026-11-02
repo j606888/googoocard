@@ -259,6 +259,13 @@ export async function POST(request: Request) {
   const cards = await prisma.card.findMany({
     where: { id: { in: draftLesson.cardIds } },
   });
+  // 系統的「贈送卡」卡種不掛在課上（它什麼課都能用，由 issueGiftCardInTx 發）。
+  if (cards.some((card) => card.isGift)) {
+    return NextResponse.json(
+      { error: "GIFT_CARD_NOT_SELLABLE", code: "GIFT_CARD_NOT_SELLABLE" },
+      { status: 400 }
+    );
+  }
   const mismatchedCards = cards.filter(
     (card) => !cardMatchesLesson(card, draftLesson.danceStyleId)
   );

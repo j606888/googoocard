@@ -1,10 +1,14 @@
 import prisma from "@/lib/prisma";
 import { apiRoute, parseId, parseBody } from "@/lib/apiRoute";
-import { notFound } from "@/lib/apiError";
+import { ApiError, notFound } from "@/lib/apiError";
 import { cardSchema } from "@/lib/schemas";
 import { requireDanceStyleInClassroom } from "@/lib/authz";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
-import { assertBoundLessonAllowed, ensureBoundLessonCard } from "@/service/finance/bound";
+import {
+  assertBoundLessonAllowed,
+  assertCardSellable,
+  ensureBoundLessonCard,
+} from "@/service/finance/bound";
 
 type Params = { id: string };
 
@@ -101,30 +105,46 @@ export const PATCH = apiRoute<Params>(async ({ request, params, classroomId }) =
   // so another classroom's card price and session count were editable.
   const existing = await prisma.card.findFirst({
     where: { id: cardId, classroomId },
-    select: { id: true },
+    select: { id: true, isGift: true, boundLessonId: true, _count: { select: { studentCards: true } } },
   });
   if (!existing) throw notFound("Card");
+  assertCardSellable(existing);
   if (danceStyleId) await requireDanceStyleInClassroom(danceStyleId, classroomId);
-  await assertBoundLessonAllowed(classroomId, boundLessonId);
 
-  const updated = await prisma.card.update({
-    where: { id: existing.id },
-    data: {
-      name,
-      price,
-      sessions,
-      isPracticeCard,
-      isTrial,
-      // General cards may carry a dance style as a category label (does not
-      // restrict usage). Practice cards require it (guarded by the schema).
-      danceStyleId: danceStyleId ?? null,
-      // undefined（舊表單沒送）= 不動。
-      ...(boundLessonId === undefined ? {} : { boundLessonId }),
-    },
-    include: { danceStyle: { select: danceStyleSummarySelect } },
-  });
-  if (updated.boundLessonId !== null && boundLessonId) {
-    await ensureBoundLessonCard(updated.boundLessonId, updated.id);
+  const bindingChanged = boundLessonId !== undefined && boundLessonId !== existing.boundLessonId;
+  // 已經賣出的綁課卡不能改綁定：持卡人的缺席扣格、贈送卡都是照買的時候的綁定算的。
+  if (bindingChanged && existing._count.studentCards > 0) {
+    throw new ApiError(400, "BOUND_LESSON_LOCKED", "Cards of this type were already issued");
   }
+  const effectiveBinding = boundLessonId === undefined ? existing.boundLessonId : boundLessonId;
+  if (!bindingChanged && effectiveBinding !== null && (isPracticeCard || isTrial)) {
+    throw new ApiError(400, "BOUND_LESSON_INVALID", "Only general cards can be bound to a lesson");
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    if (bindingChanged) {
+      await assertBoundLessonAllowed(tx, classroomId, boundLessonId, { isPracticeCard, isTrial });
+    }
+    const card = await tx.card.update({
+      where: { id: existing.id },
+      data: {
+        name,
+        price,
+        sessions,
+        isPracticeCard,
+        isTrial,
+        // General cards may carry a dance style as a category label (does not
+        // restrict usage). Practice cards require it (guarded by the schema).
+        danceStyleId: danceStyleId ?? null,
+        // undefined（舊表單沒送）= 不動。
+        ...(bindingChanged ? { boundLessonId } : {}),
+      },
+      include: { danceStyle: { select: danceStyleSummarySelect } },
+    });
+    if (bindingChanged && card.boundLessonId !== null) {
+      await ensureBoundLessonCard(tx, card.boundLessonId, card.id);
+    }
+    return card;
+  });
   return updated;
 });

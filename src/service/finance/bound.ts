@@ -1,7 +1,5 @@
 import { Prisma } from "@prisma/client";
-import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
-import { isFinanceEnabled } from "@/service/finance/access";
 import { nextCardSerial } from "@/service/studentCardSerial";
 import { CARD_EXPIRY_MONTHS } from "@/service/finance/setup";
 import { addMonthsTaipei, toTaipeiDateKey } from "@/lib/taipei-date";
@@ -163,31 +161,55 @@ export async function reconcileAbsencesInTx(
 
 /**
  * 卡種表單的 `boundLessonId`：只有財務開啟的教室能設（400 FINANCE_DISABLED），
- * 而且必須是本教室 `kind = "fixed"` 的課（400 BOUND_LESSON_INVALID）。
- * null／undefined 直接放行（清除或不動）。
+ * 只能是一般方案（不是複習卡／體驗卡），而且必須是本教室 `kind = "fixed"`、
+ * 還沒結束的課（400 BOUND_LESSON_INVALID）。null／undefined 直接放行（清除或不動）。
  */
 export async function assertBoundLessonAllowed(
+  db: Prisma.TransactionClient,
   classroomId: number,
-  boundLessonId: number | null | undefined
+  boundLessonId: number | null | undefined,
+  { isPracticeCard, isTrial }: { isPracticeCard: boolean; isTrial: boolean }
 ): Promise<void> {
   if (boundLessonId === null || boundLessonId === undefined) return;
-  if (!(await isFinanceEnabled(classroomId))) {
+  const classroom = await db.classroom.findUnique({
+    where: { id: classroomId },
+    select: { financeEnabledAt: true },
+  });
+  if (!classroom?.financeEnabledAt) {
     throw new ApiError(400, "FINANCE_DISABLED", "Bound cards need finance enabled");
   }
-  const lesson = await prisma.lesson.findFirst({
-    where: { id: boundLessonId, classroomId, kind: "fixed" },
+  if (isPracticeCard || isTrial) {
+    throw new ApiError(400, "BOUND_LESSON_INVALID", "Only general cards can be bound to a lesson");
+  }
+  const lesson = await db.lesson.findFirst({
+    where: { id: boundLessonId, classroomId, kind: "fixed", status: { not: "finished" } },
     select: { id: true },
   });
   if (!lesson) {
-    throw new ApiError(400, "BOUND_LESSON_INVALID", "Bound lesson must be a fixed lesson in this classroom");
+    throw new ApiError(
+      400,
+      "BOUND_LESSON_INVALID",
+      "Bound lesson must be an unfinished fixed lesson in this classroom"
+    );
   }
 }
 
 /** 綁課卡一定掛在它那門課上（LessonCard），已經掛著就不動。 */
-export async function ensureBoundLessonCard(lessonId: number, cardId: number): Promise<void> {
-  await prisma.lessonCard.upsert({
+export async function ensureBoundLessonCard(
+  db: Prisma.TransactionClient,
+  lessonId: number,
+  cardId: number
+): Promise<void> {
+  await db.lessonCard.upsert({
     where: { lessonId_cardId: { lessonId, cardId } },
     update: {},
     create: { lessonId, cardId },
   });
+}
+
+/** 系統的「贈送卡」卡種只由 issueGiftCardInTx 發，不能賣、不能掛在課上。 */
+export function assertCardSellable(card: { isGift: boolean }): void {
+  if (card.isGift) {
+    throw new ApiError(400, "GIFT_CARD_NOT_SELLABLE", "The gift card type cannot be sold or attached");
+  }
 }

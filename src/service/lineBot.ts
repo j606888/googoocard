@@ -209,7 +209,8 @@ async function replyPrices(lineUserId: string, reply: Reply) {
   if (!classroom) return;
 
   const cards = await prisma.card.findMany({
-    where: { classroomId: classroom.id, expiredAt: null },
+    // 系統的「贈送卡」卡種不賣（isGift）。
+    where: { classroomId: classroom.id, expiredAt: null, isGift: false },
     select: {
       name: true,
       price: true,

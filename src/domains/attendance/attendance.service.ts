@@ -690,6 +690,29 @@ export async function selfCheckIn({
   const alreadyCheckedIds = new Set(existing.map((r) => r.lessonPeriodId));
   const newPeriods = periods.filter((p) => !alreadyCheckedIds.has(p.id));
 
+  // 老師點名時已被缺席扣格、後來才到的人：那幾格在寫入時會退回來
+  // （refundPresentAbsencesInTx），先在記憶體裡把卡補回，選卡才看得到它。
+  const absences = await prisma.attendanceAbsence.findMany({
+    where: { studentId, lessonPeriodId: { in: newPeriods.map((p) => p.id) } },
+    include: { studentCard: { include: { card: true } } },
+  });
+  for (const absence of absences) {
+    const inMemory = student.studentCards.find((c) => c.id === absence.studentCardId);
+    if (inMemory) {
+      inMemory.remainingSessions += absence.sessionsUsed;
+    } else if (
+      absence.studentCard.expiredAt === null &&
+      absence.studentCard.remainingSessions + absence.sessionsUsed >= lesson.sessionsPerAttendance &&
+      (validCardIds.includes(absence.studentCard.cardId) ||
+        absence.studentCard.card.boundLessonId === lesson.id)
+    ) {
+      student.studentCards.push({
+        ...absence.studentCard,
+        remainingSessions: absence.studentCard.remainingSessions + absence.sessionsUsed,
+      });
+    }
+  }
+
   // ----- Validate the card choice and plan every period before writing -----
   let chosenId: number | null = null;
   let buying: (typeof lesson.cards)[number]["card"] | null = null;
@@ -784,6 +807,11 @@ export async function selfCheckIn({
 
     try {
       await prisma.$transaction(async (tx) => {
+        // 這個時段之前被缺席扣過：刪缺席、退格，再照常出席扣卡（不重複扣）。
+        await refundPresentAbsencesInTx(tx, {
+          lessonPeriodId: period.id,
+          presentStudentIds: [student.id],
+        });
         const attendanceRecord = await createAttendanceRecord(
           tx,
           lesson.id,

@@ -29,6 +29,10 @@ export async function POST(request: Request) {
   if (!card || card.classroomId !== student.classroomId || card.isTrial) {
     return NextResponse.json({ error: "Card not found" }, { status: 404 });
   }
+  // 系統的「贈送卡」卡種不賣——只在買綁課卡時附送。
+  if (card.isGift) {
+    return NextResponse.json({ error: "GIFT_CARD_NOT_SELLABLE" }, { status: 400 });
+  }
 
   // Re-enforce qualification server-side (the client also hides these cards).
   if (card.isPracticeCard) {

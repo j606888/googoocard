@@ -6,6 +6,7 @@ import { buyStudentCardSchema } from "@/lib/schemas";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { canBuyCard, toDanceLevels } from "@/domains/qualification";
 import { createStudentCardInTx } from "@/service/studentCard";
+import { assertCardSellable } from "@/service/finance/bound";
 
 type Params = { id: string };
 
@@ -36,6 +37,7 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
     where: { id: cardId, classroomId },
   });
   if (!card) throw notFound("Card");
+  assertCardSellable(card);
 
   if (card.isPracticeCard) {
     const qualifications = await prisma.studentDanceQualification.findMany({

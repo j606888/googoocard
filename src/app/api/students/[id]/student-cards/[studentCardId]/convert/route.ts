@@ -5,6 +5,7 @@ import { convertStudentCardSchema } from "@/lib/schemas";
 import { canBuyCard, toDanceLevels } from "@/domains/qualification";
 import { performConversion } from "@/service/studentCardConversion";
 import { residualValueOf, suggestConversion } from "@/domains/cardConversion";
+import { assertCardSellable } from "@/service/finance/bound";
 
 // 課卡轉換 — 把一張還沒用完的舊卡換成另一種卡（Level 1 升級成 Level 2、
 // 複習卡 3 堂折抵成 1 堂 Level 2）。
@@ -52,6 +53,7 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
     where: { id: targetCardId, classroomId },
   });
   if (!targetCard) throw notFound("Card");
+  assertCardSellable(targetCard);
 
   // 轉成複習卡時，資格照購買規則擋 — 不能用轉換繞過。
   if (targetCard.isPracticeCard) {
