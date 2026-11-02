@@ -21,7 +21,7 @@ export interface CustodyCardProps {
   total: number;
   rows: CustodyRow[];
   /** 公積金為負、手上的錢又比預收少的分部（spec §14.6） */
-  deficits: { locationName: string; amount: number }[];
+  deficits: string[];
 }
 
 /** 一位保管人的「保管中」表：總額在上，下面是各格（加起來等於總額）。 */
@@ -47,7 +47,7 @@ export default function CustodyCard({ name, total, rows, deficits }: CustodyCard
 
       <ul className="mt-3 divide-y divide-neutral-100">
         {rows.map((row) => (
-          <li key={row.label} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+          <li key={row.key} className="flex items-center justify-between gap-3 py-2.5 text-sm">
             <span className={cn("min-w-0", TONE_TEXT[row.tone])}>
               {row.label}
               {row.tone === "locked" && <span className="ml-1.5 text-xs text-neutral-400">不能動</span>}
@@ -64,12 +64,9 @@ export default function CustodyCard({ name, total, rows, deficits }: CustodyCard
         ))}
       </ul>
 
-      {deficits.map((d) => (
-        <p
-          key={d.locationName}
-          className="mt-3 rounded-lg bg-warning-100 px-3 py-2 text-sm text-warning-950"
-        >
-          {d.locationName}目前虧 ${formatMoney(Math.abs(d.amount))}：手上的錢比預收少
+      {deficits.map((text) => (
+        <p key={text} className="mt-3 rounded-lg bg-warning-100 px-3 py-2 text-sm text-warning-950">
+          {text}
         </p>
       ))}
     </section>

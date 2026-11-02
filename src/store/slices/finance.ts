@@ -27,6 +27,16 @@ export interface FinanceVenue {
   archivedAt: string | null;
 }
 
+export interface FinancePack {
+  id: number;
+  venueId: number;
+  sessions: number;
+  price: number;
+  paidByUserId: number;
+  purchasedAt: string;
+  voidedAt: string | null;
+}
+
 const financeApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getFinanceSettings: builder.query<FinanceSettings, void>({
@@ -41,6 +51,10 @@ const financeApi = api.injectEndpoints({
       query: () => "finance/settlements",
       providesTags: ["Finance"],
     }),
+    getFinancePacks: builder.query<{ packs: FinancePack[] }, void>({
+      query: () => "finance/packs",
+      providesTags: ["Finance"],
+    }),
     getFinanceVenues: builder.query<{ venues: FinanceVenue[] }, void>({
       query: () => "finance/venues",
       providesTags: ["Finance"],
@@ -53,4 +67,5 @@ export const {
   useGetCustodyQuery,
   useGetSettlementMonthsQuery,
   useGetFinanceVenuesQuery,
+  useGetFinancePacksQuery,
 } = financeApi;

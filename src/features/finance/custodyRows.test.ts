@@ -9,6 +9,7 @@ const names: NameMaps = {
   teachers: { 10: "Nora", 11: "Charlene" },
   locations: { 100: "台南", 101: "高雄" },
   venues: { 5: "24steps" },
+  packs: { 7: { venue: "24steps", unitValue: 405 }, 8: { venue: "舞蝶", unitValue: 100 } },
   users: { 1: "丁丁", 2: "Sean" },
 };
 
@@ -24,12 +25,12 @@ describe("custodyRows", () => {
       peers: { 2: 700 },
     };
     expect(custodyRows(b, names)).toEqual([
-      { label: "預收（學生還沒上的卡）", amount: 5400, tone: "locked" },
-      { label: "待付 Nora", amount: 683.34, tone: "owed" },
-      { label: "待付 Charlene", amount: 666.66, tone: "owed" },
-      { label: "丁丁自己的", amount: 2850, tone: "mine" },
-      { label: "台南公積金", amount: -350, tone: "fund" },
-      { label: "欠 Sean", amount: 700, tone: "owed" },
+      { key: "prepaid", label: "預收（學生還沒上的卡）", amount: 5400, tone: "locked" },
+      { key: "teacher:10", label: "待付 Nora", amount: 683.34, tone: "owed" },
+      { key: "teacher:11", label: "待付 Charlene", amount: 666.66, tone: "owed" },
+      { key: "self", label: "丁丁自己的", amount: 2850, tone: "mine" },
+      { key: "fund:100", label: "台南公積金", amount: -350, tone: "fund" },
+      { key: "peer:2", label: "欠 Sean", amount: 700, tone: "owed" },
     ]);
   });
 
@@ -49,19 +50,29 @@ describe("custodyRows", () => {
       "待付 Charlene",
       "Sean自己的",
       "高雄公積金",
-      "場地包",
+      "場地包（24steps 剩 9 次）",
       "丁丁欠我",
     ]);
-    expect(rows.find((r) => r.label === "丁丁欠我")).toEqual({ label: "丁丁欠我", amount: -700, tone: "peer" });
-    expect(rows.find((r) => r.label === "場地包")?.tone).toBe("pack");
+    expect(rows.find((r) => r.label === "丁丁欠我")).toEqual({ key: "peer:1", label: "丁丁欠我", amount: -700, tone: "peer" });
+    expect(rows.find((r) => r.key === "pack:7")?.tone).toBe("pack");
   });
 
   it("金額四捨五入後為 0 的列不顯示，預收除外；有待付場地與未分配", () => {
     const b = { ...emptyBuckets(), prepaid: 0, self: 0.2, venues: { 5: 405 }, unallocated: 100 };
     expect(custodyRows(b, names)).toEqual([
-      { label: "預收（學生還沒上的卡）", amount: 0, tone: "locked" },
-      { label: "待付 24steps", amount: 405, tone: "owed" },
-      { label: "未分配", amount: 100, tone: "owed" },
+      { key: "prepaid", label: "預收（學生還沒上的卡）", amount: 0, tone: "locked" },
+      { key: "venue:5", label: "待付 24steps", amount: 405, tone: "owed" },
+      { key: "unallocated", label: "未分配", amount: 100, tone: "owed" },
     ]);
+  });
+
+  it("場地包：用完前剩幾次、超用幾次；key 唯一", () => {
+    const b = { ...emptyBuckets(), packs: { 7: -3645, 8: 200 } };
+    const rows = custodyRows(b, names);
+    expect(rows.filter((r) => r.tone === "pack").map((r) => [r.key, r.label])).toEqual([
+      ["pack:7", "場地包（24steps 剩 9 次）"],
+      ["pack:8", "場地包（舞蝶 超用 2 次）"],
+    ]);
+    expect(new Set(rows.map((r) => r.key)).size).toBe(rows.length);
   });
 });
