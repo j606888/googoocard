@@ -26,3 +26,16 @@ export function parseTaipeiMonthRange(monthKey: string): { start: Date; end: Dat
   const end = new Date(Date.UTC(year, month, 1, 0, -TAIPEI_OFFSET_MINUTES, 0, 0));
   return { start, end };
 }
+
+/**
+ * 台北某天 00:00 往後加 N 個月（日超過該月天數就取月底），回傳該時刻的 Date。
+ * 例：("2026-11-03", 6) → 2027-05-03 00:00 台北 = 2027-05-02T16:00:00Z。
+ */
+export function addMonthsTaipei(dateYmd: string, months: number): Date {
+  const [year, month, day] = dateYmd.split("-").map(Number);
+  const total = year * 12 + (month - 1) + months;
+  const y = Math.floor(total / 12);
+  const m = total % 12;
+  const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m, Math.min(day, lastDay), 0, -TAIPEI_OFFSET_MINUTES, 0, 0));
+}
