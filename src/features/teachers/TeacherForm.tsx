@@ -15,10 +15,11 @@ import {
   type TeacherSummary,
 } from "@/store/slices/teachers";
 
+// 「今天的助教」2026-11-01 已移除：身分現在只決定排課的老師選單列不列（`canTeach`）。
 const KIND_HINTS: Record<TeacherKind, string> = {
-  TEACHER: "只教課：點名選「今天的助教」時不會列出。",
-  ASSISTANT: "只當助教：排課選老師時不會列出；選助教時排在最前面。",
-  BOTH: "排課和選助教時都會列出。",
+  TEACHER: "排課選老師時會列出。",
+  ASSISTANT: "只當助教：排課選老師時不會列出。",
+  BOTH: "排課選老師時會列出。",
 };
 
 /**
@@ -37,7 +38,7 @@ const TeacherForm = ({
   teacher?: TeacherSummary & { note: string | null; kind?: TeacherKind };
   /** After a create — the lesson form selects the new teacher. */
   onCreated?: (teacher: TeacherSummary) => void;
-  /** 從點名頁「新增助教」開的：預設「助教」。 */
+  /** 預設身分；傳 "ASSISTANT" 時標題是「新增助教」。 */
   defaultKind?: TeacherKind;
 }) => {
   const { data: teachers = [] } = useGetTeachersQuery();
