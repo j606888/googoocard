@@ -183,4 +183,9 @@ export type SnapshotCore = {
    */
   eventIds: { expiries: (SnapshotExpiry | number)[]; expenses: number[]; refunds: number[]; transfers: number[] };
   roundings: LedgerInput["roundings"];
+  /**
+   * 鎖住當時每位保管人的預收（預收沒有月份，之後會變）；`?through` 這個月時用它，
+   * 已鎖月份的保管中才不會漂移。舊快照沒有這欄 → 用現況。
+   */
+  prepaid?: LedgerInput["prepaid"];
 };

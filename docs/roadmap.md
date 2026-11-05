@@ -38,7 +38,7 @@
   - **刻意不做**（第一階段）：包月場地（只有預付次數包）、小幫手保管（收款人只能是財務成員，小幫手代收記成分部負責人收的）、對帳輸入（銀行／實際現金核對）、iOS App 的財務介面（只有網站）、老師端逐人薪水頁。
   - **已知小缺口／待追蹤**（實作期間 review 留下的，沒有一項會算錯已鎖月份）：
     - 保管人／分部負責人／付款人是「永遠取現值」：鎖月之後改 `Location.keeperUserId`、`Teacher.payerUserId` 會讓已鎖月份的保管中顯示漂移（快照只存分帳與來源 key，不存當時的保管人）。
-    - `custodyBefore`（月結單的「月結前」）用現在的預收，不是歷史值；`?through` 的預收同為現況。
+    - ~~`custodyBefore`（月結單的「月結前」）用現在的預收，不是歷史值；`?through` 的預收同為現況。~~ ✅ 2026-11-05 — 鎖月快照存鎖住當時的預收（`SnapshotCore.prepaid`），`?through=已鎖月份` 從快照讀。
     - 同儕／場地發款 `Math.round` 可能多付 ≤ 0.5 元。
     - 退費、綁課卡鎖定（`BOUND_LESSON_LOCKED` 的計數在交易外）有 check-then-write 競態；最後一位財務的守門（count 再 update）也是。
     - 人的欄位（`Venue.landlordUserId`、`Teacher.payerUserId`、`Location.keeperUserId`／`expiryUserId`、`Classroom.legacyCustodianUserId`、各 `paidByUserId`）都是純 Int：沒 FK、多數沒索引；`AttendanceAbsence.studentId` 沒有 Student 關聯。

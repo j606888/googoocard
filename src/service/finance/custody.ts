@@ -47,6 +47,8 @@ export type SettlementContext = {
   expiries: ExpiryEvent[];
   /** 卡 → 最新一份包含它的快照裡的過期收入（只有新格式的快照） */
   expiryBaselines: Map<number, ExpiryState>;
+  /** 已鎖月份 → 鎖住當時的預收（舊快照沒有） */
+  lockedPrepaid: Map<string, LedgerInput["prepaid"]>;
 };
 
 export type Ledger = {
@@ -327,6 +329,7 @@ export async function loadLedger(classroomId: number): Promise<Ledger> {
       expenses,
       expiries,
       expiryBaselines,
+      lockedPrepaid: new Map(snapshots.flatMap((s) => (s.snapshot.prepaid ? [[s.month, s.snapshot.prepaid]] : []))),
     },
   };
 }
@@ -379,10 +382,16 @@ export async function getCustody(
 /** getCustody 的計算部分：已經有 loadLedger 結果時（例：結算單）不必重讀。 */
 export async function custodyFromLedger(
   classroomId: number,
-  { input, keepers, warnings }: Ledger,
+  { input, keepers, warnings, context }: Ledger,
   through?: string,
 ): Promise<{ users: CustodyUser[]; warnings: CustodyWarning[] }> {
-  const custody = computeCustody(input, keepers, through ? { through } : undefined);
+  // 已鎖月份：預收用鎖住當時的（現在的預收含之後買的卡、少了之後上的課）。
+  const lockedPrepaid = through ? context.lockedPrepaid.get(through) : undefined;
+  const custody = computeCustody(
+    lockedPrepaid ? { ...input, prepaid: lockedPrepaid } : input,
+    keepers,
+    through ? { through } : undefined,
+  );
 
   const members = await prisma.membership.findMany({
     where: { classroomId, isFinance: true },

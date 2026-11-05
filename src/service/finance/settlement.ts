@@ -341,6 +341,9 @@ async function computeStatement(
       transfers: newEventIds("transfers"),
     },
     roundings,
+    prepaid: Object.entries(custodyBefore)
+      .filter(([, b]) => b.prepaid !== 0)
+      .map(([userId, b]) => ({ holderUserId: Number(userId), value: b.prepaid })),
   };
   return { statement, snapshot };
 }

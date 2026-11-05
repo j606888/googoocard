@@ -294,6 +294,27 @@ describe("finance settlement", () => {
     expect(decCustody.funds[tainanId] - novCustody.funds[tainanId]).toBeCloseTo(111.11, 2);
   });
 
+  it("custody through a locked month keeps the prepaid from lock time (issue 07)", async () => {
+    const locked = await lockMonth({ classroomId, userId: dingId, month: "2026-11", now: DEC_3 });
+    // 鎖住之後：阿傑補付（他的卡 5 格進預收）、又有人買新卡
+    await payAjie();
+    const student = await createStudent(classroomId, { name: "New" });
+    const sc = await createStudentCard(student.id, cardTypeId, {
+      finalPrice: 2000, totalSessions: 6, remainingSessions: 6, isPaid: true,
+    });
+    await prisma.studentCard.update({ where: { id: sc.id }, data: { paidByUserId: seanId } });
+
+    const nov = await getCustody(classroomId, "2026-11");
+    for (const userId of [dingId, seanId]) {
+      const b = nov.users.find((u) => u.userId === userId)!.buckets;
+      expect(b.prepaid).toBeCloseTo(locked.custodyBefore[userId].prepaid, 5);
+      expect(b.cash).toBeCloseTo(locked.custodyBefore[userId].cash, 5);
+    }
+    // 沒有指定月份（現況）仍是現在的預收
+    const now = (await getCustody(classroomId)).users.find((u) => u.userId === seanId)!.buckets;
+    expect(now.prepaid).toBeCloseTo(locked.custodyBefore[seanId].prepaid + 2000, 5);
+  });
+
   it("delta appears once and is absorbed by the next lock", async () => {
     await lockMonth({ classroomId, userId: dingId, month: "2026-11", now: DEC_3 });
     await payAjie();
