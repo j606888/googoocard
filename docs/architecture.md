@@ -754,6 +754,8 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 **月結**：財務按「確認結算」才鎖（`lockMonth`），沒有自動鎖；存快照（每堂分帳、每人應領、保管人各格、`byBranch`、已實現的來源 key）。一筆收入歸「那堂課的月份；已鎖就歸最早未鎖的月份」；鎖後的補點名／補收款／改單堂金額只產生**調整**行（新 − 快照，歸最早未鎖月），**已鎖月份永不改變**。過期收入同理：快照的 `eventIds.expiries` 存 `{ id, value, holderUserId, to }`（鎖住當時的價值；舊格式只有 id），之後卡的剩格變了（例：退格到已過期的卡）→ 帳本在最早未鎖月放「沖銷快照那版＋現況」（`expiryHistoryEntries`，跟時段的 `periodHistoryEntries` 同一套），結算單列在 `expiryAdjustments`，下次鎖定時重存基準。只能鎖最早未鎖的月份（否則 409 `MONTH_NOT_OPEN`）。**作廢落在已鎖月份（或已被快照包含）的支出／轉帳／退費／次數包 → 409 `MONTH_LOCKED`**，要改請記一筆相反的新紀錄。`lockMonth` 只在三種情況擋：不是最早未鎖的月份（409 `MONTH_NOT_OPEN`）、該月在台北時間還沒結束（409 `MONTH_NOT_ENDED`）、結算單帶 `UNALLOCATED`（有錢找不到人，含解不出保管人；409 `UNALLOCATED`）。`UNCHECKED_PERIODS`／`NO_PACK`／`PACK_OVERDRAWN` 只在結算單上當提醒，**不擋**結算。**取整只在月結發錢時**：每人月合計取整到元，零頭進付款人負責分部的公積金；內部一律保留小數。
 
+**財務首頁**（`/finance`，`FinanceHome.tsx`）：分部切換（預設＝我負責的分部 `Location.keeperUserId`，沒有就全教室）＋月份切換。上面「要處理的事」（`GET /api/finance/home`，`service/finance/home.ts`）：未付款課卡、未付單堂、點名沒綁卡**直接取自 `getTodos()`**，用同一組元件（`features/UrgentTodoSections.tsx`，鈴鐺也用它）與同一個處理動作，再加上沒設分帳的課、過去沒點名的時段、次數包用完、上月未結算；每項帶 `locationId`＝這堂課的基金，`null`（未付款的卡、次數包）每個分部都看得到；一件都沒有整區不顯示。下面「本月收支」瀑布（`domains/finance/waterfall.ts` 的 `monthWaterfall`，吃結算單）：收入 → 老師 → 場地 → 進公積金 → 支出 → 本月淨變化。**分部依「這堂課的基金」（`PeriodFinance.fundLocationId`＝規則的 `fundLocationId`，沒規則＝上課分部）歸類，不依上課地點**；淨變化直接取結算單的 `byBranch.fundChange`，跟結算單永遠一致，差額（過期收入、調整、取整零頭）列成「過期收入與調整」。保管中不在首頁，只在月結算單。
+
 **測試**：純函式 `src/domains/finance/*.test.ts`；整合 `tests/api/finance-*.test.ts`；測試編碼 spec §13／§14 的案例。
 
 ## 測試

@@ -3,6 +3,7 @@ import type { SplitRule } from "@/domains/finance/types";
 import type { PeriodFinance as PeriodFinanceServer } from "@/service/finance/periods";
 import type { CustodyUser, CustodyWarning } from "@/service/finance/custody";
 import type { MonthStatement as MonthStatementServer } from "@/service/finance/settlement";
+import type { Todos } from "./todos";
 
 export interface FinanceSettings {
   enabled: boolean;
@@ -48,6 +49,21 @@ export type MonthStatement = Omit<MonthStatementServer, "periods" | "expiries"> 
   periods: PeriodFinance[];
   expiries: (Omit<MonthStatementServer["expiries"][number], "date"> & { date: string })[];
 };
+
+type Scoped = { locationId: number | null };
+
+/** GET /finance/home — 財務首頁「要處理的事」。`locationId` = 這堂課的基金；null = 每個分部都看得到。 */
+export interface FinanceHomeData {
+  myLocationId: number | null;
+  branches: { id: number; name: string }[];
+  unsettledMonth: string | null;
+  unpaidCards: (Todos["unpaidCards"][number] & Scoped)[];
+  unpaidDropIns: (Todos["unpaidDropIns"][number] & Scoped)[];
+  unboundAttendance: (Todos["unboundAttendance"][number] & Scoped)[];
+  unsplitLessons: ({ lessonId: number; lessonName: string } & Scoped)[];
+  uncheckedPeriods: ({ periodId: number; lessonId: number; lessonName: string; startTime: string } & Scoped)[];
+  exhaustedPacks: ({ venueId: number; venueName: string; overdrawn: number } & Scoped)[];
+}
 
 export type TransferKind = "USER" | "TEACHER" | "SELF" | "VENUE";
 
@@ -204,6 +220,11 @@ const financeApi = api.injectEndpoints({
       query: () => "finance/settings",
       providesTags: ["Classroom", "Membership"],
     }),
+    getFinanceHome: builder.query<FinanceHomeData, void>({
+      query: () => "finance/home",
+      // 跟待處理同一份資料：收款、點名、補卡都會改變它。
+      providesTags: ["Finance", "Lesson", "Student", "StudentCard", "AttendanceRecord"],
+    }),
     getCustody: builder.query<CustodyResponse, { through?: string } | void>({
       query: (arg) => (arg && arg.through ? `finance/custody?through=${arg.through}` : "finance/custody"),
       providesTags: ["Finance"],
@@ -316,6 +337,7 @@ export const {
   useGetFinanceTeachersQuery,
   useSetTeacherPayerMutation,
   useGetMonthStatementQuery,
+  useGetFinanceHomeQuery,
   useLockMonthMutation,
   useGetFinanceTransfersQuery,
   useCreateTransferMutation,
