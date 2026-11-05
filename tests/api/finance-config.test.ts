@@ -105,6 +105,36 @@ describe("finance config APIs", () => {
     expect((await rename.json()).code).toBe("VENUE_NAME_TAKEN");
   });
 
+  it("pack bought before launch: remaining N valued at price / total × N, dated the day before launch", async () => {
+    const v = await createVenue(classroomId);
+    const res = await POST_PACK(
+      jsonRequest("POST", { venueId: v.id, paidByUserId: 1, before: { totalSessions: 10, totalPrice: 3000, remaining: 4 } }),
+      routeParams({})
+    );
+    expect(res.status).toBe(200);
+    const pack = await res.json();
+    expect(pack).toMatchObject({ sessions: 4, price: 1200 });
+    expect(new Date(pack.purchasedAt).getTime()).toBeLessThan(LAUNCH.getTime());
+
+    // rounds to whole dollars
+    const r2 = await (
+      await POST_PACK(
+        jsonRequest("POST", { venueId: v.id, paidByUserId: 1, before: { totalSessions: 3, totalPrice: 1000, remaining: 1 } }),
+        routeParams({})
+      )
+    ).json();
+    expect(r2.price).toBe(333);
+
+    for (const before of [
+      { totalSessions: 10, totalPrice: 3000, remaining: 11 },
+      { totalSessions: 10, totalPrice: 3000, remaining: 0 },
+      { totalSessions: 0, totalPrice: 3000, remaining: 0 },
+    ]) {
+      const bad = await POST_PACK(jsonRequest("POST", { venueId: v.id, paidByUserId: 1, before }), routeParams({}));
+      expect(bad.status).toBe(400);
+    }
+  });
+
   it("pack voids instead of delete", async () => {
     const v = await createVenue(classroomId);
     const res = await POST_PACK(

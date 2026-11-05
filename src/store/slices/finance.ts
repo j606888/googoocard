@@ -95,13 +95,10 @@ export interface ExpenseInput {
   note?: string;
 }
 
-export interface PackInput {
-  venueId: number;
-  sessions: number;
-  price: number;
-  paidByUserId: number;
-  purchasedAt: string;
-}
+export type PackInput =
+  | { venueId: number; sessions: number; price: number; paidByUserId: number; purchasedAt: string }
+  /** 開帳：上線前買的包、還剩 remaining 次（價值＝包價 ÷ 總次數 × 剩下次數）。 */
+  | { venueId: number; paidByUserId: number; before: { totalSessions: number; totalPrice: number; remaining: number } };
 
 export type ChecklistKey =
   | "branches"
@@ -114,7 +111,7 @@ export type ChecklistKey =
   | "legacyPrepaid";
 
 export interface SetupResponse {
-  items: { key: ChecklistKey; done: boolean; detail?: string }[];
+  items: { key: ChecklistKey; done: boolean; detail?: string; links?: { label: string; href: string }[] }[];
   complete: boolean;
 }
 
@@ -190,6 +187,10 @@ const financeApi = api.injectEndpoints({
         body: { fundOpening },
       }),
       invalidatesTags: ["Finance"],
+    }),
+    getRuledLessons: builder.query<{ lessons: { id: number; name: string }[] }, void>({
+      query: () => "finance/lessons",
+      providesTags: ["Finance", "Lesson"],
     }),
     getStrayReceivers: builder.query<{ items: StrayReceiverItem[] }, void>({
       query: () => "finance/receivers",
@@ -336,6 +337,7 @@ export const {
   useUpdateFinanceLocationMutation,
   useConfirmFundOpeningMutation,
   useConfirmLegacyPrepaidMutation,
+  useGetRuledLessonsQuery,
   useGetStrayReceiversQuery,
   useReassignStrayReceiversMutation,
   useCreateFinanceVenueMutation,

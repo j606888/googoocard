@@ -18,7 +18,7 @@ import { useFinanceMembers } from "./useFinanceForm";
 
 const NONE = 0;
 
-/** 場地（房東）與次數包。次數包的「還剩幾次」直接買一包、填剩下的次數與價錢。 */
+/** 場地（房東）與次數包。開帳時上線前買的包用「之前買的還剩幾次」補上。 */
 export default function VenueSettings() {
   const { data } = useGetFinanceVenuesQuery();
   const { data: packData } = useGetFinancePacksQuery();
@@ -93,9 +93,9 @@ export default function VenueSettings() {
       {venues.some((v) => !v.archivedAt) && (
         <div>
           <Button variant="secondary" onClick={() => setPackOpen(true)}>
-            買次數包
+            記次數包
           </Button>
-          <PackForm open={packOpen} onClose={() => setPackOpen(false)} />
+          <PackForm open={packOpen} onClose={() => setPackOpen(false)} allowBefore />
         </div>
       )}
     </div>

@@ -62,7 +62,13 @@ export type ChecklistKey =
   | "receivers"
   | "legacyPrepaid";
 
-export type ChecklistItem = { key: ChecklistKey; done: boolean; detail?: string };
+export type ChecklistItem = {
+  key: ChecklistKey;
+  done: boolean;
+  detail?: string;
+  /** 還沒做完的那幾筆，可直接點過去（例：沒標分部的課）。 */
+  links?: { label: string; href: string }[];
+};
 
 /** 舊卡：上線前就有、沒記收款人、已付款、還有剩格的卡（算 legacy custodian 保管的預收）。 */
 export async function legacyPrepaidSummary(classroomId: number, financeEnabledAt: Date) {
@@ -90,7 +96,7 @@ function venueIdsOfRule(rule: unknown): number[] {
 
 /**
  * 開帳清單（spec §9），照順序。沒有東西要設定時視為完成（R25）：
- * 沒有進行中的課 → 課程相關項目完成；沒用到場地次數包 → 場地完成。
+ * 沒有進行中的課 → 課程相關項目完成。場地至少要建一個（次數包只要求有用到的場地）。
  */
 export async function setupChecklist(classroomId: number): Promise<ChecklistItem[]> {
   const classroom = await prisma.classroom.findUniqueOrThrow({
@@ -105,7 +111,7 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
     throw new ApiError(404, "FINANCE_DISABLED", "Finance is not enabled for this classroom");
   }
 
-  const [locations, lessons, financeMembers, overrides, packs] = await Promise.all([
+  const [locations, lessons, financeMembers, overrides, packs, venueCount] = await Promise.all([
     prisma.location.findMany({
       where: { classroomId, archivedAt: null },
       select: { keeperUserId: true, fundOpeningConfirmedAt: true },
@@ -113,10 +119,15 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
     prisma.lesson.findMany({
       where: { classroomId, status: "inProgress" },
       select: {
+        id: true,
+        name: true,
         locationId: true,
         splitRule: { select: { rule: true } },
-        teachers: { select: { teacher: { select: { payerUserId: true, userId: true } } } },
+        teachers: {
+          select: { teacher: { select: { id: true, name: true, payerUserId: true, userId: true } } },
+        },
       },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
     }),
     prisma.membership.findMany({ where: { classroomId, isCustodian: true }, select: { userId: true } }),
     prisma.periodSplitOverride.findMany({
@@ -124,11 +135,17 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
       select: { rule: true },
     }),
     prisma.venuePack.findMany({ where: { classroomId, voidedAt: null }, select: { venueId: true } }),
+    prisma.venue.count({ where: { classroomId, archivedAt: null } }),
   ]);
   const financeUserIds = new Set(financeMembers.map((m) => m.userId));
   const venueIdsWithPack = new Set(packs.map((p) => p.venueId));
 
-  const teachers = lessons.flatMap((l) => l.teachers.map((t) => t.teacher));
+  // 只算有進行中課的老師（同一位老師教多門課只算一次）。
+  const teachers = [...new Map(lessons.flatMap((l) => l.teachers.map((t) => [t.teacher.id, t.teacher]))).values()];
+  const teachersMissingPayer = teachers.filter(
+    (t) => t.payerUserId == null && !(t.userId != null && financeUserIds.has(t.userId)),
+  );
+  const lessonsWithoutBranch = lessons.filter((l) => l.locationId == null);
   const usedVenueIds = new Set([
     ...lessons.flatMap((l) => (l.splitRule ? venueIdsOfRule(l.splitRule.rule) : [])),
     ...overrides.flatMap((o) => venueIdsOfRule(o.rule)),
@@ -153,16 +170,21 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
     },
     {
       key: "lessonBranches",
-      done: lessons.every((l) => l.locationId != null),
+      done: lessonsWithoutBranch.length === 0,
+      ...(lessonsWithoutBranch.length > 0
+        ? { links: lessonsWithoutBranch.map((l) => ({ label: l.name, href: `/lessons/${l.id}` })) }
+        : {}),
     },
     {
       key: "teachers",
-      done:
-        teachers.every((t) => t.payerUserId != null || (t.userId != null && financeUserIds.has(t.userId))),
+      done: teachersMissingPayer.length === 0,
+      ...(teachersMissingPayer.length > 0
+        ? { detail: `還沒設：${teachersMissingPayer.map((t) => t.name).join("、")}` }
+        : {}),
     },
     {
       key: "venues",
-      done: [...usedVenueIds].every((id) => venueIdsWithPack.has(id)),
+      done: venueCount > 0 && [...usedVenueIds].every((id) => venueIdsWithPack.has(id)),
     },
     {
       key: "rules",

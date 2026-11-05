@@ -732,7 +732,7 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 其餘成員全部唯讀（第一階段全透明）。兩個旗標各自守門：最後一位保管人（`LAST_CUSTODIAN`）、最後一位可以結算的人（`LAST_SETTLER`）不能被取消。開財務的 owner 兩個都會被勾上。
 
-**資料表**（人的欄位刻意是純 Int、沒有 FK，存在性與教室歸屬由 service 驗證）：`Venue`／`VenuePack`（場地與預付次數包）、`LessonSplitRule`／`PeriodSplitOverride`（整門課規則 JSON＋單堂覆寫）、`AttendanceAbsence`、`FinanceExpense`、`FinanceTransfer`（`toKind` USER／TEACHER／SELF／VENUE）、`FinanceRefund`、`FinanceSettlement`（月結快照）。`StudentCard` 加 `expiresAt`／`closedReason`／`soldLocationId`／`giftFromId`，`Card` 加綁課欄位。
+**資料表**（人的欄位刻意是純 Int、沒有 FK，存在性與教室歸屬由 service 驗證）：`Venue`／`VenuePack`（場地與預付次數包）、`LessonSplitRule`／`PeriodSplitOverride`（整門課規則 JSON＋單堂覆寫）、`AttendanceAbsence`、`FinanceExpense`、`FinanceTransfer`（`toKind` USER／TEACHER／SELF／VENUE）、`FinanceRefund`、`FinanceSettlement`（月結快照）。`StudentCard` 加 `expiresAt`／`closedReason`／`soldLocationId`／`giftFromId`，`Card` 加綁課欄位。開帳時上線前買、還剩 N 次的場地包用 `POST /api/finance/packs` 的 `before: { totalSessions, totalPrice, remaining }` 記：價值＝包價 ÷ 總次數 × N（取整到元），`purchasedAt` 記在上線前一天，所以先買先用時最先被扣；帳本上跟一般次數包一樣（付款人 −價值，之後每堂場地費補回）。
 
 **計算放哪裡**（由底往上，能算的都不存）：
 1. `src/domains/finance/split.ts`：純函式，規則 JSON → 一堂課的分帳（收入 − 場地 − 助教 − 抽成 → 老師／公積金）。
