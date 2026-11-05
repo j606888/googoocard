@@ -117,6 +117,10 @@ describe("computeCustody — spec §14", () => {
     // spec 寫的是四捨五入後的加總（416.67+266.67、333.33+333.33）；精確值 683.33／666.67
     expectRecord(d.teachers, { [NORA]: 683.34, [CHARLENE]: 666.66 }, 1);
     expect(d.self).toBeCloseTo(2850, 2);
+    // 「丁丁自己的（分潤 1,350＋場租 1,500）」
+    expect(d.selfParts.share).toBeCloseTo(1350, 2);
+    expect(d.selfParts.rent).toBeCloseTo(1500, 2);
+    expect(d.selfParts.expiry).toBeCloseTo(0, 5);
     expectRecord(d.funds, { [TAINAN]: -350 });
     expectRecord(d.peers, { [SEAN]: 700 });
     expectRecord(d.packs, {});

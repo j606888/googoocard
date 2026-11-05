@@ -34,6 +34,16 @@ describe("custodyRows", () => {
     ]);
   });
 
+  it("自己的：分潤和場租合成一格，標出來源", () => {
+    const b = { ...emptyBuckets(), cash: 1511, self: 1511, selfParts: { share: 911, rent: 600, expiry: 0 } };
+    expect(custodyRows(b, names).find((r) => r.key === "self")?.label).toBe("丁丁自己的（分潤 911＋場租 600）");
+    // 只有一種來源，或領過一部分（來源加總對不上）→ 不標
+    const one = { ...emptyBuckets(), self: 600, selfParts: { share: 0, rent: 600, expiry: 0 } };
+    expect(custodyRows(one, names).find((r) => r.key === "self")?.label).toBe("丁丁自己的");
+    const partly = { ...emptyBuckets(), self: 500, selfParts: { share: 911, rent: 600, expiry: 0 } };
+    expect(custodyRows(partly, names).find((r) => r.key === "self")?.label).toBe("丁丁自己的");
+  });
+
   it("spec §14.4 Sean：場地包、丁丁欠我、高雄公積金", () => {
     const b = {
       ...emptyBuckets(),

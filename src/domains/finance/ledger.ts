@@ -44,6 +44,8 @@ export type Buckets = {
   prepaid: number;
   unallocated: number;
   self: number;
+  /** 「自己的」從哪來（只加不減；領走、取整不算）：分潤、場租、過期收入。舊的結算快照沒有這欄。 */
+  selfParts: SelfParts;
   teachers: Record<number, number>; // 待付某老師
   funds: Record<number, number>; // 這人保管的公積金
   packs: Record<number, number>; // 場地包（負數＝已付未用）
@@ -51,8 +53,10 @@ export type Buckets = {
   peers: Record<number, number>; // 正＝我欠對方；負＝對方欠我
 };
 
+export type SelfParts = { share: number; rent: number; expiry: number };
+
 type Slot =
-  | { kind: "self" }
+  | { kind: "self"; part?: keyof SelfParts }
   | { kind: "teachers" | "funds" | "packs" | "venues"; id: number };
 
 export type ResolvedPayee = { keeper: number; slot: Slot };
@@ -60,7 +64,7 @@ export type ResolvedPayee = { keeper: number; slot: Slot };
 const TOLERANCE = 0.005;
 
 export function emptyBuckets(): Buckets {
-  return { cash: 0, prepaid: 0, unallocated: 0, self: 0, teachers: {}, funds: {}, packs: {}, venues: {}, peers: {} };
+  return { cash: 0, prepaid: 0, unallocated: 0, self: 0, selfParts: { share: 0, rent: 0, expiry: 0 }, teachers: {}, funds: {}, packs: {}, venues: {}, peers: {} };
 }
 
 /** 一筆分帳該由誰付、進他的哪一格；找不到負責人 → null（呼叫端放進未分配）。 */
@@ -69,7 +73,7 @@ export function resolvePayee(payee: Payee, periodId: number, keepers: Keepers): 
     const keeper = keepers.teacherPayer[payee.teacherId];
     if (keeper === undefined) return null;
     return keepers.teacherUser[payee.teacherId] === keeper
-      ? { keeper, slot: { kind: "self" } }
+      ? { keeper, slot: { kind: "self", part: "share" } }
       : { keeper, slot: { kind: "teachers", id: payee.teacherId } };
   }
   if (payee.type === "fund") {
@@ -81,7 +85,7 @@ export function resolvePayee(payee: Payee, periodId: number, keepers: Keepers): 
     return keeper === undefined ? null : { keeper, slot: { kind: "packs", id: payee.packId } };
   }
   const landlord = keepers.venueLandlord[payee.venueId];
-  if (landlord !== null && landlord !== undefined) return { keeper: landlord, slot: { kind: "self" } };
+  if (landlord !== null && landlord !== undefined) return { keeper: landlord, slot: { kind: "self", part: "rent" } };
   const keeper = keepers.branchKeeperOfPeriod(periodId);
   return keeper === null ? null : { keeper, slot: { kind: "venues", id: payee.venueId } };
 }
@@ -100,8 +104,10 @@ export function computeCustody(
   };
   const addSlot = (userId: number, slot: Slot, amount: number) => {
     const b = get(userId);
-    if (slot.kind === "self") b.self += amount;
-    else addRec(b[slot.kind], slot.id, amount);
+    if (slot.kind === "self") {
+      b.self += amount;
+      if (slot.part) b.selfParts[slot.part] += amount;
+    } else addRec(b[slot.kind], slot.id, amount);
   };
   /** 錢在 holder 手上、該進 keeper 的 slot：不同人 → holder 欠 keeper。 */
   const place = (holder: number, keeper: number, slot: Slot, amount: number) => {
@@ -172,7 +178,7 @@ export function computeCustody(
     get(e.holderUserId).cash += e.value;
     const r: ResolvedPayee | null =
       e.to.type === "user"
-        ? { keeper: e.to.userId, slot: { kind: "self" } }
+        ? { keeper: e.to.userId, slot: { kind: "self", part: "expiry" } }
         : keepers.fundKeeper[e.to.locationId] === undefined
           ? null
           : { keeper: keepers.fundKeeper[e.to.locationId], slot: { kind: "funds", id: e.to.locationId } };
