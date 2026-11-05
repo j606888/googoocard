@@ -4,6 +4,7 @@ import { getTodos } from "@/service/todos";
 import { assertFinanceEnabled } from "./access";
 import { periodFundLocationId, resolvePackUnitPrices } from "./periods";
 import { listSettlementMonths } from "./settlement";
+import { unreviewedBranchesFor } from "./branchReview";
 
 const LIST_LIMIT = 50;
 
@@ -15,12 +16,12 @@ const ruleSelect = {
 /**
  * 財務首頁「要處理的事」。待處理清單的三類（未付款課卡、未付單堂、點名沒綁卡）直接取自
  * `getTodos()`，同一份資料；再加上財務才有的：沒設分帳的課、過去沒點名的時段、次數包用完、
- * 上月未結算。每一項帶 `locationId`＝這堂課的基金（跟瀑布同一個口徑）；`null` = 不屬於
+ * 上月未結算、我的分部還沒核對（5 號後）。每一項帶 `locationId`＝這堂課的基金（跟瀑布同一個口徑）；`null` = 不屬於
  * 任何分部，每個分部都看得到（未付款的卡在收款前沒有賣卡分部）。
  */
 export async function getFinanceHome(classroomId: number, userId: number, now = new Date()) {
   const { financeEnabledAt } = await assertFinanceEnabled(classroomId);
-  const [todos, months, branches] = await Promise.all([
+  const [todos, months, branches, unreviewed] = await Promise.all([
     getTodos(classroomId, now),
     listSettlementMonths(classroomId, now),
     prisma.location.findMany({
@@ -28,6 +29,7 @@ export async function getFinanceHome(classroomId: number, userId: number, now = 
       select: { id: true, name: true, keeperUserId: true },
       orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
     }),
+    unreviewedBranchesFor(classroomId, userId, now),
   ]);
 
   const periodIds = [
@@ -106,6 +108,7 @@ export async function getFinanceHome(classroomId: number, userId: number, now = 
       startTime: p.startTime,
       locationId: periodFundLocationId(p),
     })),
+    unreviewedBranches: unreviewed,
     exhaustedPacks: [...venues.values()]
       .filter((v) => v.used >= v.sessions)
       .map((v) => ({ venueId: v.venueId, venueName: v.venueName, overdrawn: v.used - v.sessions, locationId: null })),

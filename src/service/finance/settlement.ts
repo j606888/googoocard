@@ -20,6 +20,7 @@ import type { Allocation } from "@/domains/finance/types";
 import { assertCanSettle, assertFinanceEnabled } from "./access";
 import { custodyFromLedger, ledgerWarnings, loadLedger } from "./custody";
 import type { Ledger } from "./custody";
+import { periodFundLocationId } from "./periods";
 import type { PeriodFinance } from "./periods";
 import type { ExpiryTarget } from "./expiry";
 
@@ -53,6 +54,8 @@ export type MonthStatement = {
   payouts: Payout[];
   warnings: StatementWarning[];
   uncheckedPeriods: number;
+  /** 還沒點名的時段，依這堂課的基金分部；舊的鎖住結算單沒有這個欄位。 */
+  uncheckedByBranch?: { locationId: number | null; count: number }[];
   pending: (PendingNote & { periodId: number; studentName: string })[];
   /** 各分部：營收（已實現）、人次、學生數、支出、公積金變化（分到的＋調整＋過期收入＋取整零頭−支出） */
   byBranch: { locationId: number | null; name: string; revenue: number; sessions: number; students: number; expenses: number; fundChange: number }[];
@@ -223,13 +226,26 @@ async function computeStatement(
   const { payouts, roundings } = computePayouts(custodyBefore, financeRoundTo, branchOf, month);
 
   const { start, end } = parseTaipeiMonthRange(month);
-  const uncheckedPeriods = await prisma.lessonPeriod.count({
+  const unchecked = await prisma.lessonPeriod.findMany({
     where: {
       lesson: { classroomId },
       attendanceTakenAt: null,
       startTime: { gte: start > financeEnabledAt ? start : financeEnabledAt, lt: end < now ? end : now },
     },
+    select: {
+      splitOverride: { select: { rule: true } },
+      lesson: { select: { locationId: true, splitRule: { select: { rule: true } } } },
+    },
   });
+  const uncheckedPeriods = unchecked.length;
+  const uncheckedCount = new Map<number | null, number>();
+  for (const p of unchecked) {
+    const fund = periodFundLocationId(p);
+    uncheckedCount.set(fund, (uncheckedCount.get(fund) ?? 0) + 1);
+  }
+  const uncheckedByBranch = [...uncheckedCount.entries()]
+    .sort(([a], [b]) => (a ?? Infinity) - (b ?? Infinity))
+    .map(([locationId, count]) => ({ locationId, count }));
 
   const warnings: StatementWarning[] = [];
   const unallocated =
@@ -248,7 +264,7 @@ async function computeStatement(
   });
   const studentName = new Map(studentRows.map((st) => [st.id, st.name]));
 
-  // 各分部
+  // 各分部：依這堂課的基金歸類，不依上課地點（spec「週日課」）
   const acc = new Map<number | null, { revenue: number; sessions: number; students: Set<number>; expenses: number; fundChange: number }>();
   const slot = (id: number | null) => {
     if (!acc.has(id)) acc.set(id, { revenue: 0, sessions: 0, students: new Set(), expenses: 0, fundChange: 0 });
@@ -258,7 +274,7 @@ async function computeStatement(
     for (const a of allocations) if (a.payee.type === "fund") slot(a.payee.locationId).fundChange += a.amount;
   };
   for (const p of periods) {
-    const b = slot(p.locationId);
+    const b = slot(p.fundLocationId);
     b.revenue += p.income.total;
     b.sessions += p.income.realized.length;
     for (const r of p.income.realized) b.students.add(r.studentId);
@@ -305,6 +321,7 @@ async function computeStatement(
     payouts,
     warnings,
     uncheckedPeriods,
+    uncheckedByBranch,
     pending: pendingRaw.map((n) => ({ ...n, studentName: studentName.get(n.studentId) ?? "學生" })),
     byBranch,
   };
@@ -445,4 +462,12 @@ export async function assertVoidable(
   if (inSnapshot || rows.some((r) => r.month === month)) {
     throw new ApiError(409, "MONTH_LOCKED", "This month is locked");
   }
+}
+
+/** 路由的 `[month]` 參數：YYYY-MM，否則 400 INVALID_MONTH。 */
+export function parseMonthParam(raw: string | undefined): string {
+  if (!raw || !/^\d{4}-(0[1-9]|1[0-2])$/.test(raw)) {
+    throw new ApiError(400, "INVALID_MONTH", "month must be YYYY-MM");
+  }
+  return raw;
 }

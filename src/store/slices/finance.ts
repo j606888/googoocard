@@ -3,6 +3,7 @@ import type { SplitRule } from "@/domains/finance/types";
 import type { PeriodFinance as PeriodFinanceServer } from "@/service/finance/periods";
 import type { CustodyUser, CustodyWarning } from "@/service/finance/custody";
 import type { MonthStatement as MonthStatementServer } from "@/service/finance/settlement";
+import type { BranchReviewStatus } from "@/service/finance/branchReview";
 import type { Todos } from "./todos";
 
 export interface FinanceSettings {
@@ -48,6 +49,8 @@ export type PeriodFinance = Omit<PeriodFinanceServer, "startTime"> & { startTime
 export type MonthStatement = Omit<MonthStatementServer, "periods" | "expiries"> & {
   periods: PeriodFinance[];
   expiries: (Omit<MonthStatementServer["expiries"][number], "date"> & { date: string })[];
+  /** 各分部核對狀態（有負責人、沒封存的分部） */
+  reviews: (Omit<BranchReviewStatus, "reviewedAt"> & { reviewedAt: string | null })[];
 };
 
 type Scoped = { locationId: number | null };
@@ -63,6 +66,8 @@ export interface FinanceHomeData {
   unsplitLessons: ({ lessonId: number; lessonName: string } & Scoped)[];
   uncheckedPeriods: ({ periodId: number; lessonId: number; lessonName: string; startTime: string } & Scoped)[];
   exhaustedPacks: ({ venueId: number; venueName: string; overdrawn: number } & Scoped)[];
+  /** 5 號過後，上個月我負責、還沒核對的分部 */
+  unreviewedBranches: { month: string; locationId: number; locationName: string }[];
 }
 
 export type TransferKind = "USER" | "TEACHER" | "SELF" | "VENUE";
@@ -271,8 +276,16 @@ const financeApi = api.injectEndpoints({
       query: (month) => `finance/settlements/${month}`,
       providesTags: ["Finance"],
     }),
-    lockMonth: builder.mutation<MonthStatement, string>({
+    lockMonth: builder.mutation<unknown, string>({
       query: (month) => ({ url: `finance/settlements/${month}`, method: "POST" }),
+      invalidatesTags: ["Finance"],
+    }),
+    reviewBranch: builder.mutation<unknown, { month: string; locationId: number }>({
+      query: ({ month, locationId }) => ({
+        url: `finance/settlements/${month}/reviews`,
+        method: "POST",
+        body: { locationId },
+      }),
       invalidatesTags: ["Finance"],
     }),
     getFinanceTransfers: builder.query<{ transfers: FinanceTransfer[] }, void>({
@@ -368,6 +381,7 @@ export const {
   useGetMonthStatementQuery,
   useGetFinanceHomeQuery,
   useLockMonthMutation,
+  useReviewBranchMutation,
   useGetFinanceTransfersQuery,
   useCreateTransferMutation,
   useDeleteTransferMutation,

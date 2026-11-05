@@ -112,6 +112,7 @@ model Classroom {
   financeExpenses          FinanceExpense[]
   financeTransfers         FinanceTransfer[]
   financeSettlements       FinanceSettlement[]
+  financeBranchReviews     FinanceBranchReview[]
   // 在 LINE 官方帳號公開課表與價目表——沒綁定的人也看得到（src/service/lineBot.ts）。
   lineListed               Boolean                  @default(false)
   createdAt                DateTime                 @default(now())
@@ -404,6 +405,7 @@ model Location {
   fundOpening            Int              @default(0)
   fundOpeningConfirmedAt DateTime?
   financeExpenses        FinanceExpense[]
+  financeBranchReviews   FinanceBranchReview[]
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
 
@@ -810,4 +812,20 @@ model FinanceSettlement {
   snapshot    Json
 
   @@unique([classroomId, month])
+}
+
+// 分部核對：負責人確認「這個月這個分部該收的都收到、數字對」。不擋結算。
+// hash = 核對當下這個分部這個月結果的雜湊；之後讀到的結果不同 → 核對失效（不必每個寫入點都記得清）。
+model FinanceBranchReview {
+  id           Int       @id @default(autoincrement())
+  classroomId  Int
+  classroom    Classroom @relation(fields: [classroomId], references: [id])
+  month        String
+  locationId   Int
+  location     Location  @relation(fields: [locationId], references: [id])
+  reviewedById Int // User id，純 Int、沒有 FK
+  reviewedAt   DateTime
+  hash         String
+
+  @@unique([classroomId, month, locationId])
 }

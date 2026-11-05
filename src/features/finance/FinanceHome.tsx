@@ -14,6 +14,7 @@ import ConfirmPaymentDrawer, { type ConfirmPaymentTarget } from "@/features/stud
 import BindAttendanceCardDialog, { type BindCardTarget } from "@/features/BindAttendanceCardDialog";
 import { UrgentTodoSections, TodoSection } from "@/features/UrgentTodoSections";
 import { unsettledNotice } from "./custodyNotices";
+import { monthLabel } from "./financeUi";
 import { defaultScope, inBranch } from "./homeTodos";
 import EnableFinance from "./EnableFinance";
 import SetupChecklist from "./SetupChecklist";
@@ -101,6 +102,7 @@ function scopedTodos(home: FinanceHomeData, scope: BranchScope) {
     unsplitLessons: inBranch(home.unsplitLessons, scope),
     uncheckedPeriods: inBranch(home.uncheckedPeriods, scope),
     exhaustedPacks: inBranch(home.exhaustedPacks, scope),
+    unreviewedBranches: inBranch(home.unreviewedBranches, scope),
   };
   const unsettled = unsettledNotice(home.unsettledMonth ?? undefined, monthOf(new Date()));
   const count = Object.values(lists).reduce((s, l) => s + l.length, 0) + (unsettled ? 1 : 0);
@@ -111,7 +113,7 @@ function scopedTodos(home: FinanceHomeData, scope: BranchScope) {
 function HomeTodos({ todos, unsettledMonth }: { todos: ReturnType<typeof scopedTodos>; unsettledMonth: string | null }) {
   const [payTarget, setPayTarget] = useState<ConfirmPaymentTarget | null>(null);
   const [bindTarget, setBindTarget] = useState<BindCardTarget | null>(null);
-  const { unsplitLessons, uncheckedPeriods, exhaustedPacks, unsettled } = todos;
+  const { unsplitLessons, uncheckedPeriods, exhaustedPacks, unreviewedBranches, unsettled } = todos;
 
   return (
     <>
@@ -122,6 +124,16 @@ function HomeTodos({ todos, unsettledMonth }: { todos: ReturnType<typeof scopedT
             <LinkRow href={`/finance/settle/${unsettledMonth}`} title={unsettled} subtitle="看結算單，確認結算" />
           </TodoSection>
         )}
+        <TodoSection title="分部還沒核對" count={unreviewedBranches.length} dot="bg-warning-600">
+          {unreviewedBranches.map((b) => (
+            <LinkRow
+              key={`${b.month}:${b.locationId}`}
+              href={`/finance/settle/${b.month}`}
+              title={`${monthLabel(b.month)} ${b.locationName}還沒核對`}
+              subtitle="看結算單，確認數字後按核對"
+            />
+          ))}
+        </TodoSection>
         <UrgentTodoSections
           unboundAttendance={todos.unboundAttendance}
           unpaidCards={todos.unpaidCards}

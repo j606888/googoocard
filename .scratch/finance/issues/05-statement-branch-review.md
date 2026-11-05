@@ -1,6 +1,6 @@
 # 05 月結算單重排＋分部核對
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Blocked by: 04
 
@@ -13,3 +13,7 @@ Parent: `.scratch/finance/spec.md`（「月結」一節）
 - 5 號後首頁「要處理的事」出現「X 月 台南還沒核對」（給負責人）。
 
 另見 spec「週日課」：結算單「各分部」依「這堂課的基金」歸類，不依上課地點。
+
+## Answer
+結算單重排成 狀態列（各分部核對＋確認結算）→ 我要轉／領 → 各分部（瀑布、還沒算進來的、每堂明細、核對按鈕；依這堂課的基金）→ 每個人這個月 → 保管中。新表 `FinanceBranchReview`（migration `finance_branch_review`），只有負責人能按，存雜湊、讀時比對 → 有變動自動失效；不擋結算、確認對話框提醒。
+台北 5 號過後首頁「要處理的事」列「X 月 台南還沒核對」給負責人。測試：`tests/api/finance-branch-review.test.ts`。

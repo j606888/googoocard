@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import InfoTip from "@/components/InfoTip";
 import { Skeleton } from "@/components/ui/skeleton";
-import { monthWaterfall, type BranchScope } from "@/domains/finance/waterfall";
+import { monthWaterfall, type BranchScope, type Waterfall } from "@/domains/finance/waterfall";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { useGetMonthStatementQuery } from "@/store/slices/finance";
@@ -57,7 +57,6 @@ export default function MonthWaterfall({
   if (isError || !statement) return <EmptyState kind="inline" title="讀不到這個月的資料，請稍後再試" />;
 
   const w = monthWaterfall(statement, scope);
-  const show = (x: number) => Math.abs(x) >= EPSILON;
 
   return (
     <section aria-label="本月收支" className="rounded-2xl border border-neutral-200 bg-white p-4 lg:p-5">
@@ -67,25 +66,7 @@ export default function MonthWaterfall({
           收入只算已經上過、已付款的課。分部看的是「這堂課的基金」，不是上課地點。本月淨變化就是這個分部公積金這個月的變化。
         </InfoTip>
       </h2>
-      <ul className="mt-1 divide-y divide-neutral-100">
-        <Row label="收入" sign="+" amount={w.income} />
-        <Row label="老師分潤" sign="−" amount={w.teachers} />
-        <Row label="場地" sign="−" amount={w.venues} />
-        {show(w.unallocated) && (
-          <Row label="還沒分帳" tip="有課沒設分帳規則，這些錢還不知道要給誰。" sign="−" amount={w.unallocated} />
-        )}
-        <Row label="進公積金" sign="=" amount={w.fund} />
-        {show(w.other) && (
-          <Row
-            label={w.other >= 0 ? "過期收入與調整" : "調整"}
-            tip="課卡過期留下的錢、結算後才補的點名或收款、發錢時取整的零頭。"
-            sign={w.other >= 0 ? "+" : "−"}
-            amount={w.other}
-          />
-        )}
-        <Row label="支出" sign="−" amount={w.expenses} />
-        <Row label="本月淨變化" sign="=" amount={w.net} strong />
-      </ul>
+      <WaterfallRows w={w} />
       {w.lessons.length > 0 && (
         <details className="mt-2 border-t border-neutral-100 pt-3">
           <summary className="cursor-pointer text-sm font-medium text-neutral-900">每堂課（{w.lessons.length} 門）</summary>
@@ -106,5 +87,31 @@ export default function MonthWaterfall({
         </details>
       )}
     </section>
+  );
+}
+
+/** 瀑布的各列（首頁與結算單各分部共用）。 */
+export function WaterfallRows({ w }: { w: Waterfall }) {
+  const show = (x: number) => Math.abs(x) >= EPSILON;
+  return (
+    <ul className="mt-1 divide-y divide-neutral-100">
+      <Row label="收入" sign="+" amount={w.income} />
+      <Row label="老師分潤" sign="−" amount={w.teachers} />
+      <Row label="場地" sign="−" amount={w.venues} />
+      {show(w.unallocated) && (
+        <Row label="還沒分帳" tip="有課沒設分帳規則，這些錢還不知道要給誰。" sign="−" amount={w.unallocated} />
+      )}
+      <Row label="進公積金" sign="=" amount={w.fund} />
+      {show(w.other) && (
+        <Row
+          label={w.other >= 0 ? "過期收入與調整" : "調整"}
+          tip="課卡過期留下的錢、結算後才補的點名或收款、發錢時取整的零頭。"
+          sign={w.other >= 0 ? "+" : "−"}
+          amount={w.other}
+        />
+      )}
+      <Row label="支出" sign="−" amount={w.expenses} />
+      <Row label="本月淨變化" sign="=" amount={w.net} strong />
+    </ul>
   );
 }
