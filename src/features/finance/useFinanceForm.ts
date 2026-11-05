@@ -12,5 +12,6 @@ export function useFinanceMembers() {
     options: members.map((m) => ({ value: m.userId, label: m.name })),
     defaultUserId,
     allMembers,
+    meId: me?.id ?? null,
   };
 }

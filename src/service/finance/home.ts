@@ -16,8 +16,10 @@ const ruleSelect = {
 /**
  * 財務首頁「要處理的事」。待處理清單的三類（未付款課卡、未付單堂、點名沒綁卡）直接取自
  * `getTodos()`，同一份資料；再加上財務才有的：沒設分帳的課、過去沒點名的時段、次數包用完、
- * 上月未結算、我的分部還沒核對（5 號後）。每一項帶 `locationId`＝這堂課的基金（跟瀑布同一個口徑）；`null` = 不屬於
- * 任何分部，每個分部都看得到（未付款的卡在收款前沒有賣卡分部）。
+ * 上月未結算、我的分部還沒核對（1 號起）。每一項帶 `locationId`，`null` = 不屬於任何分部，每個分部都看得到：
+ * - 「要收錢」的三類依**上課地點**（`Lesson.locationId`）：要去現場收的人才看得到。未付款的卡沒有賣卡分部，
+ *   用第一次用那張卡的課；還沒用過 → `null`。
+ * - 其他（沒分帳、沒點名）依這堂課的基金（跟瀑布同一個口徑）。
  */
 export async function getFinanceHome(classroomId: number, userId: number, now = new Date()) {
   const { financeEnabledAt } = await assertFinanceEnabled(classroomId);
@@ -32,16 +34,19 @@ export async function getFinanceHome(classroomId: number, userId: number, now = 
     unreviewedBranchesFor(classroomId, userId, now),
   ]);
 
-  const periodIds = [
-    ...new Set([
-      ...todos.unpaidDropIns.map((d) => d.lessonPeriodId),
-      ...todos.unboundAttendance.map((r) => r.lessonPeriodId),
-    ]),
+  const lessonIds = [
+    ...new Set([...todos.unpaidDropIns.map((d) => d.lessonId), ...todos.unboundAttendance.map((r) => r.lessonId)]),
   ];
-  const [todoPeriods, unsplitLessons, uncheckedPeriods, packs, packUse] = await Promise.all([
-    prisma.lessonPeriod.findMany({
-      where: { id: { in: periodIds }, lesson: { classroomId } },
-      select: { id: true, ...ruleSelect },
+  const [todoLessons, firstUses, unsplitLessons, uncheckedPeriods, packs, packUse] = await Promise.all([
+    prisma.lesson.findMany({
+      where: { id: { in: lessonIds }, classroomId },
+      select: { id: true, locationId: true },
+    }),
+    // 未付款的卡：每張卡第一次用的那堂課
+    prisma.attendanceRecord.findMany({
+      where: { studentCardId: { in: todos.unpaidCards.map((c) => c.id) }, student: { classroomId } },
+      select: { studentCardId: true, lessonPeriod: { select: { lesson: { select: { locationId: true } } } } },
+      orderBy: [{ lessonPeriod: { startTime: "asc" } }, { id: "asc" }],
     }),
     // 有課沒設分帳：進行中的課，或上線後有時段的課
     prisma.lesson.findMany({
@@ -76,7 +81,13 @@ export async function getFinanceHome(classroomId: number, userId: number, now = 
     }),
     resolvePackUnitPrices(classroomId),
   ]);
-  const fundOfPeriod = new Map(todoPeriods.map((p) => [p.id, periodFundLocationId(p)]));
+  const placeOfLesson = new Map(todoLessons.map((l) => [l.id, l.locationId]));
+  const firstUsePlace = new Map<number, number | null>();
+  for (const r of firstUses) {
+    if (r.studentCardId !== null && !firstUsePlace.has(r.studentCardId)) {
+      firstUsePlace.set(r.studentCardId, r.lessonPeriod.lesson.locationId);
+    }
+  }
 
   // 次數包用完：場地的有效包總次數 ≤ 已經用掉的次數。
   const venues = new Map<number, { venueId: number; venueName: string; sessions: number; used: number }>();
@@ -94,12 +105,9 @@ export async function getFinanceHome(classroomId: number, userId: number, now = 
     myLocationId: branches.find((b) => b.keeperUserId === userId)?.id ?? null,
     branches: branches.map(({ id, name }) => ({ id, name })),
     unsettledMonth: months.openMonth < monthOf(now) ? months.openMonth : null,
-    unpaidCards: todos.unpaidCards.map((c) => ({ ...c, locationId: null })),
-    unpaidDropIns: todos.unpaidDropIns.map((d) => ({ ...d, locationId: fundOfPeriod.get(d.lessonPeriodId) ?? null })),
-    unboundAttendance: todos.unboundAttendance.map((r) => ({
-      ...r,
-      locationId: fundOfPeriod.get(r.lessonPeriodId) ?? null,
-    })),
+    unpaidCards: todos.unpaidCards.map((c) => ({ ...c, locationId: firstUsePlace.get(c.id) ?? null })),
+    unpaidDropIns: todos.unpaidDropIns.map((d) => ({ ...d, locationId: placeOfLesson.get(d.lessonId) ?? null })),
+    unboundAttendance: todos.unboundAttendance.map((r) => ({ ...r, locationId: placeOfLesson.get(r.lessonId) ?? null })),
     unsplitLessons: unsplitLessons.map((l) => ({ lessonId: l.id, lessonName: l.name, locationId: l.locationId })),
     uncheckedPeriods: uncheckedPeriods.map((p) => ({
       periodId: p.id,

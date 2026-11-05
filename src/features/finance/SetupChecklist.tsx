@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { useCanSettle } from "./useCanSettle";
 import { useGetFinanceSetupQuery, type ChecklistKey } from "@/store/slices/finance";
+import { NoVenueFeeToggle } from "./VenueSettings";
+import TeacherLinkSuggestions from "./TeacherLinkSuggestions";
 
 const ITEMS: Record<ChecklistKey, { label: string; href: string }> = {
   branches: { label: "建立分部，設定負責人與過期收入對象", href: "/finance/settings#branches" },
@@ -12,7 +14,7 @@ const ITEMS: Record<ChecklistKey, { label: string; href: string }> = {
   venues: { label: "建立場地，次數包補上剩幾次", href: "/finance/settings#venues" },
   rules: { label: "每門進行中的課設分帳規則", href: "/lessons" },
   funds: { label: "確認各分部公積金期初", href: "/finance/settings#branches" },
-  receivers: { label: "上線後收的錢改記到保管人名下", href: "/finance/settings#receivers" },
+  receivers: { label: "收的錢改記到保管人名下（含上線前還有剩格的卡）", href: "/finance/settings#receivers" },
   legacyPrepaid: { label: "確認舊卡預收總額", href: "/finance/settings#legacy" },
 };
 
@@ -57,6 +59,12 @@ export default function SetupChecklist() {
                 </span>
                 {!item.done && canEdit && <ChevronRight className="size-4 shrink-0 text-neutral-500" aria-hidden />}
               </Wrapper>
+              {item.key === "teachers" && canEdit && <TeacherLinkSuggestions className="mb-1 ml-10 flex flex-col" />}
+              {item.key === "venues" && !item.done && canEdit && (
+                <div className="mb-1 ml-10">
+                  <NoVenueFeeToggle />
+                </div>
+              )}
               {!item.done && item.links && item.links.length > 0 && (
                 <ul className="mb-1 ml-10 flex flex-wrap gap-x-3 gap-y-1">
                   {item.links.map((l) => (

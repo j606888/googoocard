@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import {
   useCreateFinanceVenueMutation,
   useGetFinancePacksQuery,
+  useGetFinanceSettingsQuery,
   useGetFinanceVenuesQuery,
+  useUpdateFinanceSettingsMutation,
   useUpdateFinanceVenueMutation,
 } from "@/store/slices/finance";
 import PackForm from "./PackForm";
@@ -17,6 +19,30 @@ import { financeErrorText } from "./financeUi";
 import { useFinanceMembers } from "./useFinanceForm";
 
 const NONE = 0;
+
+/** 開帳清單「場地」：這間教室不用場地費，勾了這一步就算完成。 */
+export function NoVenueFeeToggle() {
+  const { data: settings } = useGetFinanceSettingsQuery();
+  const [update, { isLoading }] = useUpdateFinanceSettingsMutation();
+  return (
+    <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-neutral-900">
+      <input
+        type="checkbox"
+        className="size-5 accent-primary-700"
+        checked={!!settings?.noVenueFee}
+        disabled={!settings || isLoading}
+        onChange={async (e) => {
+          try {
+            await update({ noVenueFee: e.target.checked }).unwrap();
+          } catch (err) {
+            toast.error(financeErrorText(err, "存不了，請再試一次"));
+          }
+        }}
+      />
+      這間教室不用場地費
+    </label>
+  );
+}
 
 /** 場地（房東）與次數包。開帳時上線前買的包用「之前買的還剩幾次」補上。 */
 export default function VenueSettings() {
@@ -34,6 +60,7 @@ export default function VenueSettings() {
 
   return (
     <div className="flex flex-col gap-3">
+      <NoVenueFeeToggle />
       {venues.length > 0 && (
         <ul className="flex flex-col divide-y divide-neutral-100">
           {venues.map((v) => (

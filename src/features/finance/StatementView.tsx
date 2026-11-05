@@ -291,9 +291,12 @@ export default function StatementView({ month }: { month: string }) {
                       const key = payoutKey(p);
                       const done = locked && isPayoutDone(p, transfers, month);
                       const busy = busyKey === key && (creating || undoing);
-                      // 付款人自己按，或可以結算的人代按；取消照舊只有可以結算的人
+                      // 付款人自己按，或可以結算的人代按；付款人只能取消自己按的，可以結算的人都能取消
                       const canMark = canEdit || p.fromUserId === me?.id;
-                      const last = matchingTransfers(p, transfers, month).at(-1);
+                      const matched = matchingTransfers(p, transfers, month);
+                      const last = matched.at(-1);
+                      const canUndo =
+                        canEdit || (p.fromUserId === me?.id && matched.length > 0 && matched.every((t) => t.createdById === me?.id));
                       return (
                         <li key={key} className="flex flex-col gap-1.5 py-2.5 text-sm">
                           <div className="flex items-center justify-between gap-3">
@@ -311,7 +314,7 @@ export default function StatementView({ month }: { month: string }) {
                                 )}
                               </span>
                               {done
-                                ? canEdit && (
+                                ? canUndo && (
                                     <Button size="sm" variant="ghost" isLoading={busy} onClick={() => undo(p)}>
                                       取消
                                     </Button>

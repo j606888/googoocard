@@ -25,6 +25,7 @@ import { DELETE as DELETE_EXPENSE } from "@/app/api/finance/expenses/[id]/route"
 import { GET as GET_TRANSFERS, POST as POST_TRANSFER } from "@/app/api/finance/transfers/route";
 import { DELETE as DELETE_TRANSFER } from "@/app/api/finance/transfers/[id]/route";
 import { POST as POST_REFUND } from "@/app/api/finance/refunds/route";
+import { POST as POST_PACK } from "@/app/api/finance/packs/route";
 
 describe("finance cash APIs", () => {
   let classroomId: number;
@@ -60,6 +61,50 @@ describe("finance cash APIs", () => {
     const other = await createClassroom({ name: "O", email: "o@test.local" });
     const otherLoc = await createLocation(other.id);
     expect((await expense({ locationId: otherLoc.id })).status).toBe(404);
+  });
+
+  it("保管人（不能結算）可以記自己付的支出與次數包；別人付的、開帳的舊包仍要可以結算", async () => {
+    const seanId = (await createMember(classroomId, { email: "sean@test.local", name: "Sean" })).id;
+    await prisma.membership.updateMany({ where: { userId: seanId, classroomId }, data: { isCustodian: true } });
+    const venue = await createVenue(classroomId);
+    const pack = (b: object) => POST_PACK(jsonRequest("POST", { venueId: venue.id, ...b }), routeParams({}));
+    auth.userId = seanId;
+
+    const own = await expense({ paidByUserId: seanId });
+    expect(own.status).toBe(200);
+    expect(await own.json()).toMatchObject({ paidByUserId: seanId });
+    expect((await expense({ paidByUserId: 1 })).status).toBe(403);
+
+    expect((await pack({ sessions: 10, price: 4050, paidByUserId: seanId, purchasedAt: "2026-11-03" })).status).toBe(200);
+    expect((await pack({ sessions: 10, price: 4050, paidByUserId: 1, purchasedAt: "2026-11-03" })).status).toBe(403);
+    expect(
+      (await pack({ paidByUserId: seanId, before: { totalSessions: 10, totalPrice: 4050, remaining: 3 } })).status,
+    ).toBe(403);
+
+    // 不是保管人：自己付的也不行
+    auth.userId = nonFinanceId;
+    expect((await expense({ paidByUserId: nonFinanceId })).status).toBe(403);
+  });
+
+  it("付款人可以取消自己按的「已完成轉帳」；別人按的不行；可以結算的人都能取消", async () => {
+    const seanId = (await createMember(classroomId, { email: "sean@test.local", name: "Sean" })).id;
+    await prisma.membership.updateMany({ where: { userId: seanId, classroomId }, data: { isCustodian: true } });
+    const mk = (createdById: number) =>
+      prisma.financeTransfer.create({
+        data: {
+          classroomId, date: new Date("2026-12-03T04:00:00Z"), amount: 100, fromUserId: seanId, toKind: "SELF",
+          toUserId: seanId, settlementMonth: "2026-11", createdById,
+        },
+      });
+    const voidIt = (id: number) => DELETE_TRANSFER(jsonRequest("DELETE"), routeParams({ id: String(id) }));
+    const mine = await mk(seanId);
+    const byDing = await mk(1);
+    auth.userId = seanId;
+    expect((await voidIt(byDing.id)).status).toBe(403);
+    expect((await voidIt(mine.id)).status).toBe(200);
+    auth.userId = 1;
+    expect((await voidIt(byDing.id)).status).toBe(200);
+    expect(await prisma.financeTransfer.count({ where: { voidedAt: null } })).toBe(0);
   });
 
   it("transfer SELF sets toUserId; targets are validated", async () => {

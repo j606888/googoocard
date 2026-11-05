@@ -87,6 +87,7 @@ const TrialRoster = ({ lesson }: { lesson: Lesson }) => {
       {registering && (
         <RegisterTrialDrawer
           lessonId={lesson.id}
+          lessonLocationId={lesson.locationId}
           trialCards={data.trialCards}
           registeredStudentIds={registered.map((entry) => entry.student.id)}
           onClose={() => setRegistering(false)}

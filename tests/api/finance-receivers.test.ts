@@ -69,7 +69,12 @@ describe("opening: money received by non-custodians", () => {
     const stray = await paidCard(noraId, after);
     await paidCard(ownerId, after); // custodian
     await paidCard(seanId, after); // custodian
-    await paidCard(noraId, new Date("2026-10-01T00:00:00Z")); // before launch
+    // 上線前的卡：還有剩格 → 也要改記到保管人；用完了／已關閉的不用
+    const before = await paidCard(noraId, new Date("2026-10-01T00:00:00Z"));
+    const usedUp = await paidCard(noraId, new Date("2026-10-01T00:00:00Z"));
+    await prisma.studentCard.update({ where: { id: usedUp.id }, data: { remainingSessions: 0 } });
+    const closed = await paidCard(noraId, new Date("2026-10-01T00:00:00Z"));
+    await prisma.studentCard.update({ where: { id: closed.id }, data: { expiredAt: new Date("2026-10-20T00:00:00Z") } });
     await paidCard(noraId, after, { isPaid: false }); // unpaid: no money yet
     await paidCard(null, after); // no receiver
     const d = await dropIn(noraId);
@@ -79,14 +84,14 @@ describe("opening: money received by non-custodians", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.items.map((i: { kind: string; id: number }) => `${i.kind}:${i.id}`).sort()).toEqual(
-      [`card:${stray.id}`, `dropIn:${d.id}`].sort(),
+      [`card:${stray.id}`, `card:${before.id}`, `dropIn:${d.id}`].sort(),
     );
-    const card = body.items.find((i: { kind: string }) => i.kind === "card");
+    const card = body.items.find((i: { kind: string; id: number }) => i.kind === "card" && i.id === stray.id);
     expect(card).toMatchObject({ amount: 2000, receiverUserId: noraId, receiverName: "Nora" });
 
     const item = await receiversItem();
     expect(item.done).toBe(false);
-    expect(item.detail).toBe("2 筆、$2,400 記在不是保管人的人名下");
+    expect(item.detail).toBe("3 筆、$4,400 記在不是保管人的人名下");
   });
 
   it("checklist item sits before legacyPrepaid and is done when nothing is stray", async () => {

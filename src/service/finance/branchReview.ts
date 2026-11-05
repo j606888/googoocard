@@ -139,18 +139,21 @@ export async function reviewBranch({
   return statuses.find((s) => s.locationId === locationId)!;
 }
 
+/** 每月 1～5 號核對；過了 5 號（台北）還沒核對 → 逾期。 */
+const REVIEW_DUE_DAY = 5;
+
 /**
- * 首頁「要處理的事」：台北 5 號過後，上個月（還沒結算）我負責、還沒核對（或核對後又變了）的分部。
- * 結算過的月份不提醒。
+ * 首頁「要處理的事」：每月 1 號起（台北），上個月（還沒結算）我負責、還沒核對（或核對後又變了）的分部；
+ * 過了 5 號 `overdue`。結算過的月份不提醒。
  */
 export async function unreviewedBranchesFor(
   classroomId: number,
   userId: number,
   now = new Date(),
-): Promise<{ month: string; locationId: number; locationName: string }[]> {
+): Promise<{ month: string; locationId: number; locationName: string; overdue: boolean }[]> {
   const { financeEnabledAt } = await assertFinanceEnabled(classroomId);
   const today = monthOf(now);
-  if (Number(toTaipeiDateKey(now).slice(8)) <= 5) return [];
+  const overdue = Number(toTaipeiDateKey(now).slice(8)) > REVIEW_DUE_DAY;
   const [y, m] = today.split("-").map(Number);
   const month = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
   if (month < monthOf(financeEnabledAt)) return [];
@@ -164,5 +167,5 @@ export async function unreviewedBranchesFor(
   const statement = await getMonthStatement(classroomId, month, now);
   return (await listBranchReviews(classroomId, month, statement))
     .filter((r) => r.keeperUserId === userId && !r.valid)
-    .map((r) => ({ month, locationId: r.locationId, locationName: r.name }));
+    .map((r) => ({ month, locationId: r.locationId, locationName: r.name, overdue }));
 }

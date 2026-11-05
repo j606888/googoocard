@@ -49,7 +49,7 @@ export default function FinanceSettingsView() {
       <Section id="venues" title="場地與次數包">
         <VenueSettings />
       </Section>
-      <Section id="receivers" title="上線後收的錢在誰手上">
+      <Section id="receivers" title="收的錢在誰手上">
         <StrayReceivers />
       </Section>
       <Section id="general" title="成員與其他">

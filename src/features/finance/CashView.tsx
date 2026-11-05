@@ -26,6 +26,7 @@ import PackForm from "./PackForm";
 import TransferForm from "./TransferForm";
 import MonthSwitcher from "./MonthSwitcher";
 import { financeErrorText } from "./financeUi";
+import { useFinanceRole } from "./useCanSettle";
 import { useSplitNames } from "./useSplitNames";
 
 type Voiding = { kind: "expense" | "pack" | "transfer"; id: number; text: string } | null;
@@ -84,10 +85,14 @@ function Row({
   );
 }
 
-/** 支出、場地次數包、轉帳：一個月一頁。財務才能新增與作廢，其他人唯讀。 */
+/**
+ * 支出、場地次數包、轉帳：一個月一頁。可以結算的人新增與作廢；保管人可以記自己付的支出與次數包、
+ * 取消自己按的轉帳；其他人唯讀。
+ */
 export default function CashView() {
   const [month, setMonth] = useState(monthOf(new Date()));
   const names = useSplitNames();
+  const { isCustodian, meId } = useFinanceRole();
   const { data: settings, isLoading: settingsLoading } = useGetFinanceSettingsQuery();
   const { data: expenseData, isLoading } = useGetFinanceExpensesQuery(month, { skip: !settings?.enabled });
   const { data: packData } = useGetFinancePacksQuery(undefined, { skip: !settings?.enabled });
@@ -112,8 +117,10 @@ export default function CashView() {
   const members = settings.members;
   const userName = (id: number) => members.find((m) => m.userId === id)?.name ?? "成員";
   const canEdit = names.canEdit;
+  // 保管人（不能結算）只能記自己付的支出與次數包
+  const selfOnly = !canEdit && isCustodian;
   const addButton = (kind: "expense" | "pack" | "transfer", label: string) =>
-    canEdit ? (
+    canEdit || (selfOnly && kind !== "transfer") ? (
       <Button size="sm" variant="secondary" onClick={() => setForm(kind)}>
         {label}
       </Button>
@@ -195,7 +202,7 @@ export default function CashView() {
                   title={`${userName(t.fromUserId)} → ${targetName(t)}`}
                   meta={`${ymd(t.date)}${t.settlementMonth ? `　${t.settlementMonth} 月結` : ""}${t.note ? `　${t.note}` : ""}`}
                   amount={t.amount}
-                  onVoid={canEdit ? () => setVoiding({ kind: "transfer", id: t.id, text: `${userName(t.fromUserId)} → ${targetName(t)} $${formatMoney(t.amount)}` }) : undefined}
+                  onVoid={canEdit || (t.fromUserId === meId && t.createdById === meId) ? () => setVoiding({ kind: "transfer", id: t.id, text: `${userName(t.fromUserId)} → ${targetName(t)} $${formatMoney(t.amount)}` }) : undefined}
                 />
               ))}
             </ul>
@@ -203,8 +210,8 @@ export default function CashView() {
         </Section>
       </div>
 
-      <ExpenseForm open={form === "expense"} onClose={() => setForm(null)} />
-      <PackForm open={form === "pack"} onClose={() => setForm(null)} />
+      <ExpenseForm open={form === "expense"} onClose={() => setForm(null)} selfOnly={selfOnly} />
+      <PackForm open={form === "pack"} onClose={() => setForm(null)} selfOnly={selfOnly} />
       <TransferForm open={form === "transfer"} onClose={() => setForm(null)} />
       <ConfirmDialog
         variant="danger"

@@ -6,6 +6,7 @@ import { ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import SegmentedTabs from "@/components/SegmentedTabs";
+import StatusTag from "@/components/StatusTag";
 import { monthOf } from "@/domains/finance/months";
 import type { BranchScope } from "@/domains/finance/waterfall";
 import { cn, formatDate } from "@/lib/utils";
@@ -130,7 +131,8 @@ function HomeTodos({ todos, unsettledMonth }: { todos: ReturnType<typeof scopedT
               key={`${b.month}:${b.locationId}`}
               href={`/finance/settle/${b.month}`}
               title={`${monthLabel(b.month)} ${b.locationName}還沒核對`}
-              subtitle="看結算單，確認數字後按核對"
+              subtitle={b.overdue ? "每月 5 號前要核對，看結算單確認數字後按核對" : "看結算單，確認數字後按核對"}
+              tag={b.overdue ? <StatusTag tone="danger">逾期</StatusTag> : undefined}
             />
           ))}
         </TodoSection>
@@ -173,10 +175,13 @@ function HomeTodos({ todos, unsettledMonth }: { todos: ReturnType<typeof scopedT
   );
 }
 
-const LinkRow = ({ href, title, subtitle }: { href: string; title: string; subtitle: string }) => (
+const LinkRow = ({ href, title, subtitle, tag }: { href: string; title: string; subtitle: string; tag?: ReactNode }) => (
   <Link href={href} className="flex min-h-11 items-center gap-3 px-4 py-2 hover:bg-neutral-50">
     <span className="flex min-w-0 flex-1 flex-col">
-      <span className="truncate text-sm font-semibold text-neutral-900">{title}</span>
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="truncate text-sm font-semibold text-neutral-900">{title}</span>
+        {tag}
+      </span>
       <span className="truncate text-[13px] text-neutral-600">{subtitle}</span>
     </span>
     <ChevronRight className="size-4 shrink-0 text-neutral-400" aria-hidden />

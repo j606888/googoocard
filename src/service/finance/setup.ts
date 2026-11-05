@@ -112,6 +112,7 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
       financeEnabledAt: true,
       legacyCustodianUserId: true,
       legacyPrepaidConfirmedAt: true,
+      financeNoVenueFee: true,
     },
   });
   if (!classroom.financeEnabledAt) {
@@ -191,7 +192,10 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
     },
     {
       key: "venues",
-      done: venueCount > 0 && [...usedVenueIds].every((id) => venueIdsWithPack.has(id)),
+      // 勾了「這間教室不用場地費」就算完成
+      done:
+        classroom.financeNoVenueFee ||
+        (venueCount > 0 && [...usedVenueIds].every((id) => venueIdsWithPack.has(id))),
     },
     {
       key: "rules",

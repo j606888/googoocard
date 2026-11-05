@@ -229,7 +229,7 @@ describe("finance home", () => {
   });
 
   describe("要處理的事", () => {
-    it("reuses the todos lists and tags each with the lesson's fund", async () => {
+    it("reuses the todos lists; to-collect items go by where the class is held, others by the lesson's fund", async () => {
       const l1 = await prisma.lesson.findFirstOrThrow({ where: { classroomId, name: "L1" } });
       const p = await addPeriod(l2LessonId, "2026-11-16T02:00:00Z");
       await dropIn(p.id, 300, seanId, false);
@@ -237,14 +237,26 @@ describe("finance home", () => {
       await prisma.attendanceRecord.create({ data: { lessonPeriodId: p.id, studentId: unbound.id, sessionsUsed: 1 } });
       await addPeriod(l1.id, "2026-11-19T11:00:00Z", false);
 
+      // 還沒用過的未付款卡
+      const unused = await newCard(null, { paid: false });
+      // 先在高雄（L4）用、後來在台南用 → 算高雄
+      const l4 = await prisma.lesson.findFirstOrThrow({ where: { classroomId, name: "L4" } });
+      const travel = await newCard(null, { paid: false });
+      await attend((await addPeriod(l1.id, "2026-11-26T11:00:00Z")).id, travel);
+      await attend((await addPeriod(l4.id, "2026-11-12T11:00:00Z")).id, travel);
+
       const home = await getFinanceHome(classroomId, dingId, DEC_3);
       expect(home.myLocationId).toBe(tainanId);
       expect(home.branches.map((b) => b.id)).toEqual([tainanId, kaoId]);
-      expect(home.unpaidCards).toHaveLength(1);
-      expect(home.unpaidCards[0].locationId).toBeNull();
-      // 週日課的未付單堂、沒卡 → 高雄（這堂課的基金），不是上課地點台南
-      expect(home.unpaidDropIns).toEqual([expect.objectContaining({ amount: 300, locationId: kaoId })]);
-      expect(home.unboundAttendance).toEqual([expect.objectContaining({ lessonPeriodId: p.id, locationId: kaoId })]);
+      // 未付款的卡：第一次用的那堂課的上課地點；還沒用過 → null（每個分部都看得到）
+      const cardLoc = Object.fromEntries(home.unpaidCards.map((c) => [c.id, c.locationId]));
+      expect(Object.keys(cardLoc)).toHaveLength(3);
+      expect(cardLoc[unused.cardId]).toBeNull();
+      expect(cardLoc[travel.cardId]).toBe(kaoId);
+      expect(Object.values(cardLoc).filter((v) => v === tainanId)).toHaveLength(1); // seed 那張在 L6（台南）用
+      // 週日課的未付單堂、沒卡 → 台南（上課地點），不是這堂課的基金高雄
+      expect(home.unpaidDropIns).toEqual([expect.objectContaining({ amount: 300, locationId: tainanId })]);
+      expect(home.unboundAttendance).toEqual([expect.objectContaining({ lessonPeriodId: p.id, locationId: tainanId })]);
       expect(home.uncheckedPeriods).toEqual([expect.objectContaining({ lessonId: l1.id, locationId: tainanId })]);
       expect(home.unsettledMonth).toBe("2026-11");
     });

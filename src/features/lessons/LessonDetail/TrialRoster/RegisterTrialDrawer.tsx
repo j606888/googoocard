@@ -12,6 +12,7 @@ import { formatMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { FieldError, fieldControlClass } from "@/components/Field";
 import { cn } from "@/lib/utils";
+import ReceiverField, { useFinanceReceiver } from "@/features/finance/ReceiverField";
 
 type Who = { kind: "existing"; id: number; name: string; returning: boolean } | { kind: "new"; name: string };
 type Payment = "CASH" | "TRANSFER" | "UNPAID";
@@ -30,11 +31,14 @@ const SUGGESTION_LIMIT = 5;
  */
 const RegisterTrialDrawer = ({
   lessonId,
+  lessonLocationId,
   trialCards,
   registeredStudentIds,
   onClose,
 }: {
   lessonId: number;
+  /** 這堂課的分部：財務開啟時預設收款人用（分部負責人）。 */
+  lessonLocationId?: number | null;
   trialCards: TrialRoster["trialCards"];
   /** 已經登記、還沒上的人——不再列進候選。 */
   registeredStudentIds: number[];
@@ -64,6 +68,9 @@ const RegisterTrialDrawer = ({
   const returning = who?.kind === "existing" && who.returning;
   const defaultPrice = card ? defaultTrialPrice({ price: card.price, isTrial: true }, returning) : 0;
   const finalPrice = price === null ? defaultPrice : Number(price) || 0;
+  const receiver = useFinanceReceiver({ active: true, lessonLocationId });
+  // 財務開啟、當場收錢才要收款人。
+  const needsReceiver = receiver.financeOn && finalPrice > 0 && payment !== "UNPAID";
 
   const handleSubmit = async () => {
     if (!who) {
@@ -79,6 +86,7 @@ const RegisterTrialDrawer = ({
         isPaid: finalPrice === 0 || payment !== "UNPAID",
         paymentMethod: payment === "UNPAID" ? null : payment,
         paymentReference: payment === "TRANSFER" ? reference.trim() || null : null,
+        ...(needsReceiver && receiver.receiverUserId !== null ? { receiverUserId: receiver.receiverUserId } : {}),
       }).unwrap();
       toast.success(`已登記 ${who.name}`);
       onClose();
@@ -95,7 +103,7 @@ const RegisterTrialDrawer = ({
       onClose={onClose}
       onSubmit={handleSubmit}
       isLoading={isLoading}
-      disabled={!who || !card}
+      disabled={!who || !card || (needsReceiver && receiver.receiverUserId === null)}
       submitText={
         !who ? "登記" : finalPrice === 0 ? "登記（免費）" : payment === "UNPAID" ? `登記，待收 $${formatMoney(finalPrice)}` : `登記，已收 $${formatMoney(finalPrice)}`
       }
@@ -224,6 +232,14 @@ const RegisterTrialDrawer = ({
               <p className="text-xs text-neutral-500">會出現在「待處理」的待確認收款，收到再確認。</p>
             )}
           </div>
+        )}
+        {needsReceiver && (
+          <ReceiverField
+            id="trial-receiver"
+            value={receiver.receiverUserId}
+            onChange={receiver.setReceiverUserId}
+            options={receiver.options}
+          />
         )}
       </div>
     </Drawer>

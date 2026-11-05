@@ -13,7 +13,7 @@ export interface TeacherSummary {
 
 export interface Teacher extends TeacherSummary {
   note: string | null;
-  /** 老師／助教／都是：只當助教的排課時不列出，只教課的選助教時不列出。 */
+  /** 老師／助教：只當助教的排課時不列出。 */
   kind: TeacherKind;
   /** The member this teacher is linked to (團隊), or null. */
   userId: number | null;

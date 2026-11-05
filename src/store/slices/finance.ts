@@ -11,6 +11,8 @@ export interface FinanceSettings {
   launchDate: string | null;
   roundTo: number;
   legacyCustodianUserId: number | null;
+  /** 開帳清單「場地」：這間教室不用場地費。 */
+  noVenueFee: boolean;
   members: { userId: number; name: string; isCustodian: boolean; canSettle: boolean }[];
 }
 
@@ -67,7 +69,7 @@ export interface FinanceHomeData {
   uncheckedPeriods: ({ periodId: number; lessonId: number; lessonName: string; startTime: string } & Scoped)[];
   exhaustedPacks: ({ venueId: number; venueName: string; overdrawn: number } & Scoped)[];
   /** 5 號過後，上個月我負責、還沒核對的分部 */
-  unreviewedBranches: { month: string; locationId: number; locationName: string }[];
+  unreviewedBranches: { month: string; locationId: number; locationName: string; overdue: boolean }[];
 }
 
 export type TransferKind = "USER" | "TEACHER" | "SELF" | "VENUE";
@@ -173,6 +175,8 @@ export interface FinanceTeacher {
   name: string;
   userId: number | null;
   payerUserId: number | null;
+  /** 付款人在老師名單裡有同名、沒連帳號的老師 →「這位老師是 X 本人嗎？」 */
+  linkSuggestion: { userId: number; name: string } | null;
 }
 
 const financeApi = api.injectEndpoints({
@@ -187,7 +191,7 @@ const financeApi = api.injectEndpoints({
     }),
     updateFinanceSettings: builder.mutation<
       unknown,
-      { roundTo?: 1 | 10 | 100; legacyCustodianUserId?: number }
+      { roundTo?: 1 | 10 | 100; legacyCustodianUserId?: number; noVenueFee?: boolean }
     >({
       query: (body) => ({ url: "finance/settings", method: "PATCH", body }),
       invalidatesTags: ["Classroom", "Finance"],
@@ -249,6 +253,10 @@ const financeApi = api.injectEndpoints({
     setTeacherPayer: builder.mutation<unknown, { id: number; payerUserId: number | null }>({
       query: ({ id, payerUserId }) => ({ url: `finance/teachers/${id}`, method: "PATCH", body: { payerUserId } }),
       invalidatesTags: ["Finance"],
+    }),
+    linkFinanceTeacher: builder.mutation<unknown, { id: number; userId: number }>({
+      query: ({ id, userId }) => ({ url: `finance/teachers/${id}/link`, method: "POST", body: { userId } }),
+      invalidatesTags: ["Finance", "Teacher", "Membership"],
     }),
     getFinanceSettings: builder.query<FinanceSettings, void>({
       query: () => "finance/settings",
@@ -381,6 +389,7 @@ export const {
   useUpdateFinanceVenueMutation,
   useGetFinanceTeachersQuery,
   useSetTeacherPayerMutation,
+  useLinkFinanceTeacherMutation,
   useGetMonthStatementQuery,
   useGetFinanceHomeQuery,
   useLockMonthMutation,

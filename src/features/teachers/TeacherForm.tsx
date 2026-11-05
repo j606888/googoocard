@@ -19,7 +19,6 @@ import {
 const KIND_HINTS: Record<TeacherKind, string> = {
   TEACHER: "排課選老師時會列出。",
   ASSISTANT: "只當助教：排課選老師時不會列出。",
-  BOTH: "排課選老師時會列出。",
 };
 
 /**

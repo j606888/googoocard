@@ -14,9 +14,18 @@ import { useFinanceMembers } from "./useFinanceForm";
 const CATEGORIES = ["廣告", "海報", "飲料", "宵夜", "慶功宴", "其他"];
 
 /** 記一筆支出：從哪個分部的公積金出、誰先墊的。 */
-export default function ExpenseForm({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function ExpenseForm({
+  open,
+  onClose,
+  selfOnly = false,
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** 保管人（不能結算）：付款人固定是自己。 */
+  selfOnly?: boolean;
+}) {
   const { data } = useGetLocationsQuery();
-  const { options: payers, defaultUserId } = useFinanceMembers();
+  const { options: payers, defaultUserId, meId } = useFinanceMembers();
   const [create, { isLoading }] = useCreateExpenseMutation();
   const locations = (data?.locations ?? []).filter((l) => !l.archivedAt);
 
@@ -29,7 +38,8 @@ export default function ExpenseForm({ open, onClose }: { open: boolean; onClose:
   const [error, setError] = useState("");
 
   const loc = locationId ?? locations[0]?.id ?? null;
-  const payer = paidBy ?? defaultUserId;
+  // 保管人（不能結算）付款人固定是自己
+  const payer = selfOnly ? (meId ?? 0) : (paidBy ?? defaultUserId);
   const amountNum = Number(amount);
   const valid = Number.isInteger(amountNum) && amountNum > 0 && !!loc && !!category.trim() && !!payer && !!date;
 
@@ -110,7 +120,11 @@ export default function ExpenseForm({ open, onClose }: { open: boolean; onClose:
         </div>
         <div className="flex flex-col gap-1.5">
           <FieldLabel>誰付的</FieldLabel>
-          <Select value={payer} onChange={(v) => setPaidBy(v)} options={payers} placeholder="選一位" />
+          {selfOnly ? (
+            <p className="text-sm text-neutral-900">{payers.find((o) => o.value === payer)?.label ?? "自己"}（自己）</p>
+          ) : (
+            <Select value={payer} onChange={(v) => setPaidBy(v)} options={payers} placeholder="選一位" />
+          )}
         </div>
         <Field label="備註" hint="（選填）" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
         <FieldError>{error}</FieldError>

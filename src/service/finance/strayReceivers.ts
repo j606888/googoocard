@@ -4,7 +4,8 @@ import { assertCustodian } from "./config";
 import { soldLocationFor } from "./receiver";
 
 /**
- * 開帳：上線日之後收的錢、收款人卻不是保管人（例：開帳前小幫手代收）。
+ * 開帳：上線日之後收的錢、收款人卻不是保管人（例：開帳前小幫手代收），以及上線前的卡
+ * 收款人不是保管人、還有剩格的（那份預收還在他手上）。
  * 之後的收款只能選保管人，所以這是一次性的整理——改記到一位保管人名下，
  * 保管中與結算單才不會出現非保管人。
  */
@@ -29,7 +30,13 @@ async function strayWhere(classroomId: number) {
   const paidByUserId = { not: null, notIn: custodians.map((m) => m.userId) };
   const sinceLaunch = [{ createdAt: { gte: financeEnabledAt } }, { paidAt: { gte: financeEnabledAt } }];
   return {
-    card: { student: { classroomId }, isPaid: true, paidByUserId, OR: sinceLaunch },
+    card: {
+      student: { classroomId },
+      isPaid: true,
+      paidByUserId,
+      // 上線前的卡：還開著、還有剩格才要改
+      OR: [...sinceLaunch, { expiredAt: null, remainingSessions: { gt: 0 } }],
+    },
     dropIn: {
       attendanceRecord: { lessonPeriod: { lesson: { classroomId } } },
       isPaid: true,

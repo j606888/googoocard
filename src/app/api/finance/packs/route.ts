@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { ymdSchema } from "@/lib/schemas";
 import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { parseTaipeiDateRange } from "@/lib/taipei-date";
-import { assertCanSettle, assertFinanceEnabled } from "@/service/finance/access";
+import { assertCanRecordPayment, assertCanSettle, assertFinanceEnabled } from "@/service/finance/access";
 import { assertCustodian, requireVenueInClassroom } from "@/service/finance/config";
 
 const packSelect = {
@@ -54,9 +54,11 @@ const createSchema = z.union([newPackSchema, beforeLaunchSchema]);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// 可以結算的人記任何人付的；保管人只能記自己付的新包。開帳的舊包只有可以結算的人。
 export const POST = apiRoute(async ({ request, userId, classroomId }) => {
-  await assertCanSettle(userId, classroomId);
   const body = await parseBody(request, createSchema);
+  if ("before" in body) await assertCanSettle(userId, classroomId);
+  else await assertCanRecordPayment(userId, classroomId, body.paidByUserId);
   await requireVenueInClassroom(body.venueId, classroomId);
   await assertCustodian(body.paidByUserId, classroomId);
   let pack: { sessions: number; price: number; purchasedAt: Date };

@@ -16,7 +16,7 @@ import { useFinanceMembers } from "./useFinanceForm";
 const rowKey = (i: { kind: string; id: number }) => `${i.kind}:${i.id}`;
 
 /**
- * 開帳：上線後收款人不是保管人的已付款卡／單堂，勾選後一鍵改記到一位保管人。
+ * 開帳：收款人不是保管人的已付款卡／單堂（上線後收的，和上線前還有剩格的卡），勾選後一鍵改記到一位保管人。
  * 預設全選、改記到舊卡保管人；不同分部的錢可以分兩次改給各自的負責人。
  */
 export default function StrayReceivers() {
@@ -29,7 +29,7 @@ export default function StrayReceivers() {
   const items = data?.items ?? [];
 
   if (!data) return null;
-  if (items.length === 0) return <p className="text-sm text-neutral-500">上線後收的錢都記在保管人名下</p>;
+  if (items.length === 0) return <p className="text-sm text-neutral-500">收的錢都記在保管人名下</p>;
 
   const legacy = settings?.legacyCustodianUserId;
   const defaultTarget = options.find((o) => o.value === legacy)?.value ?? options[0]?.value ?? 0;

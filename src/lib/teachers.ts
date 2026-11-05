@@ -26,9 +26,9 @@ export function firstFreeTeacherColor(taken: { color: string }[]): DanceStyleCol
 }
 
 /** 老師在教室裡做什麼（`Teacher.kind`）。只當助教的不列在排課的老師選單。 */
-export const TEACHER_KINDS = ["TEACHER", "ASSISTANT", "BOTH"] as const;
+export const TEACHER_KINDS = ["TEACHER", "ASSISTANT"] as const;
 export type TeacherKind = (typeof TEACHER_KINDS)[number];
-export const TEACHER_KIND_LABELS: Record<TeacherKind, string> = { TEACHER: "老師", ASSISTANT: "助教", BOTH: "都是" };
+export const TEACHER_KIND_LABELS: Record<TeacherKind, string> = { TEACHER: "老師", ASSISTANT: "助教" };
 export const canTeach = (kind: TeacherKind) => kind !== "ASSISTANT";
 
 /** The avatar letter: first character (a whole CJK character or emoji), upper-cased. */

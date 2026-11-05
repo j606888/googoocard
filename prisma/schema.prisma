@@ -107,6 +107,8 @@ model Classroom {
   // 上線前沒記收款人的錢算誰的。純 Int、沒有 FK（User 不加反向關聯）。
   legacyCustodianUserId    Int?
   legacyPrepaidConfirmedAt DateTime?
+  // 開帳清單「場地」：這間教室不用場地費（勾了場地步驟就算完成）。
+  financeNoVenueFee        Boolean                  @default(false)
   venues                   Venue[]
   venuePacks               VenuePack[]
   financeExpenses          FinanceExpense[]
@@ -150,7 +152,6 @@ model Membership {
 enum TeacherKind {
   TEACHER
   ASSISTANT
-  BOTH
 }
 
 model Teacher {
@@ -168,7 +169,7 @@ model Teacher {
   // under 我接下來的課 on the lessons page. One per user per classroom.
   userId      Int?
   user        User?           @relation(fields: [userId], references: [id])
-  // 老師／助教／都是：只當助教的，排課選老師時不列出；只教課的，點名選助教時不列出。
+  // 老師／助教：只當助教的，排課選老師時不列出。
   kind        TeacherKind     @default(TEACHER)
   // 這位老師的鐘點／分帳由誰付（User id，純 Int、沒有 FK）。
   payerUserId Int?

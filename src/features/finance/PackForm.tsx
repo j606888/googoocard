@@ -29,14 +29,17 @@ export default function PackForm({
   open,
   onClose,
   allowBefore = false,
+  selfOnly = false,
 }: {
   open: boolean;
   onClose: () => void;
   /** 開帳（財務設定）才顯示「之前買的還剩幾次」。 */
   allowBefore?: boolean;
+  /** 保管人（不能結算）：付款人固定是自己。 */
+  selfOnly?: boolean;
 }) {
   const { data } = useGetFinanceVenuesQuery();
-  const { options: payers, defaultUserId } = useFinanceMembers();
+  const { options: payers, defaultUserId, meId } = useFinanceMembers();
   const [create, { isLoading }] = useCreatePackMutation();
   const venues = (data?.venues ?? []).filter((v) => !v.archivedAt);
 
@@ -50,7 +53,8 @@ export default function PackForm({
   const [error, setError] = useState("");
 
   const venue = venueId ?? venues[0]?.id ?? null;
-  const payer = paidBy ?? defaultUserId;
+  // 保管人（不能結算）付款人固定是自己
+  const payer = selfOnly ? (meId ?? 0) : (paidBy ?? defaultUserId);
   const sessionsNum = Number(sessions);
   const priceNum = Number(price);
   const remainingNum = Number(remaining);
@@ -134,7 +138,11 @@ export default function PackForm({
         )}
         <div className="flex flex-col gap-1.5">
           <FieldLabel>誰付的</FieldLabel>
-          <Select value={payer} onChange={(v) => setPaidBy(v)} options={payers} placeholder="選一位" />
+          {selfOnly ? (
+            <p className="text-sm text-neutral-900">{payers.find((o) => o.value === payer)?.label ?? "自己"}（自己）</p>
+          ) : (
+            <Select value={payer} onChange={(v) => setPaidBy(v)} options={payers} placeholder="選一位" />
+          )}
         </div>
         {mode === "new" && (
           <Field label="購買日期" type="date" value={date} onChange={(e) => setDate(e.target.value)} />

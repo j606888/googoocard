@@ -256,4 +256,22 @@ describe("finance receiver and sold branch", () => {
       paidByUserId: null,
     });
   });
+
+  it("學生頁買卡／確認收款（沒有課程脈絡）：非保管人一定要選收款人", async () => {
+    await enable();
+    auth.userId = assistantId;
+    const card = await createCard(classroomId);
+    const buyBody = { cardId: card.id, sessions: 6, price: 3000, isPaid: true, paymentMethod: "CASH" };
+    const noReceiver = await BUY(jsonRequest("POST", buyBody), routeParams({ id: String(studentId) }));
+    expect(noReceiver.status).toBe(400);
+    expect((await noReceiver.json()).code).toBe("RECEIVER_REQUIRED");
+    const picked = await BUY(jsonRequest("POST", { ...buyBody, receiverUserId: keeperId }), routeParams({ id: String(studentId) }));
+    expect(picked.status).toBe(200);
+
+    const sc = await unpaidCard();
+    const res = await confirm(sc);
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("RECEIVER_REQUIRED");
+    expect((await confirm(sc, { receiverUserId: keeperId })).status).toBe(200);
+  });
 });

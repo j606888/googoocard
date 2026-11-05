@@ -25,7 +25,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 │             └── Event（學生事件日誌：簽到、買卡、課卡用完）
 ├── DanceStyle（教室自訂舞種：name / color 色盤 key / hasLevels 分階 / sortOrder / archivedAt）
 ├── Card（課卡種類：價格/堂數；isPracticeCard + danceStyleId 定義複習卡）
-├── Teacher（教室內的老師實體，不是 User：name / color 色盤 key / note / kind 老師・助教・都是 / archivedAt）
+├── Teacher（教室內的老師實體，不是 User：name / color 色盤 key / note / kind 老師・助教 / archivedAt）
 └── Lesson（danceStyleId + level 初/中/進階 + kind fixed/ongoing + status inProgress/finished）
     ├── LessonCard（此課程接受哪些課卡）
     ├── LessonTeacher
@@ -121,7 +121,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 入口：`src/app/api/lessons/[id]/periods/[periodId]/attendance/route.ts`
 邏輯：`src/domains/attendance/attendance.service.ts`
 
-`Teacher.kind`（`TEACHER` 只教課／`ASSISTANT` 只當助教／`BOTH` 都是，`src/lib/teachers.ts` 的 `canTeach`）：只當助教的，開課的老師選單不列出。新增的老師預設只教課；加這欄的 migration 把原有的老師都設成「都是」。（點名頁「今天的助教」2026-11-01 隨水庫一起移除。）
+`Teacher.kind`（`TEACHER` 老師／`ASSISTANT` 只當助教，`src/lib/teachers.ts` 的 `canTeach`）：只當助教的，開課的老師選單不列出。新增的老師預設是老師。原本的「都是」（`BOTH`）跟「老師」行為一樣，2026-11-05 拿掉，資料遷移成 `TEACHER`。（點名頁「今天的助教」2026-11-01 隨水庫一起移除。）
 
 ### 自動選卡（POST/PUT 點名時，`selectStudentCard`）
 
@@ -728,11 +728,14 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 **權限**：兩個獨立的旗標，跟 owner／admin／老師／小幫手四個角色分開，有勾才有（2026-11-05 從 `isFinance` 拆開，舊的財務兩個都勾）。
 - `Membership.isCustodian`（保管人，`assertCustodian` in `service/finance/config.ts`、`isCustodian` in `service/finance/receiver.ts`）：手上有教室的錢——出現在保管中、可被選為收款人；分部負責人（`Location.keeperUserId`）、過期收入對象、`Teacher.payerUserId`、房東、舊卡保管人（`legacyCustodianUserId`，開財務時選的人會被勾成保管人）、支出／次數包／轉帳／退費的付款人都必須是保管人；取消某人的保管人時他若還被這些指著 → 409 `CUSTODIAN_IN_USE`（訊息列出是哪些，`custodianReferences` in `config.ts`）。
-- `Membership.canSettle`（可以結算，`assertCanSettle` in `service/finance/access.ts`）：確認結算、記支出／次數包／轉帳／退費、改分帳規則、分部與財務設定、開帳確認。只勾這個的人不出現在保管中。
+- `Membership.canSettle`（可以結算，`assertCanSettle` in `service/finance/access.ts`）：確認結算、記別人付的支出／次數包、轉帳／退費、改分帳規則、分部與財務設定、開帳確認。只勾這個的人不出現在保管中。
+- 保管人（不能結算）可以記**自己付的**支出與次數包（`assertCanRecordPayment`，表單上付款人固定是自己）；開帳的「之前買的還剩幾次」仍要可以結算。
 
 其餘成員全部唯讀（第一階段全透明）。兩個旗標各自守門：最後一位保管人（`LAST_CUSTODIAN`）、最後一位可以結算的人（`LAST_SETTLER`）不能被取消。開財務的 owner 兩個都會被勾上。
 
 **資料表**（人的欄位刻意是純 Int、沒有 FK，存在性與教室歸屬由 service 驗證）：`Venue`／`VenuePack`（場地與預付次數包）、`LessonSplitRule`／`PeriodSplitOverride`（整門課規則 JSON＋單堂覆寫）、`AttendanceAbsence`、`FinanceExpense`、`FinanceTransfer`（`toKind` USER／TEACHER／SELF／VENUE）、`FinanceRefund`、`FinanceSettlement`（月結快照）、`FinanceBranchReview`（分部核對）。`StudentCard` 加 `expiresAt`／`closedReason`／`soldLocationId`／`giftFromId`，`Card` 加綁課欄位。開帳時上線前買、還剩 N 次的場地包用 `POST /api/finance/packs` 的 `before: { totalSessions, totalPrice, remaining }` 記：價值＝包價 ÷ 總次數 × N（取整到元），`purchasedAt` 記在上線前一天，所以先買先用時最先被扣；帳本上跟一般次數包一樣（付款人 −價值，之後每堂場地費補回）。
+
+**開帳清單**（`setupChecklist` in `service/finance/setup.ts`）：「場地」步驟可勾「這間教室不用場地費」（`Classroom.financeNoVenueFee`，`PATCH /api/finance/settings` 的 `noVenueFee`），勾了就算完成。付款人那一步：付款人在老師名單裡有同名、沒連帳號的老師 → `GET /api/finance/teachers` 的 `linkSuggestion`，提醒「這位老師是 X 本人嗎？」，`POST /api/finance/teachers/[id]/link` 一鍵連結（可以結算的人；不搬動既有連結、小幫手不能連）。
 
 **計算放哪裡**（由底往上，能算的都不存）：
 1. `src/domains/finance/split.ts`：純函式，規則 JSON → 一堂課的分帳（收入 − 場地 − 助教 − 抽成 → 老師／公積金）。
@@ -750,15 +753,15 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 **綁課卡／缺席／贈送卡**：`Card` 可綁一門 `fixed` 課（不可與複習／體驗並用，不可綁已結束的課）。時段定案時，有綁課卡但沒出席的學生自動扣一格，寫進**獨立的 `AttendanceAbsence` 表**——算收入、**絕不當出席**（出席人數、紀錄、活躍度、`lastAttendAt` 都不碰它）；之後補點出席會把缺席換成出席，不重複扣。綁課卡剩格在那門課結束後變成「通用卡」（任何課可用，LIFF 自助簽到也可）。賣綁課卡時同交易自動發一張**贈送卡**（1 格、$0、通用、6 個月）；系統「贈送卡」卡種對外隱藏、不可販售，只由 `issueGiftCardInTx` 發。選卡優先序：該課自己的卡先；通用卡只在學生沒有該課的卡且恰好一張時自動選。
 
-**收款人規則**（`service/finance/receiver.ts`）：財務開啟時，收款人只能是保管人（`assertReceiverIsCustodian`）。非保管人的賣卡者（小幫手代收）一律落到 `defaultReceiver`（該堂課分部的負責人）；找不到負責人且呼叫者不是保管人 → 400 `RECEIVER_REQUIRED`。$0 單堂（免收）不需要收款人（`paidByUserId = null`）。`soldLocationId` = 收款人負責的分部。轉換／轉讓的新卡繼承來源卡的保管人與賣卡分部（只在財務開啟時）。解不出保管人的錢進該持有人的「未分配」並出 `UNRESOLVED_KEEPER` 警告，**不丟錢**，且擋住結算。開帳清單「上線後收的錢」（`service/finance/strayReceivers.ts`、`/api/finance/receivers`）：上線日之後已付款、收款人不是保管人的卡／單堂（開帳前代收的），勾選後一次改記到一位保管人（預設舊卡保管人），卡沒有賣卡分部時補上該保管人負責的分部。
+**收款人規則**（`service/finance/receiver.ts`）：財務開啟時，收款人只能是保管人（`assertReceiverIsCustodian`）。非保管人的賣卡者（小幫手代收）一律落到 `defaultReceiver`（該堂課分部的負責人）；找不到負責人且呼叫者不是保管人 → 400 `RECEIVER_REQUIRED`。$0 單堂（免收）不需要收款人（`paidByUserId = null`）。課程頁體驗名單的已付款報名也能選收款人（`receiverUserId`）。學生頁買卡／確認收款沒有課程脈絡，非保管人一定要選收款人。`soldLocationId` = 收款人負責的分部。轉換／轉讓的新卡繼承來源卡的保管人與賣卡分部（只在財務開啟時）。解不出保管人的錢進該持有人的「未分配」並出 `UNRESOLVED_KEEPER` 警告，**不丟錢**，且擋住結算。開帳清單「改記到保管人」（`service/finance/strayReceivers.ts`、`/api/finance/receivers`）：上線日之後已付款、收款人不是保管人的卡／單堂（開帳前代收的），以及上線前收款人不是保管人、還開著且有剩格的卡，勾選後一次改記到一位保管人（預設舊卡保管人），卡沒有賣卡分部時補上該保管人負責的分部。
 
 **月結**：財務按「確認結算」才鎖（`lockMonth`），沒有自動鎖；存快照（每堂分帳、每人應領、保管人各格、`byBranch`、已實現的來源 key）。一筆收入歸「那堂課的月份；已鎖就歸最早未鎖的月份」；鎖後的補點名／補收款／改單堂金額只產生**調整**行（新 − 快照，歸最早未鎖月），**已鎖月份永不改變**。過期收入同理：快照的 `eventIds.expiries` 存 `{ id, value, holderUserId, to }`（鎖住當時的價值；舊格式只有 id），之後卡的剩格變了（例：退格到已過期的卡）→ 帳本在最早未鎖月放「沖銷快照那版＋現況」（`expiryHistoryEntries`，跟時段的 `periodHistoryEntries` 同一套），結算單列在 `expiryAdjustments`，下次鎖定時重存基準。只能鎖最早未鎖的月份（否則 409 `MONTH_NOT_OPEN`）。**作廢落在已鎖月份（或已被快照包含）的支出／轉帳／退費／次數包 → 409 `MONTH_LOCKED`**，要改請記一筆相反的新紀錄。`lockMonth` 只在三種情況擋：不是最早未鎖的月份（409 `MONTH_NOT_OPEN`）、該月在台北時間還沒結束（409 `MONTH_NOT_ENDED`）、結算單帶 `UNALLOCATED`（有錢找不到人，含解不出保管人；409 `UNALLOCATED`）。`UNCHECKED_PERIODS`／`NO_PACK`／`PACK_OVERDRAWN` 只在結算單上當提醒，**不擋**結算。**取整只在月結發錢時**：每人月合計取整到元，零頭進付款人負責分部的公積金；內部一律保留小數。
 
-**分部核對**（`FinanceBranchReview`，`service/finance/branchReview.ts`，`POST /api/finance/settlements/[month]/reviews`）：只有該分部負責人（`Location.keeperUserId`）能按，**不擋結算**（確認對話框只提醒誰還沒核對）。核對時存「這個分部這個月結果」的雜湊（`branchHash`：依這堂課的基金歸類的時段收入與分帳、待收／待定、該分部支出、過期收入與其調整、調整、還沒點名的時段數、`byBranch` 的營收與支出；固定 key 順序，鎖月後從 jsonb 讀回也一樣；**不含發錢取整的零頭**——零頭跟著付款人整月合計走，別的分部的課也會動到它）；`GET` 結算單時重算比對，不同 → `valid: false`（「核對後有變動」），所以寫入點不必記得清掉核對。台北 5 號過後，首頁「要處理的事」對負責人列出上個月（還沒結算）還沒核對的分部。結算單的「各分部」（`byBranch`、`uncheckedByBranch`）也依這堂課的基金歸類。
+**分部核對**（`FinanceBranchReview`，`service/finance/branchReview.ts`，`POST /api/finance/settlements/[month]/reviews`）：只有該分部負責人（`Location.keeperUserId`）能按，**不擋結算**（確認對話框只提醒誰還沒核對）。核對時存「這個分部這個月結果」的雜湊（`branchHash`：依這堂課的基金歸類的時段收入與分帳、待收／待定、該分部支出、過期收入與其調整、調整、還沒點名的時段數、`byBranch` 的營收與支出；固定 key 順序，鎖月後從 jsonb 讀回也一樣；**不含發錢取整的零頭**——零頭跟著付款人整月合計走，別的分部的課也會動到它）；`GET` 結算單時重算比對，不同 → `valid: false`（「核對後有變動」），所以寫入點不必記得清掉核對。每月 1 號起（台北），首頁「要處理的事」對負責人列出上個月（還沒結算）還沒核對的分部，過了 5 號標「逾期」（`overdue`）。結算單的「各分部」（`byBranch`、`uncheckedByBranch`）也依這堂課的基金歸類。
 
-**轉帳狀態**：結算後結算單每筆要轉／要發的錢顯示「等待轉帳／已完成轉帳」。按「已完成」＝建一筆掛 `settlementMonth` 的 `FinanceTransfer`（`createdById`／`createdAt` 就是誰、何時按）；檢查與寫入在同一個交易、鎖住那個月的 `FinanceSettlement` 列，連按兩下只記一筆。權限在 `assertCanRecordTransfer`（`service/finance/settlement.ts`）：可以結算的人記任何轉帳（代按）；其他人只能記結算過的月份、快照 `payouts` 裡自己是付款人的那筆，金額不超過還沒轉的部分，否則 403 `NOT_PAYER`。取消（作廢）照舊只有可以結算的人。不發通知。
+**轉帳狀態**：結算後結算單每筆要轉／要發的錢顯示「等待轉帳／已完成轉帳」。按「已完成」＝建一筆掛 `settlementMonth` 的 `FinanceTransfer`（`createdById`／`createdAt` 就是誰、何時按）；檢查與寫入在同一個交易、鎖住那個月的 `FinanceSettlement` 列，連按兩下只記一筆。權限在 `assertCanRecordTransfer`（`service/finance/settlement.ts`）：可以結算的人記任何轉帳（代按）；其他人只能記結算過的月份、快照 `payouts` 裡自己是付款人的那筆，金額不超過還沒轉的部分，否則 403 `NOT_PAYER`。取消（作廢）：付款人可以取消**自己按的**那筆（`fromUserId` 與 `createdById` 都是自己），別人按的不行；可以結算的人什麼都能取消。不發通知。
 
-**財務首頁**（`/finance`，`FinanceHome.tsx`）：分部切換（預設＝我負責的分部 `Location.keeperUserId`，沒有就全教室）＋月份切換。上面「要處理的事」（`GET /api/finance/home`，`service/finance/home.ts`）：未付款課卡、未付單堂、點名沒綁卡**直接取自 `getTodos()`**，用同一組元件（`features/UrgentTodoSections.tsx`，鈴鐺也用它）與同一個處理動作，再加上沒設分帳的課、過去沒點名的時段、次數包用完、上月未結算；每項帶 `locationId`＝這堂課的基金，`null`（未付款的卡、次數包）每個分部都看得到；一件都沒有整區不顯示。下面「本月收支」瀑布（`domains/finance/waterfall.ts` 的 `monthWaterfall`，吃結算單）：收入 → 老師 → 場地 → 進公積金 → 支出 → 本月淨變化。**分部依「這堂課的基金」（`PeriodFinance.fundLocationId`＝規則的 `fundLocationId`，沒規則＝上課分部）歸類，不依上課地點**；淨變化直接取結算單的 `byBranch.fundChange`，跟結算單永遠一致，差額（過期收入、調整、取整零頭）列成「過期收入與調整」。保管中不在首頁，只在月結算單。
+**財務首頁**（`/finance`，`FinanceHome.tsx`）：分部切換（預設＝我負責的分部 `Location.keeperUserId`，沒有就全教室）＋月份切換。上面「要處理的事」（`GET /api/finance/home`，`service/finance/home.ts`）：未付款課卡、未付單堂、點名沒綁卡**直接取自 `getTodos()`**，用同一組元件（`features/UrgentTodoSections.tsx`，鈴鐺也用它）與同一個處理動作，再加上沒設分帳的課、過去沒點名的時段、次數包用完、上月未結算、分部還沒核對。每項帶 `locationId`，`null` 每個分部都看得到：**要收錢的三類依上課地點**（`Lesson.locationId`；未付款的卡沒有賣卡分部，用第一次用那張卡的課，還沒用過 → `null`），其他依這堂課的基金；錢的報表（瀑布、結算單各分部）依基金；一件都沒有整區不顯示。下面「本月收支」瀑布（`domains/finance/waterfall.ts` 的 `monthWaterfall`，吃結算單）：收入 → 老師 → 場地 → 進公積金 → 支出 → 本月淨變化。**分部依「這堂課的基金」（`PeriodFinance.fundLocationId`＝規則的 `fundLocationId`，沒規則＝上課分部）歸類，不依上課地點**；淨變化直接取結算單的 `byBranch.fundChange`，跟結算單永遠一致，差額（過期收入、調整、取整零頭）列成「過期收入與調整」。保管中不在首頁，只在月結算單。
 
 **測試**：純函式 `src/domains/finance/*.test.ts`；整合 `tests/api/finance-*.test.ts`；測試編碼 spec §13／§14 的案例。
 

@@ -350,7 +350,7 @@ export async function createTeacher(
     name?: string;
     userId?: number | null;
     payerUserId?: number | null;
-    kind?: "TEACHER" | "ASSISTANT" | "BOTH";
+    kind?: "TEACHER" | "ASSISTANT";
   } = {}
 ) {
   return prisma.teacher.create({ data: { classroomId, name, userId, payerUserId, kind } });

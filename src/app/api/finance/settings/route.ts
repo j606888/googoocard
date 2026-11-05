@@ -9,7 +9,7 @@ import { assertCustodian } from "@/service/finance/config";
 export const GET = apiRoute(async ({ classroomId }) => {
   const c = await prisma.classroom.findUniqueOrThrow({
     where: { id: classroomId },
-    select: { financeEnabledAt: true, financeRoundTo: true, legacyCustodianUserId: true },
+    select: { financeEnabledAt: true, financeRoundTo: true, legacyCustodianUserId: true, financeNoVenueFee: true },
   });
   const memberships = await prisma.membership.findMany({
     where: { classroomId },
@@ -21,6 +21,7 @@ export const GET = apiRoute(async ({ classroomId }) => {
     launchDate: c.financeEnabledAt ? toTaipeiDateKey(c.financeEnabledAt) : null,
     roundTo: c.financeRoundTo,
     legacyCustodianUserId: c.legacyCustodianUserId,
+    noVenueFee: c.financeNoVenueFee,
     members: memberships.map((m) => ({ userId: m.userId, name: m.user.name, isCustodian: m.isCustodian, canSettle: m.canSettle })),
   };
 });
@@ -28,6 +29,8 @@ export const GET = apiRoute(async ({ classroomId }) => {
 const patchSchema = z.object({
   roundTo: z.union([z.literal(1), z.literal(10), z.literal(100)]).optional(),
   legacyCustodianUserId: z.number().int().positive().optional(),
+  /** 開帳清單「場地」：這間教室不用場地費。 */
+  noVenueFee: z.boolean().optional(),
 });
 
 export const PATCH = apiRoute(async ({ request, userId, classroomId }) => {
@@ -44,8 +47,9 @@ export const PATCH = apiRoute(async ({ request, userId, classroomId }) => {
       ...(body.legacyCustodianUserId !== undefined
         ? { legacyCustodianUserId: body.legacyCustodianUserId }
         : {}),
+      ...(body.noVenueFee !== undefined ? { financeNoVenueFee: body.noVenueFee } : {}),
     },
-    select: { financeRoundTo: true, legacyCustodianUserId: true },
+    select: { financeRoundTo: true, legacyCustodianUserId: true, financeNoVenueFee: true },
   });
-  return { roundTo: c.financeRoundTo, legacyCustodianUserId: c.legacyCustodianUserId };
+  return { roundTo: c.financeRoundTo, legacyCustodianUserId: c.legacyCustodianUserId, noVenueFee: c.financeNoVenueFee };
 });

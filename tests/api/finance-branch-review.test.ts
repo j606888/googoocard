@@ -216,13 +216,20 @@ describe("finance branch review", () => {
     expect((await reviewOf(kaoId)).valid).toBe(false);
   });
 
-  it("首頁：5 號過後提醒負責人上個月還沒核對的分部", async () => {
-    expect((await getFinanceHome(classroomId, dingId, DEC_5)).unreviewedBranches).toEqual([]);
+  it("首頁：1 號起提醒負責人上個月還沒核對的分部，過了 5 號標逾期", async () => {
+    const NOV_30 = new Date("2026-11-30T04:00:00Z");
+    expect((await getFinanceHome(classroomId, dingId, NOV_30)).unreviewedBranches).toEqual([]);
+    expect((await getFinanceHome(classroomId, dingId, DEC_3)).unreviewedBranches).toEqual([
+      { month: "2026-11", locationId: tainanId, locationName: "台南", overdue: false },
+    ]);
+    expect((await getFinanceHome(classroomId, dingId, DEC_5)).unreviewedBranches).toEqual([
+      { month: "2026-11", locationId: tainanId, locationName: "台南", overdue: false },
+    ]);
     expect((await getFinanceHome(classroomId, dingId, DEC_6)).unreviewedBranches).toEqual([
-      { month: "2026-11", locationId: tainanId, locationName: "台南" },
+      { month: "2026-11", locationId: tainanId, locationName: "台南", overdue: true },
     ]);
     expect((await getFinanceHome(classroomId, seanId, DEC_6)).unreviewedBranches).toEqual([
-      { month: "2026-11", locationId: kaoId, locationName: "高雄" },
+      { month: "2026-11", locationId: kaoId, locationName: "高雄", overdue: true },
     ]);
     await reviewBranch({ classroomId, userId: dingId, month: "2026-11", locationId: tainanId, now: DEC_6 });
     expect((await getFinanceHome(classroomId, dingId, DEC_6)).unreviewedBranches).toEqual([]);

@@ -27,7 +27,9 @@ import { POST as LEGACY_CONFIRM } from "@/app/api/finance/legacy-prepaid/confirm
 import { POST as CONFIRM_OPENING } from "@/app/api/finance/locations/[id]/confirm-opening/route";
 import { GET as LOCATIONS_GET } from "@/app/api/finance/locations/route";
 import { GET as TEACHERS_GET } from "@/app/api/finance/teachers/route";
+import { POST as LINK_TEACHER } from "@/app/api/finance/teachers/[id]/link/route";
 import { GET as RULED_LESSONS } from "@/app/api/finance/lessons/route";
+import { GET as SETTINGS_GET, PATCH as SETTINGS_PATCH } from "@/app/api/finance/settings/route";
 import { setupChecklist } from "@/service/finance/setup";
 
 const byKey = async (classroomId: number) =>
@@ -79,6 +81,16 @@ describe("finance setup checklist", () => {
     const v = await createVenue(classroomId, { name: "V" });
     expect((await byKey(classroomId)).venues.done).toBe(true);
     await prisma.venue.update({ where: { id: v.id }, data: { archivedAt: new Date() } });
+    expect((await byKey(classroomId)).venues.done).toBe(false);
+  });
+
+  it("venues: 勾「這間教室不用場地費」就算完成（存在教室上）", async () => {
+    expect((await byKey(classroomId)).venues.done).toBe(false);
+    const res = await SETTINGS_PATCH(jsonRequest("PATCH", { noVenueFee: true }), routeParams({}));
+    expect(res.status).toBe(200);
+    expect((await byKey(classroomId)).venues.done).toBe(true);
+    expect(await (await SETTINGS_GET(jsonRequest("GET"), routeParams({}))).json()).toMatchObject({ noVenueFee: true });
+    await SETTINGS_PATCH(jsonRequest("PATCH", { noVenueFee: false }), routeParams({}));
     expect((await byKey(classroomId)).venues.done).toBe(false);
   });
 
@@ -241,7 +253,43 @@ describe("finance setup checklist", () => {
       ["expiryTo", "expiryUserId", "fundOpening", "fundOpeningConfirmedAt", "id", "keeperUserId", "name"].sort(),
     );
     const t = await (await TEACHERS_GET(jsonRequest("GET"), routeParams({}))).json();
-    expect(Object.keys(t.teachers[0]).sort()).toEqual(["id", "name", "payerUserId", "userId"]);
+    expect(Object.keys(t.teachers[0]).sort()).toEqual(["id", "linkSuggestion", "name", "payerUserId", "userId"]);
+  });
+
+  it("付款人那一步：付款人有同名、沒連帳號的老師 → 提醒「是本人嗎」，可一鍵連結", async () => {
+    const sean = await createMember(classroomId, { email: "sean@test.local", name: "Sean", role: "admin" });
+    await prisma.membership.updateMany({ where: { userId: sean.id, classroomId }, data: { isCustodian: true } });
+    const helper = await createMember(classroomId, { email: "nini@test.local", name: "Nini", role: "assistant" });
+    await prisma.membership.updateMany({ where: { userId: helper.id, classroomId }, data: { isCustodian: true } });
+    const seanT = await createTeacher(classroomId, { name: "Sean", payerUserId: sean.id });
+    const other = await createTeacher(classroomId, { name: "搭檔", payerUserId: sean.id });
+    const niniT = await createTeacher(classroomId, { name: "Nini", payerUserId: helper.id }); // 小幫手不能連老師
+
+    const list = async () =>
+      Object.fromEntries(
+        ((await (await TEACHERS_GET(jsonRequest("GET"), routeParams({}))).json()).teachers as { id: number; linkSuggestion: unknown }[]).map(
+          (t) => [t.id, t.linkSuggestion],
+        ),
+      );
+    let s = await list();
+    expect(s[seanT.id]).toEqual({ userId: sean.id, name: "Sean" });
+    expect(s[other.id]).toBeNull();
+    expect(s[niniT.id]).toBeNull();
+
+    const link = (teacherId: number, userId: number) =>
+      LINK_TEACHER(jsonRequest("POST", { userId }), routeParams({ id: String(teacherId) }));
+    expect((await link(niniT.id, helper.id)).status).toBe(400);
+    expect((await link(seanT.id, sean.id)).status).toBe(200);
+    expect((await prisma.teacher.findUniqueOrThrow({ where: { id: seanT.id } })).userId).toBe(sean.id);
+    s = await list();
+    expect(s[seanT.id]).toBeNull();
+    // 已經連了別的老師 → 不能再連（409）
+    expect((await link(other.id, sean.id)).status).toBe(409);
+
+    // 不能結算的人不能連
+    auth.userId = sean.id;
+    const t2 = await createTeacher(classroomId, { name: "Owner" });
+    expect((await link(t2.id, ownerId)).status).toBe(403);
   });
 
   it("venuePack in a period override also needs a pack", async () => {

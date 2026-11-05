@@ -40,3 +40,22 @@ export async function assertCanSettle(userId: number, classroomId: number): Prom
     throw new ApiError(403, "NOT_FINANCE", "Only members who can settle can do this");
   }
 }
+
+/**
+ * 記支出／次數包：可以結算的人記任何人付的；保管人只能記自己付的（付款人＝自己）。否則 403 NOT_FINANCE。
+ * （付款人本身必須是保管人，由呼叫端另外驗。）
+ */
+export async function assertCanRecordPayment(
+  userId: number,
+  classroomId: number,
+  payerUserId: number,
+): Promise<void> {
+  await assertFinanceEnabled(classroomId);
+  const m = await prisma.membership.findUnique({
+    where: { userId_classroomId: { userId, classroomId } },
+    select: { canSettle: true, isCustodian: true },
+  });
+  if (m?.canSettle) return;
+  if (m?.isCustodian && payerUserId === userId) return;
+  throw new ApiError(403, "NOT_FINANCE", "Custodians can only record what they paid themselves");
+}

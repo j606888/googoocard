@@ -7,6 +7,8 @@ import {
   createCard,
   createLesson,
   createStudentCard,
+  createMember,
+  enableFinanceFor,
   routeParams,
 } from "../factories";
 
@@ -151,5 +153,23 @@ describe("/api/lessons/[id]/trials", () => {
     expect(record.studentCardId).toBe(studentCardId);
     const untouched = await prisma.studentCard.findUniqueOrThrow({ where: { id: general.id } });
     expect(untouched.remainingSessions).toBe(5);
+  });
+
+  it("財務開啟：已付款報名可指定收款人（必須是保管人）；財務沒開時忽略", async () => {
+    const seanId = (await createMember(classroomId, { email: "sean@test.local", name: "Sean" })).id;
+    const helperId = (await createMember(classroomId, { email: "h@test.local", name: "H" })).id;
+    // 財務沒開：照舊記在登記的人身上
+    const off = await post(lessonId, { newStudentName: "甲", cardId: trialId, isPaid: true, paymentMethod: "CASH", receiverUserId: seanId });
+    expect(off.status).toBe(200);
+    expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: (await off.json()).studentCardId } })).paidByUserId).toBe(auth.userId);
+
+    await enableFinanceFor(classroomId, { launch: new Date("2026-10-31T16:00:00Z"), legacyCustodianUserId: auth.userId });
+    await prisma.membership.updateMany({ where: { classroomId, userId: { in: [auth.userId, seanId] } }, data: { isCustodian: true } });
+    const bad = await post(lessonId, { newStudentName: "乙", cardId: trialId, isPaid: true, paymentMethod: "CASH", receiverUserId: helperId });
+    expect(bad.status).toBe(400);
+    expect((await bad.json()).code).toBe("RECEIVER_NOT_FINANCE");
+    const ok = await post(lessonId, { newStudentName: "丙", cardId: trialId, isPaid: true, paymentMethod: "CASH", receiverUserId: seanId });
+    expect(ok.status).toBe(200);
+    expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: (await ok.json()).studentCardId } })).paidByUserId).toBe(seanId);
   });
 });

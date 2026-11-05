@@ -7,6 +7,8 @@ import type { registerTrialSchema } from "@/lib/schemas";
 import { createStudent, DEFAULT_STUDENT_AVATAR } from "@/service/student";
 import { createStudentCardInTx } from "@/service/studentCard";
 import { isReturningStudent } from "@/service/trial";
+import { isFinanceEnabled } from "@/service/finance/access";
+import { assertReceiverIsCustodian } from "@/service/finance/receiver";
 
 /**
  * 體驗名單：老師把報名體驗的人（Google Form、現場）登記在體驗課上，
@@ -102,6 +104,11 @@ export async function registerTrial({
   const trialCards = await trialCardsOf(lessonId, classroomId);
   const card = trialCards.find((c) => c.id === input.cardId && !c.expiredAt);
   if (!card) throw badRequest("CARD_NOT_OFFERED", "Not an active trial card of this lesson");
+  // 財務開啟、當場收款可指定收款人（必須是保管人）；沒開就照舊記在登記的人身上。建學生之前先驗。
+  const financeOn = await isFinanceEnabled(classroomId);
+  if (financeOn && input.isPaid && input.receiverUserId !== undefined) {
+    await assertReceiverIsCustodian(input.receiverUserId, classroomId);
+  }
 
   let studentId: number;
   if (input.studentId !== undefined) {
@@ -134,6 +141,7 @@ export async function registerTrial({
     where: { id: lessonId, classroomId },
     select: { locationId: true },
   });
+  const receiverUserId = financeOn && isPaid && finalPrice > 0 ? input.receiverUserId : undefined;
   return prisma.$transaction((tx) =>
     createStudentCardInTx(tx, {
       studentId,
@@ -143,7 +151,7 @@ export async function registerTrial({
       purchaseSource: "STAFF",
       purchasedByUserId: userId,
       isPaid,
-      paidByUserId: isPaid && finalPrice > 0 ? userId : null,
+      paidByUserId: isPaid && finalPrice > 0 ? (receiverUserId ?? userId) : null,
       paymentMethod,
       paymentReference,
       lessonLocationId: lessonLocation?.locationId ?? null,

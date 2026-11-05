@@ -100,6 +100,8 @@ export const registerTrialSchema = z
     isPaid: z.boolean(),
     paymentMethod: z.enum(PaymentMethod).nullish(),
     paymentReference: z.string().trim().max(20).nullish(),
+    /** 財務開啟、當場收款時的收款人（保管人）；財務沒開時忽略。 */
+    receiverUserId: positiveInt.optional(),
   })
   .refine((data) => (data.studentId === undefined) !== (data.newStudentName === undefined), {
     message: "Pass exactly one of studentId / newStudentName",

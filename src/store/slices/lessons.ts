@@ -243,6 +243,8 @@ export interface RegisterTrialBody {
   isPaid: boolean;
   paymentMethod?: "CASH" | "TRANSFER" | null;
   paymentReference?: string | null;
+  /** 財務開啟、當場收款時的收款人（保管人）。 */
+  receiverUserId?: number;
 }
 
 const lessonsApi = api.injectEndpoints({
