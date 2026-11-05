@@ -7,6 +7,8 @@ import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { canBuyCard, toDanceLevels } from "@/domains/qualification";
 import { createStudentCardInTx } from "@/service/studentCard";
 import { assertCardSellable } from "@/service/finance/bound";
+import { isFinanceEnabled } from "@/service/finance/access";
+import { assertReceiverIsCustodian } from "@/service/finance/receiver";
 
 type Params = { id: string };
 
@@ -23,7 +25,7 @@ export const GET = apiRoute<Params>(async ({ params, classroomId }) => {
 
 export const POST = apiRoute<Params>(async ({ request, params, userId, classroomId }) => {
   const studentId = parseId(params.id, "student id");
-  const { cardId, sessions, price, lessonId, isPaid, paymentMethod, paymentReference, note } = await parseBody(
+  const { cardId, sessions, price, lessonId, isPaid, paymentMethod, paymentReference, note, receiverUserId } = await parseBody(
     request,
     buyStudentCardSchema
   );
@@ -64,6 +66,11 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
   // a card that exists with no Event leaves a gap in the student's timeline,
   // and a stale "Needs Renewal" tag tells the teacher to chase a student who
   // just paid.
+  // 財務開啟、當場收款可指定收款人（必須是保管人）；沒開就照舊記在賣卡的人身上。
+  const financeOn = await isFinanceEnabled(classroomId);
+  if (financeOn && isPaid && receiverUserId !== undefined) {
+    await assertReceiverIsCustodian(receiverUserId, classroomId);
+  }
   const lessonLocation = lessonId
     ? await prisma.lesson.findFirst({ where: { id: lessonId, classroomId }, select: { locationId: true } })
     : null;
@@ -77,8 +84,9 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
       purchaseSource: "STAFF",
       purchasedByUserId: userId,
       isPaid,
-      // When paid at point of sale, the seller is also the payment receiver.
-      paidByUserId: userId,
+      // When paid at point of sale, the seller is also the payment receiver
+      // (finance on: unless a custodian was picked).
+      paidByUserId: financeOn && receiverUserId !== undefined ? receiverUserId : userId,
       paymentMethod: paymentMethod ?? null,
       paymentReference: paymentMethod === "TRANSFER" ? paymentReference || null : null,
       note: note?.trim() || null,

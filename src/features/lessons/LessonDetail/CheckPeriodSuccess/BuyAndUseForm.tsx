@@ -12,6 +12,7 @@ import { practiceCardBlockedHint } from "@/lib/danceLevels";
 import { Card } from "@/store/slices/cards";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldLabel } from "@/components/Field";
+import ReceiverField, { useFinanceReceiver } from "@/features/finance/ReceiverField";
 
 const BuyAndUseForm = ({
   record,
@@ -37,6 +38,9 @@ const BuyAndUseForm = ({
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
   const [isPaid, setIsPaid] = useState(true);
+  const receiver = useFinanceReceiver({ active: open || inline, lessonLocationId: lesson.locationId });
+  // 財務開啟、當場收錢才要收款人。
+  const needsReceiver = receiver.financeOn && isPaid;
 
   const cardOptions = useMemo(() => {
     return lesson?.cards || [];
@@ -116,6 +120,7 @@ const BuyAndUseForm = ({
     setOpen(false);
     setAllowManualOverride(false);
     setIsPaid(true);
+    receiver.reset();
     onDone?.();
   };
 
@@ -128,6 +133,7 @@ const BuyAndUseForm = ({
         price: parseInt(cardPrice),
         lessonId: lesson.id,
         isPaid,
+        ...(needsReceiver && receiver.receiverUserId !== null ? { receiverUserId: receiver.receiverUserId } : {}),
       });
       if (studentCard?.data) {
         await consumeStudentCard({
@@ -170,7 +176,13 @@ const BuyAndUseForm = ({
         onSubmit={handleSubmit}
         submitText={sessionsNeeded > 1 ? `買卡並扣 ${sessionsNeeded} 格` : "買卡並使用"}
         isLoading={isLoading || isConsumeLoading}
-        disabled={!selectedCardId || !cardSessions || !cardPrice || sessionsTooFew}
+        disabled={
+          !selectedCardId ||
+          !cardSessions ||
+          !cardPrice ||
+          sessionsTooFew ||
+          (needsReceiver && receiver.receiverUserId === null)
+        }
       >
         <div className="mb-4">
           <FieldLabel>選擇課卡</FieldLabel>
@@ -255,6 +267,16 @@ const BuyAndUseForm = ({
               </div>
               <Switch checked={isPaid} onCheckedChange={setIsPaid} />
             </div>
+            {isPaid && receiver.financeOn && (
+              <div className="mb-4">
+                <ReceiverField
+                  id={`buy-use-receiver-${studentId}`}
+                  value={receiver.receiverUserId}
+                  onChange={receiver.setReceiverUserId}
+                  options={receiver.options}
+                />
+              </div>
+            )}
           </>
         )}
       </ExpandableAction>

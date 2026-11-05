@@ -378,6 +378,8 @@ const studentsApi = api.injectEndpoints({
         paymentMethod?: PaymentMethod | null;
         paymentReference?: string | null;
         note?: string;
+        /** 財務開啟時的收款人（保管人）；沒開就不送。 */
+        receiverUserId?: number;
       }
     >({
       query: ({ id, ...body }) => ({

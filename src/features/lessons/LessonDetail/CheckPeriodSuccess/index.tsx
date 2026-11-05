@@ -198,7 +198,11 @@ const CheckPeriodSuccess = () => {
                 className="mr-auto"
               />
               {attendanceRecord.dropIn ? (
-                <DropInStatus dropIn={attendanceRecord.dropIn} studentName={attendanceRecord.studentName} />
+                <DropInStatus
+                  dropIn={attendanceRecord.dropIn}
+                  studentName={attendanceRecord.studentName}
+                  lessonLocationId={lesson.locationId}
+                />
               ) : (
                 <StatusTag tone="positive">
                   {attendanceRecord?.cardName}
@@ -277,15 +281,22 @@ export default CheckPeriodSuccess;
 const DropInStatus = ({
   dropIn,
   studentName,
+  lessonLocationId,
 }: {
   dropIn: NonNullable<AttendanceRecord["dropIn"]>;
   studentName: string;
+  lessonLocationId: number | null;
 }) =>
   dropIn.isPaid ? (
     <StatusTag tone="neutral">單堂 ${formatMoney(dropIn.amount)}</StatusTag>
   ) : (
     <>
       <StatusTag tone="warning">單堂未付 ${formatMoney(dropIn.amount)}</StatusTag>
-      <ConfirmDropInForm chargeId={dropIn.id} amount={dropIn.amount} studentName={studentName} />
+      <ConfirmDropInForm
+        chargeId={dropIn.id}
+        amount={dropIn.amount}
+        studentName={studentName}
+        lessonLocationId={lessonLocationId}
+      />
     </>
   );

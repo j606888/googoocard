@@ -86,7 +86,7 @@ const PeriodRow = ({
   const attended = Boolean(period.attendanceTakenAt);
   // The orange 點名 call is for a class that has happened (or is today). A
   // future first-pending period is just "the next one" — still checkable early
-  // (with the confirm below), but not shouted about.
+  // (the check page warns that it hasn't started), but not shouted about.
   const isDue = startTime.getTime() <= endOfDay(new Date()).getTime();
   const daysUntil = differenceInCalendarDays(startTime, new Date());
   const date = format(startTime, "M/d");
@@ -96,13 +96,8 @@ const PeriodRow = ({
   const [deletePeriod] = useDeletePeriodMutation();
   const [resetAttendance] = useResetAttendanceMutation();
 
+  // 還沒開始的時段照樣進點名頁，由點名頁的提示（PeriodInfo）提醒，不跳原生 confirm。
   const handleCheck = () => {
-    if (new Date() < new Date(startTime)) {
-      const confirmed = confirm("這個時段還沒開始，確定要點名嗎？");
-      if (!confirmed) {
-        return;
-      }
-    }
     router.push(`/lessons/${period.lessonId}/periods/${period.id}/check`);
   };
 

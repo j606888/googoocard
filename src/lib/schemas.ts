@@ -47,6 +47,9 @@ export const buyStudentCardSchema = z.object({
   paymentReference: z.string().trim().max(20).nullish(),
   // 卡片備註（學生看不到），跟事後 PATCH 改的是同一欄；空白 = 不填。
   note: z.string().max(500).nullish(),
+  // 財務開啟、當場收款時的收款人（必須是保管人）；省略 = 照預設（src/service/finance/receiver.ts）。
+  // 財務沒開時忽略：錢照舊記在賣卡的人身上。
+  receiverUserId: positiveInt.optional(),
 });
 
 /**
@@ -79,6 +82,8 @@ export const chargeDropInSchema = z.object({
   isPaid: z.boolean(),
   paymentMethod: z.enum(PaymentMethod).nullish(),
   paymentReference: z.string().trim().max(20).nullish(),
+  // 同 buyStudentCardSchema：只在財務開啟、當場收款時有用。
+  receiverUserId: positiveInt.optional(),
 });
 
 /**

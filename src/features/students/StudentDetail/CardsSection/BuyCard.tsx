@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import Field, { FieldError, FieldLabel, fieldControlClass } from "@/components/Field";
 import EmptyState from "@/components/EmptyState";
 import StatusTag from "@/components/StatusTag";
+import ReceiverField, { useFinanceReceiver } from "@/features/finance/ReceiverField";
 
 type BuyableStudent = Pick<Student, "id" | "name" | "danceLevels"> & {
   /** 有帶的話：卡種依上次買過排序、標題顯示目前剩幾堂。 */
@@ -96,6 +97,9 @@ export const BuyCardDialog = ({
   const [errors, setErrors] = useState<{ selectedCardId?: string; cardSessions?: string }>({});
   const [createStudentCard, { isLoading }] = useCreateStudentCardMutation();
   const fieldId = useId();
+  // 沒有課程脈絡：自己是保管人就預設自己，否則要選。
+  const receiver = useFinanceReceiver({ active: open });
+  const needsReceiver = receiver.financeOn && payment !== "UNPAID";
 
   const cardOptions = useMemo(
     () => orderCards(cards?.activeCards ?? [], student),
@@ -129,6 +133,7 @@ export const BuyCardDialog = ({
     }
     setPayment("CASH");
     setReference("");
+    receiver.reset();
     setNote("");
     setShowAll(false);
     setErrors({});
@@ -174,6 +179,7 @@ export const BuyCardDialog = ({
         paymentMethod: payment === "UNPAID" ? null : payment,
         paymentReference: payment === "TRANSFER" ? reference.trim() || null : null,
         note: note.trim() || undefined,
+        ...(needsReceiver && receiver.receiverUserId !== null ? { receiverUserId: receiver.receiverUserId } : {}),
       }).unwrap();
       toast.success(`已為 ${student.name} 購買課卡`);
       onClose();
@@ -204,7 +210,7 @@ export const BuyCardDialog = ({
       onSubmit={handleSubmit}
       submitText="確認購買"
       isLoading={isLoading}
-      disabled={!selectedCardId}
+      disabled={!selectedCardId || (needsReceiver && receiver.receiverUserId === null)}
       footerStart={
         selectedCardId && (
           <div className="leading-tight">
@@ -343,6 +349,15 @@ export const BuyCardDialog = ({
                 maxLength={20}
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
+              />
+            )}
+
+            {needsReceiver && (
+              <ReceiverField
+                id={`${fieldId}-receiver`}
+                value={receiver.receiverUserId}
+                onChange={receiver.setReceiverUserId}
+                options={receiver.options}
               />
             )}
 
