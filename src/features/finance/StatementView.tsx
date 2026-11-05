@@ -328,17 +328,10 @@ export default function StatementView({ month }: { month: string }) {
 
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {holderIds.map((userId) => {
-          const buckets = statement.custodyBefore[userId];
           const payouts = statement.payouts.filter((p) => p.fromUserId === userId);
           const self = userName(userId);
           return (
             <div key={userId} className="flex flex-col gap-3">
-              <CustodyCard
-                name={`${self}（月結前）`}
-                total={buckets.cash}
-                rows={custodyRows(buckets, nameMaps(self))}
-                deficits={fundDeficits(buckets, locationNames)}
-              />
               <section className="rounded-2xl border border-neutral-200 bg-white p-4 lg:p-5">
                 <h3 className="mb-1 text-sm font-semibold text-neutral-900">{self}要轉／領</h3>
                 {payouts.length === 0 ? (
@@ -386,26 +379,51 @@ export default function StatementView({ month }: { month: string }) {
         })}
       </div>
 
-      {locked && custody && (
-        <section className="flex flex-col gap-3">
-          <h2 className="flex items-center gap-1 text-base font-semibold text-neutral-900">
-            轉完之後
-            <InfoTip label="轉完之後說明">
-              這是現在的保管中。每筆都按了「已轉」之後，只會剩預收、公積金和場地包。
-            </InfoTip>
-          </h2>
-          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {custody.users.map((u) => (
-              <CustodyCard
-                key={u.userId}
-                name={u.name}
-                total={u.buckets.cash}
-                rows={custodyRows(u.buckets, nameMaps(u.name))}
-                deficits={fundDeficits(u.buckets, locationNames)}
-              />
-            ))}
+      {holderIds.length > 0 && (
+        <details className="rounded-2xl border border-neutral-200 bg-white p-4 lg:p-5">
+          <summary className="flex cursor-pointer items-center gap-1 text-base font-semibold text-neutral-900">
+            保管中
+            <span className="text-[13px] font-normal text-neutral-500">{locked ? "月結前 → 轉完之後" : "月結前"}</span>
+          </summary>
+          <div className="mt-3 flex flex-col gap-4">
+            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              {holderIds.map((userId) => {
+                const buckets = statement.custodyBefore[userId];
+                const self = userName(userId);
+                return (
+                  <CustodyCard
+                    key={userId}
+                    name={`${self}（月結前）`}
+                    total={buckets.cash}
+                    rows={custodyRows(buckets, nameMaps(self))}
+                    deficits={fundDeficits(buckets, locationNames)}
+                  />
+                );
+              })}
+            </div>
+            {locked && custody && (
+              <section className="flex flex-col gap-3">
+                <h3 className="flex items-center gap-1 text-sm font-semibold text-neutral-900">
+                  轉完之後
+                  <InfoTip label="轉完之後說明">
+                    這是現在的保管中。每筆都按了「已轉」之後，只會剩預收、公積金和場地包。
+                  </InfoTip>
+                </h3>
+                <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                  {custody.users.map((u) => (
+                    <CustodyCard
+                      key={u.userId}
+                      name={u.name}
+                      total={u.buckets.cash}
+                      rows={custodyRows(u.buckets, nameMaps(u.name))}
+                      deficits={fundDeficits(u.buckets, locationNames)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
-        </section>
+        </details>
       )}
 
       <p className="text-[13px] text-neutral-500">
