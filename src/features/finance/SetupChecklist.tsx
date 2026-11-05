@@ -8,10 +8,11 @@ import { useGetFinanceSetupQuery, type ChecklistKey } from "@/store/slices/finan
 const ITEMS: Record<ChecklistKey, { label: string; href: string }> = {
   branches: { label: "建立分部，設定負責人與過期收入對象", href: "/finance/settings#branches" },
   lessonBranches: { label: "每門進行中的課都標上分部", href: "/lessons" },
-  teachers: { label: "每位老師設好付款人", href: "/finance/settings#teachers" },
+  teachers: { label: "有進行中課的老師設好付款人", href: "/finance/settings#teachers" },
   venues: { label: "建立場地，次數包補上剩幾次", href: "/finance/settings#venues" },
   rules: { label: "每門進行中的課設分帳規則", href: "/lessons" },
   funds: { label: "確認各分部公積金期初", href: "/finance/settings#branches" },
+  receivers: { label: "上線後收的錢改記到保管人名下", href: "/finance/settings#receivers" },
   legacyPrepaid: { label: "確認舊卡預收總額", href: "/finance/settings#legacy" },
 };
 
@@ -56,6 +57,20 @@ export default function SetupChecklist() {
                 </span>
                 {!item.done && canEdit && <ChevronRight className="size-4 shrink-0 text-neutral-500" aria-hidden />}
               </Wrapper>
+              {!item.done && item.links && item.links.length > 0 && (
+                <ul className="mb-1 ml-10 flex flex-wrap gap-x-3 gap-y-1">
+                  {item.links.map((l) => (
+                    <li key={l.href}>
+                      <Link
+                        href={l.href}
+                        className="inline-flex min-h-8 items-center text-[13px] font-medium text-primary-700 underline-offset-4 hover:underline"
+                      >
+                        {l.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           );
         })}

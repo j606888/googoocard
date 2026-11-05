@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { ymdSchema } from "@/lib/schemas";
 import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { parseTaipeiDateRange } from "@/lib/taipei-date";
-import { assertCanSettle } from "@/service/finance/access";
+import { assertCanSettle, assertFinanceEnabled } from "@/service/finance/access";
 import { assertCustodian, requireVenueInClassroom } from "@/service/finance/config";
 
 const packSelect = {
@@ -26,27 +26,57 @@ export const GET = apiRoute(async ({ request, classroomId }) => {
   return { packs };
 });
 
-const createSchema = z.object({
+const base = {
   venueId: z.number().int().positive(),
+  paidByUserId: z.number().int().positive(),
+};
+
+const newPackSchema = z.object({
+  ...base,
   sessions: z.number().int().min(1),
   price: z.number().int().min(0),
-  paidByUserId: z.number().int().positive(),
   purchasedAt: ymdSchema,
 });
+
+// 開帳：上線前買的包、還剩 N 次。價值＝包價 ÷ 總次數 × N，日期記在上線前一天（視為上線前已付）。
+const beforeLaunchSchema = z.object({
+  ...base,
+  before: z
+    .object({
+      totalSessions: z.number().int().min(1),
+      totalPrice: z.number().int().min(0),
+      remaining: z.number().int().min(1),
+    })
+    .refine((b) => b.remaining <= b.totalSessions, { message: "remaining exceeds totalSessions" }),
+});
+
+const createSchema = z.union([newPackSchema, beforeLaunchSchema]);
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const POST = apiRoute(async ({ request, userId, classroomId }) => {
   await assertCanSettle(userId, classroomId);
   const body = await parseBody(request, createSchema);
   await requireVenueInClassroom(body.venueId, classroomId);
   await assertCustodian(body.paidByUserId, classroomId);
+  let pack: { sessions: number; price: number; purchasedAt: Date };
+  if ("before" in body) {
+    const { financeEnabledAt } = await assertFinanceEnabled(classroomId);
+    const { totalSessions, totalPrice, remaining } = body.before;
+    pack = {
+      sessions: remaining,
+      price: Math.round((totalPrice * remaining) / totalSessions),
+      purchasedAt: new Date(financeEnabledAt.getTime() - DAY_MS),
+    };
+  } else {
+    pack = { sessions: body.sessions, price: body.price, purchasedAt: parseTaipeiDateRange(body.purchasedAt).start };
+  }
   return prisma.venuePack.create({
     data: {
       classroomId,
       venueId: body.venueId,
-      sessions: body.sessions,
-      price: body.price,
+      ...pack,
       paidByUserId: body.paidByUserId,
-      purchasedAt: parseTaipeiDateRange(body.purchasedAt).start,
       createdById: userId,
     },
     select: packSelect,

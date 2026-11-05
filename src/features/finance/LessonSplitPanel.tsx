@@ -8,12 +8,13 @@ import Select from "@/components/Select";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { splitRuleSchema } from "@/domains/finance/types";
-import { useGetLessonsQuery, type Lesson, type LessonStudent } from "@/store/slices/lessons";
+import type { Lesson, LessonStudent } from "@/store/slices/lessons";
 import {
   useCopyLessonRuleMutation,
   useDeletePeriodRuleMutation,
   useGetLessonPeriodFinanceQuery,
   useGetLessonRuleQuery,
+  useGetRuledLessonsQuery,
   useLazyGetPeriodRuleQuery,
   useSaveLessonRuleMutation,
   useSavePeriodRuleMutation,
@@ -28,7 +29,8 @@ export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson;
   const names = useSplitNames();
   const { data: ruleData, isLoading: ruleLoading } = useGetLessonRuleQuery(lesson.id);
   const { data: periods, isLoading: periodsLoading } = useGetLessonPeriodFinanceQuery(lesson.id);
-  const { data: lessonsData } = useGetLessonsQuery({ tab: "all", sort: "name" });
+  // 只列有分帳規則的課，沒規則的複製了也沒用。
+  const { data: lessonsData } = useGetRuledLessonsQuery();
   const [saveLesson, { isLoading: savingLesson }] = useSaveLessonRuleMutation();
   const [copyRule, { isLoading: copying }] = useCopyLessonRuleMutation();
   const [savePeriod, { isLoading: savingPeriod }] = useSavePeriodRuleMutation();

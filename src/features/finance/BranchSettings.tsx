@@ -14,6 +14,7 @@ import {
   useUpdateFinanceLocationMutation,
   type FinanceLocation,
 } from "@/store/slices/finance";
+import { useCreateLocationMutation } from "@/store/slices/locations";
 import { financeErrorText } from "./financeUi";
 import { useFinanceMembers } from "./useFinanceForm";
 
@@ -101,6 +102,32 @@ function BranchRow({ loc }: { loc: FinanceLocation }) {
   );
 }
 
+function AddBranch() {
+  const [create, { isLoading }] = useCreateLocationMutation();
+  const [name, setName] = useState("");
+  return (
+    <div className="mt-2 flex items-end gap-2">
+      <div className="flex-1">
+        <Field label="新增分部" value={name} placeholder="分部名稱" onChange={(e) => setName(e.target.value)} />
+      </div>
+      <Button
+        variant="secondary"
+        disabled={!name.trim() || isLoading}
+        onClick={async () => {
+          try {
+            await create({ name: name.trim() }).unwrap();
+            setName("");
+          } catch {
+            toast.error("新增不了，名稱可能重複了");
+          }
+        }}
+      >
+        新增
+      </Button>
+    </div>
+  );
+}
+
 export default function BranchSettings() {
   const { data } = useGetFinanceLocationsQuery();
   const locations = data?.locations ?? [];
@@ -108,7 +135,7 @@ export default function BranchSettings() {
     <>
       <p className="mb-1 flex items-center gap-1 text-sm text-neutral-600">
         <Link href="/locations" className="text-primary-700 underline-offset-4 hover:underline">
-          新增或改名分部
+          改名或封存分部
         </Link>
         <InfoTip label="公積金期初說明">
           期初可以從 0 開始，或填負責人認定的數字。不要直接搬 Excel 的水庫結餘，裡面混了預付場租和還沒進帳的學費。
@@ -123,6 +150,7 @@ export default function BranchSettings() {
           ))}
         </ul>
       )}
+      <AddBranch />
     </>
   );
 }

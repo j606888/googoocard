@@ -27,6 +27,7 @@ import { POST as LEGACY_CONFIRM } from "@/app/api/finance/legacy-prepaid/confirm
 import { POST as CONFIRM_OPENING } from "@/app/api/finance/locations/[id]/confirm-opening/route";
 import { GET as LOCATIONS_GET } from "@/app/api/finance/locations/route";
 import { GET as TEACHERS_GET } from "@/app/api/finance/teachers/route";
+import { GET as RULED_LESSONS } from "@/app/api/finance/lessons/route";
 import { setupChecklist } from "@/service/finance/setup";
 
 const byKey = async (classroomId: number) =>
@@ -56,6 +57,7 @@ describe("finance setup checklist", () => {
       "venues",
       "rules",
       "funds",
+      "receivers",
       "legacyPrepaid",
     ]);
     const done = Object.fromEntries(items.map((i) => [i.key, i.done]));
@@ -63,13 +65,65 @@ describe("finance setup checklist", () => {
       branches: false,
       lessonBranches: true,
       teachers: true,
-      venues: true,
+      venues: false, // no venue yet
       rules: true,
       funds: false,
+      receivers: true,
       legacyPrepaid: false,
     });
     const res = await SETUP_GET(jsonRequest("GET"), routeParams({}));
     expect((await res.json()).complete).toBe(false);
+  });
+
+  it("venues needs at least one active venue; archived ones do not count", async () => {
+    const v = await createVenue(classroomId, { name: "V" });
+    expect((await byKey(classroomId)).venues.done).toBe(true);
+    await prisma.venue.update({ where: { id: v.id }, data: { archivedAt: new Date() } });
+    expect((await byKey(classroomId)).venues.done).toBe(false);
+  });
+
+  it("lessonBranches lists the in-progress lessons without a branch as links", async () => {
+    const loc = await createLocation(classroomId);
+    const { lesson: a } = await createLesson(classroomId, { name: "Bachata 初階" });
+    await createLesson(classroomId, { name: "有分部", locationId: loc.id });
+    const { lesson: done } = await createLesson(classroomId, { name: "已結束" });
+    await prisma.lesson.update({ where: { id: done.id }, data: { status: "finished" } });
+    const { lessonBranches } = await byKey(classroomId);
+    expect(lessonBranches.done).toBe(false);
+    expect(lessonBranches.links).toEqual([{ label: "Bachata 初階", href: `/lessons/${a.id}` }]);
+  });
+
+  it("teachers: only teachers of in-progress lessons count; detail names the missing ones", async () => {
+    const { lesson } = await createLesson(classroomId);
+    const active = await createTeacher(classroomId, { name: "Ann" });
+    await prisma.lessonTeacher.create({ data: { lessonId: lesson.id, teacherId: active.id } });
+    await createTeacher(classroomId, { name: "Kathy" }); // no lesson
+    const { lesson: old } = await createLesson(classroomId, { name: "old" });
+    await prisma.lesson.update({ where: { id: old.id }, data: { status: "finished" } });
+    const finishedOnly = await createTeacher(classroomId, { name: "Fin" });
+    await prisma.lessonTeacher.create({ data: { lessonId: old.id, teacherId: finishedOnly.id } });
+
+    const { teachers } = await byKey(classroomId);
+    expect(teachers.done).toBe(false);
+    expect(teachers.detail).toBe("還沒設：Ann");
+    await prisma.teacher.update({ where: { id: active.id }, data: { payerUserId: ownerId } });
+    const after = (await byKey(classroomId)).teachers;
+    expect(after.done).toBe(true);
+    expect(after.detail).toBeUndefined();
+  });
+
+  it("GET /finance/lessons lists only lessons that have a split rule", async () => {
+    const loc = await createLocation(classroomId);
+    const { lesson: withRule } = await createLesson(classroomId, { name: "R", locationId: loc.id });
+    await createLesson(classroomId, { name: "N", locationId: loc.id });
+    await prisma.lessonSplitRule.create({
+      data: { lessonId: withRule.id, updatedById: ownerId, rule: { lines: [], rest: { type: "fund", locationId: loc.id }, fundLocationId: loc.id } },
+    });
+    const other = await createClassroom({ name: "Other", email: "o3@test.local" });
+    const { lesson: otherLesson } = await createLesson(other.id);
+    await prisma.lessonSplitRule.create({ data: { lessonId: otherLesson.id, updatedById: other.ownerId, rule: {} } });
+    const res = await RULED_LESSONS(jsonRequest("GET"), routeParams({}));
+    expect(await res.json()).toEqual({ lessons: [{ id: withRule.id, name: "R" }] });
   });
 
   it("disabled classroom -> 404", async () => {

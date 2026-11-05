@@ -9,7 +9,6 @@ import Select from "@/components/Select";
 import { Button } from "@/components/ui/button";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { useEnableFinanceMutation, useGetFinanceSettingsQuery } from "@/store/slices/finance";
-import { useGetMeQuery } from "@/store/slices/me";
 import { todayKey } from "./financeUi";
 
 const ERRORS: Record<string, string> = {
@@ -21,7 +20,6 @@ const ERRORS: Record<string, string> = {
 export default function EnableFinance() {
   const { data: classrooms } = useGetClassroomsQuery();
   const { data: settings } = useGetFinanceSettingsQuery();
-  const { data: me } = useGetMeQuery();
   const [enable, { isLoading }] = useEnableFinanceMutation();
   const [launchDate, setLaunchDate] = useState(todayKey());
   const [custodian, setCustodian] = useState<number | null>(null);
@@ -33,7 +31,8 @@ export default function EnableFinance() {
   }
 
   const members = settings?.members ?? [];
-  const holder = custodian ?? (members.find((m) => m.userId === me?.id)?.userId ?? members[0]?.userId ?? 0);
+  // 不預設：舊卡的錢常常不在開財務的人手上，要明確選一位。
+  const holder = custodian ?? 0;
 
   const submit = async () => {
     setError("");

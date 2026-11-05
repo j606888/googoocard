@@ -8,6 +8,7 @@ import { useGetFinanceSettingsQuery } from "@/store/slices/finance";
 import BranchSettings from "./BranchSettings";
 import GeneralSettings from "./GeneralSettings";
 import SetupChecklist from "./SetupChecklist";
+import StrayReceivers from "./StrayReceivers";
 import TeacherPayers from "./TeacherPayers";
 import { useCanSettle } from "./useCanSettle";
 import VenueSettings from "./VenueSettings";
@@ -47,6 +48,9 @@ export default function FinanceSettingsView() {
       </Section>
       <Section id="venues" title="場地與次數包">
         <VenueSettings />
+      </Section>
+      <Section id="receivers" title="上線後收的錢在誰手上">
+        <StrayReceivers />
       </Section>
       <Section id="general" title="成員與其他">
         <GeneralSettings />
