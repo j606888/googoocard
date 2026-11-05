@@ -1,7 +1,10 @@
 # 10 staging 第二遍
 
-Status: ready-for-human
+Status: resolved
 Type: task
 Blocked by: 02, 03, 04, 05, 06, 13, 14, 15, 16, 17
 
 照 `.scratch/finance/spec.md` 的情境再走一次：首頁、分部核對、結算、已完成轉帳，手機寬度。新碎片照樣開 ticket。
+
+## Answer
+2026-11-05 staging 第二遍：新首頁、老師連帳號（丁丁、Sean）、非保管人改記、分部核對＋變動失效、確認收款收款人、時段點名頁內提示、高雄次數包扣次（$405、10% 公積金、Sean／高雄搭檔各 $568）、跨分部抵銷（Sean → 丁丁 $1,667）都正確。碎片修在 23（已驗）。手機寬度留給丁丁在手機上看。
