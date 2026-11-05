@@ -42,6 +42,9 @@ export const transferSelect = {
   toVenueId: true,
   settlementMonth: true,
   note: true,
+  // 誰、何時按的「已完成轉帳」
+  createdById: true,
+  createdAt: true,
 } as const;
 
 export const expenseSchema = z.object({

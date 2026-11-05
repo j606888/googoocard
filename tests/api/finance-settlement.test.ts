@@ -23,6 +23,7 @@ import { GET as listMonths } from "@/app/api/finance/settlements/route";
 import { GET as getStatementRoute, POST as lockRoute } from "@/app/api/finance/settlements/[month]/route";
 import { DELETE as voidExpense } from "@/app/api/finance/expenses/[id]/route";
 import { DELETE as voidTransfer } from "@/app/api/finance/transfers/[id]/route";
+import { POST as createTransferRoute } from "@/app/api/finance/transfers/route";
 import { DELETE as voidPack } from "@/app/api/finance/packs/[id]/route";
 import { getMonthStatement, lockMonth } from "@/service/finance/settlement";
 import type { MonthStatement } from "@/service/finance/settlement";
@@ -480,6 +481,61 @@ describe("finance settlement", () => {
     const dec = await getMonthStatement(classroomId, "2026-12", JAN_3);
     const adj = dec.adjustments.find((a) => a.periodId === l6PeriodId)!;
     expect(sumTo(adj.deltas, (p) => p.type === "teacher" && p.teacherId === charleneId)).toBeCloseTo(1000 - 333.33, 2);
+  });
+
+  it("已完成轉帳：那筆的付款人自己按，或可以結算的人代按；記誰按、何時按 (issue 06)", async () => {
+    await prisma.membership.updateMany({ where: { classroomId, userId: seanId }, data: { canSettle: false } });
+    const locked = await lockMonth({ classroomId, userId: dingId, month: "2026-11", now: DEC_3 });
+    const seanPays = payoutOf(locked, { fromUserId: seanId, toKind: "TEACHER", toTeacherId: partnerId })!;
+    const dingPays = payoutOf(locked, { fromUserId: dingId, toKind: "SELF" })!;
+    expect(seanPays).toBeDefined();
+    const transfer = (body: Record<string, unknown>) =>
+      createTransferRoute(
+        new Request("http://test.local/api/finance/transfers", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ date: "2026-12-04", ...body }),
+        }),
+        noParams,
+      );
+    const forPayout = (p: MonthStatement["payouts"][number], month = "2026-11") => ({
+      amount: p.amount,
+      fromUserId: p.fromUserId,
+      toKind: p.toKind,
+      ...(p.toTeacherId !== undefined ? { toTeacherId: p.toTeacherId } : {}),
+      ...(p.toVenueId !== undefined ? { toVenueId: p.toVenueId } : {}),
+      ...(p.toKind === "USER" ? { toUserId: p.toUserId } : {}),
+      settlementMonth: month,
+    });
+
+    // Sean（保管人、不能結算）：別人的那筆、沒掛結算月份、還沒結算的月份、不在結算單上的 → 403
+    auth.userId = seanId;
+    for (const body of [
+      forPayout(dingPays),
+      { ...forPayout(seanPays), settlementMonth: undefined },
+      forPayout(seanPays, "2026-12"),
+      { ...forPayout(seanPays), toTeacherId: charleneId },
+      { ...forPayout(seanPays), amount: seanPays.amount + 1 },
+    ]) {
+      const res = await transfer(body);
+      expect(res.status).toBe(403);
+      expect((await res.json()).code).toBe("NOT_PAYER");
+    }
+    // 自己那筆 → 可以，記下是 Sean 按的
+    const ok = await transfer(forPayout(seanPays));
+    expect(ok.status).toBe(200);
+    const row = await ok.json();
+    expect(row).toMatchObject({ fromUserId: seanId, createdById: seanId });
+    expect(row.createdAt).toBeTruthy();
+    // 已經轉完了 → 不能再按
+    expect((await transfer(forPayout(seanPays))).status).toBe(403);
+
+    // 丁丁（可以結算）代按 Sean 的另一筆、或任何轉帳
+    auth.userId = dingId;
+    const seanOther = locked.payouts.find((p) => p.fromUserId === seanId && p !== seanPays)!;
+    const proxy = await transfer(forPayout(seanOther));
+    expect(proxy.status).toBe(200);
+    expect(await proxy.json()).toMatchObject({ fromUserId: seanId, createdById: dingId });
   });
 
   it("routes: list months, read statement (any member), lock (finance)", async () => {

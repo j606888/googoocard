@@ -10,6 +10,7 @@ const ERROR_TEXT: Record<string, string> = {
   MONTH_NOT_OPEN: "只能依序結算最早還沒結算的月份，或這個月已經結算過了",
   UNALLOCATED: "還有錢不知道要給誰（有課沒有分帳規則），先到那堂課補上規則",
   MONTH_LOCKED: "這筆屬於已結算的月份，不能再作廢",
+  NOT_PAYER: "只有這筆的付款人或可以結算的人能按已完成",
   REFUND_EXCEEDS_VALUE: "退費金額超過這張卡剩下的價值",
   CARD_NOT_PAID: "這張卡還沒付款，不能退費",
   CARD_CLOSED: "這張卡已經停用或退過費",

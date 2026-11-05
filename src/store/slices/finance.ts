@@ -83,6 +83,9 @@ export interface FinanceTransfer {
   toVenueId: number | null;
   settlementMonth: string | null;
   note: string | null;
+  /** 誰、何時按的（「已完成轉帳」） */
+  createdById: number;
+  createdAt: string;
 }
 
 export interface TransferInput {

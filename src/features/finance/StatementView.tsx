@@ -69,7 +69,7 @@ const Line = ({ label, value, strong }: { label: React.ReactNode; value: React.R
   </li>
 );
 
-/** 月結算單（spec §7.4）。鎖住前是即時預覽；鎖住後每筆要轉的錢有「已轉」。 */
+/** 月結算單（spec §7.4）。鎖住前是即時預覽；鎖住後每筆要轉的錢顯示「等待轉帳／已完成轉帳」，付款人轉完自己按。 */
 export default function StatementView({ month }: { month: string }) {
   const names = useSplitNames();
   const { data: settings } = useGetFinanceSettingsQuery();
@@ -196,7 +196,7 @@ export default function StatementView({ month }: { month: string }) {
       }
     } catch (e) {
       toast.error(
-        `${financeErrorText(e, "取消失敗")}${removed > 0 ? `（已取消 ${removed} 筆，還有 ${list.length - removed} 筆沒取消，這一列可能還顯示已轉）` : ""}`,
+        `${financeErrorText(e, "取消失敗")}${removed > 0 ? `（已取消 ${removed} 筆，還有 ${list.length - removed} 筆沒取消，這一列可能還顯示已完成轉帳）` : ""}`,
       );
     }
     setBusyKey(null);
@@ -291,36 +291,45 @@ export default function StatementView({ month }: { month: string }) {
                       const key = payoutKey(p);
                       const done = locked && isPayoutDone(p, transfers, month);
                       const busy = busyKey === key && (creating || undoing);
+                      // 付款人自己按，或可以結算的人代按；取消照舊只有可以結算的人
+                      const canMark = canEdit || p.fromUserId === me?.id;
+                      const last = matchingTransfers(p, transfers, month).at(-1);
                       return (
-                        <li key={key} className="flex items-center justify-between gap-3 py-2 text-sm">
-                          <span className="min-w-0 text-neutral-800">{payoutText(p)}</span>
-                          <span className="flex shrink-0 items-center gap-2">
-                            <span className="font-medium tabular-nums">${formatMoney(p.amount)}</span>
-                            {locked &&
-                              (done ? (
-                                <>
-                                  <StatusTag tone="positive">已轉</StatusTag>
-                                  {canEdit && (
+                        <li key={key} className="flex flex-col gap-1.5 py-2.5 text-sm">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="min-w-0 text-neutral-800">{payoutText(p)}</span>
+                            <span className="shrink-0 font-medium tabular-nums">${formatMoney(p.amount)}</span>
+                          </div>
+                          {locked && (
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="flex min-w-0 items-center gap-2">
+                                <StatusTag tone={done ? "positive" : "warning"}>{done ? "已完成轉帳" : "等待轉帳"}</StatusTag>
+                                {done && last && (
+                                  <span className="truncate text-[13px] text-neutral-500">
+                                    {userName(last.createdById)} {shortDate(last.createdAt)} 按
+                                  </span>
+                                )}
+                              </span>
+                              {done
+                                ? canEdit && (
                                     <Button size="sm" variant="ghost" isLoading={busy} onClick={() => undo(p)}>
                                       取消
                                     </Button>
+                                  )
+                                : canMark && (
+                                    <Button size="sm" variant="secondary" isLoading={busy} onClick={() => markDone(p)}>
+                                      已完成
+                                    </Button>
                                   )}
-                                </>
-                              ) : (
-                                canEdit && (
-                                  <Button size="sm" variant="secondary" isLoading={busy} onClick={() => markDone(p)}>
-                                    已轉
-                                  </Button>
-                                )
-                              ))}
-                          </span>
+                            </div>
+                          )}
                         </li>
                       );
                     })}
                   </ul>
                 )}
                 {!locked && payouts.length > 0 && (
-                  <p className="mt-2 text-[13px] text-neutral-500">確認結算之後，才能按「已轉」。</p>
+                  <p className="mt-2 text-[13px] text-neutral-500">確認結算之後，轉完再按「已完成」。</p>
                 )}
               </section>
             );
@@ -515,7 +524,7 @@ export default function StatementView({ month }: { month: string }) {
                 <h3 className="flex items-center gap-1 text-sm font-semibold text-neutral-900">
                   轉完之後
                   <InfoTip label="轉完之後說明">
-                    這是現在的保管中。每筆都按了「已轉」之後，只會剩預收、公積金和場地包。
+                    這是現在的保管中。每筆都按了「已完成」之後，只會剩預收、公積金和場地包。
                   </InfoTip>
                 </h3>
                 <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">

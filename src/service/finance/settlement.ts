@@ -471,3 +471,50 @@ export function parseMonthParam(raw: string | undefined): string {
   }
   return raw;
 }
+
+type TransferTarget = {
+  toKind: string;
+  toUserId?: number | null;
+  toTeacherId?: number | null;
+  toVenueId?: number | null;
+};
+
+const targetKey = (x: TransferTarget) =>
+  x.toKind === "SELF"
+    ? "SELF"
+    : `${x.toKind}:${x.toKind === "USER" ? x.toUserId : x.toKind === "TEACHER" ? x.toTeacherId : x.toVenueId}`;
+
+/**
+ * 記一筆轉帳（結算單上的「已完成轉帳」）：可以結算的人什麼都能記（代按）；其他人只能記
+ * 「結算過的月份、結算單上自己是付款人的那筆」，而且不超過那筆還沒轉的金額。否則 403 NOT_PAYER。
+ */
+export async function assertCanRecordTransfer(
+  userId: number,
+  classroomId: number,
+  body: TransferTarget & { amount: number; fromUserId: number; settlementMonth?: string },
+): Promise<void> {
+  await assertFinanceEnabled(classroomId);
+  const m = await prisma.membership.findUnique({
+    where: { userId_classroomId: { userId, classroomId } },
+    select: { canSettle: true },
+  });
+  if (m?.canSettle) return;
+  const deny = () => new ApiError(403, "NOT_PAYER", "Only the payer of this payout (or a settler) can mark it done");
+  if (body.fromUserId !== userId || !body.settlementMonth) throw deny();
+  const row = await prisma.financeSettlement.findUnique({
+    where: { classroomId_month: { classroomId, month: body.settlementMonth } },
+    select: { snapshot: true },
+  });
+  if (!row) throw deny();
+  const want = targetKey(body);
+  const payout = (row.snapshot as unknown as SettlementSnapshot).statement.payouts.find(
+    (p) => p.fromUserId === userId && targetKey(p) === want,
+  );
+  if (!payout) throw deny();
+  const done = await prisma.financeTransfer.findMany({
+    where: { classroomId, voidedAt: null, settlementMonth: body.settlementMonth, fromUserId: userId, toKind: body.toKind },
+    select: { toKind: true, toUserId: true, toTeacherId: true, toVenueId: true, amount: true },
+  });
+  const paid = done.filter((t) => targetKey(t) === want).reduce((s, t) => s + t.amount, 0);
+  if (body.amount > payout.amount - paid) throw deny();
+}

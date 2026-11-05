@@ -12,7 +12,7 @@ import { useFinanceMembers } from "./useFinanceForm";
 
 type Target = `user:${number}` | `teacher:${number}` | `venue:${number}` | "self";
 
-/** 記一筆平常的轉帳（月結發錢請在結算單按「已轉」）。 */
+/** 記一筆平常的轉帳（月結發錢請在結算單按「已完成」）。 */
 export default function TransferForm({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { options: payers, allMembers, defaultUserId } = useFinanceMembers();
   const { data: teachers = [] } = useGetTeachersQuery();

@@ -756,6 +756,8 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 **分部核對**（`FinanceBranchReview`，`service/finance/branchReview.ts`，`POST /api/finance/settlements/[month]/reviews`）：只有該分部負責人（`Location.keeperUserId`）能按，**不擋結算**（確認對話框只提醒誰還沒核對）。核對時存「這個分部這個月結果」的雜湊（`branchHash`：依這堂課的基金歸類的時段收入與分帳、待收／待定、該分部支出、過期收入、調整、還沒點名的時段數、`byBranch`）；`GET` 結算單時重算比對，不同 → `valid: false`（「核對後有變動」），所以寫入點不必記得清掉核對。台北 5 號過後，首頁「要處理的事」對負責人列出上個月（還沒結算）還沒核對的分部。結算單的「各分部」（`byBranch`、`uncheckedByBranch`）也依這堂課的基金歸類。
 
+**轉帳狀態**：結算後結算單每筆要轉／要發的錢顯示「等待轉帳／已完成轉帳」。按「已完成」＝建一筆掛 `settlementMonth` 的 `FinanceTransfer`（`createdById`／`createdAt` 就是誰、何時按）。權限在 `assertCanRecordTransfer`（`service/finance/settlement.ts`）：可以結算的人記任何轉帳（代按）；其他人只能記結算過的月份、快照 `payouts` 裡自己是付款人的那筆，金額不超過還沒轉的部分，否則 403 `NOT_PAYER`。取消（作廢）照舊只有可以結算的人。不發通知。
+
 **財務首頁**（`/finance`，`FinanceHome.tsx`）：分部切換（預設＝我負責的分部 `Location.keeperUserId`，沒有就全教室）＋月份切換。上面「要處理的事」（`GET /api/finance/home`，`service/finance/home.ts`）：未付款課卡、未付單堂、點名沒綁卡**直接取自 `getTodos()`**，用同一組元件（`features/UrgentTodoSections.tsx`，鈴鐺也用它）與同一個處理動作，再加上沒設分帳的課、過去沒點名的時段、次數包用完、上月未結算；每項帶 `locationId`＝這堂課的基金，`null`（未付款的卡、次數包）每個分部都看得到；一件都沒有整區不顯示。下面「本月收支」瀑布（`domains/finance/waterfall.ts` 的 `monthWaterfall`，吃結算單）：收入 → 老師 → 場地 → 進公積金 → 支出 → 本月淨變化。**分部依「這堂課的基金」（`PeriodFinance.fundLocationId`＝規則的 `fundLocationId`，沒規則＝上課分部）歸類，不依上課地點**；淨變化直接取結算單的 `byBranch.fundChange`，跟結算單永遠一致，差額（過期收入、調整、取整零頭）列成「過期收入與調整」。保管中不在首頁，只在月結算單。
 
 **測試**：純函式 `src/domains/finance/*.test.ts`；整合 `tests/api/finance-*.test.ts`；測試編碼 spec §13／§14 的案例。
