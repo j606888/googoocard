@@ -24,6 +24,8 @@ import { createStudentCardInTx } from "@/service/studentCard";
 import { performConversion } from "@/service/studentCardConversion";
 import { performTransfer } from "@/service/studentCardTransfer";
 import { expireDueCards, expiryEvents } from "@/service/finance/expiry";
+import { getCustody } from "@/service/finance/custody";
+import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { addMonthsTaipei, toTaipeiDateKey } from "@/lib/taipei-date";
 
 describe("finance card expiry", () => {
@@ -109,6 +111,39 @@ describe("finance card expiry", () => {
     await prisma.studentCard.update({ where: { id: osc.id }, data: { expiresAt: dueAt } });
     expect(await expireDueCards(classroomId, now)).toBe(0);
     expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: osc.id } })).expiredAt).toBeNull();
+  });
+
+  it("expireDueCards leaves a used-up (0-session) card open and keeps Needs Renewal (issue 08)", async () => {
+    await enable();
+    const student = await createStudent(classroomId);
+    const card = await createCard(classroomId);
+    const used = await createStudentCard(student.id, card.id, { totalSessions: 6, remainingSessions: 0 });
+    await prisma.studentCard.update({ where: { id: used.id }, data: { expiresAt: new Date("2027-05-01T16:00:00Z") } });
+    await refreshNeedsRenewalTag(student.id, classroomId);
+    const tagged = () =>
+      prisma.studentTag.count({ where: { studentId: student.id, tag: { name: "Needs Renewal" } } });
+    expect(await tagged()).toBe(1);
+
+    expect(await expireDueCards(classroomId, new Date("2027-05-10T00:00:00Z"))).toBe(0);
+    const after = await prisma.studentCard.findUniqueOrThrow({ where: { id: used.id } });
+    expect(after.expiredAt).toBeNull();
+    expect(after.closedReason).toBeNull();
+    expect(await tagged()).toBe(1);
+  });
+
+  it("expiry with no branch and no legacy custodian surfaces as a custody warning (issue 08)", async () => {
+    await enableFinanceFor(classroomId, { launch: new Date("2026-10-31T16:00:00Z") });
+    const student = await createStudent(classroomId);
+    const sc = await buy(student.id);
+    await prisma.studentCard.update({
+      where: { id: sc.id },
+      data: { soldLocationId: null, expiresAt: new Date("2027-04-30T16:00:00Z") },
+    });
+    await expireDueCards(classroomId, new Date("2027-05-01T00:00:00Z"));
+    expect(await expiryEvents(classroomId)).toEqual([]);
+
+    const { warnings } = await getCustody(classroomId);
+    expect(warnings).toContainEqual({ code: "UNRESOLVED_KEEPER", studentCardId: sc.id });
   });
 
   it("conversion and transfer inherit expiresAt", async () => {

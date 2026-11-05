@@ -42,7 +42,7 @@
     - 同儕／場地發款 `Math.round` 可能多付 ≤ 0.5 元。
     - 退費、綁課卡鎖定（`BOUND_LESSON_LOCKED` 的計數在交易外）有 check-then-write 競態；最後一位財務的守門（count 再 update）也是。
     - 人的欄位（`Venue.landlordUserId`、`Teacher.payerUserId`、`Location.keeperUserId`／`expiryUserId`、`Classroom.legacyCustodianUserId`、各 `paidByUserId`）都是純 Int：沒 FK、多數沒索引；`AttendanceAbsence.studentId` 沒有 Student 關聯。
-    - `expireDueCards` 也會關掉 0 格的卡，可能順手清掉 Needs Renewal tag；沒有分部也沒有舊保管人時，過期事件會被靜默略過。
+    - ~~`expireDueCards` 也會關掉 0 格的卡，可能順手清掉 Needs Renewal tag；沒有分部也沒有舊保管人時，過期事件會被靜默略過。~~ ✅ 2026-11-05 — 只關有剩格的卡；找不到歸屬的過期卡變成保管中的 `UNRESOLVED_KEEPER` warning（帶 `studentCardId`）。
     - 有贈送卡的綁課卡刪不掉。
     - 上線後才付款的卡，用在上線日**之前**的時段（例：上線日往回設、或補點上線前的時段）：那份錢離開預收、卻不會變成任何一堂的收入（上線前的時段不算），保管中少記一筆。罕見，先不處理。
     - 沒有排程：到期只靠讀取時觸發，久沒人開的教室要等下次有人操作才會結。

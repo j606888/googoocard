@@ -20,8 +20,9 @@ export type ExpiryEvent = {
 };
 
 /**
- * 財務開啟的教室：把 expiresAt <= now 還沒關的卡關掉（expiredAt = expiresAt、
- * closedReason = EXPIRED），刷新 Needs Renewal tag。冪等；回傳這次關掉幾張。
+ * 財務開啟的教室：把 expiresAt <= now 還沒關、還有剩格的卡關掉（expiredAt = expiresAt、
+ * closedReason = EXPIRED），刷新 Needs Renewal tag。用完（0 格）的卡不算過期：沒有剩餘價值，
+ * 關掉它反而會讓「需續約」消失。冪等；回傳這次關掉幾張。
  */
 export async function expireDueCards(classroomId: number, now = new Date()): Promise<number> {
   const classroom = await prisma.classroom.findUnique({
@@ -31,7 +32,7 @@ export async function expireDueCards(classroomId: number, now = new Date()): Pro
   if (!classroom?.financeEnabledAt) return 0;
 
   const due = await prisma.studentCard.findMany({
-    where: { student: { classroomId }, expiredAt: null, expiresAt: { lte: now } },
+    where: { student: { classroomId }, expiredAt: null, expiresAt: { lte: now }, remainingSessions: { gt: 0 } },
     select: { id: true, studentId: true, expiresAt: true },
   });
   if (due.length === 0) return 0;
@@ -61,11 +62,19 @@ export async function expireDueCards(classroomId: number, now = new Date()): Pro
  * closedReason 是 null（錢跟著新卡走），不算。上線日之前關的卡不進財務。
  */
 export async function expiryEvents(classroomId: number): Promise<ExpiryEvent[]> {
+  return (await loadExpiries(classroomId)).events;
+}
+
+/**
+ * expiryEvents ＋ 找不到歸屬的卡（沒有賣卡分部、也沒有舊保管人）：那份過期收入不進任何人的表，
+ * 由保管中的 warnings 提醒（custody.ts）。
+ */
+export async function loadExpiries(classroomId: number): Promise<{ events: ExpiryEvent[]; unassigned: number[] }> {
   const classroom = await prisma.classroom.findUnique({
     where: { id: classroomId },
     select: { financeEnabledAt: true, legacyCustodianUserId: true },
   });
-  if (!classroom?.financeEnabledAt) return [];
+  if (!classroom?.financeEnabledAt) return { events: [], unassigned: [] };
   const legacyId = classroom.legacyCustodianUserId;
 
   const cards = await prisma.studentCard.findMany({
@@ -90,7 +99,7 @@ export async function expiryEvents(classroomId: number): Promise<ExpiryEvent[]> 
     },
     orderBy: [{ expiredAt: "asc" }, { id: "asc" }],
   });
-  if (cards.length === 0) return [];
+  if (cards.length === 0) return { events: [], unassigned: [] };
 
   const locations = await prisma.location.findMany({
     where: { classroomId },
@@ -109,6 +118,7 @@ export async function expiryEvents(classroomId: number): Promise<ExpiryEvent[]> 
       : { type: "fund", locationId: loc.id };
 
   const events: ExpiryEvent[] = [];
+  const unassigned: number[] = [];
   for (const card of cards) {
     let value = cardUnitValue(card) * card.remainingSessions;
     if (card.closedReason === "REFUNDED") value -= card.refund?.amount ?? 0;
@@ -118,7 +128,11 @@ export async function expiryEvents(classroomId: number): Promise<ExpiryEvent[]> 
     let to: ExpiryTarget;
     if (loc) to = targetOf(loc);
     else if (legacyId !== null) to = { type: "user", userId: legacyId };
-    else continue; // 找不到歸屬（開帳一定會設 legacy custodian，理論上不會發生）
+    else {
+      // 找不到歸屬（開帳一定會設 legacy custodian，理論上不會發生）
+      unassigned.push(card.id);
+      continue;
+    }
 
     events.push({
       studentCardId: card.id,
@@ -129,5 +143,5 @@ export async function expiryEvents(classroomId: number): Promise<ExpiryEvent[]> 
       to,
     });
   }
-  return events;
+  return { events, unassigned };
 }

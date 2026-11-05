@@ -14,14 +14,14 @@ import {
 } from "@/domains/finance/months";
 import type { ExpiryState, PeriodState, SnapshotCore } from "@/domains/finance/months";
 import { assertFinanceEnabled } from "./access";
-import { expireDueCards, expiryEvents } from "./expiry";
+import { expireDueCards, loadExpiries } from "./expiry";
 import type { ExpiryEvent } from "./expiry";
 import { loadPeriodFinance } from "./periods";
 import type { PeriodFinance } from "./periods";
 
 export type CustodyWarning =
   // 找不到該付的人（老師沒設付款人、分部沒設負責人…）：錢先放在 holder 的「未分配」
-  | { code: "UNRESOLVED_KEEPER"; periodId?: number; locationId?: number }
+  | { code: "UNRESOLVED_KEEPER"; periodId?: number; locationId?: number; studentCardId?: number }
   // 已付款的錢找不到保管人（沒有收款人、也沒設開帳保管人）：不進任何人的表
   | { code: "UNKNOWN_HOLDER"; periodId?: number; studentCardId?: number };
 
@@ -69,10 +69,10 @@ export async function loadLedger(classroomId: number): Promise<Ledger> {
 
   const untakenPeriod = { lesson: { classroomId }, attendanceTakenAt: null, startTime: { gte: financeEnabledAt } };
   const paidCard = { select: { isPaid: true, finalPrice: true, totalSessions: true, paidByUserId: true } };
-  const [periods, expiries, cards, expenses, packs, transfers, refunds, locations, venues, teachers, financeMembers, untakenRecords, untakenAbsences, settlements] =
+  const [periods, { events: expiries, unassigned: unassignedExpiries }, cards, expenses, packs, transfers, refunds, locations, venues, teachers, financeMembers, untakenRecords, untakenAbsences, settlements] =
     await Promise.all([
       loadPeriodFinance(classroomId, {}),
-      expiryEvents(classroomId),
+      loadExpiries(classroomId),
       prisma.studentCard.findMany({
         where: { student: { classroomId }, isPaid: true, expiredAt: null, remainingSessions: { gt: 0 } },
         select: { id: true, finalPrice: true, totalSessions: true, remainingSessions: true, paidByUserId: true },
@@ -183,6 +183,8 @@ export async function loadLedger(classroomId: number): Promise<Ledger> {
   for (const e of expiries) {
     if (e.holderUserId === null) warnings.push({ code: "UNKNOWN_HOLDER", studentCardId: e.studentCardId });
   }
+  // 過期了、但沒有賣卡分部也沒有舊保管人：那份錢不知道該進誰的表。
+  for (const studentCardId of unassignedExpiries) warnings.push({ code: "UNRESOLVED_KEEPER", studentCardId });
 
   // 月份歸屬
   const snapshots = settlements.map((s) => ({ month: s.month, snapshot: s.snapshot as unknown as SnapshotCore }));
