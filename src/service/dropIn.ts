@@ -104,6 +104,7 @@ export async function chargeDropIn({
   studentId,
   amount,
   payment,
+  receiverUserId: requestedReceiver,
 }: {
   classroomId: number;
   userId: number;
@@ -112,6 +113,8 @@ export async function chargeDropIn({
   studentId: number;
   amount?: number;
   payment: DropInPaymentInput;
+  /** 財務開啟、當場收款時指定收款人（保管人）；財務沒開時忽略。 */
+  receiverUserId?: number;
 }) {
   const record = await prisma.attendanceRecord.findFirst({
     where: {
@@ -134,10 +137,15 @@ export async function chargeDropIn({
     throw badRequest("ALREADY_RESOLVED", "Attendance already paid by card or drop-in");
   }
 
-  // 財務開啟、當場收款：收款人要是保管人（呼叫者不是就找分部保管人）。
+  // 財務開啟、當場收款：收款人要是保管人（沒指定就是呼叫者，不是保管人就找分部保管人）。
   let receiverUserId = userId;
   if (payment.isPaid && (await isFinanceEnabled(classroomId))) {
-    receiverUserId = await defaultReceiver(classroomId, userId, lesson.locationId);
+    if (requestedReceiver !== undefined) {
+      await assertReceiverIsCustodian(requestedReceiver, classroomId);
+      receiverUserId = requestedReceiver;
+    } else {
+      receiverUserId = await defaultReceiver(classroomId, userId, lesson.locationId);
+    }
   }
 
   return prisma.$transaction((tx) =>

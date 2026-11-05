@@ -12,6 +12,7 @@ import { canBuyCard, type DanceLevels } from "@/domains/qualification";
 import { practiceCardBlockedHint } from "@/lib/danceLevels";
 import type { Card } from "@/store/slices/cards";
 import { FieldError, FieldLabel } from "@/components/Field";
+import ReceiverField, { useFinanceReceiver } from "@/features/finance/ReceiverField";
 
 /**
  * Buy a card for a student without leaving the lesson page.
@@ -43,6 +44,9 @@ const BuyCardDrawer = ({
     cardSessions?: string;
   }>({});
   const [createStudentCard, { isLoading }] = useCreateStudentCardMutation();
+  const receiver = useFinanceReceiver({ active: isDrawerOpen, lessonLocationId: lesson?.locationId });
+  // 財務開啟、當場收錢才要收款人。
+  const needsReceiver = receiver.financeOn && isPaid;
 
   const cardOptions = useMemo(() => lesson?.cards ?? [], [lesson]);
   const qualifications = useMemo(
@@ -73,6 +77,7 @@ const BuyCardDrawer = ({
 
   const openDrawer = () => {
     setIsPaid(true);
+    receiver.reset();
     setSelectedCardId(null);
     setErrors({});
     setIsDrawerOpen(true);
@@ -94,6 +99,7 @@ const BuyCardDrawer = ({
       price: parseInt(cardPrice || "0"),
       lessonId: Number(lessonId),
       isPaid,
+      ...(needsReceiver && receiver.receiverUserId !== null ? { receiverUserId: receiver.receiverUserId } : {}),
     });
     setIsDrawerOpen(false);
   };
@@ -108,6 +114,7 @@ const BuyCardDrawer = ({
         onSubmit={handleSubmit}
         submitText="購買"
         isLoading={isLoading}
+        disabled={needsReceiver && receiver.receiverUserId === null}
       >
         <div className="mb-4">
           <p className="text-sm font-medium text-neutral-900 mb-2">選擇課卡</p>
@@ -180,6 +187,16 @@ const BuyCardDrawer = ({
               </div>
               <Switch checked={isPaid} onCheckedChange={setIsPaid} />
             </div>
+            {isPaid && receiver.financeOn && (
+              <div className="mb-4">
+                <ReceiverField
+                  id={`buy-card-receiver-${student.id}`}
+                  value={receiver.receiverUserId}
+                  onChange={receiver.setReceiverUserId}
+                  options={receiver.options}
+                />
+              </div>
+            )}
           </>
         )}
       </Drawer>

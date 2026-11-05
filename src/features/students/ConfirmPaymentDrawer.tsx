@@ -16,6 +16,7 @@ import { useGetMembershipsQuery } from "@/store/slices/memberships";
 import { useGetMeQuery } from "@/store/slices/me";
 import { useGetFinanceSettingsQuery } from "@/store/slices/finance";
 import { useGetLocationsQuery } from "@/store/slices/locations";
+import { defaultReceiverId } from "@/domains/finance/receiverDefault";
 
 export interface ConfirmPaymentTarget {
   studentId: number;
@@ -74,12 +75,15 @@ export default function ConfirmPaymentDrawer({
 
   if (!target) return null;
 
-  // 財務開啟：收款人只能是保管人；預設是自己（若自己是保管人）。
+  // 財務開啟：收款人只能是保管人；預設是自己（若自己是保管人），否則要選（不猜）。
   const financeIds = new Set(
     (finance?.members ?? []).filter((m) => m.isCustodian).map((m) => m.userId),
   );
-  const defaultFinanceReceiver =
-    me && financeIds.has(me.id) ? me.id : ([...financeIds][0] ?? null);
+  const defaultFinanceReceiver = defaultReceiverId({
+    meId: me?.id,
+    custodianIds: [...financeIds],
+    keeperUserId: null,
+  });
   const receiver =
     receiverUserId ?? (financeOn ? defaultFinanceReceiver : (me?.id ?? null));
   const locations = (locationsData?.locations ?? []).filter(
@@ -113,6 +117,7 @@ export default function ConfirmPaymentDrawer({
       onClose={onClose}
       onSubmit={handleSubmit}
       isLoading={isLoading}
+      disabled={financeOn && receiver === null}
       submitText={`已收到 $${formatMoney(target.finalPrice)}`}
     >
       <div className="flex flex-col gap-5 pb-4">
@@ -156,6 +161,7 @@ export default function ConfirmPaymentDrawer({
             id="payment-receiver"
             value={receiver ?? undefined}
             onChange={setReceiverUserId}
+            placeholder="選收款人"
             options={(memberships ?? [])
               .filter((m) => !financeOn || financeIds.has(m.userId))
               .map((m) => ({

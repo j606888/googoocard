@@ -374,6 +374,8 @@ const lessonsApi = api.injectEndpoints({
         isPaid: boolean;
         paymentMethod?: "CASH" | "TRANSFER" | null;
         paymentReference?: string | null;
+        /** 財務開啟時的收款人（保管人）；沒開就不送。 */
+        receiverUserId?: number;
       }
     >({
       query: ({ id, periodId, studentId, ...body }) => ({
@@ -385,7 +387,13 @@ const lessonsApi = api.injectEndpoints({
     }),
     confirmDropInPayment: builder.mutation<
       void,
-      { chargeId: number; amount?: number; paymentMethod?: "CASH" | "TRANSFER"; paymentReference?: string | null }
+      {
+        chargeId: number;
+        amount?: number;
+        paymentMethod?: "CASH" | "TRANSFER";
+        paymentReference?: string | null;
+        receiverUserId?: number;
+      }
     >({
       query: ({ chargeId, ...body }) => ({
         url: `drop-in-charges/${chargeId}/confirm-payment`,

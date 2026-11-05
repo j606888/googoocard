@@ -11,6 +11,7 @@ import {
   useChargeDropInMutation,
   useConfirmDropInPaymentMutation,
 } from "@/store/slices/lessons";
+import ReceiverField, { useFinanceReceiver } from "@/features/finance/ReceiverField";
 
 /** 收款方式：現金、轉帳，或（只在記單堂時）下課再付。 */
 type PayChoice = "CASH" | "TRANSFER" | "LATER";
@@ -120,12 +121,16 @@ export const DropInForm = ({
   const amount = Number(price);
   // 改成 $0 = 這堂免收，不用選收款方式。
   const free = price !== "" && amount === 0;
+  const receiver = useFinanceReceiver({ active: open || inline, lessonLocationId: lesson.locationId });
+  // 財務開啟、當場收錢才要收款人。
+  const needsReceiver = receiver.financeOn && !free && pay !== "LATER";
 
   const close = () => {
     setOpen(false);
     setPrice(String(listPrice));
     setPay("CASH");
     setReference("");
+    receiver.reset();
     onDone?.();
   };
 
@@ -139,6 +144,7 @@ export const DropInForm = ({
       isPaid: !later,
       paymentMethod: free || pay === "LATER" ? null : pay,
       paymentReference: !free && pay === "TRANSFER" ? reference : null,
+      ...(needsReceiver && receiver.receiverUserId !== null ? { receiverUserId: receiver.receiverUserId } : {}),
     });
     if ("error" in result) {
       toast.error("沒有記成功，請重新整理再試一次");
@@ -157,7 +163,7 @@ export const DropInForm = ({
       inline={inline}
       onSubmit={submit}
       submitText={free ? "記下，免收" : pay === "LATER" ? "記下，下課收" : `收 $${formatMoney(amount)}`}
-      disabled={price === ""}
+      disabled={price === "" || (needsReceiver && receiver.receiverUserId === null)}
       isLoading={isLoading}
     >
       <div className="mb-4 flex flex-col gap-4">
@@ -169,6 +175,14 @@ export const DropInForm = ({
           </div>
         )}
         {!free && pay === "TRANSFER" && <TransferReference value={reference} onChange={setReference} />}
+        {needsReceiver && (
+          <ReceiverField
+            id={`drop-in-receiver-${record.studentId}`}
+            value={receiver.receiverUserId}
+            onChange={receiver.setReceiverUserId}
+            options={receiver.options}
+          />
+        )}
       </div>
     </ExpandableAction>
   );
@@ -179,12 +193,15 @@ export const ConfirmDropInForm = ({
   chargeId,
   amount,
   studentName,
+  lessonLocationId,
   inline = false,
   onDone,
 }: {
   chargeId: number;
   amount: number;
   studentName: string;
+  /** 這堂課的分部：財務開啟時預設收款人用（分部負責人）。 */
+  lessonLocationId?: number | null;
   inline?: boolean;
   onDone?: () => void;
 }) => {
@@ -195,12 +212,15 @@ export const ConfirmDropInForm = ({
   const [confirmPayment, { isLoading }] = useConfirmDropInPaymentMutation();
   const finalAmount = Number(price);
   const free = price !== "" && finalAmount === 0;
+  const receiver = useFinanceReceiver({ active: open || inline, lessonLocationId });
+  const needsReceiver = receiver.financeOn && !free;
 
   const close = () => {
     setOpen(false);
     setPrice(String(amount));
     setPay("CASH");
     setReference("");
+    receiver.reset();
     onDone?.();
   };
 
@@ -210,6 +230,7 @@ export const ConfirmDropInForm = ({
       amount: finalAmount,
       paymentMethod: free ? undefined : pay === "TRANSFER" ? "TRANSFER" : "CASH",
       paymentReference: !free && pay === "TRANSFER" ? reference : null,
+      ...(needsReceiver && receiver.receiverUserId !== null ? { receiverUserId: receiver.receiverUserId } : {}),
     });
     if ("error" in result) {
       toast.error("沒有確認成功，請重新整理再試一次");
@@ -228,7 +249,7 @@ export const ConfirmDropInForm = ({
       inline={inline}
       onSubmit={submit}
       submitText={free ? "免收，結清" : `收 $${formatMoney(finalAmount)}`}
-      disabled={price === ""}
+      disabled={price === "" || (needsReceiver && receiver.receiverUserId === null)}
       isLoading={isLoading}
     >
       <div className="mb-4 flex flex-col gap-4">
@@ -240,6 +261,14 @@ export const ConfirmDropInForm = ({
           </div>
         )}
         {!free && pay === "TRANSFER" && <TransferReference value={reference} onChange={setReference} />}
+        {needsReceiver && (
+          <ReceiverField
+            id={`drop-in-confirm-receiver-${chargeId}`}
+            value={receiver.receiverUserId}
+            onChange={receiver.setReceiverUserId}
+            options={receiver.options}
+          />
+        )}
       </div>
     </ExpandableAction>
   );

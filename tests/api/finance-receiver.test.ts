@@ -138,6 +138,34 @@ describe("finance receiver and sold branch", () => {
     expect(res2.status).toBe(400);
   });
 
+  it("buy with an explicit custodian receiver records them; a non-custodian is rejected", async () => {
+    await enable();
+    const card = await createCard(classroomId);
+    const { lesson } = await createLesson(classroomId, { cardIds: [card.id], locationId });
+    const buy = (receiverUserId: number) =>
+      BUY(
+        jsonRequest("POST", { cardId: card.id, sessions: 6, price: 3000, lessonId: lesson.id, isPaid: true, paymentMethod: "CASH", receiverUserId }),
+        routeParams({ id: String(studentId) })
+      );
+    expect((await buy(keeperId)).status).toBe(200);
+    const row = await prisma.studentCard.findFirstOrThrow({ where: { studentId } });
+    expect(row.paidByUserId).toBe(keeperId);
+    expect(row.soldLocationId).toBe(locationId);
+    const bad = await buy(assistantId);
+    expect(bad.status).toBe(400);
+    expect(JSON.stringify(await bad.json())).toContain("RECEIVER_NOT_FINANCE");
+  });
+
+  it("finance disabled: buy ignores receiverUserId (seller holds the money, as before)", async () => {
+    const card = await createCard(classroomId);
+    const res = await BUY(
+      jsonRequest("POST", { cardId: card.id, sessions: 6, price: 3000, isPaid: true, paymentMethod: "CASH", receiverUserId: assistantId }),
+      routeParams({ id: String(studentId) })
+    );
+    expect(res.status).toBe(200);
+    expect((await prisma.studentCard.findFirstOrThrow({ where: { studentId } })).paidByUserId).toBe(1);
+  });
+
   async function dropInSetup() {
     const card = await createCard(classroomId);
     const { lesson, period } = await createLesson(classroomId, { cardIds: [card.id], withPeriod: true, locationId });
@@ -170,5 +198,23 @@ describe("finance receiver and sold branch", () => {
     await expect(chargePaid(classroomId, assistantId, lesson.id, period.id)).rejects.toMatchObject({
       code: "RECEIVER_REQUIRED",
     });
+  });
+
+  it("drop-in with an explicit custodian receiver records them; a non-custodian is rejected", async () => {
+    await enable();
+    const { lesson, period } = await dropInSetup();
+    const charge = (receiverUserId: number) =>
+      chargeDropIn({
+        classroomId,
+        userId: 1,
+        lessonId: lesson.id,
+        lessonPeriodId: period.id,
+        studentId,
+        payment: { isPaid: true, paymentMethod: "CASH" },
+        receiverUserId,
+      });
+    await expect(charge(assistantId)).rejects.toMatchObject({ code: "RECEIVER_NOT_FINANCE" });
+    await charge(keeperId);
+    expect((await prisma.dropInCharge.findFirstOrThrow()).paidByUserId).toBe(keeperId);
   });
 });
