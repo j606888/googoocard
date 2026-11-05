@@ -11,3 +11,5 @@ Parent: `.scratch/finance/spec.md`（「財務首頁」一節）
 3. 分部切換（台南／高雄／全教室），預設＝目前使用者負責的分部（`Location.keeperUserId`），沒有則全教室；月份切換。
 
 驗收：手機與桌機（遵守 `docs/ui-responsive.md`）；瀑布的「本月淨變化」＝該分部公積金當月變化（要有測試對 spec §14 的數字）。
+
+另見 spec「週日課」：分部瀑布依「這堂課的基金」歸類，不依上課地點。
