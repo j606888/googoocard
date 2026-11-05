@@ -179,3 +179,17 @@ Being redesigned (2026-10-29) — the old written spec was removed; colour token
 Mobile-first, but the **teacher-facing app goes full-width with a sidebar on desktop** — both the nav shell (sidebar / BottomNav in `app/(main)/layout.tsx`) and the content switch at `lg:`. `max-w-[480px]` now only applies to the student-facing entry points (LIFF, on-site QR check-in) and to `Drawer`.
 
 ⚠️ Five mobile/desktop divergence mechanisms coexist (one of them has already cost a bug); which one a screen may use is now a written rule, not a judgment call. **Read [`docs/ui-responsive.md`](docs/ui-responsive.md) before adding a desktop layout to any screen** — it states the rule (one 1024px size class, logic in hooks, `variant` props over parallel trees, four adaptive primitives), and records the deliberate trade-offs so they don't get re-litigated.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as local markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), recorded as a `Status:` line in each issue file. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root (created lazily). See `docs/agents/domain.md`.
