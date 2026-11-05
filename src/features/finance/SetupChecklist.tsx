@@ -12,6 +12,7 @@ const ITEMS: Record<ChecklistKey, { label: string; href: string }> = {
   venues: { label: "建立場地，次數包補上剩幾次", href: "/finance/settings#venues" },
   rules: { label: "每門進行中的課設分帳規則", href: "/lessons" },
   funds: { label: "確認各分部公積金期初", href: "/finance/settings#branches" },
+  receivers: { label: "上線後收的錢改記到保管人名下", href: "/finance/settings#receivers" },
   legacyPrepaid: { label: "確認舊卡預收總額", href: "/finance/settings#legacy" },
 };
 

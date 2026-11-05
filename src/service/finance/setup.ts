@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/apiError";
 import { requireOwner } from "@/lib/authz";
 import { cardUnitValue } from "@/domains/finance/income";
 import { formatMoney } from "@/lib/money";
+import { listStrayReceivers } from "./strayReceivers";
 import { addMonthsTaipei, parseTaipeiDateRange, toTaipeiDateKey } from "@/lib/taipei-date";
 
 export const CARD_EXPIRY_MONTHS = 6;
@@ -58,6 +59,7 @@ export type ChecklistKey =
   | "venues"
   | "rules"
   | "funds"
+  | "receivers"
   | "legacyPrepaid";
 
 export type ChecklistItem = { key: ChecklistKey; done: boolean; detail?: string };
@@ -133,6 +135,8 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
   ]);
 
   const legacy = await legacyPrepaidSummary(classroomId, classroom.financeEnabledAt);
+  const stray = await listStrayReceivers(classroomId);
+  const strayAmount = stray.reduce((s, i) => s + i.amount, 0);
   let custodianName = "";
   if (classroom.legacyCustodianUserId) {
     const u = await prisma.user.findUnique({
@@ -167,6 +171,13 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
     {
       key: "funds",
       done: locations.length > 0 && locations.every((l) => l.fundOpeningConfirmedAt != null),
+    },
+    {
+      key: "receivers",
+      done: stray.length === 0,
+      ...(stray.length > 0
+        ? { detail: `${stray.length} 筆、$${formatMoney(strayAmount)} 記在不是保管人的人名下` }
+        : {}),
     },
     {
       key: "legacyPrepaid",

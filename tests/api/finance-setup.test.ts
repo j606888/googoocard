@@ -56,6 +56,7 @@ describe("finance setup checklist", () => {
       "venues",
       "rules",
       "funds",
+      "receivers",
       "legacyPrepaid",
     ]);
     const done = Object.fromEntries(items.map((i) => [i.key, i.done]));
@@ -66,6 +67,7 @@ describe("finance setup checklist", () => {
       venues: true,
       rules: true,
       funds: false,
+      receivers: true,
       legacyPrepaid: false,
     });
     const res = await SETUP_GET(jsonRequest("GET"), routeParams({}));

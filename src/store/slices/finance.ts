@@ -110,11 +110,25 @@ export type ChecklistKey =
   | "venues"
   | "rules"
   | "funds"
+  | "receivers"
   | "legacyPrepaid";
 
 export interface SetupResponse {
   items: { key: ChecklistKey; done: boolean; detail?: string }[];
   complete: boolean;
+}
+
+/** GET /finance/receivers — 上線後收款人不是保管人的錢（開帳整理一次）。 */
+export interface StrayReceiverItem {
+  kind: "card" | "dropIn";
+  id: number;
+  studentName: string;
+  label: string;
+  amount: number;
+  /** 台北日期 YYYY-MM-DD */
+  date: string;
+  receiverUserId: number;
+  receiverName: string;
 }
 
 export interface FinanceLocation {
@@ -176,6 +190,17 @@ const financeApi = api.injectEndpoints({
         body: { fundOpening },
       }),
       invalidatesTags: ["Finance"],
+    }),
+    getStrayReceivers: builder.query<{ items: StrayReceiverItem[] }, void>({
+      query: () => "finance/receivers",
+      providesTags: ["Finance", "Membership", "StudentCard"],
+    }),
+    reassignStrayReceivers: builder.mutation<
+      { cards: number; dropIns: number },
+      { toUserId: number; cardIds: number[]; dropInIds: number[] }
+    >({
+      query: (body) => ({ url: "finance/receivers", method: "POST", body }),
+      invalidatesTags: ["Finance", "StudentCard"],
     }),
     confirmLegacyPrepaid: builder.mutation<unknown, void>({
       query: () => ({ url: "finance/legacy-prepaid/confirm", method: "POST" }),
@@ -311,6 +336,8 @@ export const {
   useUpdateFinanceLocationMutation,
   useConfirmFundOpeningMutation,
   useConfirmLegacyPrepaidMutation,
+  useGetStrayReceiversQuery,
+  useReassignStrayReceiversMutation,
   useCreateFinanceVenueMutation,
   useUpdateFinanceVenueMutation,
   useGetFinanceTeachersQuery,
