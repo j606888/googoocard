@@ -10,6 +10,8 @@ import {
   createLesson,
   createLocation,
   createTeacher,
+  createVenue,
+  createVenuePack,
   enableFinanceFor,
 } from "../factories";
 
@@ -20,7 +22,7 @@ vi.mock("@/lib/auth", () => ({
 
 import { GET as getStatementRoute } from "@/app/api/finance/settlements/[month]/route";
 import { POST as reviewRoute } from "@/app/api/finance/settlements/[month]/reviews/route";
-import { getMonthStatement } from "@/service/finance/settlement";
+import { getMonthStatement, lockMonth } from "@/service/finance/settlement";
 import { listBranchReviews, reviewBranch } from "@/service/finance/branchReview";
 import { getFinanceHome } from "@/service/finance/home";
 import type { SplitRule } from "@/domains/finance/types";
@@ -150,6 +152,60 @@ describe("finance branch review", () => {
     await reviewBranch({ classroomId, userId: dingId, month: "2026-11", locationId: tainanId, now: DEC_3 });
     expect((await reviewOf(tainanId)).valid).toBe(true);
     expect(await prisma.financeBranchReview.count()).toBe(2);
+  });
+
+  it("核對 → 結算 → 核對仍有效（快照從 jsonb 讀回 key 順序不同也一樣）", async () => {
+    // 場地包那行的 payee 是 { type, venueId, packId }，jsonb 會把 key 重排
+    const venue = await createVenue(classroomId, { name: "教室", landlordUserId: dingId });
+    await createVenuePack(classroomId, venue.id, { sessions: 10, price: 3000, paidByUserId: dingId, purchasedAt: LAUNCH });
+    const lesson = (await createLesson(classroomId, { name: "場地課", locationId: tainanId })).lesson;
+    const teacherId = (await prisma.teacher.findFirstOrThrow({ where: { classroomId, userId: dingId } })).id;
+    await prisma.lessonSplitRule.create({
+      data: {
+        lessonId: lesson.id,
+        updatedById: dingId,
+        rule: {
+          lines: [{ kind: "venuePack", venueId: venue.id }],
+          rest: { type: "teachers", shares: [{ teacherId, weight: 1 }] },
+          fundLocationId: tainanId,
+        },
+      },
+    });
+    const startTime = new Date("2026-11-12T11:00:00Z");
+    const period = await prisma.lessonPeriod.create({
+      data: { lessonId: lesson.id, startTime, endTime: new Date(startTime.getTime() + 3600_000), attendanceTakenAt: startTime },
+    });
+    await attend(period.id, dingId);
+
+    await reviewBranch({ classroomId, userId: dingId, month: "2026-11", locationId: tainanId, now: DEC_3 });
+    await reviewBranch({ classroomId, userId: seanId, month: "2026-11", locationId: kaoId, now: DEC_3 });
+    await lockMonth({ classroomId, userId: dingId, month: "2026-11", now: DEC_3 });
+    expect((await reviewOf(tainanId)).valid).toBe(true);
+    expect((await reviewOf(kaoId)).valid).toBe(true);
+  });
+
+  it("取整零頭不算進核對：週日課變動不會取消台南的核對", async () => {
+    // 週日課有一份分給丁丁老師（丁丁自己發）→ 丁丁的月合計取整，零頭進丁丁負責的台南公積金
+    await prisma.classroom.update({ where: { id: classroomId }, data: { financeRoundTo: 100 } });
+    const tDing = (await prisma.teacher.findFirstOrThrow({ where: { classroomId, userId: dingId } })).id;
+    const tSean = (await prisma.teacher.findFirstOrThrow({ where: { classroomId, userId: seanId } })).id;
+    const sunday = await prisma.lessonPeriod.findUniqueOrThrow({ where: { id: sundayPeriodId }, select: { lessonId: true } });
+    await prisma.lessonSplitRule.update({
+      where: { lessonId: sunday.lessonId },
+      data: {
+        rule: {
+          lines: [
+            { kind: "percent", pct: 7, base: "income", to: { type: "teacher", teacherId: tDing } },
+            { kind: "percent", pct: 10, base: "income", to: { type: "fund", locationId: kaoId } },
+          ],
+          rest: { type: "teachers", shares: [{ teacherId: tSean, weight: 1 }] },
+          fundLocationId: kaoId,
+        },
+      },
+    });
+    await reviewBranch({ classroomId, userId: dingId, month: "2026-11", locationId: tainanId, now: DEC_3 });
+    await attend(sundayPeriodId, dingId);
+    expect((await reviewOf(tainanId)).valid).toBe(true);
   });
 
   it("週日課的變動算高雄", async () => {

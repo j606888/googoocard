@@ -17,7 +17,23 @@ const r2 = (x: number) => Math.round(x * 100) / 100;
 const fundOf = (p: MonthStatement["periods"][number]) =>
   p.fundLocationId === undefined ? p.locationId : p.fundLocationId;
 
-/** 這個分部這個月的結果（依這堂課的基金歸類）→ 雜湊。只看這個分部，別的分部變了不影響。 */
+/** 固定 key 順序的 JSON：鎖月後快照從 jsonb 讀回來 key 會重排，雜湊不能因此改變。 */
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map((v) => (v === undefined ? "null" : stableStringify(v))).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
+/**
+ * 這個分部這個月的結果（依這堂課的基金歸類）→ 雜湊。只看這個分部，別的分部變了不影響。
+ * 不含發錢取整的零頭：零頭跟著付款人整個月的合計走，別的分部的課變了也會動到（`fundChange` 也因此不算，
+ * 它其餘的組成——分到的、調整、過期收入、支出——都各自在裡面）。
+ */
 export function branchHash(statement: MonthStatement, locationId: number): string {
   const periods = statement.periods.filter((p) => fundOf(p) === locationId);
   const periodIds = new Set(periods.map((p) => p.periodId));
@@ -29,7 +45,7 @@ export function branchHash(statement: MonthStatement, locationId: number): strin
       pending: p.income.pending.map((n) => [n.kind, n.studentId, n.amount === null ? null : r2(n.amount)]),
       allocations: p.allocations?.map((a) => [a.payee, r2(a.amount)]) ?? null,
     })),
-    branch: branch ? [r2(branch.revenue), r2(branch.expenses), r2(branch.fundChange)] : null,
+    branch: branch ? [r2(branch.revenue), r2(branch.expenses)] : null,
     expenses: statement.expenses.filter((e) => e.locationId === locationId).map((e) => [e.id, r2(e.amount), e.paidByUserId]),
     expiries: statement.expiries
       .filter((e) => e.to.type === "fund" && e.to.locationId === locationId)
@@ -37,9 +53,12 @@ export function branchHash(statement: MonthStatement, locationId: number): strin
     adjustments: statement.adjustments
       .filter((a) => periodIds.has(a.periodId) || a.deltas.some((d) => d.payee.type === "fund" && d.payee.locationId === locationId))
       .map((a) => [a.periodId, a.deltas.map((d) => [d.payee, r2(d.amount)])]),
+    expiryAdjustments: (statement.expiryAdjustments ?? [])
+      .map((a) => [a.studentCardId, a.deltas.filter((d) => d.to.type === "fund" && d.to.locationId === locationId).map((d) => [d.to, r2(d.amount)])])
+      .filter(([, deltas]) => (deltas as unknown[]).length > 0),
     unchecked: statement.uncheckedByBranch?.find((u) => u.locationId === locationId)?.count ?? 0,
   };
-  return createHash("sha256").update(JSON.stringify(content)).digest("hex");
+  return createHash("sha256").update(stableStringify(content)).digest("hex");
 }
 
 export type BranchReviewStatus = {
