@@ -14,6 +14,7 @@ const ERROR_TEXT: Record<string, string> = {
   REFUND_EXCEEDS_VALUE: "退費金額超過這張卡剩下的價值",
   CARD_NOT_PAID: "這張卡還沒付款，不能退費",
   CARD_CLOSED: "這張卡已經停用或退過費",
+  NOT_FINANCE_MEMBER: "要選保管人，先在財務成員勾成保管人",
 };
 
 /** RTK Query 的錯誤 → 白話。 */

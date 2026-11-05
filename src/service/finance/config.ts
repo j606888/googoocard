@@ -34,3 +34,31 @@ export async function withVenueNameCheck<T>(write: Promise<T>): Promise<T> {
     throw e;
   }
 }
+
+/**
+ * 這位成員還被哪些財務設定指著（分部負責人、過期收入對象、老師付款人、房東、舊卡保管人）。
+ * 取消他的保管人之前要先改掉，否則會留下指向非保管人的壞參照。只看沒封存的。
+ */
+export async function custodianReferences(
+  db: Prisma.TransactionClient,
+  userId: number,
+  classroomId: number,
+): Promise<string[]> {
+  const [keeps, expiries, teachers, venues, classroom] = await Promise.all([
+    db.location.findMany({ where: { classroomId, archivedAt: null, keeperUserId: userId }, select: { name: true } }),
+    db.location.findMany({
+      where: { classroomId, archivedAt: null, expiryTo: "USER", expiryUserId: userId },
+      select: { name: true },
+    }),
+    db.teacher.findMany({ where: { classroomId, archivedAt: null, payerUserId: userId }, select: { name: true } }),
+    db.venue.findMany({ where: { classroomId, archivedAt: null, landlordUserId: userId }, select: { name: true } }),
+    db.classroom.findUnique({ where: { id: classroomId }, select: { legacyCustodianUserId: true } }),
+  ]);
+  return [
+    ...keeps.map((l) => `${l.name}的分部負責人`),
+    ...expiries.map((l) => `${l.name}的過期收入對象`),
+    ...teachers.map((t) => `${t.name}的付款人`),
+    ...venues.map((v) => `${v.name}的房東`),
+    ...(classroom?.legacyCustodianUserId === userId ? ["舊卡保管人"] : []),
+  ];
+}

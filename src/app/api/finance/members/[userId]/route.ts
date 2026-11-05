@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 import { apiRoute, parseBody, parseId } from "@/lib/apiRoute";
 import { assertCanSettle } from "@/service/finance/access";
+import { custodianReferences } from "@/service/finance/config";
 
 const schema = z
   .object({ isCustodian: z.boolean().optional(), canSettle: z.boolean().optional() })
@@ -33,6 +34,12 @@ export const PATCH = apiRoute<{ userId: string }>(async ({ request, params, user
         where: { classroomId, [flag]: true, NOT: { id: target.id } },
       });
       if (others === 0) throw new ApiError(409, LAST[flag].code, LAST[flag].message);
+    }
+    if (body.isCustodian === false && target.isCustodian) {
+      const refs = await custodianReferences(tx, targetId, classroomId);
+      if (refs.length > 0) {
+        throw new ApiError(409, "CUSTODIAN_IN_USE", `他還是${refs.join("、")}，先改掉再取消保管人`);
+      }
     }
     const updated = await tx.membership.update({
       where: { id: target.id },

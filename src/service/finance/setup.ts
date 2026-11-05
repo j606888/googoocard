@@ -43,6 +43,13 @@ export async function enableFinance(args: {
       where: { userId_classroomId: { userId, classroomId } },
       data: { isCustodian: true, canSettle: true },
     });
+    // 舊卡的錢在他手上 → 他必須是保管人。
+    if (legacyCustodianUserId !== userId) {
+      await tx.membership.update({
+        where: { userId_classroomId: { userId: legacyCustodianUserId, classroomId } },
+        data: { isCustodian: true },
+      });
+    }
     await tx.studentCard.updateMany({
       where: { student: { classroomId }, expiredAt: null, remainingSessions: { gt: 0 } },
       data: { expiresAt },

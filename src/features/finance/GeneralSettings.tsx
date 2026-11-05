@@ -70,8 +70,11 @@ export default function GeneralSettings() {
                       try {
                         await setMember({ userId: m.userId, [flag]: e.target.checked }).unwrap();
                       } catch (err) {
-                        const code = (err as { data?: { code?: string } })?.data?.code;
-                        toast.error((code && MEMBER_ERRORS[code]) || "改不了，請再試一次");
+                        const data = (err as { data?: { code?: string; error?: string } })?.data;
+                        const code = data?.code;
+                        // CUSTODIAN_IN_USE 的訊息會列出他還負責哪些（伺服器組好的中文）
+                        const text = code === "CUSTODIAN_IN_USE" ? data?.error : code && MEMBER_ERRORS[code];
+                        toast.error(text || "改不了，請再試一次");
                       }
                     }}
                   />
@@ -104,7 +107,7 @@ export default function GeneralSettings() {
             aria-label="舊卡保管人"
             value={settings?.legacyCustodianUserId ?? undefined}
             onChange={(v) => save({ legacyCustodianUserId: v })}
-            options={members.map((m) => ({ value: m.userId, label: m.name }))}
+            options={members.filter((m) => m.isCustodian).map((m) => ({ value: m.userId, label: m.name }))}
             placeholder="選一位"
           />
         </div>

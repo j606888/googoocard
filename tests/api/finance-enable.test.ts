@@ -8,6 +8,9 @@ import {
   createCard,
   createStudentCard,
   enableFinanceFor,
+  createLocation,
+  createTeacher,
+  createVenue,
   jsonRequest,
   routeParams,
 } from "../factories";
@@ -64,6 +67,9 @@ describe("finance enable / permission", () => {
     const m = await prisma.membership.findFirstOrThrow({ where: { userId: ownerId, classroomId } });
     expect(m.isCustodian).toBe(true);
     expect(m.canSettle).toBe(true);
+    // 舊卡的錢在他手上 → 他也是保管人（只當保管人，不能結算）
+    const holder = await prisma.membership.findFirstOrThrow({ where: { userId: member.id, classroomId } });
+    expect({ isCustodian: holder.isCustodian, canSettle: holder.canSettle }).toEqual({ isCustodian: true, canSettle: false });
 
     const get = (id: number) => prisma.studentCard.findUniqueOrThrow({ where: { id } });
     expect((await get(open.id)).expiresAt?.toISOString()).toBe("2027-05-02T16:00:00.000Z");
@@ -143,8 +149,14 @@ describe("finance enable / permission", () => {
     const member = await createMember(classroomId);
     await ENABLE(jsonRequest("POST", { launchDate: "2026-11-03", legacyCustodianUserId: ownerId }), routeParams({}));
 
+    // 舊卡保管人必須是保管人
+    const notCustodian = await SETTINGS_PATCH(jsonRequest("PATCH", { legacyCustodianUserId: member.id }), routeParams({}));
+    expect(notCustodian.status).toBe(400);
+    expect((await notCustodian.json()).code).toBe("NOT_FINANCE_MEMBER");
+    await prisma.membership.update({ where: { userId_classroomId: { userId: member.id, classroomId } }, data: { isCustodian: true } });
     const patch = await SETTINGS_PATCH(jsonRequest("PATCH", { roundTo: 10, legacyCustodianUserId: member.id }), routeParams({}));
     expect(patch.status).toBe(200);
+    await prisma.membership.update({ where: { userId_classroomId: { userId: member.id, classroomId } }, data: { isCustodian: false } });
     const bad = await SETTINGS_PATCH(jsonRequest("PATCH", { roundTo: 5 }), routeParams({}));
     expect(bad.status).toBe(400);
 
@@ -177,5 +189,41 @@ describe("finance enable / permission", () => {
     auth.userId = ownerId;
     const denied = await SETTINGS_PATCH(jsonRequest("PATCH", { roundTo: 1 }), routeParams({}));
     expect(denied.status).toBe(403);
+  });
+
+  it("取消保管人：他還是分部負責人／過期收入對象／老師付款人／房東／舊卡保管人 → 409 說明是哪些", async () => {
+    const member = await createMember(classroomId, { email: "k@test.local", name: "Sean" });
+    await ENABLE(jsonRequest("POST", { launchDate: "2026-11-03", legacyCustodianUserId: ownerId }), routeParams({}));
+    await prisma.membership.update({
+      where: { userId_classroomId: { userId: member.id, classroomId } },
+      data: { isCustodian: true },
+    });
+    const kao = await createLocation(classroomId, { name: "高雄" });
+    await prisma.location.update({ where: { id: kao.id }, data: { keeperUserId: member.id } });
+    const other = await createLocation(classroomId, { name: "台南" });
+    await prisma.location.update({ where: { id: other.id }, data: { expiryTo: "USER", expiryUserId: member.id } });
+    await createTeacher(classroomId, { name: "Nini", payerUserId: member.id });
+    await createVenue(classroomId, { name: "24steps", landlordUserId: member.id });
+    const target = routeParams({ userId: String(member.id) });
+
+    const res = await MEMBER_PATCH(jsonRequest("PATCH", { isCustodian: false }), target);
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.code).toBe("CUSTODIAN_IN_USE");
+    for (const word of ["高雄", "台南", "Nini", "24steps"]) expect(body.error).toContain(word);
+    expect((await prisma.membership.findFirstOrThrow({ where: { userId: member.id, classroomId } })).isCustodian).toBe(true);
+
+    // 全部改掉就可以取消
+    await prisma.location.updateMany({ where: { classroomId }, data: { keeperUserId: null, expiryTo: "FUND", expiryUserId: null } });
+    await prisma.teacher.updateMany({ where: { classroomId }, data: { payerUserId: null } });
+    await prisma.venue.updateMany({ where: { classroomId }, data: { landlordUserId: null } });
+    expect((await MEMBER_PATCH(jsonRequest("PATCH", { isCustodian: false }), target)).status).toBe(200);
+
+    // 舊卡保管人也算
+    const ownerTarget = routeParams({ userId: String(ownerId) });
+    await prisma.membership.update({ where: { userId_classroomId: { userId: member.id, classroomId } }, data: { isCustodian: true } });
+    const legacy = await MEMBER_PATCH(jsonRequest("PATCH", { isCustodian: false }), ownerTarget);
+    expect(legacy.status).toBe(409);
+    expect((await legacy.json()).error).toContain("舊卡保管人");
   });
 });

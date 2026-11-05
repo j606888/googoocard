@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { toTaipeiDateKey } from "@/lib/taipei-date";
 import { assertCanSettle } from "@/service/finance/access";
-import { assertClassroomMember } from "@/service/finance/setup";
+import { assertCustodian } from "@/service/finance/config";
 
 // 任何成員可讀；沒開財務時 enabled=false。
 export const GET = apiRoute(async ({ classroomId }) => {
@@ -34,7 +34,8 @@ export const PATCH = apiRoute(async ({ request, userId, classroomId }) => {
   await assertCanSettle(userId, classroomId);
   const body = await parseBody(request, patchSchema);
   if (body.legacyCustodianUserId !== undefined) {
-    await assertClassroomMember(body.legacyCustodianUserId, classroomId);
+    // 舊卡的錢在他手上 → 必須是保管人（400 NOT_FINANCE_MEMBER）。
+    await assertCustodian(body.legacyCustodianUserId, classroomId);
   }
   const c = await prisma.classroom.update({
     where: { id: classroomId },

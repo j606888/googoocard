@@ -51,7 +51,7 @@ export default function EnableFinance() {
         <h1 className="text-lg font-bold text-neutral-900">開啟財務</h1>
         <InfoTip label="開啟財務說明">
           從上線日開始算：上線日之前的課不進財務。開啟後所有還有剩格的課卡會在上線日 6 個月後到期，
-          舊卡的錢算在下面選的人手上。
+          舊卡的錢算在下面選的人手上，他也會成為保管人。
         </InfoTip>
       </div>
       <Field label="上線日" type="date" value={launchDate} onChange={(e) => setLaunchDate(e.target.value)} />
