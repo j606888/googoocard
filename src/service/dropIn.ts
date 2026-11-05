@@ -138,13 +138,15 @@ export async function chargeDropIn({
   }
 
   // 財務開啟、當場收款：收款人要是保管人（沒指定就是呼叫者，不是保管人就找分部保管人）。
-  let receiverUserId = userId;
+  // $0（免收）沒有錢，不需要收款人。
+  const finalAmount = amount ?? listPrice;
+  let receiverUserId: number | null = userId;
   if (payment.isPaid && (await isFinanceEnabled(classroomId))) {
     if (requestedReceiver !== undefined) {
       await assertReceiverIsCustodian(requestedReceiver, classroomId);
       receiverUserId = requestedReceiver;
     } else {
-      receiverUserId = await defaultReceiver(classroomId, userId, lesson.locationId);
+      receiverUserId = finalAmount === 0 ? null : await defaultReceiver(classroomId, userId, lesson.locationId);
     }
   }
 
@@ -153,7 +155,7 @@ export async function chargeDropIn({
       attendanceRecordId: record.id,
       studentId,
       lessonName: lesson.name,
-      amount: amount ?? listPrice,
+      amount: finalAmount,
       listPrice,
       payment,
       receiverUserId,
@@ -197,18 +199,23 @@ export async function confirmDropInPayment({
   if (charge.isPaid) throw badRequest("ALREADY_PAID");
 
   const finance = await isFinanceEnabled(classroomId);
-  const receiver =
-    receiverUserId ??
-    (finance
-      ? await defaultReceiver(classroomId, userId, charge.attendanceRecord.lessonPeriod.lesson.locationId)
-      : userId);
-  if ((finance || receiver !== userId) && !(await findMembership(receiver, classroomId))) {
-    throw badRequest("RECEIVER_NOT_MEMBER", "Receiver is not a member of this classroom");
+  const finalAmount = amount ?? charge.amount;
+  // 財務開啟、改成 $0（免收）又沒指定收款人：沒有錢，不需要收款人。
+  const free = finance && finalAmount === 0 && receiverUserId === undefined;
+  const receiver = free
+    ? null
+    : (receiverUserId ??
+      (finance
+        ? await defaultReceiver(classroomId, userId, charge.attendanceRecord.lessonPeriod.lesson.locationId)
+        : userId));
+  if (receiver !== null) {
+    if ((finance || receiver !== userId) && !(await findMembership(receiver, classroomId))) {
+      throw badRequest("RECEIVER_NOT_MEMBER", "Receiver is not a member of this classroom");
+    }
+    if (finance) await assertReceiverIsCustodian(receiver, classroomId);
   }
-  if (finance) await assertReceiverIsCustodian(receiver, classroomId);
 
   return prisma.$transaction(async (tx) => {
-    const finalAmount = amount ?? charge.amount;
     const updated = await tx.dropInCharge.update({
       where: { id: charge.id },
       data: { amount: finalAmount, ...paymentFields({ isPaid: true, paymentMethod, paymentReference }, receiver) },

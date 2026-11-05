@@ -20,7 +20,7 @@ vi.mock("@/lib/auth", () => ({
   decodeAuthToken: async () => auth,
 }));
 
-import { chargeDropIn } from "@/service/dropIn";
+import { chargeDropIn, confirmDropInPayment } from "@/service/dropIn";
 import { createStudentCardInTx } from "@/service/studentCard";
 import { POST as BUY } from "@/app/api/students/[id]/student-cards/route";
 import { POST as CONFIRM } from "@/app/api/students/[id]/student-cards/[studentCardId]/confirm-payment/route";
@@ -216,5 +216,44 @@ describe("finance receiver and sold branch", () => {
     await expect(charge(assistantId)).rejects.toMatchObject({ code: "RECEIVER_NOT_FINANCE" });
     await charge(keeperId);
     expect((await prisma.dropInCharge.findFirstOrThrow()).paidByUserId).toBe(keeperId);
+  });
+
+  it("$0 單堂（免收）不需要收款人：找不到負責人也不 400，記成沒有收款人", async () => {
+    await enable();
+    await prisma.membership.updateMany({ where: { userId: keeperId, classroomId }, data: { isCustodian: false, canSettle: false } });
+    const { lesson, period } = await dropInSetup();
+    await chargeDropIn({
+      classroomId,
+      userId: assistantId,
+      lessonId: lesson.id,
+      lessonPeriodId: period.id,
+      studentId,
+      amount: 0,
+      payment: { isPaid: true, paymentMethod: null },
+    });
+    const charge = await prisma.dropInCharge.findFirstOrThrow();
+    expect({ amount: charge.amount, isPaid: charge.isPaid, paidByUserId: charge.paidByUserId }).toEqual({
+      amount: 0,
+      isPaid: true,
+      paidByUserId: null,
+    });
+  });
+
+  it("確認單堂收款改成 $0（免收）也不需要收款人", async () => {
+    await enable();
+    await prisma.membership.updateMany({ where: { userId: keeperId, classroomId }, data: { isCustodian: false, canSettle: false } });
+    const { lesson, period } = await dropInSetup();
+    await chargeDropIn({
+      classroomId, userId: 1, lessonId: lesson.id, lessonPeriodId: period.id, studentId,
+      payment: { isPaid: false },
+    });
+    const charge = await prisma.dropInCharge.findFirstOrThrow();
+    await confirmDropInPayment({ classroomId, userId: assistantId, chargeId: charge.id, amount: 0 });
+    const row = await prisma.dropInCharge.findFirstOrThrow();
+    expect({ amount: row.amount, isPaid: row.isPaid, paidByUserId: row.paidByUserId }).toEqual({
+      amount: 0,
+      isPaid: true,
+      paidByUserId: null,
+    });
   });
 });
