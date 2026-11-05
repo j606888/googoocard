@@ -131,13 +131,18 @@ const CardDetailDialog = ({
   const hiddenEntries = timeline.length - shownEntries.length;
   const lastUse = lastUsedAt(studentCard);
 
-  const run = async (action: () => Promise<unknown>, success: string, failure: string, closeAfter = false) => {
+  const run = async (
+    action: () => Promise<unknown>,
+    success: string,
+    failure: string | ((e: unknown) => string),
+    closeAfter = false
+  ) => {
     try {
       await action();
       toast.success(success);
       if (closeAfter) onClose();
-    } catch {
-      toast.error(failure);
+    } catch (e) {
+      toast.error(typeof failure === "string" ? failure : failure(e));
     } finally {
       setPendingAction(null);
     }
@@ -602,7 +607,18 @@ const CardDetailDialog = ({
         message={`確定要刪除「${studentCard.card.name}」嗎？此操作無法復原，通常用於買錯卡片的情況。`}
         confirmLabel="刪除"
         isLoading={isDeleting}
-        onConfirm={() => run(() => deleteStudentCard(ids).unwrap(), "已刪除卡片", "刪除失敗", true)}
+        onConfirm={() =>
+          run(
+            () => deleteStudentCard(ids).unwrap(),
+            "已刪除卡片",
+            // 綁課卡的贈送卡用過了：照 API 的說明顯示。
+            (e) => {
+              const data = (e as { data?: { code?: string; error?: string } })?.data;
+              return data?.code === "GIFT_USED" && data.error ? data.error : "刪除失敗";
+            },
+            true
+          )
+        }
         onCancel={() => setPendingAction(null)}
       />
 

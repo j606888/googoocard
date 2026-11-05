@@ -20,6 +20,7 @@ vi.mock("@/lib/auth", () => ({
 import { GET as GET_CARDS, POST as POST_CARD } from "@/app/api/cards/route";
 import { POST as POST_LESSON } from "@/app/api/lessons/route";
 import { POST as BUY } from "@/app/api/students/[id]/student-cards/route";
+import { DELETE as DELETE_CARD } from "@/app/api/students/[id]/student-cards/[studentCardId]/route";
 import { mergeStudents } from "@/service/studentMerge";
 import { PATCH as PATCH_CARD } from "@/app/api/cards/[id]/route";
 import { POST as resetAttendance } from "@/app/api/lessons/[id]/periods/[periodId]/reset/route";
@@ -258,6 +259,39 @@ describe("finance bound cards, absences, gift cards", () => {
     // 第二張綁課卡共用同一個贈送卡種。
     await buyBound(a.studentId, card);
     expect(await prisma.card.count({ where: { classroomId, isGift: true } })).toBe(1);
+  });
+
+  it("deleting an unused bound card also deletes its unused gift card (issue 09)", async () => {
+    await enable();
+    const { card } = await boundSetup();
+    const [a] = await holders(1, card);
+    const gift = await prisma.studentCard.findUniqueOrThrow({ where: { giftFromId: a.studentCardId } });
+
+    const res = await DELETE_CARD(
+      jsonRequest("DELETE"),
+      routeParams({ id: String(a.studentId), studentCardId: String(a.studentCardId) }),
+    );
+    expect(res.status).toBe(200);
+    expect(await prisma.studentCard.count({ where: { id: { in: [a.studentCardId, gift.id] } } })).toBe(0);
+  });
+
+  it("deleting a bound card whose gift card was used is refused with a reason (issue 09)", async () => {
+    await enable();
+    const { card } = await boundSetup();
+    const [a] = await holders(1, card);
+    const gift = await prisma.studentCard.findUniqueOrThrow({ where: { giftFromId: a.studentCardId } });
+    const { lesson: other } = await createLesson(classroomId, { name: "週日課", kind: "ongoing" });
+    const period = await addPeriod(other.id);
+    await takeAttendance({ lessonId: other.id, lessonPeriodId: period.id, studentIds: [a.studentId] });
+    expect(await remaining(gift.id)).toBe(0);
+
+    const res = await DELETE_CARD(
+      jsonRequest("DELETE"),
+      routeParams({ id: String(a.studentId), studentCardId: String(a.studentCardId) }),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "GIFT_USED", error: expect.stringContaining("贈送卡") });
+    expect(await prisma.studentCard.count({ where: { id: { in: [a.studentCardId, gift.id] } } })).toBe(2);
   });
 
   it("bound card becomes universal once its lesson is finished", async () => {
