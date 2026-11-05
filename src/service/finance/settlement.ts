@@ -492,16 +492,19 @@ export async function assertCanRecordTransfer(
   userId: number,
   classroomId: number,
   body: TransferTarget & { amount: number; fromUserId: number; settlementMonth?: string },
+  /** 在記轉帳的交易裡呼叫：鎖住那個月的結算，連按兩下第二次會看到第一次記的那筆。 */
+  db: Prisma.TransactionClient = prisma,
 ): Promise<void> {
   await assertFinanceEnabled(classroomId);
-  const m = await prisma.membership.findUnique({
+  const m = await db.membership.findUnique({
     where: { userId_classroomId: { userId, classroomId } },
     select: { canSettle: true },
   });
   if (m?.canSettle) return;
   const deny = () => new ApiError(403, "NOT_PAYER", "Only the payer of this payout (or a settler) can mark it done");
   if (body.fromUserId !== userId || !body.settlementMonth) throw deny();
-  const row = await prisma.financeSettlement.findUnique({
+  await db.$queryRaw`SELECT id FROM "FinanceSettlement" WHERE "classroomId" = ${classroomId} AND month = ${body.settlementMonth} FOR UPDATE`;
+  const row = await db.financeSettlement.findUnique({
     where: { classroomId_month: { classroomId, month: body.settlementMonth } },
     select: { snapshot: true },
   });
@@ -511,7 +514,7 @@ export async function assertCanRecordTransfer(
     (p) => p.fromUserId === userId && targetKey(p) === want,
   );
   if (!payout) throw deny();
-  const done = await prisma.financeTransfer.findMany({
+  const done = await db.financeTransfer.findMany({
     where: { classroomId, voidedAt: null, settlementMonth: body.settlementMonth, fromUserId: userId, toKind: body.toKind },
     select: { toKind: true, toUserId: true, toTeacherId: true, toVenueId: true, amount: true },
   });

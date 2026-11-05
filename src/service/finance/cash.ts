@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 import { parseTaipeiDateRange, parseTaipeiMonthRange } from "@/lib/taipei-date";
@@ -94,7 +95,8 @@ export async function createExpense(
 export async function createTransfer(
   classroomId: number,
   userId: number,
-  body: z.infer<typeof transferSchema>
+  body: z.infer<typeof transferSchema>,
+  db: Prisma.TransactionClient = prisma,
 ) {
   await assertCustodian(body.fromUserId, classroomId);
   let toUserId: number | null = null;
@@ -116,7 +118,7 @@ export async function createTransfer(
     const v = await requireVenueInClassroom(body.toVenueId, classroomId);
     toVenueId = v.id;
   }
-  return prisma.financeTransfer.create({
+  return db.financeTransfer.create({
     data: {
       classroomId,
       date: dateOf(body.date),

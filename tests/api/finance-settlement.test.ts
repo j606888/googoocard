@@ -538,6 +538,32 @@ describe("finance settlement", () => {
     expect(await proxy.json()).toMatchObject({ fromUserId: seanId, createdById: dingId });
   });
 
+  it("已完成轉帳：付款人連按兩下只記一筆", async () => {
+    await prisma.membership.updateMany({ where: { classroomId, userId: seanId }, data: { canSettle: false } });
+    const locked = await lockMonth({ classroomId, userId: dingId, month: "2026-11", now: DEC_3 });
+    const p = payoutOf(locked, { fromUserId: seanId, toKind: "TEACHER", toTeacherId: partnerId })!;
+    auth.userId = seanId;
+    const click = () =>
+      createTransferRoute(
+        new Request("http://test.local/api/finance/transfers", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            date: "2026-12-04",
+            amount: p.amount,
+            fromUserId: seanId,
+            toKind: "TEACHER",
+            toTeacherId: partnerId,
+            settlementMonth: "2026-11",
+          }),
+        }),
+        noParams,
+      );
+    const statuses = (await Promise.all([click(), click(), click()])).map((r) => r.status).sort();
+    expect(statuses).toEqual([200, 403, 403]);
+    expect(await prisma.financeTransfer.count({ where: { classroomId, fromUserId: seanId, settlementMonth: "2026-11" } })).toBe(1);
+  });
+
   it("routes: list months, read statement (any member), lock (finance)", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(DEC_3);
