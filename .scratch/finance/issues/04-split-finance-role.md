@@ -1,6 +1,6 @@
 # 04 `isFinance` 拆成「保管人」和「可以結算」
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 
 Parent: `.scratch/finance/spec.md`（「人」一節）
@@ -12,3 +12,7 @@ Parent: `.scratch/finance/spec.md`（「人」一節）
 - 成員設定 UI 兩個勾。
 
 驗收：丁丁兩個都勾、Sean 只勾保管人時，Sean 不能結算但能被選為收款人；只勾可以結算的人不出現在保管中。
+
+## Answer
+`Membership.isFinance` → `isCustodian` + `canSettle`（migration `20261105072319_split_finance_role`，舊的財務兩個都設 true）。保管人：保管中、收款人、分部負責人／付款人／過期歸屬（`assertCustodian`、`isCustodian`）；可以結算：所有財務寫入與結算（`assertCanSettle`，轉帳／退費也算）。
+各自守門 `LAST_CUSTODIAN`／`LAST_SETTLER`；財務設定成員列兩個勾；驗收情境在 `tests/api/finance-enable.test.ts`。「核對自己的分部」還沒有這個功能（見 05），屆時用 `isCustodian`。

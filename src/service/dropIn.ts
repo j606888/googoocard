@@ -4,7 +4,7 @@ import { badRequest, notFound } from "@/lib/apiError";
 import { findMembership } from "@/lib/authz";
 import { formatMoney } from "@/lib/money";
 import { isFinanceEnabled } from "@/service/finance/access";
-import { assertReceiverIsFinance, defaultReceiver } from "@/service/finance/receiver";
+import { assertReceiverIsCustodian, defaultReceiver } from "@/service/finance/receiver";
 
 /**
  * 單堂付費：一筆出席不扣課卡，改收 `Lesson.dropInPrice`（DropInCharge）。
@@ -134,7 +134,7 @@ export async function chargeDropIn({
     throw badRequest("ALREADY_RESOLVED", "Attendance already paid by card or drop-in");
   }
 
-  // 財務開啟、當場收款：收款人要是財務成員（呼叫者不是就找分部保管人）。
+  // 財務開啟、當場收款：收款人要是保管人（呼叫者不是就找分部保管人）。
   let receiverUserId = userId;
   if (payment.isPaid && (await isFinanceEnabled(classroomId))) {
     receiverUserId = await defaultReceiver(classroomId, userId, lesson.locationId);
@@ -197,7 +197,7 @@ export async function confirmDropInPayment({
   if ((finance || receiver !== userId) && !(await findMembership(receiver, classroomId))) {
     throw badRequest("RECEIVER_NOT_MEMBER", "Receiver is not a member of this classroom");
   }
-  if (finance) await assertReceiverIsFinance(receiver, classroomId);
+  if (finance) await assertReceiverIsCustodian(receiver, classroomId);
 
   return prisma.$transaction(async (tx) => {
     const finalAmount = amount ?? charge.amount;

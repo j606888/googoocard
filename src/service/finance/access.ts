@@ -29,14 +29,14 @@ export async function isFinanceEnabled(classroomId: number): Promise<boolean> {
   return !!c?.financeEnabledAt;
 }
 
-/** 財務已開，而且這個人有財務權限（Membership.isFinance）。 */
-export async function assertFinance(userId: number, classroomId: number): Promise<void> {
+/** 財務已開，而且這個人「可以結算」（Membership.canSettle）：結算、記支出／次數包、改分帳與財務設定、開帳。 */
+export async function assertCanSettle(userId: number, classroomId: number): Promise<void> {
   await assertFinanceEnabled(classroomId);
   const m = await prisma.membership.findUnique({
     where: { userId_classroomId: { userId, classroomId } },
-    select: { isFinance: true },
+    select: { canSettle: true },
   });
-  if (!m?.isFinance) {
-    throw new ApiError(403, "NOT_FINANCE", "Only finance members can do this");
+  if (!m?.canSettle) {
+    throw new ApiError(403, "NOT_FINANCE", "Only members who can settle can do this");
   }
 }

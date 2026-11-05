@@ -46,7 +46,7 @@ export function useSplitNames() {
     venue,
     venueLabel,
     payee,
-    canEdit: !!me && members.some((m) => m.userId === me.id && m.isFinance),
+    canEdit: !!me && members.some((m) => m.userId === me.id && m.canSettle),
     ready: !!locationData && !!venueData,
   };
 }

@@ -41,7 +41,7 @@ import { fieldControlClass } from "@/components/Field";
 import StatusTag from "@/components/StatusTag";
 import MenuItem from "@/components/MenuItem";
 import RefundDrawer from "@/features/finance/RefundDrawer";
-import { useIsFinance } from "@/features/finance/useIsFinance";
+import { useCanSettle } from "@/features/finance/useCanSettle";
 import { cn } from "@/lib/utils";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -99,7 +99,7 @@ const CardDetailDialog = ({
   const [moreOpen, setMoreOpen] = useState(false);
   const [showAllEntries, setShowAllEntries] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
-  const isFinance = useIsFinance();
+  const canSettle = useCanSettle();
 
   // 還沒點過任何一張卡。
   if (!studentCard) return null;
@@ -122,7 +122,7 @@ const CardDetailDialog = ({
   // 轉換、轉讓只對還有效、已收款的卡開放——未付款的卡轉過去，那筆欠款就消失了。
   const canMove = !ended && !isUnpaid;
   // 退費：財務才有；已付款、還沒關閉的卡。
-  const canRefund = isFinance && !isUnpaid && !ended;
+  const canRefund = canSettle && !isUnpaid && !ended;
   const canTransfer = canMove && !studentCard.card.isTrial;
   const serial = formatCardSerial(studentCard.serialNumber);
   const ids = { id: studentCard.studentId, studentCardId: studentCard.id };

@@ -46,7 +46,7 @@ describe("finance card expiry", () => {
 
   async function buy(studentId: number) {
     // 財務開啟後收款人必須是財務成員。
-    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isFinance: true } });
+    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isCustodian: true, canSettle: true } });
     const card = await createCard(classroomId, { price: 2000, sessions: 6 });
     return prisma.$transaction((tx) =>
       createStudentCardInTx(tx, {
@@ -312,7 +312,7 @@ describe("finance card expiry", () => {
 
   it("refund remainder becomes expiry income", async () => {
     await enable();
-    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isFinance: true } });
+    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isCustodian: true, canSettle: true } });
     const tainan = await createLocation(classroomId, { name: "台南" });
     const student = await createStudent(classroomId);
     const card = await createCard(classroomId, { price: 2000, sessions: 6 });

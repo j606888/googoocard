@@ -1,11 +1,11 @@
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 import { apiRoute } from "@/lib/apiRoute";
-import { assertFinance } from "@/service/finance/access";
+import { assertCanSettle } from "@/service/finance/access";
 
 // 確認舊卡預收總額（開帳清單最後一項）。
 export const POST = apiRoute(async ({ userId, classroomId }) => {
-  await assertFinance(userId, classroomId);
+  await assertCanSettle(userId, classroomId);
   const cur = await prisma.classroom.findUniqueOrThrow({
     where: { id: classroomId },
     select: { legacyCustodianUserId: true },

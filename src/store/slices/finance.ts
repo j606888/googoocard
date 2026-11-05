@@ -9,7 +9,7 @@ export interface FinanceSettings {
   launchDate: string | null;
   roundTo: number;
   legacyCustodianUserId: number | null;
-  members: { userId: number; name: string; isFinance: boolean }[];
+  members: { userId: number; name: string; isCustodian: boolean; canSettle: boolean }[];
 }
 
 export interface CustodyResponse {
@@ -157,8 +157,8 @@ const financeApi = api.injectEndpoints({
       query: (body) => ({ url: "finance/settings", method: "PATCH", body }),
       invalidatesTags: ["Classroom", "Finance"],
     }),
-    setMemberFinance: builder.mutation<unknown, { userId: number; isFinance: boolean }>({
-      query: ({ userId, isFinance }) => ({ url: `finance/members/${userId}`, method: "PATCH", body: { isFinance } }),
+    setMemberFinance: builder.mutation<unknown, { userId: number; isCustodian?: boolean; canSettle?: boolean }>({
+      query: ({ userId, ...body }) => ({ url: `finance/members/${userId}`, method: "PATCH", body }),
       invalidatesTags: ["Membership", "Classroom", "Finance"],
     }),
     getFinanceLocations: builder.query<{ locations: FinanceLocation[] }, void>({

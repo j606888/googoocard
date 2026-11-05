@@ -726,7 +726,11 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 **開關**：`Classroom.financeEnabledAt`（上線日）。`null` = 沒開，**行為完全不變**：卡不到期、收款人照舊可選任何成員、沒有綁課卡／贈送卡、`/finance` 的 API 回 404。開啟後每門課都要有分部（API 400 `LOCATION_REQUIRED`；新增／編輯課程表單的分部欄位變必填）。開啟走 `POST /api/finance/enable`（owner，教室設定有連結入口；導覽在開啟前藏起「財務」）。上線日之前的課、過期事件都不算。
 
-**權限**：`Membership.isFinance`（財務 = 保管人），跟 owner／admin／老師／小幫手四個角色分開，有勾才有（`src/service/finance/access.ts`）。只有財務能記支出／次數包／轉帳／退費、改分帳規則與分部設定、確認結算；其餘成員全部唯讀（第一階段全透明）。最後一位財務不能被取消或移除。分部負責人（`Location.keeperUserId`）、過期收入對象、`Teacher.payerUserId`、`Classroom.legacyCustodianUserId` 都必須是財務成員。
+**權限**：兩個獨立的旗標，跟 owner／admin／老師／小幫手四個角色分開，有勾才有（2026-11-05 從 `isFinance` 拆開，舊的財務兩個都勾）。
+- `Membership.isCustodian`（保管人，`assertCustodian` in `service/finance/config.ts`、`isCustodian` in `service/finance/receiver.ts`）：手上有教室的錢——出現在保管中、可被選為收款人；分部負責人（`Location.keeperUserId`）、過期收入對象、`Teacher.payerUserId`、支出／次數包／轉帳／退費的付款人都必須是保管人。
+- `Membership.canSettle`（可以結算，`assertCanSettle` in `service/finance/access.ts`）：確認結算、記支出／次數包／轉帳／退費、改分帳規則、分部與財務設定、開帳確認。只勾這個的人不出現在保管中。
+
+其餘成員全部唯讀（第一階段全透明）。兩個旗標各自守門：最後一位保管人（`LAST_CUSTODIAN`）、最後一位可以結算的人（`LAST_SETTLER`）不能被取消。開財務的 owner 兩個都會被勾上。
 
 **資料表**（人的欄位刻意是純 Int、沒有 FK，存在性與教室歸屬由 service 驗證）：`Venue`／`VenuePack`（場地與預付次數包）、`LessonSplitRule`／`PeriodSplitOverride`（整門課規則 JSON＋單堂覆寫）、`AttendanceAbsence`、`FinanceExpense`、`FinanceTransfer`（`toKind` USER／TEACHER／SELF／VENUE）、`FinanceRefund`、`FinanceSettlement`（月結快照）。`StudentCard` 加 `expiresAt`／`closedReason`／`soldLocationId`／`giftFromId`，`Card` 加綁課欄位。
 
@@ -746,7 +750,7 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 **綁課卡／缺席／贈送卡**：`Card` 可綁一門 `fixed` 課（不可與複習／體驗並用，不可綁已結束的課）。時段定案時，有綁課卡但沒出席的學生自動扣一格，寫進**獨立的 `AttendanceAbsence` 表**——算收入、**絕不當出席**（出席人數、紀錄、活躍度、`lastAttendAt` 都不碰它）；之後補點出席會把缺席換成出席，不重複扣。綁課卡剩格在那門課結束後變成「通用卡」（任何課可用，LIFF 自助簽到也可）。賣綁課卡時同交易自動發一張**贈送卡**（1 格、$0、通用、6 個月）；系統「贈送卡」卡種對外隱藏、不可販售，只由 `issueGiftCardInTx` 發。選卡優先序：該課自己的卡先；通用卡只在學生沒有該課的卡且恰好一張時自動選。
 
-**收款人規則**（`service/finance/receiver.ts`）：財務開啟時，收款人只能是財務成員（`assertReceiverIsFinance`）。非財務的賣卡者（小幫手代收）一律落到 `defaultReceiver`（該堂課分部的負責人）；找不到負責人且呼叫者不是財務 → 400 `RECEIVER_REQUIRED`。`soldLocationId` = 收款人負責的分部。轉換／轉讓的新卡繼承來源卡的保管人與賣卡分部（只在財務開啟時）。解不出保管人的錢進該持有人的「未分配」並出 `UNRESOLVED_KEEPER` 警告，**不丟錢**，且擋住結算。
+**收款人規則**（`service/finance/receiver.ts`）：財務開啟時，收款人只能是保管人（`assertReceiverIsCustodian`）。非保管人的賣卡者（小幫手代收）一律落到 `defaultReceiver`（該堂課分部的負責人）；找不到負責人且呼叫者不是保管人 → 400 `RECEIVER_REQUIRED`。`soldLocationId` = 收款人負責的分部。轉換／轉讓的新卡繼承來源卡的保管人與賣卡分部（只在財務開啟時）。解不出保管人的錢進該持有人的「未分配」並出 `UNRESOLVED_KEEPER` 警告，**不丟錢**，且擋住結算。
 
 **月結**：財務按「確認結算」才鎖（`lockMonth`），沒有自動鎖；存快照（每堂分帳、每人應領、保管人各格、`byBranch`、已實現的來源 key）。一筆收入歸「那堂課的月份；已鎖就歸最早未鎖的月份」；鎖後的補點名／補收款／改單堂金額只產生**調整**行（新 − 快照，歸最早未鎖月），**已鎖月份永不改變**。過期收入同理：快照的 `eventIds.expiries` 存 `{ id, value, holderUserId, to }`（鎖住當時的價值；舊格式只有 id），之後卡的剩格變了（例：退格到已過期的卡）→ 帳本在最早未鎖月放「沖銷快照那版＋現況」（`expiryHistoryEntries`，跟時段的 `periodHistoryEntries` 同一套），結算單列在 `expiryAdjustments`，下次鎖定時重存基準。只能鎖最早未鎖的月份（否則 409 `MONTH_NOT_OPEN`）。**作廢落在已鎖月份（或已被快照包含）的支出／轉帳／退費／次數包 → 409 `MONTH_LOCKED`**，要改請記一筆相反的新紀錄。`lockMonth` 只在三種情況擋：不是最早未鎖的月份（409 `MONTH_NOT_OPEN`）、該月在台北時間還沒結束（409 `MONTH_NOT_ENDED`）、結算單帶 `UNALLOCATED`（有錢找不到人，含解不出保管人；409 `UNALLOCATED`）。`UNCHECKED_PERIODS`／`NO_PACK`／`PACK_OVERDRAWN` 只在結算單上當提醒，**不擋**結算。**取整只在月結發錢時**：每人月合計取整到元，零頭進付款人負責分部的公積金；內部一律保留小數。
 

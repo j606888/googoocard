@@ -2,14 +2,14 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 
-/** keeper／付款人／到期歸屬人必須是這間教室有財務權限的成員，否則 400 NOT_FINANCE_MEMBER。 */
-export async function assertFinanceMember(userId: number, classroomId: number) {
+/** keeper／付款人／到期歸屬人必須是這間教室的保管人（isCustodian），否則 400 NOT_FINANCE_MEMBER。 */
+export async function assertCustodian(userId: number, classroomId: number) {
   const m = await prisma.membership.findUnique({
     where: { userId_classroomId: { userId, classroomId } },
-    select: { isFinance: true },
+    select: { isCustodian: true },
   });
-  if (!m?.isFinance) {
-    throw new ApiError(400, "NOT_FINANCE_MEMBER", "User is not a finance member of this classroom");
+  if (!m?.isCustodian) {
+    throw new ApiError(400, "NOT_FINANCE_MEMBER", "User is not a custodian of this classroom");
   }
 }
 

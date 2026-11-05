@@ -4,7 +4,7 @@ import { badRequest, notFound } from "@/lib/apiError";
 import { findMembership } from "@/lib/authz";
 import { confirmPaymentSchema } from "@/lib/schemas";
 import { isFinanceEnabled } from "@/service/finance/access";
-import { assertReceiverIsFinance, defaultReceiver, soldLocationFor } from "@/service/finance/receiver";
+import { assertReceiverIsCustodian, defaultReceiver, soldLocationFor } from "@/service/finance/receiver";
 
 const PAYMENT_METHOD_LABEL = { CASH: "現金", TRANSFER: "轉帳" } as const;
 
@@ -49,7 +49,7 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
   }
 
   const finance = await isFinanceEnabled(classroomId);
-  // 財務開啟：收款人必須是財務成員，並記下賣卡分部（預設 = 收款人保管的分部）。
+  // 財務開啟：收款人必須是保管人，並記下賣卡分部（預設 = 收款人保管的分部）。
   const receiverUserId = finance
     ? body.receiverUserId ?? (await defaultReceiver(classroomId, userId))
     : body.receiverUserId ?? userId;
@@ -61,7 +61,7 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
     if (!(await findMembership(receiverUserId, classroomId))) {
       throw badRequest("RECEIVER_NOT_MEMBER", "Receiver is not a member of this classroom");
     }
-    await assertReceiverIsFinance(receiverUserId, classroomId);
+    await assertReceiverIsCustodian(receiverUserId, classroomId);
     if (body.soldLocationId) {
       const loc = await prisma.location.findFirst({
         where: { id: body.soldLocationId, classroomId },

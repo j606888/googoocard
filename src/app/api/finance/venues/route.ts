@@ -1,7 +1,7 @@
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { apiRoute, parseBody } from "@/lib/apiRoute";
-import { assertFinance } from "@/service/finance/access";
+import { assertCanSettle } from "@/service/finance/access";
 import { assertClassroomMember } from "@/service/finance/setup";
 import { withVenueNameCheck } from "@/service/finance/config";
 
@@ -27,7 +27,7 @@ const createSchema = z.object({
 });
 
 export const POST = apiRoute(async ({ request, userId, classroomId }) => {
-  await assertFinance(userId, classroomId);
+  await assertCanSettle(userId, classroomId);
   const body = await parseBody(request, createSchema);
   if (body.landlordUserId != null) await assertClassroomMember(body.landlordUserId, classroomId);
   return withVenueNameCheck(

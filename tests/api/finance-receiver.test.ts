@@ -52,7 +52,7 @@ describe("finance receiver and sold branch", () => {
 
   async function enable() {
     await enableFinanceFor(classroomId, { launch: new Date("2026-10-31T16:00:00Z"), legacyCustodianUserId: 1 });
-    await prisma.membership.updateMany({ where: { userId: { in: [1, keeperId] }, classroomId }, data: { isFinance: true } });
+    await prisma.membership.updateMany({ where: { userId: { in: [1, keeperId] }, classroomId }, data: { isCustodian: true, canSettle: true } });
     await prisma.location.update({ where: { id: locationId }, data: { keeperUserId: keeperId } });
   }
 
@@ -165,7 +165,7 @@ describe("finance receiver and sold branch", () => {
 
   it("drop-in with a non-finance keeper -> RECEIVER_REQUIRED", async () => {
     await enable();
-    await prisma.membership.updateMany({ where: { userId: keeperId, classroomId }, data: { isFinance: false } });
+    await prisma.membership.updateMany({ where: { userId: keeperId, classroomId }, data: { isCustodian: false, canSettle: false } });
     const { lesson, period } = await dropInSetup();
     await expect(chargePaid(classroomId, assistantId, lesson.id, period.id)).rejects.toMatchObject({
       code: "RECEIVER_REQUIRED",

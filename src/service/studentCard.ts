@@ -1,7 +1,7 @@
 import { CardPurchaseSource, PaymentMethod, Prisma } from "@prisma/client";
 import { nextCardSerial } from "@/service/studentCardSerial";
 import { CARD_EXPIRY_MONTHS } from "@/service/finance/setup";
-import { defaultReceiver, isFinanceMember, soldLocationFor } from "@/service/finance/receiver";
+import { defaultReceiver, isCustodian, soldLocationFor } from "@/service/finance/receiver";
 import { assertCardSellable, issueGiftCardInTx } from "@/service/finance/bound";
 import { addMonthsTaipei, toTaipeiDateKey } from "@/lib/taipei-date";
 
@@ -67,10 +67,10 @@ export async function createStudentCardInTx(
     : null;
 
   // 財務開啟、建卡當下就收了錢：賣卡分部 = 收款人保管的分部。
-  // 賣的人不是財務 → 錢記在課所在分部的保管人（找不到 → 400 RECEIVER_REQUIRED）。
+  // 賣的人不是保管人 → 錢記在課所在分部的保管人（找不到 → 400 RECEIVER_REQUIRED）。
   let soldLocationId: number | null = null;
   if (classroom?.financeEnabledAt && isPaid && paidByUserId) {
-    if (!(await isFinanceMember(paidByUserId, card.classroomId))) {
+    if (!(await isCustodian(paidByUserId, card.classroomId))) {
       paidByUserId = await defaultReceiver(card.classroomId, paidByUserId, lessonLocationId);
     }
     soldLocationId = await soldLocationFor(card.classroomId, paidByUserId);

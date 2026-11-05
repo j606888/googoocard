@@ -92,7 +92,7 @@ describe("finance settlement", () => {
 
   async function seed() {
     seanId = (await createMember(classroomId, { email: "s@test.local", name: "S", role: "admin" })).id;
-    await prisma.membership.updateMany({ where: { classroomId }, data: { isFinance: true } });
+    await prisma.membership.updateMany({ where: { classroomId }, data: { isCustodian: true, canSettle: true } });
     await enableFinanceFor(classroomId, { launch: LAUNCH });
 
     tainanId = (await createLocation(classroomId, { name: "T" })).id;

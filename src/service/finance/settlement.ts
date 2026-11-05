@@ -17,7 +17,7 @@ import {
 import type { ExpiryState, SnapshotCore, SnapshotExpiry } from "@/domains/finance/months";
 import { formatCardSerial } from "@/lib/cardSerial";
 import type { Allocation } from "@/domains/finance/types";
-import { assertFinance, assertFinanceEnabled } from "./access";
+import { assertCanSettle, assertFinanceEnabled } from "./access";
 import { custodyFromLedger, ledgerWarnings, loadLedger } from "./custody";
 import type { Ledger } from "./custody";
 import type { PeriodFinance } from "./periods";
@@ -374,7 +374,7 @@ export async function lockMonth({
   month: string;
   now?: Date;
 }): Promise<MonthStatement> {
-  await assertFinance(userId, classroomId);
+  await assertCanSettle(userId, classroomId);
   const ledger = await loadLedger(classroomId);
   if (month !== ledger.context.openMonth) {
     throw new ApiError(409, "MONTH_NOT_OPEN", `Only ${ledger.context.openMonth} can be locked`);

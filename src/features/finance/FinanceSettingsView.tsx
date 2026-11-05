@@ -9,7 +9,7 @@ import BranchSettings from "./BranchSettings";
 import GeneralSettings from "./GeneralSettings";
 import SetupChecklist from "./SetupChecklist";
 import TeacherPayers from "./TeacherPayers";
-import { useIsFinance } from "./useIsFinance";
+import { useCanSettle } from "./useCanSettle";
 import VenueSettings from "./VenueSettings";
 
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
@@ -24,11 +24,11 @@ function Section({ id, title, children }: { id: string; title: string; children:
 /** /finance/settings：分部、老師付款人、場地與次數包、成員與舊卡預收。 */
 export default function FinanceSettingsView() {
   const { data: settings, isLoading } = useGetFinanceSettingsQuery();
-  const isFinance = useIsFinance();
+  const canSettle = useCanSettle();
 
   if (isLoading) return <Skeleton className="m-4 h-56 w-full max-w-3xl rounded-2xl" />;
   if (!settings?.enabled) return <EmptyState kind="page" title="這間教室還沒開財務" />;
-  if (!isFinance) return <EmptyState kind="page" title="只有財務成員可以改財務設定" />;
+  if (!canSettle) return <EmptyState kind="page" title="只有可以結算的人能改財務設定" />;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 p-4 lg:p-6">

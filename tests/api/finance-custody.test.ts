@@ -48,7 +48,7 @@ describe("GET /api/finance/custody", () => {
 
   async function seed() {
     seanId = (await createMember(classroomId, { email: "s@test.local", name: "S", role: "admin" })).id;
-    await prisma.membership.updateMany({ where: { classroomId }, data: { isFinance: true } });
+    await prisma.membership.updateMany({ where: { classroomId }, data: { isCustodian: true, canSettle: true } });
     // 開帳保管人＝第二位成員：沒有收款人的舊卡算他的（案例 10）。
     await enableFinanceFor(classroomId, { launch: LAUNCH, legacyCustodianUserId: seanId });
 

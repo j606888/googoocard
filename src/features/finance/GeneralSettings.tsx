@@ -19,9 +19,17 @@ const ROUNDS = [
   { value: 100, label: "100 元" },
 ];
 
-const MEMBER_ERRORS: Record<string, string> = { LAST_FINANCE: "至少要留一位財務成員" };
+const MEMBER_ERRORS: Record<string, string> = {
+  LAST_CUSTODIAN: "至少要留一位保管人",
+  LAST_SETTLER: "至少要留一位可以結算的人",
+};
 
-/** 財務成員、發錢取整、舊卡保管人與預收確認。 */
+const MEMBER_FLAGS = [
+  { flag: "isCustodian", label: "保管人" },
+  { flag: "canSettle", label: "可以結算" },
+] as const;
+
+/** 財務成員（保管人／可以結算）、發錢取整、舊卡保管人與預收確認。 */
 export default function GeneralSettings() {
   const { data: settings } = useGetFinanceSettingsQuery();
   const { data: setup } = useGetFinanceSetupQuery();
@@ -42,27 +50,34 @@ export default function GeneralSettings() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h3 className="mb-1 text-sm font-semibold text-neutral-900">財務成員</h3>
+        <h3 className="mb-1 flex items-center gap-1 text-sm font-semibold text-neutral-900">
+          財務成員
+          <InfoTip label="財務成員說明">
+            保管人：手上有教室的錢，出現在保管中、可以被選為收款人和分部負責人。可以結算：確認月結、記支出和次數包、改分帳規則與財務設定。
+          </InfoTip>
+        </h3>
         <ul className="flex flex-col divide-y divide-neutral-100">
           {members.map((m) => (
             <li key={m.userId} className="flex min-h-11 items-center gap-3 text-sm">
               <span className="min-w-0 flex-1 truncate">{m.name}</span>
-              <label className="flex min-h-11 cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="size-5 accent-primary-700"
-                  checked={m.isFinance}
-                  onChange={async (e) => {
-                    try {
-                      await setMember({ userId: m.userId, isFinance: e.target.checked }).unwrap();
-                    } catch (err) {
-                      const code = (err as { data?: { code?: string } })?.data?.code;
-                      toast.error((code && MEMBER_ERRORS[code]) || "改不了，請再試一次");
-                    }
-                  }}
-                />
-                可以管帳
-              </label>
+              {MEMBER_FLAGS.map(({ flag, label }) => (
+                <label key={flag} className="flex min-h-11 cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="size-5 accent-primary-700"
+                    checked={m[flag]}
+                    onChange={async (e) => {
+                      try {
+                        await setMember({ userId: m.userId, [flag]: e.target.checked }).unwrap();
+                      } catch (err) {
+                        const code = (err as { data?: { code?: string } })?.data?.code;
+                        toast.error((code && MEMBER_ERRORS[code]) || "改不了，請再試一次");
+                      }
+                    }}
+                  />
+                  {label}
+                </label>
+              ))}
             </li>
           ))}
         </ul>

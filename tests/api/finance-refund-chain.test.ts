@@ -52,7 +52,7 @@ describe("finance: refunds follow the conversion chain, consume refuses closed c
 
   async function enable() {
     await enableFinanceFor(classroomId, { launch: LAUNCH, legacyCustodianUserId: ownerId });
-    await prisma.membership.updateMany({ where: { classroomId }, data: { isFinance: true } });
+    await prisma.membership.updateMany({ where: { classroomId }, data: { isCustodian: true, canSettle: true } });
   }
 
   /** 1000／10 格的卡，上過這堂（扣 1 格、剩 9）。 */

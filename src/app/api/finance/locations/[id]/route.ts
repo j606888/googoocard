@@ -2,8 +2,8 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 import { apiRoute, parseBody, parseId } from "@/lib/apiRoute";
-import { assertFinance } from "@/service/finance/access";
-import { assertFinanceMember } from "@/service/finance/config";
+import { assertCanSettle } from "@/service/finance/access";
+import { assertCustodian } from "@/service/finance/config";
 
 const patchSchema = z.object({
   keeperUserId: z.number().int().positive().nullable().optional(),
@@ -14,14 +14,14 @@ const patchSchema = z.object({
 
 // 不動 fundOpeningConfirmedAt（確認期初是另一個按鈕）。
 export const PATCH = apiRoute<{ id: string }>(async ({ request, params, userId, classroomId }) => {
-  await assertFinance(userId, classroomId);
+  await assertCanSettle(userId, classroomId);
   const id = parseId(params.id);
   const body = await parseBody(request, patchSchema);
   const current = await prisma.location.findFirst({ where: { id, classroomId } });
   if (!current) throw new ApiError(404, "NOT_FOUND", "Location not found");
 
-  if (body.keeperUserId != null) await assertFinanceMember(body.keeperUserId, classroomId);
-  if (body.expiryUserId != null) await assertFinanceMember(body.expiryUserId, classroomId);
+  if (body.keeperUserId != null) await assertCustodian(body.keeperUserId, classroomId);
+  if (body.expiryUserId != null) await assertCustodian(body.expiryUserId, classroomId);
 
   const expiryTo = body.expiryTo ?? current.expiryTo;
   const expiryUserId = body.expiryUserId !== undefined ? body.expiryUserId : current.expiryUserId;

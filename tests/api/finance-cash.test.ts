@@ -37,7 +37,7 @@ describe("finance cash APIs", () => {
     auth.classroomId = classroomId;
     auth.userId = 1;
     await enableFinanceFor(classroomId, { launch: new Date("2026-10-31T16:00:00Z"), legacyCustodianUserId: 1 });
-    await prisma.membership.updateMany({ where: { userId: 1, classroomId }, data: { isFinance: true } });
+    await prisma.membership.updateMany({ where: { userId: 1, classroomId }, data: { isCustodian: true, canSettle: true } });
     nonFinanceId = (await createMember(classroomId)).id;
     locationId = (await createLocation(classroomId)).id;
   });

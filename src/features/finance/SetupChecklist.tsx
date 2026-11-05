@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { useIsFinance } from "./useIsFinance";
+import { useCanSettle } from "./useCanSettle";
 import { useGetFinanceSetupQuery, type ChecklistKey } from "@/store/slices/finance";
 
 const ITEMS: Record<ChecklistKey, { label: string; href: string }> = {
@@ -18,7 +18,7 @@ const ITEMS: Record<ChecklistKey, { label: string; href: string }> = {
 /** 開帳清單：沒做完的項目一直顯示在 /finance 上方，做完整塊消失。 */
 export default function SetupChecklist() {
   const { data } = useGetFinanceSetupQuery();
-  const canEdit = useIsFinance();
+  const canEdit = useCanSettle();
   if (!data || data.complete) return null;
   const Wrapper = (canEdit ? Link : "div") as React.ElementType;
   const total = data.items.length;

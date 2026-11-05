@@ -128,8 +128,10 @@ model Membership {
   classroomId Int
   classroom   Classroom @relation(fields: [classroomId], references: [id])
   role        String    @default("owner")
-  // 財務管理員：可以寫財務資料（assertFinance）。
-  isFinance   Boolean   @default(false)
+  // 財務保管人：手上有教室的錢、出現在保管中、可被選為收款人／分部負責人（assertCustodian）。
+  isCustodian Boolean   @default(false)
+  // 可以結算：確認結算、記支出／次數包、改分帳規則與財務設定、開帳（assertCanSettle）。
+  canSettle   Boolean   @default(false)
   // 角色預設組合以外，多給／拿掉的權限（src/lib/permissions.ts）。只存差異，
   // 預設組合寫在程式碼裡，所以新增權限不用跑資料遷移。
   createdAt   DateTime  @default(now())

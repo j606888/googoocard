@@ -40,7 +40,7 @@ export async function enableFinance(args: {
     }
     await tx.membership.update({
       where: { userId_classroomId: { userId, classroomId } },
-      data: { isFinance: true },
+      data: { isCustodian: true, canSettle: true },
     });
     await tx.studentCard.updateMany({
       where: { student: { classroomId }, expiredAt: null, remainingSessions: { gt: 0 } },
@@ -116,7 +116,7 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
         teachers: { select: { teacher: { select: { payerUserId: true, userId: true } } } },
       },
     }),
-    prisma.membership.findMany({ where: { classroomId, isFinance: true }, select: { userId: true } }),
+    prisma.membership.findMany({ where: { classroomId, isCustodian: true }, select: { userId: true } }),
     prisma.periodSplitOverride.findMany({
       where: { lessonPeriod: { lesson: { classroomId, status: "inProgress" } } },
       select: { rule: true },

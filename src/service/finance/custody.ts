@@ -108,7 +108,7 @@ export async function loadLedger(classroomId: number): Promise<Ledger> {
       }),
       prisma.venue.findMany({ where: { classroomId }, select: { id: true, landlordUserId: true } }),
       prisma.teacher.findMany({ where: { classroomId }, select: { id: true, userId: true, payerUserId: true } }),
-      prisma.membership.findMany({ where: { classroomId, isFinance: true }, select: { userId: true } }),
+      prisma.membership.findMany({ where: { classroomId, isCustodian: true }, select: { userId: true } }),
       prisma.attendanceRecord.findMany({
         where: { lessonPeriod: untakenPeriod },
         select: {
@@ -396,7 +396,7 @@ export async function custodyFromLedger(
   );
 
   const members = await prisma.membership.findMany({
-    where: { classroomId, isFinance: true },
+    where: { classroomId, isCustodian: true },
     select: { userId: true },
   });
   const userIds = [...new Set([...members.map((m) => m.userId), ...Object.keys(custody).map(Number)])];

@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { apiRoute, parseBody, parseId } from "@/lib/apiRoute";
 import { splitRuleSchema } from "@/domains/finance/types";
-import { assertFinance, assertFinanceEnabled } from "@/service/finance/access";
+import { assertCanSettle, assertFinanceEnabled } from "@/service/finance/access";
 import { requireLesson, saveLessonRule, validateRule } from "@/service/finance/rules";
 
 export const GET = apiRoute<{ id: string }>(async ({ params, classroomId }) => {
@@ -15,7 +15,7 @@ export const GET = apiRoute<{ id: string }>(async ({ params, classroomId }) => {
 });
 
 export const PUT = apiRoute<{ id: string }>(async ({ request, params, userId, classroomId }) => {
-  await assertFinance(userId, classroomId);
+  await assertCanSettle(userId, classroomId);
   const lesson = await requireLesson(parseId(params.id), classroomId);
   const rule = await parseBody(request, splitRuleSchema);
   await validateRule(classroomId, rule);
@@ -24,7 +24,7 @@ export const PUT = apiRoute<{ id: string }>(async ({ request, params, userId, cl
 });
 
 export const DELETE = apiRoute<{ id: string }>(async ({ params, userId, classroomId }) => {
-  await assertFinance(userId, classroomId);
+  await assertCanSettle(userId, classroomId);
   const lesson = await requireLesson(parseId(params.id), classroomId);
   await prisma.lessonSplitRule.deleteMany({ where: { lessonId: lesson.id } });
   return { ok: true };

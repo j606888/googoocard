@@ -41,7 +41,7 @@ describe("finance config APIs", () => {
     auth.classroomId = classroomId;
     auth.userId = 1;
     await enableFinanceFor(classroomId, { launch: LAUNCH, legacyCustodianUserId: 1 });
-    await prisma.membership.updateMany({ where: { userId: 1, classroomId }, data: { isFinance: true } });
+    await prisma.membership.updateMany({ where: { userId: 1, classroomId }, data: { isCustodian: true, canSettle: true } });
     nonFinanceId = (await createMember(classroomId)).id;
   });
 

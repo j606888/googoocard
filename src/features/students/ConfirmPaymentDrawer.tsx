@@ -74,9 +74,9 @@ export default function ConfirmPaymentDrawer({
 
   if (!target) return null;
 
-  // 財務開啟：收款人只能是財務成員；預設是自己（若自己是財務）。
+  // 財務開啟：收款人只能是保管人；預設是自己（若自己是保管人）。
   const financeIds = new Set(
-    (finance?.members ?? []).filter((m) => m.isFinance).map((m) => m.userId),
+    (finance?.members ?? []).filter((m) => m.isCustodian).map((m) => m.userId),
   );
   const defaultFinanceReceiver =
     me && financeIds.has(me.id) ? me.id : ([...financeIds][0] ?? null);
@@ -166,7 +166,7 @@ export default function ConfirmPaymentDrawer({
           />
           <p className="text-xs text-neutral-500">
             {financeOn
-              ? "只能選財務成員；學生轉到其他財務成員的帳戶就改選那位"
+              ? "只能選保管人；學生轉到其他保管人的帳戶就改選那位"
               : "預設是你自己；學生轉到其他老師的帳戶就改選那位老師"}
           </p>
         </div>

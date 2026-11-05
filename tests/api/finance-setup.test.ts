@@ -44,7 +44,7 @@ describe("finance setup checklist", () => {
     auth.classroomId = classroomId;
     auth.userId = ownerId;
     await enableFinanceFor(classroomId, { launch: new Date("2026-11-02T16:00:00Z"), legacyCustodianUserId: ownerId });
-    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isFinance: true } });
+    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isCustodian: true, canSettle: true } });
   });
 
   it("fresh classroom: items in spec order; nothing-to-configure items are vacuously done", async () => {
@@ -98,9 +98,9 @@ describe("finance setup checklist", () => {
     // linked to a finance member also counts
     await prisma.teacher.update({ where: { id: teacher.id }, data: { payerUserId: null, userId: ownerId } });
     expect((await byKey(classroomId)).teachers.done).toBe(true);
-    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isFinance: false } });
+    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isCustodian: false, canSettle: false } });
     expect((await byKey(classroomId)).teachers.done).toBe(false);
-    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isFinance: true } });
+    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isCustodian: true, canSettle: true } });
 
     const venue = await createVenue(classroomId, { name: "V" });
     expect((await byKey(classroomId)).venues.done).toBe(true); // no venuePack line yet

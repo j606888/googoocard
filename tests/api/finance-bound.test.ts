@@ -44,7 +44,7 @@ describe("finance bound cards, absences, gift cards", () => {
 
   async function enable() {
     await enableFinanceFor(classroomId, { launch: new Date("2026-10-31T16:00:00Z"), legacyCustodianUserId: 1 });
-    await prisma.membership.updateMany({ where: { userId: 1, classroomId }, data: { isFinance: true } });
+    await prisma.membership.updateMany({ where: { userId: 1, classroomId }, data: { isCustodian: true, canSettle: true } });
   }
 
   async function addPeriod(lessonId: number, startTime = FUTURE) {

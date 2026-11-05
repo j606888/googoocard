@@ -3,8 +3,8 @@ import prisma from "@/lib/prisma";
 import { ymdSchema } from "@/lib/schemas";
 import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { parseTaipeiDateRange } from "@/lib/taipei-date";
-import { assertFinance } from "@/service/finance/access";
-import { assertFinanceMember, requireVenueInClassroom } from "@/service/finance/config";
+import { assertCanSettle } from "@/service/finance/access";
+import { assertCustodian, requireVenueInClassroom } from "@/service/finance/config";
 
 const packSelect = {
   id: true,
@@ -35,10 +35,10 @@ const createSchema = z.object({
 });
 
 export const POST = apiRoute(async ({ request, userId, classroomId }) => {
-  await assertFinance(userId, classroomId);
+  await assertCanSettle(userId, classroomId);
   const body = await parseBody(request, createSchema);
   await requireVenueInClassroom(body.venueId, classroomId);
-  await assertFinanceMember(body.paidByUserId, classroomId);
+  await assertCustodian(body.paidByUserId, classroomId);
   return prisma.venuePack.create({
     data: {
       classroomId,

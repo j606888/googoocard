@@ -3,13 +3,13 @@ import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 import { apiRoute, parseBody, parseId } from "@/lib/apiRoute";
 import { splitRuleSchema } from "@/domains/finance/types";
-import { assertFinance } from "@/service/finance/access";
+import { assertCanSettle } from "@/service/finance/access";
 import { requireLesson, saveLessonRule, validateRule } from "@/service/finance/rules";
 
 const bodySchema = z.object({ fromLessonId: z.number().int().positive() });
 
 export const POST = apiRoute<{ id: string }>(async ({ request, params, userId, classroomId }) => {
-  await assertFinance(userId, classroomId);
+  await assertCanSettle(userId, classroomId);
   const lesson = await requireLesson(parseId(params.id), classroomId);
   const { fromLessonId } = await parseBody(request, bodySchema);
   const from = await requireLesson(fromLessonId, classroomId);

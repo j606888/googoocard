@@ -4,7 +4,7 @@ import { ApiError } from "@/lib/apiError";
 import { parseTaipeiDateRange, parseTaipeiMonthRange } from "@/lib/taipei-date";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { ymdSchema } from "@/lib/schemas";
-import { assertFinanceMember, requireVenueInClassroom } from "./config";
+import { assertCustodian, requireVenueInClassroom } from "./config";
 
 export function dateOf(ymd: string): Date {
   return parseTaipeiDateRange(ymd).start;
@@ -72,7 +72,7 @@ export async function createExpense(
 ) {
   const location = await prisma.location.findFirst({ where: { id: body.locationId, classroomId } });
   if (!location) throw new ApiError(404, "NOT_FOUND", "Location not found");
-  await assertFinanceMember(body.paidByUserId, classroomId);
+  await assertCustodian(body.paidByUserId, classroomId);
   return prisma.financeExpense.create({
     data: {
       classroomId,
@@ -93,7 +93,7 @@ export async function createTransfer(
   userId: number,
   body: z.infer<typeof transferSchema>
 ) {
-  await assertFinanceMember(body.fromUserId, classroomId);
+  await assertCustodian(body.fromUserId, classroomId);
   let toUserId: number | null = null;
   let toTeacherId: number | null = null;
   let toVenueId: number | null = null;
@@ -101,7 +101,7 @@ export async function createTransfer(
     toUserId = body.fromUserId;
   } else if (body.toKind === "USER") {
     if (!body.toUserId) throw new ApiError(400, "TARGET_REQUIRED", "toUserId is required");
-    await assertFinanceMember(body.toUserId, classroomId);
+    await assertCustodian(body.toUserId, classroomId);
     toUserId = body.toUserId;
   } else if (body.toKind === "TEACHER") {
     if (!body.toTeacherId) throw new ApiError(400, "TARGET_REQUIRED", "toTeacherId is required");
@@ -155,7 +155,7 @@ export async function refundCard(input: {
   if (!card) throw new ApiError(404, "NOT_FOUND", "Card not found");
   if (!card.isPaid) throw new ApiError(400, "CARD_NOT_PAID", "Card is not paid");
   if (card.expiredAt) throw new ApiError(400, "CARD_CLOSED", "Card is already closed");
-  await assertFinanceMember(paidByUserId, classroomId);
+  await assertCustodian(paidByUserId, classroomId);
   // amount ≤ finalPrice / totalSessions × remaining，用整數乘法避免浮點誤差。
   if (amount * card.totalSessions > card.finalPrice * card.remainingSessions) {
     throw new ApiError(400, "REFUND_EXCEEDS_VALUE", "Refund exceeds remaining value");
