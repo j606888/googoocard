@@ -16,7 +16,7 @@ const ruleSelect = {
 /**
  * 財務首頁「要處理的事」。待處理清單的三類（未付款課卡、未付單堂、點名沒綁卡）直接取自
  * `getTodos()`，同一份資料；再加上財務才有的：沒設分帳的課、過去沒點名的時段、次數包用完、
- * 上月未結算、我的分部還沒核對（1 號起）。每一項帶 `locationId`，`null` = 不屬於任何分部，每個分部都看得到：
+ * 上月未結算、我的分部還沒核對（1 號起）。有時段的項目只列上線日（`financeEnabledAt`）之後的。每一項帶 `locationId`，`null` = 不屬於任何分部，每個分部都看得到：
  * - 「要收錢」的三類依**上課地點**（`Lesson.locationId`）：要去現場收的人才看得到。未付款的卡沒有賣卡分部，
  *   用第一次用那張卡的課；還沒用過 → `null`。
  * - 其他（沒分帳、沒點名）依這堂課的基金（跟瀑布同一個口徑）。
@@ -34,9 +34,13 @@ export async function getFinanceHome(classroomId: number, userId: number, now = 
     unreviewedBranchesFor(classroomId, userId, now),
   ]);
 
-  const lessonIds = [
-    ...new Set([...todos.unpaidDropIns.map((d) => d.lessonId), ...todos.unboundAttendance.map((r) => r.lessonId)]),
-  ];
+  // 上線前的時段（沒分部的舊課）不進財務首頁；原本的待處理頁照列。
+  const sinceLaunch = <T extends { lessonPeriodStartTime: Date }>(items: T[]) =>
+    items.filter((i) => i.lessonPeriodStartTime >= financeEnabledAt);
+  const unpaidDropIns = sinceLaunch(todos.unpaidDropIns);
+  const unboundAttendance = sinceLaunch(todos.unboundAttendance);
+
+  const lessonIds = [...new Set([...unpaidDropIns.map((d) => d.lessonId), ...unboundAttendance.map((r) => r.lessonId)])];
   const [todoLessons, firstUses, unsplitLessons, uncheckedPeriods, packs, packUse] = await Promise.all([
     prisma.lesson.findMany({
       where: { id: { in: lessonIds }, classroomId },
@@ -106,8 +110,8 @@ export async function getFinanceHome(classroomId: number, userId: number, now = 
     branches: branches.map(({ id, name }) => ({ id, name })),
     unsettledMonth: months.openMonth < monthOf(now) ? months.openMonth : null,
     unpaidCards: todos.unpaidCards.map((c) => ({ ...c, locationId: firstUsePlace.get(c.id) ?? null })),
-    unpaidDropIns: todos.unpaidDropIns.map((d) => ({ ...d, locationId: placeOfLesson.get(d.lessonId) ?? null })),
-    unboundAttendance: todos.unboundAttendance.map((r) => ({ ...r, locationId: placeOfLesson.get(r.lessonId) ?? null })),
+    unpaidDropIns: unpaidDropIns.map((d) => ({ ...d, locationId: placeOfLesson.get(d.lessonId) ?? null })),
+    unboundAttendance: unboundAttendance.map((r) => ({ ...r, locationId: placeOfLesson.get(r.lessonId) ?? null })),
     unsplitLessons: unsplitLessons.map((l) => ({ lessonId: l.id, lessonName: l.name, locationId: l.locationId })),
     uncheckedPeriods: uncheckedPeriods.map((p) => ({
       periodId: p.id,

@@ -593,7 +593,7 @@ App 換教室時重新走一次（`epoch` 當 WebView 的 key）。
 | `owner` | 管理員（皇冠） | 建立教室的人，恰好一位（`Classroom.ownerId`）。管理員能做的全部＋封存教室、把教室交給別人 | 退出教室（要先轉出去）、被移除、被改角色 |
 | `admin` | 管理員 | 邀請（指定角色）、改別人的角色、連結老師資料、移除成員（建立者除外） | 封存／轉移教室、改自己的角色 |
 | `teacher` | 老師 | 日常功能全部；**一定連著一筆 `Teacher`**，課程列表最上面的「下一堂／上課中」大卡優先挑自己教的課 | 邀請、改角色、移除成員 |
-| `assistant` | 小幫手 | 日常功能全部（跟老師一樣，收入頁、課卡價格也看得到改得到——刻意的決定） | 同老師；不能連老師資料 |
+| `assistant` | 小幫手 | 日常功能全部（跟老師一樣，收入頁、課卡價格也看得到改得到——刻意的決定） | 同老師；團隊頁不能連老師資料（財務開帳清單的「是本人嗎」可以連，團隊頁編輯時保留） |
 
 **只有「管人」這件事分權限**：邀請連結的建立／刪除（`/api/invite-tokens`）、`PATCH`／`DELETE /api/memberships/[id]` 走 `assertAdmin(role)`（`src/lib/authz.ts`，403 `NOT_CLASSROOM_ADMIN`）；其他所有 route 對三種角色一視同仁。
 
@@ -735,7 +735,7 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 **資料表**（人的欄位刻意是純 Int、沒有 FK，存在性與教室歸屬由 service 驗證）：`Venue`／`VenuePack`（場地與預付次數包）、`LessonSplitRule`／`PeriodSplitOverride`（整門課規則 JSON＋單堂覆寫）、`AttendanceAbsence`、`FinanceExpense`、`FinanceTransfer`（`toKind` USER／TEACHER／SELF／VENUE）、`FinanceRefund`、`FinanceSettlement`（月結快照）、`FinanceBranchReview`（分部核對）。`StudentCard` 加 `expiresAt`／`closedReason`／`soldLocationId`／`giftFromId`，`Card` 加綁課欄位。開帳時上線前買、還剩 N 次的場地包用 `POST /api/finance/packs` 的 `before: { totalSessions, totalPrice, remaining }` 記：價值＝包價 ÷ 總次數 × N（取整到元），`purchasedAt` 記在上線前一天，所以先買先用時最先被扣；帳本上跟一般次數包一樣（付款人 −價值，之後每堂場地費補回）。
 
-**開帳清單**（`setupChecklist` in `service/finance/setup.ts`）：「場地」步驟可勾「這間教室不用場地費」（`Classroom.financeNoVenueFee`，`PATCH /api/finance/settings` 的 `noVenueFee`），勾了就算完成。付款人那一步：付款人在老師名單裡有同名、沒連帳號的老師 → `GET /api/finance/teachers` 的 `linkSuggestion`，提醒「這位老師是 X 本人嗎？」，`POST /api/finance/teachers/[id]/link` 一鍵連結（可以結算的人；不搬動既有連結、小幫手不能連）。
+**開帳清單**（`setupChecklist` in `service/finance/setup.ts`）：「場地」步驟可勾「這間教室不用場地費」（`Classroom.financeNoVenueFee`，`PATCH /api/finance/settings` 的 `noVenueFee`），勾了就算完成。付款人那一步：付款人在老師名單裡有同名、沒連帳號的老師 → `GET /api/finance/teachers` 的 `linkSuggestion`，提醒「這位老師是 X 本人嗎？」，`POST /api/finance/teachers/[id]/link` 一鍵連結（可以結算的人；不搬動既有連結；任何角色都能連，小幫手也可能就是那位老師）。財務首頁「要處理的事」的未付單堂、點名沒課卡只列上線日之後的時段（待處理頁照列）。瀑布各列先取整，尾差併進「過期收入與調整」（`roundWaterfall`）。
 
 **計算放哪裡**（由底往上，能算的都不存）：
 1. `src/domains/finance/split.ts`：純函式，規則 JSON → 一堂課的分帳（收入 − 場地 − 助教 − 抽成 → 老師／公積金）。

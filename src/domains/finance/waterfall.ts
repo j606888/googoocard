@@ -88,3 +88,22 @@ export function monthWaterfall(input: WaterfallInput, scope: BranchScope): Water
     lessons: [...lessons.values()].sort((a, b) => b.income - a.income || a.lessonId - b.lessonId),
   };
 }
+
+/**
+ * 顯示用：每列取到整數，而且加減要對得上（spec 票 23）。
+ * 收入、老師、場地、還沒分帳、支出、本月淨變化各自四捨五入；
+ * 進公積金在上半段本來就對得上時（只差零頭）改用上半段的整數相減，否則照實取整；
+ * 「過期收入與調整」吃掉剩下的尾差 ＝ 本月淨變化 − 進公積金 ＋ 支出，所以 |值| < 0.5 的零頭不會單獨冒出來。
+ */
+export function roundWaterfall(w: Waterfall): Waterfall {
+  const r = Math.round;
+  const income = r(w.income);
+  const teachers = r(w.teachers);
+  const venues = r(w.venues);
+  const unallocated = r(w.unallocated);
+  const expenses = r(w.expenses);
+  const net = r(w.net);
+  const topAddsUp = Math.abs(w.income - w.teachers - w.venues - w.unallocated - w.fund) < 0.5;
+  const fund = topAddsUp ? income - teachers - venues - unallocated : r(w.fund);
+  return { ...w, income, teachers, venues, unallocated, fund, expenses, net, other: net - fund + expenses };
+}

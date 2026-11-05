@@ -24,7 +24,10 @@ export function isAdminRole(role: string | null | undefined): boolean {
   return role === "owner" || role === "admin";
 }
 
-/** Whether a member in this role may be linked to a `Teacher` row (a 小幫手 never is). */
+/**
+ * Whether the team page / invites may link a member in this role to a `Teacher` row (not a 小幫手).
+ * Finance setup's 「是本人嗎」 link (`POST /api/finance/teachers/[id]/link`) may still link a 小幫手.
+ */
 export function canLinkTeacher(role: string): boolean {
   return role !== "assistant";
 }

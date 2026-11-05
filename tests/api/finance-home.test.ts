@@ -23,6 +23,7 @@ vi.mock("@/lib/auth", () => ({
 import { GET as homeRoute } from "@/app/api/finance/home/route";
 import { getMonthStatement } from "@/service/finance/settlement";
 import { getFinanceHome } from "@/service/finance/home";
+import { getTodos } from "@/service/todos";
 import { monthWaterfall } from "@/domains/finance/waterfall";
 import type { SplitRule } from "@/domains/finance/types";
 
@@ -259,6 +260,26 @@ describe("finance home", () => {
       expect(home.unboundAttendance).toEqual([expect.objectContaining({ lessonPeriodId: p.id, locationId: tainanId })]);
       expect(home.uncheckedPeriods).toEqual([expect.objectContaining({ lessonId: l1.id, locationId: tainanId })]);
       expect(home.unsettledMonth).toBe("2026-11");
+    });
+
+    it("只列上線日之後的時段：上線前的點名沒課卡、未付單堂不列（原本的待處理頁照列）", async () => {
+      const l1 = await prisma.lesson.findFirstOrThrow({ where: { classroomId, name: "L1" } });
+      const before = await addPeriod(l1.id, "2026-09-20T02:00:00Z");
+      const after = await addPeriod(l1.id, "2026-11-16T02:00:00Z");
+      const s = await createStudent(classroomId, { name: "小龍" });
+      for (const p of [before, after]) {
+        await prisma.attendanceRecord.create({ data: { lessonPeriodId: p.id, studentId: s.id, sessionsUsed: 1 } });
+      }
+      const early = await addPeriod(l1.id, "2026-10-31T15:00:00Z"); // 上線前一小時
+      await dropIn(early.id, 300, seanId, false);
+      await dropIn(after.id, 200, seanId, false);
+
+      const home = await getFinanceHome(classroomId, dingId, DEC_3);
+      expect(home.unboundAttendance.map((r) => r.lessonPeriodId)).toEqual([after.id]);
+      expect(home.unpaidDropIns.map((d) => d.amount)).toEqual([200]);
+      const todos = await getTodos(classroomId, DEC_3);
+      expect(todos.unboundAttendance.map((r) => r.lessonPeriodId).sort()).toEqual([before.id, after.id].sort());
+      expect(todos.unpaidDropIns).toHaveLength(2);
     });
 
     it("lessons without a split rule, used-up packs", async () => {

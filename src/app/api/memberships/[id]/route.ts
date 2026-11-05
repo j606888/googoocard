@@ -52,7 +52,8 @@ export const PATCH = apiRoute<Params>(async ({ request, params, userId, classroo
     if (body.teacherId) {
       throw badRequest("ASSISTANT_CANNOT_LINK_TEACHER", "A 小幫手 is not linked to a teacher");
     }
-    teacherId = null;
+    // 一直是小幫手的人保留財務那邊連的老師（票 23：小幫手也可能是老師）；改成小幫手才解除。
+    teacherId = role === membership.role ? (current?.id ?? null) : null;
   }
   if (role === "teacher" && teacherId === null) {
     throw badRequest("TEACHER_REQUIRED", "A teacher must be linked to a teacher profile");

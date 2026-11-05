@@ -3,14 +3,14 @@ import prisma from "@/lib/prisma";
 import { ApiError, badRequest } from "@/lib/apiError";
 import { apiRoute, parseBody, parseId } from "@/lib/apiRoute";
 import { findMembership, findTeacherInClassroom } from "@/lib/authz";
-import { canLinkTeacher } from "@/lib/roles";
 import { assertCanSettle } from "@/service/finance/access";
 import { linkTeacher } from "@/service/team";
 
 const schema = z.object({ userId: z.number().int().positive() });
 
 // 開帳清單付款人那一步「這位老師是 X 本人嗎？連結帳號」：把沒連帳號的老師連到那位成員。
-// 只連還沒連帳號的老師、還沒連別的老師的成員（不搬動既有連結；要換請到團隊頁）。小幫手不能連老師。
+// 只連還沒連帳號的老師、還沒連別的老師的成員（不搬動既有連結；要換請到團隊頁）。
+// 任何角色都能連，小幫手也可能就是那位老師（票 23：Bailamore 的 Sean）。
 export const POST = apiRoute<{ id: string }>(async ({ request, params, userId, classroomId }) => {
   await assertCanSettle(userId, classroomId);
   const teacher = await findTeacherInClassroom(parseId(params.id), classroomId);
@@ -18,9 +18,6 @@ export const POST = apiRoute<{ id: string }>(async ({ request, params, userId, c
   const body = await parseBody(request, schema);
   const membership = await findMembership(body.userId, classroomId);
   if (!membership) throw badRequest("NOT_A_MEMBER", "User is not a member of this classroom");
-  if (!canLinkTeacher(membership.role)) {
-    throw badRequest("ASSISTANT_CANNOT_LINK_TEACHER", "A 小幫手 is not linked to a teacher");
-  }
   return prisma.$transaction(async (tx) => {
     const existing = await tx.teacher.findFirst({
       where: { classroomId, userId: body.userId },

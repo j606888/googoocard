@@ -5,14 +5,12 @@ import { ChevronRight } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import InfoTip from "@/components/InfoTip";
 import { Skeleton } from "@/components/ui/skeleton";
-import { monthWaterfall, type BranchScope, type Waterfall } from "@/domains/finance/waterfall";
+import { monthWaterfall, roundWaterfall, type BranchScope, type Waterfall } from "@/domains/finance/waterfall";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { useGetMonthStatementQuery } from "@/store/slices/finance";
 import { formatSigned } from "./CustodyCard";
 import { monthLabel } from "./financeUi";
-
-const EPSILON = 0.005;
 
 const Row = ({
   label,
@@ -90,9 +88,10 @@ export default function MonthWaterfall({
   );
 }
 
-/** 瀑布的各列（首頁與結算單各分部共用）。 */
-export function WaterfallRows({ w }: { w: Waterfall }) {
-  const show = (x: number) => Math.abs(x) >= EPSILON;
+/** 瀑布的各列（首頁與結算單各分部共用）。各列先取整、尾差併進「過期收入與調整」，加減一定對得上。 */
+export function WaterfallRows({ w: raw }: { w: Waterfall }) {
+  const w = roundWaterfall(raw);
+  const show = (x: number) => x !== 0;
   return (
     <ul className="mt-1 divide-y divide-neutral-100">
       <Row label="收入" sign="+" amount={w.income} />
@@ -104,7 +103,7 @@ export function WaterfallRows({ w }: { w: Waterfall }) {
       <Row label="進公積金" sign="=" amount={w.fund} />
       {show(w.other) && (
         <Row
-          label={w.other >= 0 ? "過期收入與調整" : "調整"}
+          label="過期收入與調整"
           tip="課卡過期留下的錢、結算後才補的點名或收款、發錢時取整的零頭。"
           sign={w.other >= 0 ? "+" : "−"}
           amount={w.other}

@@ -20,6 +20,7 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 import { GET } from "@/app/api/finance/custody/route";
+import { POST as LINK_TEACHER } from "@/app/api/finance/teachers/[id]/link/route";
 import { loadLedger } from "@/service/finance/custody";
 import { computeCustody } from "@/domains/finance/ledger";
 import type { Buckets } from "@/domains/finance/ledger";
@@ -179,6 +180,23 @@ describe("GET /api/finance/custody", () => {
     // 那堂的 333.33：場地 300 → 自己的，剩下 33.33 → TS（第二位成員）
     expect(ownerAfter.self).toBeCloseTo(ownerBefore.self + 300, 5);
     expect(ownerAfter.peers[seanId]).toBeCloseTo(ownerBefore.peers[seanId] + 2000 / 6 - 300, 5);
+  });
+
+  it("小幫手本人就是老師（票 23 Sean）：連帳號之後分潤算進他「自己的」，不會出現「S → S」", async () => {
+    await seed();
+    await prisma.membership.updateMany({ where: { classroomId, userId: seanId }, data: { role: "assistant" } });
+    const teacherS = await prisma.teacher.findFirstOrThrow({ where: { classroomId, name: "TS" } });
+    await prisma.teacher.update({ where: { id: teacherS.id }, data: { userId: null, payerUserId: seanId } });
+    const before = ((await (await GET(getReq(), noParams)).json()) as Body).users.find((u) => u.userId === seanId)!.buckets;
+    expect(before.self).toBeCloseTo(0, 2);
+
+    await LINK_TEACHER(
+      new Request("http://test.local", { method: "POST", body: JSON.stringify({ userId: seanId }) }),
+      { params: Promise.resolve({ id: String(teacherS.id) }) },
+    );
+    expect((await prisma.teacher.findUniqueOrThrow({ where: { id: teacherS.id } })).userId).toBe(seanId);
+    const after = ((await (await GET(getReq(), noParams)).json()) as Body).users.find((u) => u.userId === seanId)!.buckets;
+    expect(after.self).toBeCloseTo(366.67, 2);
   });
 
   it("teacher without payer → unallocated + UNRESOLVED_KEEPER", async () => {

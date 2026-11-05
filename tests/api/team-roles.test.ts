@@ -186,6 +186,15 @@ describe("PATCH /api/memberships/[id]", () => {
     expect(await linkedUser(jay.id)).toBeNull();
   });
 
+  it("財務那邊把小幫手連到老師（票 23）→ 在團隊頁編輯這位小幫手不會默默解除", async () => {
+    const { classroom, helper, mei } = await seed();
+    await prisma.teacher.update({ where: { id: mei.id }, data: { userId: helper.id } });
+    const m = await membershipOf(helper.id, classroom.id);
+    // 編輯抽屜對小幫手送 teacherId: null
+    expect((await patchMember(m.id, { role: "assistant", teacherId: null })).status).toBe(200);
+    expect(await linkedUser(mei.id)).toBe(helper.id);
+  });
+
   it("小幫手不能帶老師資料 → 400", async () => {
     const { classroom, helper, mei } = await seed();
     const m = await membershipOf(helper.id, classroom.id);

@@ -263,7 +263,7 @@ describe("finance setup checklist", () => {
     await prisma.membership.updateMany({ where: { userId: helper.id, classroomId }, data: { isCustodian: true } });
     const seanT = await createTeacher(classroomId, { name: "Sean", payerUserId: sean.id });
     const other = await createTeacher(classroomId, { name: "搭檔", payerUserId: sean.id });
-    const niniT = await createTeacher(classroomId, { name: "Nini", payerUserId: helper.id }); // 小幫手不能連老師
+    const niniT = await createTeacher(classroomId, { name: "Nini", payerUserId: helper.id }); // 小幫手也可能是老師（票 23）
 
     const list = async () =>
       Object.fromEntries(
@@ -274,11 +274,12 @@ describe("finance setup checklist", () => {
     let s = await list();
     expect(s[seanT.id]).toEqual({ userId: sean.id, name: "Sean" });
     expect(s[other.id]).toBeNull();
-    expect(s[niniT.id]).toBeNull();
+    expect(s[niniT.id]).toEqual({ userId: helper.id, name: "Nini" });
 
     const link = (teacherId: number, userId: number) =>
       LINK_TEACHER(jsonRequest("POST", { userId }), routeParams({ id: String(teacherId) }));
-    expect((await link(niniT.id, helper.id)).status).toBe(400);
+    expect((await link(niniT.id, helper.id)).status).toBe(200);
+    expect((await prisma.teacher.findUniqueOrThrow({ where: { id: niniT.id } })).userId).toBe(helper.id);
     expect((await link(seanT.id, sean.id)).status).toBe(200);
     expect((await prisma.teacher.findUniqueOrThrow({ where: { id: seanT.id } })).userId).toBe(sean.id);
     s = await list();
