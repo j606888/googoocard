@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -59,6 +60,7 @@ function BranchRow({ loc }: { loc: FinanceLocation }) {
         </div>
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-neutral-900">過期的錢給</span>
+          <span className="text-xs text-neutral-500">學生的卡過期沒用完，剩下的錢歸誰</span>
           <Select
             size="sm"
             aria-label={`${loc.name} 過期收入對象`}
@@ -78,6 +80,7 @@ function BranchRow({ loc }: { loc: FinanceLocation }) {
         <div className="flex-1">
           <Field
             label="公積金期初"
+            hint="（開帳時填一次：開始用系統那天，小金庫裡本來有多少）"
             inputMode="numeric"
             value={opening}
             onChange={(e) => setOpening(e.target.value.replace(/[^\d-]/g, ""))}
@@ -131,6 +134,8 @@ function AddBranch() {
 export default function BranchSettings() {
   const { data } = useGetFinanceLocationsQuery();
   const locations = data?.locations ?? [];
+  // 載入中不要先顯示「還沒有分部」
+  if (!data) return <Skeleton className="h-24 w-full rounded-xl" />;
   return (
     <>
       <p className="mb-1 flex items-center gap-1 text-sm text-neutral-600">

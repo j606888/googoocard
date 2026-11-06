@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import Select from "@/components/Select";
 import { useGetFinanceTeachersQuery, useSetTeacherPayerMutation } from "@/store/slices/finance";
@@ -14,6 +15,7 @@ export default function TeacherPayers() {
   const { options } = useFinanceMembers();
   const [setPayer] = useSetTeacherPayerMutation();
   const teachers = data?.teachers ?? [];
+  if (!data) return <Skeleton className="h-20 w-full rounded-xl" />;
   if (teachers.length === 0) return <p className="text-sm text-neutral-500">還沒有老師</p>;
 
   return (

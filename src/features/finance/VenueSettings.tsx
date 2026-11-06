@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { toast } from "sonner";
 import Field from "@/components/Field";
@@ -57,6 +58,9 @@ export default function VenueSettings() {
   const venues = data?.venues ?? [];
   const packCount = (venueId: number) =>
     (packData?.packs ?? []).filter((p) => p.venueId === venueId && !p.voidedAt).length;
+
+  // 載入中不要先顯示「0 包」
+  if (!data || !packData) return <Skeleton className="h-24 w-full rounded-xl" />;
 
   return (
     <div className="flex flex-col gap-3">

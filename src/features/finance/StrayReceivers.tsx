@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { toast } from "sonner";
 import Select from "@/components/Select";
@@ -28,7 +29,7 @@ export default function StrayReceivers() {
   const [target, setTarget] = useState<number | null>(null);
   const items = data?.items ?? [];
 
-  if (!data) return null;
+  if (!data) return <Skeleton className="h-10 w-full rounded-xl" />;
   if (items.length === 0) return <p className="text-sm text-neutral-500">收的錢都記在保管人名下</p>;
 
   const legacy = settings?.legacyCustodianUserId;

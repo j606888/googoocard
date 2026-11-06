@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import InfoTip from "@/components/InfoTip";
 import Select from "@/components/Select";
@@ -39,6 +40,9 @@ export default function GeneralSettings() {
   const members = settings?.members ?? [];
   const legacy = setup?.items.find((i) => i.key === "legacyPrepaid");
 
+  // 載入中不要先顯示空的成員和「…」
+  const loading = !settings || !setup;
+
   const save = async (body: Parameters<typeof updateSettings>[0]) => {
     try {
       await updateSettings(body).unwrap();
@@ -46,6 +50,8 @@ export default function GeneralSettings() {
       toast.error(financeErrorText(e, "存不了，請再試一次"));
     }
   };
+
+  if (loading) return <Skeleton className="h-40 w-full rounded-xl" />;
 
   return (
     <div className="flex flex-col gap-5">
@@ -103,6 +109,7 @@ export default function GeneralSettings() {
         </div>
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-neutral-900">舊卡的錢在誰手上</span>
+          <span className="text-xs text-neutral-500">開財務之前賣的卡，錢當時是誰收的（開帳時設一次）</span>
           <Select
             aria-label="舊卡保管人"
             value={settings?.legacyCustodianUserId ?? undefined}
