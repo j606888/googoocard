@@ -14,7 +14,7 @@ const names: NameMaps = {
 };
 
 describe("custodyRows", () => {
-  it("spec §14.4 丁丁：順序與文字", () => {
+  it("spec §14.4 丁丁：依組排序與文字", () => {
     const b = {
       ...emptyBuckets(),
       cash: 9950,
@@ -25,12 +25,12 @@ describe("custodyRows", () => {
       peers: { 2: 700 },
     };
     expect(custodyRows(b, names)).toEqual([
-      { key: "prepaid", label: "預收（學生還沒上的卡）", amount: 5400, tone: "locked" },
-      { key: "teacher:10", label: "待付 Nora", amount: 683.34, tone: "owed" },
-      { key: "teacher:11", label: "待付 Charlene", amount: 666.66, tone: "owed" },
-      { key: "self", label: "丁丁自己的", amount: 2850, tone: "mine" },
-      { key: "fund:100", label: "台南公積金", amount: -350, tone: "fund" },
-      { key: "peer:2", label: "欠 Sean", amount: 700, tone: "owed" },
+      { key: "prepaid", label: "預收（學生還沒上的卡）", amount: 5400, tone: "locked", group: "keep" },
+      { key: "teacher:10", label: "待付 Nora", amount: 683.34, tone: "owed", group: "outgoing" },
+      { key: "teacher:11", label: "待付 Charlene", amount: 666.66, tone: "owed", group: "outgoing" },
+      { key: "self", label: "丁丁自己的", amount: 2850, tone: "mine", group: "outgoing" },
+      { key: "peer:2", label: "要轉給 Sean", amount: 700, tone: "owed", group: "outgoing" },
+      { key: "fund:100", label: "台南公積金", amount: -350, tone: "fund", group: "fund" },
     ]);
   });
 
@@ -44,7 +44,7 @@ describe("custodyRows", () => {
     expect(custodyRows(partly, names).find((r) => r.key === "self")?.label).toBe("丁丁自己的");
   });
 
-  it("spec §14.4 Sean：場地包、丁丁欠我、高雄公積金", () => {
+  it("spec §14.4 Sean：場地包、丁丁會轉給你、高雄公積金", () => {
     const b = {
       ...emptyBuckets(),
       prepaid: 1666.67,
@@ -57,22 +57,29 @@ describe("custodyRows", () => {
     const rows = custodyRows(b, { ...names, self: "Sean" });
     expect(rows.map((r) => r.label)).toEqual([
       "預收（學生還沒上的卡）",
+      "場地包（24steps 剩 9 次）",
       "待付 Charlene",
       "Sean自己的",
+      "丁丁 會轉給你",
       "高雄公積金",
-      "場地包（24steps 剩 9 次）",
-      "丁丁欠我",
     ]);
-    expect(rows.find((r) => r.label === "丁丁欠我")).toEqual({ key: "peer:1", label: "丁丁欠我", amount: -700, tone: "peer" });
-    expect(rows.find((r) => r.key === "pack:7")?.tone).toBe("pack");
+    expect(rows.find((r) => r.key === "peer:1")).toEqual({
+      key: "peer:1",
+      label: "丁丁 會轉給你",
+      amount: -700,
+      tone: "peer",
+      group: "outgoing",
+      hint: "這筆錢在 丁丁 手上，所以從你的總額扣掉",
+    });
+    expect(rows.find((r) => r.key === "pack:7")?.group).toBe("prepaidOut");
   });
 
   it("金額四捨五入後為 0 的列不顯示，預收除外；有待付場地與未分配", () => {
     const b = { ...emptyBuckets(), prepaid: 0, self: 0.2, venues: { 5: 405 }, unallocated: 100 };
     expect(custodyRows(b, names)).toEqual([
-      { key: "prepaid", label: "預收（學生還沒上的卡）", amount: 0, tone: "locked" },
-      { key: "venue:5", label: "待付 24steps", amount: 405, tone: "owed" },
-      { key: "unallocated", label: "未分配", amount: 100, tone: "owed" },
+      { key: "prepaid", label: "預收（學生還沒上的卡）", amount: 0, tone: "locked", group: "keep" },
+      { key: "venue:5", label: "待付 24steps", amount: 405, tone: "owed", group: "outgoing" },
+      { key: "unallocated", label: "未分配", amount: 100, tone: "owed", group: "outgoing" },
     ]);
   });
 

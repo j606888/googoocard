@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import Field, { FieldError, FieldLabel } from "@/components/Field";
@@ -51,6 +51,19 @@ export default function PackForm({
   const [paidBy, setPaidBy] = useState<number | null>(null);
   const [date, setDate] = useState(todayKey());
   const [error, setError] = useState("");
+
+  // 每次打開都回到預設，不留上一次填的內容
+  useEffect(() => {
+    if (!open) return;
+    setMode("new");
+    setVenueId(null);
+    setSessions("");
+    setPrice("");
+    setRemaining("");
+    setPaidBy(null);
+    setDate(todayKey());
+    setError("");
+  }, [open]);
 
   const venue = venueId ?? venues[0]?.id ?? null;
   // 保管人（不能結算）付款人固定是自己
@@ -114,12 +127,17 @@ export default function PackForm({
           value={sessions}
           onChange={(e) => setSessions(digits(e.target.value))}
         />
-        <Field
-          label={mode === "new" ? "總價" : "這包的價錢"}
-          inputMode="numeric"
-          value={price}
-          onChange={(e) => setPrice(digits(e.target.value))}
-        />
+        <div className="flex flex-col gap-1.5">
+          <Field
+            label={mode === "new" ? "總價" : "這包的價錢"}
+            inputMode="numeric"
+            value={price}
+            onChange={(e) => setPrice(digits(e.target.value))}
+          />
+          {isWhole(sessions, 1) && isWhole(price, 0) && (
+            <p className="text-[13px] text-neutral-600">每次 ${formatMoney(priceNum / sessionsNum)}，每上一堂扣一次</p>
+          )}
+        </div>
         {mode === "before" && (
           <div className="flex flex-col gap-1.5">
             <Field
@@ -142,6 +160,9 @@ export default function PackForm({
             <p className="text-sm text-neutral-900">{payers.find((o) => o.value === payer)?.label ?? "自己"}（自己）</p>
           ) : (
             <Select value={payer} onChange={(v) => setPaidBy(v)} options={payers} placeholder="選一位" />
+          )}
+          {!selfOnly && meId !== null && payer !== meId && !!payer && (
+            <p className="text-[13px] text-warning-800">這筆記成 {payers.find((o) => o.value === payer)?.label ?? "別人"} 付的錢</p>
           )}
         </div>
         {mode === "new" && (

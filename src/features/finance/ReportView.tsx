@@ -46,7 +46,7 @@ export default function ReportView() {
           <section className="rounded-2xl border border-neutral-200 bg-white p-4 lg:p-5">
             <h2 className="mb-2 flex items-center gap-1 text-base font-semibold text-neutral-900">
               收入
-              <InfoTip label="收入說明">只算已付款、已經上過課的收入（已實現）。人次與學生數也只算這些。</InfoTip>
+              <InfoTip label="收入說明">只算已付款、已經上過課的收入（已實現）。人次＝來上課的次數，學生＝不同的人（同一位學生來兩次算 2 人次、1 位學生），也只算這些。</InfoTip>
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

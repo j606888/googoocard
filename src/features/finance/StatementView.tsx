@@ -36,7 +36,7 @@ import CustodyCard, { formatSigned } from "./CustodyCard";
 import { custodyRows } from "./custodyRows";
 import type { NameMaps } from "./custodyRows";
 import { fundDeficits } from "./custodyNotices";
-import { financeErrorText, isPayoutDone, matchingTransfers, monthLabel, todayKey } from "./financeUi";
+import { financeErrorText, isPayoutDone, matchingTransfers, monthLabel, todayKey, transferTargetName } from "./financeUi";
 import { useSplitNames } from "./useSplitNames";
 import { WaterfallRows } from "./MonthWaterfall";
 
@@ -137,6 +137,16 @@ export default function StatementView({ month }: { month: string }) {
     users: Object.fromEntries(settings.members.map((m) => [m.userId, m.name])),
   });
   const locationNames = nameMaps("").locations;
+  const venueName = (id: number) => (venues?.venues ?? []).find((v) => v.id === id)?.name ?? "場地";
+  /** 這個月這位保管人轉出的錢（付清的待付列會消失，卡片下面留下痕跡）。 */
+  const monthTransfersOf = (userId: number) =>
+    transfers
+      .filter((t) => t.fromUserId === userId && monthOf(new Date(t.date)) === month)
+      .map((t) => ({
+        key: String(t.id),
+        amount: t.amount,
+        text: `${userName(t.fromUserId)} → ${transferTargetName(t, { user: userName, teacher: names.teacher, venue: venueName })} · ${shortDate(t.date)}`,
+      }));
 
   const markReviewed = async (locationId: number) => {
     setReviewingId(locationId);
@@ -331,8 +341,8 @@ export default function StatementView({ month }: { month: string }) {
                     })}
                   </ul>
                 )}
-                {!locked && payouts.length > 0 && (
-                  <p className="mt-2 text-[13px] text-neutral-500">確認結算之後，轉完再按「已完成」。</p>
+                {payouts.length > 0 && (
+                  <p className="mt-2 text-[13px] text-neutral-500">{locked ? "" : "確認結算之後，"}轉完錢按那一筆的「已完成」，系統就會記下這筆轉帳，不用再去「記轉帳」。</p>
                 )}
               </section>
             );
@@ -378,7 +388,7 @@ export default function StatementView({ month }: { month: string }) {
                   )}
                 </div>
                 {locationId !== null ? (
-                  <WaterfallRows w={monthWaterfall(statement, locationId)} />
+                  <WaterfallRows w={monthWaterfall(statement, locationId)} fundName={locationNames[locationId]} />
                 ) : (
                   <ul className="divide-y divide-neutral-100">
                     <Line label="營收" value={`$${formatMoney(branch?.revenue ?? 0)}`} />
@@ -501,11 +511,11 @@ export default function StatementView({ month }: { month: string }) {
       </Block>
 
       {holderIds.length > 0 && (
-        <details className="rounded-2xl border border-neutral-200 bg-white p-4 lg:p-5">
-          <summary className="flex cursor-pointer items-center gap-1 text-base font-semibold text-neutral-900">
+        <section className="rounded-2xl border border-neutral-200 bg-white p-4 lg:p-5">
+          <h2 className="flex items-center gap-1 text-base font-semibold text-neutral-900">
             保管中
             <span className="text-[13px] font-normal text-neutral-500">{locked ? "月結前 → 轉完之後" : "月結前"}</span>
-          </summary>
+          </h2>
           <div className="mt-3 flex flex-col gap-4">
             <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
               {holderIds.map((userId) => {
@@ -518,6 +528,7 @@ export default function StatementView({ month }: { month: string }) {
                     total={buckets.cash}
                     rows={custodyRows(buckets, nameMaps(self))}
                     deficits={fundDeficits(buckets, locationNames)}
+                    transfers={locked ? [] : monthTransfersOf(userId)}
                   />
                 );
               })}
@@ -538,13 +549,14 @@ export default function StatementView({ month }: { month: string }) {
                       total={u.buckets.cash}
                       rows={custodyRows(u.buckets, nameMaps(u.name))}
                       deficits={fundDeficits(u.buckets, locationNames)}
+                      transfers={monthTransfersOf(u.userId)}
                     />
                   ))}
                 </div>
               </section>
             )}
           </div>
-        </details>
+        </section>
       )}
 
       <p className="text-[13px] text-neutral-500">

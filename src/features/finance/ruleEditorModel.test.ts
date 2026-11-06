@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { rowsToRule, ruleToRows, hasVenuePack, validateRows, describeRow } from "./ruleEditorModel";
+import { rowsToRule, ruleToRows, hasVenuePack, validateRows, describeRow, remainingBeforeRow, shareText } from "./ruleEditorModel";
+import type { RuleRow } from "./ruleEditorModel";
 import type { SplitRule } from "@/domains/finance/types";
 
 // 台南：兩位老師各 1/3（收入）→ 場地固定 → 剩下的進公積金
@@ -60,5 +61,34 @@ describe("describeRow", () => {
     expect(describeRow({ type: "percentRemaining", pct: 10, to: { type: "fund", locationId: 1 } }, n)).toBe("剩下的 10% → 高雄公積金");
     expect(describeRow({ type: "venuePack", venueId: 2 }, n)).toBe("場地次數包（24steps）");
     expect(describeRow({ type: "rest", rest: { type: "fund", locationId: 1 }, fundLocationId: 1 }, n)).toBe("剩下的 → 高雄公積金");
+  });
+});
+
+describe("比重與剩下的", () => {
+  it("比重 → 百分比；兩位都 1 → 平分", () => {
+    const shares = [{ weight: 1 }, { weight: 1 }];
+    expect(shareText(1, shares)).toBe("50%");
+    expect(shareText(2, [{ weight: 2 }, { weight: 1 }])).toBe("66.7%");
+  });
+
+  it("describeRow：剩下的給多位老師時寫百分比", () => {
+    const n = { payee: () => "", venue: () => "", teacher: (id: number) => (id === 1 ? "Sean" : "高雄搭檔"), location: () => "" };
+    const row: RuleRow = {
+      type: "rest",
+      rest: { type: "teachers", shares: [{ teacherId: 1, weight: 1 }, { teacherId: 2, weight: 1 }] },
+      fundLocationId: 1,
+    };
+    expect(describeRow(row, n)).toBe("剩下的 → Sean 50%、高雄搭檔 50%");
+  });
+
+  it("前面扣完剩下的：高雄課 $1,667 − 次數包 $405 ＝ $1,262", () => {
+    const rows: RuleRow[] = [
+      { type: "venuePack", venueId: 1 },
+      { type: "percentRemaining", pct: 10, to: { type: "fund", locationId: 2 } },
+      { type: "rest", rest: { type: "fund", locationId: 2 }, fundLocationId: 2 },
+    ];
+    expect(remainingBeforeRow(rows, 1, 1667, 405)).toEqual({ deducted: 405, remaining: 1262 });
+    // 收入不夠 → 剩下的不小於 0
+    expect(remainingBeforeRow(rows, 1, 300, 405).remaining).toBe(0);
   });
 });

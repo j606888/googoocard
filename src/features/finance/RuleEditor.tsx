@@ -9,10 +9,13 @@ import { Button } from "@/components/ui/button";
 import { fieldControlClass } from "@/components/Field";
 import { cn } from "@/lib/utils";
 import type { Payee } from "@/domains/finance/types";
+import { formatMoney } from "@/lib/money";
 import {
   hasVenuePack,
   payeeFromKey,
   payeeKey,
+  remainingBeforeRow,
+  shareText,
   validateRows,
   type RuleRow,
 } from "./ruleEditorModel";
@@ -62,14 +65,19 @@ const BASE_OPTIONS = [
   { value: "remaining", label: "前面扣完剩下的" },
 ] as const;
 
+/** 用一堂真實的收入示範「前面扣完剩下的」是多少。 */
+export type RuleSample = { income: number; packUnit: number; label: string };
+
 export default function RuleEditor({
   rows,
   onChange,
   names,
+  sample,
 }: {
   rows: RuleRow[];
   onChange: (rows: RuleRow[]) => void;
   names: SplitNames;
+  sample?: RuleSample;
 }) {
   const lines = rows.slice(0, -1);
   const rest = rows[rows.length - 1];
@@ -187,6 +195,15 @@ export default function RuleEditor({
                   }
                 />
               </div>
+              {row.type === "percentRemaining" && sample && (() => {
+                const { deducted, remaining } = remainingBeforeRow(rows, i, sample.income, sample.packUnit);
+                return (
+                  <p className="text-[13px] text-neutral-500">
+                    以{sample.label}為例：${formatMoney(sample.income)}
+                    {deducted > 0 ? ` − $${formatMoney(deducted)}（上面幾行）` : ""} ＝ ${formatMoney(remaining)}，再取 {Math.round(row.pct * 100) / 100}%
+                  </p>
+                );
+              })()}
               <div className="flex items-center gap-2">
                 <span className="text-neutral-500">→</span>
                 {payeeSelect(row.to, (to) => update(i, { ...row, to }))}
@@ -326,6 +343,7 @@ function TeacherShares({
                     onChange(shares.map((s) => (s.teacherId === t.id ? { ...s, weight } : s)))
                   }
                 />
+                <span className="w-12 shrink-0 tabular-nums">（{shareText(share.weight, shares)}）</span>
               </div>
             )}
           </div>
@@ -339,6 +357,8 @@ export function RuleEditorDrawer({
   open,
   title,
   subtitle,
+  scopeNote,
+  sample,
   initialRows,
   names,
   isLoading,
@@ -348,6 +368,9 @@ export function RuleEditorDrawer({
   open: boolean;
   title: string;
   subtitle?: string;
+  /** 編輯器最上面一行：這次改會影響哪些課。 */
+  scopeNote?: string;
+  sample?: RuleSample;
   initialRows: RuleRow[];
   names: SplitNames;
   isLoading?: boolean;
@@ -367,7 +390,8 @@ export function RuleEditorDrawer({
       onClose={onClose}
       onSubmit={() => onSave(rows)}
     >
-      <RuleEditor rows={rows} onChange={setRows} names={names} />
+      {scopeNote && <p className="mb-3 rounded-lg bg-neutral-50 px-3 py-2 text-[13px] text-neutral-700">{scopeNote}</p>}
+      <RuleEditor rows={rows} onChange={setRows} names={names} sample={sample} />
       {error && <p className="mt-2 text-[13px] text-danger-700">{error}</p>}
     </Drawer>
   );

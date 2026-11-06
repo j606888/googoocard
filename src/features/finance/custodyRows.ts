@@ -15,8 +15,27 @@ export type NameMaps = {
 };
 
 export type CustodyTone = "locked" | "owed" | "mine" | "fund" | "pack" | "peer";
-/** `key` is stable and unique within one custodian's table. */
-export type CustodyRow = { key: string; label: string; amount: number; tone: CustodyTone };
+/**
+ * 保管中的四組（依序顯示，各有小標）：要留著（預收）→ 已先付（場地包）→
+ * 這個月要付出去或領走的（待付、自己的、要轉給對方、未分配）→ 公積金。
+ */
+export type CustodyGroup = "keep" | "prepaidOut" | "outgoing" | "fund";
+export const CUSTODY_GROUP_ORDER: CustodyGroup[] = ["keep", "prepaidOut", "outgoing", "fund"];
+export const CUSTODY_GROUP_LABELS: Record<CustodyGroup, string> = {
+  keep: "要留著",
+  prepaidOut: "已先付",
+  outgoing: "這個月要付出去或領走的",
+  fund: "公積金",
+};
+/** `key` is stable and unique within one custodian's table. `hint` 是列下方的灰色小字。 */
+export type CustodyRow = {
+  key: string;
+  label: string;
+  amount: number;
+  tone: CustodyTone;
+  group: CustodyGroup;
+  hint?: string;
+};
 
 const idsOf = (rec: Record<number, number>) => Object.keys(rec).map(Number).sort((a, b) => a - b);
 
@@ -37,18 +56,29 @@ function selfDetail(b: Buckets): string {
   return `（${shown.map(([k, label]) => `${label} ${formatMoney(parts[k])}`).join("＋")}）`;
 }
 
+const GROUP_OF: Record<CustodyTone, CustodyGroup> = {
+  locked: "keep",
+  pack: "prepaidOut",
+  owed: "outgoing",
+  mine: "outgoing",
+  peer: "outgoing",
+  fund: "fund",
+};
+
 /**
- * 順序：預收 → 待付老師 → 自己的 → 公積金 → 場地包 → 待付場地 → 欠／欠我 → 未分配。
+ * 順序依組：預收 → 場地包 → 待付老師 → 自己的 → 待付場地 → 要轉給／會轉給你 → 未分配 → 公積金。
  * 四捨五入到元後為 0 的列不顯示（預收除外）。
  */
 export function custodyRows(b: Buckets, names: NameMaps): CustodyRow[] {
-  const rows: CustodyRow[] = [{ key: "prepaid", label: "預收（學生還沒上的卡）", amount: b.prepaid, tone: "locked" }];
-  const add = (key: string, label: string, amount: number, tone: CustodyTone) => {
-    if (Math.round(amount) !== 0) rows.push({ key, label, amount, tone });
+  const rows: CustodyRow[] = [
+    { key: "prepaid", label: "預收（學生還沒上的卡）", amount: b.prepaid, tone: "locked", group: "keep" },
+  ];
+  const add = (key: string, label: string, amount: number, tone: CustodyTone, hint?: string) => {
+    if (Math.round(amount) === 0) return;
+    const row: CustodyRow = { key, label, amount, tone, group: GROUP_OF[tone] };
+    if (hint) row.hint = hint;
+    rows.push(row);
   };
-  for (const id of idsOf(b.teachers)) add(`teacher:${id}`, `待付 ${names.teachers[id] ?? "老師"}`, b.teachers[id], "owed");
-  add("self", `${names.self}自己的${selfDetail(b)}`, b.self, "mine");
-  for (const id of idsOf(b.funds)) add(`fund:${id}`, `${names.locations[id] ?? "分部"}公積金`, b.funds[id], "fund");
   for (const id of idsOf(b.packs)) {
     const pack = names.packs[id];
     const unused = pack && pack.unitValue > 0 ? Math.round(-b.packs[id] / pack.unitValue) : null;
@@ -58,12 +88,15 @@ export function custodyRows(b: Buckets, names: NameMaps): CustodyRow[] {
         : pack?.venue;
     add(`pack:${id}`, detail ? `場地包（${detail}）` : "場地包", b.packs[id], "pack");
   }
+  for (const id of idsOf(b.teachers)) add(`teacher:${id}`, `待付 ${names.teachers[id] ?? "老師"}`, b.teachers[id], "owed");
+  add("self", `${names.self}自己的${selfDetail(b)}`, b.self, "mine");
   for (const id of idsOf(b.venues)) add(`venue:${id}`, `待付 ${names.venues[id] ?? "場地"}`, b.venues[id], "owed");
   for (const id of idsOf(b.peers)) {
     const name = names.users[id] ?? "成員";
-    if (b.peers[id] > 0) add(`peer:${id}`, `欠 ${name}`, b.peers[id], "owed");
-    else add(`peer:${id}`, `${name}欠我`, b.peers[id], "peer");
+    if (b.peers[id] > 0) add(`peer:${id}`, `要轉給 ${name}`, b.peers[id], "owed");
+    else add(`peer:${id}`, `${name} 會轉給你`, b.peers[id], "peer", `這筆錢在 ${name} 手上，所以從你的總額扣掉`);
   }
   add("unallocated", "未分配", b.unallocated, "owed");
+  for (const id of idsOf(b.funds)) add(`fund:${id}`, `${names.locations[id] ?? "分部"}公積金`, b.funds[id], "fund");
   return rows;
 }

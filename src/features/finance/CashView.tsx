@@ -25,7 +25,7 @@ import ExpenseForm from "./ExpenseForm";
 import PackForm from "./PackForm";
 import TransferForm from "./TransferForm";
 import MonthSwitcher from "./MonthSwitcher";
-import { financeErrorText } from "./financeUi";
+import { financeErrorText, transferTargetName } from "./financeUi";
 import { useFinanceRole } from "./useCanSettle";
 import { useSplitNames } from "./useSplitNames";
 
@@ -132,13 +132,7 @@ export default function CashView() {
 
   const venueName = (id: number) => (venueData?.venues ?? []).find((v) => v.id === id)?.name ?? "場地";
   const targetName = (t: FinanceTransfer) =>
-    t.toKind === "SELF"
-      ? "自己領走"
-      : t.toKind === "USER"
-        ? userName(t.toUserId ?? 0)
-        : t.toKind === "TEACHER"
-          ? names.teacher(t.toTeacherId ?? 0)
-          : venueName(t.toVenueId ?? 0);
+    transferTargetName(t, { user: userName, teacher: names.teacher, venue: venueName });
 
   const confirmVoid = async () => {
     if (!voiding) return;
@@ -183,7 +177,7 @@ export default function CashView() {
                 <Row
                   key={p.id}
                   title={`${venueName(p.venueId)} ${p.sessions} 次`}
-                  meta={`${ymd(p.purchasedAt)}　${userName(p.paidByUserId)}付`}
+                  meta={`${ymd(p.purchasedAt)}　${userName(p.paidByUserId)}付　每次 $${formatMoney(p.price / p.sessions)}`}
                   amount={p.price}
                   onVoid={canEdit ? () => setVoiding({ kind: "pack", id: p.id, text: `${venueName(p.venueId)} ${p.sessions} 次包` }) : undefined}
                 />

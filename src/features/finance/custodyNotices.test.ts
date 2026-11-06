@@ -5,7 +5,7 @@ import { emptyBuckets } from "@/domains/finance/ledger";
 describe("custodyNotices", () => {
   it("spec §14.6 丁丁：台南虧 350，現金 5050 < 預收 5400", () => {
     const b = { ...emptyBuckets(), cash: 5050, prepaid: 5400, funds: { 1: -350 } };
-    expect(fundDeficits(b, { 1: "台南" })).toEqual(["台南目前虧 $350：手上的錢比預收少"]);
+    expect(fundDeficits(b, { 1: "台南" })).toEqual(["台南公積金 −$350，等於先用了學生預付的錢"]);
   });
   it("現金不少於預收、或公積金為正 → 不提醒", () => {
     expect(fundDeficits({ ...emptyBuckets(), cash: 6000, prepaid: 5400, funds: { 1: -350 } }, { 1: "台南" })).toEqual([]);

@@ -9,7 +9,7 @@ export function fundDeficits(b: Buckets, locationNames: Record<number, string>):
     .map(Number)
     .sort((x, y) => x - y)
     .filter((id) => Math.round(b.funds[id]) < 0)
-    .map((id) => `${locationNames[id] ?? "分部"}目前虧 $${formatMoney(Math.abs(b.funds[id]))}：手上的錢比預收少`);
+    .map((id) => `${locationNames[id] ?? "分部"}公積金 −$${formatMoney(Math.abs(b.funds[id]))}，等於先用了學生預付的錢`);
 }
 
 /** 最早沒鎖的月份早於本月 → 「{月}還沒結算」；否則 null。月份是 YYYY-MM。 */

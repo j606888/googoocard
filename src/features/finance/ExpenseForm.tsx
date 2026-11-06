@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import Field, { FieldError, FieldLabel } from "@/components/Field";
@@ -36,6 +36,18 @@ export default function ExpenseForm({
   const [paidBy, setPaidBy] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+
+  // 每次打開都回到預設，不留上一次填的內容
+  useEffect(() => {
+    if (!open) return;
+    setDate(todayKey());
+    setAmount("");
+    setLocationId(null);
+    setCategory("");
+    setPaidBy(null);
+    setNote("");
+    setError("");
+  }, [open]);
 
   const loc = locationId ?? locations[0]?.id ?? null;
   // 保管人（不能結算）付款人固定是自己
@@ -124,6 +136,9 @@ export default function ExpenseForm({
             <p className="text-sm text-neutral-900">{payers.find((o) => o.value === payer)?.label ?? "自己"}（自己）</p>
           ) : (
             <Select value={payer} onChange={(v) => setPaidBy(v)} options={payers} placeholder="選一位" />
+          )}
+          {!selfOnly && meId !== null && payer !== meId && !!payer && (
+            <p className="text-[13px] text-warning-800">這筆記成 {payers.find((o) => o.value === payer)?.label ?? "別人"} 付的錢</p>
           )}
         </div>
         <Field label="備註" hint="（選填）" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />

@@ -39,7 +39,7 @@ const Row = ({
   </li>
 );
 
-/** 本月收支瀑布：收入 → 老師 → 場地 → 進公積金 → 支出 → 本月淨變化（＝公積金變化）。 */
+/** 本月收支瀑布：收入 → 老師 → 場地 → 進公積金 → 支出 → {分部}公積金這個月（＝公積金變化）。 */
 export default function MonthWaterfall({
   month,
   scope,
@@ -61,10 +61,10 @@ export default function MonthWaterfall({
       <h2 className="flex items-center gap-1 text-base font-semibold text-neutral-900">
         {scopeName} · {monthLabel(month)}收支
         <InfoTip label="收支說明">
-          收入只算已經上過、已付款的課。分部看的是「這堂課的基金」，不是上課地點。本月淨變化就是這個分部公積金這個月的變化。
+          收入只算已經上過、已付款的課。最後一行是公積金這個月多了或少了多少：上課分完老師、場地後進公積金，再扣掉支出。課算在哪個分部看分帳規則選的公積金，例如週日 Sean 在台南上的課，如果規則設成高雄公積金，就算在高雄。
         </InfoTip>
       </h2>
-      <WaterfallRows w={w} />
+      <WaterfallRows w={w} fundName={scope === "all" ? undefined : scopeName} />
       {w.lessons.length > 0 && (
         <details className="mt-2 border-t border-neutral-100 pt-3">
           <summary className="cursor-pointer text-sm font-medium text-neutral-900">每堂課（{w.lessons.length} 門）</summary>
@@ -89,7 +89,8 @@ export default function MonthWaterfall({
 }
 
 /** 瀑布的各列（首頁與結算單各分部共用）。各列先取整、尾差併進「過期收入與調整」，加減一定對得上。 */
-export function WaterfallRows({ w: raw }: { w: Waterfall }) {
+/** `fundName`：分部名稱（最後一行寫成「高雄公積金這個月」）；全教室不傳。 */
+export function WaterfallRows({ w: raw, fundName }: { w: Waterfall; fundName?: string }) {
   const w = roundWaterfall(raw);
   const show = (x: number) => x !== 0;
   return (
@@ -110,7 +111,7 @@ export function WaterfallRows({ w: raw }: { w: Waterfall }) {
         />
       )}
       <Row label="支出" sign="−" amount={w.expenses} />
-      <Row label="本月淨變化" sign="=" amount={w.net} strong />
+      <Row label={`${fundName ?? ""}公積金這個月`} sign="=" amount={w.net} strong />
     </ul>
   );
 }

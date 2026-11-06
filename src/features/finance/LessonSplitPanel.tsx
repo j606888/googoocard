@@ -91,6 +91,21 @@ export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson;
       : run(savePeriod({ periodId: editing as number, rule: next }).unwrap(), "這一堂已改用特別的規則");
   };
 
+  // 「前面扣完剩下的」示範：改單堂用那一堂，改整門課用最近一堂有收入的
+  const ruleSample = (target: "lesson" | number | null) => {
+    const list = periods ?? [];
+    const p =
+      target === "lesson" || target === null
+        ? [...list].reverse().find((x) => x.income.total > 0)
+        : list.find((x) => x.periodId === target);
+    if (!p || p.income.total <= 0) return undefined;
+    const packUnit = (p.allocations ?? [])
+      .filter((a) => a.payee.type === "venue")
+      .reduce((s, a) => s + a.amount, 0);
+    const d = new Date(p.startTime);
+    return { income: p.income.total, packUnit, label: `${d.getMonth() + 1}/${d.getDate()} 這堂` };
+  };
+
   const copyOptions = (lessonsData?.lessons ?? [])
     .filter((l) => l.id !== lesson.id)
     .map((l) => ({ value: l.id, label: l.name }));
@@ -169,6 +184,12 @@ export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson;
           open
           title={editing === "lesson" ? "分帳規則" : "只改這一堂"}
           subtitle={editing === "lesson" ? lesson.name : "其他堂不受影響"}
+          scopeNote={
+            editing === "lesson"
+              ? `只影響「${lesson.name}」還沒結算的月份；某一堂特別（例如請了外師），改用那一堂的「只改這一堂」。`
+              : "只影響這一堂，這門課的其他堂照原本的規則。"
+          }
+          sample={ruleSample(editing)}
           initialRows={startRows}
           names={names}
           isLoading={savingLesson || savingPeriod}

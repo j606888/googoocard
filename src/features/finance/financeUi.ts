@@ -36,6 +36,44 @@ export function matchingTransfers(payout: Payout, transfers: FinanceTransfer[], 
   );
 }
 
+type TransferTarget = Pick<Payout, "toKind" | "toUserId" | "toTeacherId" | "toVenueId">;
+
+/**
+ * 記轉帳時的提醒：已結算月份的結算單上，同一對人（誰轉出 → 轉給誰）還沒按「已完成」的那筆。
+ * 不比金額（可能只轉了一部分）。回傳還沒轉的金額，沒有就 null。
+ */
+export function pendingPayoutFor(
+  payouts: Payout[],
+  transfers: FinanceTransfer[],
+  month: string,
+  fromUserId: number,
+  target: TransferTarget,
+): { payout: Payout; remaining: number } | null {
+  const payout = payouts.find(
+    (p) =>
+      p.fromUserId === fromUserId &&
+      p.toKind === target.toKind &&
+      (p.toUserId ?? null) === (target.toUserId ?? null) &&
+      (p.toTeacherId ?? null) === (target.toTeacherId ?? null) &&
+      (p.toVenueId ?? null) === (target.toVenueId ?? null),
+  );
+  if (!payout) return null;
+  const paid = matchingTransfers(payout, transfers, month).reduce((s, t) => s + t.amount, 0);
+  const remaining = payout.amount - paid;
+  return remaining > 0 ? { payout, remaining } : null;
+}
+
+/** 轉帳的對象名稱（「自己領走」／成員／老師／場地）。 */
+export function transferTargetName(
+  t: Pick<FinanceTransfer, "toKind" | "toUserId" | "toTeacherId" | "toVenueId">,
+  n: { user: (id: number) => string; teacher: (id: number) => string; venue: (id: number) => string },
+): string {
+  if (t.toKind === "SELF") return "自己領走";
+  if (t.toKind === "USER") return n.user(t.toUserId ?? 0);
+  if (t.toKind === "TEACHER") return n.teacher(t.toTeacherId ?? 0);
+  return n.venue(t.toVenueId ?? 0);
+}
+
 export function isPayoutDone(payout: Payout, transfers: FinanceTransfer[], month: string): boolean {
   const sum = matchingTransfers(payout, transfers, month).reduce((s, t) => s + t.amount, 0);
   return sum >= payout.amount;
