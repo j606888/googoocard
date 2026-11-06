@@ -92,4 +92,14 @@ describe("custodyRows", () => {
     ]);
     expect(new Set(rows.map((r) => r.key)).size).toBe(rows.length);
   });
+
+  it("待付／自己的變負的：改寫成「多付給 X」「X 多領了」，金額照舊", () => {
+    const b = { ...emptyBuckets(), prepaid: 0, self: -32, teachers: { 10: -32 }, venues: { 5: -100 } };
+    const rows = custodyRows(b, { ...names, self: "Sean" });
+    expect(rows.slice(1)).toEqual([
+      { key: "teacher:10", label: "多付給 Nora", amount: -32, tone: "owed", group: "outgoing", hint: "之後的待付會扣回" },
+      { key: "self", label: "Sean 多領了", amount: -32, tone: "mine", group: "outgoing", hint: "之後自己的會扣回" },
+      { key: "venue:5", label: "多付給 24steps", amount: -100, tone: "owed", group: "outgoing", hint: "之後的待付會扣回" },
+    ]);
+  });
 });

@@ -11,7 +11,8 @@ export interface SegmentedOption<T extends string> {
 
 interface SegmentedTabsProps<T extends string> {
   options: readonly SegmentedOption<T>[];
-  value: T;
+  /** `null` = nothing picked yet (a required choice with no default). */
+  value: T | null;
   onChange: (value: T) => void;
   /** Accessible name of the group, e.g. 「學生資料分頁」. */
   ariaLabel: string;

@@ -88,9 +88,15 @@ export function custodyRows(b: Buckets, names: NameMaps): CustodyRow[] {
         : pack?.venue;
     add(`pack:${id}`, detail ? `場地包（${detail}）` : "場地包", b.packs[id], "pack");
   }
-  for (const id of idsOf(b.teachers)) add(`teacher:${id}`, `待付 ${names.teachers[id] ?? "老師"}`, b.teachers[id], "owed");
-  add("self", `${names.self}自己的${selfDetail(b)}`, b.self, "mine");
-  for (const id of idsOf(b.venues)) add(`venue:${id}`, `待付 ${names.venues[id] ?? "場地"}`, b.venues[id], "owed");
+  // 待付變負的＝已經付超過應付（例如付完才把規則改小）：改說「多付給 X」，金額照舊是負的、總額不變
+  const owe = (key: string, name: string, amount: number) => {
+    if (Math.round(amount) < 0) add(key, `多付給 ${name}`, amount, "owed", "之後的待付會扣回");
+    else add(key, `待付 ${name}`, amount, "owed");
+  };
+  for (const id of idsOf(b.teachers)) owe(`teacher:${id}`, names.teachers[id] ?? "老師", b.teachers[id]);
+  if (Math.round(b.self) < 0) add("self", `${names.self} 多領了`, b.self, "mine", "之後自己的會扣回");
+  else add("self", `${names.self}自己的${selfDetail(b)}`, b.self, "mine");
+  for (const id of idsOf(b.venues)) owe(`venue:${id}`, names.venues[id] ?? "場地", b.venues[id]);
   for (const id of idsOf(b.peers)) {
     const name = names.users[id] ?? "成員";
     if (b.peers[id] > 0) add(`peer:${id}`, `要轉給 ${name}`, b.peers[id], "owed");

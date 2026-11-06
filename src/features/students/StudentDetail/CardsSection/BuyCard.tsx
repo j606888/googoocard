@@ -90,7 +90,8 @@ export const BuyCardDialog = ({
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
-  const [payment, setPayment] = useState<Payment>("CASH");
+  // 不預設：已收錢還是還沒付一定要選，免得沒收到錢卻記成已付
+  const [payment, setPayment] = useState<Payment | null>(null);
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [showAll, setShowAll] = useState(false);
@@ -99,7 +100,7 @@ export const BuyCardDialog = ({
   const fieldId = useId();
   // 沒有課程脈絡：自己是保管人就預設自己，否則要選。
   const receiver = useFinanceReceiver({ active: open });
-  const needsReceiver = receiver.financeOn && payment !== "UNPAID";
+  const needsReceiver = receiver.financeOn && payment !== null && payment !== "UNPAID";
 
   const cardOptions = useMemo(
     () => orderCards(cards?.activeCards ?? [], student),
@@ -131,7 +132,7 @@ export const BuyCardDialog = ({
       setCardSessions("");
       setCardPrice("");
     }
-    setPayment("CASH");
+    setPayment(null);
     setReference("");
     receiver.reset();
     setNote("");
@@ -169,6 +170,7 @@ export const BuyCardDialog = ({
       setErrors((prev) => ({ ...prev, cardSessions: "堂數至少 1 堂" }));
       return;
     }
+    if (payment === null) return;
     try {
       await createStudentCard({
         id: student.id,
@@ -210,13 +212,13 @@ export const BuyCardDialog = ({
       onSubmit={handleSubmit}
       submitText="確認購買"
       isLoading={isLoading}
-      disabled={!selectedCardId || (needsReceiver && receiver.receiverUserId === null)}
+      disabled={!selectedCardId || payment === null || (needsReceiver && receiver.receiverUserId === null)}
       footerStart={
         selectedCardId && (
           <div className="leading-tight">
             <div className="text-lg font-bold text-neutral-900 tabular-nums">${formatMoney(price)}</div>
             <div className="text-xs text-neutral-500">
-              {sessions} 堂 · {PAYMENT_LABEL[payment]}
+              {sessions} 堂{payment ? ` · ${PAYMENT_LABEL[payment]}` : ""}
             </div>
           </div>
         )
@@ -338,7 +340,10 @@ export const BuyCardDialog = ({
                 onChange={setPayment}
                 fill
               />
-              {payment === "UNPAID" && <p className="mt-1.5 text-xs text-neutral-500">尚未付款，卡片照樣可以用</p>}
+              {payment === null && <p className="mt-1.5 text-xs text-neutral-500">選一個才能送出</p>}
+              {payment === "UNPAID" && (
+                <p className="mt-1.5 text-xs text-neutral-500">尚未付款，卡片仍可使用，會列在待處理提醒收錢</p>
+              )}
             </div>
 
             {payment === "TRANSFER" && (
