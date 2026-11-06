@@ -3,7 +3,7 @@ import { AttendanceRecord, Lesson } from "@/store/slices/lessons";
 import { useEffect, useMemo, useState } from "react";
 import InputField from "@/components/InputField";
 import RoundCheckbox from "@/components/RoundCheckbox";
-import { Switch } from "@/components/ui/switch";
+import PaidChoice from "../PaidChoice";
 import { useCreateStudentCardMutation, useGetStudentQuery } from "@/store/slices/students";
 import { useConsumeStudentCardMutation } from "@/store/slices/lessons";
 import { toast } from "sonner";
@@ -37,10 +37,10 @@ const BuyAndUseForm = ({
   const [allowManualOverride, setAllowManualOverride] = useState(false);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
-  const [isPaid, setIsPaid] = useState(true);
+  const [isPaid, setIsPaid] = useState<boolean | null>(null);
   const receiver = useFinanceReceiver({ active: open || inline, lessonLocationId: lesson.locationId });
   // 財務開啟、當場收錢才要收款人。
-  const needsReceiver = receiver.financeOn && isPaid;
+  const needsReceiver = receiver.financeOn && isPaid === true;
 
   const cardOptions = useMemo(() => {
     return lesson?.cards || [];
@@ -119,7 +119,7 @@ const BuyAndUseForm = ({
   const handleClose = () => {
     setOpen(false);
     setAllowManualOverride(false);
-    setIsPaid(true);
+    setIsPaid(null);
     receiver.reset();
     onDone?.();
   };
@@ -132,7 +132,7 @@ const BuyAndUseForm = ({
         sessions: parseInt(cardSessions),
         price: parseInt(cardPrice),
         lessonId: lesson.id,
-        isPaid,
+        isPaid: isPaid === true,
         ...(needsReceiver && receiver.receiverUserId !== null ? { receiverUserId: receiver.receiverUserId } : {}),
       });
       if (studentCard?.data) {
@@ -178,6 +178,7 @@ const BuyAndUseForm = ({
         isLoading={isLoading || isConsumeLoading}
         disabled={
           !selectedCardId ||
+          isPaid === null ||
           !cardSessions ||
           !cardPrice ||
           sessionsTooFew ||
@@ -258,15 +259,7 @@ const BuyAndUseForm = ({
                 />
               </div>
             </div>
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex flex-col">
-                <FieldLabel>已付款</FieldLabel>
-                <span className="text-xs text-neutral-500">
-                  {isPaid ? "已收到款項" : "尚未付款，卡片仍可使用"}
-                </span>
-              </div>
-              <Switch checked={isPaid} onCheckedChange={setIsPaid} />
-            </div>
+            <PaidChoice value={isPaid} onChange={setIsPaid} />
             {isPaid && receiver.financeOn && (
               <div className="mb-4">
                 <ReceiverField

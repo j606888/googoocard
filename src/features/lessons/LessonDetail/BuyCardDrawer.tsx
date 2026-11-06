@@ -5,13 +5,13 @@ import { useParams } from "next/navigation";
 import Drawer from "@/components/Drawer";
 import RoundCheckbox from "@/components/RoundCheckbox";
 import InputField from "@/components/InputField";
-import { Switch } from "@/components/ui/switch";
+import PaidChoice from "./PaidChoice";
 import { useGetLessonQuery } from "@/store/slices/lessons";
 import { useCreateStudentCardMutation } from "@/store/slices/students";
 import { canBuyCard, type DanceLevels } from "@/domains/qualification";
 import { practiceCardBlockedHint } from "@/lib/danceLevels";
 import type { Card } from "@/store/slices/cards";
-import { FieldError, FieldLabel } from "@/components/Field";
+import { FieldError } from "@/components/Field";
 import ReceiverField, { useFinanceReceiver } from "@/features/finance/ReceiverField";
 
 /**
@@ -38,7 +38,7 @@ const BuyCardDrawer = ({
   const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
   const [cardSessions, setCardSessions] = useState<string>("");
   const [cardPrice, setCardPrice] = useState<string>("");
-  const [isPaid, setIsPaid] = useState(true);
+  const [isPaid, setIsPaid] = useState<boolean | null>(null);
   const [errors, setErrors] = useState<{
     selectedCardId?: string;
     cardSessions?: string;
@@ -46,7 +46,7 @@ const BuyCardDrawer = ({
   const [createStudentCard, { isLoading }] = useCreateStudentCardMutation();
   const receiver = useFinanceReceiver({ active: isDrawerOpen, lessonLocationId: lesson?.locationId });
   // 財務開啟、當場收錢才要收款人。
-  const needsReceiver = receiver.financeOn && isPaid;
+  const needsReceiver = receiver.financeOn && isPaid === true;
 
   const cardOptions = useMemo(() => lesson?.cards ?? [], [lesson]);
   const qualifications = useMemo(
@@ -76,7 +76,7 @@ const BuyCardDrawer = ({
   }, [selectedCardId, cardOptions]);
 
   const openDrawer = () => {
-    setIsPaid(true);
+    setIsPaid(null);
     receiver.reset();
     setSelectedCardId(null);
     setErrors({});
@@ -98,7 +98,7 @@ const BuyCardDrawer = ({
       sessions: parseInt(cardSessions),
       price: parseInt(cardPrice || "0"),
       lessonId: Number(lessonId),
-      isPaid,
+      isPaid: isPaid === true,
       ...(needsReceiver && receiver.receiverUserId !== null ? { receiverUserId: receiver.receiverUserId } : {}),
     });
     setIsDrawerOpen(false);
@@ -114,7 +114,7 @@ const BuyCardDrawer = ({
         onSubmit={handleSubmit}
         submitText="購買"
         isLoading={isLoading}
-        disabled={needsReceiver && receiver.receiverUserId === null}
+        disabled={isPaid === null || (needsReceiver && receiver.receiverUserId === null)}
       >
         <div className="mb-4">
           <p className="text-sm font-medium text-neutral-900 mb-2">選擇課卡</p>
@@ -178,15 +178,7 @@ const BuyCardDrawer = ({
                 />
               </div>
             </div>
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex flex-col">
-                <FieldLabel>已付款</FieldLabel>
-                <span className="text-xs text-neutral-500">
-                  {isPaid ? "已收到款項" : "尚未付款，卡片仍可使用"}
-                </span>
-              </div>
-              <Switch checked={isPaid} onCheckedChange={setIsPaid} />
-            </div>
+            <PaidChoice value={isPaid} onChange={setIsPaid} />
             {isPaid && receiver.financeOn && (
               <div className="mb-4">
                 <ReceiverField
