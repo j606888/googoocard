@@ -50,7 +50,15 @@
 - 全部從 `JournalLine` 查；分部、期間參數一致。
 - 驗收：每張表加總與 `checkLedger` 一致；資產負債表平衡；drill-down 到來源。
 
-## P5 · 付款批次、資金帳戶、結帳
+## P5 · 付款批次、資金帳戶、結帳 ✅ 2026-11-08（後端）
+> 完成：migration `finance_payouts_close`＋`money_transfer_settle_amount`（`PayoutRun`／`Payout`／`MoneyTransfer`／`OwnerTransaction`／`CashCount`／`FinanceLockLog`／`FinanceCloseSignoff`；`FinanceExpense.moneyAccountId`／`isAdvance`）、純函式 `src/domains/ledger/post/settle.ts`（付款、轉帳、業主、盤點、取整、往來轉平）、服務 `src/service/ledger/{guard,payouts,records,close}.ts`、API `payouts`、`money-transfers`、`owner-transactions`、`cash-counts`、`journal`、`lock`、`close`（皆在 `/api/finance/` 下，金額單位「分」）、`tests/api/ledger-payouts.test.ts`（9 案）＋`settle.test.ts`。
+> 規則補充：
+> - 誰付：收錢的人自己有資金帳戶 → 自己領（Sean 台南那份也從他高雄的帳戶出，因此多出 366.66 的往來）；否則老師的付款人；否則應付所在分部負責人的帳戶。
+> - 往來轉平的轉帳也取整：`MoneyTransfer.settleAmount`＝清掉的往來（699.99），`amount`＝實際轉的（700），差額兩個分部各記尾差。
+> - 實際數字比 spec 少 1 分（L2 每格 333.33 × 2 ＝ 666.66，不是 666.67），取整後丁丁 $5,050、Sean −$2,127 不變。
+> - 已付款的付款／轉帳／業主交易／盤點只能作廢（帳本記更正，鎖帳期間的落在鎖帳日隔天）；手動分錄只能沖銷一次；系統分錄不能沖銷（改來源）。
+> - 鎖帳要先開帳、不能鎖未來；往後推＝可以結算的人，往前／解鎖＝owner；重開帳不刪手動分錄。
+> - 舊的 `FinanceTransfer`（已轉）不過帳，P7 跟舊畫面一起移除。報表 UI、記一筆抽屜、結帳頁留到 P6。
 - `PayoutRun`／`Payout`、往來轉平建議、取整尾差、付款人按已付款。
 - 資金帳戶頁、盤點。
 - 結帳清單、鎖帳／解鎖（owner）、稽核紀錄。

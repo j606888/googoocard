@@ -94,7 +94,7 @@ function rangeOf(p: ReportParams): Range {
 }
 
 /** 對象名稱：卡（學生＋卡號）、單堂（學生）、老師、場地、成員、分部。 */
-async function partyNames(classroomId: number, parties: { partyType: string; partyId: number }[]) {
+export async function partyNames(classroomId: number, parties: { partyType: string; partyId: number }[]) {
   const ids = (t: string) => [...new Set(parties.filter((p) => p.partyType === t).map((p) => p.partyId))];
   const [cards, dropIns, teachers, venues, users] = await Promise.all([
     prisma.studentCard.findMany({

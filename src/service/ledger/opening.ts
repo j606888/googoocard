@@ -194,7 +194,8 @@ export async function openLedger(classroomId: number, userId: number, params: Op
   await prisma.$transaction(
     async (tx) => {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(7001, ${classroomId}::int)::text AS ok`;
-      await tx.journalEntry.deleteMany({ where: { classroomId } });
+      // 手動分錄與沖銷是人記的，重開不刪（P5）。
+      await tx.journalEntry.deleteMany({ where: { classroomId, kind: { in: ["AUTO", "CORRECTION", "OPENING"] } } });
       await tx.postingSource.deleteMany({ where: { classroomId } });
       await tx.classroom.update({
         where: { id: classroomId },

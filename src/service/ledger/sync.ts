@@ -5,12 +5,13 @@ import prisma from "@/lib/prisma";
 import { postCard } from "@/domains/ledger/post/card";
 import { postPeriod } from "@/domains/ledger/post/period";
 import { postExpense, postVenuePack } from "@/domains/ledger/post/cash";
+import { postCashCount, postMoneyTransfer, postOwnerTxn, postPayout } from "@/domains/ledger/post/settle";
 import type { PostResult } from "@/domains/ledger/post/types";
 import { applyLockDate, balanceByBranch, diffLines, groupByDate, unbalanced, type DesiredLine } from "@/domains/ledger/lines";
 import type { AccountRef } from "@/domains/ledger/accounts";
 import { loadLedgerInputs, type LedgerInputs } from "./load";
 
-export type SourceType = "CARD" | "PERIOD" | "EXPENSE" | "VENUE_PACK";
+export type SourceType = "CARD" | "PERIOD" | "EXPENSE" | "VENUE_PACK" | "PAYOUT" | "MONEY_TRANSFER" | "OWNER_TXN" | "CASH_COUNT";
 const sourceKey = (t: string, id: number) => `${t}:${id}`;
 
 export type SyncResult = {
@@ -60,6 +61,10 @@ export function desiredBySource(inputs: LedgerInputs): {
   for (const p of inputs.periods) add("PERIOD", p.id, postPeriod(p, ctx));
   for (const e of inputs.expenses) add("EXPENSE", e.id, postExpense(e, ctx));
   for (const p of inputs.packs) add("VENUE_PACK", p.id, postVenuePack(p, ctx));
+  for (const p of inputs.payouts) add("PAYOUT", p.id, postPayout(p, ctx));
+  for (const t of inputs.transfers) add("MONEY_TRANSFER", t.id, postMoneyTransfer(t, ctx));
+  for (const o of inputs.ownerTxns) add("OWNER_TXN", o.id, postOwnerTxn(o, ctx));
+  for (const c of inputs.cashCounts) add("CASH_COUNT", c.id, postCashCount(c, ctx));
   return { desired, errors };
 }
 

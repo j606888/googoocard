@@ -199,6 +199,9 @@ export type CashFlowCategory =
   | "VENUE_PACK" // 買次數包
   | "PAYOUT" // 付老師、場地、業主
   | "TRANSFER" // 資金帳戶之間（全教室合計 0）
+  | "OWNER" // 業主投入／提取
+  | "CASH_COUNT" // 盤點差額
+  | "MANUAL" // 手動分錄、沖銷
   | "OPENING" // 期初
   | "OTHER";
 
@@ -222,8 +225,12 @@ function cashCategory(r: LedgerRow): CashFlowCategory {
       return "PAYOUT";
     case "MONEY_TRANSFER":
       return "TRANSFER";
+    case "OWNER_TXN":
+      return "OWNER";
+    case "CASH_COUNT":
+      return "CASH_COUNT";
     case null:
-      return r.entryKind === "OPENING" ? "OPENING" : "OTHER";
+      return r.entryKind === "OPENING" ? "OPENING" : r.entryKind === "MANUAL" || r.entryKind === "REVERSAL" ? "MANUAL" : "OTHER";
     default:
       return "OTHER";
   }
@@ -240,7 +247,7 @@ export function cashFlow(rows: LedgerRow[], accounts: AccountMeta[], range: Rang
   const closing = byLocation(locationIds, at((r) => r.date <= range.to));
   const inside = cash.filter((r) => inRange(r.date, range));
   const cats = [...new Set(inside.map(cashCategory))];
-  const order: CashFlowCategory[] = ["OPENING", "TUITION", "DROP_IN", "REFUND", "PAYOUT", "VENUE_PACK", "EXPENSE", "TRANSFER", "OTHER"];
+  const order: CashFlowCategory[] = ["OPENING", "TUITION", "DROP_IN", "REFUND", "PAYOUT", "VENUE_PACK", "EXPENSE", "OWNER", "TRANSFER", "CASH_COUNT", "MANUAL", "OTHER"];
   const flows = order
     .filter((c) => cats.includes(c))
     .map((category) => ({ category, ...byLocation(locationIds, at((r) => inRange(r.date, range) && cashCategory(r) === category)) }));

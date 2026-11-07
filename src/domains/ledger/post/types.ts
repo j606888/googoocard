@@ -20,6 +20,8 @@ export type PostingContext = {
   expenseAccountOf: (category: string) => number | null;
   /** 次數包付款人的資金帳戶。 */
   packMoneyAccountOf: (packId: number) => MoneyAccountInfo | null;
+  /** 依 id 找資金帳戶（含封存的；不存在回 null）。 */
+  moneyAccount: (id: number) => MoneyAccountInfo | null;
 };
 
 /** 一張卡的一次使用（出席或綁課卡缺席扣格）。 */
@@ -91,7 +93,60 @@ export type ExpenseInput = {
   locationId: number;
   category: string;
   paidByUserId: number;
+  /** 指定從哪個資金帳戶付；null＝付款人的預設帳戶。 */
+  moneyAccountId: number | null;
+  /** 付款人用自己的錢代墊 → 貸 應付業主款（不動資金帳戶）。 */
+  isAdvance: boolean;
   voidedAt: Date | null;
+};
+
+// ── P5：以下金額單位都是「分」，日期是台北 YYYY-MM-DD。
+
+export type PayableKey = "TEACHER_PAYABLE" | "VENUE_PAYABLE" | "OWNER_PAYABLE";
+
+export type PayoutInput = {
+  id: number;
+  partyType: "TEACHER" | "VENUE" | "USER";
+  partyId: number;
+  payableKey: PayableKey;
+  locationId: number;
+  amount: number;
+  paidAmount: number;
+  fromMoneyAccountId: number | null;
+  /** 已付款才過帳 */
+  paidDate: string | null;
+  voided: boolean;
+};
+
+export type MoneyTransferInput = {
+  id: number;
+  fromMoneyAccountId: number;
+  toMoneyAccountId: number;
+  amount: number;
+  /** 分部往來轉平：清掉的往來金額（取整前）；null＝一般轉帳。 */
+  settleAmount: number | null;
+  date: string | null; // 完成日；null＝還沒轉
+  voided: boolean;
+};
+
+export type OwnerTxnInput = {
+  id: number;
+  kind: "CONTRIBUTION" | "DRAWING" | "DIVIDEND";
+  userId: number;
+  amount: number;
+  date: string;
+  moneyAccountId: number | null;
+  locationId: number | null;
+  voided: boolean;
+};
+
+export type CashCountInput = {
+  id: number;
+  moneyAccountId: number;
+  date: string;
+  systemBalance: number;
+  counted: number;
+  voided: boolean;
 };
 
 export type VenuePackInput = {

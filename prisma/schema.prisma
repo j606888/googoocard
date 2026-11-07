@@ -125,6 +125,13 @@ model Classroom {
   moneyAccounts            MoneyAccount[]
   journalEntries           JournalEntry[]
   postingSources           PostingSource[]
+  payoutRuns               PayoutRun[]
+  payouts                  Payout[]
+  moneyTransfers           MoneyTransfer[]
+  ownerTransactions        OwnerTransaction[]
+  cashCounts               CashCount[]
+  financeLockLogs          FinanceLockLog[]
+  financeCloseSignoffs     FinanceCloseSignoff[]
   // 在 LINE 官方帳號公開課表與價目表——沒綁定的人也看得到（src/service/lineBot.ts）。
   lineListed               Boolean                  @default(false)
   createdAt                DateTime                 @default(now())
@@ -766,6 +773,9 @@ model FinanceExpense {
   location     Location  @relation(fields: [locationId], references: [id])
   category     String
   paidByUserId Int
+  // 財務 v2：從哪個資金帳戶付（null＝付款人的預設帳戶）；isAdvance＝付款人用自己的錢代墊（記應付業主款）。
+  moneyAccountId Int?
+  isAdvance      Boolean   @default(false)
   note         String?
   createdById  Int
   voidedAt     DateTime?
@@ -965,4 +975,143 @@ model PostingSource {
 
   @@id([classroomId, sourceType, sourceId])
   @@index([classroomId, dirtyAt])
+}
+
+// ── 財務 v2 P5：付款、轉帳、業主交易、盤點、鎖帳（docs/finance-v2/03 §2）。金額單位「分」。
+
+enum PayoutStatus {
+  PENDING
+  PAID
+}
+
+enum OwnerTxnKind {
+  CONTRIBUTION // 業主投入：借 現金／貸 業主投入
+  DRAWING // 業主提取：借 業主提取／貸 現金
+  DIVIDEND // 宣告分紅：借 公積金（分部）／貸 應付業主款
+}
+
+/// 付款批次：截至某天的應付，一次列出要付給誰。
+model PayoutRun {
+  id          Int             @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom       @relation(fields: [classroomId], references: [id])
+  asOf        DateTime        @db.Date
+  note        String?
+  createdById Int
+  createdAt   DateTime        @default(now())
+  payouts     Payout[]
+  transfers   MoneyTransfer[]
+
+  @@index([classroomId, asOf])
+}
+
+/// 一筆付款：清掉某個對象在某分部的應付（payableKey），從某個資金帳戶付。付款人按「已付款」才過帳。
+model Payout {
+  id                 Int          @id @default(autoincrement())
+  classroomId        Int
+  classroom          Classroom    @relation(fields: [classroomId], references: [id])
+  runId              Int?
+  run                PayoutRun?   @relation(fields: [runId], references: [id])
+  partyType          String // TEACHER VENUE USER
+  partyId            Int
+  payableKey         String // TEACHER_PAYABLE VENUE_PAYABLE OWNER_PAYABLE
+  locationId         Int // 應付記在哪個分部
+  amount             Int // 清掉的應付（分）
+  paidAmount         Int // 實際付出（取整後，分）；差額進尾差
+  fromMoneyAccountId Int?
+  status             PayoutStatus @default(PENDING)
+  paidDate           DateTime?    @db.Date
+  paidById           Int?
+  voidedAt           DateTime?
+  createdById        Int
+  createdAt          DateTime     @default(now())
+
+  @@index([classroomId, status])
+  @@index([runId])
+}
+
+/// 資金帳戶之間轉帳（取代 FinanceTransfer 的「轉給某人」）；跨分部時自動補分部往來。
+model MoneyTransfer {
+  id                 Int          @id @default(autoincrement())
+  classroomId        Int
+  classroom          Classroom    @relation(fields: [classroomId], references: [id])
+  runId              Int?
+  run                PayoutRun?   @relation(fields: [runId], references: [id])
+  fromMoneyAccountId Int
+  toMoneyAccountId   Int
+  amount             Int
+  // 分部往來轉平：這筆轉帳清掉的往來金額（取整前）；跟 amount 的差額進尾差。null＝一般轉帳。
+  settleAmount       Int?
+  status             PayoutStatus @default(PAID)
+  date               DateTime?    @db.Date // 完成日（PAID 才有）
+  note               String?
+  doneById           Int?
+  voidedAt           DateTime?
+  createdById        Int
+  createdAt          DateTime     @default(now())
+
+  @@index([classroomId, status])
+  @@index([runId])
+}
+
+model OwnerTransaction {
+  id             Int          @id @default(autoincrement())
+  classroomId    Int
+  classroom      Classroom    @relation(fields: [classroomId], references: [id])
+  kind           OwnerTxnKind
+  userId         Int // 哪位業主
+  amount         Int
+  date           DateTime     @db.Date
+  moneyAccountId Int? // 投入／提取：哪個資金帳戶
+  locationId     Int? // 分紅：哪個分部的公積金
+  note           String?
+  voidedAt       DateTime?
+  createdById    Int
+  createdAt      DateTime     @default(now())
+
+  @@index([classroomId, date])
+}
+
+/// 現金盤點：系統餘額 vs 實數，差額記現金短溢。
+model CashCount {
+  id             Int       @id @default(autoincrement())
+  classroomId    Int
+  classroom      Classroom @relation(fields: [classroomId], references: [id])
+  moneyAccountId Int
+  date           DateTime  @db.Date
+  systemBalance  Int
+  counted        Int
+  note           String?
+  voidedAt       DateTime?
+  createdById    Int
+  createdAt      DateTime  @default(now())
+
+  @@index([classroomId, moneyAccountId, date])
+}
+
+/// 鎖帳日變更紀錄（往後推＝可以結算的人；往前／解鎖＝owner）。
+model FinanceLockLog {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  fromDate    DateTime? @db.Date
+  toDate      DateTime? @db.Date
+  userId      Int
+  note        String?
+  createdAt   DateTime  @default(now())
+
+  @@index([classroomId, createdAt])
+}
+
+/// 結帳清單：分部負責人看過某天為止的損益表（取代 FinanceBranchReview）。
+model FinanceCloseSignoff {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  locationId  Int
+  asOf        DateTime  @db.Date
+  userId      Int
+  createdAt   DateTime  @default(now())
+
+  @@unique([classroomId, locationId, asOf])
 }

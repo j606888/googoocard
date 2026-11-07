@@ -97,7 +97,7 @@ function Body({ name, data }: { name: ReportName; data: any }) {
       );
     case "cash-flow": {
       const label: Record<string, string> = {
-        OPENING: "期初", TUITION: "收學費", DROP_IN: "收單堂", REFUND: "退費", PAYOUT: "付款", VENUE_PACK: "買次數包", EXPENSE: "支出", TRANSFER: "帳戶間轉帳", OTHER: "其他",
+        OPENING: "期初", TUITION: "收學費", DROP_IN: "收單堂", REFUND: "退費", PAYOUT: "付款", VENUE_PACK: "買次數包", EXPENSE: "支出", TRANSFER: "帳戶間轉帳", OWNER: "業主投入／提取", CASH_COUNT: "盤點差額", MANUAL: "手動分錄", OTHER: "其他",
       };
       return (
         <Table head={<LocHead locs={locs} first="" />}>

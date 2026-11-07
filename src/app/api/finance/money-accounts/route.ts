@@ -5,16 +5,13 @@ import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { assertCanSettle, assertFinanceEnabled } from "@/service/finance/access";
 import { assertCustodian } from "@/service/finance/config";
 import { createMoneyAccount } from "@/service/ledger/setup";
+import { listMoneyAccounts } from "@/service/ledger/records";
 
 // 資金帳戶（docs/finance-v2/02 §1.3）。任何成員可讀；新增只有可以結算的人。
+// 每個帳戶帶帳上餘額（分）與最後一次盤點。
 export const GET = apiRoute(async ({ classroomId }) => {
   await assertFinanceEnabled(classroomId);
-  const accounts = await prisma.moneyAccount.findMany({
-    where: { classroomId },
-    select: { id: true, name: true, kind: true, holderUserId: true, locationId: true, isDefault: true, archivedAt: true, account: { select: { code: true } } },
-    orderBy: [{ holderUserId: "asc" }, { id: "asc" }],
-  });
-  return { accounts: accounts.map(({ account, ...a }) => ({ ...a, code: account.code })) };
+  return listMoneyAccounts(classroomId);
 });
 
 const createSchema = z.object({

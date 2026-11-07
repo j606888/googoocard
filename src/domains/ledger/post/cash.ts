@@ -7,15 +7,19 @@ import type { ExpenseInput, PostResult, PostingContext, VenuePackInput } from ".
 export function postExpense(e: ExpenseInput, ctx: PostingContext): PostResult {
   const date = toTaipeiDateKey(e.date);
   if (e.voidedAt || date < ctx.conversionDate || e.amount === 0) return { lines: [], errors: [] };
-  const ma = ctx.moneyAccountOf(e.paidByUserId);
-  if (!ma) return { lines: [], errors: ["NO_MONEY_ACCOUNT"] };
   const amt = toCents(e.amount);
   const sub = ctx.expenseAccountOf(e.category);
-  const lines: DesiredLine[] = [
-    { date, account: sub !== null ? { accountId: sub } : { key: "EXPENSE_GENERAL" }, locationId: e.locationId, amount: amt },
-    { date, account: { moneyAccountId: ma.id }, locationId: ma.locationId, amount: -amt },
-  ];
-  return { lines, errors: [] };
+  const expense: DesiredLine = { date, account: sub !== null ? { accountId: sub } : { key: "EXPENSE_GENERAL" }, locationId: e.locationId, amount: amt };
+  if (e.isAdvance) {
+    // 代墊：教室欠付款人（應付業主款），之後在付款批次還他。
+    return {
+      lines: [expense, { date, account: { key: "OWNER_PAYABLE" }, locationId: e.locationId, amount: -amt, party: { type: "USER", id: e.paidByUserId } }],
+      errors: [],
+    };
+  }
+  const ma = e.moneyAccountId !== null ? ctx.moneyAccount(e.moneyAccountId) : ctx.moneyAccountOf(e.paidByUserId);
+  if (!ma) return { lines: [], errors: ["NO_MONEY_ACCOUNT"] };
+  return { lines: [expense, { date, account: { moneyAccountId: ma.id }, locationId: ma.locationId, amount: -amt }], errors: [] };
 }
 
 export function postVenuePack(p: VenuePackInput, ctx: PostingContext): PostResult {

@@ -7,7 +7,11 @@ import { ensureLedgerSetup } from "./setup";
 import { cardDeferredLocation, cardRemainingValue, cardUsageValues, usageValueKey, type ConvertedFrom } from "@/domains/ledger/post/card";
 import type {
   CardInput,
+  CashCountInput,
   ExpenseInput,
+  MoneyTransferInput,
+  OwnerTxnInput,
+  PayoutInput,
   MoneyAccountInfo,
   PeriodInput,
   PostingContext,
@@ -23,6 +27,10 @@ export type LedgerInputs = {
   periods: PeriodInput[];
   expenses: ExpenseInput[];
   packs: VenuePackInput[];
+  payouts: PayoutInput[];
+  transfers: MoneyTransferInput[];
+  ownerTxns: OwnerTxnInput[];
+  cashCounts: CashCountInput[];
   /** systemKey → accountId；moneyAccountId → accountId */
   accountIdOfKey: Record<string, number>;
   accountIdOfMoney: Map<number, number>;
@@ -48,15 +56,15 @@ export async function loadLedgerInputs(
     ? dateKeyOfDbDate(classroom.financeConversionDate)
     : toTaipeiDateKey(classroom.financeEnabledAt));
 
-  const [locations, moneyAccounts, accounts, rawCards, rawPeriods, rawExpenses, rawPacks, packPrices] = await Promise.all([
+  const [locations, moneyAccounts, accounts, rawCards, rawPeriods, rawExpenses, rawPacks, packPrices, rawPayouts, rawTransfers, rawOwner, rawCounts] = await Promise.all([
     prisma.location.findMany({
       where: { classroomId },
       select: { id: true, archivedAt: true, expiryTo: true, expiryUserId: true },
       orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
     }),
     prisma.moneyAccount.findMany({
-      where: { classroomId, archivedAt: null },
-      select: { id: true, holderUserId: true, locationId: true, accountId: true, isDefault: true },
+      where: { classroomId },
+      select: { id: true, holderUserId: true, locationId: true, accountId: true, isDefault: true, archivedAt: true },
       orderBy: [{ isDefault: "desc" }, { id: "asc" }],
     }),
     prisma.ledgerAccount.findMany({
@@ -111,13 +119,17 @@ export async function loadLedgerInputs(
     }),
     prisma.financeExpense.findMany({
       where: { classroomId },
-      select: { id: true, date: true, amount: true, locationId: true, category: true, paidByUserId: true, voidedAt: true },
+      select: { id: true, date: true, amount: true, locationId: true, category: true, paidByUserId: true, moneyAccountId: true, isAdvance: true, voidedAt: true },
     }),
     prisma.venuePack.findMany({
       where: { classroomId },
       select: { id: true, venueId: true, purchasedAt: true, price: true, paidByUserId: true, voidedAt: true },
     }),
     resolvePackUnitPrices(classroomId),
+    prisma.payout.findMany({ where: { classroomId, status: "PAID" } }),
+    prisma.moneyTransfer.findMany({ where: { classroomId, status: "PAID" } }),
+    prisma.ownerTransaction.findMany({ where: { classroomId } }),
+    prisma.cashCount.findMany({ where: { classroomId } }),
   ]);
 
   const liveLocations = locations.filter((l) => !l.archivedAt);
@@ -125,7 +137,10 @@ export async function loadLedgerInputs(
   const expiryUser = new Map(locations.map((l) => [l.id, l.expiryTo === "USER" ? l.expiryUserId : null]));
 
   const maOfUser = new Map<number, MoneyAccountInfo>();
-  for (const m of moneyAccounts) if (!maOfUser.has(m.holderUserId)) maOfUser.set(m.holderUserId, { id: m.id, locationId: m.locationId });
+  for (const m of moneyAccounts) {
+    if (!m.archivedAt && !maOfUser.has(m.holderUserId)) maOfUser.set(m.holderUserId, { id: m.id, locationId: m.locationId });
+  }
+  const maById = new Map(moneyAccounts.map((m) => [m.id, { id: m.id, locationId: m.locationId }]));
   const accountIdOfMoney = new Map(moneyAccounts.map((m) => [m.id, m.accountId]));
 
   const accountIdOfKey: Record<string, number> = {};
@@ -148,6 +163,7 @@ export async function loadLedgerInputs(
       const payer = packPayer.get(packId);
       return payer === undefined ? null : (maOfUser.get(payer) ?? null);
     },
+    moneyAccount: (id) => maById.get(id) ?? null,
   };
 
   const cards: CardInput[] = rawCards.map((c) => ({
@@ -254,6 +270,45 @@ export async function loadLedgerInputs(
     periods,
     expenses: rawExpenses,
     packs: rawPacks,
+    payouts: rawPayouts.map((p) => ({
+      id: p.id,
+      partyType: p.partyType as PayoutInput["partyType"],
+      partyId: p.partyId,
+      payableKey: p.payableKey as PayoutInput["payableKey"],
+      locationId: p.locationId,
+      amount: p.amount,
+      paidAmount: p.paidAmount,
+      fromMoneyAccountId: p.fromMoneyAccountId,
+      paidDate: p.paidDate ? dateKeyOfDbDate(p.paidDate) : null,
+      voided: p.voidedAt !== null,
+    })),
+    transfers: rawTransfers.map((t) => ({
+      id: t.id,
+      fromMoneyAccountId: t.fromMoneyAccountId,
+      toMoneyAccountId: t.toMoneyAccountId,
+      amount: t.amount,
+      settleAmount: t.settleAmount,
+      date: t.date ? dateKeyOfDbDate(t.date) : null,
+      voided: t.voidedAt !== null,
+    })),
+    ownerTxns: rawOwner.map((o) => ({
+      id: o.id,
+      kind: o.kind,
+      userId: o.userId,
+      amount: o.amount,
+      date: dateKeyOfDbDate(o.date),
+      moneyAccountId: o.moneyAccountId,
+      locationId: o.locationId,
+      voided: o.voidedAt !== null,
+    })),
+    cashCounts: rawCounts.map((c) => ({
+      id: c.id,
+      moneyAccountId: c.moneyAccountId,
+      date: dateKeyOfDbDate(c.date),
+      systemBalance: c.systemBalance,
+      counted: c.counted,
+      voided: c.voidedAt !== null,
+    })),
     accountIdOfKey,
     accountIdOfMoney,
   };

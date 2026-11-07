@@ -12,6 +12,7 @@ const tpe = (ymd: string) => new Date(`${ymd}T04:00:00Z`); // 台北中午
 const ctx = (over: Partial<PostingContext> = {}): PostingContext => ({
   conversionDate: "2026-11-01",
   moneyAccountOf: (u) => (u === DING ? { id: 100, locationId: T } : u === SEAN ? { id: 200, locationId: K } : null),
+  moneyAccount: (id) => (id === 100 ? { id, locationId: T } : id === 200 ? { id, locationId: K } : null),
   legacyHolderUserId: SEAN,
   defaultLocationId: T,
   locationExists: (id) => id === T || id === K,

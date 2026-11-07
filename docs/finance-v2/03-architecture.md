@@ -160,7 +160,7 @@ P2 改採**整批同步**，不靠寫入路徑標 dirty：
 5. 過帳失敗的來源（例：收款人沒有資金帳戶 `NO_MONEY_ACCOUNT`）不寫分錄、保留上次的，原因記在 `PostingSource.error`，健康檢查列出。
 6. **健康檢查** `checkLedger()`（`check.ts`）：每筆分錄每個分部平衡、分部往來合計 0、過帳失敗的來源、轉換日後買的卡帳上預收＝剩餘價值（＋還沒點名的時段扣掉的格子）。
 
-來源實際只有四種：`CARD`（含收款、轉換／轉讓、到期、作廢、退費）、`PERIOD`（含單堂與單堂收款）、`EXPENSE`、`VENUE_PACK`。轉帳／付款等新表在 P5 加入。
+來源：`CARD`（含收款、轉換／轉讓、到期、作廢、退費）、`PERIOD`（含單堂與單堂收款）、`EXPENSE`、`VENUE_PACK`，P5 加 `PAYOUT`（只過帳已付款的）、`MONEY_TRANSFER`（只過帳已轉的）、`OWNER_TXN`、`CASH_COUNT`。手動分錄與沖銷（`kind = MANUAL／REVERSAL`、`sourceType = null`）由 `src/service/ledger/records.ts` 直接寫，sync 不碰。
 
 ### 3.5 鎖帳
 - `financeLockDate`：這天（含）以前的分錄不能新增、沖銷；過帳器的差額自動往後放。手動分錄日期 ≤ 鎖帳日 → 409 `PERIOD_LOCKED`。
