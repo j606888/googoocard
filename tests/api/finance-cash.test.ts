@@ -22,8 +22,6 @@ vi.mock("@/lib/auth", () => ({
 
 import { GET as GET_EXPENSES, POST as POST_EXPENSE } from "@/app/api/finance/expenses/route";
 import { DELETE as DELETE_EXPENSE } from "@/app/api/finance/expenses/[id]/route";
-import { GET as GET_TRANSFERS, POST as POST_TRANSFER } from "@/app/api/finance/transfers/route";
-import { DELETE as DELETE_TRANSFER } from "@/app/api/finance/transfers/[id]/route";
 import { POST as POST_REFUND } from "@/app/api/finance/refunds/route";
 import { POST as POST_PACK } from "@/app/api/finance/packs/route";
 
@@ -86,64 +84,11 @@ describe("finance cash APIs", () => {
     expect((await expense({ paidByUserId: nonFinanceId })).status).toBe(403);
   });
 
-  it("付款人可以取消自己按的「已完成轉帳」；別人按的不行；可以結算的人都能取消", async () => {
-    const seanId = (await createMember(classroomId, { email: "sean@test.local", name: "Sean" })).id;
-    await prisma.membership.updateMany({ where: { userId: seanId, classroomId }, data: { isCustodian: true } });
-    const mk = (createdById: number) =>
-      prisma.financeTransfer.create({
-        data: {
-          classroomId, date: new Date("2026-12-03T04:00:00Z"), amount: 100, fromUserId: seanId, toKind: "SELF",
-          toUserId: seanId, settlementMonth: "2026-11", createdById,
-        },
-      });
-    const voidIt = (id: number) => DELETE_TRANSFER(jsonRequest("DELETE"), routeParams({ id: String(id) }));
-    const mine = await mk(seanId);
-    const byDing = await mk(1);
-    auth.userId = seanId;
-    expect((await voidIt(byDing.id)).status).toBe(403);
-    expect((await voidIt(mine.id)).status).toBe(200);
-    auth.userId = 1;
-    expect((await voidIt(byDing.id)).status).toBe(200);
-    expect(await prisma.financeTransfer.count({ where: { voidedAt: null } })).toBe(0);
-  });
-
-  it("transfer SELF sets toUserId; targets are validated", async () => {
-    const post = async (b: object) =>
-      POST_TRANSFER(jsonRequest("POST", { date: "2026-11-02", amount: 100, fromUserId: 1, ...b }), routeParams({}));
-    const res = await post({ toKind: "SELF", toUserId: nonFinanceId });
-    expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ toKind: "SELF", toUserId: 1 });
-
-    expect((await post({ toKind: "USER" })).status).toBe(400);
-    expect((await post({ toKind: "USER", toUserId: nonFinanceId })).status).toBe(400);
-    expect((await post({ toKind: "USER", toUserId: 1 })).status).toBe(200);
-
-    const teacher = await createTeacher(classroomId);
-    expect((await post({ toKind: "TEACHER", toTeacherId: teacher.id })).status).toBe(200);
-    expect((await post({ toKind: "TEACHER" })).status).toBe(400);
-    const venue = await createVenue(classroomId);
-    expect((await post({ toKind: "VENUE", toVenueId: venue.id })).status).toBe(200);
-
-    const other = await createClassroom({ name: "O", email: "o@test.local" });
-    const ot = await createTeacher(other.id);
-    const ov = await createVenue(other.id);
-    expect((await post({ toKind: "TEACHER", toTeacherId: ot.id })).status).toBe(404);
-    expect((await post({ toKind: "VENUE", toVenueId: ov.id })).status).toBe(404);
-  });
-
   it("void hides from GET", async () => {
     const e = await (await expense()).json();
-    const t = await (
-      await POST_TRANSFER(
-        jsonRequest("POST", { date: "2026-11-02", amount: 100, fromUserId: 1, toKind: "SELF" }),
-        routeParams({})
-      )
-    ).json();
     expect((await (await GET_EXPENSES(jsonRequest("GET"), routeParams({}))).json()).expenses).toHaveLength(1);
     expect((await DELETE_EXPENSE(jsonRequest("DELETE"), routeParams({ id: String(e.id) }))).status).toBe(200);
-    expect((await DELETE_TRANSFER(jsonRequest("DELETE"), routeParams({ id: String(t.id) }))).status).toBe(200);
     expect((await (await GET_EXPENSES(jsonRequest("GET"), routeParams({}))).json()).expenses).toHaveLength(0);
-    expect((await (await GET_TRANSFERS(jsonRequest("GET"), routeParams({}))).json()).transfers).toHaveLength(0);
     expect(await prisma.financeExpense.count()).toBe(1);
   });
 

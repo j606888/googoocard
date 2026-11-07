@@ -52,13 +52,12 @@ describe("finance config APIs", () => {
     expect((await bad.json()).code).toBe("NOT_FINANCE_MEMBER");
 
     const ok = await PATCH_LOCATION(
-      jsonRequest("PATCH", { keeperUserId: 1, expiryTo: "USER", expiryUserId: 1, fundOpening: 500 }),
+      jsonRequest("PATCH", { keeperUserId: 1, expiryTo: "USER", expiryUserId: 1 }),
       routeParams({ id: String(loc.id) })
     );
     expect(ok.status).toBe(200);
     const after = await prisma.location.findUniqueOrThrow({ where: { id: loc.id } });
-    expect(after).toMatchObject({ keeperUserId: 1, expiryTo: "USER", expiryUserId: 1, fundOpening: 500 });
-    expect(after.fundOpeningConfirmedAt).toBeNull();
+    expect(after).toMatchObject({ keeperUserId: 1, expiryTo: "USER", expiryUserId: 1 });
   });
 
   it("location in another classroom is 404", async () => {

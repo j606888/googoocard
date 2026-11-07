@@ -1,10 +1,6 @@
 import { api } from "../api";
 import type { SplitRule } from "@/domains/finance/types";
 import type { PeriodFinance as PeriodFinanceServer } from "@/service/finance/periods";
-import type { CustodyUser, CustodyWarning } from "@/service/finance/custody";
-import type { MonthStatement as MonthStatementServer } from "@/service/finance/settlement";
-import type { BranchReviewStatus } from "@/service/finance/branchReview";
-import type { Todos } from "./todos";
 
 export interface FinanceSettings {
   enabled: boolean;
@@ -14,17 +10,6 @@ export interface FinanceSettings {
   /** 開帳清單「場地」：這間教室不用場地費。 */
   noVenueFee: boolean;
   members: { userId: number; name: string; isCustodian: boolean; canSettle: boolean }[];
-}
-
-export interface CustodyResponse {
-  users: CustodyUser[];
-  warnings: CustodyWarning[];
-}
-
-export interface SettlementMonths {
-  /** 最早沒鎖的月份 YYYY-MM */
-  openMonth: string;
-  months: { month: string; locked: boolean; lockedAt: string | null; lockedById: number | null }[];
 }
 
 export interface FinanceVenue {
@@ -46,61 +31,6 @@ export interface FinancePack {
 
 /** GET /finance/periods — dates arrive as ISO strings. */
 export type PeriodFinance = Omit<PeriodFinanceServer, "startTime"> & { startTime: string };
-
-/** GET /finance/settlements/[month] — dates arrive as ISO strings. */
-export type MonthStatement = Omit<MonthStatementServer, "periods" | "expiries"> & {
-  periods: PeriodFinance[];
-  expiries: (Omit<MonthStatementServer["expiries"][number], "date"> & { date: string })[];
-  /** 各分部核對狀態（有負責人、沒封存的分部） */
-  reviews: (Omit<BranchReviewStatus, "reviewedAt"> & { reviewedAt: string | null })[];
-};
-
-type Scoped = { locationId: number | null };
-
-/** GET /finance/home — 財務首頁「要處理的事」。`locationId` = 這堂課的基金；null = 每個分部都看得到。 */
-export interface FinanceHomeData {
-  myLocationId: number | null;
-  branches: { id: number; name: string }[];
-  unsettledMonth: string | null;
-  unpaidCards: (Todos["unpaidCards"][number] & Scoped)[];
-  unpaidDropIns: (Todos["unpaidDropIns"][number] & Scoped)[];
-  unboundAttendance: (Todos["unboundAttendance"][number] & Scoped)[];
-  unsplitLessons: ({ lessonId: number; lessonName: string } & Scoped)[];
-  uncheckedPeriods: ({ periodId: number; lessonId: number; lessonName: string; startTime: string } & Scoped)[];
-  exhaustedPacks: ({ venueId: number; venueName: string; overdrawn: number } & Scoped)[];
-  /** 5 號過後，上個月我負責、還沒核對的分部 */
-  unreviewedBranches: { month: string; locationId: number; locationName: string; overdue: boolean }[];
-}
-
-export type TransferKind = "USER" | "TEACHER" | "SELF" | "VENUE";
-
-export interface FinanceTransfer {
-  id: number;
-  date: string;
-  amount: number;
-  fromUserId: number;
-  toKind: TransferKind;
-  toUserId: number | null;
-  toTeacherId: number | null;
-  toVenueId: number | null;
-  settlementMonth: string | null;
-  note: string | null;
-  /** 誰、何時按的（「已完成轉帳」） */
-  createdById: number;
-  createdAt: string;
-}
-
-export interface TransferInput {
-  date: string;
-  amount: number;
-  fromUserId: number;
-  toKind: TransferKind;
-  toUserId?: number;
-  toTeacherId?: number;
-  toVenueId?: number;
-  settlementMonth?: string;
-  note?: string;
-}
 
 export interface FinanceExpense {
   id: number;
@@ -134,9 +64,8 @@ export type ChecklistKey =
   | "teachers"
   | "venues"
   | "rules"
-  | "funds"
   | "receivers"
-  | "legacyPrepaid";
+  | "opening";
 
 export interface SetupResponse {
   items: { key: ChecklistKey; done: boolean; detail?: string; links?: { label: string; href: string }[] }[];
@@ -162,8 +91,6 @@ export interface FinanceLocation {
   keeperUserId: number | null;
   expiryTo: "FUND" | "USER";
   expiryUserId: number | null;
-  fundOpening: number;
-  fundOpeningConfirmedAt: string | null;
 }
 
 export interface FinanceLocationPatch {
@@ -210,14 +137,6 @@ const financeApi = api.injectEndpoints({
       query: ({ id, ...body }) => ({ url: `finance/locations/${id}`, method: "PATCH", body }),
       invalidatesTags: ["Finance"],
     }),
-    confirmFundOpening: builder.mutation<unknown, { id: number; fundOpening: number }>({
-      query: ({ id, fundOpening }) => ({
-        url: `finance/locations/${id}/confirm-opening`,
-        method: "POST",
-        body: { fundOpening },
-      }),
-      invalidatesTags: ["Finance"],
-    }),
     getRuledLessons: builder.query<{ lessons: { id: number; name: string }[] }, void>({
       query: () => "finance/lessons",
       providesTags: ["Finance", "Lesson"],
@@ -232,10 +151,6 @@ const financeApi = api.injectEndpoints({
     >({
       query: (body) => ({ url: "finance/receivers", method: "POST", body }),
       invalidatesTags: ["Finance", "StudentCard"],
-    }),
-    confirmLegacyPrepaid: builder.mutation<unknown, void>({
-      query: () => ({ url: "finance/legacy-prepaid/confirm", method: "POST" }),
-      invalidatesTags: ["Finance"],
     }),
     createFinanceVenue: builder.mutation<unknown, { name: string; landlordUserId?: number | null }>({
       query: (body) => ({ url: "finance/venues", method: "POST", body }),
@@ -264,19 +179,6 @@ const financeApi = api.injectEndpoints({
       query: () => "finance/settings",
       providesTags: ["Classroom", "Membership"],
     }),
-    getFinanceHome: builder.query<FinanceHomeData, void>({
-      query: () => "finance/home",
-      // 跟待處理同一份資料：收款、點名、補卡都會改變它。
-      providesTags: ["Finance", "Lesson", "Student", "StudentCard", "AttendanceRecord"],
-    }),
-    getCustody: builder.query<CustodyResponse, { through?: string } | void>({
-      query: (arg) => (arg && arg.through ? `finance/custody?through=${arg.through}` : "finance/custody"),
-      providesTags: ["Finance"],
-    }),
-    getSettlementMonths: builder.query<SettlementMonths, void>({
-      query: () => "finance/settlements",
-      providesTags: ["Finance"],
-    }),
     getFinancePacks: builder.query<{ packs: FinancePack[] }, void>({
       query: () => "finance/packs",
       providesTags: ["Finance"],
@@ -284,34 +186,6 @@ const financeApi = api.injectEndpoints({
     getFinanceVenues: builder.query<{ venues: FinanceVenue[] }, void>({
       query: () => "finance/venues",
       providesTags: ["Finance"],
-    }),
-    getMonthStatement: builder.query<MonthStatement, string>({
-      query: (month) => `finance/settlements/${month}`,
-      providesTags: ["Finance"],
-    }),
-    lockMonth: builder.mutation<unknown, string>({
-      query: (month) => ({ url: `finance/settlements/${month}`, method: "POST" }),
-      invalidatesTags: ["Finance"],
-    }),
-    reviewBranch: builder.mutation<unknown, { month: string; locationId: number }>({
-      query: ({ month, locationId }) => ({
-        url: `finance/settlements/${month}/reviews`,
-        method: "POST",
-        body: { locationId },
-      }),
-      invalidatesTags: ["Finance"],
-    }),
-    getFinanceTransfers: builder.query<{ transfers: FinanceTransfer[] }, void>({
-      query: () => "finance/transfers",
-      providesTags: ["Finance"],
-    }),
-    createTransfer: builder.mutation<unknown, TransferInput>({
-      query: (body) => ({ url: "finance/transfers", method: "POST", body }),
-      invalidatesTags: ["Finance"],
-    }),
-    deleteTransfer: builder.mutation<unknown, number>({
-      query: (id) => ({ url: `finance/transfers/${id}`, method: "DELETE" }),
-      invalidatesTags: ["Finance"],
     }),
     getFinanceExpenses: builder.query<{ expenses: FinanceExpense[] }, string>({
       query: (month) => `finance/expenses?month=${month}`,
@@ -382,8 +256,6 @@ export const {
   useSetMemberFinanceMutation,
   useGetFinanceLocationsQuery,
   useUpdateFinanceLocationMutation,
-  useConfirmFundOpeningMutation,
-  useConfirmLegacyPrepaidMutation,
   useGetRuledLessonsQuery,
   useGetStrayReceiversQuery,
   useReassignStrayReceiversMutation,
@@ -392,13 +264,6 @@ export const {
   useGetFinanceTeachersQuery,
   useSetTeacherPayerMutation,
   useLinkFinanceTeacherMutation,
-  useGetMonthStatementQuery,
-  useGetFinanceHomeQuery,
-  useLockMonthMutation,
-  useReviewBranchMutation,
-  useGetFinanceTransfersQuery,
-  useCreateTransferMutation,
-  useDeleteTransferMutation,
   useGetFinanceExpensesQuery,
   useCreateExpenseMutation,
   useDeleteExpenseMutation,
@@ -413,8 +278,6 @@ export const {
   useLazyGetPeriodRuleQuery,
   useDeletePeriodRuleMutation,
   useGetFinanceSettingsQuery,
-  useGetCustodyQuery,
-  useGetSettlementMonthsQuery,
   useGetFinanceVenuesQuery,
   useGetFinancePacksQuery,
 } = financeApi;

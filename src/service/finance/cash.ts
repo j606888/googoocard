@@ -1,12 +1,11 @@
 import { syncLedger } from "@/service/ledger/sync";
 import { z } from "zod";
-import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 import { parseTaipeiDateRange, parseTaipeiMonthRange } from "@/lib/taipei-date";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { ymdSchema } from "@/lib/schemas";
-import { assertCustodian, requireVenueInClassroom } from "./config";
+import { assertCustodian } from "./config";
 
 export function dateOf(ymd: string): Date {
   return parseTaipeiDateRange(ymd).start;
@@ -33,21 +32,6 @@ export const expenseSelect = {
   note: true,
 } as const;
 
-export const transferSelect = {
-  id: true,
-  date: true,
-  amount: true,
-  fromUserId: true,
-  toKind: true,
-  toUserId: true,
-  toTeacherId: true,
-  toVenueId: true,
-  settlementMonth: true,
-  note: true,
-  // 誰、何時按的「已完成轉帳」
-  createdById: true,
-  createdAt: true,
-} as const;
 
 export const expenseSchema = z.object({
   date: ymdSchema,
@@ -61,17 +45,6 @@ export const expenseSchema = z.object({
   isAdvance: z.boolean().optional(),
 });
 
-export const transferSchema = z.object({
-  date: ymdSchema,
-  amount: z.number().int().positive(),
-  fromUserId: z.number().int().positive(),
-  toKind: z.enum(["USER", "TEACHER", "SELF", "VENUE"]),
-  toUserId: z.number().int().positive().optional(),
-  toTeacherId: z.number().int().positive().optional(),
-  toVenueId: z.number().int().positive().optional(),
-  settlementMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(),
-  note: z.string().trim().max(500).optional(),
-});
 
 export async function createExpense(
   classroomId: number,
@@ -112,50 +85,6 @@ export async function createExpense(
   });
   await syncLedger(classroomId);
   return created;
-}
-
-export async function createTransfer(
-  classroomId: number,
-  userId: number,
-  body: z.infer<typeof transferSchema>,
-  db: Prisma.TransactionClient = prisma,
-) {
-  await assertCustodian(body.fromUserId, classroomId);
-  let toUserId: number | null = null;
-  let toTeacherId: number | null = null;
-  let toVenueId: number | null = null;
-  if (body.toKind === "SELF") {
-    toUserId = body.fromUserId;
-  } else if (body.toKind === "USER") {
-    if (!body.toUserId) throw new ApiError(400, "TARGET_REQUIRED", "toUserId is required");
-    await assertCustodian(body.toUserId, classroomId);
-    toUserId = body.toUserId;
-  } else if (body.toKind === "TEACHER") {
-    if (!body.toTeacherId) throw new ApiError(400, "TARGET_REQUIRED", "toTeacherId is required");
-    const t = await prisma.teacher.findFirst({ where: { id: body.toTeacherId, classroomId } });
-    if (!t) throw new ApiError(404, "NOT_FOUND", "Teacher not found");
-    toTeacherId = t.id;
-  } else {
-    if (!body.toVenueId) throw new ApiError(400, "TARGET_REQUIRED", "toVenueId is required");
-    const v = await requireVenueInClassroom(body.toVenueId, classroomId);
-    toVenueId = v.id;
-  }
-  return db.financeTransfer.create({
-    data: {
-      classroomId,
-      date: dateOf(body.date),
-      amount: body.amount,
-      fromUserId: body.fromUserId,
-      toKind: body.toKind,
-      toUserId,
-      toTeacherId,
-      toVenueId,
-      settlementMonth: body.settlementMonth ?? null,
-      note: body.note ?? null,
-      createdById: userId,
-    },
-    select: transferSelect,
-  });
 }
 
 export async function refundCard(input: {

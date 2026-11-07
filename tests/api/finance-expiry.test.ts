@@ -24,7 +24,6 @@ import { createStudentCardInTx } from "@/service/studentCard";
 import { performConversion } from "@/service/studentCardConversion";
 import { performTransfer } from "@/service/studentCardTransfer";
 import { expireDueCards, expiryEvents } from "@/service/finance/expiry";
-import { getCustody } from "@/service/finance/custody";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { addMonthsTaipei, toTaipeiDateKey } from "@/lib/taipei-date";
 
@@ -131,7 +130,7 @@ describe("finance card expiry", () => {
     expect(await tagged()).toBe(1);
   });
 
-  it("expiry with no branch and no legacy custodian surfaces as a custody warning (issue 08)", async () => {
+  it("expiry with no branch and no legacy custodian writes no expiry event (issue 08)", async () => {
     await enableFinanceFor(classroomId, { launch: new Date("2026-10-31T16:00:00Z") });
     const student = await createStudent(classroomId);
     const sc = await buy(student.id);
@@ -141,9 +140,6 @@ describe("finance card expiry", () => {
     });
     await expireDueCards(classroomId, new Date("2027-05-01T00:00:00Z"));
     expect(await expiryEvents(classroomId)).toEqual([]);
-
-    const { warnings } = await getCustody(classroomId);
-    expect(warnings).toContainEqual({ code: "UNRESOLVED_KEEPER", studentCardId: sc.id });
   });
 
   it("conversion and transfer inherit expiresAt", async () => {

@@ -25,7 +25,6 @@ import { GET as SETTINGS_GET, PATCH as SETTINGS_PATCH } from "@/app/api/finance/
 import { PATCH as MEMBER_PATCH } from "@/app/api/finance/members/[userId]/route";
 import { assertFinanceEnabled, assertCanSettle, isFinanceEnabled } from "@/service/finance/access";
 import { assertReceiverIsCustodian } from "@/service/finance/receiver";
-import { getCustody } from "@/service/finance/custody";
 import { addMonthsTaipei } from "@/lib/taipei-date";
 
 describe("finance enable / permission", () => {
@@ -126,7 +125,7 @@ describe("finance enable / permission", () => {
     await expect(assertCanSettle(member.id, classroomId)).resolves.toBeUndefined();
   });
 
-  it("custodian-only can receive but not settle; settler-only is not in custody", async () => {
+  it("custodian-only can receive but not settle; settler-only cannot receive", async () => {
     const sean = await createMember(classroomId, { email: "sean@test.local", name: "Sean" });
     const nora = await createMember(classroomId, { email: "nora@test.local", name: "Nora" });
     await enableFinanceFor(classroomId, { launch: new Date("2026-11-02T16:00:00Z"), legacyCustodianUserId: ownerId });
@@ -138,11 +137,6 @@ describe("finance enable / permission", () => {
     await expect(assertReceiverIsCustodian(sean.id, classroomId)).resolves.toBeUndefined();
     await expect(assertCanSettle(nora.id, classroomId)).resolves.toBeUndefined();
     await expect(assertReceiverIsCustodian(nora.id, classroomId)).rejects.toMatchObject({ code: "RECEIVER_NOT_FINANCE" });
-
-    const { users } = await getCustody(classroomId);
-    const ids = users.map((u) => u.userId);
-    expect(ids).toEqual(expect.arrayContaining([ownerId, sean.id]));
-    expect(ids).not.toContain(nora.id);
   });
 
   it("settings GET/PATCH and member toggles; each flag keeps its last holder", async () => {

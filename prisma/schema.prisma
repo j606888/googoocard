@@ -106,15 +106,11 @@ model Classroom {
   financeRoundTo           Int                      @default(1)
   // 上線前沒記收款人的錢算誰的。純 Int、沒有 FK（User 不加反向關聯）。
   legacyCustodianUserId    Int?
-  legacyPrepaidConfirmedAt DateTime?
   // 開帳清單「場地」：這間教室不用場地費（勾了場地步驟就算完成）。
   financeNoVenueFee        Boolean                  @default(false)
   venues                   Venue[]
   venuePacks               VenuePack[]
   financeExpenses          FinanceExpense[]
-  financeTransfers         FinanceTransfer[]
-  financeSettlements       FinanceSettlement[]
-  financeBranchReviews     FinanceBranchReview[]
   // 財務 v2（docs/finance-v2/）：轉換日（開帳日，台北日期）與鎖帳日（含當天以前的分錄不可再動）。
   financeConversionDate    DateTime?                @db.Date
   financeLockDate          DateTime?                @db.Date
@@ -420,10 +416,7 @@ model Location {
   expiryTo               String                @default("FUND")
   expiryUserId           Int?
   // 公積金期初金額。
-  fundOpening            Int                   @default(0)
-  fundOpeningConfirmedAt DateTime?
   financeExpenses        FinanceExpense[]
-  financeBranchReviews   FinanceBranchReview[]
   moneyAccounts          MoneyAccount[]
   journalLines           JournalLine[]
   createdAt              DateTime              @default(now())
@@ -786,31 +779,6 @@ model FinanceExpense {
   @@index([paidByUserId])
 }
 
-/// 人與人之間的轉帳。toKind: "USER" | "TEACHER" | "SELF" | "VENUE"。
-model FinanceTransfer {
-  id              Int       @id @default(autoincrement())
-  classroomId     Int
-  classroom       Classroom @relation(fields: [classroomId], references: [id])
-  date            DateTime
-  amount          Int
-  fromUserId      Int
-  toKind          String
-  toUserId        Int?
-  toTeacherId     Int?
-  toVenueId       Int?
-  settlementMonth String?
-  note            String?
-  createdById     Int
-  voidedAt        DateTime?
-  createdAt       DateTime  @default(now())
-
-  @@index([classroomId, date])
-  @@index([fromUserId])
-  @@index([toUserId])
-  @@index([toTeacherId])
-  @@index([toVenueId])
-}
-
 model FinanceRefund {
   id            Int         @id @default(autoincrement())
   studentCardId Int         @unique
@@ -824,35 +792,8 @@ model FinanceRefund {
   @@index([paidByUserId])
 }
 
-/// 月結：鎖定當月並存快照。month 為台北時間 YYYY-MM。
-model FinanceSettlement {
-  id          Int       @id @default(autoincrement())
-  classroomId Int
-  classroom   Classroom @relation(fields: [classroomId], references: [id])
-  month       String
-  lockedAt    DateTime
-  lockedById  Int
-  snapshot    Json
-
-  @@unique([classroomId, month])
-}
-
 // 分部核對：負責人確認「這個月這個分部該收的都收到、數字對」。不擋結算。
 // hash = 核對當下這個分部這個月結果的雜湊；之後讀到的結果不同 → 核對失效（不必每個寫入點都記得清）。
-model FinanceBranchReview {
-  id           Int       @id @default(autoincrement())
-  classroomId  Int
-  classroom    Classroom @relation(fields: [classroomId], references: [id])
-  month        String
-  locationId   Int
-  location     Location  @relation(fields: [locationId], references: [id])
-  reviewedById Int // User id，純 Int、沒有 FK
-  reviewedAt   DateTime
-  hash         String
-
-  @@unique([classroomId, month, locationId])
-}
-
 // ---------------------------------------------------------------------------
 // 財務 v2：複式帳本（docs/finance-v2/02-accounting-model.md、03-architecture.md）
 // 金額一律 Int，單位「分」；JournalLine.amount 正＝借、負＝貸，每筆分錄每個分部 Σ = 0。

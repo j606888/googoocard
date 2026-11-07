@@ -10,10 +10,8 @@ const patchSchema = z.object({
   keeperUserId: z.number().int().positive().nullable().optional(),
   expiryTo: z.enum(["FUND", "USER"]).optional(),
   expiryUserId: z.number().int().positive().nullable().optional(),
-  fundOpening: z.number().int().optional(),
 });
 
-// 不動 fundOpeningConfirmedAt（確認期初是另一個按鈕）。
 export const PATCH = apiRoute<{ id: string }>(async ({ request, params, userId, classroomId }) => {
   await assertCanSettle(userId, classroomId);
   const id = parseId(params.id);
@@ -36,7 +34,6 @@ export const PATCH = apiRoute<{ id: string }>(async ({ request, params, userId, 
       ...(body.keeperUserId !== undefined ? { keeperUserId: body.keeperUserId } : {}),
       ...(body.expiryTo !== undefined ? { expiryTo: body.expiryTo } : {}),
       ...(body.expiryUserId !== undefined ? { expiryUserId: body.expiryUserId } : {}),
-      ...(body.fundOpening !== undefined ? { fundOpening: body.fundOpening } : {}),
     },
     select: {
       id: true,
@@ -44,8 +41,6 @@ export const PATCH = apiRoute<{ id: string }>(async ({ request, params, userId, 
       keeperUserId: true,
       expiryTo: true,
       expiryUserId: true,
-      fundOpening: true,
-      fundOpeningConfirmedAt: true,
     },
   });
   // 新的分部負責人 → 補他的預設資金帳戶（docs/finance-v2/06 P1）。

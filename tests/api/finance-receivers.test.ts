@@ -94,9 +94,9 @@ describe("opening: money received by non-custodians", () => {
     expect(item.detail).toBe("3 筆、$4,400 記在不是保管人的人名下");
   });
 
-  it("checklist item sits before legacyPrepaid and is done when nothing is stray", async () => {
+  it("checklist item sits before opening and is done when nothing is stray", async () => {
     const keys = (await setupChecklist(classroomId)).map((i) => i.key);
-    expect(keys.indexOf("receivers")).toBe(keys.indexOf("legacyPrepaid") - 1);
+    expect(keys.indexOf("receivers")).toBe(keys.indexOf("opening") - 1);
     expect((await receiversItem()).done).toBe(true);
   });
 

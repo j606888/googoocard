@@ -72,7 +72,12 @@
 > 未做：損益表「期間並排」、記一筆裡的「買次數包」（仍在場地設定）、舊頁面（`/finance/settle`、`/finance/expenses`、`/finance/report`、`FinanceHome`）沒有入口了，P7 刪除。
 - 先做設計稿（05 §6 清單），丁丁確認後再刻畫面。總覽、報表、付款、記一筆、開帳、結帳。
 
-## P7 · 收尾與上線
+## P7 · 收尾與上線（程式部分 ✅ 2026-11-08）
+> 已刪：`custody.ts`、`settlement.ts`、`branchReview.ts`、`home.ts`、`domains/finance/{ledger,waterfall}.ts`、舊 API（custody、settlements、transfers、home、legacy-prepaid、confirm-opening）與畫面（月結算單、支出與轉帳、月報表、舊首頁），資料表 `FinanceSettlement`／`FinanceBranchReview`／`FinanceTransfer`、欄位 `Location.fundOpening`／`fundOpeningConfirmedAt`、`Classroom.legacyPrepaidConfirmedAt`。開帳清單的「公積金期初」「舊卡預收」換成「開帳」一項。作廢支出／次數包不再擋鎖住的月份（帳本記更正）。
+> **偏離計畫**：`legacyCustodianUserId` 保留（到期、收款人、約定法開帳都用它）。
+> migration：feat/finance＋v2 的 9 個壓成 `20261108010000_finance`（從 main 的 schema diff 產生，加上 Teacher kind `BOTH`→`TEACHER` 的資料更新；用 shadow DB 驗證過跟 schema 完全一致）。本機 DB 已手動跟上並改寫 `_prisma_migrations`；測試 DB 重建。staging 的 Neon DB 有舊的 migration 紀錄，推上去之前要先等夜間重建或手動跑一次 `staging-refresh`。
+> 文件：`CLAUDE.md` Core Domain Model、`architecture.md`「財務」、`roadmap.md`「新版財務」已更新。
+> 還沒做：staging 走一遍、跟 Sean 定轉換日並開帳、合併、`db:deploy`。
 - 移除 feat/finance 的 `custody.ts`、`settlement.ts`、`branchReview.ts`、`domains/finance/ledger.ts`、對應 API 與畫面、`FinanceSettlement`／`FinanceBranchReview`／`FinanceTransfer` 表、`legacyCustodianUserId`。
 - 重新整理 finance migrations（04 §7）。
 - 更新 `docs/architecture.md`「財務」、`docs/roadmap.md`「新版財務」、`CLAUDE.md` Core Domain Model 的財務段落。

@@ -23,8 +23,6 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 import { GET as SETUP_GET } from "@/app/api/finance/setup/route";
-import { POST as LEGACY_CONFIRM } from "@/app/api/finance/legacy-prepaid/confirm/route";
-import { POST as CONFIRM_OPENING } from "@/app/api/finance/locations/[id]/confirm-opening/route";
 import { GET as LOCATIONS_GET } from "@/app/api/finance/locations/route";
 import { GET as TEACHERS_GET } from "@/app/api/finance/teachers/route";
 import { POST as LINK_TEACHER } from "@/app/api/finance/teachers/[id]/link/route";
@@ -58,9 +56,8 @@ describe("finance setup checklist", () => {
       "teachers",
       "venues",
       "rules",
-      "funds",
       "receivers",
-      "legacyPrepaid",
+      "opening",
     ]);
     const done = Object.fromEntries(items.map((i) => [i.key, i.done]));
     expect(done).toEqual({
@@ -69,9 +66,8 @@ describe("finance setup checklist", () => {
       teachers: true,
       venues: false, // no venue yet
       rules: true,
-      funds: false,
       receivers: true,
-      legacyPrepaid: false,
+      opening: false,
     });
     const res = await SETUP_GET(jsonRequest("GET"), routeParams({}));
     expect((await res.json()).complete).toBe(false);
@@ -188,61 +184,11 @@ describe("finance setup checklist", () => {
     await createVenuePack(classroomId, venue.id, { sessions: 10, price: 1000, paidByUserId: ownerId });
     expect((await byKey(classroomId)).venues.done).toBe(true);
 
-    expect((await byKey(classroomId)).funds.done).toBe(false);
-    const res = await CONFIRM_OPENING(
-      jsonRequest("POST", { fundOpening: 500 }),
-      routeParams({ id: String(loc.id) }),
-    );
-    expect(res.status).toBe(200);
-    const after = await prisma.location.findUniqueOrThrow({ where: { id: loc.id } });
-    expect(after.fundOpening).toBe(500);
-    expect(after.fundOpeningConfirmedAt).not.toBeNull();
-    expect((await byKey(classroomId)).funds.done).toBe(true);
-
-    expect((await byKey(classroomId)).legacyPrepaid.done).toBe(false);
-    expect((await LEGACY_CONFIRM(jsonRequest("POST"), routeParams({}))).status).toBe(200);
+    expect((await byKey(classroomId)).opening.done).toBe(false);
+    await prisma.classroom.update({ where: { id: classroomId }, data: { financeOpenedAt: new Date(), financeConversionDate: new Date("2026-11-01T00:00:00Z") } });
+    expect((await byKey(classroomId)).opening).toMatchObject({ done: true, detail: "從 2026/11/01 開帳" });
     const final = await setupChecklist(classroomId);
     expect(final.every((i) => i.done)).toBe(true);
-  });
-
-  it("legacyPrepaid detail: 3 legacy cards 2000/6 with 1,2,3 left -> 6 sessions, $2,000", async () => {
-    const student = await createStudent(classroomId);
-    const card = await createCard(classroomId);
-    const old = new Date("2026-06-01T00:00:00Z");
-    for (const left of [1, 2, 3]) {
-      await createStudentCard(student.id, card.id, {
-        finalPrice: 2000,
-        totalSessions: 6,
-        remainingSessions: left,
-        createdAt: old,
-      });
-    }
-    // excluded: has a receiver, unpaid, empty, closed, created after launch
-    await prisma.studentCard.updateMany({ data: { isPaid: true } });
-    const withReceiver = await createStudentCard(student.id, card.id, { createdAt: old });
-    await prisma.studentCard.update({ where: { id: withReceiver.id }, data: { paidByUserId: ownerId } });
-    await createStudentCard(student.id, card.id, { createdAt: old, isPaid: false });
-    await createStudentCard(student.id, card.id, { createdAt: old, remainingSessions: 0 });
-    const closed = await createStudentCard(student.id, card.id, { createdAt: old });
-    await prisma.studentCard.update({ where: { id: closed.id }, data: { expiredAt: new Date() } });
-    await createStudentCard(student.id, card.id, { createdAt: new Date("2026-12-01T00:00:00Z") });
-
-    const { legacyPrepaid } = await byKey(classroomId);
-    expect(legacyPrepaid.detail).toBe(`舊卡 3 張、6 格、約 $2,000 由 Owner 保管`);
-  });
-
-  it("confirm routes need a finance member; confirm-opening is classroom-scoped", async () => {
-    const member = await createMember(classroomId);
-    const loc = await createLocation(classroomId);
-    auth.userId = member.id;
-    expect((await LEGACY_CONFIRM(jsonRequest("POST"), routeParams({}))).status).toBe(403);
-    expect(
-      (await CONFIRM_OPENING(jsonRequest("POST", { fundOpening: 1 }), routeParams({ id: String(loc.id) }))).status,
-    ).toBe(403);
-    auth.userId = ownerId;
-    expect(
-      (await CONFIRM_OPENING(jsonRequest("POST", { fundOpening: 1 }), routeParams({ id: "99999" }))).status,
-    ).toBe(404);
   });
 
   it("finance location / teacher lists expose only setup fields", async () => {
@@ -250,7 +196,7 @@ describe("finance setup checklist", () => {
     await createTeacher(classroomId, { name: "T" });
     const l = await (await LOCATIONS_GET(jsonRequest("GET"), routeParams({}))).json();
     expect(Object.keys(l.locations[0]).sort()).toEqual(
-      ["expiryTo", "expiryUserId", "fundOpening", "fundOpeningConfirmedAt", "id", "keeperUserId", "name"].sort(),
+      ["expiryTo", "expiryUserId", "id", "keeperUserId", "name"].sort(),
     );
     const t = await (await TEACHERS_GET(jsonRequest("GET"), routeParams({}))).json();
     expect(Object.keys(t.teachers[0]).sort()).toEqual(["id", "linkSuggestion", "name", "payerUserId", "userId"]);
@@ -317,28 +263,15 @@ describe("finance setup checklist", () => {
     const oVenue = await createVenue(other.id, { name: "OV" });
     await createLesson(other.id, { locationId: null });
     await createVenuePack(other.id, oVenue.id, { sessions: 1, price: 1, paidByUserId: other.ownerId });
-    await prisma.location.update({ where: { id: oLoc.id }, data: { keeperUserId: other.ownerId, fundOpeningConfirmedAt: new Date() } });
+    await prisma.location.update({ where: { id: oLoc.id }, data: { keeperUserId: other.ownerId } });
 
     const k = await byKey(classroomId);
     expect(k.branches.done).toBe(false);
-    expect(k.funds.done).toBe(false);
     expect(k.lessonBranches.done).toBe(true);
     const l = await (await LOCATIONS_GET(jsonRequest("GET"), routeParams({}))).json();
     expect(l.locations).toHaveLength(0);
     const t = await (await TEACHERS_GET(jsonRequest("GET"), routeParams({}))).json();
     expect(t.teachers).toHaveLength(0);
-    // cannot confirm another classroom's branch
-    const res = await CONFIRM_OPENING(jsonRequest("POST", { fundOpening: 1 }), routeParams({ id: String(oLoc.id) }));
-    expect(res.status).toBe(404);
   });
 
-  it("legacy confirm needs a custodian; confirm-opening rejects archived branches", async () => {
-    const loc = await createLocation(classroomId, { archivedAt: new Date() });
-    const res = await CONFIRM_OPENING(jsonRequest("POST", { fundOpening: 1 }), routeParams({ id: String(loc.id) }));
-    expect(res.status).toBe(404);
-    await prisma.classroom.update({ where: { id: classroomId }, data: { legacyCustodianUserId: null } });
-    const bad = await LEGACY_CONFIRM(jsonRequest("POST"), routeParams({}));
-    expect(bad.status).toBe(400);
-    expect((await bad.json()).code).toBe("LEGACY_CUSTODIAN_REQUIRED");
-  });
 });

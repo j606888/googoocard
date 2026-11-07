@@ -1,7 +1,6 @@
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 import { requireOwner } from "@/lib/authz";
-import { cardUnitValue } from "@/domains/finance/income";
 import { formatMoney } from "@/lib/money";
 import { listStrayReceivers } from "./strayReceivers";
 import { ensureLedgerSetup } from "@/service/ledger/setup";
@@ -67,9 +66,8 @@ export type ChecklistKey =
   | "teachers"
   | "venues"
   | "rules"
-  | "funds"
   | "receivers"
-  | "legacyPrepaid";
+  | "opening";
 
 export type ChecklistItem = {
   key: ChecklistKey;
@@ -78,24 +76,6 @@ export type ChecklistItem = {
   /** 還沒做完的那幾筆，可直接點過去（例：沒標分部的課）。 */
   links?: { label: string; href: string }[];
 };
-
-/** 舊卡：上線前就有、沒記收款人、已付款、還有剩格的卡（算 legacy custodian 保管的預收）。 */
-export async function legacyPrepaidSummary(classroomId: number, financeEnabledAt: Date) {
-  const cards = await prisma.studentCard.findMany({
-    where: {
-      student: { classroomId },
-      paidByUserId: null,
-      isPaid: true,
-      expiredAt: null,
-      remainingSessions: { gt: 0 },
-      createdAt: { lt: financeEnabledAt },
-    },
-    select: { remainingSessions: true, finalPrice: true, totalSessions: true },
-  });
-  const sessions = cards.reduce((s, c) => s + c.remainingSessions, 0);
-  const value = cards.reduce((s, c) => s + cardUnitValue(c) * c.remainingSessions, 0);
-  return { cards: cards.length, sessions, amount: Math.round(value) };
-}
 
 function venueIdsOfRule(rule: unknown): number[] {
   const lines = (rule as { lines?: { kind?: string; venueId?: number }[] } | null)?.lines;
@@ -112,9 +92,9 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
     where: { id: classroomId },
     select: {
       financeEnabledAt: true,
-      legacyCustodianUserId: true,
-      legacyPrepaidConfirmedAt: true,
       financeNoVenueFee: true,
+      financeOpenedAt: true,
+      financeConversionDate: true,
     },
   });
   if (!classroom.financeEnabledAt) {
@@ -124,7 +104,7 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
   const [locations, lessons, financeMembers, overrides, packs, venueCount] = await Promise.all([
     prisma.location.findMany({
       where: { classroomId, archivedAt: null },
-      select: { keeperUserId: true, fundOpeningConfirmedAt: true },
+      select: { keeperUserId: true },
     }),
     prisma.lesson.findMany({
       where: { classroomId, status: "inProgress" },
@@ -161,18 +141,8 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
     ...overrides.flatMap((o) => venueIdsOfRule(o.rule)),
   ]);
 
-  const legacy = await legacyPrepaidSummary(classroomId, classroom.financeEnabledAt);
   const stray = await listStrayReceivers(classroomId);
   const strayAmount = stray.reduce((s, i) => s + i.amount, 0);
-  let custodianName = "";
-  if (classroom.legacyCustodianUserId) {
-    const u = await prisma.user.findUnique({
-      where: { id: classroom.legacyCustodianUserId },
-      select: { name: true },
-    });
-    custodianName = u?.name ?? "";
-  }
-
   return [
     {
       key: "branches",
@@ -204,10 +174,6 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
       done: lessons.every((l) => l.splitRule != null),
     },
     {
-      key: "funds",
-      done: locations.length > 0 && locations.every((l) => l.fundOpeningConfirmedAt != null),
-    },
-    {
       key: "receivers",
       done: stray.length === 0,
       ...(stray.length > 0
@@ -215,11 +181,11 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
         : {}),
     },
     {
-      key: "legacyPrepaid",
-      done: classroom.legacyPrepaidConfirmedAt != null,
-      detail: `舊卡 ${legacy.cards} 張、${legacy.sessions} 格、約 $${formatMoney(legacy.amount)}${
-        custodianName ? ` 由 ${custodianName} 保管` : ""
-      }`,
+      key: "opening",
+      done: classroom.financeOpenedAt != null,
+      ...(classroom.financeConversionDate
+        ? { detail: `從 ${classroom.financeConversionDate.toISOString().slice(0, 10).replaceAll("-", "/")} 開帳` }
+        : {}),
     },
   ];
 }

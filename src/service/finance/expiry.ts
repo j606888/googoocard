@@ -67,7 +67,7 @@ export async function expiryEvents(classroomId: number): Promise<ExpiryEvent[]> 
 
 /**
  * expiryEvents ＋ 找不到歸屬的卡（沒有賣卡分部、也沒有舊保管人）：那份過期收入不進任何人的表，
- * 由保管中的 warnings 提醒（custody.ts）。
+ * 由帳本健康檢查提醒。
  */
 export async function loadExpiries(classroomId: number): Promise<{ events: ExpiryEvent[]; unassigned: number[] }> {
   const classroom = await prisma.classroom.findUnique({

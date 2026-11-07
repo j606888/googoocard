@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import prisma from "@/lib/prisma";
 import {
+  createLocation,
   resetDb,
   createClassroom,
   createStudent,
@@ -19,7 +20,8 @@ import { POST as consume } from "@/app/api/lessons/[id]/periods/[periodId]/atten
 import { updateAttendance } from "@/domains/attendance/attendance.service";
 import { performConversion } from "@/service/studentCardConversion";
 import { performTransfer } from "@/service/studentCardTransfer";
-import { getCustody } from "@/service/finance/custody";
+import { syncLedger } from "@/service/ledger/sync";
+import { ensureLedgerSetup } from "@/service/ledger/setup";
 
 // R26：財務開啟時，退格順著轉換／轉讓鏈退到現在那張卡；consume 不能扣已關閉的卡。
 const LAUNCH = new Date("2026-10-31T16:00:00Z");
@@ -53,6 +55,9 @@ describe("finance: refunds follow the conversion chain, consume refuses closed c
   async function enable() {
     await enableFinanceFor(classroomId, { launch: LAUNCH, legacyCustodianUserId: ownerId });
     await prisma.membership.updateMany({ where: { classroomId }, data: { isCustodian: true, canSettle: true } });
+    const loc = await createLocation(classroomId, { name: "台南" });
+    await prisma.location.update({ where: { id: loc.id }, data: { keeperUserId: ownerId } });
+    await ensureLedgerSetup(classroomId);
   }
 
   /** 1000／10 格的卡，上過這堂（扣 1 格、剩 9）。 */
@@ -71,8 +76,12 @@ describe("finance: refunds follow the conversion chain, consume refuses closed c
       actorUserId: ownerId,
     });
 
-  const totalCash = async () =>
-    (await getCustody(classroomId)).users.reduce((sum, u) => sum + u.buckets.cash, 0);
+  /** 帳本上所有資金帳戶的現金（元）。 */
+  const totalCash = async () => {
+    await syncLedger(classroomId);
+    const r = await prisma.journalLine.aggregate({ where: { classroomId, account: { parent: { systemKey: "CASH" } } }, _sum: { amount: true } });
+    return (r._sum.amount ?? 0) / 100;
+  };
   const remaining = async (id: number) => (await prisma.studentCard.findUniqueOrThrow({ where: { id } })).remainingSessions;
 
   it("untick an attendance paid by a converted card → the session goes to the new card, cash unchanged", async () => {

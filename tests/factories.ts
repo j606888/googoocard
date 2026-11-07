@@ -11,8 +11,9 @@ export async function resetDb() {
       "StudentCard", "Lesson", "LessonGroup", "Location", "Card", "DanceStyle", "Student", "Teacher", "InviteToken",
       "Membership", "Classroom", "User", "LineAccount", "RenewalReminder", "PushToken", "WebPushSubscription",
       "NotificationPreference", "Venue", "VenuePack", "LessonSplitRule", "PeriodSplitOverride",
-      "AttendanceAbsence", "FinanceExpense", "FinanceTransfer", "FinanceRefund", "FinanceSettlement", "FinanceBranchReview",
-      "JournalLine", "JournalEntry", "MoneyAccount", "LedgerAccount", "PostingSource" RESTART IDENTITY CASCADE`
+      "AttendanceAbsence", "FinanceExpense", "FinanceRefund",
+      "JournalLine", "JournalEntry", "MoneyAccount", "LedgerAccount", "PostingSource", "Payout", "PayoutRun", "MoneyTransfer",
+      "OwnerTransaction", "CashCount", "FinanceLockLog", "FinanceCloseSignoff" RESTART IDENTITY CASCADE`
   );
 }
 

@@ -43,13 +43,13 @@ export default function FinanceSettingsView() {
       <Section id="teachers" title="老師付款人" hint="每位老師的薪水從誰手上的錢付。換老師或換人付時才要改。">
         <TeacherPayers />
       </Section>
-      <Section id="venues" title="場地與次數包" hint="付場租的對象（外面的場地，或當房東的成員，例如丁丁家）。有新場地時才要動；平常買次數包到「支出與轉帳」記。">
+      <Section id="venues" title="場地與次數包" hint="付場租的對象（外面的場地，或當房東的成員，例如丁丁家）。買了次數包也在這裡記。">
         <VenueSettings />
       </Section>
       <Section id="receivers" title="收的錢在誰手上" hint="收款人不是保管人的錢（例如小幫手代收）會列在這裡，改記到實際拿錢的保管人。平常是空的。">
         <StrayReceivers />
       </Section>
-      <Section id="general" title="成員與其他" hint="誰是保管人、誰可以結算；月結發錢取整；舊卡預收（開帳時確認一次）。">
+      <Section id="general" title="成員與其他" hint="誰是保管人、誰可以結算；發錢取整；舊卡的錢在誰手上（開帳用）。">
         <GeneralSettings />
       </Section>
       <Section id="journal" title="手動分錄" hint="記錯了只能沖銷，不能刪改。新的在「記一筆 → 手動分錄」。">

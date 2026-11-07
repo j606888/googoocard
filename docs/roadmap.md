@@ -5,6 +5,7 @@
 > 更新：2026-10-26（對照程式碼校正各項狀態：P3-1／P3-2／營收 CSV 標註部分完成、更新路徑與 route 清點）
 > 更新：2026-11-01（移除功能模組：水庫、技能樹、模組開關、權限同捆包、今天的助教，見下方「已移除」）
 > 更新：2026-11-02（新版財務 `feat/finance` 待合併，見「新版財務」）
+> 更新：2026-11-08（財務改成真正的會計帳本 `feat/finance-v2`，取代保管中／月結，見「新版財務」）
 > 前提：**production 上已有多間教室在使用**——跨教室資料邊界是實質風險，不是理論問題。
 
 ## 這份文件是什麼
@@ -34,17 +35,14 @@
 
 # 新版財務
 
-- [ ] **財務（新版）** `feat/finance` 分支，待合併（2026-11-02）— 每間教室自己開的分帳／保管中／月結，說明見 `architecture.md`「財務」，設計見 [`superpowers/specs/2026-11-02-finance-design.md`](superpowers/specs/2026-11-02-finance-design.md)。跟已移除的水庫差在哪見 spec §10。
-  - **刻意不做**（第一階段）：包月場地（只有預付次數包）、小幫手保管（收款人只能是財務成員，小幫手代收記成分部負責人收的）、對帳輸入（銀行／實際現金核對）、iOS App 的財務介面（只有網站）、老師端逐人薪水頁。
-  - **已知小缺口／待追蹤**（實作期間 review 留下的，沒有一項會算錯已鎖月份）：
-    - 保管人／分部負責人／付款人是「永遠取現值」：鎖月之後改 `Location.keeperUserId`、`Teacher.payerUserId` 會讓已鎖月份的保管中顯示漂移（快照只存分帳與來源 key，不存當時的保管人）。
-    - ~~`custodyBefore`（月結單的「月結前」）用現在的預收，不是歷史值；`?through` 的預收同為現況。~~ ✅ 2026-11-05 — 鎖月快照存鎖住當時的預收（`SnapshotCore.prepaid`），`?through=已鎖月份` 從快照讀。
-    - 同儕／場地發款 `Math.round` 可能多付 ≤ 0.5 元。
+- [ ] **財務 v2（會計帳本）** `feat/finance-v2` 分支（含 feat/finance 的營運面），待 staging 走一遍、跟 Sean 開帳後合併（2026-11-08）。計畫書 [`finance-v2/`](finance-v2/README.md)，說明見 `architecture.md`「財務」。取代了 feat/finance 的保管中、月結快照、分部核對、已轉（程式與資料表都已刪除，finance 的 migration 壓成一個 `20261108010000_finance`）。
+  - **刻意不做**（第一階段）：包月場地（只有預付次數包）、iOS App 的財務介面（只有網站）、損益表「期間並排」、依角色限制可見度（財務全透明，P8 老師記帳時再做）。
+  - **刻意保留**：`Classroom.legacyCustodianUserId`（計畫書原本要移到開帳參數；它同時被到期、收款人、開帳約定法使用，留在教室上比較單純）。
+  - **已知小缺口／待追蹤**：
+    - 轉換日前的單堂若在轉換日後才收款，不會記收款（單堂少見，先不處理）。
+    - 人的欄位（`Venue.landlordUserId`、`Teacher.payerUserId`、`Location.keeperUserId`／`expiryUserId`、`Classroom.legacyCustodianUserId`、各 `paidByUserId`、`MoneyAccount.holderUserId`）都是純 Int：沒 FK、多數沒索引；`AttendanceAbsence.studentId` 沒有 Student 關聯。
     - 退費、綁課卡鎖定（`BOUND_LESSON_LOCKED` 的計數在交易外）有 check-then-write 競態；最後一位財務的守門（count 再 update）也是。
-    - 人的欄位（`Venue.landlordUserId`、`Teacher.payerUserId`、`Location.keeperUserId`／`expiryUserId`、`Classroom.legacyCustodianUserId`、各 `paidByUserId`）都是純 Int：沒 FK、多數沒索引；`AttendanceAbsence.studentId` 沒有 Student 關聯。
-    - ~~`expireDueCards` 也會關掉 0 格的卡，可能順手清掉 Needs Renewal tag；沒有分部也沒有舊保管人時，過期事件會被靜默略過。~~ ✅ 2026-11-05 — 只關有剩格的卡；找不到歸屬的過期卡變成保管中的 `UNRESOLVED_KEEPER` warning（帶 `studentCardId`）。
-    - ~~有贈送卡的綁課卡刪不掉。~~ ✅ 2026-11-05 — 贈送卡沒用過就一起刪；用過了回 400 `GIFT_USED` 並說明（改用停用）。
-    - 上線後才付款的卡，用在上線日**之前**的時段（例：上線日往回設、或補點上線前的時段）：那份錢離開預收、卻不會變成任何一堂的收入（上線前的時段不算），保管中少記一筆。罕見，先不處理。
+    - 帳本每次讀財務頁都整批重算（跟 feat/finance 讀保管中同量級）；之後真的慢再用 `PostingSource.dirtyAt` 做增量。
     - 沒有排程：到期只靠讀取時觸發，久沒人開的教室要等下次有人操作才會結。
 
 # P0 — 安全性 ✅ 全數完成 2026-08-23

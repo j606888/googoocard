@@ -13,9 +13,8 @@ const ITEMS: Record<ChecklistKey, { label: string; href: string }> = {
   teachers: { label: "有進行中課的老師設好付款人", href: "/finance/settings#teachers" },
   venues: { label: "建立場地，次數包補上剩幾次", href: "/finance/settings#venues" },
   rules: { label: "每門進行中的課設分帳規則", href: "/lessons" },
-  funds: { label: "確認各分部公積金期初", href: "/finance/settings#branches" },
   receivers: { label: "收的錢改記到保管人名下（含上線前還有剩格的卡）", href: "/finance/settings#receivers" },
-  legacyPrepaid: { label: "確認舊卡預收總額", href: "/finance/settings#legacy" },
+  opening: { label: "開帳：選轉換日，確認期初資產負債表", href: "/finance/opening" },
 };
 
 /** 開帳清單：沒做完的項目一直顯示在 /finance 上方，做完整塊消失。 */
