@@ -43,7 +43,9 @@
 - feat/finance `setup.ts` 開帳清單前半（分部、課標分部、老師、場地、規則）沿用，接上後半。
 - 驗收：用本機正式資料副本（`local-from-prod.sh`）以約定法開帳，期初資產負債表平衡、預收 ＝ 舊卡剩餘價值總和（2026-10-30 副本約 $71,422，以實際為準）。
 
-## P4 · 報表（API＋最陽春的表格畫面）
+## P4 · 報表（API＋最陽春的表格畫面）✅ 2026-11-07
+> 完成：`src/domains/ledger/reports.ts`（損益、資產負債、現金流量、預收 rollforward、對象餘額／帳齡、每堂獲利、總分類帳、試算表）、`src/service/ledger/reports.ts`（先過帳再算；對象名稱）、`GET /api/finance/reports/[name]`（金額單位「分」）、`/finance/reports`＋`/finance/reports/[name]` 陽春表格、`tests/api/ledger-reports.test.ts`（十一月情境 9 案）、共用情境 `tests/ledgerScenario.ts`。
+> 畫面只做到能看數字（沒有在瀏覽器實際點過；P6 依設計稿重做）。財務首頁、導覽還沒接到新報表。
 - 試算表、總分類帳、損益表、資產負債表、現金流量、預收餘額 rollforward、應收帳齡、應付明細、課程獲利（05 §3.2–3.6）。
 - 全部從 `JournalLine` 查；分部、期間參數一致。
 - 驗收：每張表加總與 `checkLedger` 一致；資產負債表平衡；drill-down 到來源。
