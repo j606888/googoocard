@@ -150,7 +150,7 @@ Unresolved attendance cases surface as `uncheckedType` on the `AttendanceRecord`
 
 ### 學生自助簽到與老師定案的整合
 
-學生自助簽到**只走 LINE LIFF**（`/liff/checkin`，以 LINE ID Token 驗身分）：從 LINE 選單進來，或用手機相機掃門口海報 QR（`liff.line.me/{LIFF_ID}/checkin?key=<Classroom.checkinKey>`，`checkinEntryUrl()`）。舊的 `/checkin/[key]` 只 redirect 到 LIFF——不驗身分的名單點名已移除。帶 `key` 時若這個 LINE 在該教室沒有學生，會走「第一次來」自助登記（`POST /api/liff/register`，同名不擋、交給待處理「可能重複」＋合併學員）。
+學生自助簽到**只走 LINE LIFF**（`/liff/checkin`，以 LINE ID Token 驗身分）：從 LINE 選單進來，或用手機相機掃門口海報 QR（`liff.line.me/{LIFF_ID}/checkin?key=<Classroom.checkinKey>`，`checkinEntryUrl()`）。舊的 `/checkin/[key]` 只 redirect 到 LIFF——不驗身分的名單點名已移除。帶 `key` 時若這個 LINE 在該教室沒有學生，會問「第一次來嗎？」：第一次來 → 自助登記（`POST /api/liff/register`，同名不擋、交給待處理「可能重複」＋合併學員）；上過課 → 從未綁定的名單認領自己並綁 LINE（`/api/liff/claim`，記 `lineSelfClaimedAt`、進待處理讓老師確認）。
 
 `selfCheckIn` 建 `AttendanceRecord` 且 `source = STUDENT`，**不設** `attendanceTakenAt`，留給老師定案；卡在自助簽到當下就扣。LIFF 一律 `requireCard`：學生選自己的卡（`studentCardId`）或當場買這堂課掛的卡（`buyCardId`，未付款、下課付；體驗卡不在這裡賣——老師在課程頁「體驗名單」登記），任何一個時段會沒卡就整筆拒絕（`card_required`）、什麼都不寫。「今天有哪些課」與每堂課的卡況由 `src/service/checkin.ts` 的 `getTodayLessons()` 統一定義。老師後台點名（`CheckPeriod` / `PeriodAttendanceForm`）載入時會以 `GET .../attendance` 帶出該時段已存在的紀錄，**預設勾選**，並對 `source = STUDENT` 者標上「自助簽到」徽章，另標「未付 $X」「新學員」；課程頁體驗名單上已報名的人也預設勾選、標「體驗報名」，引擎優先扣他們的體驗卡。
 

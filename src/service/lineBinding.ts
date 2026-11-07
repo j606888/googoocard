@@ -27,6 +27,7 @@ function releasedLine(avatarUrl: string) {
   return {
     lineUserId: null,
     lineDisplayName: null,
+    lineSelfClaimedAt: null,
     ...(isLinePicture(avatarUrl) ? { avatarUrl: DEFAULT_STUDENT_AVATAR } : {}),
   };
 }
@@ -66,6 +67,8 @@ export async function bindStudentLine(
         lineUserId,
         lineBindKey: null,
         lineDisplayName: line?.displayName ?? null,
+        // A binding the teacher handed out is already confirmed.
+        lineSelfClaimedAt: null,
         ...(line?.pictureUrl && isReplaceableByLinePicture(student.avatarUrl) ? { avatarUrl: line.pictureUrl } : {}),
       },
     });
@@ -79,6 +82,73 @@ export async function bindStudentLine(
     });
     return { previous };
   });
+}
+
+export class ClaimError extends Error {
+  constructor(public code: "already_bound" | "not_found") {
+    super(code);
+  }
+}
+
+/**
+ * 「我來上過課」：a LINE account with no student in this classroom picks itself
+ * from the unbound roster at the on-site QR and is bound straight away, so it
+ * can check in now and use the LINE menu from then on. Anyone could pick anyone,
+ * so it's marked `lineSelfClaimedAt` and listed in the teacher's 待處理 until
+ * confirmed (`confirmLineSelfClaim`) or undone (`unbindStudentLine`).
+ *
+ * Only an unbound, in-class student can be claimed — a bound one can't be taken
+ * over — and the check happens under a row lock so two people can't claim the
+ * same student at once.
+ */
+export async function claimStudentLine(
+  classroomId: number,
+  studentId: number,
+  lineUserId: string,
+  line: LineProfile | null
+) {
+  return prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<{ id: number }[]>`
+      SELECT id FROM "Student"
+      WHERE id = ${studentId} AND "classroomId" = ${classroomId} AND "archivedAt" IS NULL
+      FOR UPDATE`;
+    if (rows.length === 0) throw new ClaimError("not_found");
+
+    const [student, mine] = await Promise.all([
+      tx.student.findUniqueOrThrow({
+        where: { id: studentId },
+        select: { id: true, name: true, avatarUrl: true, lineUserId: true },
+      }),
+      tx.student.findFirst({ where: { classroomId, lineUserId, archivedAt: null }, select: { id: true } }),
+    ]);
+    if (student.lineUserId) throw new ClaimError("already_bound");
+    // This account already has a student here — the gate never offers a claim then.
+    if (mine) throw new ClaimError("already_bound");
+
+    await tx.student.update({
+      where: { id: studentId },
+      data: {
+        lineUserId,
+        lineBindKey: null,
+        lineDisplayName: line?.displayName || null,
+        lineSelfClaimedAt: new Date(),
+        ...(line?.pictureUrl && isReplaceableByLinePicture(student.avatarUrl) ? { avatarUrl: line.pictureUrl } : {}),
+      },
+    });
+    const notes = ["掃現場 QR 從名單認領", nameNote(line?.displayName || null)];
+    await lineEvent(tx, studentId, LINE_BOUND_EVENT, notes.filter(Boolean).join(" · "));
+    await tx.lineAccount.upsert({
+      where: { lineUserId },
+      update: { menuMode: "STUDENT", selectedStudentId: studentId },
+      create: { lineUserId, menuMode: "STUDENT", selectedStudentId: studentId },
+    });
+    return { id: student.id, name: student.name };
+  });
+}
+
+/** Teacher checked a self-claim in 待處理 and it's the right person. */
+export async function confirmLineSelfClaim(studentId: number) {
+  await prisma.student.update({ where: { id: studentId }, data: { lineSelfClaimedAt: null } });
 }
 
 /**

@@ -202,7 +202,7 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
       tags: f.tags.includes(name) ? f.tags.filter((t) => t !== name) : [...f.tags, name],
     }));
 
-  const toggleFlag = (key: "inActiveLesson" | "recentlyAttended" | "noActiveCard" | "lowRemaining" | "unpaid") =>
+  const toggleFlag = (key: "inActiveLesson" | "recentlyAttended" | "noActiveCard" | "lowRemaining" | "unpaid" | "lineUnbound") =>
     setFilters((f) => ({ ...f, [key]: !f[key] }));
 
   const hasNeedsRenewalTag = tags.some((tag) => tag.name === NEEDS_RENEWAL_TAG);
@@ -246,6 +246,13 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
       }).length,
       active: filters.recentlyAttended,
       toggle: () => toggleFlag("recentlyAttended"),
+    },
+    {
+      key: "lineUnbound",
+      label: "未綁 LINE",
+      count: allStudents.filter((s) => s.lineBound === false).length,
+      active: filters.lineUnbound,
+      toggle: () => toggleFlag("lineUnbound"),
     },
   ];
 
@@ -463,7 +470,7 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
         {list}
 
         <div className="flex flex-col gap-3">
-          <UnboundLineEntry />
+          {filters.lineUnbound && <UnboundLineEntry />}
           <ArchivedStudents />
         </div>
 
@@ -526,7 +533,7 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
 
       {list}
 
-      <UnboundLineEntry className="px-4 pt-4" />
+      {filters.lineUnbound && <UnboundLineEntry className="px-4 pt-4" />}
       <ArchivedStudents className="px-4 py-4" />
 
       {drawer}
