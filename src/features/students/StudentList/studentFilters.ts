@@ -12,6 +12,7 @@ export interface StudentFilters {
   noActiveCard: boolean; // 手上沒有任何剩餘堂數
   lowRemaining: boolean; // 還有堂數、但剩 ≤ LOW_REMAINING_SESSIONS
   unpaid: boolean; // 有未付款的課卡
+  lineUnbound: boolean; // 還沒綁定 LINE
 }
 
 export const EMPTY_FILTERS: StudentFilters = {
@@ -23,6 +24,7 @@ export const EMPTY_FILTERS: StudentFilters = {
   noActiveCard: false,
   lowRemaining: false,
   unpaid: false,
+  lineUnbound: false,
 };
 
 /** 「近期上課」的界線；也是名單列上「N 天前」轉為提醒色的門檻。 */
@@ -141,6 +143,7 @@ export const loadStudentFilters = (classroomId: number): StudentFilters => {
       noActiveCard: Boolean(parsed.noActiveCard),
       lowRemaining: Boolean(parsed.lowRemaining),
       unpaid: Boolean(parsed.unpaid),
+      lineUnbound: Boolean(parsed.lineUnbound),
     };
   } catch {
     return EMPTY_FILTERS;
@@ -163,7 +166,8 @@ export const countActiveFilters = (f: StudentFilters): number =>
   (f.recentlyAttended ? 1 : 0) +
   (f.noActiveCard ? 1 : 0) +
   (f.lowRemaining ? 1 : 0) +
-  (f.unpaid ? 1 : 0);
+  (f.unpaid ? 1 : 0) +
+  (f.lineUnbound ? 1 : 0);
 
 export const applyStudentFilters = (
   students: Student[],
@@ -187,6 +191,7 @@ export const applyStudentFilters = (
     if (f.noActiveCard && remainingSessions(s) > 0) return false;
     if (f.lowRemaining && !isLowRemaining(s)) return false;
     if (f.unpaid && !s.hasUnpaidCard) return false;
+    if (f.lineUnbound && s.lineBound !== false) return false;
     return true;
   });
 

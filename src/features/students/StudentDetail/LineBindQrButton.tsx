@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { X } from "lucide-react";
 import ResponsiveDialog, { ResponsiveDialogTitle } from "@/components/ResponsiveDialog";
@@ -14,16 +14,19 @@ const LineBindQrButton = ({
   deepLink,
   studentName,
   className,
+  children = "顯示 QR",
 }: {
   deepLink: string;
   studentName: string;
   className?: string;
+  /** 按鈕內容；預設「顯示 QR」 */
+  children?: ReactNode;
 }) => {
   const [open, setOpen] = useState(false);
   return (
     <>
       <button type="button" className={className} onClick={() => setOpen(true)}>
-        顯示 QR
+        {children}
       </button>
       <ResponsiveDialog open={open} onClose={() => setOpen(false)}>
         <div className="relative flex items-center justify-center mb-4">

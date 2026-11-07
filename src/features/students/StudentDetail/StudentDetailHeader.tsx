@@ -2,9 +2,14 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, Archive, ChevronLeft, SquarePen } from "lucide-react";
+import { ArrowLeft, Archive, ChevronLeft, QrCode, SquarePen } from "lucide-react";
 import { toast } from "sonner";
-import { StudentWithDetail, useSetStudentArchivedMutation } from "@/store/slices/students";
+import {
+  StudentWithDetail,
+  useGetStudentLineBindLinkQuery,
+  useSetStudentArchivedMutation,
+} from "@/store/slices/students";
+import LineBindQrButton from "./LineBindQrButton";
 import EditStudent from "./BasicSection/EditStudent";
 import BuyCard from "./CardsSection/BuyCard";
 import StudentActionsMenu from "./StudentActionsMenu";
@@ -41,7 +46,30 @@ const ArchivedBanner = ({ student }: { student: StudentWithDetail }) => {
 
 const iconButton = buttonVariants({ variant: "ghost", size: "icon" });
 
-/** 舞種資格（全名）、需續約、其他標籤——三種頁首共用。 */
+/**
+ * 還沒綁 LINE：頁首就標出來，點一下直接開綁定 QR 讓學生當場掃
+ * （原本只在「資料」分頁裡，找不到）。已綁定就不佔位置。
+ */
+const LineUnboundBadge = ({ student }: { student: StudentWithDetail }) => {
+  const { data } = useGetStudentLineBindLinkQuery({ id: student.id }, { skip: Boolean(student.archivedAt) });
+  if (!data || data.bound) return null;
+  const tag = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold";
+  if (!data.deepLink) {
+    return <span className={`${tag} bg-neutral-100 text-neutral-600`}>未綁 LINE</span>;
+  }
+  return (
+    <LineBindQrButton
+      deepLink={data.deepLink}
+      studentName={student.name}
+      className={`${tag} bg-neutral-100 text-neutral-700 hover:bg-[#06C755] hover:text-white transition-colors`}
+    >
+      <QrCode className="w-3.5 h-3.5" />
+      未綁 LINE · 綁定 QR
+    </LineBindQrButton>
+  );
+};
+
+/** 舞種資格（全名）、需續約、其他標籤、未綁 LINE——三種頁首共用。 */
 const StudentBadges = ({ student }: { student: StudentWithDetail }) => {
   const tags = student.tags ?? [];
   const needsRenewal = tags.some((tag) => tag.name === NEEDS_RENEWAL_TAG);
@@ -57,6 +85,7 @@ const StudentBadges = ({ student }: { student: StudentWithDetail }) => {
           {tag.name}
         </StatusTag>
       ))}
+      <LineUnboundBadge student={student} />
     </>
   );
 };

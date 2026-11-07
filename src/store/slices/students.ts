@@ -39,6 +39,10 @@ export interface Student {
   isNewStudent?: boolean;
   /** 近 9 週內每次出席那堂課的上課時間（名單的「近 8 週出席」方格）。只有名單 API 會帶。 */
   recentAttendAt?: string[];
+  /** 有沒有綁定 LINE（不會給 LINE id 本身）。只有名單 API 會帶。 */
+  lineBound?: boolean;
+  /** 學生在門口自己認領、老師還沒確認。只有名單 API 會帶。 */
+  lineSelfClaimed?: boolean;
 }
 
 export interface Event {
@@ -319,6 +323,11 @@ const studentsApi = api.injectEndpoints({
       query: ({ id }) => ({ url: `students/${id}/line-binding`, method: "DELETE" }),
       invalidatesTags: ["Student"],
     }),
+    // 「待處理」的 LINE 自助認領按「沒問題」
+    confirmLineSelfClaim: builder.mutation<{ ok: true }, { id: number }>({
+      query: ({ id }) => ({ url: `students/${id}/line-claim`, method: "DELETE" }),
+      invalidatesTags: ["Student"],
+    }),
     createStudent: builder.mutation<
       Student,
       { name: string; avatarUrl: string; note?: string }
@@ -491,6 +500,7 @@ export const {
   useGetLineInvitesQuery,
   useMarkLineInviteSentMutation,
   useUnbindStudentLineMutation,
+  useConfirmLineSelfClaimMutation,
   useCreateStudentMutation,
   useUpdateStudentMutation,
   useSetStudentArchivedMutation,

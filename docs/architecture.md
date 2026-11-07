@@ -220,7 +220,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - 該教室沒有學生 → 403 `not_bound`，附 `classroomName`、`lineName`、`linePicture`（`verifyIdToken` 從 LINE verify 回應取 `name` / `picture`，要 LIFF 有 `profile` scope）→ `FirstTimeGate`：
   - 「是，第一次來」→ 填暱稱（預填 LINE 名稱）→ `POST /api/liff/register { key, name }` → `registerLineStudent()`（`src/service/student.ts`）。先 `SELECT … FOR UPDATE` 鎖教室列，所以重複送出／並發只會建一位、學號不會跳號；頭像用 LINE 頭像（`next.config.ts` 已允許 `profile.line-scdn.net`），寫 Event「自助登記」、`LineAccount` 切到 STUDENT。
   - **同名不擋**（跟老師端建立學生不同），交給待處理「可能重複」＋合併學員。
-  - 「我來上過課」→ 不提供從名單認領自己（會被冒用），請小幫手在學生資料頁打開「顯示 QR」讓學生用 LINE 掃綁定。
+  - 「我來上過課」→ 從名單認領自己（`/api/liff/claim`、`claimStudentLine()`，2026-11-08 起）：要打字搜尋才列人，只列**未綁 LINE、在籍**的學生，選了就直接綁定並進簽到。可能被冒用，所以記 `Student.lineSelfClaimedAt`，列在老師「待處理 › 提醒 › LINE 自助認領」，老師按「沒問題」（`DELETE /api/students/[id]/line-claim`）或「解除」（解除綁定，一併清掉；認錯人已扣的那堂要到點名取消勾選才退卡）。點名名單上標「自助認領」。不另外推播。
 
 ### 引擎（`selfCheckIn()`，`src/domains/attendance/attendance.service.ts`）
 

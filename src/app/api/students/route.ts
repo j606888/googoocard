@@ -138,6 +138,10 @@ export async function GET(request: Request) {
       unpaidAmount: unpaidByStudent.get(student.id) ?? 0,
       isNewStudent: !returningIds.has(student.id),
       recentAttendAt: recentAttendByStudent.get(student.id) ?? [],
+      // Only whether — never the LINE id itself.
+      lineBound: student.lineUserId !== null,
+      // Claimed themselves at the door, not yet confirmed (點名 shows「自助認領」).
+      lineSelfClaimed: student.lineSelfClaimedAt !== null,
       studentCards: activeStudentCards.map((studentCard) => ({
         ...studentCard,
         card: studentCard.card,

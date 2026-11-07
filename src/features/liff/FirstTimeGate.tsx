@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, fieldControlClass } from "@/components/Field";
 import { cn } from "@/lib/utils";
+import ClaimSelf from "./ClaimSelf";
 
 export interface FirstTimePrefill {
   classroomName: string;
@@ -16,8 +17,8 @@ export interface FirstTimePrefill {
 /**
  * On-site QR, and this LINE account has no student in the classroom yet
  * (設計稿 B1 → B2). 「第一次來」registers with just a nickname; 「我來上過課」
- * deliberately has no self-claim from the roster (anyone could claim anyone) —
- * a 小幫手 binds them from the student's page instead.
+ * searches the unbound roster and claims itself (ClaimSelf) — anyone could claim
+ * anyone, so each claim waits in the teacher's 待處理 to be confirmed or undone.
  */
 export default function FirstTimeGate({
   prefill,
@@ -125,13 +126,12 @@ export default function FirstTimeGate({
     return (
       <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-neutral-50">
         {header}
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
-          <Users className="h-10 w-10 text-primary-700" />
-          <h2 className="text-xl font-semibold">請找小幫手幫你綁定 LINE</h2>
-          <p className="leading-relaxed text-neutral-600">
-            小幫手會在你的學生資料打開綁定 QR Code，用 LINE 掃一下就好，之後就能自己報到。
-          </p>
-        </div>
+        <ClaimSelf
+          idToken={idToken}
+          checkinKey={checkinKey}
+          onClaimed={onRegistered}
+          onFirstTime={() => setStep("name")}
+        />
       </div>
     );
   }
@@ -170,7 +170,7 @@ export default function FirstTimeGate({
             <Users className="h-6 w-6 shrink-0 text-neutral-600" />
             <span className="flex-1">
               <span className="block text-lg font-bold">我來上過課</span>
-              <span className="block text-sm text-neutral-600">請小幫手幫你綁定 LINE</span>
+              <span className="block text-sm text-neutral-600">找到自己、綁定 LINE 就能報到</span>
             </span>
             <ChevronRight className="h-5 w-5 text-neutral-400" />
           </button>
