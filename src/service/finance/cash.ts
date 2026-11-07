@@ -1,3 +1,4 @@
+import { syncLedger } from "@/service/ledger/sync";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
@@ -55,6 +56,9 @@ export const expenseSchema = z.object({
   category: z.string().trim().min(1).max(20),
   paidByUserId: z.number().int().positive(),
   note: z.string().trim().max(500).optional(),
+  // 財務 v2：從哪個資金帳戶付（不填＝付款人的預設帳戶）；isAdvance＝付款人自己先墊（記應付業主款）。
+  moneyAccountId: z.number().int().positive().optional(),
+  isAdvance: z.boolean().optional(),
 });
 
 export const transferSchema = z.object({
@@ -76,8 +80,22 @@ export async function createExpense(
 ) {
   const location = await prisma.location.findFirst({ where: { id: body.locationId, classroomId } });
   if (!location) throw new ApiError(404, "NOT_FOUND", "Location not found");
-  await assertCustodian(body.paidByUserId, classroomId);
-  return prisma.financeExpense.create({
+  if (body.isAdvance) {
+    // 代墊：誰都可以墊（不用是保管人），只要是這間教室的成員。
+    const m = await prisma.membership.findUnique({ where: { userId_classroomId: { userId: body.paidByUserId, classroomId } } });
+    if (!m) throw new ApiError(400, "INVALID_USER", "Not a member of this classroom");
+  } else {
+    await assertCustodian(body.paidByUserId, classroomId);
+  }
+  if (body.moneyAccountId !== undefined && !body.isAdvance) {
+    const ma = await prisma.moneyAccount.findFirst({ where: { id: body.moneyAccountId, classroomId, archivedAt: null } });
+    if (!ma) throw new ApiError(400, "INVALID_MONEY_ACCOUNT", "Money account not found");
+  }
+  const c = await prisma.classroom.findUnique({ where: { id: classroomId }, select: { financeLockDate: true } });
+  if (c?.financeLockDate && body.date <= c.financeLockDate.toISOString().slice(0, 10)) {
+    throw new ApiError(409, "PERIOD_LOCKED", "The ledger is locked for this date");
+  }
+  const created = await prisma.financeExpense.create({
     data: {
       classroomId,
       date: dateOf(body.date),
@@ -85,11 +103,15 @@ export async function createExpense(
       locationId: body.locationId,
       category: body.category,
       paidByUserId: body.paidByUserId,
+      moneyAccountId: body.isAdvance ? null : (body.moneyAccountId ?? null),
+      isAdvance: !!body.isAdvance,
       note: body.note ?? null,
       createdById: userId,
     },
     select: expenseSelect,
   });
+  await syncLedger(classroomId);
+  return created;
 }
 
 export async function createTransfer(

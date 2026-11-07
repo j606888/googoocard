@@ -40,7 +40,7 @@ type Ctx = {
   locations: { id: number; name: string }[];
 };
 
-async function loadCtx(classroomId: number): Promise<Ctx> {
+export async function loadCtx(classroomId: number): Promise<Ctx> {
   const c = await prisma.classroom.findUnique({ where: { id: classroomId }, select: { financeEnabledAt: true } });
   if (!c?.financeEnabledAt) throw new ApiError(404, "FINANCE_NOT_ENABLED", "Finance is not enabled");
   await syncLedger(classroomId);

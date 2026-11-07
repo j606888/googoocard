@@ -119,6 +119,8 @@ export interface ExpenseInput {
   category: string;
   paidByUserId: number;
   note?: string;
+  moneyAccountId?: number;
+  isAdvance?: boolean;
 }
 
 export type PackInput =

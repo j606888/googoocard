@@ -1,13 +1,12 @@
 "use client";
 
-import Navbar from "@/features/Navbar";
 import FinanceSettingsView from "@/features/finance/FinanceSettingsView";
+import { FinanceShell } from "@/features/finance/v2/ui";
 
 const FinanceSettingsPage = () => (
-  <>
-    <Navbar />
+  <FinanceShell title="財務設定">
     <FinanceSettingsView />
-  </>
+  </FinanceShell>
 );
 
 export default FinanceSettingsPage;

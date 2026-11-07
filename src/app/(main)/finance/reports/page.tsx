@@ -1,13 +1,7 @@
 "use client";
 
-import Navbar from "@/features/Navbar";
-import { LedgerReportsIndex } from "@/features/finance/ledger/LedgerReports";
+import { ReportsIndex } from "@/features/finance/v2/Reports";
 
-const LedgerReportsPage = () => (
-  <>
-    <Navbar />
-    <LedgerReportsIndex />
-  </>
-);
+const LedgerReportsPage = () => <ReportsIndex />;
 
 export default LedgerReportsPage;

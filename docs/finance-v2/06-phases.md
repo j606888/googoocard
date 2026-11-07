@@ -66,6 +66,10 @@
 - 驗收：十一月情境走完付款後，應付老師、應付場地、分部往來皆為 0；資金帳戶餘額 ＝ spec §14.6 的「轉完之後」（丁丁 $5,050、Sean −$2,127；現金只看收付，跟舊版應該相同）。分部資產負債表：台南 現金 5,050＋應收 2,000（阿傑）＝ 預收 7,066.67（含阿傑剩 5 格）＋待學生付款 222.22（丁丁、Charlene 各 111.11）＋公積金 −238.89（舊版 −350 再加上阿傑那格已認列的 111.11）；高雄 現金 −2,127＋預付場地 3,645 ＝ 預收 1,666.67＋公積金約 −148.67。
 
 ## P6 · 設計稿 → 畫面
+> 2026-11-08 設計稿第一版：https://claude.ai/artifact/HS4rYcg7kpaAw1tLqsSqN3 （10 張：總覽、損益表、資產負債表、付款批次、老師報酬單（手機）、記一筆抽屜、資金帳戶與盤點、結帳、開帳最後一步、手機總覽；數字取自十一月情境）。丁丁確認照做（2026-11-08）。
+> 畫面完成（2026-11-08）：`src/features/finance/v2/`（`ui.tsx` 外框＋金額、`Overview`、`Reports`、`Payouts`、`TeacherStatement`、`RecordDrawer`、`Accounts`、`Close`、`Opening`、`SettingsExtras`），頁面 `/finance`、`/finance/reports[/name]`、`/finance/payouts[/teachers/[id]]`、`/finance/accounts`、`/finance/close`、`/finance/opening`，`/finance/settings` 套上新外框並加開帳與手動分錄清單。新 API：`GET /api/finance/overview`、`GET /api/finance/statements/teachers/[id]`、`GET /api/finance/ledger/accounts`；支出 API 加 `moneyAccountId`／`isAdvance`（代墊）並檢查鎖帳日。`tests/api/ledger-overview.test.ts`。
+> 本機瀏覽器看過：總覽、損益表、記一筆、開帳精靈、結帳都正常顯示（本機 Bailamore 還沒開帳，數字不完整）。
+> 未做：損益表「期間並排」、記一筆裡的「買次數包」（仍在場地設定）、舊頁面（`/finance/settle`、`/finance/expenses`、`/finance/report`、`FinanceHome`）沒有入口了，P7 刪除。
 - 先做設計稿（05 §6 清單），丁丁確認後再刻畫面。總覽、報表、付款、記一筆、開帳、結帳。
 
 ## P7 · 收尾與上線

@@ -7,6 +7,7 @@ import { syncLedger } from "./sync";
 import { checkLedger } from "./check";
 import { loadLedgerInputs, dateKeyOfDbDate } from "./load";
 import { dbDate, ledgerDates, membershipOf, todayKey, ymd } from "./guard";
+import { partyNames } from "./reports";
 
 export const lockSchema = z.object({ lockDate: ymd.nullable(), note: z.string().trim().max(200).optional() });
 
@@ -127,12 +128,13 @@ export async function getCloseChecklist(classroomId: number, asOf: string) {
     return last === null || (from !== null && last <= from);
   });
   const signed = new Set(signoffs.map((s) => s.locationId));
+  const arName = await partyNames(classroomId, ar.map((r) => ({ partyType: r.partyType, partyId: r.partyId })));
 
   const items = [
     { key: "ATTENDANCE", done: unchecked.length === 0, count: unchecked.length,
       details: unchecked.map((p) => ({ periodId: p.id, lessonId: p.lesson.id, lessonName: p.lesson.name, startTime: p.startTime })) },
     { key: "RECEIVABLES", done: ar.length === 0, count: ar.length, total: ar.reduce((s, r) => s + Number(r.amount), 0),
-      details: ar.map((r) => ({ partyType: r.partyType, partyId: r.partyId, amount: Number(r.amount) })) },
+      details: ar.map((r) => ({ partyType: r.partyType, partyId: r.partyId, name: arName(r.partyType, r.partyId), amount: Number(r.amount) })) },
     { key: "SPLIT_RULES", done: noRule.size === 0, count: noRule.size,
       details: [...noRule.values()].map((x) => ({ ...x, lessonName: lessonNames.get(x.lessonId) ?? "" })) },
     { key: "LEDGER_HEALTH", done: problems.length === 0, count: problems.length, details: problems.slice(0, 50) },

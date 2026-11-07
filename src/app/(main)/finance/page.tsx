@@ -1,13 +1,7 @@
 "use client";
 
-import Navbar from "@/features/Navbar";
-import FinanceHome from "@/features/finance/FinanceHome";
+import Overview from "@/features/finance/v2/Overview";
 
-const FinancePage = () => (
-  <>
-    <Navbar />
-    <FinanceHome />
-  </>
-);
+const FinancePage = () => <Overview />;
 
 export default FinancePage;

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import type { ReactNode } from "react";
 import EmptyState from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +11,7 @@ import StrayReceivers from "./StrayReceivers";
 import TeacherPayers from "./TeacherPayers";
 import { useCanSettle } from "./useCanSettle";
 import VenueSettings from "./VenueSettings";
+import { JournalList, OpeningCard } from "./v2/SettingsExtras";
 
 /** `hint`：標題下一行灰字，說什麼時候要動它。 */
 function Section({ id, title, hint, children }: { id: string; title: string; hint: string; children: ReactNode }) {
@@ -34,14 +34,9 @@ export default function FinanceSettingsView() {
   if (!canSettle) return <EmptyState kind="page" title="只有可以結算的人能改財務設定" />;
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4 p-4 lg:p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-bold text-neutral-900">財務設定</h1>
-        <Link href="/finance" className="text-sm font-medium text-primary-700 underline-offset-4 hover:underline">
-          回財務
-        </Link>
-      </div>
+    <div className="flex max-w-3xl flex-col gap-4">
       <SetupChecklist />
+      <OpeningCard />
       <Section id="branches" title="分部" hint="開帳時設一次：負責人、公積金期初、過期的錢歸誰。之後很少動。">
         <BranchSettings />
       </Section>
@@ -56,6 +51,9 @@ export default function FinanceSettingsView() {
       </Section>
       <Section id="general" title="成員與其他" hint="誰是保管人、誰可以結算；月結發錢取整；舊卡預收（開帳時確認一次）。">
         <GeneralSettings />
+      </Section>
+      <Section id="journal" title="手動分錄" hint="記錯了只能沖銷，不能刪改。新的在「記一筆 → 手動分錄」。">
+        <JournalList />
       </Section>
     </div>
   );

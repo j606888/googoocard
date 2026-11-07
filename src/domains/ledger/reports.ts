@@ -115,7 +115,7 @@ export function profitAndLoss(rows: LedgerRow[], accounts: AccountMeta[], range:
 // ---------------------------------------------------------------------------
 // 資產負債表
 // ---------------------------------------------------------------------------
-export type BsLine = { key: string; label: string; byLocation: Record<number, number>; total: number };
+export type BsLine = { key: string; label: string; byLocation: Record<number, number>; total: number; code?: string; group?: "CASH" };
 export type BalanceSheet = {
   asOf: string;
   assets: BsLine[];
@@ -142,12 +142,12 @@ export function balanceSheet(rows: LedgerRow[], accounts: AccountMeta[], asOf: s
   const interbranch = accounts.find((a) => a.systemKey === "INTERBRANCH");
 
   const assets: BsLine[] = [
-    ...cashChildren.map((a) => lineFor(`A:${a.id}`, a.name, (r) => r.accountId === a.id, 1)),
-    ...assetAccounts.map((a) => lineFor(`A:${a.id}`, a.name, (r) => r.accountId === a.id, 1)),
+    ...cashChildren.map((a) => ({ ...lineFor(`A:${a.id}`, a.name, (r) => r.accountId === a.id, 1), code: a.code, group: "CASH" as const })),
+    ...assetAccounts.map((a) => ({ ...lineFor(`A:${a.id}`, a.name, (r) => r.accountId === a.id, 1), code: a.code })),
   ];
   const liabilities: BsLine[] = accounts
     .filter((a) => a.type === "LIABILITY")
-    .map((a) => lineFor(`A:${a.id}`, a.name, (r) => r.accountId === a.id, -1));
+    .map((a) => ({ ...lineFor(`A:${a.id}`, a.name, (r) => r.accountId === a.id, -1), code: a.code }));
   if (interbranch) {
     // 分部往來：借方餘額（別的分部欠我）算資產，貸方餘額（我欠別的分部）算負債；全教室合計為 0。
     const mine = upTo.filter((r) => r.accountId === interbranch.id);

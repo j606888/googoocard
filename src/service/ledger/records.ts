@@ -118,12 +118,16 @@ export async function listMoneyAccounts(classroomId: number) {
     _sum: { amount: true },
   });
   const bal = new Map(balances.map((b) => [b.accountId, b._sum.amount ?? 0]));
+  const users = await prisma.user.findMany({ where: { id: { in: accounts.map((a) => a.holderUserId) } }, select: { id: true, name: true } });
+  const nameOf = new Map(users.map((u) => [u.id, u.name]));
   return {
     today,
     accounts: accounts.map(({ account, accountId, ...a }) => {
       const last = counts.find((c) => c.moneyAccountId === a.id);
       return {
         ...a,
+        accountId,
+        holderName: nameOf.get(a.holderUserId) ?? "",
         code: account.code,
         balance: bal.get(accountId) ?? 0,
         lastCount: last ? { id: last.id, date: dateKeyOfDbDate(last.date), difference: last.counted - last.systemBalance } : null,
