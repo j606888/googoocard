@@ -15,7 +15,8 @@
 - [x] feat/finance 不先合併。
 - 產出：README 的決策表更新為「定案」。
 
-## P1 · 帳本核心（純函式＋schema，無畫面）
+## P1 · 帳本核心（純函式＋schema，無畫面）✅ 2026-11-07
+> 完成：migration `ledger_core`；`src/domains/ledger/{money,accounts,lines}.ts`＋`ledger.test.ts`；`src/service/ledger/setup.ts`（`ensureLedgerSetup`，啟用財務與設分部負責人時呼叫）＋`tests/api/ledger-setup.test.ts`。科目表程式名稱為 `LedgerAccount`。
 - `Account`、`MoneyAccount`、`JournalEntry`、`JournalLine`、`PostingSource`、`Classroom.financeConversionDate`／`financeLockDate`。
 - 科目表種子（02 §2），啟用財務時建立；每個保管人建一個預設資金帳戶（現金，分部＝他負責的分部）。
 - `src/domains/ledger/`：`balanceByBranch`、`diffLines`、金額（分）工具、卡的每格價值分配（最後一格吃尾差）。

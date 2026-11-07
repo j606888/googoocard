@@ -8,7 +8,7 @@
 
 ```
 營運資料（已有，不動）            財務子帳（feat/finance 沿用）          總帳（v2 新增）
-StudentCard / AttendanceRecord    LessonSplitRule / PeriodSplitOverride   Account（科目表）
+StudentCard / AttendanceRecord    LessonSplitRule / PeriodSplitOverride   LedgerAccount（科目表）
 AttendanceAbsence / DropInCharge  Venue / VenuePack                       MoneyAccount（資金帳戶）
 Lesson / LessonPeriod / Location  FinanceExpense / FinanceRefund          JournalEntry / JournalLine
                                   （新）Payout / CashCount / OwnerTxn     PostingSource（過帳狀態）
@@ -27,12 +27,12 @@ Lesson / LessonPeriod / Location  FinanceExpense / FinanceRefund          Journa
 金額一律 **`Int`，單位「分」**（NT$333.33 存 33333）。理由：Postgres int4 上限約 NT$2,147 萬／行，夠用；避免浮點誤差；卡的每格價值用「最後一格吃尾差」保證整除。畫面顯示四捨五入到元。
 
 ```prisma
-model Account {                // 科目表
+model LedgerAccount {          // 科目表（實作名稱；Prisma 不用泛用的 Account）
   id          Int     @id @default(autoincrement())
   classroomId Int
   code        String           // "1110"、"6100.01"
   name        String
-  type        AccountType      // ASSET LIABILITY EQUITY INCOME EXPENSE
+  type        LedgerAccountType // ASSET LIABILITY EQUITY INCOME EXPENSE
   systemKey   String?          // CASH、DEFERRED_REVENUE…（02 §2）；子科目為 null
   parentId    Int?
   archivedAt  DateTime?
@@ -56,7 +56,7 @@ model JournalEntry {
   id             Int      @id @default(autoincrement())
   classroomId    Int
   date           DateTime @db.Date      // 台北日期；報表都用這個
-  kind           EntryKind              // AUTO OPENING MANUAL REVERSAL CORRECTION
+  kind           JournalEntryKind       // AUTO OPENING MANUAL REVERSAL CORRECTION
   sourceType     String?                // 見 §3；手動分錄為 null
   sourceId       Int?
   memo           String?

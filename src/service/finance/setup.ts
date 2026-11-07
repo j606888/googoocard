@@ -4,6 +4,7 @@ import { requireOwner } from "@/lib/authz";
 import { cardUnitValue } from "@/domains/finance/income";
 import { formatMoney } from "@/lib/money";
 import { listStrayReceivers } from "./strayReceivers";
+import { ensureLedgerSetup } from "@/service/ledger/setup";
 import { addMonthsTaipei, parseTaipeiDateRange, toTaipeiDateKey } from "@/lib/taipei-date";
 
 export const CARD_EXPIRY_MONTHS = 6;
@@ -54,6 +55,7 @@ export async function enableFinance(args: {
       where: { student: { classroomId }, expiredAt: null, remainingSessions: { gt: 0 } },
       data: { expiresAt },
     });
+    await ensureLedgerSetup(classroomId, tx);
   });
 
   return { launchDate: toTaipeiDateKey(launch), expiresAt };

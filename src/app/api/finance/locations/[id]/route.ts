@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/apiError";
 import { apiRoute, parseBody, parseId } from "@/lib/apiRoute";
 import { assertCanSettle } from "@/service/finance/access";
 import { assertCustodian } from "@/service/finance/config";
+import { ensureLedgerSetup } from "@/service/ledger/setup";
 
 const patchSchema = z.object({
   keeperUserId: z.number().int().positive().nullable().optional(),
@@ -29,7 +30,7 @@ export const PATCH = apiRoute<{ id: string }>(async ({ request, params, userId, 
     throw new ApiError(400, "EXPIRY_USER_REQUIRED", "expiryUserId is required when expiryTo is USER");
   }
 
-  return prisma.location.update({
+  const updated = await prisma.location.update({
     where: { id },
     data: {
       ...(body.keeperUserId !== undefined ? { keeperUserId: body.keeperUserId } : {}),
@@ -47,4 +48,7 @@ export const PATCH = apiRoute<{ id: string }>(async ({ request, params, userId, 
       fundOpeningConfirmedAt: true,
     },
   });
+  // 新的分部負責人 → 補他的預設資金帳戶（docs/finance-v2/06 P1）。
+  if (body.keeperUserId != null) await ensureLedgerSetup(classroomId);
+  return updated;
 });

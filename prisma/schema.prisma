@@ -115,6 +115,13 @@ model Classroom {
   financeTransfers         FinanceTransfer[]
   financeSettlements       FinanceSettlement[]
   financeBranchReviews     FinanceBranchReview[]
+  // 財務 v2（docs/finance-v2/）：轉換日（開帳日，台北日期）與鎖帳日（含當天以前的分錄不可再動）。
+  financeConversionDate    DateTime?                @db.Date
+  financeLockDate          DateTime?                @db.Date
+  ledgerAccounts           LedgerAccount[]
+  moneyAccounts            MoneyAccount[]
+  journalEntries           JournalEntry[]
+  postingSources           PostingSource[]
   // 在 LINE 官方帳號公開課表與價目表——沒綁定的人也看得到（src/service/lineBot.ts）。
   lineListed               Boolean                  @default(false)
   createdAt                DateTime                 @default(now())
@@ -389,26 +396,28 @@ model DanceStyle {
 // 分部：同一間教室的不同上課地點（台南、高雄…）。Classroom data managed on
 // /locations; archived, never deleted. Cards are NOT location-bound.
 model Location {
-  id                     Int              @id @default(autoincrement())
+  id                     Int                   @id @default(autoincrement())
   classroomId            Int
-  classroom              Classroom        @relation(fields: [classroomId], references: [id])
+  classroom              Classroom             @relation(fields: [classroomId], references: [id])
   name                   String
   address                String?
-  sortOrder              Int              @default(0)
+  sortOrder              Int                   @default(0)
   archivedAt             DateTime?
   lessons                Lesson[]
   // 財務：這個分部的錢（公積金）由誰保管（User id，純 Int、沒有 FK）。
   keeperUserId           Int?
   // 到期卡的剩餘價值歸誰："FUND" | "USER"。
-  expiryTo               String           @default("FUND")
+  expiryTo               String                @default("FUND")
   expiryUserId           Int?
   // 公積金期初金額。
-  fundOpening            Int              @default(0)
+  fundOpening            Int                   @default(0)
   fundOpeningConfirmedAt DateTime?
   financeExpenses        FinanceExpense[]
   financeBranchReviews   FinanceBranchReview[]
-  createdAt              DateTime         @default(now())
-  updatedAt              DateTime         @updatedAt
+  moneyAccounts          MoneyAccount[]
+  journalLines           JournalLine[]
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
 
   // Leads with classroomId, so it also serves classroom lookups.
   @@unique([classroomId, name])
@@ -829,4 +838,125 @@ model FinanceBranchReview {
   hash         String
 
   @@unique([classroomId, month, locationId])
+}
+
+// ---------------------------------------------------------------------------
+// 財務 v2：複式帳本（docs/finance-v2/02-accounting-model.md、03-architecture.md）
+// 金額一律 Int，單位「分」；JournalLine.amount 正＝借、負＝貸，每筆分錄每個分部 Σ = 0。
+// 分錄只增不改（開帳重做是唯一例外，所以 entry → lines 是 Cascade）。
+// ---------------------------------------------------------------------------
+
+enum LedgerAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum MoneyAccountKind {
+  CASH
+  BANK
+  EWALLET
+}
+
+enum JournalEntryKind {
+  AUTO
+  CORRECTION
+  OPENING
+  MANUAL
+  REVERSAL
+}
+
+/// 科目表。systemKey 讓程式找到系統科目（src/domains/ledger/accounts.ts）；子科目為 null。
+model LedgerAccount {
+  id           Int               @id @default(autoincrement())
+  classroomId  Int
+  classroom    Classroom         @relation(fields: [classroomId], references: [id])
+  code         String
+  name         String
+  type         LedgerAccountType
+  systemKey    String?
+  parentId     Int?
+  parent       LedgerAccount?    @relation("LedgerAccountTree", fields: [parentId], references: [id])
+  children     LedgerAccount[]   @relation("LedgerAccountTree")
+  archivedAt   DateTime?
+  moneyAccount MoneyAccount?
+  lines        JournalLine[]
+  createdAt    DateTime          @default(now())
+
+  @@unique([classroomId, code])
+  @@unique([classroomId, systemKey])
+}
+
+/// 資金帳戶：某人口袋／戶頭裡屬於教室的錢，屬於一個分部。對應一個現金子科目。
+model MoneyAccount {
+  id           Int              @id @default(autoincrement())
+  classroomId  Int
+  classroom    Classroom        @relation(fields: [classroomId], references: [id])
+  name         String
+  kind         MoneyAccountKind @default(CASH)
+  holderUserId Int // 保管人（純 Int、沒有 FK，同其他財務人欄位）
+  locationId   Int
+  location     Location         @relation(fields: [locationId], references: [id])
+  accountId    Int              @unique
+  account      LedgerAccount    @relation(fields: [accountId], references: [id])
+  isDefault    Boolean          @default(false)
+  archivedAt   DateTime?
+  createdAt    DateTime         @default(now())
+
+  @@index([classroomId, holderUserId])
+}
+
+model JournalEntry {
+  id          Int              @id @default(autoincrement())
+  classroomId Int
+  classroom   Classroom        @relation(fields: [classroomId], references: [id])
+  date        DateTime         @db.Date
+  kind        JournalEntryKind
+  sourceType  String?
+  sourceId    Int?
+  memo        String?
+  reversesId  Int?
+  createdById Int?
+  lines       JournalLine[]
+  createdAt   DateTime         @default(now())
+
+  @@index([classroomId, date])
+  @@index([classroomId, sourceType, sourceId])
+}
+
+model JournalLine {
+  id             Int           @id @default(autoincrement())
+  entryId        Int
+  entry          JournalEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  classroomId    Int
+  date           DateTime      @db.Date
+  accountId      Int
+  account        LedgerAccount @relation(fields: [accountId], references: [id])
+  locationId     Int
+  location       Location      @relation(fields: [locationId], references: [id])
+  amount         Int
+  partyType      String?
+  partyId        Int?
+  lessonPeriodId Int?
+  memo           String?
+
+  @@index([entryId])
+  @@index([classroomId, accountId, date])
+  @@index([classroomId, locationId, date])
+  @@index([classroomId, partyType, partyId])
+}
+
+/// 每個來源目前過帳到的狀態；dirtyAt 非 null = 待重算（03 §3.4）。
+model PostingSource {
+  classroomId Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  sourceType  String
+  sourceId    Int
+  hash        String?
+  dirtyAt     DateTime?
+
+  @@id([classroomId, sourceType, sourceId])
+  @@index([classroomId, dirtyAt])
 }
