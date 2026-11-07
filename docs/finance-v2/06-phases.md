@@ -34,7 +34,11 @@
   - 鎖帳後補點名 → 更正分錄落在鎖帳日＋1。
   - 隨機事件序列後 `checkLedger` 全綠。
 
-## P3 · 開帳精靈（any-date）
+## P3 · 開帳精靈（any-date）✅ 2026-11-07（後端）
+> 完成：`src/domains/ledger/opening.ts`（`computeOpening`、`deferredAtConversion`）、`src/service/ledger/opening.ts`（預覽／開帳／重開）、`GET|POST /api/finance/opening`、`POST /api/finance/opening/preview`、`GET|POST /api/finance/money-accounts`、migration `finance_opening`（`Classroom.financeOpenedAt`／`financeOpening`）、`tests/api/ledger-opening.test.ts`。畫面留到 P6。
+> 規則補充：轉換日前買的次數包＝轉換日當天還剩的（開帳時記成預付場地），次數包從轉換日起扣（`resolvePackUnitPrices` 改從轉換日起算）。收過錢、但沒有資金帳戶的人會擋住開帳（`OPENING_INCOMPLETE`），要先讓他成為保管人並建資金帳戶。
+> 已知缺口：轉換日前的單堂若在轉換日後才收款，不會記收款（單堂少見，先不處理）。
+> 本機 Bailamore 副本試算（約定法、10/1）：舊卡 62 張、預收約 $57,622；分部都還沒設負責人，所以 5 位收款人沒有資金帳戶。
 - 04 §3 的五步、約定／實數兩種、預覽、試算某一天、第一次鎖帳前可重開。
 - feat/finance `setup.ts` 開帳清單前半（分部、課標分部、老師、場地、規則）沿用，接上後半。
 - 驗收：用本機正式資料副本（`local-from-prod.sh`）以約定法開帳，期初資產負債表平衡、預收 ＝ 舊卡剩餘價值總和（2026-10-30 副本約 $71,422，以實際為準）。

@@ -48,16 +48,9 @@ export async function ensureChartOfAccounts(db: Db, classroomId: number): Promis
  * 還沒負責任何分部的保管人先不建（之後設分部負責人時再呼叫一次）。
  */
 export async function ensureDefaultMoneyAccounts(db: Db, classroomId: number): Promise<void> {
-  const accounts = await ensureChartOfAccounts(db, classroomId);
-  const cashParent = accounts.CASH;
-  const cashCode = SYSTEM_ACCOUNTS.find((a) => a.key === "CASH")!.code;
-
+  await ensureChartOfAccounts(db, classroomId);
   const [custodians, locations, existing] = await Promise.all([
-    db.membership.findMany({
-      where: { classroomId, isCustodian: true },
-      select: { userId: true, user: { select: { name: true } } },
-      orderBy: { userId: "asc" },
-    }),
+    db.membership.findMany({ where: { classroomId, isCustodian: true }, select: { userId: true }, orderBy: { userId: "asc" } }),
     db.location.findMany({
       where: { classroomId, archivedAt: null, keeperUserId: { not: null } },
       select: { id: true, keeperUserId: true },
@@ -66,39 +59,47 @@ export async function ensureDefaultMoneyAccounts(db: Db, classroomId: number): P
     db.moneyAccount.findMany({ where: { classroomId }, select: { holderUserId: true } }),
   ]);
   const hasAccount = new Set(existing.map((m) => m.holderUserId));
-  let seq = await db.ledgerAccount.count({ where: { classroomId, parentId: cashParent } });
-
   for (const c of custodians) {
     if (hasAccount.has(c.userId)) continue;
     const loc = locations.find((l) => l.keeperUserId === c.userId);
     if (!loc) continue;
-    seq++;
-    const name = `${c.user.name} 手上的現金`;
-    const account = await db.ledgerAccount.create({
-      data: {
-        classroomId,
-        code: `${cashCode}.${String(seq).padStart(2, "0")}`,
-        name,
-        type: "ASSET",
-        parentId: cashParent,
-      },
-      select: { id: true },
-    });
-    await db.moneyAccount.create({
-      data: {
-        classroomId,
-        name,
-        kind: "CASH",
-        holderUserId: c.userId,
-        locationId: loc.id,
-        accountId: account.id,
-        isDefault: true,
-      },
-    });
+    await createMoneyAccount(db, classroomId, { holderUserId: c.userId, locationId: loc.id });
   }
 }
 
 /** 財務啟用的教室：科目表＋預設資金帳戶。 */
 export async function ensureLedgerSetup(classroomId: number, db: Db = prisma): Promise<void> {
   await ensureDefaultMoneyAccounts(db, classroomId);
+}
+
+/** 新增一個資金帳戶（含現金子科目）。這位保管人的第一個帳戶自動成為預設。 */
+export async function createMoneyAccount(
+  db: Db,
+  classroomId: number,
+  args: { holderUserId: number; locationId: number; name?: string; kind?: "CASH" | "BANK" | "EWALLET" },
+) {
+  const accounts = await ensureChartOfAccounts(db, classroomId);
+  const cashCode = SYSTEM_ACCOUNTS.find((a) => a.key === "CASH")!.code;
+  const siblings = await db.ledgerAccount.findMany({ where: { classroomId, parentId: accounts.CASH }, select: { code: true } });
+  const used = new Set(siblings.map((s) => s.code));
+  let seq = siblings.length + 1;
+  while (used.has(`${cashCode}.${String(seq).padStart(2, "0")}`)) seq++;
+  const holder = await db.user.findUniqueOrThrow({ where: { id: args.holderUserId }, select: { name: true } });
+  const name = args.name ?? `${holder.name} 手上的現金`;
+  const hasDefault = (await db.moneyAccount.count({ where: { classroomId, holderUserId: args.holderUserId, isDefault: true } })) > 0;
+  const account = await db.ledgerAccount.create({
+    data: { classroomId, code: `${cashCode}.${String(seq).padStart(2, "0")}`, name, type: "ASSET", parentId: accounts.CASH },
+    select: { id: true },
+  });
+  return db.moneyAccount.create({
+    data: {
+      classroomId,
+      name,
+      kind: args.kind ?? "CASH",
+      holderUserId: args.holderUserId,
+      locationId: args.locationId,
+      accountId: account.id,
+      isDefault: !hasDefault,
+    },
+  });
 }

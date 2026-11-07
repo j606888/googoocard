@@ -118,6 +118,9 @@ model Classroom {
   // 財務 v2（docs/finance-v2/）：轉換日（開帳日，台北日期）與鎖帳日（含當天以前的分錄不可再動）。
   financeConversionDate    DateTime?                @db.Date
   financeLockDate          DateTime?                @db.Date
+  // 開帳時間與參數（方法、實數現金、期初待付）；null = 還沒開帳。鎖帳前可以重開（04 §5）。
+  financeOpenedAt          DateTime?
+  financeOpening           Json?
   ledgerAccounts           LedgerAccount[]
   moneyAccounts            MoneyAccount[]
   journalEntries           JournalEntry[]

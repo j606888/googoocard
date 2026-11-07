@@ -33,7 +33,10 @@ export function dateKeyOfDbDate(d: Date): string {
 }
 
 /** 沒啟用財務 → null。 */
-export async function loadLedgerInputs(classroomId: number): Promise<LedgerInputs | null> {
+export async function loadLedgerInputs(
+  classroomId: number,
+  opts: { conversionDate?: string } = {},
+): Promise<LedgerInputs | null> {
   const classroom = await prisma.classroom.findUnique({
     where: { id: classroomId },
     select: { financeEnabledAt: true, financeConversionDate: true, financeLockDate: true, legacyCustodianUserId: true },
@@ -41,9 +44,9 @@ export async function loadLedgerInputs(classroomId: number): Promise<LedgerInput
   if (!classroom?.financeEnabledAt) return null;
   await ensureLedgerSetup(classroomId);
 
-  const conversionDate = classroom.financeConversionDate
+  const conversionDate = opts.conversionDate ?? (classroom.financeConversionDate
     ? dateKeyOfDbDate(classroom.financeConversionDate)
-    : toTaipeiDateKey(classroom.financeEnabledAt);
+    : toTaipeiDateKey(classroom.financeEnabledAt));
 
   const [locations, moneyAccounts, accounts, rawCards, rawPeriods, rawExpenses, rawPacks, packPrices] = await Promise.all([
     prisma.location.findMany({

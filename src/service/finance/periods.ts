@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { toTaipeiMonthKey } from "@/lib/taipei-date";
+import { parseTaipeiDateRange, toTaipeiMonthKey } from "@/lib/taipei-date";
 import { computeSplit } from "@/domains/finance/split";
 import { cardUnitValue, periodIncome } from "@/domains/finance/income";
 import type { IncomeSource, PendingNote } from "@/domains/finance/income";
@@ -84,12 +84,14 @@ export async function resolvePackUnitPrices(classroomId: number): Promise<Map<nu
   const result = new Map<number, PackUnitPrice>();
   const c = await prisma.classroom.findUnique({
     where: { id: classroomId },
-    select: { financeEnabledAt: true },
+    select: { financeEnabledAt: true, financeConversionDate: true },
   });
   if (!c?.financeEnabledAt) return result;
+  // 財務 v2：開帳後次數包從轉換日起算（轉換日前買的包＝轉換日當天還剩的，見 docs/finance-v2/04）。
+  const start = c.financeConversionDate ? parseTaipeiDateRange(c.financeConversionDate.toISOString().slice(0, 10)).start : c.financeEnabledAt;
 
   const periods = await prisma.lessonPeriod.findMany({
-    where: financePeriodWhere(classroomId, c.financeEnabledAt),
+    where: financePeriodWhere(classroomId, start),
     select: { id: true, ...ruleInclude },
     orderBy: [{ startTime: "asc" }, { id: "asc" }],
   });
