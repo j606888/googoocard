@@ -35,7 +35,7 @@ export type PackUnitPrice = {
 type RuleSource = PeriodFinance["ruleSource"];
 
 /** 時段實際套用的規則：PeriodSplitOverride > LessonSplitRule > none。 */
-function effectiveRule(period: {
+export function effectiveRule(period: {
   splitOverride: { rule: Prisma.JsonValue } | null;
   lesson: { splitRule: { rule: Prisma.JsonValue } | null };
 }): { rule: SplitRule | null; source: RuleSource } {

@@ -1,7 +1,7 @@
 // 分錄行的純函式：分部自平衡、比對差額、鎖帳日落點（docs/finance-v2/03-architecture.md §3）。
 import { accountRefKey, type AccountRef } from "./accounts";
 
-export type Party = { type: "STUDENT_CARD" | "TEACHER" | "VENUE" | "USER" | "STUDENT" | "LOCATION"; id: number };
+export type Party = { type: "STUDENT_CARD" | "DROP_IN" | "TEACHER" | "VENUE" | "USER" | "STUDENT" | "LOCATION"; id: number };
 
 /** 過帳器算出的「應有」分錄行。amount 單位分；正＝借、負＝貸。date 為台北日期 YYYY-MM-DD。 */
 export type DesiredLine = {

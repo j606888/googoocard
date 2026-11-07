@@ -22,13 +22,15 @@
 - `src/domains/ledger/`：`balanceByBranch`、`diffLines`、金額（分）工具、卡的每格價值分配（最後一格吃尾差）。
 - 驗收：單元測試涵蓋借貸平衡、分部往來補行、diff 冪等、尾差分配加總等於實收。
 
-## P2 · 過帳器
+## P2 · 過帳器 ✅ 2026-11-07
+> 完成：`src/domains/ledger/post/{card,period,cash,types}.ts`（純函式＋`card.test.ts`）、`src/service/ledger/{load,sync,check}.ts`、`POST /api/finance/ledger/sync`、`GET /api/finance/ledger/check`、migration `posting_source_error`、`tests/api/ledger-november.test.ts`（十一月情境 7 案）。改採整批同步，不逐條標 dirty（03 §3.4）。FinanceTransfer（已轉）延到 P5 跟付款表一起過帳。
+> 本機 Bailamore 副本試跑：沒有不平衡的分錄；19 筆 `NO_MONEY_ACCOUNT`（本機分部都還沒設負責人），交給 P3 開帳精靈處理。
 - 每個 sourceType 的 `desiredLines*` 純函式（03 §3.1），先 CARD、PERIOD、DROP_IN，再 EXPENSE、REFUND、VENUE_PACK，最後 PAYOUT／MONEY_TRANSFER／OWNER_TXN／CASH_COUNT。
 - `syncSource`、`markFinanceDirty`、`flushFinance`、`resyncAll`、鎖帳日落點。
 - 所有寫入路徑加 dirty 標記（清單：`createStudentCardInTx`、確認收款、改價、轉換、轉讓、到期 `expireDueCards`、作廢、刪卡、點名 `reconcileAndFinalize`、LIFF 自助簽到、綁課卡缺席、單堂新增／改金額／收款、合併學員、分帳規則／單堂覆寫、分部設定、老師付款人、場地與次數包、支出、退費）。用 `grep` 對照 `src/service/finance/*` 現在的觸發點，不要漏。
 - `checkLedger()`：02 §5 恆等式。
 - 驗收：
-  - spec §14 十一月情境做成整合測試：每位老師可發金額、各分部毛利，跟 `computeSplit` 逐分相等；台南、高雄分部往來 ＝ 700（丁丁欠 Sean 的那 700）。
+  - spec §14 十一月情境做成整合測試：每位老師可發金額、各分部毛利，跟 `computeSplit` 逐分相等；分部往來＝台南欠高雄 333.33（小明在高雄上的那格；舊版的 700 還包含 Sean 的老師份，那是付款時才產生的往來，見 P5）。
   - 鎖帳後補點名 → 更正分錄落在鎖帳日＋1。
   - 隨機事件序列後 `checkLedger` 全綠。
 

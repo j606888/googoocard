@@ -948,7 +948,7 @@ model JournalLine {
   @@index([classroomId, partyType, partyId])
 }
 
-/// 每個來源目前過帳到的狀態；dirtyAt 非 null = 待重算（03 §3.4）。
+/// 每個來源的過帳狀態。目前只記過帳失敗的來源（error）；dirtyAt／hash 留給之後的增量過帳（03 §3.4）。
 model PostingSource {
   classroomId Int
   classroom   Classroom @relation(fields: [classroomId], references: [id])
@@ -956,6 +956,9 @@ model PostingSource {
   sourceId    Int
   hash        String?
   dirtyAt     DateTime?
+  // 過帳失敗的原因（例：NO_MONEY_ACCOUNT）；null = 正常。這個來源保留上次的分錄。
+  error       String?
+  updatedAt   DateTime  @default(now()) @updatedAt
 
   @@id([classroomId, sourceType, sourceId])
   @@index([classroomId, dirtyAt])

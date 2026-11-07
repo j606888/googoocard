@@ -151,13 +151,16 @@ syncSource(tx, classroomId, sourceType, sourceId):
 - 冪等：同一個來源 sync 幾次結果都一樣。
 - 改分帳規則、改分部設定、改老師付款人這類「影響很多來源」的事：把受影響的來源標 dirty（例：改一門課的規則 → 那門課所有時段）。
 
-### 3.4 什麼時候 sync
-1. **寫入時標 dirty（同一個 transaction）**：所有會影響財務的寫入路徑呼叫 `markFinanceDirty(tx, sources)`。集中在 service 層（`createStudentCardInTx`、點名 `reconcileAndFinalize`、單堂、到期、轉換、轉讓、退費、支出…）。
-2. **讀財務頁之前處理 dirty 佇列**（`flushFinance(classroomId)`，逐個 sync，有上限、可分批）。沒有 cron 也能運作；之後有排程再加背景處理。
-3. **全量重算**（`resyncAll(classroomId)`）：把每個來源都 sync 一次。因為冪等，任何時候跑都安全；用來補「有人忘了標 dirty」的寫入路徑。財務設定頁給「重新檢查帳本」按鈕，回報修正了幾筆。
-4. **健康檢查**：§5 恆等式寫成 `checkLedger(classroomId)`，結帳清單上顯示結果。
+### 3.4 什麼時候 sync（P2 實作後修訂）
+P2 改採**整批同步**，不靠寫入路徑標 dirty：
+1. `syncLedger(classroomId)`（`src/service/ledger/sync.ts`）一次載入整間教室的營運資料（`load.ts`，跟 feat/finance 的 `loadLedger` 同量級），算出每個來源的應有分錄，跟已過帳的（一條 SQL 依來源加總）比，只寫差額。沒變就什麼都不寫。
+2. 用 `pg_advisory_xact_lock` 讓同一間教室同時只有一個 sync。
+3. 呼叫時機：讀財務頁／報表之前（P4 接上）、財務寫入之後、`POST /api/finance/ledger/sync`、`GET /api/finance/ledger/check`。
+4. 為什麼改：寫入路徑有二十幾條（點名、LIFF 自助簽到、合併學員…），逐條加 dirty 標記容易漏；整批重算不會漏，效能跟 feat/finance 每次讀保管中相同。`PostingSource.dirtyAt／hash` 保留給之後真的需要增量時用。
+5. 過帳失敗的來源（例：收款人沒有資金帳戶 `NO_MONEY_ACCOUNT`）不寫分錄、保留上次的，原因記在 `PostingSource.error`，健康檢查列出。
+6. **健康檢查** `checkLedger()`（`check.ts`）：每筆分錄每個分部平衡、分部往來合計 0、過帳失敗的來源、轉換日後買的卡帳上預收＝剩餘價值（＋還沒點名的時段扣掉的格子）。
 
-> 為什麼不在每次寫入時直接過帳：寫入路徑很多（點名、LIFF 自助簽到、合併學員…），全部改成同步過帳風險大、也拖慢點名。dirty 標記只是一行 insert，漏標也會被全量重算抓回來。
+來源實際只有四種：`CARD`（含收款、轉換／轉讓、到期、作廢、退費）、`PERIOD`（含單堂與單堂收款）、`EXPENSE`、`VENUE_PACK`。轉帳／付款等新表在 P5 加入。
 
 ### 3.5 鎖帳
 - `financeLockDate`：這天（含）以前的分錄不能新增、沖銷；過帳器的差額自動往後放。手動分錄日期 ≤ 鎖帳日 → 409 `PERIOD_LOCKED`。
