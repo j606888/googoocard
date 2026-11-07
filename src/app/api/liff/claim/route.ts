@@ -15,20 +15,26 @@ import { claimStudentLine, ClaimError } from "@/service/lineBinding";
 
 const MAX_RESULTS = 8;
 
-async function authorize(request: Request, key: string) {
+type Authorized =
+  | { ok: true; verified: NonNullable<Awaited<ReturnType<typeof verifyIdToken>>>; classroom: { id: number } }
+  | { ok: false; response: NextResponse };
+
+async function authorize(request: Request, key: string): Promise<Authorized> {
   const verified = await verifyIdToken(bearerToken(request));
-  if (!verified) return { error: NextResponse.json({ error: "invalid_token" }, { status: 401 }) };
+  if (!verified) {
+    return { ok: false, response: NextResponse.json({ error: "invalid_token" }, { status: 401 }) };
+  }
   const classroom = await resolveCheckinClassroom(key);
   if (!classroom || classroom.deletedAt) {
-    return { error: NextResponse.json({ error: "invalid_key" }, { status: 404 }) };
+    return { ok: false, response: NextResponse.json({ error: "invalid_key" }, { status: 404 }) };
   }
-  return { verified, classroom };
+  return { ok: true, verified, classroom };
 }
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const auth = await authorize(request, url.searchParams.get("key") ?? "");
-  if ("error" in auth) return auth.error;
+  if (!auth.ok) return auth.response;
 
   const q = (url.searchParams.get("q") ?? "").trim().slice(0, 30);
   if (!q) return NextResponse.json({ students: [] });
@@ -65,7 +71,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as { key?: string; studentId?: number };
   const auth = await authorize(request, String(body.key ?? ""));
-  if ("error" in auth) return auth.error;
+  if (!auth.ok) return auth.response;
 
   const studentId = Number(body.studentId);
   if (!Number.isInteger(studentId) || studentId <= 0) {
