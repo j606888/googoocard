@@ -39,6 +39,46 @@ const SideCard = ({ side, label, keep }: { side: MergeSide; label: string; keep:
   </div>
 );
 
+type Side = "source" | "target";
+
+/** 兩邊照片／名字不一樣時，選要留哪邊的。 */
+const KeepChoice = ({
+  legend,
+  name,
+  value,
+  onChange,
+  render,
+}: {
+  legend: string;
+  name: string;
+  value: Side;
+  onChange: (side: Side) => void;
+  render: (side: Side) => React.ReactNode;
+}) => (
+  <fieldset className="flex flex-col gap-1.5">
+    <legend className="mb-1.5 text-sm font-semibold">{legend}</legend>
+    <div className="grid grid-cols-2 gap-2.5">
+      {(["source", "target"] as const).map((side) => (
+        <label
+          key={side}
+          className={`flex min-w-0 cursor-pointer items-center gap-2 rounded-xl bg-white p-2.5 text-sm ${
+            value === side ? "border-2 border-primary-700" : "border border-neutral-200"
+          }`}
+        >
+          <input
+            type="radio"
+            name={name}
+            checked={value === side}
+            onChange={() => onChange(side)}
+            className="h-4 w-4 shrink-0 accent-primary-700"
+          />
+          {render(side)}
+        </label>
+      ))}
+    </div>
+  </fieldset>
+);
+
 /**
  * 合併學員（設計稿 C5）：這位學員（併掉、封存）的課卡、出席、動態、舞種資格搬到
  * 另一位（保留）。同一堂兩邊都點了名、或兩邊綁了不同 LINE，先列出來讓老師確認。
@@ -58,7 +98,9 @@ const MergeStudentDialog = ({
   const { data: students = [] } = useGetStudentsQuery(undefined, { skip: !open });
   const [targetId, setTargetId] = useState<number | null>(initialTargetId ?? null);
   const [query, setQuery] = useState("");
-  const [keepLineFrom, setKeepLineFrom] = useState<"source" | "target">("source");
+  const [keepLineFrom, setKeepLineFrom] = useState<Side>("source");
+  const [keepNameFrom, setKeepNameFrom] = useState<Side>("target");
+  const [keepAvatarFrom, setKeepAvatarFrom] = useState<Side>("target");
   const [merge, { isLoading }] = useMergeStudentMutation();
 
   useEffect(() => {
@@ -69,6 +111,18 @@ const MergeStudentDialog = ({
     { id: student.id, targetId: targetId ?? 0 },
     { skip: !open || !targetId }
   );
+
+  // 照片預設留 LINE 大頭照那邊（只有一邊是的時候）；名字預設留保留那筆。
+  const previewKey = preview ? `${preview.source.id}-${preview.target.id}` : null;
+  useEffect(() => {
+    if (!preview) return;
+    setKeepNameFrom("target");
+    setKeepAvatarFrom(preview.source.avatarIsLine && !preview.target.avatarIsLine ? "source" : "target");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewKey]);
+
+  const nameDiffers = preview ? preview.source.name !== preview.target.name : false;
+  const avatarDiffers = preview ? preview.source.avatarUrl !== preview.target.avatarUrl : false;
 
   // Same name first — that's almost always who this is.
   const candidates = useMemo(() => {
@@ -87,8 +141,11 @@ const MergeStudentDialog = ({
         id: student.id,
         targetId,
         keepLineFrom: preview?.lineConflict ? keepLineFrom : undefined,
+        keepNameFrom: nameDiffers ? keepNameFrom : undefined,
+        keepAvatarFrom: avatarDiffers ? keepAvatarFrom : undefined,
       }).unwrap();
-      toast.success(`已合併到 ${preview?.target.name ?? "該學員"}`);
+      const keptName = preview ? preview[nameDiffers ? keepNameFrom : "target"].name : "該學員";
+      toast.success(`已合併到 ${keptName}`);
       onClose();
       router.replace(`/students/${targetId}`);
     } catch {
@@ -143,11 +200,38 @@ const MergeStudentDialog = ({
               換一位
             </Button>
 
+            {avatarDiffers && (
+              <KeepChoice
+                legend="照片要留哪邊？"
+                name="keep-avatar"
+                value={keepAvatarFrom}
+                onChange={setKeepAvatarFrom}
+                render={(side) => (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={preview[side].avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+                    <span className="truncate text-neutral-600">
+                      {preview[side].avatarIsLine ? "LINE 大頭照" : side === "source" ? "併掉這筆的" : "保留這筆的"}
+                    </span>
+                  </>
+                )}
+              />
+            )}
+            {nameDiffers && (
+              <KeepChoice
+                legend="名字要留哪邊？"
+                name="keep-name"
+                value={keepNameFrom}
+                onChange={setKeepNameFrom}
+                render={(side) => <span className="truncate font-medium">{preview[side].name}</span>}
+              />
+            )}
+
             <div className="flex flex-col gap-2 rounded-xl bg-neutral-50 p-3 text-sm">
               <p className="font-semibold">合併後</p>
               <p className="flex gap-2">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-                課卡、出席、動態、舞種資格都搬到保留的 {preview.target.name}
+                課卡、出席、動態、舞種資格都搬到保留的 {preview[nameDiffers ? keepNameFrom : "target"].name}
               </p>
               {preview.source.lineBound && !preview.lineConflict && (
                 <p className="flex gap-2">

@@ -2,11 +2,13 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ApiError, notFound } from "@/lib/apiError";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
+import { isLinePicture } from "@/lib/lineProfile";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
-/** Which side's LINE binding survives when both students have one. */
+/** Which side's LINE binding / name / photo survives the merge. */
 export type KeepLineFrom = "source" | "target";
+export type MergeSideKey = KeepLineFrom;
 
 const studentSummarySelect = {
   id: true,
@@ -90,6 +92,8 @@ const summary = (s: Awaited<ReturnType<typeof loadPair>>["source"]) => ({
   number: s.number,
   name: s.name,
   avatarUrl: s.avatarUrl,
+  // Lets the confirm screen default the photo to the LINE picture.
+  avatarIsLine: isLinePicture(s.avatarUrl),
   // Only whether — never the LINE id itself.
   lineBound: s.lineUserId !== null,
   lineDisplayName: s.lineDisplayName,
@@ -128,7 +132,11 @@ export async function mergeStudents(
   classroomId: number,
   sourceId: number,
   targetId: number,
-  { keepLineFrom }: { keepLineFrom?: KeepLineFrom } = {}
+  {
+    keepLineFrom,
+    keepNameFrom = "target",
+    keepAvatarFrom = "target",
+  }: { keepLineFrom?: KeepLineFrom; keepNameFrom?: MergeSideKey; keepAvatarFrom?: MergeSideKey } = {}
 ) {
   await prisma.$transaction(async (tx) => {
     // Lock both rows so a concurrent check-in / second merge can't interleave.
@@ -208,11 +216,14 @@ export async function mergeStudents(
       where: { id: source.id },
       data: { archivedAt: new Date(), mergedIntoId: target.id, lineUserId: null, lineDisplayName: null, lineBindKey: null },
     });
-    if (useSourceLine) {
-      await tx.student.update({
-        where: { id: target.id },
-        data: { lineUserId: keptLine, lineDisplayName: source.lineDisplayName, lineBindKey: null },
-      });
+    // Name / photo: the teacher picks which side's to keep (default: target's).
+    const targetData: Prisma.StudentUpdateInput = {
+      ...(useSourceLine ? { lineUserId: keptLine, lineDisplayName: source.lineDisplayName, lineBindKey: null } : {}),
+      ...(keepNameFrom === "source" ? { name: source.name } : {}),
+      ...(keepAvatarFrom === "source" ? { avatarUrl: source.avatarUrl } : {}),
+    };
+    if (Object.keys(targetData).length > 0) {
+      await tx.student.update({ where: { id: target.id }, data: targetData });
     }
     // The LINE bot menu pointed at the archived record → follow the merge.
     await tx.lineAccount.updateMany({

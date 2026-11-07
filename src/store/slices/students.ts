@@ -198,6 +198,8 @@ export interface MergeSide {
   number: number;
   name: string;
   avatarUrl: string;
+  /** 照片是 LINE 大頭照（合併時預設留這邊的照片） */
+  avatarIsLine: boolean;
   lineBound: boolean;
   /** 綁定的 LINE 顯示名稱（綁定時或學生開 LIFF 時抓到的）；舊綁定可能還沒有 */
   lineDisplayName: string | null;
@@ -302,7 +304,13 @@ const studentsApi = api.injectEndpoints({
     }),
     mergeStudent: builder.mutation<
       { mergedInto: number },
-      { id: number; targetId: number; keepLineFrom?: "source" | "target" }
+      {
+        id: number;
+        targetId: number;
+        keepLineFrom?: "source" | "target";
+        keepNameFrom?: "source" | "target";
+        keepAvatarFrom?: "source" | "target";
+      }
     >({
       query: ({ id, ...body }) => ({ url: `students/${id}/merge`, method: "POST", body }),
       invalidatesTags: ["Student", "StudentCard", "AttendanceRecord", "Lesson", "Tag"],
