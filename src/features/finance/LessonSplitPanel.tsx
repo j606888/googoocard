@@ -114,7 +114,7 @@ export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson;
     <section className="flex flex-col gap-4 px-5 py-4">
       <div className="flex items-center gap-1">
         <h3 className="text-base font-bold text-neutral-900">分帳規則</h3>
-        <InfoTip label="分帳說明">規則設一次，套用到這門課的每一堂。收到錢才算收入；沒付的和沒決定的會標在每堂下面。</InfoTip>
+        <InfoTip label="分帳說明">規則設一次，套用到這門課的每一堂。上課就算收入；學生還沒付的那份，老師要等學生付了才能領，會標在每堂下面。</InfoTip>
         {names.canEdit && (
           <Button variant="secondary" size="sm" className="ml-auto" onClick={() => setEditing("lesson")}>
             {rule ? "編輯規則" : "設定規則"}
@@ -129,7 +129,7 @@ export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson;
           ))}
         </ol>
       ) : (
-        <EmptyState kind="inline" title="這門課還沒設分帳" description="設好之前，已收的錢先放在未分配。" />
+        <EmptyState kind="inline" title="這門課還沒設分帳" description="設好之前，這門課的收入先全部算進分部，老師和場地都還沒分到；設好後會自動重算。" />
       )}
 
       {names.canEdit && copyOptions.length > 0 && (
@@ -186,7 +186,7 @@ export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson;
           subtitle={editing === "lesson" ? lesson.name : "其他堂不受影響"}
           scopeNote={
             editing === "lesson"
-              ? `只影響「${lesson.name}」還沒結算的月份；某一堂特別（例如請了外師），改用那一堂的「只改這一堂」。`
+              ? `只影響「${lesson.name}」從開帳以來的每一堂（已鎖帳的日子不動，差額記在鎖帳日隔天）；某一堂特別（例如請了外師），改用那一堂的「只改這一堂」。`
               : "只影響這一堂，這門課的其他堂照原本的規則。"
           }
           sample={ruleSample(editing)}

@@ -73,7 +73,7 @@ export default function PeriodSplitRow({
           ))}
         </div>
       ) : (
-        <div className="text-sm text-neutral-500">還沒設分帳，這堂的錢先放在未分配</div>
+        <div className="text-sm text-neutral-500">還沒設分帳：這堂先全部算進分部，設好規則會自動重算</div>
       )}
 
       {period.income.pending.length > 0 && (
