@@ -324,7 +324,7 @@ function Steps({ items }: { items: ReactNode[] }) {
       {items.map((it, i) => (
         <li key={i} className="flex gap-3">
           <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-primary-900 text-xs font-bold text-white">{i + 1}</span>
-          <div className="flex min-w-0 flex-1 flex-col gap-2">{it}</div>
+          <div className="min-w-0 flex-1 [&>div]:mt-2">{it}</div>
         </li>
       ))}
     </ol>
