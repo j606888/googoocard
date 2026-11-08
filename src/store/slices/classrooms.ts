@@ -22,6 +22,8 @@ export interface CheckinKey {
   classroomName: string;
   key: string;
   url: string;
+  /** The iPad kiosk page showing this QR full screen (public, no login). */
+  displayUrl: string;
 }
 
 const classroomsApi = api.injectEndpoints({

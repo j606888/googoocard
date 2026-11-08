@@ -260,6 +260,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 - `Classroom.checkinKey`（`nanoid(10)`）：只說明「哪間教室」，不證明是誰——身分永遠來自 LINE ID Token。老師第一次開 `/checkin-qr` 時 lazy 產生，外流時「重新產生」（`POST /api/checkin-key`）。
 - `checkinEntryUrl()`（`src/service/checkin.ts`）：有 `NEXT_PUBLIC_LIFF_ID` 就是 LIFF 網址，否則退回 `/checkin/<key>`。
+- **iPad 門口顯示**（`/checkin-display/<key>`，`src/features/checkinDisplay/`）：同一個 QR 全螢幕顯示，給放在門口的 iPad 用。**不用登入**——key 本來就印在海報上，這頁不多洩漏任何東西，iPad 也就不必一直登入老師帳號。資料來自公開的 `GET /api/checkin-display/[key]`（`getCheckinDisplay()`，只回 `classroomName`＋`url`）；頁面每 5 分鐘、回到前景、恢復連線時重查，**只有 404 才換成「已失效」**（網路斷掉就繼續顯示舊 QR）。Wake Lock 讓螢幕不暗；「加入主畫面」用每個 key 自己的 manifest（`/checkin-display/<key>/manifest.webmanifest`，start_url／scope 都是這頁），否則根 manifest 的 `start_url: "/"` 會把圖示開到老師後台。版面用 `portrait:`／`landscape:` 加 vmin 尺寸，不走 1024px 斷點（不是老師端畫面）。後台入口：`/checkin-qr` 的「iPad 門口顯示」卡（`IpadDisplayCard`；`GET /api/checkin-key` 多回 `displayUrl`）。
 - 「今天有哪些課」：`getTodayLessons()`（台北時區，walk-in 制：當天所有課程都可簽，不限已報名的）。
 - **今天沒課**時不是空狀態（`NoClassToday`）：`getTodayLessons()` 改回 `nextLesson`（先找他上過的課〔`LessonStudent`，同 LIFF 課表的「我的課」〕的下一個時段，沒有才退回教室的下一堂；帶 `mine` 與這堂的 `cardStatus`，畫面寫「會用 X，目前剩 n 堂」，剩 1 堂多一塊「上完這堂就用完了 → 課卡方案」）、`upcoming`（教室接下來 2 個時段，不含 nextLesson）、`myCards`（同 bot「我的課卡」：能用或未付的卡＋上次使用日）、`monthAttendance`（`monthAttendanceCount()`，台北這個月）。手動結束的課（`endedAt`）不算。今天有課時這些都不查。
 
