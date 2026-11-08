@@ -6,20 +6,19 @@ import {
   attentionItems,
   buildRosterRows,
   headcountByPeriod,
+  lessonAttendanceRate,
 } from "@/domains/attendance/rosterInsights";
 import HeadcountChart from "./HeadcountChart";
 import AttentionList from "./AttentionList";
 import RosterList from "./RosterList";
+import RosterTable from "./RosterTable";
 import TrialRoster from "../TrialRoster";
 
 /**
- * Replaces the old student × period dot matrix.
- *
- * The matrix answered "who showed up when" — a question a studio manager rarely
- * asks — while taking the whole centre column and saying nothing about cards.
- * These three blocks answer the questions that drive decisions instead: is the
- * class growing or shrinking, who is drifting away or out of sessions, and how
- * is each individual tracking.
+ * The lesson's attendance at a glance: is the class growing or shrinking
+ * (chart), how is each student tracking (roster), and who needs a decision
+ * (需要注意). Phones get a slim list with card status; desktop gets a
+ * frozen-pane table with every date and lists 需要注意 last.
  */
 const AttendanceOverview = ({
   lesson,
@@ -46,15 +45,31 @@ const AttendanceOverview = ({
     [students, periods]
   );
 
+  const attentionIds = useMemo(() => new Set(items.map((item) => item.student.id)), [items]);
+  const acceptedCardNames = (lesson.cards ?? []).map((card) => card.name);
+
+  if (variant === "compact") {
+    return (
+      <div className="flex flex-col gap-5">
+        <TrialRoster lesson={lesson} />
+        <HeadcountChart lessonId={lesson.id} data={headcounts} variant="compact" />
+        <AttentionList items={items} acceptedCardNames={acceptedCardNames} />
+        <RosterList rows={rows} />
+      </div>
+    );
+  }
+
+  // Desktop: the roster comes first; 需要注意 moves to the bottom and lists everyone.
   return (
-    <div className={variant === "compact" ? "flex flex-col gap-5" : "flex flex-col gap-6 max-w-5xl"}>
+    <div className="flex flex-col gap-7">
       <TrialRoster lesson={lesson} />
-      <HeadcountChart lessonId={lesson.id} data={headcounts} variant={variant} />
-      <AttentionList
-        items={items}
-        acceptedCardNames={(lesson.cards ?? []).map((card) => card.name)}
+      <HeadcountChart
+        lessonId={lesson.id}
+        data={headcounts}
+        attendanceRate={lessonAttendanceRate(students).rate}
       />
-      <RosterList rows={rows} variant={variant} />
+      <RosterTable rows={rows} attentionIds={attentionIds} />
+      <AttentionList items={items} acceptedCardNames={acceptedCardNames} variant="expanded" />
     </div>
   );
 };

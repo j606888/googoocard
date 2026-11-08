@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { endOfDay, format } from "date-fns";
+import { useLayoutEffect, useRef } from "react";
+import { endOfDay, format, isToday } from "date-fns";
 import type { PeriodHeadcount } from "@/domains/attendance/rosterInsights";
 import EmptyState from "@/components/EmptyState";
 
@@ -14,9 +15,12 @@ const HeadcountChart = ({
   lessonId,
   data,
   variant = "expanded",
+  attendanceRate,
 }: {
   lessonId: number;
   data: PeriodHeadcount[];
+  /** Shown next to 平均 on desktop (it used to be a pill in the header). */
+  attendanceRate?: number;
   /** `compact` (phones): no chips row for short courses and no 平均 — the roster already says it. */
   variant?: "compact" | "expanded";
 }) => {
@@ -78,6 +82,24 @@ const HeadcountChart = ({
           </span>
         )}
       </section>
+    );
+  }
+
+  if (!compact) {
+    return (
+      <ScrollingChart
+        data={data}
+        average={average === null ? null : Number(average)}
+        attendanceRate={attendanceRate}
+        isOverdue={isOverdue}
+        onOpen={(column) =>
+          router.push(
+            column.taken
+              ? `/lessons/${lessonId}/periods/${column.periodId}/check-success`
+              : `/lessons/${lessonId}/periods/${column.periodId}/check`
+          )
+        }
+      />
     );
   }
 
@@ -162,6 +184,132 @@ const HeadcountChart = ({
         <Legend className="bg-neutral-100 border border-neutral-200" label={`名單 ${rosterSize} 人`} />
         <Legend className="bg-warning-50 border border-dashed border-warning-300" label="尚未點名" />
       </div>
+    </section>
+  );
+};
+
+/** Track height of a desktop column, in px. */
+const TRACK = 160;
+/** Height of the date label under a column plus the gap above it, in px. */
+const DATE_ROW = 20;
+/** Room above the tallest bar for its count, in px. */
+const LABEL_ROW = 16;
+
+/**
+ * Desktop: thin columns with an average line. Each column has a minimum width,
+ * so a long-running class scrolls sideways instead of squeezing — and the
+ * view starts at the newest end, where the teacher is.
+ */
+const ScrollingChart = ({
+  data,
+  average,
+  attendanceRate,
+  isOverdue,
+  onOpen,
+}: {
+  data: PeriodHeadcount[];
+  average: number | null;
+  attendanceRate?: number;
+  isOverdue: (column: PeriodHeadcount) => boolean;
+  onOpen: (column: PeriodHeadcount) => void;
+}) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rosterSize = data[0].rosterSize;
+  // Scaled to the busiest session, not the roster: an ongoing class keeps
+  // everyone who ever came on its roster, so roster-scaled bars sit flat.
+  const peak = Math.max(1, ...data.filter((d) => d.taken).map((d) => d.attended));
+  const scale = (n: number) => Math.round((n / peak) * TRACK);
+
+  // Start scrolled to the newest periods. Keyed on the count so adding a
+  // period scrolls to it, while a refetch with the same periods leaves the
+  // teacher's position alone.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [data.length]);
+
+  return (
+    <section className="rounded-2xl border border-neutral-200 bg-white px-5 py-4">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="text-[15px] font-bold text-neutral-900">每堂到課人數</h2>
+        {average !== null && (
+          <span className="text-[13px] text-neutral-600">
+            平均 <span className="font-bold text-neutral-900">{average.toFixed(1)}</span> / {rosterSize} 人
+            {attendanceRate !== undefined && (
+              <>
+                {" "}· 出席率 <span className="font-bold text-neutral-900">{attendanceRate}%</span>
+              </>
+            )}
+          </span>
+        )}
+      </div>
+
+      <div ref={scrollRef} className="overflow-x-auto pb-1">
+        <div className="relative flex w-max min-w-full items-end gap-1.5">
+          {average !== null && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 border-t-[1.5px] border-dashed border-neutral-400"
+              style={{ bottom: DATE_ROW + scale(average) }}
+            />
+          )}
+          {data.map((column) => {
+            const label = format(new Date(column.startTime), "M/d");
+            const today = isToday(new Date(column.startTime));
+            const aboveAverage = average !== null && column.attended >= average;
+            return (
+              <button
+                key={column.periodId}
+                type="button"
+                onClick={() => onOpen(column)}
+                title={column.taken ? `${label}：${column.attended} 人` : `${label}：尚未點名`}
+                className="group flex min-w-[34px] flex-[1_0_34px] cursor-pointer flex-col items-center gap-1"
+              >
+                <div
+                  className="flex w-full flex-col items-center justify-end gap-1"
+                  style={{ height: TRACK + LABEL_ROW }}
+                >
+                  {column.taken && (
+                    <span className="text-[11px] leading-none tabular-nums text-neutral-500">
+                      {column.attended}
+                    </span>
+                  )}
+                  <div
+                    className={`w-[22px] shrink-0 rounded-t-[4px] transition-colors ${
+                      column.taken
+                        ? aboveAverage
+                          ? "bg-primary-500 group-hover:bg-primary-600"
+                          : "bg-primary-300 group-hover:bg-primary-400"
+                        : isOverdue(column)
+                          ? "border border-dashed border-warning-300 bg-warning-50"
+                          : "border border-dashed border-neutral-300"
+                    }`}
+                    style={{ height: column.taken ? Math.max(scale(column.attended), 2) : TRACK }}
+                  />
+                </div>
+                <span
+                  className={`h-4 text-[11px] leading-4 whitespace-nowrap ${
+                    today
+                      ? "font-bold text-warning-900"
+                      : isOverdue(column)
+                        ? "font-semibold text-warning-900"
+                        : "text-neutral-500"
+                  }`}
+                >
+                  {today ? "今天" : label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {average !== null && (
+        <div className="mt-2.5 flex items-center gap-1.5 text-xs text-neutral-500">
+          <span className="w-3.5 border-t-[1.5px] border-dashed border-neutral-400" />
+          平均線
+        </div>
+      )}
     </section>
   );
 };

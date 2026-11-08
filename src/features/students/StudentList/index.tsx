@@ -54,11 +54,13 @@ interface StudentListProps {
   variant?: "page" | "table";
   selectedId?: number | null;
   onSelect?: (student: Student) => void;
+  /** table：目前篩選＋排序後的名單順序，給抽屜頂列的上一位／下一位用。 */
+  onVisibleChange?: (students: Student[]) => void;
 }
 
 const ACTIVITY_ORDER: StudentActivity[] = ["active", "idle", "gone"];
 
-const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentListProps) => {
+const StudentList = ({ variant = "page", selectedId = null, onSelect, onVisibleChange }: StudentListProps) => {
   const isTable = variant === "table";
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<StudentFilters>(EMPTY_FILTERS);
@@ -185,6 +187,10 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isTable, visibleStudents, selectedId, onSelect]);
+
+  useEffect(() => {
+    if (isTable) onVisibleChange?.(visibleStudents);
+  }, [isTable, visibleStudents, onVisibleChange]);
 
   // 抽屜裡換人時，把名單上的那一列捲進視野（抽屜後面還看得到名單）
   useEffect(() => {
