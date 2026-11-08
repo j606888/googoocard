@@ -31,7 +31,7 @@ export const REPORTS: Record<ReportName, { title: string; hint: string; dated: "
 
 export function ReportsIndex() {
   return (
-    <FinanceShell title="報表">
+    <FinanceShell title="報表" guide="reports">
       <FinanceCard className="divide-y divide-neutral-100">
         {(Object.keys(REPORTS) as ReportName[]).map((name) => (
           <Link key={name} href={`/finance/reports/${name}`} className="flex min-h-14 items-center gap-3 px-5 py-3 hover:bg-neutral-50">
@@ -93,7 +93,7 @@ export function ReportView({ name, accountId: initialAccount }: { name: ReportNa
   else body = <ReportBody name={name} data={data as Record<string, unknown>} />;
 
   return (
-    <FinanceShell title={meta.title} crumb={{ href: "/finance/reports", label: "報表" }} actions={controls}>
+    <FinanceShell title={meta.title} guide="reports" crumb={{ href: "/finance/reports", label: "報表" }} actions={controls}>
       {body}
     </FinanceShell>
   );

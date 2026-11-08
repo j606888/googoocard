@@ -98,7 +98,7 @@ export default function Opening() {
   };
 
   return (
-    <FinanceShell title={state.opened ? "重新開帳" : "開帳"} crumb={{ href: "/finance/settings", label: "財務設定" }}>
+    <FinanceShell title={state.opened ? "重新開帳" : "開帳"} guide="opening" crumb={{ href: "/finance/settings", label: "財務設定" }}>
       {locked ? (
         <FinanceCard className="px-5 py-5 text-sm text-neutral-600">
           已經鎖帳（{state.lockDate?.replaceAll("-", "/")}），不能再重開。期初錯了請用手動分錄更正。

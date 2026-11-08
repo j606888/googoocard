@@ -4,7 +4,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus } from "lucide-react";
+import { CircleHelp, Plus } from "lucide-react";
 import Navbar from "@/features/Navbar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -69,9 +69,12 @@ export function FinanceShell({
   title,
   crumb,
   actions,
+  guide,
   children,
 }: {
   title?: ReactNode;
+  /** 使用教學的段落 id（/finance/guide#…）：標題旁出現一顆「看教學」。 */
+  guide?: string;
   crumb?: { href: string; label: string };
   actions?: ReactNode;
   children: ReactNode;
@@ -113,7 +116,12 @@ export function FinanceShell({
                   {crumb.label} /
                 </Link>
               )}
-              {title && <h1 className="text-2xl font-bold text-neutral-900">{title}</h1>}
+              {title && (
+                <h1 className="flex items-center gap-1 text-2xl font-bold text-neutral-900">
+                  {title}
+                  {guide && <GuideLink anchor={guide} />}
+                </h1>
+              )}
             </div>
             {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
           </header>
@@ -128,6 +136,20 @@ export function FinanceShell({
       </div>
       <RecordDrawer open={recording} onClose={() => setRecording(false)} />
     </>
+  );
+}
+
+/** 標題旁的「看教學」：直接跳到教學的那一段。 */
+export function GuideLink({ anchor }: { anchor: string }) {
+  return (
+    <Link
+      href={`/finance/guide#${anchor}`}
+      aria-label="看教學"
+      title="看教學"
+      className="inline-grid size-7 shrink-0 place-items-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
+    >
+      <CircleHelp className="size-4" aria-hidden />
+    </Link>
   );
 }
 

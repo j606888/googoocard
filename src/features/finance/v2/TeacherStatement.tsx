@@ -41,7 +41,7 @@ export default function TeacherStatement({ teacherId }: { teacherId: number }) {
   const paid = data?.payouts.filter((p) => p.status === "PAID") ?? [];
 
   return (
-    <FinanceShell title="報酬單" crumb={{ href: "/finance/payouts", label: "結算與付款" }} actions={<MonthSwitcher month={month} onChange={setMonth} />}>
+    <FinanceShell title="報酬單" guide="payouts" crumb={{ href: "/finance/payouts", label: "結算與付款" }} actions={<MonthSwitcher month={month} onChange={setMonth} />}>
       {isLoading ? (
         <Skeleton className="h-80 rounded-2xl" />
       ) : isError || !data ? (

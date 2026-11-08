@@ -7,7 +7,7 @@ import { useGetFinanceSetupQuery, type ChecklistKey } from "@/store/slices/finan
 import { NoVenueFeeToggle } from "./VenueSettings";
 import TeacherLinkSuggestions from "./TeacherLinkSuggestions";
 
-const ITEMS: Record<ChecklistKey, { label: string; href: string }> = {
+export const SETUP_ITEMS: Record<ChecklistKey, { label: string; href: string }> = {
   branches: { label: "建立分部，設定負責人與過期收入對象", href: "/finance/settings#branches" },
   lessonBranches: { label: "每門進行中的課都標上分部", href: "/lessons" },
   teachers: { label: "有進行中課的老師設好付款人", href: "/finance/settings#teachers" },
@@ -33,7 +33,7 @@ export default function SetupChecklist() {
       </h2>
       <ol className="mt-2 flex flex-col">
         {data.items.map((item, i) => {
-          const meta = ITEMS[item.key];
+          const meta = SETUP_ITEMS[item.key];
           return (
             <li key={item.key}>
               <Wrapper

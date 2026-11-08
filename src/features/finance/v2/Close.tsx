@@ -31,6 +31,7 @@ export default function Close() {
 
   return (
     <FinanceShell
+      guide="close"
       title={`結帳到 ${Number(asOf.slice(5, 7))}/${Number(asOf.slice(8))}`}
       actions={
         <>

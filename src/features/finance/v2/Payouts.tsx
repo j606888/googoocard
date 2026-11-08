@@ -57,6 +57,7 @@ export default function Payouts() {
 
   return (
     <FinanceShell
+      guide="payouts"
       title={current ? `${Number(current.asOf.slice(5, 7))} 月付款` : "結算與付款"}
       actions={
         <>

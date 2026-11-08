@@ -50,6 +50,7 @@ export default function Accounts() {
 
   return (
     <FinanceShell
+      guide="accounts"
       title="資金帳戶"
       actions={canSettle && <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>新增資金帳戶</Button>}
     >

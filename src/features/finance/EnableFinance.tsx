@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
 import Field, { FieldError, FieldLabel } from "@/components/Field";
@@ -27,7 +28,12 @@ export default function EnableFinance() {
 
   const isOwner = classrooms?.classrooms.find((c) => c.id === classrooms.currentClassroomId)?.role === "owner";
   if (!isOwner) {
-    return <EmptyState kind="page" title="這間教室還沒開財務" description="請教室擁有者到這裡開啟。" />;
+    return (
+      <div className="flex flex-col items-center gap-2">
+        <EmptyState kind="page" title="這間教室還沒開財務" description="請教室擁有者到這裡開啟。" />
+        <GuideCta />
+      </div>
+    );
   }
 
   const members = settings?.members ?? [];
@@ -54,6 +60,7 @@ export default function EnableFinance() {
           舊卡的錢算在下面選的人手上，他也會成為保管人。
         </InfoTip>
       </div>
+      <GuideCta />
       <Field label="上線日" type="date" value={launchDate} onChange={(e) => setLaunchDate(e.target.value)} />
       <div className="flex flex-col gap-1.5">
         <FieldLabel>舊卡的錢在誰手上</FieldLabel>
@@ -69,5 +76,18 @@ export default function EnableFinance() {
         開啟財務
       </Button>
     </div>
+  );
+}
+
+/** 開財務前先看教學：財務怎麼運作、開了之後要做哪些事。 */
+function GuideCta() {
+  return (
+    <Link
+      href="/finance/guide"
+      className="flex flex-col gap-0.5 rounded-2xl border border-primary-300 bg-primary-50 px-4 py-3 text-primary-900 hover:border-primary-300"
+    >
+      <span className="text-[15px] font-semibold">第一次用財務？先看使用教學</span>
+      <span className="text-[13px] text-primary-800">10 分鐘看懂錢怎麼流、開了之後要設定哪些東西、常卡住的地方。</span>
+    </Link>
   );
 }

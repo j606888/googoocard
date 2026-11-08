@@ -3,7 +3,7 @@
 // 財務總覽（docs/finance-v2/05 §3.1；設計稿「總覽 /finance」）。
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { BookOpen, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import InfoTip from "@/components/InfoTip";
@@ -31,6 +31,13 @@ export default function Overview() {
       title="財務"
       actions={
         <>
+          <Link
+            href="/finance/guide"
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-primary-800 hover:bg-primary-50"
+          >
+            <BookOpen className="size-4" aria-hidden />
+            使用教學
+          </Link>
           {data && <BranchSwitch locations={data.locations} value={loc} onChange={setLoc} />}
           <MonthSwitcher month={month} onChange={setMonth} />
         </>
@@ -72,10 +79,15 @@ function OverviewBody({ data, loc }: { data: FinanceOverview; loc: number | null
   return (
     <div className="flex flex-col gap-4">
       {!data.opened && (
-        <Link href="/finance/opening" className="flex items-center gap-3 rounded-2xl border border-warning-200 bg-warning-50 px-5 py-4 text-warning-950">
-          <span className="flex-1 text-[15px] font-semibold">還沒開帳：先選一天開帳，帳本的數字才完整</span>
-          <ChevronRight className="size-5" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-warning-200 bg-warning-50 px-5 py-4 text-warning-950">
+          <Link href="/finance/opening" className="flex min-w-0 flex-1 items-center gap-3">
+            <span className="flex-1 text-[15px] font-semibold">還沒開帳：先選一天開帳，帳本的數字才完整</span>
+            <ChevronRight className="size-5 shrink-0" />
+          </Link>
+          <Link href="/finance/guide#setup" className="text-sm font-semibold underline underline-offset-4">
+            第一次用？看使用教學
+          </Link>
+        </div>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
