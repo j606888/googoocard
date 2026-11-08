@@ -21,16 +21,23 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 const AttentionList = ({
   items,
   acceptedCardNames,
+  variant = "compact",
 }: {
   items: AttentionItem[];
   /** The lesson's cards — named in the「沒有這門課可用的卡」reason. */
   acceptedCardNames: string[];
+  /**
+   * `expanded` (desktop): sits at the bottom of the page, so it lists everyone
+   * as a grid of small cards instead of capping at MAX_ATTENTION_ROWS.
+   */
+  variant?: "compact" | "expanded";
 }) => {
   const pathname = usePathname();
 
   if (items.length === 0) return null;
 
-  const shown = items.slice(0, MAX_ATTENTION_ROWS);
+  const expanded = variant === "expanded";
+  const shown = expanded ? items : items.slice(0, MAX_ATTENTION_ROWS);
   const overflow = items.length - shown.length;
 
   return (
@@ -40,7 +47,13 @@ const AttentionList = ({
         <span className="text-sm text-neutral-500">{items.length}</span>
       </div>
 
-      <ul className="divide-y divide-neutral-200 rounded-2xl border border-neutral-200 bg-white">
+      <ul
+        className={
+          expanded
+            ? "grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2.5 [&>li]:rounded-xl [&>li]:border [&>li]:border-neutral-200 [&>li]:bg-white"
+            : "divide-y divide-neutral-200 rounded-2xl border border-neutral-200 bg-white"
+        }
+      >
         {shown.map((item) => (
           <AttentionRow
             key={item.student.id}
