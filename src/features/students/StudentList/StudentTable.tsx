@@ -5,6 +5,7 @@ import DataView, { DataViewColumn } from "@/components/DataView";
 import { Student } from "@/store/slices/students";
 import { cn } from "@/lib/utils";
 import StatusTag from "@/components/StatusTag";
+import LineBoundIcon from "@/components/LineBoundIcon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatMoney } from "@/lib/money";
 import { heatLevel } from "../StudentDetail/AttendSection/attendanceInsights";
@@ -87,6 +88,7 @@ const StudentTable = ({
             <span className="flex items-center gap-1.5 min-w-0">
               <span className="text-[15px] font-semibold text-neutral-900 truncate">{student.name}</span>
               <span className="text-[11px] font-mono text-neutral-500 shrink-0">#{student.number}</span>
+              {student.lineBound !== undefined && <LineBoundIcon bound={student.lineBound} />}
               {otherTag && (
                 <StatusTag tone="neutral">{otherTag.name}</StatusTag>
               )}

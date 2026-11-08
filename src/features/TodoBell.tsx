@@ -11,6 +11,12 @@ import { useGetTodosQuery, type Todos } from "@/store/slices/todos";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/utils";
 import { TodoRow, TodoSection, UrgentTodoSections } from "@/features/UrgentTodoSections";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  useConfirmLineSelfClaimMutation,
+  useUnbindStudentLineMutation,
+} from "@/store/slices/students";
 import { formatMoney } from "@/lib/money";
 import { studentDetailHref } from "@/lib/studentNav";
 import ConfirmPaymentDrawer, { type ConfirmPaymentTarget } from "@/features/students/ConfirmPaymentDrawer";
@@ -22,7 +28,7 @@ type Tab = "urgent" | "reminders";
  * 「待處理」（src/service/todos.ts），跟 App 的待處理分頁與推播 badge 同一份資料。
  * 分兩頁：
  *  - 要處理：點名沒課卡、買卡未付款——紅色數字只算這兩類，可以就地「補卡」「確認收款」
- *  - 提醒：需續約（近 30 天有來）、體驗後還沒買卡、可能重複——只顯示灰點
+ *  - 提醒：需續約（近 30 天有來）、體驗後還沒買卡、可能重複、LINE 自助認領——只顯示灰點
  */
 const TodoBell = ({
   className = "ml-auto",
@@ -185,7 +191,7 @@ const UrgentTab = ({
     todos.unpaidCards.reduce((sum, item) => sum + item.finalPrice, 0) +
     unpaidDropIns.reduce((sum, item) => sum + item.amount, 0);
   const otherReminders =
-    todos.trialFollowUps.length + todos.possibleDuplicates.length;
+    todos.trialFollowUps.length + todos.possibleDuplicates.length + (todos.lineSelfClaims?.length ?? 0);
 
   return (
     <>
@@ -250,6 +256,16 @@ const RemindersTab = ({ todos, onNavigate }: { todos: Todos; onNavigate: () => v
     {todos.reminderCount === 0 && (
       <p className="px-4 py-6 text-center text-sm text-neutral-500">目前沒有提醒</p>
     )}
+
+    <TodoSection
+      title="LINE 自助認領"
+      hint="學生掃門口 QR 選了自己，確認是本人"
+      count={todos.lineSelfClaims?.length ?? 0}
+    >
+      {(todos.lineSelfClaims ?? []).map((item) => (
+        <SelfClaimRow key={`claim-${item.student.id}`} item={item} onNavigate={onNavigate} />
+      ))}
+    </TodoSection>
 
     <TodoSection
       title="下次上課會沒卡"
@@ -324,6 +340,61 @@ const RemindersTab = ({ todos, onNavigate }: { todos: Todos; onNavigate: () => v
     )}
   </>
 );
+
+const SelfClaimRow = ({
+  item,
+  onNavigate,
+}: {
+  item: NonNullable<Todos["lineSelfClaims"]>[number];
+  onNavigate: () => void;
+}) => {
+  const [confirm, { isLoading: confirming }] = useConfirmLineSelfClaimMutation();
+  const [unbind, { isLoading: unbinding }] = useUnbindStudentLineMutation();
+  const handleUnbind = () =>
+    unbind({ id: item.student.id })
+      .unwrap()
+      .then(
+        () => toast.success(`已解除 ${item.student.name} 的 LINE 綁定；認錯人的那堂請到點名取消勾選`),
+        () => toast.error("解除失敗，請稍後再試")
+      );
+  return (
+    <TodoRow
+      href={studentDetailHref(item.student.id)}
+      student={item.student}
+      onNavigate={onNavigate}
+      subtitle={
+        <span className="block truncate">
+          {formatShortDate(item.claimedAt)} 認領
+          {item.lineDisplayName ? ` · LINE「${item.lineDisplayName}」` : ""}
+        </span>
+      }
+      action={
+        <div className="flex gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-8 px-2.5 text-xs text-danger-700"
+            disabled={confirming}
+            isLoading={unbinding}
+            onClick={handleUnbind}
+          >
+            解除
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-8 px-2.5 text-xs"
+            disabled={unbinding}
+            isLoading={confirming}
+            onClick={() => confirm({ id: item.student.id }).unwrap().catch(() => toast.error("操作失敗，請稍後再試"))}
+          >
+            沒問題
+          </Button>
+        </div>
+      }
+    />
+  );
+};
 
 const formatShortDate = (iso: string) => {
   const d = new Date(iso);

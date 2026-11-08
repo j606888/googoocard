@@ -251,6 +251,8 @@ model Student {
   mergedIntoId        Int?
   // 老師最後一次複製 LINE 綁定邀請的時間（未綁定 LINE 清單用）。
   lineInviteSentAt    DateTime?
+  // 學生掃現場 QR、從名單自己認領並綁定 LINE 的時間；老師在「待處理」確認或解除後清空。
+  lineSelfClaimedAt   DateTime?
   createdAt           DateTime                    @default(now())
   updatedAt           DateTime                    @updatedAt
 

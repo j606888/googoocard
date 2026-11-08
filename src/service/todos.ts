@@ -25,12 +25,14 @@ export const TRIAL_FOLLOW_UP_DAYS = 14;
  *  - 體驗後還沒買卡：TRIAL_FOLLOW_UP_DAYS 天內用體驗卡上過課、沒有任何非體驗卡
  *  - 可能重複：同教室、在籍、名字相同的學生（多半是第一次來自助登記、其實是
  *    還沒綁 LINE 的舊生）；合併或改名後就消失
+ *  - LINE 自助認領：學生掃現場 QR 從名單認領自己（`lineSelfClaimedAt`），
+ *    老師按「沒問題」或「解除綁定」後消失
  *
  * 網頁的鈴鐺、App 的「待處理」分頁、推播的 badge 數字都讀這一份，
  * 要改「什麼算待處理」就改這裡。`total` 跟 `urgentCount` 相同（App 拿它設圖示數字）。
  */
 export async function getTodos(classroomId: number, now = new Date()) {
-  const [unpaidCards, unpaidDropIns, renewal, unboundRecords, trialFollowUps, duplicates] = await Promise.all([
+  const [unpaidCards, unpaidDropIns, renewal, unboundRecords, trialFollowUps, duplicates, selfClaims] = await Promise.all([
     // 未付款的卡即使學生已封存也還是欠款，所以不排除封存學生。
     prisma.studentCard.findMany({
       where: { isPaid: false, student: { classroomId } },
@@ -80,10 +82,15 @@ export async function getTodos(classroomId: number, now = new Date()) {
     }),
     findTrialFollowUps(classroomId, now),
     findPossibleDuplicates(classroomId),
+    prisma.student.findMany({
+      where: { classroomId, archivedAt: null, lineSelfClaimedAt: { not: null }, lineUserId: { not: null } },
+      select: { id: true, name: true, avatarUrl: true, lineDisplayName: true, lineSelfClaimedAt: true },
+      orderBy: { lineSelfClaimedAt: "desc" },
+    }),
   ]);
 
   const urgentCount = unpaidCards.length + unpaidDropIns.length + unboundRecords.length;
-  const reminderCount = renewal.active.length + trialFollowUps.length + duplicates.length;
+  const reminderCount = renewal.active.length + trialFollowUps.length + duplicates.length + selfClaims.length;
 
   return {
     unpaidCards: unpaidCards.map((sc) => ({
@@ -120,6 +127,11 @@ export async function getTodos(classroomId: number, now = new Date()) {
     })),
     trialFollowUps,
     possibleDuplicates: duplicates,
+    lineSelfClaims: selfClaims.map(({ lineDisplayName, lineSelfClaimedAt, ...student }) => ({
+      student,
+      lineDisplayName,
+      claimedAt: lineSelfClaimedAt!,
+    })),
     urgentCount,
     reminderCount,
     total: urgentCount,

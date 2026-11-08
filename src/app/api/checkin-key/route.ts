@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
-import { checkinEntryUrl } from "@/service/checkin";
+import { checkinDisplayUrl, checkinEntryUrl } from "@/service/checkin";
 
 // The wall-poster check-in key for the caller's current classroom.
 // Longer than the usual nanoid(8) share keys because this one gets printed and
@@ -43,6 +43,7 @@ export async function GET(request: Request) {
     classroomName: classroom.name,
     key,
     url: buildUrl(request, key),
+    displayUrl: checkinDisplayUrl(key, new URL(request.url).origin),
   });
 }
 
@@ -64,5 +65,6 @@ export async function POST(request: Request) {
     classroomName: classroom.name,
     key,
     url: buildUrl(request, key),
+    displayUrl: checkinDisplayUrl(key, new URL(request.url).origin),
   });
 }

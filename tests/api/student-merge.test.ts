@@ -142,6 +142,29 @@ describe("合併學員", () => {
     expect((await prisma.student.findUniqueOrThrow({ where: { id: target.id } })).lineUserId).toBe("U-new");
   });
 
+  it("照片、名字可選留哪邊；沒指定就留 target 自己的", async () => {
+    const linePic = "https://profile.line-scdn.net/abc";
+    const target = await createStudent(classroomId, { name: "王雅婷" });
+    const source = await createStudent(classroomId, { name: "雅婷" });
+    await prisma.student.update({ where: { id: source.id }, data: { avatarUrl: linePic } });
+
+    const p = await (await preview(source.id, target.id)).json();
+    expect(p.source.avatarIsLine).toBe(true);
+    expect(p.target.avatarIsLine).toBe(false);
+
+    await merge(source.id, { targetId: target.id, keepAvatarFrom: "source", keepNameFrom: "target" });
+    const kept = await prisma.student.findUniqueOrThrow({ where: { id: target.id } });
+    expect(kept.avatarUrl).toBe(linePic);
+    expect(kept.name).toBe("王雅婷");
+
+    const other = await createStudent(classroomId, { name: "Amy" });
+    const before = kept.avatarUrl;
+    await merge(other.id, { targetId: target.id, keepNameFrom: "source" });
+    const after = await prisma.student.findUniqueOrThrow({ where: { id: target.id } });
+    expect(after.name).toBe("Amy");
+    expect(after.avatarUrl).toBe(before);
+  });
+
   it("別間教室的學生 → 404；自己併自己 → 400", async () => {
     const mine = await createStudent(classroomId);
     const other = await prisma.classroom.create({ data: { ownerId: 1, name: "別間" } });

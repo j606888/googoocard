@@ -39,6 +39,10 @@ export interface Student {
   isNewStudent?: boolean;
   /** 近 9 週內每次出席那堂課的上課時間（名單的「近 8 週出席」方格）。只有名單 API 會帶。 */
   recentAttendAt?: string[];
+  /** 有沒有綁定 LINE（不會給 LINE id 本身）。只有名單 API 會帶。 */
+  lineBound?: boolean;
+  /** 學生在門口自己認領、老師還沒確認。只有名單 API 會帶。 */
+  lineSelfClaimed?: boolean;
 }
 
 export interface Event {
@@ -204,6 +208,8 @@ export interface MergeSide {
   number: number;
   name: string;
   avatarUrl: string;
+  /** 照片是 LINE 大頭照（合併時預設留這邊的照片） */
+  avatarIsLine: boolean;
   lineBound: boolean;
   /** 綁定的 LINE 顯示名稱（綁定時或學生開 LIFF 時抓到的）；舊綁定可能還沒有 */
   lineDisplayName: string | null;
@@ -308,7 +314,13 @@ const studentsApi = api.injectEndpoints({
     }),
     mergeStudent: builder.mutation<
       { mergedInto: number },
-      { id: number; targetId: number; keepLineFrom?: "source" | "target" }
+      {
+        id: number;
+        targetId: number;
+        keepLineFrom?: "source" | "target";
+        keepNameFrom?: "source" | "target";
+        keepAvatarFrom?: "source" | "target";
+      }
     >({
       query: ({ id, ...body }) => ({ url: `students/${id}/merge`, method: "POST", body }),
       invalidatesTags: ["Student", "StudentCard", "AttendanceRecord", "Lesson", "Tag", "Finance"],
@@ -323,6 +335,11 @@ const studentsApi = api.injectEndpoints({
     }),
     unbindStudentLine: builder.mutation<{ ok: true }, { id: number }>({
       query: ({ id }) => ({ url: `students/${id}/line-binding`, method: "DELETE" }),
+      invalidatesTags: ["Student"],
+    }),
+    // 「待處理」的 LINE 自助認領按「沒問題」
+    confirmLineSelfClaim: builder.mutation<{ ok: true }, { id: number }>({
+      query: ({ id }) => ({ url: `students/${id}/line-claim`, method: "DELETE" }),
       invalidatesTags: ["Student"],
     }),
     createStudent: builder.mutation<
@@ -501,6 +518,7 @@ export const {
   useGetLineInvitesQuery,
   useMarkLineInviteSentMutation,
   useUnbindStudentLineMutation,
+  useConfirmLineSelfClaimMutation,
   useCreateStudentMutation,
   useUpdateStudentMutation,
   useSetStudentArchivedMutation,

@@ -382,3 +382,24 @@ async function lessonCardStatus(
       })),
   };
 }
+
+/**
+ * The iPad kiosk page that shows the same check-in QR full screen
+ * (`/checkin-display/<key>`). Public like the poster itself — the key is already
+ * printed on the wall, so the page reveals nothing new and the iPad never has to
+ * stay logged in as a teacher.
+ */
+export function checkinDisplayUrl(key: string, origin: string) {
+  return `${process.env.NEXT_PUBLIC_HOST_URL || origin}/checkin-display/${encodeURIComponent(key)}`;
+}
+
+/**
+ * What the kiosk page shows for a key: the classroom name and the QR target.
+ * null for an unknown or rotated key (and for a deleted classroom, whose key is
+ * released on delete) — the page then says the link is dead.
+ */
+export async function getCheckinDisplay(key: string, origin: string) {
+  const classroom = await resolveCheckinClassroom(key);
+  if (!classroom || classroom.deletedAt) return null;
+  return { classroomName: classroom.name.trim(), url: checkinEntryUrl(key, origin) };
+}

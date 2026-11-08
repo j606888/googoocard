@@ -54,11 +54,13 @@ interface StudentListProps {
   variant?: "page" | "table";
   selectedId?: number | null;
   onSelect?: (student: Student) => void;
+  /** table：目前篩選＋排序後的名單順序，給抽屜頂列的上一位／下一位用。 */
+  onVisibleChange?: (students: Student[]) => void;
 }
 
 const ACTIVITY_ORDER: StudentActivity[] = ["active", "idle", "gone"];
 
-const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentListProps) => {
+const StudentList = ({ variant = "page", selectedId = null, onSelect, onVisibleChange }: StudentListProps) => {
   const isTable = variant === "table";
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<StudentFilters>(EMPTY_FILTERS);
@@ -186,6 +188,10 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isTable, visibleStudents, selectedId, onSelect]);
 
+  useEffect(() => {
+    if (isTable) onVisibleChange?.(visibleStudents);
+  }, [isTable, visibleStudents, onVisibleChange]);
+
   // 抽屜裡換人時，把名單上的那一列捲進視野（抽屜後面還看得到名單）
   useEffect(() => {
     if (!isTable || selectedId == null) return;
@@ -202,7 +208,7 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
       tags: f.tags.includes(name) ? f.tags.filter((t) => t !== name) : [...f.tags, name],
     }));
 
-  const toggleFlag = (key: "inActiveLesson" | "recentlyAttended" | "noActiveCard" | "lowRemaining" | "unpaid") =>
+  const toggleFlag = (key: "inActiveLesson" | "recentlyAttended" | "noActiveCard" | "lowRemaining" | "unpaid" | "lineUnbound") =>
     setFilters((f) => ({ ...f, [key]: !f[key] }));
 
   const hasNeedsRenewalTag = tags.some((tag) => tag.name === NEEDS_RENEWAL_TAG);
@@ -246,6 +252,13 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
       }).length,
       active: filters.recentlyAttended,
       toggle: () => toggleFlag("recentlyAttended"),
+    },
+    {
+      key: "lineUnbound",
+      label: "未綁 LINE",
+      count: allStudents.filter((s) => s.lineBound === false).length,
+      active: filters.lineUnbound,
+      toggle: () => toggleFlag("lineUnbound"),
     },
   ];
 
@@ -463,7 +476,7 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
         {list}
 
         <div className="flex flex-col gap-3">
-          <UnboundLineEntry />
+          {filters.lineUnbound && <UnboundLineEntry />}
           <ArchivedStudents />
         </div>
 
@@ -526,7 +539,7 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect }: StudentL
 
       {list}
 
-      <UnboundLineEntry className="px-4 pt-4" />
+      {filters.lineUnbound && <UnboundLineEntry className="px-4 pt-4" />}
       <ArchivedStudents className="px-4 py-4" />
 
       {drawer}

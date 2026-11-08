@@ -11,6 +11,7 @@ export function middleware(req: NextRequest) {
     pathname.startsWith('/signup') ||
     pathname.startsWith('/invitations') ||
     pathname.startsWith('/checkin/') ||
+    pathname.startsWith('/checkin-display/') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/images') ||
     pathname.startsWith('/icons/') ||

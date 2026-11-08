@@ -220,7 +220,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - 該教室沒有學生 → 403 `not_bound`，附 `classroomName`、`lineName`、`linePicture`（`verifyIdToken` 從 LINE verify 回應取 `name` / `picture`，要 LIFF 有 `profile` scope）→ `FirstTimeGate`：
   - 「是，第一次來」→ 填暱稱（預填 LINE 名稱）→ `POST /api/liff/register { key, name }` → `registerLineStudent()`（`src/service/student.ts`）。先 `SELECT … FOR UPDATE` 鎖教室列，所以重複送出／並發只會建一位、學號不會跳號；頭像用 LINE 頭像（`next.config.ts` 已允許 `profile.line-scdn.net`），寫 Event「自助登記」、`LineAccount` 切到 STUDENT。
   - **同名不擋**（跟老師端建立學生不同），交給待處理「可能重複」＋合併學員。
-  - 「我來上過課」→ 不提供從名單認領自己（會被冒用），請小幫手在學生資料頁打開「顯示 QR」讓學生用 LINE 掃綁定。
+  - 「我來上過課」→ 從名單認領自己（`/api/liff/claim`、`claimStudentLine()`，2026-11-08 起）：要打字搜尋才列人，只列**未綁 LINE、在籍**的學生，選了就直接綁定並進簽到。可能被冒用，所以記 `Student.lineSelfClaimedAt`，列在老師「待處理 › 提醒 › LINE 自助認領」，老師按「沒問題」（`DELETE /api/students/[id]/line-claim`）或「解除」（解除綁定，一併清掉；認錯人已扣的那堂要到點名取消勾選才退卡）。點名名單上標「自助認領」。不另外推播。
 
 ### 引擎（`selfCheckIn()`，`src/domains/attendance/attendance.service.ts`）
 
@@ -260,6 +260,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 - `Classroom.checkinKey`（`nanoid(10)`）：只說明「哪間教室」，不證明是誰——身分永遠來自 LINE ID Token。老師第一次開 `/checkin-qr` 時 lazy 產生，外流時「重新產生」（`POST /api/checkin-key`）。
 - `checkinEntryUrl()`（`src/service/checkin.ts`）：有 `NEXT_PUBLIC_LIFF_ID` 就是 LIFF 網址，否則退回 `/checkin/<key>`。
+- **iPad 門口顯示**（`/checkin-display/<key>`，`src/features/checkinDisplay/`）：同一個 QR 全螢幕顯示，給放在門口的 iPad 用。**不用登入**——key 本來就印在海報上，這頁不多洩漏任何東西，iPad 也就不必一直登入老師帳號。資料來自公開的 `GET /api/checkin-display/[key]`（`getCheckinDisplay()`，只回 `classroomName`＋`url`）；頁面每 5 分鐘、回到前景、恢復連線時重查，**只有 404 才換成「已失效」**（網路斷掉就繼續顯示舊 QR）。Wake Lock 讓螢幕不暗；「加入主畫面」用每個 key 自己的 manifest（`/checkin-display/<key>/manifest.webmanifest`，start_url／scope 都是這頁），否則根 manifest 的 `start_url: "/"` 會把圖示開到老師後台。版面用 `portrait:`／`landscape:` 加 vmin 尺寸，不走 1024px 斷點（不是老師端畫面）。後台入口：`/checkin-qr` 的「iPad 門口顯示」卡（`IpadDisplayCard`；`GET /api/checkin-key` 多回 `displayUrl`）。
 - 「今天有哪些課」：`getTodayLessons()`（台北時區，walk-in 制：當天所有課程都可簽，不限已報名的）。
 - **今天沒課**時不是空狀態（`NoClassToday`）：`getTodayLessons()` 改回 `nextLesson`（先找他上過的課〔`LessonStudent`，同 LIFF 課表的「我的課」〕的下一個時段，沒有才退回教室的下一堂；帶 `mine` 與這堂的 `cardStatus`，畫面寫「會用 X，目前剩 n 堂」，剩 1 堂多一塊「上完這堂就用完了 → 課卡方案」）、`upcoming`（教室接下來 2 個時段，不含 nextLesson）、`myCards`（同 bot「我的課卡」：能用或未付的卡＋上次使用日）、`monthAttendance`（`monthAttendanceCount()`，台北這個月）。手動結束的課（`endedAt`）不算。今天有課時這些都不查。
 
@@ -688,7 +689,7 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 ## 返回來源（StudentDetail back navigation）
 
-進入 `/students/[id]` 的連結可帶 `?from=<encodedPath>`，返回鍵讀它決定回哪：有就回該頁、沒有（或非站內路徑）fallback 回 `/students`。helper 在 `src/lib/studentNav.ts`（`studentDetailHref` / `resolveBackHref`）。目前 check-success（`StudentInfo`）、課程詳情（`AttendanceOverview/RosterList`、`AttentionList`）與老師詳情（`TeacherDetail`）的入口會帶來源；桌面分割檢視的「完整頁面」帶 `/students?sel=<id>`，返回時會回到同一位學生被選取的名單；手機列表不帶、維持回 `/students`。未來其他頁面要此行為，連結改用 `studentDetailHref(id, pathname)` 即可。
+進入 `/students/[id]` 的連結可帶 `?from=<encodedPath>`，返回鍵讀它決定回哪：有就回該頁、沒有（或非站內路徑）fallback 回 `/students`。helper 在 `src/lib/studentNav.ts`（`studentDetailHref` / `resolveBackHref`）。目前 check-success（`StudentInfo`）、課程詳情（`AttendanceOverview/RosterList`／`RosterTable`、`AttentionList`）與老師詳情（`TeacherDetail`）的入口會帶來源；桌面分割檢視的「完整頁面」帶 `/students?sel=<id>`，返回時會回到同一位學生被選取的名單；手機列表不帶、維持回 `/students`。未來其他頁面要此行為，連結改用 `studentDetailHref(id, pathname)` 即可。
 
 ## 學生頁版面（全寬名單＋右側抽屜，2026-10-26 改版）
 

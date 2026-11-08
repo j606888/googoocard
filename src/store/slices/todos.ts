@@ -60,9 +60,15 @@ export interface Todos {
     name: string;
     students: (TodoStudent & { lineBound: boolean; createdAt: string })[];
   }[];
+  /** 學生掃現場 QR 從名單認領自己、綁了 LINE，等老師確認是本人（舊版 API 沒有） */
+  lineSelfClaims?: {
+    student: TodoStudent;
+    lineDisplayName: string | null;
+    claimedAt: string;
+  }[];
   /** 要處理（未付款課卡 + 未付單堂 + 出席沒綁課卡）：紅色數字、圖示 badge */
   urgentCount: number;
-  /** 提醒（需續約 + 體驗後沒買卡 + 可能重複）：只顯示灰點 */
+  /** 提醒（需續約 + 體驗後沒買卡 + 可能重複 + LINE 自助認領）：只顯示灰點 */
   reminderCount: number;
   /** 同 urgentCount（App 舊版拿它設圖示數字） */
   total: number;

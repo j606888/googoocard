@@ -54,6 +54,7 @@ const StudentOption = ({
             {student.name}
           </span>
           {isSelfCheckIn && <StatusTag tone="outline">自助簽到</StatusTag>}
+          {student.lineSelfClaimed && <StatusTag tone="warning">自助認領</StatusTag>}
           {isTrial && <StatusTag tone="outline">體驗報名</StatusTag>}
           {student.isNewStudent && <StatusTag tone="positive">新學員</StatusTag>}
           {student.note && (

@@ -1,120 +1,97 @@
 "use client";
-import LocationBadge from "@/components/LocationBadge";
 
 import Link from "next/link";
-import { ArrowLeft, Users, BookOpenText, GraduationCap, Settings } from "lucide-react";
-import { Lesson, LessonStudent } from "@/store/slices/lessons";
+import { format, isToday } from "date-fns";
+import { ArrowLeft, Check, PencilLine } from "lucide-react";
+import { Lesson } from "@/store/slices/lessons";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { lessonLevelLabel } from "@/lib/danceLevels";
-import { lessonAttendanceRate } from "@/domains/attendance/rosterInsights";
 import { Button } from "@/components/ui/button";
 import StatusTag from "@/components/StatusTag";
+import { weeklyScheduleLabel } from "../lessonSchedule";
 
+/**
+ * Desktop lesson header: breadcrumb, the name with its status, and one quiet
+ * line of facts. The old tinted block with a row of stat pills is gone — the
+ * numbers now live next to what they describe (rate on the chart, headcount on
+ * the roster, period count on the period column).
+ */
 const LessonDetailHeader = ({
   lesson,
-  students,
-  showSettings,
-  onToggleSettings,
+  onEdit,
 }: {
   lesson: Lesson;
-  students: LessonStudent[];
-  showSettings: boolean;
-  onToggleSettings: () => void;
+  onEdit: () => void;
 }) => {
   const style = danceStyleMeta(lesson.danceStyle);
   const levelLabel = lessonLevelLabel(lesson.danceStyle, lesson.level);
-  const periods = lesson.periods || [];
-  const attendedCount = periods.filter((p) => p.attendanceTakenAt).length;
-  // Divides by periods that were actually taken, not by every scheduled one —
-  // the old maths counted future sessions as missed, so a lesson that had
-  // barely started reported a depressed rate.
-  const { rate: attendanceRate } = lessonAttendanceRate(students);
-
   const isFinished = lesson.status === "finished";
-  const isOngoing = lesson.kind === "ongoing";
+  const periods = lesson.periods ?? [];
+  const todayPeriod = isFinished
+    ? undefined
+    : periods.find((p) => !p.attendanceTakenAt && isToday(new Date(p.startTime)));
+  const schedule = weeklyScheduleLabel(periods);
+
+  const facts = [
+    lesson.kind === "ongoing" ? "持續開課" : "固定期數",
+    lesson.teachers.length > 0 ? lesson.teachers.map((t) => t.name).join("、") : null,
+    lesson.location?.name ?? null,
+    schedule,
+    lesson.sessionsPerAttendance > 1 ? `每次扣 ${lesson.sessionsPerAttendance} 格` : null,
+    lesson.dropInPrice !== null ? `單堂 $${lesson.dropInPrice.toLocaleString()}` : null,
+  ].filter(Boolean) as string[];
 
   return (
-    <div className={`border-b border-neutral-200 px-8 py-5 ${style.light}`}>
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-neutral-500 mb-3">
-        <Link href="/lessons" className="flex items-center gap-1 hover:text-neutral-700">
-          <ArrowLeft className="w-4 h-4" />
-          <span>課程</span>
+    <header className="flex flex-col gap-3.5">
+      <nav aria-label="麵包屑" className="flex items-center gap-2 text-sm text-neutral-500">
+        <Link href="/lessons" className="flex items-center gap-1 hover:text-neutral-800">
+          <ArrowLeft className="size-4" />
+          課程
         </Link>
         {lesson.group && (
           <>
-            <span>/</span>
-            <Link href={`/lessons/groups/${lesson.group.id}`} className="hover:text-neutral-700">
+            <span aria-hidden="true">/</span>
+            <Link href={`/lessons/groups/${lesson.group.id}`} className="hover:text-neutral-800">
               {lesson.group.name}
             </Link>
           </>
         )}
-        <span>/</span>
-        <span className="text-neutral-700 font-medium truncate max-w-xs">{lesson.name}</span>
-      </div>
+        <span aria-hidden="true">/</span>
+        <span className="max-w-xs truncate text-neutral-800">{lesson.name}</span>
+      </nav>
 
-      {/* Title + badges */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-xl ${style.bg}`}>
-          {lesson.name.charAt(0)}
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">{lesson.name}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${style.badge}`}>
-              {style.label}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-2.5">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-[32px] leading-tight font-bold tracking-tight text-neutral-900">{lesson.name}</h1>
+            <StatusTag tone={isFinished ? "neutral" : "positive"}>{isFinished ? "已結束" : "進行中"}</StatusTag>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-600">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-neutral-900">
+              <span className={`size-2.5 rounded-[3px] ${style.bg}`} />
+              {[style.label, levelLabel].filter(Boolean).join(" ")}
             </span>
-            {levelLabel && (
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${style.badge}`}>
-                {levelLabel}
-              </span>
-            )}
-            <LocationBadge location={lesson.location} className="px-2.5 py-1 font-semibold" />
-            {lesson.sessionsPerAttendance > 1 && (
-              <StatusTag tone="warning">每次扣 {lesson.sessionsPerAttendance} 格</StatusTag>
-            )}
-            <StatusTag tone={isFinished ? "neutral" : "positive"}>
-              {isFinished ? "已結束" : "進行中"}
-            </StatusTag>
+            {facts.map((fact) => (
+              <span key={fact}>{fact}</span>
+            ))}
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Button
-            variant={showSettings ? "primary" : "secondary"}
-            size="sm"
-            aria-pressed={showSettings}
-            onClick={onToggleSettings}
-          >
-            <Settings className="size-4" />
-            編輯
+        <div className="flex items-center gap-2.5">
+          <Button variant="secondary" onClick={onEdit}>
+            <PencilLine className="size-4" />
+            編輯課程
           </Button>
+          {todayPeriod && (
+            <Button asChild>
+              <Link href={`/lessons/${lesson.id}/periods/${todayPeriod.id}/check`}>
+                <Check className="size-4" />
+                點名 · 今天 {format(new Date(todayPeriod.startTime), "HH:mm")}
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
-
-      {/* Stats pills */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
-          <Users className="w-4 h-4" />
-          <span>{lesson.students.length} 位學生</span>
-        </div>
-        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
-          <BookOpenText className="w-4 h-4" />
-          <span>
-            {isOngoing ? `持續開課 · 已上 ${attendedCount} 堂` : `${attendedCount} / ${periods.length} 個時段`}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
-          <span className={`w-2 h-2 rounded-full ${attendanceRate >= 80 ? "bg-primary-500" : attendanceRate >= 50 ? "bg-warning-500" : "bg-neutral-400"}`} />
-          <span>出席率 {attendanceRate}%</span>
-        </div>
-        {lesson.teachers.length > 0 && (
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full text-sm text-neutral-600 border border-neutral-200">
-            <GraduationCap className="w-4 h-4" />
-            <span>{lesson.teachers.map((t) => t.name).join(", ")}</span>
-          </div>
-        )}
-      </div>
-    </div>
+    </header>
   );
 };
 
