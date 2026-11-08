@@ -13,7 +13,8 @@ import { Amount } from "./ui";
 
 export function OpeningCard() {
   const { data } = useGetOpeningQuery();
-  if (!data) return null;
+  // 還沒開帳時由上面的開帳進度小卡帶去精靈。
+  if (!data?.opened) return null;
   return (
     <Link href="/finance/opening" className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-5 py-4 hover:border-neutral-300">
       <span className="flex flex-1 flex-col gap-0.5">

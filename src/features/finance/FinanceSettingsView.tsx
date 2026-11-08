@@ -6,11 +6,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useGetFinanceSettingsQuery } from "@/store/slices/finance";
 import BranchSettings from "./BranchSettings";
 import GeneralSettings from "./GeneralSettings";
-import SetupChecklist from "./SetupChecklist";
+import SetupBanner from "./SetupBanner";
 import StrayReceivers from "./StrayReceivers";
 import TeacherPayers from "./TeacherPayers";
 import { useCanSettle } from "./useCanSettle";
-import VenueSettings from "./VenueSettings";
+import VenueSettings, { NoVenueFeeToggle } from "./VenueSettings";
 import { JournalList, OpeningCard } from "./v2/SettingsExtras";
 
 /** `hint`：標題下一行灰字，說什麼時候要動它。 */
@@ -35,7 +35,7 @@ export default function FinanceSettingsView() {
 
   return (
     <div className="flex max-w-3xl flex-col gap-4">
-      <SetupChecklist />
+      <SetupBanner />
       <OpeningCard />
       <Section id="branches" title="分部" hint="開帳時設一次：負責人、公積金期初、過期的錢歸誰。之後很少動。">
         <BranchSettings />
@@ -44,6 +44,7 @@ export default function FinanceSettingsView() {
         <TeacherPayers />
       </Section>
       <Section id="venues" title="場地與次數包" hint="付場租的對象（外面的場地，或當房東的成員，例如丁丁家）。買了次數包也在這裡記。">
+        <NoVenueFeeToggle />
         <VenueSettings />
       </Section>
       <Section id="receivers" title="收的錢在誰手上" hint="收款人不是保管人的錢（例如小幫手代收）會列在這裡，改記到實際拿錢的保管人。平常是空的。">

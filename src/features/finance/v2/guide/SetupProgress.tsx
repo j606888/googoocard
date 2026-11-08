@@ -6,7 +6,7 @@ import { Check, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFinanceEnabled } from "@/features/nav/useFinanceEnabled";
 import { useGetFinanceSetupQuery } from "@/store/slices/finance";
-import { SETUP_ITEMS } from "../../SetupChecklist";
+import { SETUP_STEPS, setupStepHref } from "../../setup/steps";
 
 export default function SetupProgress() {
   const enabled = useFinanceEnabled();
@@ -35,10 +35,10 @@ export default function SetupProgress() {
       {data.complete && <p className="text-sm text-primary-900">第一次設定和開帳都完成了，可以直接看「日常」那一段。</p>}
       <ol className="flex flex-col">
         {data.items.map((item, i) => {
-          const meta = SETUP_ITEMS[item.key];
+          const meta = SETUP_STEPS[item.key];
           return (
             <li key={item.key}>
-              <Link href={meta.href} className="flex min-h-11 items-center gap-3 rounded-lg px-1 py-1.5 text-sm hover:bg-neutral-50">
+              <Link href={setupStepHref(item.key)} className="flex min-h-11 items-center gap-3 rounded-lg px-1 py-1.5 text-sm hover:bg-neutral-50">
                 {item.done ? (
                   <span aria-label="完成" className="grid size-6 shrink-0 place-items-center rounded-full bg-primary-100 text-primary-900">
                     <Check className="size-3.5" strokeWidth={3} />
@@ -49,7 +49,7 @@ export default function SetupProgress() {
                   </span>
                 )}
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className={item.done ? "text-neutral-500" : "font-medium text-neutral-900"}>{meta.label}</span>
+                  <span className={item.done ? "text-neutral-500" : "font-medium text-neutral-900"}>{meta.title}</span>
                   {!item.done && item.detail && <span className="text-[13px] text-neutral-600">{item.detail}</span>}
                 </span>
                 {!item.done && <ChevronRight className="size-4 shrink-0 text-neutral-400" aria-hidden />}

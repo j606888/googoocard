@@ -738,6 +738,8 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 
 **開帳清單**（`setupChecklist` in `service/finance/setup.ts`）：「場地」步驟可勾「這間教室不用場地費」（`Classroom.financeNoVenueFee`，`PATCH /api/finance/settings` 的 `noVenueFee`），勾了就算完成。付款人那一步：付款人在老師名單裡有同名、沒連帳號的老師 → `GET /api/finance/teachers` 的 `linkSuggestion`，提醒「這位老師是 X 本人嗎？」，`POST /api/finance/teachers/[id]/link` 一鍵連結（可以結算的人；不搬動既有連結；任何角色都能連，小幫手也可能就是那位老師）。最後一步是「開帳」（`financeOpenedAt`）。
 
+**開帳精靈** `/finance/setup`（`features/finance/setup/`）：開帳清單的七步一步一頁——桌面左側步驟清單、手機上方進度條，`?step=<ChecklistKey>` 記在網址，預設停在第一個沒完成的步驟；每步的說明與「要注意」在 `setup/steps.ts`。步驟可以自由跳，只有第 7 步（嵌入 `OpeningFlow`）要等前 6 步都完成才能按開帳。第 2 步直接改課的分部（`PATCH /api/finance/lessons/[id]/location`，可以結算的人），第 5 步就地展開 `LessonSplitPanel ruleOnly`。`GET /api/finance/setup` 另回 `lessons`（進行中的課：分部、有沒有規則）。只有可以結算的人能進；一進來就已開帳 → 轉回總覽。還沒開帳時總覽與財務設定上方是 `SetupBanner`（進度＋繼續設定），開帳後消失；`/finance/opening` 只留給開帳後換一天重開。
+
 **計算放哪裡**（由底往上）：
 1. `src/domains/finance/split.ts`：純函式，規則 JSON → 一堂課的分帳（收入 − 場地 − 助教 − 抽成 → 老師／公積金）。
 2. `src/service/finance/periods.ts`：每堂的規則（`effectiveRule`）與次數包單價（`resolvePackUnitPrices`，從轉換日起扣）。

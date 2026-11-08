@@ -44,7 +44,7 @@ export default function EnableFinance() {
     setError("");
     try {
       await enable({ launchDate, legacyCustodianUserId: holder }).unwrap();
-      toast.success("財務已開啟，先把開帳清單做完");
+      toast.success("財務已開啟，先把開帳設定做完");
     } catch (e) {
       const code = (e as { data?: { code?: string } })?.data?.code;
       setError((code && ERRORS[code]) || "開啟失敗，請再試一次");

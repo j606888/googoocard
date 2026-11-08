@@ -31,7 +31,7 @@ function BranchRow({ loc }: { loc: FinanceLocation }) {
   };
 
   return (
-    <li className="flex flex-col gap-3 py-3">
+    <li className="flex flex-col gap-3 py-4 first:pt-0">
       <h3 className="text-sm font-semibold text-neutral-900">{loc.name}</h3>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
@@ -46,7 +46,6 @@ function BranchRow({ loc }: { loc: FinanceLocation }) {
         </div>
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-neutral-900">過期的錢給</span>
-          <span className="text-xs text-neutral-500">學生的卡過期沒用完，剩下的錢歸誰</span>
           <Select
             size="sm"
             aria-label={`${loc.name} 過期收入對象`}
@@ -60,6 +59,7 @@ function BranchRow({ loc }: { loc: FinanceLocation }) {
             }
             options={[{ value: NONE, label: "這個分部的公積金" }, ...options]}
           />
+          <span className="text-xs text-neutral-500">學生的卡過期沒用完，剩下的錢歸誰</span>
         </div>
       </div>
     </li>
@@ -70,12 +70,13 @@ function AddBranch() {
   const [create, { isLoading }] = useCreateLocationMutation();
   const [name, setName] = useState("");
   return (
-    <div className="mt-2 flex items-end gap-2">
+    <div className="mt-3 flex items-end gap-2 border-t border-neutral-100 pt-4">
       <div className="flex-1">
         <Field label="新增分部" value={name} placeholder="分部名稱" onChange={(e) => setName(e.target.value)} />
       </div>
       <Button
         variant="secondary"
+        className="h-12"
         disabled={!name.trim() || isLoading}
         onClick={async () => {
           try {
@@ -99,11 +100,6 @@ export default function BranchSettings() {
   if (!data) return <Skeleton className="h-24 w-full rounded-xl" />;
   return (
     <>
-      <p className="mb-1 flex items-center gap-1 text-sm text-neutral-600">
-        <Link href="/locations" className="text-primary-700 underline-offset-4 hover:underline">
-          改名或封存分部
-        </Link>
-      </p>
       {locations.length === 0 ? (
         <p className="text-sm text-neutral-500">還沒有分部</p>
       ) : (
@@ -114,6 +110,9 @@ export default function BranchSettings() {
         </ul>
       )}
       <AddBranch />
+      <Link href="/locations" className="mt-3 inline-flex text-[13px] font-medium text-primary-700 underline-offset-4 hover:underline">
+        改名或封存分部
+      </Link>
     </>
   );
 }

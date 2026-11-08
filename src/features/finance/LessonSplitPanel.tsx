@@ -24,8 +24,19 @@ import PeriodSplitRow from "./PeriodSplitRow";
 import { describeRow, emptyRows, rowsToRule, ruleToRows, type RuleRow } from "./ruleEditorModel";
 import { useSplitNames } from "./useSplitNames";
 
-/** 課程頁的「分帳」：規則（一門課設一次）＋每堂的明細。只有財務能改。 */
-export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson; students: LessonStudent[] }) {
+/**
+ * 課程頁的「分帳」：規則（一門課設一次）＋每堂的明細。只有財務能改。
+ * `ruleOnly`：只顯示規則，不列每一堂（開帳精靈第 5 步用）。
+ */
+export default function LessonSplitPanel({
+  lesson,
+  students,
+  ruleOnly = false,
+}: {
+  lesson: Lesson;
+  students: LessonStudent[];
+  ruleOnly?: boolean;
+}) {
   const names = useSplitNames();
   const { data: ruleData, isLoading: ruleLoading } = useGetLessonRuleQuery(lesson.id);
   const { data: periods, isLoading: periodsLoading } = useGetLessonPeriodFinanceQuery(lesson.id);
@@ -160,8 +171,8 @@ export default function LessonSplitPanel({ lesson, students }: { lesson: Lesson;
         </div>
       )}
 
-      <h3 className="text-base font-bold text-neutral-900">每一堂</h3>
-      {periods && periods.length > 0 ? (
+      {!ruleOnly && <h3 className="text-base font-bold text-neutral-900">每一堂</h3>}
+      {ruleOnly ? null : periods && periods.length > 0 ? (
         <ul className="flex flex-col">
           {periods.map((p) => (
             <PeriodSplitRow

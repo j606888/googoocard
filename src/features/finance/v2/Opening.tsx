@@ -1,7 +1,7 @@
 "use client";
 
 // 開帳精靈（docs/finance-v2/04 §3；設計稿「開帳精靈」）：轉換日 → 資金帳戶 → 預收與應收 → 次數包與待付 → 確認期初。
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -24,7 +24,25 @@ import { Amount, FinanceCard, FinanceShell, useIsOwner } from "./ui";
 const STEPS = ["轉換日", "資金帳戶", "預收與應收", "次數包與待付", "確認期初"];
 type Payable = OpeningParams["payables"][number];
 
+/** /finance/opening：開帳後要換一天重開時用；第一次開帳走 /finance/setup 精靈的第 7 步。 */
 export default function Opening() {
+  const { data: state } = useGetOpeningQuery();
+  return (
+    <FinanceShell
+      title={state?.opened ? "重新開帳" : "開帳"}
+      guide="opening"
+      crumb={{ href: "/finance/settings", label: "財務設定" }}
+    >
+      <OpeningFlow />
+    </FinanceShell>
+  );
+}
+
+/**
+ * 開帳的五個小步驟。`onBack`：在第一個小步驟按「上一步」時呼叫（精靈裡回到第 6 步）。
+ * `blocker`：不是 null 就不能按開帳，顯示在按鈕上方（精靈裡：前面還有步驟沒做完）。
+ */
+export function OpeningFlow({ onBack, blocker }: { onBack?: () => void; blocker?: ReactNode }) {
   const router = useRouter();
   const isOwner = useIsOwner();
   const { data: state, isLoading } = useGetOpeningQuery();
@@ -81,7 +99,7 @@ export default function Opening() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  if (isLoading || !state) return <FinanceShell title="開帳"><Skeleton className="h-96 rounded-2xl" /></FinanceShell>;
+  if (isLoading || !state) return <Skeleton className="h-96 rounded-2xl" />;
 
   const locked = !!state.lockDate;
   const missing = (result?.errors ?? []).filter((e) => e.code === "NO_MONEY_ACCOUNT" && e.userId !== undefined);
@@ -98,7 +116,7 @@ export default function Opening() {
   };
 
   return (
-    <FinanceShell title={state.opened ? "重新開帳" : "開帳"} guide="opening" crumb={{ href: "/finance/settings", label: "財務設定" }}>
+    <>
       {locked ? (
         <FinanceCard className="px-5 py-5 text-sm text-neutral-600">
           已經鎖帳（{state.lockDate?.replaceAll("-", "/")}），不能再重開。期初錯了請用手動分錄更正。
@@ -202,14 +220,19 @@ export default function Opening() {
             <p className="text-sm text-danger-700">還有 {result!.errors.length} 個問題要先處理（見「資金帳戶」）</p>
           )}
 
+          {step === STEPS.length - 1 && blocker}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-[13px] text-neutral-500">第一次鎖帳前都可以換一天重開</span>
             <div className="flex gap-2">
-              {step > 0 && <Button variant="secondary" onClick={() => setStep(step - 1)}>上一步</Button>}
+              {step > 0 ? (
+                <Button variant="secondary" onClick={() => setStep(step - 1)}>上一步</Button>
+              ) : (
+                onBack && <Button variant="secondary" onClick={onBack}>上一步</Button>
+              )}
               {step < STEPS.length - 1 ? (
                 <Button onClick={() => setStep(step + 1)} disabled={!date}>下一步</Button>
               ) : (
-                <Button disabled={!isOwner || !result || result.errors.length > 0 || pv.isLoading} onClick={() => setConfirm(true)}>
+                <Button disabled={!isOwner || !!blocker || !result || result.errors.length > 0 || pv.isLoading} onClick={() => setConfirm(true)}>
                   {state.opened ? "重新開帳" : "開帳"}
                 </Button>
               )}
@@ -233,7 +256,7 @@ export default function Opening() {
           目前從 {state.conversionDate?.replaceAll("-", "/")} 開帳。<Link className="text-primary-800" href="/finance">回總覽</Link>
         </p>
       )}
-    </FinanceShell>
+    </>
   );
 }
 
@@ -269,7 +292,7 @@ function PayablesStep({
     <FinanceCard className="flex flex-col gap-3 px-5 py-5">
       <p className="text-sm text-neutral-600">轉換日前次數包剩下的，系統會自己記成預付場地費。還沒付的老師錢、場租、代墊建議先私下結清，這裡就不用填。</p>
       {payables.map((p, i) => (
-        <div key={i} className="grid grid-cols-[110px_minmax(0,1fr)_110px_110px_44px] items-center gap-2">
+        <div key={i} className="grid grid-cols-2 items-center gap-2 border-t border-neutral-100 pt-3 first:border-t-0 first:pt-0 sm:grid-cols-[110px_minmax(0,1fr)_120px_110px_44px] sm:border-t-0 sm:pt-0">
           <Select size="sm" value={p.kind} onChange={(v) => set(i, { kind: v, partyId: 0 })} options={[{ value: "TEACHER", label: "老師" }, { value: "VENUE", label: "場地" }, { value: "OWNER", label: "代墊" }]} />
           <Select size="sm" value={p.partyId || undefined} onChange={(v) => set(i, { partyId: v })} options={parties(p.kind)} placeholder="對象" />
           <Select size="sm" value={p.locationId || undefined} onChange={(v) => set(i, { locationId: v })} options={locations.map((l) => ({ value: l.id, label: l.name }))} placeholder="分部" />

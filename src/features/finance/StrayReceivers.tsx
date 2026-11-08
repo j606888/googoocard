@@ -88,7 +88,8 @@ export default function StrayReceivers() {
           );
         })}
       </ul>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2 border-t border-neutral-100 pt-3 sm:flex-row sm:items-center">
+        <span className="text-sm font-medium text-neutral-900">勾選的改記到</span>
         <div className="sm:w-48">
           <Select
             aria-label="改記到哪位保管人"

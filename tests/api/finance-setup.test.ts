@@ -28,6 +28,7 @@ import { GET as TEACHERS_GET } from "@/app/api/finance/teachers/route";
 import { POST as LINK_TEACHER } from "@/app/api/finance/teachers/[id]/link/route";
 import { GET as RULED_LESSONS } from "@/app/api/finance/lessons/route";
 import { GET as SETTINGS_GET, PATCH as SETTINGS_PATCH } from "@/app/api/finance/settings/route";
+import { PATCH as LESSON_LOCATION } from "@/app/api/finance/lessons/[id]/location/route";
 import { setupChecklist } from "@/service/finance/setup";
 
 const byKey = async (classroomId: number) =>
@@ -274,4 +275,29 @@ describe("finance setup checklist", () => {
     expect(t.teachers).toHaveLength(0);
   });
 
+
+  it("精靈第 2 步：直接改課的分部；只收自己教室、沒封存的分部；要能結算", async () => {
+    const a = await createLocation(classroomId, { name: "台南" });
+    const { lesson } = await createLesson(classroomId, { name: "Bachata 初階" });
+    const setup = await (await SETUP_GET(jsonRequest("GET"), routeParams({}))).json();
+    expect(setup.lessons).toEqual([{ id: lesson.id, name: "Bachata 初階", locationId: null, hasRule: false }]);
+
+    const patch = (id: number, locationId: number) =>
+      LESSON_LOCATION(jsonRequest("PATCH", { locationId }), routeParams({ id: String(id) }));
+    expect((await patch(lesson.id, a.id)).status).toBe(200);
+    expect((await prisma.lesson.findUniqueOrThrow({ where: { id: lesson.id } })).locationId).toBe(a.id);
+    expect((await byKey(classroomId)).lessonBranches.done).toBe(true);
+
+    const other = await createClassroom({ email: "other@test.local" });
+    const foreignLoc = await createLocation(other.id, { name: "X" });
+    expect((await patch(lesson.id, foreignLoc.id)).status).toBe(400);
+    const archived = await createLocation(classroomId, { name: "舊" });
+    await prisma.location.update({ where: { id: archived.id }, data: { archivedAt: new Date() } });
+    expect((await patch(lesson.id, archived.id)).status).toBe(400);
+    const { lesson: foreignLesson } = await createLesson(other.id, { name: "別人的課" });
+    expect((await patch(foreignLesson.id, a.id)).status).toBe(404);
+
+    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { canSettle: false } });
+    expect((await patch(lesson.id, a.id)).status).toBe(403);
+  });
 });

@@ -88,6 +88,13 @@ function venueIdsOfRule(rule: unknown): number[] {
  * 沒有進行中的課 → 課程相關項目完成。場地至少要建一個（次數包只要求有用到的場地）。
  */
 export async function setupChecklist(classroomId: number): Promise<ChecklistItem[]> {
+  return (await loadSetup(classroomId)).items;
+}
+
+/** 開帳精靈第 2、5 步要的進行中課程（分部、有沒有分帳規則）。 */
+export type SetupLesson = { id: number; name: string; locationId: number | null; hasRule: boolean };
+
+export async function loadSetup(classroomId: number): Promise<{ items: ChecklistItem[]; lessons: SetupLesson[] }> {
   const classroom = await prisma.classroom.findUniqueOrThrow({
     where: { id: classroomId },
     select: {
@@ -143,7 +150,7 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
 
   const stray = await listStrayReceivers(classroomId);
   const strayAmount = stray.reduce((s, i) => s + i.amount, 0);
-  return [
+  const items: ChecklistItem[] = [
     {
       key: "branches",
       done: locations.length > 0 && locations.every((l) => l.keeperUserId != null),
@@ -172,6 +179,9 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
     {
       key: "rules",
       done: lessons.every((l) => l.splitRule != null),
+      ...(lessons.some((l) => l.splitRule == null)
+        ? { detail: `還沒設：${lessons.filter((l) => l.splitRule == null).length} 門課` }
+        : {}),
     },
     {
       key: "receivers",
@@ -188,4 +198,8 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
         : {}),
     },
   ];
+  return {
+    items,
+    lessons: lessons.map((l) => ({ id: l.id, name: l.name, locationId: l.locationId, hasRule: l.splitRule != null })),
+  };
 }

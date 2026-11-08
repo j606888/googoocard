@@ -64,7 +64,6 @@ export default function VenueSettings() {
 
   return (
     <div className="flex flex-col gap-3">
-      <NoVenueFeeToggle />
       {venues.length > 0 && (
         <ul className="flex flex-col divide-y divide-neutral-100">
           {venues.map((v) => (
@@ -74,7 +73,7 @@ export default function VenueSettings() {
                 {v.archivedAt && <span className="ml-2 align-middle"><StatusTag tone="neutral">已封存</StatusTag></span>}
               </span>
               <span className="shrink-0 text-[13px] text-neutral-500">{packCount(v.id)} 包</span>
-              <div className="w-36 shrink-0">
+              <div className="w-40 shrink-0">
                 <Select
                   size="sm"
                   aria-label={`${v.name} 房東`}
@@ -93,11 +92,11 @@ export default function VenueSettings() {
           ))}
         </ul>
       )}
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
+      <div className="flex flex-col gap-2 border-t border-neutral-100 pt-4 first:border-t-0 first:pt-0 sm:flex-row sm:items-end">
+        <div className="min-w-0 flex-1">
           <Field label="新增場地" value={name} placeholder="場地名稱" onChange={(e) => setName(e.target.value)} />
         </div>
-        <div className="w-36 shrink-0">
+        <div className="sm:w-40 sm:shrink-0">
           <Select
             aria-label="新場地的房東"
             value={landlord}
@@ -107,6 +106,7 @@ export default function VenueSettings() {
         </div>
         <Button
           variant="secondary"
+          className="h-12"
           disabled={!name.trim() || isLoading}
           onClick={async () => {
             try {

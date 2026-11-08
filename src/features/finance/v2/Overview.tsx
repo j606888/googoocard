@@ -15,6 +15,7 @@ import { useGetFinanceOverviewQuery, type FinanceOverview } from "@/store/slices
 import { useFinanceEnabled } from "@/features/nav/useFinanceEnabled";
 import EnableFinance from "../EnableFinance";
 import MonthSwitcher from "../MonthSwitcher";
+import SetupBanner from "../SetupBanner";
 import { Amount, BranchSwitch, FinanceCard, FinanceShell, amountText, pick } from "./ui";
 
 export default function Overview() {
@@ -79,12 +80,9 @@ function OverviewBody({ data, loc }: { data: FinanceOverview; loc: number | null
   return (
     <div className="flex flex-col gap-4">
       {!data.opened && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-warning-200 bg-warning-50 px-5 py-4 text-warning-950">
-          <Link href="/finance/opening" className="flex min-w-0 flex-1 items-center gap-3">
-            <span className="flex-1 text-[15px] font-semibold">還沒開帳：先選一天開帳，帳本的數字才完整</span>
-            <ChevronRight className="size-5 shrink-0" />
-          </Link>
-          <Link href="/finance/guide#setup" className="text-sm font-semibold underline underline-offset-4">
+        <div className="flex flex-col gap-2">
+          <SetupBanner />
+          <Link href="/finance/guide#setup" className="self-start text-[13px] font-medium text-neutral-600 underline underline-offset-4 hover:text-neutral-900">
             第一次用？看使用教學
           </Link>
         </div>

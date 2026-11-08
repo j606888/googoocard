@@ -69,6 +69,8 @@ export type ChecklistKey =
 
 export interface SetupResponse {
   items: { key: ChecklistKey; done: boolean; detail?: string; links?: { label: string; href: string }[] }[];
+  /** 進行中的課（開帳精靈第 2、5 步）。 */
+  lessons: { id: number; name: string; locationId: number | null; hasRule: boolean }[];
   complete: boolean;
 }
 
@@ -140,6 +142,10 @@ const financeApi = api.injectEndpoints({
     getRuledLessons: builder.query<{ lessons: { id: number; name: string }[] }, void>({
       query: () => "finance/lessons",
       providesTags: ["Finance", "Lesson"],
+    }),
+    setLessonLocation: builder.mutation<unknown, { id: number; locationId: number }>({
+      query: ({ id, locationId }) => ({ url: `finance/lessons/${id}/location`, method: "PATCH", body: { locationId } }),
+      invalidatesTags: ["Finance", "Lesson"],
     }),
     getStrayReceivers: builder.query<{ items: StrayReceiverItem[] }, void>({
       query: () => "finance/receivers",
@@ -257,6 +263,7 @@ export const {
   useGetFinanceLocationsQuery,
   useUpdateFinanceLocationMutation,
   useGetRuledLessonsQuery,
+  useSetLessonLocationMutation,
   useGetStrayReceiversQuery,
   useReassignStrayReceiversMutation,
   useCreateFinanceVenueMutation,

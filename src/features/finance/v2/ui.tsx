@@ -70,9 +70,12 @@ export function FinanceShell({
   crumb,
   actions,
   guide,
+  noRecord = false,
   children,
 }: {
   title?: ReactNode;
+  /** 不顯示「記一筆」（開帳精靈：專心做設定）。 */
+  noRecord?: boolean;
   /** 使用教學的段落 id（/finance/guide#…）：標題旁出現一顆「看教學」。 */
   guide?: string;
   crumb?: { href: string; label: string };
@@ -104,9 +107,11 @@ export function FinanceShell({
               );
             })}
           </nav>
-          <Button size="sm" className="mb-1.5 hidden lg:inline-flex" onClick={() => setRecording(true)}>
-            <Plus />記一筆
-          </Button>
+          {!noRecord && (
+            <Button size="sm" className="mb-1.5 hidden lg:inline-flex" onClick={() => setRecording(true)}>
+              <Plus />記一筆
+            </Button>
+          )}
         </div>
         {(title || actions) && (
           <header className="flex flex-wrap items-end justify-between gap-3">
@@ -129,12 +134,16 @@ export function FinanceShell({
         {children}
         <div className="h-16 lg:hidden" />
       </div>
-      <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+64px)] z-10 px-4 pb-3 lg:hidden">
-        <Button size="lg" className="w-full shadow-lg" onClick={() => setRecording(true)}>
-          <Plus />記一筆
-        </Button>
-      </div>
-      <RecordDrawer open={recording} onClose={() => setRecording(false)} />
+      {!noRecord && (
+        <>
+          <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+64px)] z-10 px-4 pb-3 lg:hidden">
+            <Button size="lg" className="w-full shadow-lg" onClick={() => setRecording(true)}>
+              <Plus />記一筆
+            </Button>
+          </div>
+          <RecordDrawer open={recording} onClose={() => setRecording(false)} />
+        </>
+      )}
     </>
   );
 }
