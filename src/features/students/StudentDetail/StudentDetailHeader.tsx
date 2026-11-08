@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, Archive, ChevronLeft, QrCode, SquarePen } from "lucide-react";
 import { toast } from "sonner";
@@ -137,33 +136,33 @@ const CompactHeader = ({
   </div>
 );
 
+const moreButton =
+  "inline-flex items-center justify-center size-11 rounded-xl border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-primary-300";
+
 /**
- * 學生詳情的頁首：大頭貼、姓名、舞種資格與標籤、動作按鈕。剩幾堂看課卡分頁、
- * 出席數字看出席分頁，頁首不再放數據列。
+ * 學生詳情的頁首：大頭貼、姓名（旁邊一支編輯鉛筆）、舞種資格與標籤，右邊是
+ * 「購買課卡」與 ⋯。剩幾堂看課卡分頁、出席數字看出席分頁，頁首不再放數據列。
  * 分頁列接在它下面（StudentDetail），兩者合起來是一塊白色頁首。桌面刻意壓矮，
  * 把高度留給分頁內容。
  *
  * "page"    —— 桌面獨立學生頁，多一行返回名單的麵包屑。
- * "pane"    —— 右側抽屜：頭像縮小；抽屜自己的「開啟完整頁／關閉」從 `trailing` 接在動作按鈕後面。
+ * "pane"    —— 右側抽屜：頭像縮小；換學生／開啟完整頁／關閉在抽屜自己的頂列（StudentsTableView）。
  * "compact" —— 手機：app bar ＋ 大頭貼與姓名。
  */
 const StudentDetailHeader = ({
   student,
   backHref = "/students",
   variant = "page",
-  trailing,
 }: {
   student: StudentWithDetail;
   backHref?: string;
   variant?: "page" | "pane" | "compact";
-  /** 動作按鈕最右邊、隔一條細線的小圖示按鈕（抽屜的開啟完整頁／關閉）。 */
-  trailing?: ReactNode;
 }) => {
   if (variant === "compact") return <CompactHeader student={student} backHref={backHref} />;
   const isPane = variant === "pane";
 
   return (
-    <div className={`@container flex-none bg-white ${isPane ? "px-6 pt-4" : "px-8 pt-5"}`}>
+    <div className={`@container flex-none bg-white ${isPane ? "px-6 pt-5" : "px-8 pt-5"}`}>
       {!isPane && (
         <Link
           href={backHref}
@@ -176,42 +175,43 @@ const StudentDetailHeader = ({
 
       {student.archivedAt && <ArchivedBanner student={student} />}
 
-      <div className={`flex items-center flex-wrap ${isPane ? "gap-3" : "gap-4"}`}>
+      <div className={`flex items-center flex-wrap ${isPane ? "gap-3.5" : "gap-4"}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={student.avatarUrl}
           alt=""
-          className={`${isPane ? "w-12 h-12" : "w-14 h-14"} rounded-full object-cover ring-2 ring-primary-100 shrink-0`}
+          className={`${isPane ? "w-14 h-14" : "w-16 h-16"} rounded-full object-cover ring-2 ring-primary-100 shrink-0`}
         />
         <div className="flex-1 min-w-40">
-          <h1
-            className={`${isPane ? "text-xl" : "text-2xl"} font-bold text-neutral-900 flex items-baseline gap-2 flex-wrap`}
-          >
-            {student.name}
-            <span className="text-sm font-mono font-medium text-neutral-500">#{student.number}</span>
-          </h1>
+          <div className="flex items-center gap-1 flex-wrap">
+            <h1
+              className={`${isPane ? "text-xl" : "text-2xl"} font-bold text-neutral-900 flex items-baseline gap-2 flex-wrap`}
+            >
+              {student.name}
+              <span className="text-sm font-mono font-medium text-neutral-500">#{student.number}</span>
+            </h1>
+            <EditStudent
+              student={student}
+              trigger={(open) => (
+                <button
+                  type="button"
+                  aria-label="編輯學生資料"
+                  title="編輯學生資料"
+                  className={`${buttonVariants({ variant: "ghost", size: "iconSm" })} text-neutral-400 hover:text-neutral-700`}
+                  onClick={open}
+                >
+                  <SquarePen className="w-4 h-4" />
+                </button>
+              )}
+            />
+          </div>
           <div className="mt-1 flex items-center gap-1.5 flex-wrap">
             <StudentBadges student={student} />
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <EditStudent
-            student={student}
-            trigger={(open) => (
-              <Button type="button" variant="secondary" onClick={open}>
-                <SquarePen className="w-4 h-4" />
-                編輯
-              </Button>
-            )}
-          />
-          <StudentActionsMenu student={student} buttonClassName={buttonVariants({ variant: "secondary", size: "icon" })} />
           {!student.archivedAt && <BuyCard student={student} variant="header" />}
-          {trailing && (
-            <>
-              <span aria-hidden="true" className="mx-0.5 h-6 w-px bg-neutral-200" />
-              {trailing}
-            </>
-          )}
+          <StudentActionsMenu student={student} buttonClassName={moreButton} />
         </div>
       </div>
     </div>

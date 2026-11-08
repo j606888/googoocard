@@ -56,7 +56,7 @@ const StudentDetailSkeleton = ({
         )}
         <div aria-hidden="true">
           <div className={`flex items-center ${compact ? "gap-3.5" : "gap-4"}`}>
-            <Skeleton className={`${variant === "pane" ? "size-12" : "size-14"} shrink-0`} />
+            <Skeleton className={`${variant === "pane" ? "size-14" : "size-16"} shrink-0`} />
             <div className="flex flex-col gap-2.5">
               <Skeleton className="h-5 w-32" />
               <div className="flex gap-1.5">
