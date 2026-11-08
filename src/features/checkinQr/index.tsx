@@ -10,6 +10,7 @@ import {
 } from "@/store/slices/classrooms";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import IpadDisplayCard from "./IpadDisplayCard";
 
 const PageHeader = () => (
   <div className="print:hidden">
@@ -129,7 +130,7 @@ const CheckinQr = () => {
         {confirmingRotate ? (
           <div className="flex flex-col gap-3 rounded-2xl border border-warning-300 bg-warning-50 p-4">
             <p className="text-sm leading-relaxed text-warning-950">
-              重新產生後，目前貼在教室的 QR Code 會立刻失效，需要重印一張。確定要繼續嗎？
+              重新產生後，目前貼在教室的 QR Code 會立刻失效，需要重印一張；iPad 顯示頁也要重新開啟。確定要繼續嗎？
             </p>
             <div className="flex gap-2">
               <Button
@@ -156,6 +157,8 @@ const CheckinQr = () => {
           </Button>
         )}
       </div>
+
+      <IpadDisplayCard displayUrl={data.displayUrl} classroomName={data.classroomName} />
     </div>
   );
 };
