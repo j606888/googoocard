@@ -344,7 +344,7 @@ function Stuck({ children }: { children: ReactNode }) {
 }
 
 function Tip({ children }: { children: ReactNode }) {
-  return <div className="rounded-xl border-l-4 border-primary-500 bg-primary-50 px-3.5 py-2.5 text-[14px] text-neutral-800">{children}</div>;
+  return <div className="rounded-xl bg-primary-50 px-3.5 py-2.5 text-[14px] text-neutral-800">{children}</div>;
 }
 
 function Compare({ left, right }: { left: { title: string; body: string }; right: { title: string; body: string } }) {
