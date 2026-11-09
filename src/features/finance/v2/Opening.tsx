@@ -17,7 +17,13 @@ import InfoTip from "@/components/InfoTip";
 import { cn } from "@/lib/utils";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { useGetLocationsQuery } from "@/store/slices/locations";
-import { useGetFinanceSettingsQuery, useGetFinanceTeachersQuery, useGetFinanceVenuesQuery } from "@/store/slices/finance";
+import {
+  useGetFinanceSettingsQuery,
+  useGetFinanceTeachersQuery,
+  useGetFinanceVenuesQuery,
+  useReassignStrayReceiversMutation,
+  useRestoreStrayReceiversMutation,
+} from "@/store/slices/finance";
 import {
   useGetMoneyAccountsQuery,
   useGetOpeningQuery,
@@ -29,6 +35,7 @@ import {
 } from "@/store/slices/ledger";
 import type { OpeningParams } from "@/service/ledger/opening";
 import { financeErrorText, todayKey } from "../financeUi";
+import { useFinanceRole } from "../useCanSettle";
 import { AddAccountDrawer } from "./Accounts";
 import { Amount, FinanceCard, FinanceShell, useIsOwner } from "./ui";
 
@@ -235,6 +242,9 @@ export function OpeningCashStep() {
   const { data: settings } = useGetFinanceSettingsQuery();
   const [addFor, setAddFor] = useState<number | null>(null);
   const [openUser, setOpenUser] = useState<number | null>(null);
+  const { canSettle } = useFinanceRole();
+  const [reassign, reassigning] = useReassignStrayReceiversMutation();
+  const [restore, restoring] = useRestoreStrayReceiversMutation();
 
   if (!draft || !state) return <Skeleton className="h-72 rounded-2xl" />;
   if (state.lockDate) return <Locked lockDate={state.lockDate} />;
@@ -244,6 +254,32 @@ export function OpeningCashStep() {
   const userName = (id: number) => settings?.members.find((m) => m.userId === id)?.name ?? `#${id}`;
   const missing = (result?.errors ?? []).filter((e) => e.code === "NO_MONEY_ACCOUNT" && e.userId !== undefined);
   const cards = result?.cards ?? [];
+  const custodians = (settings?.members ?? []).filter((m) => m.isCustodian);
+  const custodianOptions = custodians.map((m) => ({ value: m.userId, label: m.name }));
+  // 舊卡的錢其實已經交給另一位保管人（例：丁丁收的交給 Sean）→ 改記到他名下，鎖帳前都能復原
+  const canMove = canSettle && draft.method === "CONVENTION" && custodians.length > 1;
+  const busy = reassigning.isLoading || restoring.isLoading;
+  const undo = async (cardIds: number[]) => {
+    try {
+      await restore({ cardIds, dropInIds: [] }).unwrap();
+      refresh();
+      toast.success("已復原");
+    } catch (e) {
+      toast.error(financeErrorText(e, "復原失敗"));
+    }
+  };
+  const move = async (cardIds: number[], toUserId: number) => {
+    if (cardIds.length === 0) return;
+    try {
+      const r = await reassign({ moves: [{ toUserId, cardIds, dropInIds: [] }], conversionDate: draft.date }).unwrap();
+      refresh();
+      toast.success(`已把 ${r.cards} 張舊卡的錢改記到 ${userName(toUserId)} 名下`, {
+        action: { label: "復原", onClick: () => void undo(cardIds) },
+      });
+    } catch (e) {
+      toast.error(financeErrorText(e, "改記失敗"));
+    }
+  };
 
   // 每個人：名下的資金帳戶＋算在他手上的舊卡
   const people = [...new Set([...accounts.map((a) => a.holderUserId), ...cards.flatMap((c) => (c.holderUserId != null ? [c.holderUserId] : []))])];
@@ -342,7 +378,32 @@ export function OpeningCashStep() {
                     ))}
                   </div>
                 )}
-                {open && <CardsByMonth cards={mine} conversionDate={draft.date} />}
+                {canMove && mine.length > 0 && custodians.some((m) => m.userId === uid) && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pb-3 text-[13px] lg:px-5">
+                    <span className="text-neutral-600">這些錢現在在誰手上？</span>
+                    <Select
+                      size="sm"
+                      className="w-40"
+                      aria-label={`${userName(uid)} 名下舊卡的錢現在在誰手上`}
+                      value={uid}
+                      disabled={busy}
+                      onChange={(v) => v !== uid && void move(mine.map((c) => c.cardId), v)}
+                      options={custodianOptions}
+                    />
+                  </div>
+                )}
+                {open && (
+                  <CardsByMonth
+                    cards={mine}
+                    conversionDate={draft.date}
+                    userName={userName}
+                    moveOptions={canMove && custodians.some((m) => m.userId === uid) ? custodianOptions.filter((o) => o.value !== uid) : []}
+                    canUndo={canSettle}
+                    busy={busy}
+                    onMove={(cardId, to) => void move([cardId], to)}
+                    onUndo={(cardId) => void undo([cardId])}
+                  />
+                )}
               </li>
             );
           })}
@@ -422,7 +483,26 @@ function monthsBefore(dateKey: string, n: number): string {
 }
 
 /** 期初現金展開某人：舊卡依購買月份分組（新的在上），買超過半年的月份標出來（多半用不完）。 */
-function CardsByMonth({ cards, conversionDate }: { cards: PreviewCard[]; conversionDate: string }) {
+function CardsByMonth({
+  cards,
+  conversionDate,
+  userName,
+  moveOptions,
+  canUndo,
+  busy,
+  onMove,
+  onUndo,
+}: {
+  cards: PreviewCard[];
+  conversionDate: string;
+  userName: (id: number) => string;
+  /** 單張改記可以選的保管人（不含現在的經手人）；空的就不顯示。 */
+  moveOptions: { value: number; label: string }[];
+  canUndo: boolean;
+  busy: boolean;
+  onMove: (cardId: number, toUserId: number) => void;
+  onUndo: (cardId: number) => void;
+}) {
   const groups = useMemo(() => {
     const byMonth = new Map<string, PreviewCard[]>();
     for (const c of cards) {
@@ -485,12 +565,33 @@ function CardsByMonth({ cards, conversionDate }: { cards: PreviewCard[]; convers
               {isOpen && (
                 <ul className="mb-1 flex flex-col border-l border-neutral-200 pl-3">
                   {g.cards.map((c) => (
-                    <li key={c.cardId} className="flex items-start gap-3 py-1 text-[13px]">
+                    <li key={c.cardId} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1 text-[13px]">
                       <span className="min-w-0 flex-1 break-words text-neutral-800">
                         <span className="tabular-nums text-neutral-500">{c.purchasedOn.slice(5).replace("-", "/")}</span> · {c.studentName}{" "}
                         <span className="text-neutral-500">· {c.cardName}</span>
                         <span className="whitespace-nowrap tabular-nums text-neutral-500">　剩 {c.sessionsLeft} / {c.totalSessions} 堂</span>
+                        {c.collectedByUserId != null && (
+                          <span className="whitespace-nowrap text-neutral-500">
+                            　原本 {userName(c.collectedByUserId)} 收
+                            {canUndo && (
+                              <Button variant="link" size="sm" className="ml-1.5 text-[13px]" disabled={busy} onClick={() => onUndo(c.cardId)}>
+                                復原
+                              </Button>
+                            )}
+                          </span>
+                        )}
                       </span>
+                      {moveOptions.length > 0 && (
+                        <Select
+                          size="sm"
+                          className="w-28 shrink-0"
+                          aria-label={`${c.studentName} ${c.cardName} 改記給誰`}
+                          placeholder="改給…"
+                          disabled={busy}
+                          onChange={(v) => onMove(c.cardId, v)}
+                          options={moveOptions}
+                        />
+                      )}
                       <Amount cents={c.deferred} dollar className="shrink-0 text-right" />
                     </li>
                   ))}

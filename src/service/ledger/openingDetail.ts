@@ -24,6 +24,8 @@ export type OpeningCardDetail = {
   receivable: number;
   /** 錢在誰手上（約定法：期初現金算給他）；沒付過款的卡是 null。 */
   holderUserId: number | null;
+  /** 開帳整理改記過（例：丁丁收的、已經交給 Sean）：第一位實際收錢的人；沒改記過是 null。 */
+  collectedByUserId: number | null;
   locationId: number;
 };
 
@@ -64,7 +66,7 @@ export async function openingDetail(
   const byId = new Map(inputs.cards.map((c) => [c.id, c]));
   const names = await prisma.studentCard.findMany({
     where: { id: { in: cards.map((c) => c.cardId) }, student: { classroomId } },
-    select: { id: true, student: { select: { name: true } }, card: { select: { name: true } } },
+    select: { id: true, collectedByUserId: true, student: { select: { name: true } }, card: { select: { name: true } } },
   });
   const nameOf = new Map(names.map((n) => [n.id, n]));
 
@@ -87,6 +89,7 @@ export async function openingDetail(
           deferred: c.deferred,
           receivable: c.receivable,
           holderUserId: c.holderUserId,
+          collectedByUserId: n?.collectedByUserId != null && n.collectedByUserId !== c.holderUserId ? n.collectedByUserId : null,
           locationId: c.locationId,
         };
       })

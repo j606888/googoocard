@@ -3,7 +3,9 @@ import { ApiError } from "@/lib/apiError";
 import { assertCanSettle, assertFinanceEnabled } from "./access";
 import { assertCustodian } from "./config";
 import { soldLocationFor } from "./receiver";
-import { financeSince } from "./start";
+import { financeSince, financeStart } from "./start";
+import { computeOpening } from "@/domains/ledger/opening";
+import { loadLedgerInputs } from "@/service/ledger/load";
 
 /**
  * 開帳：上線日之後收的錢、收款人卻不是保管人（例：開帳前小幫手代收），以及上線前的卡
@@ -118,19 +120,63 @@ export async function listStrayReceivers(classroomId: number): Promise<StrayRece
   ].sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
+/**
+ * 開帳的舊卡（期初現金第 7 步）：轉換日前就付清、轉換日那天還有剩餘價值、錢算在某位保管人手上的卡
+ * → cardId 對應現在的經手人（paidByUserId，或舊卡的預設保管人）。
+ * 跟期初試算用同一套規則（computeOpening），所以畫面上列在誰名下，這裡就認誰。
+ * 已經開過帳：轉換日最多到已開帳的那一天，不會動到開帳後買的卡。
+ */
+async function openingCustodianCards(classroomId: number, conversionDate: string, custodianIds: Set<number>) {
+  const opened = await financeStart(classroomId);
+  const date = opened && opened.dateKey < conversionDate ? opened.dateKey : conversionDate;
+  const inputs = await loadLedgerInputs(classroomId, { conversionDate: date });
+  const out = new Map<number, number>();
+  if (!inputs) return out;
+  const { cards } = computeOpening({
+    conversionDate: date,
+    method: "CONVENTION",
+    cards: inputs.cards,
+    ctx: inputs.ctx,
+    cash: [],
+    prepaidVenues: [],
+    payables: [],
+    moneyAccountLocation: () => null,
+  });
+  for (const c of cards) {
+    if (c.holderUserId !== null && c.deferred !== 0 && custodianIds.has(c.holderUserId)) out.set(c.cardId, c.holderUserId);
+  }
+  return out;
+}
+
 /** 一組改記：這幾筆改到 toUserId（必須是保管人）。 */
 export type StrayMove = { toUserId: number; cardIds: number[]; dropInIds: number[] };
 
 /**
  * 改記到保管人（可以一次送好幾組）。卡沒有賣卡分部時補上新保管人負責的分部。
  * 原本的收款人留在 collectedByUserId——只在還沒記過時寫（保留第一位經手的人），之後能復原。
+ *
+ * 帶 `conversionDate`（期初現金那一步）：開帳的舊卡錢在保管人 A 手上、其實已經交給保管人 B 了，
+ * 也能改記（見 openingCustodianCards）；這些卡不補賣卡分部（復原才能完全還原），改回第一位經手的人
+ * 就清掉 collectedByUserId（等於復原）。鎖帳後不能改（409）。
  */
-export async function reassignStrayReceivers(args: { classroomId: number; userId: number; moves: StrayMove[] }) {
-  const { classroomId, userId, moves } = args;
+export async function reassignStrayReceivers(args: {
+  classroomId: number;
+  userId: number;
+  moves: StrayMove[];
+  conversionDate?: string;
+}) {
+  const { classroomId, userId, moves, conversionDate } = args;
   await assertCanSettle(userId, classroomId);
   for (const m of moves) await assertCustodian(m.toUserId, classroomId);
   const where = await strayWhere(classroomId);
   const soldLocations = await Promise.all(moves.map((m) => soldLocationFor(classroomId, m.toUserId)));
+  let openingCards = new Map<number, number>();
+  if (conversionDate) {
+    const c = await prisma.classroom.findUnique({ where: { id: classroomId }, select: { financeLockDate: true } });
+    if (c?.financeLockDate) throw new ApiError(409, "PERIOD_LOCKED", "The ledger is locked; opening cards can no longer be reassigned");
+    const custodians = await prisma.membership.findMany({ where: { classroomId, isCustodian: true }, select: { userId: true } });
+    openingCards = await openingCustodianCards(classroomId, conversionDate, new Set(custodians.map((m) => m.userId)));
+  }
 
   return prisma.$transaction(async (tx) => {
     let cardCount = 0;
@@ -150,6 +196,23 @@ export async function reassignStrayReceivers(args: { classroomId: number; userId
           },
         });
       }
+      // 開帳的舊卡：保管人 → 另一位保管人
+      const strayIds = new Set(cards.map((c) => c.id));
+      const oldIds = m.cardIds.filter((id) => !strayIds.has(id) && openingCards.has(id) && openingCards.get(id) !== m.toUserId);
+      const oldCards = oldIds.length
+        ? await tx.studentCard.findMany({
+            where: { id: { in: oldIds }, student: { classroomId }, isPaid: true },
+            select: { id: true, paidByUserId: true, collectedByUserId: true },
+          })
+        : [];
+      for (const c of oldCards) {
+        const first = c.collectedByUserId ?? c.paidByUserId ?? openingCards.get(c.id)!;
+        await tx.studentCard.update({
+          where: { id: c.id },
+          data: { paidByUserId: m.toUserId, collectedByUserId: first === m.toUserId ? null : first },
+        });
+      }
+      cardCount += oldCards.length;
       const dropIns = await tx.dropInCharge.findMany({
         where: { ...where.dropIn, id: { in: m.dropInIds } },
         select: { id: true, paidByUserId: true, collectedByUserId: true },

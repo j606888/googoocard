@@ -193,7 +193,7 @@ const financeApi = api.injectEndpoints({
     }),
     reassignStrayReceivers: builder.mutation<
       { cards: number; dropIns: number },
-      { moves: { toUserId: number; cardIds: number[]; dropInIds: number[] }[] }
+      { moves: { toUserId: number; cardIds: number[]; dropInIds: number[] }[]; conversionDate?: string }
     >({
       query: (body) => ({ url: "finance/receivers", method: "POST", body }),
       invalidatesTags: ["Finance", "StudentCard"],

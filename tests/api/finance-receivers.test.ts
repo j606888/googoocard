@@ -249,4 +249,78 @@ describe("opening: money received by non-custodians", () => {
     expect((await locked.json()).code).toBe("PERIOD_LOCKED");
     expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: a.id } })).paidByUserId).toBe(seanId);
   });
+  describe("opening cards held by a custodian (期初現金：錢已經交給另一位保管人)", () => {
+    let locId: number;
+    const oldCard = async (paidBy: number | null, createdAt = new Date("2026-10-01T04:00:00Z")) => {
+      const sc = await paidCard(paidBy, createdAt);
+      await prisma.studentCard.update({ where: { id: sc.id }, data: { soldLocationId: locId } });
+      return sc;
+    };
+    const holder = async (id: number) => {
+      const c = await prisma.studentCard.findUniqueOrThrow({ where: { id } });
+      return [c.paidByUserId, c.collectedByUserId];
+    };
+    const move = (toUserId: number, cardIds: number[], conversionDate?: string) =>
+      POST(jsonRequest("POST", { moves: [{ toUserId, cardIds, dropInIds: [] }], ...(conversionDate ? { conversionDate } : {}) }), routeParams({}));
+
+    beforeEach(async () => {
+      locId = (await createLocation(classroomId, { name: "台南" })).id;
+    });
+
+    it("moves an old card custodian → custodian (incl. a legacy-custodian card), keeps the first collector, and stays out of the stray list", async () => {
+      const a = await oldCard(ownerId);
+      const legacy = await oldCard(null); // 沒記收款人 → 算在預設保管人（owner）手上
+
+      // 沒帶轉換日：不是待整理的錢，什麼都不動
+      expect(await (await move(seanId, [a.id])).json()).toEqual({ cards: 0, dropIns: 0 });
+      expect(await holder(a.id)).toEqual([ownerId, null]);
+
+      const res = await move(seanId, [a.id, legacy.id], "2026-11-01");
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ cards: 2, dropIns: 0 });
+      expect(await holder(a.id)).toEqual([seanId, ownerId]);
+      expect(await holder(legacy.id)).toEqual([seanId, ownerId]);
+      expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: a.id } })).soldLocationId).toBe(locId);
+
+      // 保管人之間改記不會進第 5 步的待整理
+      const body = await (await GET(jsonRequest("GET"), routeParams({}))).json();
+      expect(body.items).toEqual([]);
+      expect((await receiversItem()).done).toBe(true);
+
+      // 改回第一位經手的人＝復原
+      await move(ownerId, [a.id], "2026-11-01");
+      expect(await holder(a.id)).toEqual([ownerId, null]);
+
+      // 復原
+      const r = await RESTORE(jsonRequest("POST", { cardIds: [legacy.id], dropInIds: [] }), routeParams({}));
+      expect(await r.json()).toEqual({ cards: 1, dropIns: 0 });
+      expect(await holder(legacy.id)).toEqual([ownerId, null]);
+    });
+
+    it("refuses post-conversion cards, used-up cards and other classrooms; refused once locked", async () => {
+      const post = await oldCard(ownerId, new Date("2026-11-05T04:00:00Z"));
+      const usedUp = await oldCard(ownerId);
+      await prisma.studentCard.update({ where: { id: usedUp.id }, data: { remainingSessions: 0 } });
+      // 已開帳（11/1）：草稿的轉換日再晚，也不會碰開帳後買的卡
+      expect(await (await move(seanId, [post.id, usedUp.id], "2026-12-01")).json()).toEqual({ cards: 0, dropIns: 0 });
+      expect(await holder(post.id)).toEqual([ownerId, null]);
+      expect(await holder(usedUp.id)).toEqual([ownerId, null]);
+
+      const other = await createClassroom({ name: "Other", email: "o4@test.local" });
+      const os = await createStudent(other.id);
+      const otherCard = await createStudentCard(os.id, (await createCard(other.id)).id, { createdAt: new Date("2026-10-01T04:00:00Z") });
+      await prisma.studentCard.update({ where: { id: otherCard.id }, data: { paidByUserId: ownerId } });
+      expect(await (await move(seanId, [otherCard.id], "2026-11-01")).json()).toEqual({ cards: 0, dropIns: 0 });
+
+      auth.userId = seanId; // custodian but cannot settle
+      const a = await oldCard(ownerId);
+      expect((await move(seanId, [a.id], "2026-11-01")).status).toBe(403);
+      auth.userId = ownerId;
+
+      await prisma.classroom.update({ where: { id: classroomId }, data: { financeLockDate: new Date("2026-11-05T00:00:00Z") } });
+      const locked = await move(seanId, [a.id], "2026-11-01");
+      expect(locked.status).toBe(409);
+      expect(await holder(a.id)).toEqual([ownerId, null]);
+    });
+  });
 });
