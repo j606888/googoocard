@@ -3,12 +3,14 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import Link from "next/link";
+import { roleLabel } from "@/lib/roles";
 import { toast } from "sonner";
 import Field from "@/components/Field";
 import Select from "@/components/Select";
 import { Button } from "@/components/ui/button";
 import {
   useGetFinanceLocationsQuery,
+  useSetMemberFinanceMutation,
   useUpdateFinanceLocationMutation,
   type FinanceLocation,
 } from "@/store/slices/finance";
@@ -19,15 +21,53 @@ import { useFinanceMembers } from "./useFinanceForm";
 const NONE = 0;
 
 function BranchRow({ loc }: { loc: FinanceLocation }) {
-  const { options } = useFinanceMembers();
+  const { options, allMembers } = useFinanceMembers();
   const [update] = useUpdateFinanceLocationMutation();
+  const [setMemberFinance] = useSetMemberFinanceMutation();
+
+  // 負責人列全部成員：保管人在前；選了不是保管人的人，先把他設成保管人再指派。
+  const memberHint = (m: (typeof allMembers)[number]) =>
+    [roleLabel(m.role), m.teacherName && `老師「${m.teacherName}」`].filter(Boolean).join(" · ");
+  const keeperOptions = [
+    ...allMembers
+      .filter((m) => m.isCustodian)
+      .map((m) => ({ value: m.userId, label: m.name, hint: memberHint(m), group: "保管人" })),
+    ...allMembers
+      .filter((m) => !m.isCustodian)
+      .map((m) => ({
+        value: m.userId,
+        label: m.name,
+        hint: memberHint(m),
+        group: "其他成員（選了會變成保管人）",
+      })),
+  ];
 
   const patch = async (body: Parameters<typeof update>[0]) => {
     try {
       await update(body).unwrap();
+      return true;
     } catch (e) {
       toast.error(financeErrorText(e, "存不了，請再試一次"));
+      return false;
     }
+  };
+
+  const pickKeeper = async (v: number) => {
+    if (v === NONE) return patch({ id: loc.id, keeperUserId: null });
+    const member = allMembers.find((m) => m.userId === v);
+    if (member && !member.isCustodian) {
+      try {
+        await setMemberFinance({ userId: v, isCustodian: true }).unwrap();
+      } catch (e) {
+        toast.error(financeErrorText(e, "沒辦法把他設成保管人，請再試一次"));
+        return;
+      }
+      if (await patch({ id: loc.id, keeperUserId: v })) {
+        toast.success(`已把 ${member.name} 設成保管人，並設為${loc.name}負責人`);
+      }
+      return;
+    }
+    await patch({ id: loc.id, keeperUserId: v });
   };
 
   return (
@@ -40,8 +80,8 @@ function BranchRow({ loc }: { loc: FinanceLocation }) {
             size="sm"
             aria-label={`${loc.name} 負責人`}
             value={loc.keeperUserId ?? NONE}
-            onChange={(v) => patch({ id: loc.id, keeperUserId: v === NONE ? null : v })}
-            options={[{ value: NONE, label: "還沒設定" }, ...options]}
+            onChange={(v) => void pickKeeper(v)}
+            options={[{ value: NONE, label: "還沒設定" }, ...keeperOptions]}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -66,21 +106,11 @@ function BranchRow({ loc }: { loc: FinanceLocation }) {
   );
 }
 
-/** 負責人／過期的錢只能選保管人，常被誤會成「權限最大的兩個人」，所以講清楚、給一條去設定保管人的路。 */
+/** 負責人常被誤會成「權限最大的人」，一句話講清楚它是什麼、名單從哪來。 */
 function KeeperHint() {
   return (
     <p className="mt-3 text-[13px] leading-relaxed text-neutral-600">
-      只列出保管人（可以收錢的人）。
-      <a
-        href="/finance/settings#general"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="ml-1 font-medium text-primary-700 underline-offset-4 hover:underline"
-      >
-        沒看到要的人？
-      </a>
-      <br />
-      還不在團隊裡的人，要先到「教室設定 → 團隊」邀請。
+      負責人＝這個分部收的錢最後交給誰。要找的人不在名單裡，先到「教室設定 → 團隊」邀請他。
     </p>
   );
 }
