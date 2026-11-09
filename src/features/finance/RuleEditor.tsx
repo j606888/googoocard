@@ -81,7 +81,10 @@ export default function RuleEditor({
   sample,
   scopeNote,
   lessonTeacherIds = [],
+  status,
 }: {
+  /** 試算下面的狀態列（錯誤／checkRule）；電腦版跟試算一起釘在右欄。 */
+  status?: React.ReactNode;
   rows: RuleRow[];
   onChange: (rows: RuleRow[]) => void;
   names: SplitNames;
@@ -143,7 +146,8 @@ export default function RuleEditor({
   );
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6">
+      <div className="flex flex-col gap-3">
       <div className="flex items-center gap-1 text-sm font-medium text-neutral-900">
         這堂課的課卡收入，由上往下扣：
         <InfoTip label="分帳規則說明">
@@ -329,7 +333,12 @@ export default function RuleEditor({
         </div>
       )}
 
-      {rest.type === "rest" && <SplitPreview rows={rows} names={names} />}
+      </div>
+
+      <div className="flex flex-col gap-3 lg:sticky lg:top-0">
+        {rest.type === "rest" && <SplitPreview rows={rows} names={names} />}
+        {status}
+      </div>
     </div>
   );
 }
@@ -570,6 +579,7 @@ export function RuleEditorDrawer({
       title={title}
       subtitle={subtitle}
       submitText="儲存"
+      size="wide"
       isLoading={isLoading}
       disabled={!!error}
       onClose={onClose}
@@ -582,13 +592,14 @@ export function RuleEditorDrawer({
         sample={sample}
         scopeNote={scopeNote}
         lessonTeacherIds={lessonTeacherIds}
-      />
-      {error && <p className="mt-2 text-[13px] text-danger-700">{error}</p>}
+        status={
+          <>
+      {error && <p className="text-[13px] text-danger-700">{error}</p>}
       {check && (
         <p
           role="status"
           className={cn(
-            "mt-3 flex items-start gap-1.5 text-[13px]",
+            "flex items-start gap-1.5 text-[13px]",
             check.ok ? "text-neutral-600" : "text-warning-700"
           )}
         >
@@ -600,6 +611,9 @@ export function RuleEditorDrawer({
           {check.text}
         </p>
       )}
+          </>
+        }
+      />
     </Drawer>
   );
 }

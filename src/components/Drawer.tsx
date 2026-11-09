@@ -29,6 +29,11 @@ interface BottomSheetDialogProps {
   footerStart?: React.ReactNode;
   /** A line under the title, e.g. who this is for. */
   subtitle?: string;
+  /**
+   * "wide": on desktop (lg:) a much wider dialog with a taller scroll area, and the
+   * footer right-aligned with an auto-width submit button. Mobile is unchanged.
+   */
+  size?: "default" | "wide";
 }
 
 /**
@@ -49,9 +54,11 @@ const Drawer = ({
   onSecondary,
   footerStart,
   subtitle,
+  size = "default",
 }: BottomSheetDialogProps) => {
+  const wide = size === "wide";
   return (
-    <ResponsiveDialog open={open} onClose={onClose}>
+    <ResponsiveDialog open={open} onClose={onClose} className={wide ? "lg:max-w-4xl" : undefined}>
       <div className="relative flex flex-col items-center justify-center mb-6 px-11">
         <ResponsiveDialogTitle className="text-lg font-bold text-neutral-900 text-center">
           {title}
@@ -67,14 +74,14 @@ const Drawer = ({
           <X className="size-5" />
         </Button>
       </div>
-      <div className="max-h-[60vh] overflow-y-auto px-1 -mx-1 pb-1">{children}</div>
-      <div className="mt-auto w-full flex items-center gap-2 pt-5">
+      <div className={cn("max-h-[60vh] overflow-y-auto px-1 -mx-1 pb-1", wide && "lg:max-h-[70vh]")}>{children}</div>
+      <div className={cn("mt-auto w-full flex items-center gap-2 pt-5", wide && "lg:justify-end")}>
         {footerStart && <div className="shrink-0 mr-1">{footerStart}</div>}
         {secondaryText && (
           <Button
             type="button"
             variant="secondary"
-            className="flex-1"
+            className={cn("flex-1", wide && "lg:flex-none lg:px-6")}
             onClick={onSecondary ?? onClose}
           >
             {secondaryText}
@@ -87,7 +94,8 @@ const Drawer = ({
           isLoading={isLoading}
           className={cn(
             "mt-auto",
-            secondaryText ? "flex-[2]" : footerStart ? "flex-1" : "w-full"
+            secondaryText ? "flex-[2]" : footerStart ? "flex-1" : "w-full",
+            wide && "lg:w-auto lg:flex-none lg:px-8"
           )}
           onClick={() => !isLoading && onSubmit()}
         >
