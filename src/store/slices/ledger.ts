@@ -5,6 +5,7 @@ import type { getPayoutRun } from "@/service/ledger/payouts";
 import type { listMoneyAccounts, getEntry } from "@/service/ledger/records";
 import type { getCloseChecklist, getLockState } from "@/service/ledger/close";
 import type { OpeningParams, OpeningPreview } from "@/service/ledger/opening";
+import type { OpeningCardDetail, OpeningPackDetail } from "@/service/ledger/openingDetail";
 
 // 財務 v2 總帳（docs/finance-v2/）。金額單位一律「分」，畫面換算成元。
 // 伺服器回傳的 Date 經過 JSON 都會變成字串。
@@ -19,7 +20,7 @@ export type MoneyAccountView = Jsonify<Awaited<ReturnType<typeof listMoneyAccoun
 export type JournalEntryView = Jsonify<Awaited<ReturnType<typeof getEntry>>>;
 export type CloseChecklist = Jsonify<Awaited<ReturnType<typeof getCloseChecklist>>>;
 export type LockState = Jsonify<Awaited<ReturnType<typeof getLockState>>>;
-export type OpeningPreviewView = Omit<OpeningPreview, "lines">;
+export type OpeningPreviewView = Omit<OpeningPreview, "lines"> & { cards: OpeningCardDetail[]; packs: OpeningPackDetail[] };
 export type OpeningState = {
   opened: boolean;
   openedAt: string | null;

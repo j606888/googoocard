@@ -30,10 +30,10 @@ export async function seedNovember(classroomId: number, dingId: number) {
   await prisma.location.update({ where: { id: K.id }, data: { keeperUserId: seanId } });
 
   const tDing = await createTeacher(classroomId, { name: "丁丁", userId: dingId });
-  const tCharlene = await createTeacher(classroomId, { name: "Charlene", payerUserId: dingId });
-  const tNora = await createTeacher(classroomId, { name: "Nora", payerUserId: dingId });
+  const tCharlene = await createTeacher(classroomId, { name: "Charlene" });
+  const tNora = await createTeacher(classroomId, { name: "Nora" });
   const tSean = await createTeacher(classroomId, { name: "Sean", userId: seanId });
-  const tPartner = await createTeacher(classroomId, { name: "高雄搭檔", payerUserId: seanId });
+  const tPartner = await createTeacher(classroomId, { name: "高雄搭檔" });
   const home = await createVenue(classroomId, { name: "丁丁家", landlordUserId: dingId });
   const steps = await createVenue(classroomId, { name: "24steps" });
   const pack = await createVenuePack(classroomId, steps.id, { sessions: 10, price: 4050, paidByUserId: seanId, purchasedAt: at("2026-11-05") });

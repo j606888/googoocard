@@ -28,6 +28,8 @@ export interface SelectOption<T extends string | number> {
   /** 灰色小字，跟在選項後面（例如「3 堂進行中」）；觸發框上不顯示。 */
   hint?: string;
   disabled?: boolean;
+  /** 分組標題（例如「老師」）。相鄰同組的選項收在同一個標題下；不給就不分組。 */
+  group?: string;
 }
 
 /**
@@ -188,39 +190,55 @@ export default function Select<T extends string | number>({
               {...getFloatingProps()}
               className="z-50 flex flex-col overflow-y-auto [scrollbar-width:thin] rounded-2xl border border-neutral-200 bg-white p-1.5 shadow-[0_12px_40px_-12px_rgba(27,94,74,0.45)] outline-none"
             >
-              {options.map((o, i) => {
-                const isSelected = i === selectedIndex;
+              {groupRuns(options).map((run) => {
+                const items = run.items.map(({ option: o, index: i }) => {
+                  const isSelected = i === selectedIndex;
+                  return (
+                    <div
+                      key={o.value}
+                      ref={(node) => {
+                        listRef.current[i] = node;
+                      }}
+                      tabIndex={i === activeIndex ? 0 : -1}
+                      aria-disabled={o.disabled || undefined}
+                      {...getItemProps({
+                        active: i === activeIndex,
+                        selected: isSelected,
+                        onClick: () => choose(i),
+                        onKeyDown: (e) => {
+                          if (e.key === "Enter" || (e.key === " " && !isTypingRef.current)) {
+                            e.preventDefault();
+                            choose(i);
+                          }
+                        },
+                      })}
+                      className={cn(
+                        "flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-[15px] outline-none",
+                        i === activeIndex && "bg-neutral-100",
+                        isSelected ? "font-semibold text-primary-900" : "text-neutral-800",
+                        o.disabled && "cursor-not-allowed text-neutral-400"
+                      )}
+                    >
+                      <span className="min-w-0 flex-1">
+                        {o.label}
+                        {o.hint && <span className="ml-1.5 text-[13px] font-normal text-neutral-500">{o.hint}</span>}
+                      </span>
+                      {isSelected && <Check aria-hidden="true" className="size-4 shrink-0 text-primary-700" />}
+                    </div>
+                  );
+                });
+                if (run.group === undefined) return items;
+                const headerId = `${listId}-g${run.items[0].index}`;
                 return (
-                  <div
-                    key={o.value}
-                    ref={(node) => {
-                      listRef.current[i] = node;
-                    }}
-                    tabIndex={i === activeIndex ? 0 : -1}
-                    aria-disabled={o.disabled || undefined}
-                    {...getItemProps({
-                      active: i === activeIndex,
-                      selected: isSelected,
-                      onClick: () => choose(i),
-                      onKeyDown: (e) => {
-                        if (e.key === "Enter" || (e.key === " " && !isTypingRef.current)) {
-                          e.preventDefault();
-                          choose(i);
-                        }
-                      },
-                    })}
-                    className={cn(
-                      "flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-[15px] outline-none",
-                      i === activeIndex && "bg-neutral-100",
-                      isSelected ? "font-semibold text-primary-900" : "text-neutral-800",
-                      o.disabled && "cursor-not-allowed text-neutral-400"
-                    )}
-                  >
-                    <span className="min-w-0 flex-1">
-                      {o.label}
-                      {o.hint && <span className="ml-1.5 text-[13px] font-normal text-neutral-500">{o.hint}</span>}
-                    </span>
-                    {isSelected && <Check aria-hidden="true" className="size-4 shrink-0 text-primary-700" />}
+                  <div key={headerId} role="group" aria-labelledby={headerId} className="flex flex-col">
+                    <div
+                      id={headerId}
+                      role="presentation"
+                      className="px-3 pt-2.5 pb-1 text-[13px] font-medium text-neutral-500"
+                    >
+                      {run.group}
+                    </div>
+                    {items}
                   </div>
                 );
               })}
@@ -230,6 +248,17 @@ export default function Select<T extends string | number>({
       )}
     </>
   );
+}
+
+/** 相鄰同 `group` 的選項併成一段；`index` 是在原本 options 裡的位置（鍵盤導覽照這個走）。 */
+function groupRuns<T extends string | number>(options: SelectOption<T>[]) {
+  const runs: { group?: string; items: { option: SelectOption<T>; index: number }[] }[] = [];
+  options.forEach((option, index) => {
+    const last = runs[runs.length - 1];
+    if (last && last.group === option.group) last.items.push({ option, index });
+    else runs.push({ group: option.group, items: [{ option, index }] });
+  });
+  return runs;
 }
 
 /** 選項就是那串文字本身時：`["台南", "高雄"]` → `[{ value: "台南", label: "台南" }, …]`。 */

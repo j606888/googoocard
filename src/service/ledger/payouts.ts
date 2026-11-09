@@ -47,31 +47,38 @@ async function owedAsOf(classroomId: number, asOf: string): Promise<Owed[]> {
     .sort((a, b) => a.partyType.localeCompare(b.partyType) || a.partyId - b.partyId || a.locationId - b.locationId);
 }
 
-/** 誰付：收錢的人自己有資金帳戶 → 自己領；否則老師的付款人；否則應付所在分部的負責人。 */
+/**
+ * 誰付：
+ * - 場地 → 場地所屬分部的負責人（場地沒分部 → 應付所在分部的負責人）。
+ * - 老師 → 那堂課所在分部（應付的 locationId）的負責人，永遠如此——老師本人有資金帳戶也一樣
+ *   （Sean 在高雄、台南都有課：高雄的從高雄負責人的帳戶付，台南的從台南負責人的帳戶付）。
+ * - 成員（OWNER_PAYABLE）：自己有資金帳戶 → 自己領；否則應付所在分部的負責人。
+ * 分部沒負責人時退回該分部任一個資金帳戶；都沒有 → null（付款單上要手動選帳戶）。
+ */
 async function payerResolver(classroomId: number) {
-  const [accounts, teachers, venues, locations] = await Promise.all([
+  const [accounts, venues, locations] = await Promise.all([
     prisma.moneyAccount.findMany({
       where: { classroomId, archivedAt: null },
       select: { id: true, holderUserId: true, locationId: true },
       orderBy: [{ isDefault: "desc" }, { id: "asc" }],
     }),
-    prisma.teacher.findMany({ where: { classroomId }, select: { id: true, userId: true, payerUserId: true } }),
-    prisma.venue.findMany({ where: { classroomId }, select: { id: true, landlordUserId: true } }),
+    prisma.venue.findMany({ where: { classroomId }, select: { id: true, locationId: true } }),
     prisma.location.findMany({ where: { classroomId }, select: { id: true, keeperUserId: true } }),
   ]);
   const ofUser = (u: number | null | undefined) => (u == null ? undefined : accounts.find((a) => a.holderUserId === u));
   const keeper = new Map(locations.map((l) => [l.id, l.keeperUserId]));
   const ofLocation = (loc: number) =>
     accounts.find((a) => a.locationId === loc && a.holderUserId === keeper.get(loc)) ?? accounts.find((a) => a.locationId === loc);
-  const teacher = new Map(teachers.map((t) => [t.id, t]));
   const venue = new Map(venues.map((v) => [v.id, v]));
   return {
     ofLocation,
     accountOf: (o: Pick<Owed, "partyType" | "partyId" | "locationId">) => {
-      const self =
-        o.partyType === "TEACHER" ? teacher.get(o.partyId)?.userId : o.partyType === "VENUE" ? venue.get(o.partyId)?.landlordUserId : o.partyId;
-      const payer = o.partyType === "TEACHER" ? teacher.get(o.partyId)?.payerUserId : null;
-      return (ofUser(self) ?? ofUser(payer) ?? ofLocation(o.locationId))?.id ?? null;
+      if (o.partyType === "VENUE") {
+        const loc = venue.get(o.partyId)?.locationId;
+        return ((loc != null ? ofLocation(loc) : undefined) ?? ofLocation(o.locationId))?.id ?? null;
+      }
+      if (o.partyType === "TEACHER") return ofLocation(o.locationId)?.id ?? null;
+      return (ofUser(o.partyId) ?? ofLocation(o.locationId))?.id ?? null;
     },
     locationOf: (id: number) => accounts.find((a) => a.id === id)?.locationId,
   };

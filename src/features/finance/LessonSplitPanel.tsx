@@ -26,7 +26,7 @@ import { useSplitNames } from "./useSplitNames";
 
 /**
  * 課程頁的「分帳」：規則（一門課設一次）＋每堂的明細。只有財務能改。
- * `ruleOnly`：只顯示規則，不列每一堂（開帳精靈第 5 步用）。
+ * `ruleOnly`：只顯示規則，不列每一堂（開帳精靈第 4 步用）。
  */
 export default function LessonSplitPanel({
   lesson,
@@ -127,7 +127,7 @@ export default function LessonSplitPanel({
         <h3 className="text-base font-bold text-neutral-900">分帳規則</h3>
         <InfoTip label="分帳說明">規則設一次，套用到這門課的每一堂。上課就算收入；學生還沒付的那份，老師要等學生付了才能領，會標在每堂下面。</InfoTip>
         {names.canEdit && (
-          <Button variant="secondary" size="sm" className="ml-auto" onClick={() => setEditing("lesson")}>
+          <Button variant="primary" size="sm" className="ml-auto" onClick={() => setEditing("lesson")}>
             {rule ? "編輯規則" : "設定規則"}
           </Button>
         )}
@@ -201,6 +201,7 @@ export default function LessonSplitPanel({
               : "只影響這一堂，這門課的其他堂照原本的規則。"
           }
           sample={ruleSample(editing)}
+          lessonTeacherIds={lesson.teachers.map((t) => t.id)}
           initialRows={startRows}
           names={names}
           isLoading={savingLesson || savingPeriod}

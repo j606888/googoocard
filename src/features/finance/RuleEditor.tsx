@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, X } from "lucide-react";
-import Select from "@/components/Select";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, ChevronDown, X } from "lucide-react";
+import Menu from "@/components/Menu";
+import Select, { type SelectOption } from "@/components/Select";
 import Drawer from "@/components/Drawer";
 import InfoTip from "@/components/InfoTip";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,13 @@ import { cn } from "@/lib/utils";
 import type { Payee } from "@/domains/finance/types";
 import { formatMoney } from "@/lib/money";
 import {
+  checkRule,
+  deficitFundOf,
   hasVenuePack,
+  newPercentRow,
+  PCT_PRESETS,
   payeeFromKey,
+  previewSplit,
   payeeKey,
   remainingBeforeRow,
   shareText,
@@ -73,26 +79,35 @@ export default function RuleEditor({
   onChange,
   names,
   sample,
+  scopeNote,
+  lessonTeacherIds = [],
 }: {
   rows: RuleRow[];
   onChange: (rows: RuleRow[]) => void;
   names: SplitNames;
   sample?: RuleSample;
+  /** 這次改會影響哪些課；收在標題旁的 ⓘ。 */
+  scopeNote?: string;
+  /** 這門課的老師：「剩下的」切到老師時預設全勾、平分。 */
+  lessonTeacherIds?: number[];
 }) {
   const lines = rows.slice(0, -1);
   const rest = rows[rows.length - 1];
 
-  const basePayeeOptions = [
-    ...names.teachers.map((t) => ({ value: `t:${t.id}`, label: t.name, hint: "老師" })),
-    ...names.locations.map((l) => ({ value: `f:${l.id}`, label: `${l.name}公積金` })),
-    ...names.venues.map((v) => ({ value: `v:${v.id}`, label: names.venueLabel(v.id), hint: "場地" })),
+  // 一個下拉、三組標題：老師／公積金／場地
+  const payeeGroups: { type: Payee["type"]; group: string; options: SelectOption<string>[] }[] = [
+    { type: "teacher", group: "老師", options: names.teachers.map((t) => ({ value: `t:${t.id}`, label: t.name })) },
+    { type: "fund", group: "公積金", options: names.locations.map((l) => ({ value: `f:${l.id}`, label: `${l.name}公積金` })) },
+    { type: "venue", group: "場地", options: names.venues.map((v) => ({ value: `v:${v.id}`, label: names.venueLabel(v.id) })) },
   ];
-  // 規則裡已經封存的對象也要留在選項裡，不然下拉會顯示空白
-  const payeeOptions = (current: Payee) => {
+  // 規則裡已經封存的對象也要留在選項裡（放進它那一組），不然下拉會顯示空白
+  const payeeOptions = (current: Payee): SelectOption<string>[] => {
     const key = payeeKey(current);
-    return basePayeeOptions.some((o) => o.value === key)
-      ? basePayeeOptions
-      : [...basePayeeOptions, { value: key, label: `${names.payee(current)}（已封存）`, hint: undefined }];
+    const missing = !payeeGroups.some((g) => g.options.some((o) => o.value === key));
+    return payeeGroups.flatMap(({ type, group, options }) => [
+      ...options,
+      ...(missing && current.type === type ? [{ value: key, label: `${names.payee(current)}（已封存）` }] : []),
+    ].map((o) => ({ ...o, group })));
   };
   const withCurrent = (opts: { value: number; label: string }[], id: number) =>
     opts.some((o) => o.value === id) ? opts : [...opts, { value: id, label: `${names.location(id)}公積金（已封存）` }];
@@ -103,6 +118,12 @@ export default function RuleEditor({
     : { type: "fund", locationId: defaultFund };
 
   const setLines = (next: RuleRow[]) => onChange([...next, rest]);
+  // 切到「老師」：這門課的老師全勾、比重 1（平分）；課沒掛老師才退回第一位
+  const defaultShares = () => {
+    const ids = lessonTeacherIds.filter((id) => names.teachers.some((t) => t.id === id));
+    if (ids.length > 0) return ids.map((teacherId) => ({ teacherId, weight: 1 }));
+    return names.teachers[0] ? [{ teacherId: names.teachers[0].id, weight: 1 }] : [];
+  };
   const update = (i: number, row: RuleRow) => setLines(lines.map((r, j) => (j === i ? row : r)));
   const move = (i: number, d: -1 | 1) => {
     const next = [...lines];
@@ -124,9 +145,10 @@ export default function RuleEditor({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-1 text-sm font-medium text-neutral-900">
-        由上往下扣
+        這堂課的課卡收入，由上往下扣：
         <InfoTip label="分帳規則說明">
-          每一行從這堂收入裡扣一筆，最後「剩下的」給剩下的人。收入不夠時，老師拿 0，差額由這堂課的基金吸收。
+          {scopeNote && <p className="mb-2">{scopeNote}</p>}
+          每一行從這堂收入裡扣一筆，最後一行「扣完剩下的」給老師或公積金。收入不夠扣時，老師拿 0，差額由公積金吸收（見最後一行下方）。
         </InfoTip>
       </div>
 
@@ -134,7 +156,7 @@ export default function RuleEditor({
         <div key={i} className="flex flex-col gap-2 rounded-xl border border-neutral-200 p-3">
           <div className="flex items-center gap-2">
             <div className="flex-1 text-sm font-medium text-neutral-700">
-              {row.type === "fixed" ? "固定金額" : row.type === "venuePack" ? "場地次數包" : "比例"}
+              {row.type === "fixed" ? "固定金額" : row.type === "venuePack" ? "場地費" : "比例"}
             </div>
             <Button variant="ghost" size="iconSm" aria-label="上移" disabled={i === 0} onClick={() => move(i, -1)}>
               <ArrowUp className="size-4" />
@@ -176,14 +198,7 @@ export default function RuleEditor({
                   value={row.pct}
                   onChange={(pct) => update(i, { ...row, pct })}
                 />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  aria-label="三分之一"
-                  onClick={() => update(i, { ...row, pct: 100 / 3 })}
-                >
-                  ⅓
-                </Button>
+                <PctPresets onPick={(pct) => update(i, { ...row, pct })} />
                 <Select
                   size="sm"
                   aria-label="比例的基準"
@@ -212,13 +227,27 @@ export default function RuleEditor({
           )}
 
           {row.type === "venuePack" && (
-            <Select
-              size="sm"
-              aria-label="場地"
-              value={row.venueId}
-              options={(names.venues.some((v) => v.id === row.venueId) ? names.venues.map((v) => v.id) : [...names.venues.map((v) => v.id), row.venueId]).map((id) => ({ value: id, label: names.venueLabel(id) }))}
-              onChange={(venueId) => update(i, { type: "venuePack", venueId })}
-            />
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-neutral-500">→</span>
+                <Select
+                  size="sm"
+                  aria-label="場地"
+                  className="min-w-0 flex-1"
+                  value={row.venueId}
+                  options={(names.venues.some((v) => v.id === row.venueId) ? names.venues.map((v) => v.id) : [...names.venues.map((v) => v.id), row.venueId]).map((id) => ({ value: id, label: names.venueLabel(id) }))}
+                  onChange={(venueId) => update(i, { type: "venuePack", venueId })}
+                />
+              </div>
+              <p className="text-[13px] text-neutral-500">
+                {(() => {
+                  const unit = names.venueUnit(row.venueId);
+                  return unit === null
+                    ? "金額照場地的收費方式；這個場地還沒設定每次多少或次數包"
+                    : `金額照場地的收費方式：目前每次 $${formatMoney(unit)}`;
+                })()}
+              </p>
+            </>
           )}
         </div>
       ))}
@@ -229,14 +258,14 @@ export default function RuleEditor({
           size="sm"
           onClick={() => setLines([...lines, { type: "fixed", amount: 0, to: firstPayee }])}
         >
-          + 固定金額
+          ＋固定金額
         </Button>
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => setLines([...lines, { type: "percentIncome", pct: 0, to: firstPayee }])}
+          onClick={() => setLines([...lines, newPercentRow(lines.length, firstPayee)])}
         >
-          + 比例
+          ＋比例
         </Button>
         <Button
           variant="secondary"
@@ -244,34 +273,38 @@ export default function RuleEditor({
           disabled={hasVenuePack(rows) || names.venues.length === 0}
           onClick={() => setLines([...lines, { type: "venuePack", venueId: names.venues[0].id }])}
         >
-          + 場地次數包
+          ＋場地費
         </Button>
       </div>
 
       {rest.type === "rest" && (
-        <div className="flex flex-col gap-2 rounded-xl bg-neutral-50 p-3">
-          <div className="text-sm font-medium text-neutral-900">剩下的</div>
-          <Select
-            size="sm"
-            aria-label="剩下的給誰"
-            value={rest.rest.type}
-            options={[
-              { value: "teachers", label: "老師" },
-              { value: "fund", label: "公積金" },
-            ]}
-            onChange={(type) =>
-              onChange([
-                ...lines,
-                {
-                  ...rest,
-                  rest:
-                    type === "fund"
-                      ? { type: "fund", locationId: rest.fundLocationId }
-                      : { type: "teachers", shares: names.teachers[0] ? [{ teacherId: names.teachers[0].id, weight: 1 }] : [] },
-                },
-              ])
-            }
-          />
+        <div className="flex flex-col gap-2 rounded-xl border border-neutral-200 p-3">
+          <div className="text-sm font-medium text-neutral-700">這堂課扣完剩下的</div>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-neutral-500">→ 給</span>
+            <Select
+              size="sm"
+              aria-label="剩下的給誰"
+              className="min-w-0 flex-1"
+              value={rest.rest.type}
+              options={[
+                { value: "teachers", label: "老師（可多位，按比重分）" },
+                { value: "fund", label: "公積金" },
+              ]}
+              onChange={(type) =>
+                onChange([
+                  ...lines,
+                  {
+                    ...rest,
+                    rest:
+                      type === "fund"
+                        ? { type: "fund", locationId: rest.fundLocationId }
+                        : { type: "teachers", shares: defaultShares() },
+                  },
+                ])
+              }
+            />
+          </div>
           {rest.rest.type === "fund" ? (
             <Select
               size="sm"
@@ -287,19 +320,168 @@ export default function RuleEditor({
               onChange={(shares) => onChange([...lines, { ...rest, rest: { type: "teachers", shares } }])}
             />
           )}
-          <div className="mt-1 flex items-center gap-1 text-sm text-neutral-700">
-            這堂課的基金
-            <InfoTip label="這堂課的基金說明">公積金比例和不夠付的差額都算在這個分部的公積金。預設是課程所在的分部。</InfoTip>
-          </div>
-          <Select
-            size="sm"
-            aria-label="這堂課的基金"
-            value={rest.fundLocationId}
+          <DeficitFund
+            rest={rest}
+            names={names}
             options={withCurrent(locationOptions, rest.fundLocationId)}
             onChange={(fundLocationId) => onChange([...lines, { ...rest, fundLocationId }])}
           />
         </div>
       )}
+
+      {rest.type === "rest" && <SplitPreview rows={rows} names={names} />}
+    </div>
+  );
+}
+
+/** 「剩下的」那行底下的小字：不夠扣時哪個公積金吸收；剩下的給老師時可以改（存在 fundLocationId）。 */
+function DeficitFund({
+  rest,
+  names,
+  options,
+  onChange,
+}: {
+  rest: Extract<RuleRow, { type: "rest" }>;
+  names: SplitNames;
+  options: { value: number; label: string }[];
+  onChange: (fundLocationId: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const toFund = rest.rest.type === "fund";
+  return (
+    <div className="mt-1 flex flex-col gap-2 border-t border-neutral-100 pt-2">
+      <div className="flex flex-wrap items-center gap-1 text-[13px] text-neutral-500">
+        不夠扣時由 {names.location(deficitFundOf(rest))}公積金 吸收
+        <InfoTip label="不夠扣時誰吸收">
+          上面幾行扣完如果是負的（收入不夠付固定金額或場地費），老師拿 0，差額記在這個公積金。
+          {toFund ? "剩下的給公積金時，就是同一個公積金。" : "預設是課程所在分部的公積金。"}
+        </InfoTip>
+        {!toFund && !editing && (
+          <button
+            type="button"
+            className="cursor-pointer text-primary-700 underline-offset-2 hover:underline"
+            onClick={() => setEditing(true)}
+          >
+            改
+          </button>
+        )}
+      </div>
+      {!toFund && editing && (
+        <Select
+          size="sm"
+          aria-label="不夠扣時由哪個公積金吸收"
+          value={rest.fundLocationId}
+          options={options}
+          onChange={(id) => {
+            onChange(id);
+            setEditing(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** 比例旁的快選（⅓ 存 100/3，剛好三等分）；照樣可以自己打。 */
+function PctPresets({ onPick }: { onPick: (pct: number) => void }) {
+  const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="iconSm"
+        aria-label="常用比例"
+        aria-expanded={!!anchor}
+        onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
+      >
+        <ChevronDown className="size-4" />
+      </Button>
+      <Menu open={!!anchor} anchorEl={anchor} onClose={() => setAnchor(null)}>
+        <div className="grid grid-cols-3 gap-1 p-1.5">
+          {PCT_PRESETS.map((p) => (
+            <button
+              key={p.label}
+              type="button"
+              className="h-9 min-w-14 cursor-pointer rounded-lg px-2 text-sm tabular-nums text-neutral-800 hover:bg-neutral-100"
+              onClick={() => {
+                onPick(p.pct);
+                setAnchor(null);
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </Menu>
+    </>
+  );
+}
+
+const PREVIEW_AMOUNTS = [2000, 3000, 5000];
+
+/** 試算：假設這堂收了多少，用分帳引擎算一遍給每個人多少。 */
+function SplitPreview({ rows, names }: { rows: RuleRow[]; names: SplitNames }) {
+  const [income, setIncome] = useState(3000);
+  const [custom, setCustom] = useState("");
+  const { items, deficit, deficitFund, unknownVenue } = previewSplit(rows, income, names.venueUnit);
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-neutral-200 p-3">
+      <div className="text-sm font-medium text-neutral-900">試算</div>
+      <div className="flex flex-wrap items-center gap-2">
+        {PREVIEW_AMOUNTS.map((a) => (
+          <Button
+            key={a}
+            variant={!custom && income === a ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => {
+              setCustom("");
+              setIncome(a);
+            }}
+          >
+            ${formatMoney(a)}
+          </Button>
+        ))}
+        <div className={cn(fieldControlClass(), "flex h-9 w-28 items-center gap-1 px-3")}>
+          <span className="text-neutral-500">$</span>
+          <input
+            aria-label="試算金額"
+            inputMode="numeric"
+            placeholder="自訂"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+            value={custom}
+            onChange={(e) => {
+              const t = e.target.value.replace(/[^\d]/g, "");
+              setCustom(t);
+              if (t) setIncome(Number(t));
+            }}
+          />
+        </div>
+      </div>
+      <ul className="flex flex-col gap-1 text-sm text-neutral-800">
+        {items.map((item, i) =>
+          item.kind === "venuePack" ? (
+            <li key={i} className="flex justify-between gap-2">
+              <span>場地費 · {names.venue(item.venueId)}</span>
+              {item.amount === null ? (
+                <span className="text-neutral-500">還沒設定</span>
+              ) : (
+                <span className="tabular-nums">${formatMoney(item.amount)}</span>
+              )}
+            </li>
+          ) : (
+            <li key={i} className="flex justify-between gap-2">
+              <span>{names.payee(item.payee)}</span>
+              <span className="tabular-nums">${formatMoney(item.amount)}</span>
+            </li>
+          )
+        )}
+      </ul>
+      {deficit > 0 && (
+        <p className="text-[13px] text-danger-700">
+          不夠扣 ${formatMoney(deficit)}，由{names.location(deficitFund)}公積金吸收
+        </p>
+      )}
+      {unknownVenue && <p className="text-[13px] text-neutral-500">場地還沒設定每次多少，這裡沒算進去；實際剩下的會少一點。</p>}
     </div>
   );
 }
@@ -359,6 +541,7 @@ export function RuleEditorDrawer({
   subtitle,
   scopeNote,
   sample,
+  lessonTeacherIds,
   initialRows,
   names,
   isLoading,
@@ -368,9 +551,10 @@ export function RuleEditorDrawer({
   open: boolean;
   title: string;
   subtitle?: string;
-  /** 編輯器最上面一行：這次改會影響哪些課。 */
+  /** 這次改會影響哪些課；收在編輯器標題的 ⓘ 裡。 */
   scopeNote?: string;
   sample?: RuleSample;
+  lessonTeacherIds?: number[];
   initialRows: RuleRow[];
   names: SplitNames;
   isLoading?: boolean;
@@ -379,6 +563,7 @@ export function RuleEditorDrawer({
 }) {
   const [rows, setRows] = useState(initialRows);
   const error = validateRows(rows);
+  const check = error ? null : checkRule(rows, names, names.venueUnit);
   return (
     <Drawer
       open={open}
@@ -390,9 +575,31 @@ export function RuleEditorDrawer({
       onClose={onClose}
       onSubmit={() => onSave(rows)}
     >
-      {scopeNote && <p className="mb-3 rounded-lg bg-neutral-50 px-3 py-2 text-[13px] text-neutral-700">{scopeNote}</p>}
-      <RuleEditor rows={rows} onChange={setRows} names={names} sample={sample} />
+      <RuleEditor
+        rows={rows}
+        onChange={setRows}
+        names={names}
+        sample={sample}
+        scopeNote={scopeNote}
+        lessonTeacherIds={lessonTeacherIds}
+      />
       {error && <p className="mt-2 text-[13px] text-danger-700">{error}</p>}
+      {check && (
+        <p
+          role="status"
+          className={cn(
+            "mt-3 flex items-start gap-1.5 text-[13px]",
+            check.ok ? "text-neutral-600" : "text-warning-700"
+          )}
+        >
+          {check.ok ? (
+            <Check aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-primary-700" />
+          ) : (
+            <AlertTriangle aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+          )}
+          {check.text}
+        </p>
+      )}
     </Drawer>
   );
 }

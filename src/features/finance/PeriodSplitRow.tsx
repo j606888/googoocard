@@ -10,7 +10,7 @@ const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
 const WARNING_TEXT = {
-  NO_PACK: "這個場地還沒記次數包",
+  NO_PACK: "這個場地還沒設定收費（每次多少或次數包），場地費先記 $0",
   PACK_OVERDRAWN: "次數包用完了，記得記新的一包",
 } as const;
 

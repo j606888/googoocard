@@ -10,6 +10,7 @@ import type { AccountRef, SystemAccountKey } from "@/domains/ledger/accounts";
 import type { DesiredLine } from "@/domains/ledger/lines";
 import { loadLedgerInputs, dateKeyOfDbDate } from "./load";
 import { syncLedger } from "./sync";
+import { setLegacyCardExpiry } from "@/service/finance/setup";
 
 const ymd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
@@ -70,12 +71,13 @@ async function prepaidVenuesAt(classroomId: number, conversionDate: string, mone
   const start = parseTaipeiDateRange(conversionDate).start;
   const packs = await prisma.venuePack.findMany({
     where: { classroomId, voidedAt: null, purchasedAt: { lt: start } },
-    select: { venueId: true, price: true, paidByUserId: true },
+    select: { venueId: true, price: true, paidByUserId: true, venue: { select: { locationId: true } } },
   });
   const out: { venueId: number; locationId: number; amount: number }[] = [];
   const errors: OpeningError[] = [];
   for (const p of packs) {
-    const loc = moneyAccountLoc(p.paidByUserId);
+    // 預付場地費記在場地的分部；舊資料場地沒分部 → 付款人帳戶的分部。
+    const loc = p.venue.locationId ?? moneyAccountLoc(p.paidByUserId);
     if (loc === null) {
       errors.push({ code: "NO_MONEY_ACCOUNT", detail: `venue pack paid by user ${p.paidByUserId}`, userId: p.paidByUserId });
       continue;
@@ -172,7 +174,10 @@ export async function getOpening(classroomId: number) {
     lockDate: c.financeLockDate ? dateKeyOfDbDate(c.financeLockDate) : null,
     /** 第一次鎖帳前可以重開。 */
     canReopen: c.financeLockDate === null,
-    suggestedDate: c.financeEnabledAt ? toTaipeiDateKey(c.financeEnabledAt) : null,
+    /** 已開帳 → 目前的轉換日；還沒 → 開財務那天。 */
+    suggestedDate: c.financeConversionDate && c.financeOpenedAt
+      ? dateKeyOfDbDate(c.financeConversionDate)
+      : c.financeEnabledAt ? toTaipeiDateKey(c.financeEnabledAt) : null,
   };
 }
 
@@ -205,6 +210,8 @@ export async function openLedger(classroomId: number, userId: number, params: Op
           financeOpening: params,
         },
       });
+      // 舊卡到期＝轉換日＋6 個月；重開換了轉換日就重算。
+      await setLegacyCardExpiry(tx, classroomId, params.conversionDate, c.financeEnabledAt!);
       if (preview.lines.length > 0) {
         await tx.journalEntry.create({
           data: {

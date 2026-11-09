@@ -45,23 +45,23 @@ describe("finance enable / permission", () => {
     expect(addMonthsTaipei("2026-08-31", 6).toISOString()).toBe("2027-02-27T16:00:00.000Z");
   });
 
-  it("enable sets launch, legacy custodian, caller is finance, open cards expire launch+6mo", async () => {
+  it("enable: financeEnabledAt = now (a sent launchDate is ignored), legacy custodian, caller is finance, old cards keep no expiry until opening", async () => {
     const member = await createMember(classroomId);
     const student = await createStudent(classroomId);
     const card = await createCard(classroomId);
-    const voided = await createStudentCard(student.id, card.id, { remainingSessions: 3 });
-    await prisma.studentCard.update({ where: { id: voided.id }, data: { expiredAt: new Date("2026-01-01") } });
-    const empty = await createStudentCard(student.id, card.id, { remainingSessions: 0 });
     const open = await createStudentCard(student.id, card.id, { remainingSessions: 2 });
 
+    const before = Date.now();
     const res = await ENABLE(
-      jsonRequest("POST", { launchDate: "2026-11-03", legacyCustodianUserId: member.id }),
+      jsonRequest("POST", { launchDate: "2020-01-01", legacyCustodianUserId: member.id }),
       routeParams({})
     );
     expect(res.status).toBe(200);
 
     const c = await prisma.classroom.findUniqueOrThrow({ where: { id: classroomId } });
-    expect(c.financeEnabledAt?.toISOString()).toBe("2026-11-02T16:00:00.000Z");
+    expect(c.financeEnabledAt!.getTime()).toBeGreaterThanOrEqual(before);
+    expect(c.financeEnabledAt!.getTime()).toBeLessThanOrEqual(Date.now());
+    expect(c.financeOpenedAt).toBeNull();
     expect(c.legacyCustodianUserId).toBe(member.id);
     const m = await prisma.membership.findFirstOrThrow({ where: { userId: ownerId, classroomId } });
     expect(m.isCustodian).toBe(true);
@@ -70,10 +70,8 @@ describe("finance enable / permission", () => {
     const holder = await prisma.membership.findFirstOrThrow({ where: { userId: member.id, classroomId } });
     expect({ isCustodian: holder.isCustodian, canSettle: holder.canSettle }).toEqual({ isCustodian: true, canSettle: false });
 
-    const get = (id: number) => prisma.studentCard.findUniqueOrThrow({ where: { id } });
-    expect((await get(open.id)).expiresAt?.toISOString()).toBe("2027-05-02T16:00:00.000Z");
-    expect((await get(voided.id)).expiresAt).toBeNull();
-    expect((await get(empty.id)).expiresAt).toBeNull();
+    // 舊卡到期等開帳才設（轉換日＋6 個月，見 ledger-opening.test.ts）
+    expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: open.id } })).expiresAt).toBeNull();
   });
 
   it("enable twice -> 409; custodian outside classroom -> 400", async () => {
@@ -83,12 +81,7 @@ describe("finance enable / permission", () => {
       routeParams({})
     );
     expect(bad.status).toBe(400);
-    const badDate = await ENABLE(
-      jsonRequest("POST", { launchDate: "2026-02-31", legacyCustodianUserId: ownerId }),
-      routeParams({})
-    );
-    expect(badDate.status).toBe(400);
-    const ok = { launchDate: "2026-11-03", legacyCustodianUserId: ownerId };
+    const ok = { legacyCustodianUserId: ownerId };
     expect((await ENABLE(jsonRequest("POST", ok), routeParams({}))).status).toBe(200);
     const again = await ENABLE(jsonRequest("POST", ok), routeParams({}));
     expect(again.status).toBe(409);
@@ -99,7 +92,7 @@ describe("finance enable / permission", () => {
     const member = await createMember(classroomId, { role: "admin" });
     auth.userId = member.id;
     const res = await ENABLE(
-      jsonRequest("POST", { launchDate: "2026-11-03", legacyCustodianUserId: ownerId }),
+      jsonRequest("POST", { legacyCustodianUserId: ownerId }),
       routeParams({})
     );
     expect(res.status).toBe(403);
@@ -141,7 +134,7 @@ describe("finance enable / permission", () => {
 
   it("settings GET/PATCH and member toggles; each flag keeps its last holder", async () => {
     const member = await createMember(classroomId);
-    await ENABLE(jsonRequest("POST", { launchDate: "2026-11-03", legacyCustodianUserId: ownerId }), routeParams({}));
+    await ENABLE(jsonRequest("POST", { legacyCustodianUserId: ownerId }), routeParams({}));
 
     // 舊卡保管人必須是保管人
     const notCustodian = await SETTINGS_PATCH(jsonRequest("PATCH", { legacyCustodianUserId: member.id }), routeParams({}));
@@ -155,9 +148,9 @@ describe("finance enable / permission", () => {
     expect(bad.status).toBe(400);
 
     const s = await (await SETTINGS_GET(jsonRequest("GET"), routeParams({}))).json();
-    expect(s).toMatchObject({ enabled: true, launchDate: "2026-11-03", roundTo: 10, legacyCustodianUserId: member.id });
+    expect(s).toMatchObject({ enabled: true, roundTo: 10, legacyCustodianUserId: member.id });
     expect(s.members).toHaveLength(2);
-    expect(Object.keys(s.members[0]).sort()).toEqual(["canSettle", "isCustodian", "name", "userId"]);
+    expect(Object.keys(s.members[0]).sort()).toEqual(["canSettle", "isCustodian", "name", "role", "teacherName", "userId"]);
 
     const owner = routeParams({ userId: String(ownerId) });
     const other = routeParams({ userId: String(member.id) });
@@ -185,9 +178,9 @@ describe("finance enable / permission", () => {
     expect(denied.status).toBe(403);
   });
 
-  it("取消保管人：他還是分部負責人／過期收入對象／老師付款人／房東／舊卡保管人 → 409 說明是哪些", async () => {
+  it("取消保管人：他還是分部負責人／過期收入對象／房東／舊卡保管人（老師付款人不再算） → 409 說明是哪些", async () => {
     const member = await createMember(classroomId, { email: "k@test.local", name: "Sean" });
-    await ENABLE(jsonRequest("POST", { launchDate: "2026-11-03", legacyCustodianUserId: ownerId }), routeParams({}));
+    await ENABLE(jsonRequest("POST", { legacyCustodianUserId: ownerId }), routeParams({}));
     await prisma.membership.update({
       where: { userId_classroomId: { userId: member.id, classroomId } },
       data: { isCustodian: true },
@@ -196,7 +189,7 @@ describe("finance enable / permission", () => {
     await prisma.location.update({ where: { id: kao.id }, data: { keeperUserId: member.id } });
     const other = await createLocation(classroomId, { name: "台南" });
     await prisma.location.update({ where: { id: other.id }, data: { expiryTo: "USER", expiryUserId: member.id } });
-    await createTeacher(classroomId, { name: "Nini", payerUserId: member.id });
+    await createTeacher(classroomId, { name: "Nini", payerUserId: member.id }); // 舊欄位，不再當成參照
     await createVenue(classroomId, { name: "24steps", landlordUserId: member.id });
     const target = routeParams({ userId: String(member.id) });
 
@@ -204,12 +197,12 @@ describe("finance enable / permission", () => {
     expect(res.status).toBe(409);
     const body = await res.json();
     expect(body.code).toBe("CUSTODIAN_IN_USE");
-    for (const word of ["高雄", "台南", "Nini", "24steps"]) expect(body.error).toContain(word);
+    for (const word of ["高雄", "台南", "24steps"]) expect(body.error).toContain(word);
+    expect(body.error).not.toContain("Nini");
     expect((await prisma.membership.findFirstOrThrow({ where: { userId: member.id, classroomId } })).isCustodian).toBe(true);
 
     // 全部改掉就可以取消
     await prisma.location.updateMany({ where: { classroomId }, data: { keeperUserId: null, expiryTo: "FUND", expiryUserId: null } });
-    await prisma.teacher.updateMany({ where: { classroomId }, data: { payerUserId: null } });
     await prisma.venue.updateMany({ where: { classroomId }, data: { landlordUserId: null } });
     expect((await MEMBER_PATCH(jsonRequest("PATCH", { isCustodian: false }), target)).status).toBe(200);
 

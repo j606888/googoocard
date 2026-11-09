@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { LessonPeriod, StudentCardOrigin } from "@prisma/client";
 import { createStudent as createStudentWithNumber } from "@/service/student";
 import { nextCardSerial } from "@/service/studentCardSerial";
+import { toTaipeiDateKey } from "@/lib/taipei-date";
 
 // Wipe all tables between tests (FK-safe via CASCADE).
 export async function resetDb() {
@@ -307,9 +308,14 @@ export function routeParams<T extends Record<string, string>>(params: T) {
 
 export async function createVenue(
   classroomId: number,
-  { name = "Venue", landlordUserId = null }: { name?: string; landlordUserId?: number | null } = {}
+  {
+    name = "Venue",
+    landlordUserId = null,
+    locationId = null,
+    perSessionPrice = null,
+  }: { name?: string; landlordUserId?: number | null; locationId?: number | null; perSessionPrice?: number | null } = {}
 ) {
-  return prisma.venue.create({ data: { classroomId, name, landlordUserId } });
+  return prisma.venue.create({ data: { classroomId, name, landlordUserId, locationId, perSessionPrice } });
 }
 
 export async function createVenuePack(
@@ -327,15 +333,22 @@ export async function createVenuePack(
   });
 }
 
-/** Turn finance on by writing the columns directly (no service). */
+/**
+ * Turn finance on by writing the columns directly (no service). By default the ledger is also
+ * marked opened with the conversion date = launch's Taipei date (finance counts from the
+ * conversion date, src/service/finance/start.ts); pass `opened: false` for the enabled-but-not-opened state.
+ */
 export async function enableFinanceFor(
   classroomId: number,
-  { launch, legacyCustodianUserId }: { launch: Date; legacyCustodianUserId?: number }
+  { launch, legacyCustodianUserId, opened = true }: { launch: Date; legacyCustodianUserId?: number; opened?: boolean }
 ) {
   return prisma.classroom.update({
     where: { id: classroomId },
     data: {
       financeEnabledAt: launch,
+      ...(opened
+        ? { financeOpenedAt: launch, financeConversionDate: new Date(`${toTaipeiDateKey(launch)}T00:00:00Z`) }
+        : {}),
       ...(legacyCustodianUserId === undefined ? {} : { legacyCustodianUserId }),
     },
   });

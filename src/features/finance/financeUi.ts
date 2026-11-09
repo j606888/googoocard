@@ -26,6 +26,11 @@ const ERROR_TEXT: Record<string, string> = {
   TRANSFER_NOT_PENDING: "這筆已經處理過了",
   INVALID_MONEY_ACCOUNT: "請選一個資金帳戶",
   NOT_KEEPER: "只有這個分部的負責人或擁有者能簽核",
+  VENUE_NAME_TAKEN: "已經有同名的場地了",
+  VENUE_IN_USE: "這個場地用過了（分帳規則或次數包），只能封存",
+  VENUE_NO_BRANCH: "這個場地還沒選分部，先編輯場地選分部",
+  BRANCH_NO_KEEPER: "場地的分部還沒有負責人，先到分部設定負責人",
+  LOCATION_NOT_FOUND: "找不到這個分部",
 };
 
 /** RTK Query 的錯誤 → 白話。 */

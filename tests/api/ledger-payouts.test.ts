@@ -75,13 +75,14 @@ describe("payouts, transfers, counts, locking (finance v2 P5)", () => {
     expect(by("Nora", w.T.id)).toMatchObject({ amount: 68334, paidAmount: 68300, fromMoneyAccountId: dingMa.id });
     expect(by("Charlene", w.T.id)).toMatchObject({ amount: 66666, paidAmount: 66700, fromMoneyAccountId: dingMa.id });
     expect(by("丁丁家", w.T.id)).toMatchObject({ amount: 150000, fromMoneyAccountId: dingMa.id });
-    // Sean 自己領：台南那份（L2）也從 Sean 的帳戶出 → 分部往來
-    expect(by("Sean", w.T.id)).toMatchObject({ amount: 36666, paidAmount: 36700, fromMoneyAccountId: seanMa.id });
+    // 老師的錢由上課分部的負責人付：Sean 在台南的那份由台南負責人丁丁付、高雄的由高雄負責人 Sean 自己付
+    // （Sean 連著帳號、有自己的資金帳戶也一樣）
+    expect(by("Sean", w.T.id)).toMatchObject({ amount: 36666, paidAmount: 36700, fromMoneyAccountId: dingMa.id });
     expect(by("Sean", w.K.id)).toMatchObject({ amount: 27525, paidAmount: 27500, fromMoneyAccountId: seanMa.id });
     expect(by("高雄搭檔", w.K.id)).toMatchObject({ amount: 27525, paidAmount: 27500, fromMoneyAccountId: seanMa.id });
-    // 台南欠高雄 333.33（小明在高雄上課）＋ 366.66（Sean 台南的報酬由高雄的錢付）＝ 699.99 → 轉 700
+    // 台南欠高雄 333.33（小明在高雄上課）→ 轉 333
     expect(run.transfers).toEqual([
-      expect.objectContaining({ fromMoneyAccountId: dingMa.id, toMoneyAccountId: seanMa.id, amount: 70000, settleAmount: 69999 }),
+      expect.objectContaining({ fromMoneyAccountId: dingMa.id, toMoneyAccountId: seanMa.id, amount: 33300, settleAmount: 33333 }),
     ]);
     // 還沒付，帳本不動
     expect(await cash(dingMa)).toBe(995000);
@@ -108,7 +109,7 @@ describe("payouts, transfers, counts, locking (finance v2 P5)", () => {
     expect(await cash(dingMa)).toBe(505000);
     expect(await cash(seanMa)).toBe(-212700);
     expect(await sumOf("TEACHER_PAYABLE_HELD")).toBe(-22222); // 等阿傑付款
-    // 尾差：台南 Nora −0.34、Charlene +0.34、往來多轉 +0.01；高雄 Sean 台南份 +0.34、兩筆 −0.25、往來 −0.01
+    // 尾差：台南 Nora −0.34、Charlene +0.34、Sean 台南份 +0.34、往來少轉 −0.33；高雄兩筆 −0.25、往來 +0.33
     expect(await sumOf("ROUNDING", { locationId: w.T.id })).toBe(1);
     expect(await sumOf("ROUNDING", { locationId: w.K.id })).toBe(-17);
     expect(await profit(w.T.id)).toBeCloseTo(-23889, -1);
@@ -230,5 +231,43 @@ describe("payouts, transfers, counts, locking (finance v2 P5)", () => {
   it("locking needs an opened ledger", async () => {
     await prisma.classroom.update({ where: { id: classroomId }, data: { financeOpenedAt: null } });
     expect((await json(await LOCK(req({ lockDate: "2026-11-30" }), ctx()))).body.code).toBe("LEDGER_NOT_OPENED");
+  });
+});
+
+// 老師的錢永遠由上課分部的負責人付（2026-11-10 定案）：Sean 在高雄（負責人 Sean）和台南（負責人丁丁）都有課，
+// 就算 Sean 連著帳號、在台南也有自己的資金帳戶，台南那幾堂仍從丁丁的台南帳戶付，高雄的從 Sean 的高雄帳戶付。
+describe("teacher pay comes from the keeper of the branch where the lesson happened", () => {
+  it("Sean: 高雄 periods from Sean's 高雄 account, 台南 periods from 丁丁's 台南 account", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(at("2026-12-03"));
+    try {
+      await resetDb();
+      const c = await createClassroom();
+      const w = await seedNovember(c.id, c.ownerId);
+      await prisma.classroom.update({ where: { id: c.id }, data: { financeOpenedAt: LAUNCH, financeConversionDate: new Date("2026-11-01T00:00:00Z") } });
+      auth.userId = c.ownerId;
+      auth.classroomId = c.id;
+      await ACCOUNTS(req(undefined, "GET"), ctx()); // 負責人的帳戶在第一次讀時建好
+      // Sean 在台南也有一個自己的帳戶——不該被拿來付他台南的鐘點
+      const seanTainan = await json(await (await import("@/app/api/finance/money-accounts/route")).POST(
+        req({ holderUserId: w.seanId, locationId: w.T.id, name: "Sean 台南" }),
+        ctx(),
+      ));
+      expect(seanTainan.status).toBe(200);
+      const ma = (u: number, loc: number) =>
+        prisma.moneyAccount.findFirstOrThrow({ where: { classroomId: c.id, holderUserId: u, locationId: loc }, orderBy: { id: "asc" }, select: { id: true } });
+      const dingTainan = await ma(c.ownerId, w.T.id);
+      const seanKao = await ma(w.seanId, w.K.id);
+
+      const { body } = await json(await CREATE_RUN(req({ asOf: "2026-11-30" }), ctx()));
+      const sean = (loc: number) => (body.payouts as Payout[]).find((p) => p.name === "Sean" && p.locationId === loc)!;
+      expect(sean(w.T.id).fromMoneyAccountId).toBe(dingTainan.id);
+      expect(sean(w.K.id).fromMoneyAccountId).toBe(seanKao.id);
+      expect(sean(w.T.id).fromMoneyAccountId).not.toBe(seanTainan.body.id);
+      // 高雄搭檔沒連帳號，也由高雄負責人付
+      expect((body.payouts as Payout[]).find((p) => p.name === "高雄搭檔")!.fromMoneyAccountId).toBe(seanKao.id);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

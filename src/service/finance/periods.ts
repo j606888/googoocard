@@ -7,6 +7,7 @@ import type { IncomeSource, PendingNote } from "@/domains/finance/income";
 import { splitRuleSchema } from "@/domains/finance/types";
 import type { Allocation, ResolvedLine, SplitRule } from "@/domains/finance/types";
 import { assertFinanceEnabled } from "./access";
+import { financeStart } from "./start";
 
 export type PeriodFinanceWarning = "NO_PACK" | "PACK_OVERDRAWN";
 
@@ -25,9 +26,10 @@ export type PeriodFinance = {
   warnings: PeriodFinanceWarning[];
 };
 
+/** 一堂的場地費：每次付的場地 → packId null、unit＝perSessionPrice；次數包的場地 → 用到的那一包。 */
 export type PackUnitPrice = {
   venueId: number;
-  packId: number;
+  packId: number | null;
   unit: number;
   overdrawn: boolean; // 超過所有包的總次數，照最後一包的單價扣
 };
@@ -61,7 +63,7 @@ function venuePackIdOf(rule: SplitRule | null): number | null {
   return line && line.kind === "venuePack" ? line.venueId : null;
 }
 
-/** 財務上線後、已點名的時段（只有這些有分帳）。 */
+/** 轉換日起、已點名的時段（只有這些有分帳）。 */
 function financePeriodWhere(classroomId: number, launch: Date): Prisma.LessonPeriodWhereInput {
   return {
     lesson: { classroomId },
@@ -76,19 +78,20 @@ const ruleInclude = {
 } satisfies Prisma.LessonPeriodInclude;
 
 /**
- * 次數包先買先用：每個場地的有效包依 purchasedAt 排，用到這個場地（venuePack 行）的
- * 已點名、上線後時段依 startTime 排，依序吃掉包的次數。超過所有包 → 最後一包的單價、
- * overdrawn。沒有任何包的場地，它的時段不在回傳的 Map 裡（呼叫端記 NO_PACK）。
+ * 「場地費」行（venuePack）每堂的金額。場地有 perSessionPrice（每次付）→ 就是它（packId null）。
+ * 否則次數包先買先用：每個場地的有效包依 purchasedAt 排，用到這個場地的
+ * 已點名、轉換日起的時段依 startTime 排，依序吃掉包的次數。超過所有包 → 最後一包的單價、
+ * overdrawn。沒設每次價又沒有任何包的場地，它的時段不在回傳的 Map 裡（呼叫端記 NO_PACK）。
  */
-export async function resolvePackUnitPrices(classroomId: number): Promise<Map<number, PackUnitPrice>> {
+export async function resolvePackUnitPrices(
+  classroomId: number,
+  /** 開帳預覽用：還沒存的轉換日。沒給 → 讀教室的轉換日（還沒開帳 → 空的）。 */
+  conversionDate?: string,
+): Promise<Map<number, PackUnitPrice>> {
   const result = new Map<number, PackUnitPrice>();
-  const c = await prisma.classroom.findUnique({
-    where: { id: classroomId },
-    select: { financeEnabledAt: true, financeConversionDate: true },
-  });
-  if (!c?.financeEnabledAt) return result;
-  // 財務 v2：開帳後次數包從轉換日起算（轉換日前買的包＝轉換日當天還剩的，見 docs/finance-v2/04）。
-  const start = c.financeConversionDate ? parseTaipeiDateRange(c.financeConversionDate.toISOString().slice(0, 10)).start : c.financeEnabledAt;
+  // 財務 v2：次數包從轉換日起算（轉換日前買的包＝轉換日當天還剩的，見 docs/finance-v2/04）。
+  const start = conversionDate ? parseTaipeiDateRange(conversionDate).start : (await financeStart(classroomId))?.start;
+  if (!start) return result;
 
   const periods = await prisma.lessonPeriod.findMany({
     where: financePeriodWhere(classroomId, start),
@@ -102,6 +105,18 @@ export async function resolvePackUnitPrices(classroomId: number): Promise<Map<nu
     const list = periodsByVenue.get(venueId) ?? [];
     list.push(p.id);
     periodsByVenue.set(venueId, list);
+  }
+  if (periodsByVenue.size === 0) return result;
+
+  const perSession = await prisma.venue.findMany({
+    where: { classroomId, id: { in: [...periodsByVenue.keys()] }, perSessionPrice: { not: null } },
+    select: { id: true, perSessionPrice: true },
+  });
+  for (const v of perSession) {
+    for (const periodId of periodsByVenue.get(v.id)!) {
+      result.set(periodId, { venueId: v.id, packId: null, unit: v.perSessionPrice!, overdrawn: false });
+    }
+    periodsByVenue.delete(v.id);
   }
   if (periodsByVenue.size === 0) return result;
 
@@ -135,6 +150,16 @@ export async function resolvePackUnitPrices(classroomId: number): Promise<Map<nu
   return result;
 }
 
+/** 每一包已經用掉幾次（先買先用；超過所有包的不算進任何一包）。還沒開帳 → 空的。 */
+export async function packUsage(classroomId: number): Promise<Map<number, number>> {
+  const used = new Map<number, number>();
+  for (const p of (await resolvePackUnitPrices(classroomId)).values()) {
+    if (p.packId === null || p.overdrawn) continue;
+    used.set(p.packId, (used.get(p.packId) ?? 0) + 1);
+  }
+  return used;
+}
+
 const cardSelect = {
   finalPrice: true,
   totalSessions: true,
@@ -144,18 +169,20 @@ const cardSelect = {
 
 /**
  * 每個已點名時段的財務（收入＋分帳）。只取 attendanceTakenAt != null 且
- * startTime >= financeEnabledAt 的時段；`to` 不含（startTime < to）。
+ * startTime >= 轉換日的時段；還沒開帳 → 空的。`to` 不含（startTime < to）。
  */
 export async function loadPeriodFinance(
   classroomId: number,
   where: { from?: Date; to?: Date; lessonId?: number; periodIds?: number[] },
 ): Promise<PeriodFinance[]> {
-  const { financeEnabledAt, legacyCustodianUserId } = await assertFinanceEnabled(classroomId);
+  const { legacyCustodianUserId } = await assertFinanceEnabled(classroomId);
+  const fs = await financeStart(classroomId);
+  if (!fs) return [];
 
   const periods = await prisma.lessonPeriod.findMany({
     where: {
       AND: [
-        financePeriodWhere(classroomId, financeEnabledAt),
+        financePeriodWhere(classroomId, fs.start),
         where.from || where.to
           ? { startTime: { ...(where.from ? { gte: where.from } : {}), ...(where.to ? { lt: where.to } : {}) } }
           : {},
@@ -251,7 +278,7 @@ export async function loadPeriodFinance(
         return {
           kind: "fixed",
           amount: pack.unit,
-          to: { type: "venue", venueId: line.venueId, packId: pack.packId },
+          to: { type: "venue", venueId: line.venueId, ...(pack.packId !== null ? { packId: pack.packId } : {}) },
         };
       });
       allocations = computeSplit(income.total, lines, rule.rest, rule.fundLocationId);

@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 import type { Payee, SplitRule } from "@/domains/finance/types";
 
-function refsOf(rule: SplitRule) {
+export function refsOf(rule: SplitRule) {
   const teacherIds = new Set<number>();
   const locationIds = new Set<number>([rule.fundLocationId]);
   const venueIds = new Set<number>();

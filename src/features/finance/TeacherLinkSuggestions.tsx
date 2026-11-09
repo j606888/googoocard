@@ -6,8 +6,8 @@ import { useGetFinanceTeachersQuery, useLinkFinanceTeacherMutation } from "@/sto
 import { financeErrorText } from "./financeUi";
 
 /**
- * 付款人在老師名單裡有同名、沒連帳號的老師：「這位老師是 X 本人嗎？」一鍵連結帳號。
- * 開帳清單付款人那一步、財務設定的老師付款人都用這個。沒有就什麼都不顯示。
+ * 沒連帳號的老師跟某位成員同名：「這位老師是 X 本人嗎？」一鍵連結帳號。
+ * 財務設定的「老師與帳號」用這個。沒有就什麼都不顯示。
  */
 export default function TeacherLinkSuggestions({ className }: { className?: string }) {
   const { data } = useGetFinanceTeachersQuery();

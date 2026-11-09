@@ -25,12 +25,12 @@ export function postExpense(e: ExpenseInput, ctx: PostingContext): PostResult {
 export function postVenuePack(p: VenuePackInput, ctx: PostingContext): PostResult {
   const date = toTaipeiDateKey(p.purchasedAt);
   if (p.voidedAt || date < ctx.conversionDate || p.price === 0) return { lines: [], errors: [] };
-  const ma = ctx.moneyAccountOf(p.paidByUserId);
+  const ma = ctx.moneyAccountIn(p.paidByUserId, p.locationId);
   if (!ma) return { lines: [], errors: ["NO_MONEY_ACCOUNT"] };
   const amt = toCents(p.price);
   return {
     lines: [
-      { date, account: { key: "PREPAID_VENUE" }, locationId: ma.locationId, amount: amt, party: { type: "VENUE", id: p.venueId } },
+      { date, account: { key: "PREPAID_VENUE" }, locationId: p.locationId ?? ma.locationId, amount: amt, party: { type: "VENUE", id: p.venueId } },
       { date, account: { moneyAccountId: ma.id }, locationId: ma.locationId, amount: -amt },
     ],
     errors: [],

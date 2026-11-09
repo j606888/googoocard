@@ -18,7 +18,7 @@ export type PeriodSplitResult = {
   allocationsAll: Allocation[] | null;
 };
 
-/** 把規則裡的 venuePack 行換成這堂實際用掉的包（沒有包 → 0 元，跟 feat/finance 一樣）。 */
+/** 把規則裡的「場地費」（venuePack）行換成這堂的金額：每次付 → 應付場地費；次數包 → 用掉的那一包（沒有 → 0 元）。 */
 function resolveLines(period: PeriodInput): ResolvedLine[] {
   if (!period.rule) return [];
   return period.rule.lines.map((line) => {
@@ -26,7 +26,8 @@ function resolveLines(period: PeriodInput): ResolvedLine[] {
     if (!period.pack || period.pack.venueId !== line.venueId) {
       return { kind: "fixed", amount: 0, to: { type: "venue", venueId: line.venueId } };
     }
-    return { kind: "fixed", amount: period.pack.unit, to: { type: "venue", venueId: line.venueId, packId: period.pack.packId } };
+    const packId = period.pack.packId;
+    return { kind: "fixed", amount: period.pack.unit, to: { type: "venue", venueId: line.venueId, ...(packId !== null ? { packId } : {}) } };
   });
 }
 
@@ -126,14 +127,14 @@ export function postPeriod(period: PeriodInput, ctx: PostingContext): PostResult
   }
   for (const v of split.venues) {
     const party = { type: "VENUE" as const, id: v.venueId };
-    const ma = v.packId !== undefined ? ctx.packMoneyAccountOf(v.packId) : null;
-    if (v.packId !== undefined && !ma) {
+    const prepaidLoc = v.packId !== undefined ? ctx.packPrepaidLocationOf(v.packId) : null;
+    if (v.packId !== undefined && prepaidLoc === null) {
       errors.push("NO_MONEY_ACCOUNT");
       continue;
     }
     lines.push({ date, account: { key: "EXPENSE_VENUE" }, locationId: fund, amount: v.amount, party, lessonPeriodId: lp });
-    if (ma) {
-      lines.push({ date, account: { key: "PREPAID_VENUE" }, locationId: ma.locationId, amount: -v.amount, party, lessonPeriodId: lp });
+    if (prepaidLoc !== null) {
+      lines.push({ date, account: { key: "PREPAID_VENUE" }, locationId: prepaidLoc, amount: -v.amount, party, lessonPeriodId: lp });
     } else {
       lines.push({ date, account: { key: "VENUE_PAYABLE" }, locationId: fund, amount: -v.amount, party, lessonPeriodId: lp });
     }

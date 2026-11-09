@@ -20,6 +20,7 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 import { GET, POST } from "@/app/api/finance/receivers/route";
+import { POST as RESTORE } from "@/app/api/finance/receivers/restore/route";
 import { setupChecklist } from "@/service/finance/setup";
 
 const LAUNCH = new Date("2026-10-31T16:00:00Z"); // 11/1 台北
@@ -96,7 +97,7 @@ describe("opening: money received by non-custodians", () => {
 
   it("checklist item sits before opening and is done when nothing is stray", async () => {
     const keys = (await setupChecklist(classroomId)).map((i) => i.key);
-    expect(keys.indexOf("receivers")).toBe(keys.indexOf("opening") - 1);
+    expect(keys.indexOf("receivers")).toBeLessThan(keys.indexOf("opening"));
     expect((await receiversItem()).done).toBe(true);
   });
 
@@ -108,7 +109,7 @@ describe("opening: money received by non-custodians", () => {
     const d = await dropIn(noraId);
 
     const res = await POST(
-      jsonRequest("POST", { toUserId: seanId, cardIds: [a.id], dropInIds: [d.id] }),
+      jsonRequest("POST", { moves: [{ toUserId: seanId, cardIds: [a.id], dropInIds: [d.id] }] }),
       routeParams({}),
     );
     expect(res.status).toBe(200);
@@ -121,7 +122,7 @@ describe("opening: money received by non-custodians", () => {
     expect((await prisma.dropInCharge.findUniqueOrThrow({ where: { id: d.id } })).paidByUserId).toBe(seanId);
     expect((await receiversItem()).done).toBe(false);
 
-    await POST(jsonRequest("POST", { toUserId: ownerId, cardIds: [b.id], dropInIds: [] }), routeParams({}));
+    await POST(jsonRequest("POST", { moves: [{ toUserId: ownerId, cardIds: [b.id], dropInIds: [] }] }), routeParams({}));
     expect((await receiversItem()).done).toBe(true);
   });
 
@@ -129,19 +130,19 @@ describe("opening: money received by non-custodians", () => {
     const loc = await createLocation(classroomId, { name: "台南" });
     const a = await paidCard(noraId, new Date("2026-11-02T04:00:00Z"));
     await prisma.studentCard.update({ where: { id: a.id }, data: { soldLocationId: loc.id } });
-    await POST(jsonRequest("POST", { toUserId: seanId, cardIds: [a.id], dropInIds: [] }), routeParams({}));
+    await POST(jsonRequest("POST", { moves: [{ toUserId: seanId, cardIds: [a.id], dropInIds: [] }] }), routeParams({}));
     expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: a.id } })).soldLocationId).toBe(loc.id);
   });
 
   it("target must be a custodian; caller must be able to settle; other classrooms untouched", async () => {
     const a = await paidCard(noraId, new Date("2026-11-02T04:00:00Z"));
-    const bad = await POST(jsonRequest("POST", { toUserId: noraId, cardIds: [a.id], dropInIds: [] }), routeParams({}));
+    const bad = await POST(jsonRequest("POST", { moves: [{ toUserId: noraId, cardIds: [a.id], dropInIds: [] }] }), routeParams({}));
     expect(bad.status).toBe(400);
     expect((await bad.json()).code).toBe("NOT_FINANCE_MEMBER");
 
     // a custodian-only member cannot do it
     auth.userId = seanId;
-    const forbidden = await POST(jsonRequest("POST", { toUserId: seanId, cardIds: [a.id], dropInIds: [] }), routeParams({}));
+    const forbidden = await POST(jsonRequest("POST", { moves: [{ toUserId: seanId, cardIds: [a.id], dropInIds: [] }] }), routeParams({}));
     expect(forbidden.status).toBe(403);
     auth.userId = ownerId;
 
@@ -151,10 +152,101 @@ describe("opening: money received by non-custodians", () => {
     const otherCard = await createStudentCard(os.id, oc.id, { createdAt: new Date("2026-11-02T04:00:00Z") });
     await prisma.studentCard.update({ where: { id: otherCard.id }, data: { paidByUserId: other.ownerId } });
     const res = await POST(
-      jsonRequest("POST", { toUserId: seanId, cardIds: [otherCard.id, a.id], dropInIds: [] }),
+      jsonRequest("POST", { moves: [{ toUserId: seanId, cardIds: [otherCard.id, a.id], dropInIds: [] }] }),
       routeParams({}),
     );
     expect(await res.json()).toEqual({ cards: 1, dropIns: 0 });
     expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: otherCard.id } })).paidByUserId).toBe(other.ownerId);
+  });
+
+  it("keeps the first collector, lists the reassignment, and restores it", async () => {
+    const vivi = (await createMember(classroomId, { name: "Vivi", email: "vivi@test.local" })).id;
+    const a = await paidCard(noraId, new Date("2026-11-02T04:00:00Z"));
+    const b = await paidCard(vivi, new Date("2026-11-02T04:00:00Z"));
+    const d = await dropIn(noraId);
+
+    // 兩組一次送出
+    const res = await POST(
+      jsonRequest("POST", {
+        moves: [
+          { toUserId: seanId, cardIds: [a.id], dropInIds: [d.id] },
+          { toUserId: ownerId, cardIds: [b.id], dropInIds: [] },
+        ],
+      }),
+      routeParams({}),
+    );
+    expect(await res.json()).toEqual({ cards: 2, dropIns: 1 });
+    const aa = await prisma.studentCard.findUniqueOrThrow({ where: { id: a.id } });
+    expect([aa.paidByUserId, aa.collectedByUserId]).toEqual([seanId, noraId]);
+    const bb = await prisma.studentCard.findUniqueOrThrow({ where: { id: b.id } });
+    expect([bb.paidByUserId, bb.collectedByUserId]).toEqual([ownerId, vivi]);
+    const dd = await prisma.dropInCharge.findUniqueOrThrow({ where: { id: d.id } });
+    expect([dd.paidByUserId, dd.collectedByUserId]).toEqual([seanId, noraId]);
+
+    // Sean 不再是保管人 → 又出現在待整理；再改記一次，collectedBy 仍是第一位（Nora）
+    await prisma.membership.updateMany({ where: { userId: seanId, classroomId }, data: { isCustodian: false } });
+    const again = await (await GET(jsonRequest("GET"), routeParams({}))).json();
+    expect(again.items.find((i: { id: number; kind: string }) => i.kind === "card" && i.id === a.id)).toMatchObject({
+      receiverName: "Sean",
+      collectedByName: "Nora",
+    });
+    await POST(jsonRequest("POST", { moves: [{ toUserId: ownerId, cardIds: [a.id], dropInIds: [] }] }), routeParams({}));
+    const a2 = await prisma.studentCard.findUniqueOrThrow({ where: { id: a.id } });
+    expect([a2.paidByUserId, a2.collectedByUserId]).toEqual([ownerId, noraId]);
+
+    const body = await (await GET(jsonRequest("GET"), routeParams({}))).json();
+    expect(
+      body.reassigned.map((i: { kind: string; id: number; collectedByName: string; holderName: string }) => [
+        `${i.kind}:${i.id}`,
+        i.collectedByName,
+        i.holderName,
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [`card:${a.id}`, "Nora", expect.any(String)],
+        [`card:${b.id}`, "Vivi", expect.any(String)],
+        [`dropIn:${d.id}`, "Nora", "Sean"],
+      ]),
+    );
+    expect(body.reassigned).toHaveLength(3);
+
+    // 復原：還給原收款人，清掉 collectedBy，回到待整理
+    const r = await RESTORE(jsonRequest("POST", { cardIds: [a.id], dropInIds: [d.id] }), routeParams({}));
+    expect(await r.json()).toEqual({ cards: 1, dropIns: 1 });
+    const a3 = await prisma.studentCard.findUniqueOrThrow({ where: { id: a.id } });
+    expect([a3.paidByUserId, a3.collectedByUserId]).toEqual([noraId, null]);
+    const d3 = await prisma.dropInCharge.findUniqueOrThrow({ where: { id: d.id } });
+    expect([d3.paidByUserId, d3.collectedByUserId]).toEqual([noraId, null]);
+    const after = await (await GET(jsonRequest("GET"), routeParams({}))).json();
+    expect(after.reassigned.map((i: { id: number }) => i.id)).toEqual([b.id]);
+    expect(after.items.map((i: { kind: string; id: number }) => `${i.kind}:${i.id}`).sort()).toEqual(
+      [`card:${a.id}`, `dropIn:${d.id}`].sort(),
+    );
+  });
+
+  it("restore needs canSettle, is classroom-scoped, and is refused once the ledger is locked", async () => {
+    const a = await paidCard(noraId, new Date("2026-11-02T04:00:00Z"));
+    await POST(jsonRequest("POST", { moves: [{ toUserId: seanId, cardIds: [a.id], dropInIds: [] }] }), routeParams({}));
+
+    auth.userId = seanId;
+    expect((await RESTORE(jsonRequest("POST", { cardIds: [a.id], dropInIds: [] }), routeParams({}))).status).toBe(403);
+    auth.userId = ownerId;
+
+    const other = await createClassroom({ name: "Other", email: "o3@test.local" });
+    const os = await createStudent(other.id);
+    const oc = await createCard(other.id);
+    const otherCard = await createStudentCard(os.id, oc.id);
+    await prisma.studentCard.update({
+      where: { id: otherCard.id },
+      data: { paidByUserId: other.ownerId, collectedByUserId: noraId },
+    });
+    const res = await RESTORE(jsonRequest("POST", { cardIds: [otherCard.id], dropInIds: [] }), routeParams({}));
+    expect(await res.json()).toEqual({ cards: 0, dropIns: 0 });
+
+    await prisma.classroom.update({ where: { id: classroomId }, data: { financeLockDate: new Date("2026-11-05T00:00:00Z") } });
+    const locked = await RESTORE(jsonRequest("POST", { cardIds: [a.id], dropInIds: [] }), routeParams({}));
+    expect(locked.status).toBe(409);
+    expect((await locked.json()).code).toBe("PERIOD_LOCKED");
+    expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: a.id } })).paidByUserId).toBe(seanId);
   });
 });

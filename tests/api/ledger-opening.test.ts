@@ -42,6 +42,8 @@ describe("opening wizard (finance v2 P3)", () => {
   let T: number;
   let K: number;
   let cardA: number;
+  let cardC: number;
+  let cardD: number;
 
   beforeEach(async () => {
     await resetDb();
@@ -53,7 +55,7 @@ describe("opening wizard (finance v2 P3)", () => {
 
     seanId = (await createMember(classroomId, { email: "sean@test.local", name: "Sean", role: "admin" })).id;
     await prisma.membership.updateMany({ where: { classroomId }, data: { isCustodian: true, canSettle: true } });
-    await enableFinanceFor(classroomId, { launch: new Date("2026-10-31T16:00:00Z"), legacyCustodianUserId: seanId });
+    await enableFinanceFor(classroomId, { launch: new Date("2026-10-31T16:00:00Z"), legacyCustodianUserId: seanId, opened: false });
     T = (await createLocation(classroomId, { name: "台南", sortOrder: 0 })).id;
     K = (await createLocation(classroomId, { name: "高雄", sortOrder: 1 })).id;
     await prisma.location.update({ where: { id: T }, data: { keeperUserId: dingId } });
@@ -87,8 +89,8 @@ describe("opening wizard (finance v2 P3)", () => {
     }
     // B：沒付款的舊卡；C：丁丁收的台南卡；D：上線前就過期
     await card("2026-10-20", { price: 2000, remaining: 6, isPaid: false });
-    await card("2026-10-25", { price: 1700, remaining: 6, isPaid: true, paidBy: dingId, sold: T });
-    await card("2026-04-01", { price: 2000, remaining: 2, isPaid: true, expiredAt: at("2026-10-01") });
+    cardC = (await card("2026-10-25", { price: 1700, remaining: 6, isPaid: true, paidBy: dingId, sold: T })).cardId;
+    cardD = (await card("2026-04-01", { price: 2000, remaining: 2, isPaid: true, expiredAt: at("2026-10-01") })).cardId;
 
     const steps = await createVenue(classroomId, { name: "24steps" });
     await createVenuePack(classroomId, steps.id, { sessions: 10, price: 4050, paidByUserId: seanId, purchasedAt: at("2026-10-15") });
@@ -100,6 +102,13 @@ describe("opening wizard (finance v2 P3)", () => {
     return (await res.json()) as Preview;
   };
   const row = (p: Preview, locationId: number, label: string) => p.rows.find((r) => r.locationId === locationId && r.label === label)?.amount ?? 0;
+
+  it("before opening nothing is posted (no false 'unpostable' alarms) and old cards have no expiry yet", async () => {
+    expect(await syncLedger(classroomId)).toEqual({ entriesWritten: 0, sourcesChanged: 0, errors: [] });
+    expect(await prisma.postingSource.count({ where: { classroomId } })).toBe(0);
+    expect(await prisma.journalEntry.count({ where: { classroomId } })).toBe(0);
+    expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: cardC } })).expiresAt).toBeNull();
+  });
 
   it("convention: legacy money sits with whoever collected it, each branch's opening fund is what's left", async () => {
     const p = await preview({ conversionDate: "2026-11-01", method: "CONVENTION" });
@@ -147,9 +156,14 @@ describe("opening wizard (finance v2 P3)", () => {
   });
 
   it("can reopen on another day before the first lock, and not after", async () => {
+    const expiresAt = async (id: number) => (await prisma.studentCard.findUniqueOrThrow({ where: { id } })).expiresAt?.toISOString() ?? null;
     await OPEN(jsonRequest("POST", { conversionDate: "2026-11-01", method: "CONVENTION" }), noParams);
+    // 舊卡到期＝轉換日＋6 個月（台北 00:00）；已關的卡不動
+    expect(await expiresAt(cardC)).toBe("2027-04-30T16:00:00.000Z");
+    expect(await expiresAt(cardD)).toBeNull();
     const res = await OPEN(jsonRequest("POST", { conversionDate: "2026-11-10", method: "CONVENTION" }), noParams);
     expect(res.status).toBe(200);
+    expect(await expiresAt(cardC)).toBe("2027-05-09T16:00:00.000Z"); // 換轉換日 → 重算
     expect(await prisma.journalEntry.count({ where: { classroomId, kind: "OPENING" } })).toBe(1);
     // 11/5 那堂現在在轉換日之前：不過帳，算進期初
     expect(await prisma.journalEntry.count({ where: { classroomId, sourceType: "PERIOD" } })).toBe(0);

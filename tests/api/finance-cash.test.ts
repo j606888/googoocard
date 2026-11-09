@@ -61,11 +61,16 @@ describe("finance cash APIs", () => {
     expect((await expense({ locationId: otherLoc.id })).status).toBe(404);
   });
 
-  it("保管人（不能結算）可以記自己付的支出與次數包；別人付的、開帳的舊包仍要可以結算", async () => {
+  it("保管人（不能結算）可以記自己付的支出、自己負責的分部的次數包；別人付的、開帳的舊包仍要可以結算", async () => {
     const seanId = (await createMember(classroomId, { email: "sean@test.local", name: "Sean" })).id;
     await prisma.membership.updateMany({ where: { userId: seanId, classroomId }, data: { isCustodian: true } });
-    const venue = await createVenue(classroomId);
-    const pack = (b: object) => POST_PACK(jsonRequest("POST", { venueId: venue.id, ...b }), routeParams({}));
+    // 次數包的付款人＝場地分部的負責人：Sean 負責高雄、user 1 負責台南
+    const kaoId = (await createLocation(classroomId, { name: "高雄" })).id;
+    await prisma.location.update({ where: { id: kaoId }, data: { keeperUserId: seanId } });
+    await prisma.location.update({ where: { id: locationId }, data: { keeperUserId: 1 } });
+    const seanVenue = await createVenue(classroomId, { name: "高雄場地", locationId: kaoId });
+    const otherVenue = await createVenue(classroomId, { name: "台南場地", locationId });
+    const pack = (venueId: number, b: object) => POST_PACK(jsonRequest("POST", { venueId, ...b }), routeParams({}));
     auth.userId = seanId;
 
     const own = await expense({ paidByUserId: seanId });
@@ -73,11 +78,11 @@ describe("finance cash APIs", () => {
     expect(await own.json()).toMatchObject({ paidByUserId: seanId });
     expect((await expense({ paidByUserId: 1 })).status).toBe(403);
 
-    expect((await pack({ sessions: 10, price: 4050, paidByUserId: seanId, purchasedAt: "2026-11-03" })).status).toBe(200);
-    expect((await pack({ sessions: 10, price: 4050, paidByUserId: 1, purchasedAt: "2026-11-03" })).status).toBe(403);
-    expect(
-      (await pack({ paidByUserId: seanId, before: { totalSessions: 10, totalPrice: 4050, remaining: 3 } })).status,
-    ).toBe(403);
+    const mine = await pack(seanVenue.id, { sessions: 10, price: 4050, purchasedAt: "2026-11-03" });
+    expect(mine.status).toBe(200);
+    expect((await mine.json()).paidByUserId).toBe(seanId);
+    expect((await pack(otherVenue.id, { sessions: 10, price: 4050, purchasedAt: "2026-11-03" })).status).toBe(403);
+    expect((await pack(seanVenue.id, { before: { totalSessions: 10, totalPrice: 4050, remaining: 3 } })).status).toBe(403);
 
     // 不是保管人：自己付的也不行
     auth.userId = nonFinanceId;

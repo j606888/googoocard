@@ -9,13 +9,26 @@ export interface FinanceSettings {
   legacyCustodianUserId: number | null;
   /** 開帳清單「場地」：這間教室不用場地費。 */
   noVenueFee: boolean;
-  members: { userId: number; name: string; isCustodian: boolean; canSettle: boolean }[];
+  members: {
+    userId: number;
+    name: string;
+    /** `Membership.role`（`src/lib/roles.ts`）。 */
+    role: string;
+    /** 連結到這位成員的老師名字（`Teacher.userId`），沒有就是 null。 */
+    teacherName: string | null;
+    isCustodian: boolean;
+    canSettle: boolean;
+  }[];
 }
 
 export interface FinanceVenue {
   id: number;
   name: string;
+  /** 場地的分部：場地費和次數包從這個分部負責人的錢付。 */
+  locationId: number | null;
   landlordUserId: number | null;
+  /** 有值＝每次付這麼多；null＝買次數包。 */
+  perSessionPrice: number | null;
   archivedAt: string | null;
 }
 
@@ -27,6 +40,8 @@ export interface FinancePack {
   paidByUserId: number;
   purchasedAt: string;
   voidedAt: string | null;
+  /** 先買先用、已經用掉幾次（還沒開帳 → 0）。 */
+  used: number;
 }
 
 /** GET /finance/periods — dates arrive as ISO strings. */
@@ -53,23 +68,32 @@ export interface ExpenseInput {
   isAdvance?: boolean;
 }
 
+/** 付款人不用給：是場地分部的負責人。 */
 export type PackInput =
-  | { venueId: number; sessions: number; price: number; paidByUserId: number; purchasedAt: string }
+  | { venueId: number; sessions: number; price: number; purchasedAt: string }
   /** 開帳：上線前買的包、還剩 remaining 次（價值＝包價 ÷ 總次數 × 剩下次數）。 */
-  | { venueId: number; paidByUserId: number; before: { totalSessions: number; totalPrice: number; remaining: number } };
+  | { venueId: number; before: { totalSessions: number; totalPrice: number; remaining: number } };
+
+export type VenueInput = {
+  name: string;
+  locationId: number;
+  landlordUserId: number | null;
+  perSessionPrice: number | null;
+};
 
 export type ChecklistKey =
   | "branches"
   | "lessonBranches"
-  | "teachers"
   | "venues"
   | "rules"
   | "receivers"
+  | "cash"
+  | "payables"
   | "opening";
 
 export interface SetupResponse {
   items: { key: ChecklistKey; done: boolean; detail?: string; links?: { label: string; href: string }[] }[];
-  /** 進行中的課（開帳精靈第 2、5 步）。 */
+  /** 進行中的課（開帳精靈第 2、4 步）。 */
   lessons: { id: number; name: string; locationId: number | null; hasRule: boolean }[];
   complete: boolean;
 }
@@ -85,6 +109,23 @@ export interface StrayReceiverItem {
   date: string;
   receiverUserId: number;
   receiverName: string;
+  /** 之前改記過：第一位實際收錢的人 */
+  collectedByName: string | null;
+}
+
+/** 開帳整理改記過的一筆：原收款人 → 現在的保管人（可復原）。 */
+export interface ReassignedReceiverItem {
+  kind: "card" | "dropIn";
+  id: number;
+  studentName: string;
+  label: string;
+  amount: number;
+  /** 台北日期 YYYY-MM-DD */
+  date: string;
+  collectedByUserId: number;
+  collectedByName: string;
+  holderUserId: number;
+  holderName: string;
 }
 
 export interface FinanceLocation {
@@ -105,8 +146,7 @@ export interface FinanceTeacher {
   id: number;
   name: string;
   userId: number | null;
-  payerUserId: number | null;
-  /** 付款人在老師名單裡有同名、沒連帳號的老師 →「這位老師是 X 本人嗎？」 */
+  /** 沒連帳號的老師，跟某位還沒連老師的成員同名 →「這位老師是 X 本人嗎？」 */
   linkSuggestion: { userId: number; name: string } | null;
 }
 
@@ -116,7 +156,7 @@ const financeApi = api.injectEndpoints({
       query: () => "finance/setup",
       providesTags: ["Finance", "Lesson", "Teacher", "Location"],
     }),
-    enableFinance: builder.mutation<unknown, { launchDate: string; legacyCustodianUserId: number }>({
+    enableFinance: builder.mutation<unknown, { legacyCustodianUserId: number }>({
       query: (body) => ({ url: "finance/enable", method: "POST", body }),
       invalidatesTags: ["Classroom", "Membership", "Finance"],
     }),
@@ -147,35 +187,39 @@ const financeApi = api.injectEndpoints({
       query: ({ id, locationId }) => ({ url: `finance/lessons/${id}/location`, method: "PATCH", body: { locationId } }),
       invalidatesTags: ["Finance", "Lesson"],
     }),
-    getStrayReceivers: builder.query<{ items: StrayReceiverItem[] }, void>({
+    getStrayReceivers: builder.query<{ items: StrayReceiverItem[]; reassigned: ReassignedReceiverItem[] }, void>({
       query: () => "finance/receivers",
       providesTags: ["Finance", "Membership", "StudentCard"],
     }),
     reassignStrayReceivers: builder.mutation<
       { cards: number; dropIns: number },
-      { toUserId: number; cardIds: number[]; dropInIds: number[] }
+      { moves: { toUserId: number; cardIds: number[]; dropInIds: number[] }[] }
     >({
       query: (body) => ({ url: "finance/receivers", method: "POST", body }),
       invalidatesTags: ["Finance", "StudentCard"],
     }),
-    createFinanceVenue: builder.mutation<unknown, { name: string; landlordUserId?: number | null }>({
+    restoreStrayReceivers: builder.mutation<{ cards: number; dropIns: number }, { cardIds: number[]; dropInIds: number[] }>({
+      query: (body) => ({ url: "finance/receivers/restore", method: "POST", body }),
+      invalidatesTags: ["Finance", "StudentCard"],
+    }),
+    createFinanceVenue: builder.mutation<FinanceVenue, VenueInput>({
       query: (body) => ({ url: "finance/venues", method: "POST", body }),
       invalidatesTags: ["Finance"],
     }),
     updateFinanceVenue: builder.mutation<
       unknown,
-      { id: number; name?: string; landlordUserId?: number | null; archived?: boolean }
+      { id: number; archived?: boolean } & Partial<VenueInput>
     >({
       query: ({ id, ...body }) => ({ url: `finance/venues/${id}`, method: "PATCH", body }),
+      invalidatesTags: ["Finance"],
+    }),
+    deleteFinanceVenue: builder.mutation<unknown, number>({
+      query: (id) => ({ url: `finance/venues/${id}`, method: "DELETE" }),
       invalidatesTags: ["Finance"],
     }),
     getFinanceTeachers: builder.query<{ teachers: FinanceTeacher[] }, void>({
       query: () => "finance/teachers",
       providesTags: ["Finance", "Teacher"],
-    }),
-    setTeacherPayer: builder.mutation<unknown, { id: number; payerUserId: number | null }>({
-      query: ({ id, payerUserId }) => ({ url: `finance/teachers/${id}`, method: "PATCH", body: { payerUserId } }),
-      invalidatesTags: ["Finance"],
     }),
     linkFinanceTeacher: builder.mutation<unknown, { id: number; userId: number }>({
       query: ({ id, userId }) => ({ url: `finance/teachers/${id}/link`, method: "POST", body: { userId } }),
@@ -266,10 +310,11 @@ export const {
   useSetLessonLocationMutation,
   useGetStrayReceiversQuery,
   useReassignStrayReceiversMutation,
+  useRestoreStrayReceiversMutation,
   useCreateFinanceVenueMutation,
   useUpdateFinanceVenueMutation,
+  useDeleteFinanceVenueMutation,
   useGetFinanceTeachersQuery,
-  useSetTeacherPayerMutation,
   useLinkFinanceTeacherMutation,
   useGetFinanceExpensesQuery,
   useCreateExpenseMutation,

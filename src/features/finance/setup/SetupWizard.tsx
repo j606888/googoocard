@@ -1,13 +1,15 @@
 "use client";
 
-// 開帳精靈 /finance/setup：左邊（手機在上面）是七步的進度，右邊是這一步要做的事。
-// 每一步做完會依 GET /finance/setup 自動打勾；步驟可以自由跳，只有第 7 步「開帳」要等前面都做完。
-import { useEffect, useRef, useState } from "react";
+// 開帳精靈 /finance/setup：左邊（手機在上面）是八步的進度，右邊是這一步要做的事。
+// 第 1–5 步做完會依 GET /finance/setup 自動打勾；第 6、7 步（期初現金、還沒付的錢）是開帳草稿，
+// 看過就打勾（OpeningDraftProvider）；步驟可以自由跳，只有第 8 步「預覽並開帳」要等前面都做完，按下去才一次送出。
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Lightbulb } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import InfoTip from "@/components/InfoTip";
 import Select from "@/components/Select";
 import StatusTag from "@/components/StatusTag";
 import { Button } from "@/components/ui/button";
@@ -25,12 +27,12 @@ import {
 import BranchSettings from "../BranchSettings";
 import LessonSplitPanel from "../LessonSplitPanel";
 import StrayReceivers from "../StrayReceivers";
-import TeacherPayers from "../TeacherPayers";
 import VenueSettings, { NoVenueFeeToggle } from "../VenueSettings";
 import { financeErrorText } from "../financeUi";
 import { useFinanceRole } from "../useCanSettle";
-import { OpeningFlow } from "../v2/Opening";
+import { OpeningCashStep, OpeningConfirmStep, OpeningDraftProvider, OpeningPayablesStep, useOpeningDraft } from "../v2/Opening";
 import { FinanceCard, FinanceShell } from "../v2/ui";
+import { StepIllustration } from "./illustrations";
 import { SETUP_STEPS, setupStepHref } from "./steps";
 
 type Item = SetupResponse["items"][number];
@@ -39,7 +41,9 @@ type SetupLesson = SetupResponse["lessons"][number];
 export default function SetupWizard() {
   return (
     <FinanceShell title="開帳設定" guide="setup" crumb={{ href: "/finance/settings", label: "財務設定" }} noRecord>
-      <WizardBody />
+      <OpeningDraftProvider>
+        <WizardBody />
+      </OpeningDraftProvider>
     </FinanceShell>
   );
 }
@@ -50,30 +54,50 @@ function WizardBody() {
   const { data, isLoading } = useGetFinanceSetupQuery();
   const { isLoading: roleLoading } = useGetFinanceSettingsQuery();
   const { canSettle } = useFinanceRole();
+  const { draft, markVisited } = useOpeningDraft();
   const topRef = useRef<HTMLDivElement>(null);
 
+  const rawStep = params.get("step");
+  const requested = rawStep && rawStep in SETUP_STEPS ? (rawStep as ChecklistKey) : null;
+
   // 一進來就已經開過帳 → 回總覽（開帳後要改設定請到設定頁）。只看第一次載入，做到一半不會被踢走。
+  // 網址沒帶步驟時，把「第一個還沒做完的步驟」寫進網址釘住：之後這步做完、資料重抓，也不會自己跳到下一步，
+  // 只有按上一步／下一步或點左邊清單才換。
+  // 第 6、7 步伺服器只知道開帳了沒，看過了沒以畫面上的草稿為準。
+  const visited = draft?.visited;
+  const items = useMemo<Item[] | null>(
+    () =>
+      data
+        ? data.items.map((i) => ((i.key === "cash" || i.key === "payables") && !i.done ? { ...i, done: !!visited?.[i.key] } : i))
+        : null,
+    [data, visited],
+  );
   const checked = useRef(false);
   useEffect(() => {
-    if (!data || checked.current) return;
-    checked.current = true;
-    if (data.items.find((i) => i.key === "opening")?.done) router.replace("/finance");
-  }, [data, router]);
+    if (!data || !items || !draft) return;
+    if (!checked.current) {
+      checked.current = true;
+      if (data.items.find((i) => i.key === "opening")?.done) {
+        router.replace("/finance");
+        return;
+      }
+    }
+    if (!requested) {
+      const first = items.find((i) => !i.done) ?? items[0];
+      if (first) router.replace(setupStepHref(first.key), { scroll: false });
+    }
+  }, [data, items, draft, requested, router]);
 
   if (isLoading || roleLoading) return <Skeleton className="h-[480px] w-full max-w-5xl rounded-2xl" />;
-  if (!data) return <EmptyState kind="page" title="這間教室還沒開財務" />;
+  if (!data || !items) return <EmptyState kind="page" title="這間教室還沒開財務" />;
   if (!canSettle) return <EmptyState kind="page" title="只有可以結算的人能做開帳設定" />;
 
-  const items = data.items;
-  const requested = params.get("step") as ChecklistKey | null;
-  const index = Math.max(
-    0,
-    items.findIndex((i) => i.key === (requested && SETUP_STEPS[requested] ? requested : (items.find((i) => !i.done) ?? items[0]).key)),
-  );
+  const index = Math.max(0, items.findIndex((i) => i.key === (requested ?? (items.find((i) => !i.done) ?? items[0]).key)));
   const item = items[index];
   const meta = SETUP_STEPS[item.key];
 
   const go = (key: ChecklistKey) => {
+    if (item.key === "cash" || item.key === "payables") markVisited(item.key);
     router.replace(setupStepHref(key), { scroll: false });
     topRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   };
@@ -87,19 +111,22 @@ function WizardBody() {
       <MobileProgress items={items} current={index} />
 
       <div className="flex min-w-0 max-w-3xl flex-col gap-5">
-        <header className="flex flex-col gap-2">
-          <span className="hidden text-[13px] font-medium text-neutral-500 lg:block">
-            第 {index + 1} 步，共 {items.length} 步
-          </span>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <h2 className="text-xl font-bold text-neutral-900">{meta.title}</h2>
-            {item.done ? <StatusTag tone="positive"><Check className="size-3" strokeWidth={3} />完成</StatusTag> : <StatusTag tone="warning">還沒完成</StatusTag>}
+        <header className="flex items-center gap-5">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <span className="hidden text-[13px] font-medium text-neutral-500 lg:block">
+              第 {index + 1} 步，共 {items.length} 步
+            </span>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <h2 className="text-xl font-bold text-neutral-900">{meta.title}</h2>
+              {item.done ? <StatusTag tone="positive"><Check className="size-3" strokeWidth={3} />完成</StatusTag> : <StatusTag tone="warning">還沒完成</StatusTag>}
+            </div>
+            {!item.done && item.detail && <p className="text-sm font-medium text-warning-950">{item.detail}</p>}
+            <p className="text-[15px] leading-relaxed text-neutral-700">{meta.purpose}</p>
           </div>
-          {!item.done && item.detail && <p className="text-sm font-medium text-warning-950">{item.detail}</p>}
-          <p className="text-[15px] leading-relaxed text-neutral-700">{meta.purpose}</p>
+          <StepIllustration step={item.key} className="hidden w-36 shrink-0 sm:block" />
         </header>
 
-        <Notes notes={meta.notes} />
+        <Notes notes={meta.notes} more={meta.more} />
 
         <StepContent
           item={item}
@@ -109,11 +136,13 @@ function WizardBody() {
               <PendingBlocker items={pendingBefore} onPick={go} />
             ) : null
           }
-          onBack={prev ? () => go(prev.key) : undefined}
         />
 
-        {item.key !== "opening" && (
-          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 pt-4">
+        {/* 貼在畫面底部，不用捲到最下面才按得到「下一步」。手機墊在底部導覽列上方（約 5rem 含外距）；App 裡沒有網頁導覽列，貼底（flush-bottom） */}
+        <footer
+            data-in-app="flush-bottom"
+            className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-white px-4 py-3 lg:bottom-0 lg:mx-0 lg:px-0 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          >
             {prev ? (
               <Button variant="secondary" onClick={() => go(prev.key)}>上一步</Button>
             ) : (
@@ -129,13 +158,12 @@ function WizardBody() {
               </div>
             )}
           </footer>
-        )}
       </div>
     </div>
   );
 }
 
-/** 桌面左側：七步清單，可以點任一步。 */
+/** 桌面左側：八步清單，可以點任一步。 */
 function StepRail({ items, current, onPick }: { items: Item[]; current: number; onPick: (k: ChecklistKey) => void }) {
   const done = items.filter((i) => i.done).length;
   return (
@@ -224,18 +252,33 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
-function Notes({ notes }: { notes: string[] }) {
+function Notes({ notes, more }: { notes: string[]; more?: string[] }) {
+  if (notes.length === 0) return null;
   return (
     <div className="flex gap-3 rounded-xl bg-neutral-50 px-4 py-3">
-      <Lightbulb className="mt-0.5 size-4 shrink-0 text-warning-700" aria-hidden />
+      <Lightbulb className="mt-1 size-4 shrink-0 text-warning-700" aria-hidden />
       <div className="flex min-w-0 flex-col gap-1">
-        <span className="text-[13px] font-semibold text-neutral-900">要注意</span>
-        <ul className="flex list-disc flex-col gap-1 pl-4 text-[13px] leading-relaxed text-neutral-700">
-          {notes.map((n) => <li key={n}>{n}</li>)}
+        <span className="flex items-center gap-1 text-sm font-semibold text-neutral-900">
+          要注意
+          {more && more.length > 0 && (
+            <InfoTip label="更多說明">
+              <ul className="flex list-disc flex-col gap-1 pl-4">
+                {more.map((n) => <li key={n}>{n}</li>)}
+              </ul>
+            </InfoTip>
+          )}
+        </span>
+        <ul className="flex list-disc flex-col gap-1 pl-4 text-[15px] leading-relaxed text-neutral-800">
+          {notes.map((n) => <li key={n}>{withBold(n)}</li>)}
         </ul>
       </div>
     </div>
   );
+}
+
+/** 「**粗體**」→ <b>。 */
+function withBold(text: string) {
+  return text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 === 1 ? <b key={i} className="font-semibold text-neutral-900">{part}</b> : part));
 }
 
 function PendingBlocker({ items, onPick }: { items: Item[]; onPick: (k: ChecklistKey) => void }) {
@@ -261,28 +304,28 @@ function StepContent({
   item,
   lessons,
   blocker,
-  onBack,
 }: {
   item: Item;
   lessons: SetupLesson[];
   blocker: React.ReactNode;
-  onBack?: () => void;
 }) {
   switch (item.key) {
     case "branches":
       return <Panel><BranchSettings /></Panel>;
     case "lessonBranches":
       return <Panel><LessonBranches lessons={lessons} /></Panel>;
-    case "teachers":
-      return <Panel><TeacherPayers /></Panel>;
     case "venues":
       return <VenuesStep />;
     case "rules":
       return <LessonRules lessons={lessons} />;
     case "receivers":
       return <Panel><StrayReceivers /></Panel>;
+    case "cash":
+      return <OpeningCashStep />;
+    case "payables":
+      return <OpeningPayablesStep />;
     case "opening":
-      return <OpeningFlow onBack={onBack} blocker={blocker} />;
+      return <OpeningConfirmStep blocker={blocker} />;
   }
 }
 
@@ -330,7 +373,7 @@ function LessonBranches({ lessons }: { lessons: SetupLesson[] }) {
   );
 }
 
-/** 第 4 步：先問要不要場地費，要的話才顯示場地設定。 */
+/** 第 3 步：先問要不要場地費，要的話才顯示場地設定。 */
 function VenuesStep() {
   const { data: settings } = useGetFinanceSettingsQuery();
   return (
@@ -347,7 +390,7 @@ function VenuesStep() {
   );
 }
 
-/** 第 5 步：每門進行中的課一列，點開就在這裡設規則（跟課程頁的分帳分頁同一個元件）。 */
+/** 第 4 步：每門進行中的課一列，點開就在這裡設規則（跟課程頁的分帳分頁同一個元件）。 */
 function LessonRules({ lessons }: { lessons: SetupLesson[] }) {
   const [openId, setOpenId] = useState<number | null>(null);
   if (lessons.length === 0) return <Panel><p className="text-sm text-neutral-500">沒有進行中的課，這步不用做。</p></Panel>;

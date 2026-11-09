@@ -24,7 +24,7 @@ describe("ledger setup (finance v2 P1)", () => {
   });
 
   it("enabling finance creates the chart of accounts once", async () => {
-    await enableFinance({ classroomId, userId: ownerId, launchDate: "2026-11-01", legacyCustodianUserId: ownerId });
+    await enableFinance({ classroomId, userId: ownerId, legacyCustodianUserId: ownerId });
     const accounts = await prisma.ledgerAccount.findMany({ where: { classroomId } });
     const system = accounts.filter((a) => a.systemKey);
     expect(system.map((a) => a.systemKey).sort()).toEqual(SYSTEM_ACCOUNTS.map((a) => a.key).sort());
@@ -37,7 +37,7 @@ describe("ledger setup (finance v2 P1)", () => {
   });
 
   it("custodians get a default cash money account once they keep a branch", async () => {
-    await enableFinance({ classroomId, userId: ownerId, launchDate: "2026-11-01", legacyCustodianUserId: ownerId });
+    await enableFinance({ classroomId, userId: ownerId, legacyCustodianUserId: ownerId });
     expect(await prisma.moneyAccount.count({ where: { classroomId } })).toBe(0); // 還沒有分部
 
     const sean = await createMember(classroomId, { email: "sean@test.local", name: "Sean" });

@@ -8,7 +8,7 @@ import { linkTeacher } from "@/service/team";
 
 const schema = z.object({ userId: z.number().int().positive() });
 
-// 開帳清單付款人那一步「這位老師是 X 本人嗎？連結帳號」：把沒連帳號的老師連到那位成員。
+// 財務設定「老師與帳號」的「這位老師是 X 本人嗎？連結帳號」：把沒連帳號的老師連到那位成員。
 // 只連還沒連帳號的老師、還沒連別的老師的成員（不搬動既有連結；要換請到團隊頁）。
 // 任何角色都能連，小幫手也可能就是那位老師（票 23：Bailamore 的 Sean）。
 export const POST = apiRoute<{ id: string }>(async ({ request, params, userId, classroomId }) => {

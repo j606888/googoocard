@@ -18,8 +18,10 @@ export type PostingContext = {
   expiryUserOf: (locationId: number) => number | null;
   /** 營業費用子科目（依類別名稱）的 accountId；找不到回 null（用 EXPENSE_GENERAL）。 */
   expenseAccountOf: (category: string) => number | null;
-  /** 次數包付款人的資金帳戶。 */
-  packMoneyAccountOf: (packId: number) => MoneyAccountInfo | null;
+  /** 這位保管人在這個分部的資金帳戶（沒有 → 他的預設帳戶；locationId null → 預設帳戶）。 */
+  moneyAccountIn: (userId: number, locationId: number | null) => MoneyAccountInfo | null;
+  /** 次數包的預付場地費記在哪個分部（場地的分部；場地沒分部 → 付款人帳戶的分部）；付款人沒有帳戶 → null。 */
+  packPrepaidLocationOf: (packId: number) => number | null;
   /** 依 id 找資金帳戶（含封存的；不存在回 null）。 */
   moneyAccount: (id: number) => MoneyAccountInfo | null;
 };
@@ -80,8 +82,8 @@ export type PeriodInput = {
   /** 這堂課的基金分部（規則的 fundLocationId；沒規則 → 上課分部）。 */
   fundLocationId: number | null;
   rule: SplitRule | null;
-  /** 這堂用掉的次數包（規則有 venuePack 行時）；null＝沒有包可扣。 */
-  pack: { venueId: number; packId: number; unit: number } | null;
+  /** 這堂的場地費（規則有 venuePack 行時）：packId null＝每次付的場地；pack null＝沒設收費也沒有包。 */
+  pack: { venueId: number; packId: number | null; unit: number } | null;
   usages: PeriodUsage[];
   dropIns: PeriodDropIn[];
 };
@@ -152,6 +154,8 @@ export type CashCountInput = {
 export type VenuePackInput = {
   id: number;
   venueId: number;
+  /** 場地的分部：錢從付款人（買的當下的分部負責人）在這個分部的帳戶出；null＝付款人的預設帳戶。 */
+  locationId: number | null;
   purchasedAt: Date;
   price: number;
   paidByUserId: number;

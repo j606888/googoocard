@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { cardUnitValue } from "@/domains/finance/income";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
+import { financeStartOf, financeStartSelect } from "./start";
 
 // 課卡到期（spec §5.2–5.3）。沒有排程（沒有 vercel.ts）：讀取時懶惰到期——
 // 點名、自助簽到、LIFF 今天、學生詳情、財務保管讀取的開頭呼叫 expireDueCards。
@@ -59,7 +60,7 @@ export async function expireDueCards(classroomId: number, now = new Date()): Pro
 
 /**
  * 已付款、因過期／作廢／退費關閉的卡的過期收入。轉換、轉讓關閉的卡
- * closedReason 是 null（錢跟著新卡走），不算。上線日之前關的卡不進財務。
+ * closedReason 是 null（錢跟著新卡走），不算。轉換日之前關的卡不進財務。
  */
 export async function expiryEvents(classroomId: number): Promise<ExpiryEvent[]> {
   return (await loadExpiries(classroomId)).events;
@@ -72,9 +73,10 @@ export async function expiryEvents(classroomId: number): Promise<ExpiryEvent[]> 
 export async function loadExpiries(classroomId: number): Promise<{ events: ExpiryEvent[]; unassigned: number[] }> {
   const classroom = await prisma.classroom.findUnique({
     where: { id: classroomId },
-    select: { financeEnabledAt: true, legacyCustodianUserId: true },
+    select: { financeEnabledAt: true, legacyCustodianUserId: true, ...financeStartSelect },
   });
-  if (!classroom?.financeEnabledAt) return { events: [], unassigned: [] };
+  const fs = classroom?.financeEnabledAt ? financeStartOf(classroom) : null;
+  if (!classroom || !fs) return { events: [], unassigned: [] }; // 還沒開帳：財務還沒開始
   const legacyId = classroom.legacyCustodianUserId;
 
   const cards = await prisma.studentCard.findMany({
@@ -84,7 +86,7 @@ export async function loadExpiries(classroomId: number): Promise<{ events: Expir
       closedReason: { in: ["EXPIRED", "VOIDED", "REFUNDED"] },
       convertedToId: null,
       transferredToId: null,
-      expiredAt: { gte: classroom.financeEnabledAt },
+      expiredAt: { gte: fs.start },
     },
     select: {
       id: true,

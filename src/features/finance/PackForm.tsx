@@ -3,95 +3,55 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
-import Field, { FieldError, FieldLabel } from "@/components/Field";
-import InfoTip from "@/components/InfoTip";
-import SegmentedTabs from "@/components/SegmentedTabs";
-import Select from "@/components/Select";
+import Field, { FieldError } from "@/components/Field";
 import { formatMoney } from "@/lib/money";
-import { useCreatePackMutation, useGetFinanceVenuesQuery } from "@/store/slices/finance";
+import { useCreatePackMutation, type FinanceVenue } from "@/store/slices/finance";
 import { financeErrorText, todayKey } from "./financeUi";
-import { useFinanceMembers } from "./useFinanceForm";
-
-type Mode = "new" | "before";
-const MODES = [
-  { value: "new", label: "買一包" },
-  { value: "before", label: "之前買的還剩幾次" },
-] as const;
 
 const digits = (s: string) => s.replace(/\D/g, "");
 const isWhole = (s: string, min: number) => s !== "" && Number.isInteger(Number(s)) && Number(s) >= min;
 
 /**
- * 場地次數包：先付一筆，之後每上一堂從包裡扣。
- * 「之前買的還剩幾次」給開帳用：價值＝包價 ÷ 總次數 × 剩下次數，視為上線前已付。
+ * 「＋買一包」（開帳後的日常）：這個場地買一包次數，之後每上一堂扣一次。
+ * 不問誰付：一律從場地分部的負責人的錢付（伺服器決定）。開帳前手上的包在場地表單填。
  */
 export default function PackForm({
   open,
   onClose,
-  allowBefore = false,
-  selfOnly = false,
+  venue,
+  payerText,
 }: {
   open: boolean;
   onClose: () => void;
-  /** 開帳（財務設定）才顯示「之前買的還剩幾次」。 */
-  allowBefore?: boolean;
-  /** 保管人（不能結算）：付款人固定是自己。 */
-  selfOnly?: boolean;
+  venue: FinanceVenue | null;
+  /** 「從 台南 負責人 丁丁 的錢付」；null＝場地沒分部或分部沒負責人（不能買）。 */
+  payerText: string | null;
 }) {
-  const { data } = useGetFinanceVenuesQuery();
-  const { options: payers, defaultUserId, meId } = useFinanceMembers();
   const [create, { isLoading }] = useCreatePackMutation();
-  const venues = (data?.venues ?? []).filter((v) => !v.archivedAt);
-
-  const [mode, setMode] = useState<Mode>("new");
-  const [venueId, setVenueId] = useState<number | null>(null);
   const [sessions, setSessions] = useState("");
   const [price, setPrice] = useState("");
-  const [remaining, setRemaining] = useState("");
-  const [paidBy, setPaidBy] = useState<number | null>(null);
   const [date, setDate] = useState(todayKey());
   const [error, setError] = useState("");
 
   // 每次打開都回到預設，不留上一次填的內容
   useEffect(() => {
     if (!open) return;
-    setMode("new");
-    setVenueId(null);
     setSessions("");
     setPrice("");
-    setRemaining("");
-    setPaidBy(null);
     setDate(todayKey());
     setError("");
   }, [open]);
 
-  const venue = venueId ?? venues[0]?.id ?? null;
-  // 保管人（不能結算）付款人固定是自己
-  const payer = selfOnly ? (meId ?? 0) : (paidBy ?? defaultUserId);
   const sessionsNum = Number(sessions);
   const priceNum = Number(price);
-  const remainingNum = Number(remaining);
-  const baseValid = !!venue && isWhole(sessions, 1) && isWhole(price, 0) && !!payer;
-  const valid =
-    mode === "new" ? baseValid && !!date : baseValid && isWhole(remaining, 1) && remainingNum <= sessionsNum;
-  const remainingValue = valid && mode === "before" ? Math.round((priceNum * remainingNum) / sessionsNum) : null;
+  const valid = !!venue && !!payerText && isWhole(sessions, 1) && isWhole(price, 0) && !!date;
 
   const submit = async () => {
+    if (!venue) return;
     setError("");
     try {
-      await create(
-        mode === "new"
-          ? { venueId: venue!, sessions: sessionsNum, price: priceNum, paidByUserId: payer, purchasedAt: date }
-          : {
-              venueId: venue!,
-              paidByUserId: payer,
-              before: { totalSessions: sessionsNum, totalPrice: priceNum, remaining: remainingNum },
-            },
-      ).unwrap();
-      toast.success("已記下次數包");
-      setSessions("");
-      setPrice("");
-      setRemaining("");
+      await create({ venueId: venue.id, sessions: sessionsNum, price: priceNum, purchasedAt: date }).unwrap();
+      toast.success("已記下這一包");
       onClose();
     } catch (e) {
       setError(financeErrorText(e, "記不下來，請再試一次"));
@@ -100,7 +60,8 @@ export default function PackForm({
 
   return (
     <Drawer
-      title={allowBefore ? "次數包" : "買次數包"}
+      title="買一包"
+      subtitle={venue?.name}
       open={open}
       onClose={onClose}
       onSubmit={submit}
@@ -109,65 +70,17 @@ export default function PackForm({
       disabled={!valid}
     >
       <div className="flex flex-col gap-4">
-        {allowBefore && (
-          <SegmentedTabs ariaLabel="次數包類型" options={MODES} value={mode} onChange={setMode} fill />
-        )}
-        <div className="flex flex-col gap-1.5">
-          <FieldLabel>場地</FieldLabel>
-          <Select
-            value={venue ?? undefined}
-            onChange={(v) => setVenueId(v)}
-            options={venues.map((v) => ({ value: v.id, label: v.name }))}
-            placeholder="選場地"
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="次數" inputMode="numeric" value={sessions} onChange={(e) => setSessions(digits(e.target.value))} />
+          <Field label="總價" inputMode="numeric" value={price} onChange={(e) => setPrice(digits(e.target.value))} />
         </div>
-        <Field
-          label={mode === "new" ? "次數" : "這包總共幾次"}
-          inputMode="numeric"
-          value={sessions}
-          onChange={(e) => setSessions(digits(e.target.value))}
-        />
-        <div className="flex flex-col gap-1.5">
-          <Field
-            label={mode === "new" ? "總價" : "這包的價錢"}
-            inputMode="numeric"
-            value={price}
-            onChange={(e) => setPrice(digits(e.target.value))}
-          />
-          {isWhole(sessions, 1) && isWhole(price, 0) && (
-            <p className="text-[13px] text-neutral-600">每次 ${formatMoney(priceNum / sessionsNum)}，每上一堂扣一次</p>
-          )}
-        </div>
-        {mode === "before" && (
-          <div className="flex flex-col gap-1.5">
-            <Field
-              label="還剩幾次"
-              inputMode="numeric"
-              value={remaining}
-              onChange={(e) => setRemaining(digits(e.target.value))}
-            />
-            <p className="flex items-center gap-1 text-[13px] text-neutral-600">
-              {remainingValue !== null ? `記成 ${remaining} 次、$${formatMoney(remainingValue)}` : " "}
-              <InfoTip label="之前買的次數包說明">
-                價值＝這包的價錢 ÷ 總次數 × 還剩幾次，日期記在上線前一天（視為上線前已付）。上課時先用這包。
-              </InfoTip>
-            </p>
-          </div>
-        )}
-        <div className="flex flex-col gap-1.5">
-          <FieldLabel>誰付的</FieldLabel>
-          {selfOnly ? (
-            <p className="text-sm text-neutral-900">{payers.find((o) => o.value === payer)?.label ?? "自己"}（自己）</p>
-          ) : (
-            <Select value={payer} onChange={(v) => setPaidBy(v)} options={payers} placeholder="選一位" />
-          )}
-          {!selfOnly && meId !== null && payer !== meId && !!payer && (
-            <p className="text-[13px] text-warning-800">這筆記成 {payers.find((o) => o.value === payer)?.label ?? "別人"} 付的錢</p>
-          )}
-        </div>
-        {mode === "new" && (
-          <Field label="購買日期" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        )}
+        <p className="text-sm text-neutral-700" aria-live="polite">
+          {isWhole(sessions, 1) && isWhole(price, 0) ? `每次 $${formatMoney(priceNum / sessionsNum)}，每上一堂扣一次` : " "}
+        </p>
+        <Field label="購買日期" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <p className="text-[13px] text-neutral-600">
+          {payerText ?? "這個場地還沒選分部，或分部還沒有負責人，先設定好才能買"}
+        </p>
         <FieldError>{error}</FieldError>
       </div>
     </Drawer>

@@ -3,12 +3,12 @@
 import type { ReactNode } from "react";
 import EmptyState from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGetFinanceSettingsQuery } from "@/store/slices/finance";
+import { useGetFinanceSettingsQuery, useGetFinanceTeachersQuery } from "@/store/slices/finance";
 import BranchSettings from "./BranchSettings";
 import GeneralSettings from "./GeneralSettings";
 import SetupBanner from "./SetupBanner";
 import StrayReceivers from "./StrayReceivers";
-import TeacherPayers from "./TeacherPayers";
+import TeacherLinkSuggestions from "./TeacherLinkSuggestions";
 import { useCanSettle } from "./useCanSettle";
 import VenueSettings, { NoVenueFeeToggle } from "./VenueSettings";
 import { JournalList, OpeningCard } from "./v2/SettingsExtras";
@@ -24,7 +24,21 @@ function Section({ id, title, hint, children }: { id: string; title: string; hin
   );
 }
 
-/** /finance/settings：分部、老師付款人、場地與次數包、成員與舊卡預收。 */
+/**
+ * 有沒連帳號、又跟某位成員同名的老師才出現：連好之後他的收入和薪水才對得起來。
+ * 老師的錢由上課那個分部的負責人付，這裡不用設付款人。
+ */
+function TeacherLinks() {
+  const { data } = useGetFinanceTeachersQuery();
+  if (!data?.teachers.some((t) => t.linkSuggestion)) return null;
+  return (
+    <Section id="teachers" title="老師與帳號" hint="這幾位老師好像就是教室的成員，連結帳號之後他的收入和薪水才會對在一起。">
+      <TeacherLinkSuggestions className="flex flex-col divide-y divide-neutral-100" />
+    </Section>
+  );
+}
+
+/** /finance/settings：分部、（有建議時）老師連帳號、場地與次數包、成員與舊卡預收。 */
 export default function FinanceSettingsView() {
   const { data: settings, isLoading } = useGetFinanceSettingsQuery();
   const canSettle = useCanSettle();
@@ -40,9 +54,7 @@ export default function FinanceSettingsView() {
       <Section id="branches" title="分部" hint="開帳時設一次：負責人、公積金期初、過期的錢歸誰。之後很少動。">
         <BranchSettings />
       </Section>
-      <Section id="teachers" title="老師付款人" hint="每位老師的薪水從誰手上的錢付。換老師或換人付時才要改。">
-        <TeacherPayers />
-      </Section>
+      <TeacherLinks />
       <Section id="venues" title="場地與次數包" hint="付場租的對象（外面的場地，或當房東的成員，例如丁丁家）。買了次數包也在這裡記。">
         <NoVenueFeeToggle />
         <VenueSettings />

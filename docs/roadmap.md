@@ -41,6 +41,7 @@
   - **已知小缺口／待追蹤**：
     - 轉換日前的單堂若在轉換日後才收款，不會記收款（單堂少見，先不處理）。
     - 人的欄位（`Venue.landlordUserId`、`Teacher.payerUserId`、`Location.keeperUserId`／`expiryUserId`、`Classroom.legacyCustodianUserId`、各 `paidByUserId`、`MoneyAccount.holderUserId`）都是純 Int：沒 FK、多數沒索引；`AttendanceAbsence.studentId` 沒有 Student 關聯。
+    - `Teacher.payerUserId` 已不再使用（2026-11-10：老師的錢一律由上課分部的負責人付，開帳「老師付款人」步驟與 `PATCH /api/finance/teachers/[id]` 已拿掉）——之後一次 migration 把欄位 drop 掉（`tests/factories.ts` 的 `createTeacher` 還留著 `payerUserId` 參數，一起清）。
     - 退費、綁課卡鎖定（`BOUND_LESSON_LOCKED` 的計數在交易外）有 check-then-write 競態；最後一位財務的守門（count 再 update）也是。
     - 帳本每次讀財務頁都整批重算（跟 feat/finance 讀保管中同量級）；之後真的慢再用 `PostingSource.dirtyAt` 做增量。
     - 沒有排程：到期只靠讀取時觸發，久沒人開的教室要等下次有人操作才會結。

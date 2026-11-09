@@ -24,7 +24,7 @@ export async function setLockDate(classroomId: number, userId: number, body: z.i
   if (forward) {
     if (!m.canSettle) throw new ApiError(403, "NOT_FINANCE", "Only members who can settle can lock");
     if (body.lockDate! > todayKey()) throw new ApiError(400, "LOCK_IN_FUTURE", "Cannot lock a date in the future");
-    if (body.lockDate! < d.conversionDate) throw new ApiError(400, "BEFORE_CONVERSION", "Cannot lock before the conversion date");
+    if (body.lockDate! < d.conversionDate!) throw new ApiError(400, "BEFORE_CONVERSION", "Cannot lock before the conversion date");
   } else if (m.role !== "owner") {
     throw new ApiError(403, "OWNER_ONLY", "Only the owner can unlock");
   }
@@ -49,7 +49,8 @@ export async function getLockState(classroomId: number) {
   const log = await prisma.financeLockLog.findMany({ where: { classroomId }, orderBy: { id: "desc" }, take: 50 });
   return {
     lockDate: d.lockDate,
-    conversionDate: d.conversionDate,
+    // 還沒開帳沒有轉換日；畫面只拿來顯示（opened=false 時顯示「要先開帳」）。
+    conversionDate: d.conversionDate ?? todayKey(),
     opened: d.opened,
     history: log.map((l) => ({
       id: l.id,
@@ -82,9 +83,10 @@ export async function signOff(classroomId: number, userId: number, body: z.infer
 export async function getCloseChecklist(classroomId: number, asOf: string) {
   const d = await ledgerDates(classroomId);
   await syncLedger(classroomId);
-  const from = d.lockDate && d.lockDate >= d.conversionDate ? d.lockDate : null; // 這次要鎖的區間：(from, asOf]
+  const conversionDate = d.conversionDate ?? todayKey(); // 還沒開帳：沒有要鎖的區間
+  const from = d.lockDate && d.lockDate >= conversionDate ? d.lockDate : null; // 這次要鎖的區間：(from, asOf]
   const end = parseTaipeiDateRange(asOf).end;
-  const start = from ? parseTaipeiDateRange(from).end : parseTaipeiDateRange(d.conversionDate).start;
+  const start = from ? parseTaipeiDateRange(from).end : parseTaipeiDateRange(conversionDate).start;
 
   const [unchecked, inputs, problems, accounts, counts, locations, signoffs, ar] = await Promise.all([
     prisma.lessonPeriod.findMany({
@@ -143,5 +145,5 @@ export async function getCloseChecklist(classroomId: number, asOf: string) {
     { key: "SIGNOFFS", done: locations.every((l) => signed.has(l.id)), count: locations.filter((l) => !signed.has(l.id)).length,
       details: locations.map((l) => ({ locationId: l.id, name: l.name, keeperUserId: l.keeperUserId, signed: signed.has(l.id) })) },
   ];
-  return { asOf, lockDate: d.lockDate, conversionDate: d.conversionDate, opened: d.opened, ready: items.every((i) => i.done || i.optional), items };
+  return { asOf, lockDate: d.lockDate, conversionDate, opened: d.opened, ready: items.every((i) => i.done || i.optional), items };
 }

@@ -107,6 +107,7 @@ async function loadPosted(tx: Prisma.TransactionClient, classroomId: number): Pr
 }
 
 /** 整間教室過帳一次。沒啟用財務 → 什麼都不做。 */
+/** 還沒開帳 → 什麼都不做（loadLedgerInputs 回 null）：開帳前不過帳，也就不會有「記不進去」的假警報。 */
 export async function syncLedger(classroomId: number): Promise<SyncResult> {
   const inputs = await loadLedgerInputs(classroomId);
   if (!inputs) return { entriesWritten: 0, sourcesChanged: 0, errors: [] };

@@ -10,50 +10,76 @@ import {
   useGetFinanceSettingsQuery,
   useGetStrayReceiversQuery,
   useReassignStrayReceiversMutation,
+  useRestoreStrayReceiversMutation,
+  type ReassignedReceiverItem,
+  type StrayReceiverItem,
 } from "@/store/slices/finance";
 import { financeErrorText } from "./financeUi";
 import { useFinanceMembers } from "./useFinanceForm";
 
 const rowKey = (i: { kind: string; id: number }) => `${i.kind}:${i.id}`;
+const shortDate = (d: string) => d.slice(5).replace("-", "/");
+const what = (i: { kind: string; label: string }) => (i.kind === "dropIn" ? `單堂 ${i.label}` : i.label);
+/** 0 = 先不改 */
+const SKIP = 0;
 
 /**
- * 開帳：收款人不是保管人的已付款卡／單堂（上線後收的，和上線前還有剩格的卡），勾選後一鍵改記到一位保管人。
- * 預設全選、改記到舊卡保管人；不同分部的錢可以分兩次改給各自的負責人。
+ * 開帳：收款人不是保管人的已付款卡／單堂（上線後收的，和上線前還有剩格的卡）。
+ * 依「誰收的」分組，每筆選要改給哪位保管人（草稿）→ 下方總覽 → 一次確認改記。
+ * 改記過的列在「已改記」，留著原收款人，可以復原。
  */
 export default function StrayReceivers() {
   const { data } = useGetStrayReceiversQuery();
   const { data: settings } = useGetFinanceSettingsQuery();
   const { options } = useFinanceMembers();
   const [reassign, { isLoading }] = useReassignStrayReceiversMutation();
-  const [unchecked, setUnchecked] = useState<Set<string>>(new Set());
-  const [target, setTarget] = useState<number | null>(null);
-  const items = data?.items ?? [];
+  const [targets, setTargets] = useState<Map<string, number>>(new Map());
 
   if (!data) return <Skeleton className="h-10 w-full rounded-xl" />;
-  if (items.length === 0) return <p className="text-sm text-neutral-500">收的錢都記在保管人名下</p>;
+  const items = data.items;
+  const reassigned = data.reassigned ?? [];
 
   const legacy = settings?.legacyCustodianUserId;
-  const defaultTarget = options.find((o) => o.value === legacy)?.value ?? options[0]?.value ?? 0;
-  const toUserId = target ?? defaultTarget;
-  const selected = items.filter((i) => !unchecked.has(rowKey(i)));
-  const total = selected.reduce((s, i) => s + i.amount, 0);
+  const defaultTarget = options.find((o) => o.value === legacy)?.value ?? options[0]?.value ?? SKIP;
+  const targetOf = (i: StrayReceiverItem) => targets.get(rowKey(i)) ?? defaultTarget;
+  const nameOf = (userId: number) => options.find((o) => o.value === userId)?.label ?? "";
+  const rowOptions = [...options, { value: SKIP, label: "先不改" }];
 
-  const toggle = (key: string) =>
-    setUnchecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+  const setTarget = (rows: StrayReceiverItem[], userId: number) =>
+    setTargets((prev) => {
+      const next = new Map(prev);
+      for (const r of rows) next.set(rowKey(r), userId);
       return next;
     });
 
+  // 依收款人分組（保持清單順序）
+  const groups = new Map<number, StrayReceiverItem[]>();
+  for (const i of items) groups.set(i.receiverUserId, [...(groups.get(i.receiverUserId) ?? []), i]);
+
+  // 總覽：誰收的 → 改給誰
+  const moves = new Map<string, { from: string; to: number; rows: StrayReceiverItem[] }>();
+  for (const i of items) {
+    const to = targetOf(i);
+    if (to === SKIP) continue;
+    const k = `${i.receiverUserId}>${to}`;
+    const m = moves.get(k) ?? { from: i.receiverName, to, rows: [] };
+    m.rows.push(i);
+    moves.set(k, m);
+  }
+  const chosen = [...moves.values()];
+
   const submit = async () => {
+    const byTarget = new Map<number, StrayReceiverItem[]>();
+    for (const m of chosen) byTarget.set(m.to, [...(byTarget.get(m.to) ?? []), ...m.rows]);
     try {
       await reassign({
-        toUserId,
-        cardIds: selected.filter((i) => i.kind === "card").map((i) => i.id),
-        dropInIds: selected.filter((i) => i.kind === "dropIn").map((i) => i.id),
+        moves: [...byTarget].map(([toUserId, rows]) => ({
+          toUserId,
+          cardIds: rows.filter((r) => r.kind === "card").map((r) => r.id),
+          dropInIds: rows.filter((r) => r.kind === "dropIn").map((r) => r.id),
+        })),
       }).unwrap();
-      setUnchecked(new Set());
+      setTargets(new Map());
       toast.success("已改記到保管人名下");
     } catch (e) {
       toast.error(financeErrorText(e, "改不了，請再試一次"));
@@ -61,48 +87,111 @@ export default function StrayReceivers() {
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <ul className="flex flex-col divide-y divide-neutral-100">
-        {items.map((i) => {
-          const key = rowKey(i);
-          return (
-            <li key={key}>
-              <label className="flex min-h-11 cursor-pointer items-center gap-3 py-1.5 text-sm">
-                <input
-                  type="checkbox"
-                  className="size-5 shrink-0 accent-primary-700"
-                  checked={!unchecked.has(key)}
-                  onChange={() => toggle(key)}
-                />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-medium text-neutral-900">
-                    {i.studentName}・{i.kind === "dropIn" ? `單堂 ${i.label}` : i.label}
-                  </span>
-                  <span className="text-[13px] text-neutral-600">
-                    {i.date.slice(5).replace("-", "/")} 收款人 {i.receiverName}
-                  </span>
-                </span>
-                <span className="shrink-0 tabular-nums text-neutral-900">${formatMoney(i.amount)}</span>
-              </label>
-            </li>
-          );
-        })}
-      </ul>
-      <div className="flex flex-col gap-2 border-t border-neutral-100 pt-3 sm:flex-row sm:items-center">
-        <span className="text-sm font-medium text-neutral-900">勾選的改記到</span>
-        <div className="sm:w-48">
-          <Select
-            aria-label="改記到哪位保管人"
-            value={toUserId || undefined}
-            onChange={(v) => setTarget(v)}
-            options={options}
-            placeholder="選一位保管人"
-          />
-        </div>
-        <Button variant="secondary" disabled={isLoading || !toUserId || selected.length === 0} onClick={submit}>
-          {selected.length} 筆 ${formatMoney(total)} 改記到這位
-        </Button>
-      </div>
+    <div className="flex flex-col gap-5">
+      {items.length === 0 ? (
+        <p className="text-sm text-neutral-500">收的錢都記在保管人名下</p>
+      ) : (
+        <>
+          <div className="flex flex-col gap-4">
+            {[...groups.values()].map((rows) => {
+              const total = rows.reduce((s, r) => s + r.amount, 0);
+              return (
+                <section key={rows[0].receiverUserId} className="flex flex-col">
+                  <h4 className="text-sm font-medium text-neutral-900">
+                    {rows[0].receiverName} 收的 · {rows.length} 筆 ${formatMoney(total)}
+                  </h4>
+                  <ul className="flex flex-col divide-y divide-neutral-100">
+                    {rows.map((i) => (
+                      <li key={rowKey(i)} className="flex min-h-11 items-center gap-3 py-1.5 text-sm">
+                        <span className="flex min-w-0 flex-1 flex-col">
+                          <span className="truncate text-neutral-900">
+                            {shortDate(i.date)} · {i.studentName}
+                          </span>
+                          <span className="truncate text-[13px] text-neutral-600">
+                            {what(i)} · ${formatMoney(i.amount)}
+                            {i.collectedByName && i.collectedByName !== i.receiverName
+                              ? ` · 原本 ${i.collectedByName} 收`
+                              : ""}
+                          </span>
+                        </span>
+                        <div className="w-32 shrink-0">
+                          <Select
+                            size="sm"
+                            aria-label={`${i.studentName} 改給誰`}
+                            value={targetOf(i)}
+                            onChange={(v) => setTarget([i], v)}
+                            options={rowOptions}
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-neutral-100 pt-3">
+            {chosen.length === 0 ? (
+              <p className="text-sm text-neutral-500">還沒選要改給誰</p>
+            ) : (
+              <ul className="flex flex-col gap-1 text-sm text-neutral-900">
+                {chosen.map((m) => (
+                  <li key={`${m.from}>${m.to}`} className="tabular-nums">
+                    {m.from} 的 {m.rows.length} 筆 ${formatMoney(m.rows.reduce((s, r) => s + r.amount, 0))} →{" "}
+                    {nameOf(m.to)}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div>
+              <Button variant="secondary" disabled={isLoading || chosen.length === 0} onClick={submit}>
+                確認改記
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {reassigned.length > 0 && <Reassigned rows={reassigned} />}
     </div>
+  );
+}
+
+function Reassigned({ rows }: { rows: ReassignedReceiverItem[] }) {
+  const [restore, { isLoading }] = useRestoreStrayReceiversMutation();
+  const undo = async (i: ReassignedReceiverItem) => {
+    try {
+      await restore({
+        cardIds: i.kind === "card" ? [i.id] : [],
+        dropInIds: i.kind === "dropIn" ? [i.id] : [],
+      }).unwrap();
+      toast.success(`已還給 ${i.collectedByName}`);
+    } catch (e) {
+      toast.error(financeErrorText(e, "復原不了，請再試一次"));
+    }
+  };
+
+  return (
+    <section className="flex flex-col">
+      <h4 className="text-sm font-medium text-neutral-900">已改記</h4>
+      <ul className="flex flex-col divide-y divide-neutral-100">
+        {rows.map((i) => (
+          <li key={rowKey(i)} className="flex min-h-11 items-center gap-3 py-1.5 text-sm">
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-neutral-900">
+                {i.collectedByName} → {i.holderName}
+              </span>
+              <span className="truncate text-[13px] text-neutral-600">
+                {shortDate(i.date)} · {i.studentName} · {what(i)} · ${formatMoney(i.amount)}
+              </span>
+            </span>
+            <Button variant="ghost" size="sm" disabled={isLoading} onClick={() => undo(i)}>
+              復原
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

@@ -66,6 +66,25 @@ function BranchRow({ loc }: { loc: FinanceLocation }) {
   );
 }
 
+/** 負責人／過期的錢只能選保管人，常被誤會成「權限最大的兩個人」，所以講清楚、給一條去設定保管人的路。 */
+function KeeperHint() {
+  return (
+    <p className="mt-3 text-[13px] leading-relaxed text-neutral-600">
+      只列出保管人（可以收錢的人）。
+      <a
+        href="/finance/settings#general"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="ml-1 font-medium text-primary-700 underline-offset-4 hover:underline"
+      >
+        沒看到要的人？
+      </a>
+      <br />
+      還不在團隊裡的人，要先到「教室設定 → 團隊」邀請。
+    </p>
+  );
+}
+
 function AddBranch() {
   const [create, { isLoading }] = useCreateLocationMutation();
   const [name, setName] = useState("");
@@ -109,6 +128,7 @@ export default function BranchSettings() {
           ))}
         </ul>
       )}
+      {locations.length > 0 && <KeeperHint />}
       <AddBranch />
       <Link href="/locations" className="mt-3 inline-flex text-[13px] font-medium text-primary-700 underline-offset-4 hover:underline">
         改名或封存分部

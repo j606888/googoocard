@@ -246,6 +246,26 @@ describe("finance period loader", () => {
     expect(pf.allocations![0]).toEqual({ payee: { type: "venue", venueId }, amount: 0, source: "line" });
   });
 
+  it("per-session venue → its perSessionPrice every period, no pack consumed", async () => {
+    await prisma.venue.update({ where: { id: venueId }, data: { perSessionPrice: 300 } });
+    const pack = await createVenuePack(classroomId, venueId, { sessions: 5, price: 5000, paidByUserId: ownerId, purchasedAt: new Date("2026-11-01T00:00:00Z") });
+    const lesson = await ruledLesson({
+      lines: [{ kind: "venuePack", venueId }],
+      rest: { type: "fund", locationId: tainanId },
+      fundLocationId: tainanId,
+    });
+    await takenPeriod(lesson.id, new Date("2026-11-02T11:00:00Z"));
+    await takenPeriod(lesson.id, new Date("2026-11-03T11:00:00Z"));
+    const res = await loadPeriodFinance(classroomId, { lessonId: lesson.id });
+    expect(res.map((r) => r.warnings)).toEqual([[], []]);
+    expect(res.map((r) => r.allocations![0])).toEqual([
+      { payee: { type: "venue", venueId }, amount: 300, source: "line" },
+      { payee: { type: "venue", venueId }, amount: 300, source: "line" },
+    ]);
+    const { packUsage } = await import("@/service/finance/periods");
+    expect((await packUsage(classroomId)).get(pack.id)).toBeUndefined();
+  });
+
   it("legacy card holder is legacy custodian", async () => {
     const member = await createMember(classroomId);
     await prisma.classroom.update({ where: { id: classroomId }, data: { legacyCustodianUserId: member.id } });

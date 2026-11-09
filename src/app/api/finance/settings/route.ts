@@ -13,16 +13,29 @@ export const GET = apiRoute(async ({ classroomId }) => {
   });
   const memberships = await prisma.membership.findMany({
     where: { classroomId },
-    select: { userId: true, isCustodian: true, canSettle: true, user: { select: { name: true } } },
+    select: { userId: true, role: true, isCustodian: true, canSettle: true, user: { select: { name: true } } },
     orderBy: { id: "asc" },
   });
+  // 成員連結的老師（Teacher.userId）：選人時看得出誰是誰。
+  const linkedTeachers = await prisma.teacher.findMany({
+    where: { classroomId, userId: { not: null } },
+    select: { userId: true, name: true },
+  });
+  const teacherNameByUser = new Map(linkedTeachers.map((t) => [t.userId, t.name]));
   return {
     enabled: !!c.financeEnabledAt,
     launchDate: c.financeEnabledAt ? toTaipeiDateKey(c.financeEnabledAt) : null,
     roundTo: c.financeRoundTo,
     legacyCustodianUserId: c.legacyCustodianUserId,
     noVenueFee: c.financeNoVenueFee,
-    members: memberships.map((m) => ({ userId: m.userId, name: m.user.name, isCustodian: m.isCustodian, canSettle: m.canSettle })),
+    members: memberships.map((m) => ({
+      userId: m.userId,
+      name: m.user.name,
+      role: m.role,
+      teacherName: teacherNameByUser.get(m.userId) ?? null,
+      isCustodian: m.isCustodian,
+      canSettle: m.canSettle,
+    })),
   };
 });
 

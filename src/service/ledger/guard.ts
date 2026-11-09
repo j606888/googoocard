@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 import { toTaipeiDateKey } from "@/lib/taipei-date";
 import { dateKeyOfDbDate } from "./load";
+import { financeStartOf } from "@/service/finance/start";
 
 export const ymd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
 export const todayKey = () => toTaipeiDateKey(new Date());
@@ -16,18 +17,19 @@ export async function ledgerDates(classroomId: number) {
   });
   if (!c.financeEnabledAt) throw new ApiError(404, "FINANCE_DISABLED", "Finance is not enabled for this classroom");
   return {
-    conversionDate: c.financeConversionDate ? dateKeyOfDbDate(c.financeConversionDate) : toTaipeiDateKey(c.financeEnabledAt),
+    /** 還沒開帳 → null（財務還沒開始，service/finance/start.ts）。 */
+    conversionDate: financeStartOf(c)?.dateKey ?? null,
     lockDate: c.financeLockDate ? dateKeyOfDbDate(c.financeLockDate) : null,
     opened: c.financeOpenedAt !== null,
     roundTo: c.financeRoundTo,
   };
 }
 
-/** 新記的一筆，日期必須在轉換日（含）之後、鎖帳日之後。 */
+/** 新記的一筆，日期必須在轉換日（含）之後、鎖帳日之後。還沒開帳 → 不檢查轉換日（開帳時才知道哪些算進帳）。 */
 export async function assertWritableDate(classroomId: number, date: string) {
   const d = await ledgerDates(classroomId);
   if (d.lockDate && date <= d.lockDate) throw new ApiError(409, "PERIOD_LOCKED", `The ledger is locked through ${d.lockDate}`);
-  if (date < d.conversionDate) throw new ApiError(400, "BEFORE_CONVERSION", `Date is before the conversion date ${d.conversionDate}`);
+  if (d.conversionDate !== null && date < d.conversionDate) throw new ApiError(400, "BEFORE_CONVERSION", `Date is before the conversion date ${d.conversionDate}`);
   return d;
 }
 

@@ -1,275 +1,473 @@
 "use client";
 
-// 開帳精靈（docs/finance-v2/04 §3；設計稿「開帳精靈」）：轉換日 → 資金帳戶 → 預收與應收 → 次數包與待付 → 確認期初。
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+// 開帳（docs/finance-v2/04 §3；feedback 07 #12）：在開帳精靈裡是第 7–9 步（期初現金 → 還沒付的錢 → 預覽並開帳）。
+// 三步填的東西（轉換日、現金算法、實際金額、還沒付的錢）是同一份草稿，放在 OpeningDraftProvider，
+// 存到 sessionStorage（重新整理不會不見），最後按「開帳」才一次送出（POST /finance/opening）。
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import SegmentedTabs from "@/components/SegmentedTabs";
 import Select from "@/components/Select";
-import Field, { FieldLabel } from "@/components/Field";
+import { fieldControlClass } from "@/components/Field";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
+import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { useGetLocationsQuery } from "@/store/slices/locations";
 import { useGetFinanceSettingsQuery, useGetFinanceTeachersQuery, useGetFinanceVenuesQuery } from "@/store/slices/finance";
-import { useGetMoneyAccountsQuery, useGetOpeningQuery, useOpenLedgerMutation, usePreviewOpeningMutation, type OpeningPreviewView } from "@/store/slices/ledger";
+import {
+  useGetMoneyAccountsQuery,
+  useGetOpeningQuery,
+  useOpenLedgerMutation,
+  usePreviewOpeningMutation,
+  type MoneyAccountView,
+  type OpeningPreviewView,
+  type OpeningState,
+} from "@/store/slices/ledger";
 import type { OpeningParams } from "@/service/ledger/opening";
 import { financeErrorText, todayKey } from "../financeUi";
 import { AddAccountDrawer } from "./Accounts";
 import { Amount, FinanceCard, FinanceShell, useIsOwner } from "./ui";
 
-const STEPS = ["轉換日", "資金帳戶", "預收與應收", "次數包與待付", "確認期初"];
 type Payable = OpeningParams["payables"][number];
+type Method = OpeningParams["method"];
+type PreviewCard = OpeningPreviewView["cards"][number];
 
-/** /finance/opening：開帳後要換一天重開時用；第一次開帳走 /finance/setup 精靈的第 7 步。 */
+/** 開帳草稿。`visited`：第 6、7 步看過了沒（精靈左側打勾用；伺服器只知道開帳了沒）。 */
+export type OpeningDraft = {
+  date: string;
+  method: Method;
+  cash: Record<number, string>;
+  payables: Payable[];
+  visited: { cash?: boolean; payables?: boolean };
+};
+
+type Ctx = {
+  draft: OpeningDraft | null;
+  update: (patch: Partial<OpeningDraft>) => void;
+  setPayables: (f: (p: Payable[]) => Payable[]) => void;
+  markVisited: (k: "cash" | "payables") => void;
+  clear: () => void;
+  state: OpeningState | undefined;
+  params: OpeningParams | null;
+  result: OpeningPreviewView | null;
+  previewing: boolean;
+  refresh: () => void;
+  /** 有用到試算結果的畫面掛上這個，草稿一改就自動重算（不必每一步都算）。 */
+  watch: () => () => void;
+};
+
+const OpeningCtx = createContext<Ctx | null>(null);
+
+function useOpening(): Ctx {
+  const c = useContext(OpeningCtx);
+  if (!c) throw new Error("useOpening must be inside <OpeningDraftProvider>");
+  return c;
+}
+
+/** 精靈左側用：草稿（還沒載入是 null）＋把第 6、7 步標成看過。 */
+export function useOpeningDraft(): { draft: OpeningDraft | null; markVisited: (k: "cash" | "payables") => void } {
+  const c = useOpening();
+  return { draft: c.draft, markVisited: c.markVisited };
+}
+
+const storageKey = (classroomId: number) => `finance-opening-draft:${classroomId}`;
+
+function readStored(key: string): OpeningDraft | null {
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as OpeningDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function OpeningDraftProvider({ children }: { children: ReactNode }) {
+  const { data: classrooms } = useGetClassroomsQuery();
+  const classroomId = classrooms?.currentClassroomId ?? null;
+  const { data: state } = useGetOpeningQuery();
+  const { data: maData } = useGetMoneyAccountsQuery();
+  const [preview, pv] = usePreviewOpeningMutation();
+  const [draft, setDraft] = useState<OpeningDraft | null>(null);
+  const [result, setResult] = useState<OpeningPreviewView | null>(null);
+  const [watchers, setWatchers] = useState(0);
+
+  // 第一次：sessionStorage 有草稿就接著用，否則已開過帳帶入上次的參數，再不然用建議日。
+  useEffect(() => {
+    if (draft || !state || classroomId == null) return;
+    const stored = readStored(storageKey(classroomId));
+    if (stored) return setDraft(stored);
+    const p = state.params;
+    setDraft({
+      date: p?.conversionDate ?? state.suggestedDate ?? todayKey(),
+      method: p?.method ?? "CONVENTION",
+      cash: Object.fromEntries((p?.cash ?? []).map((c) => [c.moneyAccountId, String(c.amount)])),
+      payables: p?.payables ?? [],
+      visited: {},
+    });
+  }, [draft, state, classroomId]);
+
+  useEffect(() => {
+    if (!draft || classroomId == null) return;
+    try {
+      window.sessionStorage.setItem(storageKey(classroomId), JSON.stringify(draft));
+    } catch {
+      // 無痕模式等存不了：只是重新整理會不見，不影響開帳。
+    }
+  }, [draft, classroomId]);
+
+  const accounts = useMemo(() => (maData?.accounts ?? []).filter((a) => !a.archivedAt), [maData]);
+  const params = useMemo<OpeningParams | null>(
+    () =>
+      draft?.date
+        ? {
+            conversionDate: draft.date,
+            method: draft.method,
+            cash: draft.method === "ACTUAL" ? accounts.map((a) => ({ moneyAccountId: a.id, amount: Number(draft.cash[a.id] || 0) })) : [],
+            payables: draft.payables.filter((p) => p.amount !== 0 && p.partyId && p.locationId),
+          }
+        : null,
+    [draft, accounts],
+  );
+
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
+  const refresh = useCallback(async () => {
+    const p = paramsRef.current;
+    if (!p) return;
+    try {
+      setResult(await preview(p).unwrap());
+    } catch (e) {
+      toast.error(financeErrorText(e, "試算失敗"));
+    }
+  }, [preview]);
+
+  // 草稿改了就重算（稍等一下，打字時不會每個字都算）
+  const key = params ? JSON.stringify(params) : "";
+  useEffect(() => {
+    if (!key || watchers === 0) return;
+    const t = setTimeout(refresh, 400);
+    return () => clearTimeout(t);
+  }, [key, watchers, refresh]);
+
+  const watch = useCallback(() => {
+    setWatchers((n) => n + 1);
+    return () => setWatchers((n) => n - 1);
+  }, []);
+
+  const update = useCallback((patch: Partial<OpeningDraft>) => setDraft((d) => (d ? { ...d, ...patch } : d)), []);
+  const value: Ctx = {
+    draft,
+    update,
+    setPayables: (f) => setDraft((d) => (d ? { ...d, payables: f(d.payables) } : d)),
+    markVisited: (k) => setDraft((d) => (d && !d.visited[k] ? { ...d, visited: { ...d.visited, [k]: true } } : d)),
+    clear: () => {
+      try {
+        if (classroomId != null) window.sessionStorage.removeItem(storageKey(classroomId));
+      } catch {
+        // ignore
+      }
+    },
+    state,
+    params,
+    result,
+    previewing: pv.isLoading,
+    refresh,
+    watch,
+  };
+  return <OpeningCtx.Provider value={value}>{children}</OpeningCtx.Provider>;
+}
+
+function useWatchPreview() {
+  const { watch } = useOpening();
+  useEffect(() => watch(), [watch]);
+}
+
+/** /finance/opening：開帳後要換一天重開時用；第一次開帳走 /finance/setup 精靈的第 7–9 步。三步排成一頁。 */
 export default function Opening() {
   const { data: state } = useGetOpeningQuery();
   return (
-    <FinanceShell
-      title={state?.opened ? "重新開帳" : "開帳"}
-      guide="opening"
-      crumb={{ href: "/finance/settings", label: "財務設定" }}
-    >
-      <OpeningFlow />
+    <FinanceShell title={state?.opened ? "重新開帳" : "開帳"} guide="opening" crumb={{ href: "/finance/settings", label: "財務設定" }}>
+      <OpeningDraftProvider>
+        <div className="flex max-w-3xl flex-col gap-8">
+          <Section title="期初現金"><OpeningCashStep /></Section>
+          <Section title="還沒付的錢"><OpeningPayablesStep /></Section>
+          <Section title="預覽並開帳"><OpeningConfirmStep /></Section>
+        </div>
+      </OpeningDraftProvider>
     </FinanceShell>
   );
 }
 
-/**
- * 開帳的五個小步驟。`onBack`：在第一個小步驟按「上一步」時呼叫（精靈裡回到第 6 步）。
- * `blocker`：不是 null 就不能按開帳，顯示在按鈕上方（精靈裡：前面還有步驟沒做完）。
- */
-export function OpeningFlow({ onBack, blocker }: { onBack?: () => void; blocker?: ReactNode }) {
-  const router = useRouter();
-  const isOwner = useIsOwner();
-  const { data: state, isLoading } = useGetOpeningQuery();
-  const { data: maData } = useGetMoneyAccountsQuery();
-  const { data: locData } = useGetLocationsQuery();
-  const { data: settings } = useGetFinanceSettingsQuery();
-  const [preview, pv] = usePreviewOpeningMutation();
-  const [open, opening] = useOpenLedgerMutation();
-
-  const [step, setStep] = useState(0);
-  const [date, setDate] = useState("");
-  const [method, setMethod] = useState<"CONVENTION" | "ACTUAL">("CONVENTION");
-  const [cash, setCash] = useState<Record<number, string>>({});
-  const [payables, setPayables] = useState<Payable[]>([]);
-  const [result, setResult] = useState<OpeningPreviewView | null>(null);
-  const [addFor, setAddFor] = useState<number | null>(null);
-  const [confirm, setConfirm] = useState(false);
-
-  // 已開過帳 → 帶入上次的參數
-  useEffect(() => {
-    if (!state) return;
-    const p = state.params;
-    setDate(p?.conversionDate ?? state.suggestedDate ?? todayKey());
-    if (p) {
-      setMethod(p.method);
-      setCash(Object.fromEntries(p.cash.map((c) => [c.moneyAccountId, String(c.amount)])));
-      setPayables(p.payables);
-    }
-  }, [state]);
-
-  const accounts = (maData?.accounts ?? []).filter((a) => !a.archivedAt);
-  const locations = (locData?.locations ?? []).filter((l) => !l.archivedAt);
-  const locName = (id: number) => locations.find((l) => l.id === id)?.name ?? "";
-  const userName = (id: number) => settings?.members.find((m) => m.userId === id)?.name ?? `#${id}`;
-
-  const params: OpeningParams = {
-    conversionDate: date,
-    method,
-    cash: method === "ACTUAL" ? accounts.map((a) => ({ moneyAccountId: a.id, amount: Number(cash[a.id] || 0) })) : [],
-    payables: payables.filter((p) => p.amount !== 0),
-  };
-
-  const refresh = async () => {
-    if (!date) return;
-    try {
-      setResult(await preview(params).unwrap());
-    } catch (e) {
-      toast.error(financeErrorText(e, "試算失敗"));
-    }
-  };
-  // 換步驟就重新試算
-  useEffect(() => {
-    if (step > 0) refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
-
-  if (isLoading || !state) return <Skeleton className="h-96 rounded-2xl" />;
-
-  const locked = !!state.lockDate;
-  const missing = (result?.errors ?? []).filter((e) => e.code === "NO_MONEY_ACCOUNT" && e.userId !== undefined);
-
-  const submit = async () => {
-    try {
-      await open(params).unwrap();
-      toast.success(`已開帳：${date.replaceAll("-", "/")}`);
-      router.push("/finance");
-    } catch (e) {
-      toast.error(financeErrorText(e, "開帳失敗"));
-      setConfirm(false);
-    }
-  };
-
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <>
-      {locked ? (
-        <FinanceCard className="px-5 py-5 text-sm text-neutral-600">
-          已經鎖帳（{state.lockDate?.replaceAll("-", "/")}），不能再重開。期初錯了請用手動分錄更正。
-        </FinanceCard>
-      ) : (
-        <div className="flex max-w-4xl flex-col gap-5">
-          <ol className="flex flex-wrap gap-x-5 gap-y-2">
-            {STEPS.map((s, i) => (
-              <li key={s}>
-                <button
-                  type="button"
-                  onClick={() => setStep(i)}
-                  aria-current={i === step ? "step" : undefined}
-                  className={cn("flex cursor-pointer items-center gap-2 text-sm", i === step ? "font-semibold text-neutral-900" : "text-neutral-500")}
-                >
-                  <span className={cn("flex size-6 items-center justify-center rounded-full text-xs font-semibold", i === step ? "bg-primary-900 text-white" : i < step ? "bg-primary-100 text-primary-900" : "bg-neutral-100 text-neutral-600")}>
-                    {i < step ? <Check className="size-3.5" strokeWidth={3} /> : i + 1}
-                  </span>
-                  {s}
-                </button>
-              </li>
-            ))}
-          </ol>
-
-          {step === 0 && (
-            <FinanceCard className="flex flex-col gap-5 px-5 py-5">
-              <Field label="轉換日" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="max-w-60" />
-              <p className="-mt-3 text-[13px] text-neutral-500">這天（含）以後的事記進帳本，之前的結果算成期初。任何一天都可以。</p>
-              <div className="flex flex-col gap-1.5">
-                <FieldLabel>現金怎麼算</FieldLabel>
-                <SegmentedTabs
-                  ariaLabel="現金怎麼算"
-                  value={method}
-                  onChange={setMethod}
-                  options={[
-                    { value: "CONVENTION", label: "約定：錢在收錢的人那裡" },
-                    { value: "ACTUAL", label: "實數：數得出來" },
-                  ]}
-                />
-                <p className="text-[13px] text-neutral-500">
-                  {method === "CONVENTION"
-                    ? "每個人的期初現金＝他收的舊卡還沒上完的價值。不用數錢，期初公積金是 0。"
-                    : "每個資金帳戶填實際有多少，期初公積金是相減出來的，可能是負的。"}
-                </p>
-              </div>
-            </FinanceCard>
-          )}
-
-          {step === 1 && (
-            <FinanceCard className="flex flex-col gap-4 px-5 py-5">
-              {missing.length > 0 && (
-                <div className="flex flex-col gap-2 rounded-xl bg-warning-50 px-4 py-3">
-                  <span className="text-sm font-semibold text-warning-950">這些人收過錢，但還沒有資金帳戶</span>
-                  {missing.map((e) => (
-                    <div key={e.userId} className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="flex-1">{userName(e.userId!)} · {e.cardIds?.length ?? 0} 張卡</span>
-                      <Button size="sm" variant="secondary" onClick={() => setAddFor(e.userId!)}>建帳戶</Button>
-                    </div>
-                  ))}
-                  <span className="text-[13px] text-warning-950">要先在財務設定把他勾成保管人。</span>
-                </div>
-              )}
-              {accounts.length === 0 && <p className="text-sm text-neutral-500">還沒有資金帳戶</p>}
-              {accounts.map((a) => (
-                <div key={a.id} className="flex flex-wrap items-center gap-3 border-t border-neutral-100 pt-3 first:border-t-0 first:pt-0">
-                  <span className="flex flex-1 flex-col">
-                    <span className="text-[15px] font-medium">{a.name}</span>
-                    <span className="text-xs text-neutral-500">{locName(a.locationId)}</span>
-                  </span>
-                  {method === "ACTUAL" ? (
-                    <input
-                      aria-label={`${a.name} 期初金額`}
-                      inputMode="decimal"
-                      value={cash[a.id] ?? ""}
-                      onChange={(e) => setCash((c) => ({ ...c, [a.id]: e.target.value }))}
-                      className="h-11 w-36 rounded-xl border border-neutral-300 px-3 text-right tabular-nums"
-                      placeholder="0"
-                    />
-                  ) : (
-                    <Amount cents={result?.rows.filter((r) => r.label === a.name).reduce((s, r) => s + r.amount, 0) ?? 0} dollar className="text-[15px] font-semibold" />
-                  )}
-                </div>
-              ))}
-              <Button variant="link" size="sm" className="self-start" onClick={() => refresh()}>重新試算</Button>
-            </FinanceCard>
-          )}
-
-          {step === 2 && (
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Stat label="舊卡" value={`${result?.legacyCards.count ?? 0} 張`} />
-              <Stat label="預收（還欠學生的課）" cents={result?.legacyCards.deferred ?? 0} />
-              <Stat label="應收（還沒付的卡）" cents={result?.legacyCards.receivable ?? 0} />
-            </div>
-          )}
-
-          {step === 3 && <PayablesStep payables={payables} setPayables={setPayables} locations={locations} />}
-
-          {step === 4 && result && <OpeningSheet result={result} locName={locName} />}
-
-          {(result?.errors ?? []).length > 0 && step > 0 && (
-            <p className="text-sm text-danger-700">還有 {result!.errors.length} 個問題要先處理（見「資金帳戶」）</p>
-          )}
-
-          {step === STEPS.length - 1 && blocker}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-[13px] text-neutral-500">第一次鎖帳前都可以換一天重開</span>
-            <div className="flex gap-2">
-              {step > 0 ? (
-                <Button variant="secondary" onClick={() => setStep(step - 1)}>上一步</Button>
-              ) : (
-                onBack && <Button variant="secondary" onClick={onBack}>上一步</Button>
-              )}
-              {step < STEPS.length - 1 ? (
-                <Button onClick={() => setStep(step + 1)} disabled={!date}>下一步</Button>
-              ) : (
-                <Button disabled={!isOwner || !!blocker || !result || result.errors.length > 0 || pv.isLoading} onClick={() => setConfirm(true)}>
-                  {state.opened ? "重新開帳" : "開帳"}
-                </Button>
-              )}
-            </div>
-          </div>
-          {step === STEPS.length - 1 && !isOwner && <p className="text-right text-[13px] text-neutral-500">只有教室擁有者能開帳</p>}
-        </div>
-      )}
-      <AddAccountDrawer open={addFor !== null} onClose={() => { setAddFor(null); refresh(); }} holderUserId={addFor ?? undefined} />
-      <ConfirmDialog
-        open={confirm}
-        title={state.opened ? "重新開帳？" : `從 ${date.replaceAll("-", "/")} 開帳？`}
-        message={state.opened ? "帳本會從新的轉換日全部重算（手動分錄保留）。" : "這天以後的事會開始記進帳本。鎖帳前都可以重開。"}
-        confirmLabel={state.opened ? "重新開帳" : "開帳"}
-        isLoading={opening.isLoading}
-        onConfirm={submit}
-        onCancel={() => setConfirm(false)}
-      />
-      {state.opened && !locked && step === 0 && (
-        <p className="text-[13px] text-neutral-500">
-          目前從 {state.conversionDate?.replaceAll("-", "/")} 開帳。<Link className="text-primary-800" href="/finance">回總覽</Link>
-        </p>
-      )}
-    </>
+    <section className="flex flex-col gap-3">
+      <h2 className="text-lg font-bold text-neutral-900">{title}</h2>
+      {children}
+    </section>
   );
 }
 
-function Stat({ label, value, cents }: { label: string; value?: string; cents?: number }) {
+function Locked({ lockDate }: { lockDate: string }) {
   return (
-    <FinanceCard className="flex flex-col gap-1 px-4 py-3.5">
-      <span className="text-[13px] text-neutral-500">{label}</span>
-      {cents !== undefined ? <Amount cents={cents} dollar className="text-xl font-semibold" /> : <span className="text-xl font-semibold">{value}</span>}
+    <FinanceCard className="px-5 py-5 text-sm text-neutral-600">
+      已經鎖帳（{lockDate.replaceAll("-", "/")}），不能再重開。期初錯了請用手動分錄更正。
     </FinanceCard>
   );
 }
 
-function PayablesStep({
+/* ───────── 第 6 步：期初現金 ───────── */
+
+function firstOfMonth(today: string, plus: number) {
+  const [y, m] = today.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + plus, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+export function OpeningCashStep() {
+  useWatchPreview();
+  const { draft, update, state, result, refresh } = useOpening();
+  const { data: maData } = useGetMoneyAccountsQuery();
+  const { data: locData } = useGetLocationsQuery();
+  const { data: settings } = useGetFinanceSettingsQuery();
+  const [addFor, setAddFor] = useState<number | null>(null);
+  const [openUser, setOpenUser] = useState<number | null>(null);
+
+  if (!draft || !state) return <Skeleton className="h-72 rounded-2xl" />;
+  if (state.lockDate) return <Locked lockDate={state.lockDate} />;
+
+  const accounts = (maData?.accounts ?? []).filter((a) => !a.archivedAt);
+  const locName = (id: number) => locData?.locations.find((l) => l.id === id)?.name ?? "";
+  const userName = (id: number) => settings?.members.find((m) => m.userId === id)?.name ?? `#${id}`;
+  const missing = (result?.errors ?? []).filter((e) => e.code === "NO_MONEY_ACCOUNT" && e.userId !== undefined);
+  const cards = result?.cards ?? [];
+
+  // 每個人：名下的資金帳戶＋算在他手上的舊卡
+  const people = [...new Set([...accounts.map((a) => a.holderUserId), ...cards.flatMap((c) => (c.holderUserId != null ? [c.holderUserId] : []))])];
+  const today = todayKey();
+  const quick = [
+    { label: "今天", value: today },
+    { label: "這個月 1 號", value: firstOfMonth(today, 0) },
+    { label: "下個月 1 號", value: firstOfMonth(today, 1) },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <FinanceCard className="flex flex-col gap-3 px-4 py-4 lg:px-5">
+        <div className="flex flex-col gap-1">
+          <span className="text-[15px] font-semibold text-neutral-900">轉換日：帳本從哪天開始記</span>
+          <span className="text-[13px] text-neutral-500">這天（含）以後的事記進帳本，之前的結果算成期初。</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {quick.map((q) => (
+            <Button
+              key={q.label}
+              size="sm"
+              variant={draft.date === q.value ? "primary" : "secondary"}
+              aria-pressed={draft.date === q.value}
+              onClick={() => update({ date: q.value })}
+            >
+              {q.label}
+            </Button>
+          ))}
+          <input aria-label="轉換日（自己選一天）" type="date" value={draft.date} onChange={(e) => update({ date: e.target.value })} className={cn(fieldControlClass(), "h-10 w-44 px-3 text-sm")} />
+        </div>
+      </FinanceCard>
+
+      <FinanceCard className="flex flex-col gap-3 px-4 py-4 lg:px-5">
+        <span className="text-[15px] font-semibold text-neutral-900">那天每個人手上的教室的錢怎麼算</span>
+        <div role="radiogroup" aria-label="期初現金怎麼算" className="grid gap-2 sm:grid-cols-2">
+          <MethodOption
+            checked={draft.method === "CONVENTION"}
+            onPick={() => update({ method: "CONVENTION" })}
+            title="系統幫我算"
+            body="舊卡還沒上完的錢，算在當初收錢的人手上。不用數錢。"
+          />
+          <MethodOption
+            checked={draft.method === "ACTUAL"}
+            onPick={() => update({ method: "ACTUAL" })}
+            title="我自己填實際金額"
+            body="每個帳戶填那天實際有多少；跟舊卡的差額會算進分部公積金（可能是負的）。"
+          />
+        </div>
+      </FinanceCard>
+
+      {missing.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-xl bg-warning-50 px-4 py-3">
+          <span className="text-sm font-semibold text-warning-950">這些人收過錢，但還沒有資金帳戶</span>
+          {missing.map((e) => (
+            <div key={e.userId} className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="flex-1">{userName(e.userId!)} · {e.cardIds?.length ?? 0} 張卡</span>
+              <Button size="sm" variant="secondary" onClick={() => setAddFor(e.userId!)}>建帳戶</Button>
+            </div>
+          ))}
+          <span className="text-[13px] text-warning-950">要先在財務設定把他勾成保管人。</span>
+        </div>
+      )}
+
+      <FinanceCard className="overflow-hidden">
+        {people.length === 0 && <p className="px-5 py-4 text-sm text-neutral-500">還沒有資金帳戶</p>}
+        <ul className="flex flex-col divide-y divide-neutral-100">
+          {people.map((uid) => {
+            const mine = cards.filter((c) => c.holderUserId === uid);
+            const theirAccounts = accounts.filter((a) => a.holderUserId === uid);
+            const computed = mine.reduce((s, c) => s + c.deferred, 0);
+            const open = openUser === uid;
+            return (
+              <li key={uid} className="flex flex-col">
+                <div className="flex flex-wrap items-center gap-3 px-4 py-3 lg:px-5">
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    onClick={() => setOpenUser(open ? null : uid)}
+                    className="flex min-h-10 min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
+                  >
+                    <ChevronDown className={cn("size-4 shrink-0 text-neutral-500 transition-transform", open && "rotate-180")} aria-hidden />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate text-[15px] font-medium text-neutral-900">{userName(uid)}</span>
+                      <span className="text-xs text-neutral-500">
+                        舊卡 {mine.length} 張{draft.method === "ACTUAL" && computed > 0 && <>，還沒上完 <Amount cents={computed} dollar /></>}
+                      </span>
+                    </span>
+                  </button>
+                  {draft.method === "CONVENTION" && <Amount cents={computed} dollar className="text-[15px] font-semibold" />}
+                </div>
+                {draft.method === "ACTUAL" && theirAccounts.length > 0 && (
+                  <div className="flex flex-col gap-2 px-4 pb-3 lg:px-5">
+                    {theirAccounts.map((a) => (
+                      <CashInput key={a.id} account={a} locName={locName(a.locationId)} value={draft.cash[a.id] ?? ""} onChange={(v) => update({ cash: { ...draft.cash, [a.id]: v } })} />
+                    ))}
+                  </div>
+                )}
+                {open && <CardList cards={mine} empty="沒有算在他手上的舊卡" />}
+              </li>
+            );
+          })}
+        </ul>
+      </FinanceCard>
+
+      <AddAccountDrawer open={addFor !== null} onClose={() => { setAddFor(null); refresh(); }} holderUserId={addFor ?? undefined} />
+    </div>
+  );
+}
+
+function MethodOption({ checked, onPick, title, body }: { checked: boolean; onPick: () => void; title: string; body: string }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      onClick={onPick}
+      className={cn(
+        "flex cursor-pointer gap-3 rounded-xl border-[1.5px] px-4 py-3 text-left transition-colors",
+        checked ? "border-primary-700 bg-primary-50" : "border-neutral-200 hover:border-neutral-300",
+      )}
+    >
+      <span className={cn("mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border-[1.5px]", checked ? "border-primary-700" : "border-neutral-400")}>
+        {checked && <span className="size-2 rounded-full bg-primary-700" />}
+      </span>
+      <span className="flex flex-col gap-0.5">
+        <span className="text-sm font-semibold text-neutral-900">{title}</span>
+        <span className="text-[13px] leading-relaxed text-neutral-600">{body}</span>
+      </span>
+    </button>
+  );
+}
+
+function CashInput({ account, locName, value, onChange }: { account: MoneyAccountView; locName: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="flex items-center gap-3 text-sm">
+      <span className="min-w-0 flex-1 truncate text-neutral-700">
+        {account.name}
+        {locName && <span className="text-neutral-500"> · {locName}</span>}
+      </span>
+      <input
+        aria-label={`${account.name} 期初金額`}
+        inputMode="decimal"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-10 w-36 rounded-xl border-[1.5px] border-neutral-300 px-3 text-right tabular-nums"
+        placeholder="0"
+      />
+    </label>
+  );
+}
+
+/** 卡片明細：學生 · 卡 · 剩幾堂 · 金額。 */
+function CardList({ cards, empty, receivable }: { cards: PreviewCard[]; empty: string; receivable?: boolean }) {
+  if (cards.length === 0) return <p className="bg-neutral-50 px-4 py-3 text-[13px] text-neutral-500 lg:px-5">{empty}</p>;
+  return (
+    <ul className="flex flex-col bg-neutral-50 px-4 py-2 lg:px-5">
+      {cards.map((c) => (
+        <li key={c.cardId} className="flex items-center gap-3 py-1.5 text-[13px]">
+          <span className="min-w-0 flex-1 truncate text-neutral-800">
+            {c.studentName} <span className="text-neutral-500">· {c.cardName}</span>
+          </span>
+          <span className="shrink-0 tabular-nums text-neutral-500">剩 {c.sessionsLeft} 堂</span>
+          <Amount cents={receivable ? c.receivable : c.deferred} dollar className="w-20 shrink-0 text-right" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/* ───────── 第 7 步：還沒付的錢 ───────── */
+
+export function OpeningPayablesStep() {
+  useWatchPreview();
+  const { draft, setPayables, state, result } = useOpening();
+  const { data: locData } = useGetLocationsQuery();
+  const { data: settings } = useGetFinanceSettingsQuery();
+  if (!draft || !state) return <Skeleton className="h-72 rounded-2xl" />;
+  if (state.lockDate) return <Locked lockDate={state.lockDate} />;
+  const locations = (locData?.locations ?? []).filter((l) => !l.archivedAt);
+  const packs = result?.packs ?? [];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <FinanceCard className="flex flex-col gap-3 px-4 py-4 lg:px-5">
+        <div className="flex flex-col gap-1">
+          <span className="text-[15px] font-semibold text-neutral-900">次數包</span>
+          <span className="text-[13px] text-neutral-500">轉換日以前買的次數包，系統已經算好，記成預付場地費。要改請回第 3 步。</span>
+        </div>
+        {settings?.noVenueFee ? (
+          <p className="text-sm text-neutral-500">這間教室不用場地費。</p>
+        ) : !result ? (
+          <Skeleton className="h-10 rounded-lg" />
+        ) : packs.length === 0 ? (
+          <p className="text-sm text-neutral-500">轉換日以前沒有買次數包。</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-neutral-100">
+            {packs.map((p, i) => (
+              <li key={i} className="flex items-center gap-3 py-2 text-sm">
+                <span className="min-w-0 flex-1 truncate font-medium text-neutral-900">{p.venueName}</span>
+                <span className="shrink-0 tabular-nums text-neutral-600">
+                  還剩 {p.sessions} 次 = <Amount cents={p.amount} dollar className="font-semibold text-neutral-900" />
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </FinanceCard>
+
+      <FinanceCard className="flex flex-col gap-3 px-4 py-4 lg:px-5">
+        <div className="flex flex-col gap-1">
+          <span className="text-[15px] font-semibold text-neutral-900">開帳那天以前，有欠誰錢還沒付嗎？</span>
+          <span className="text-[13px] text-neutral-500">例：10 月 Sean 的鐘點費 $4,000 還沒給；丁丁先墊的音響 $2,000。</span>
+        </div>
+        <dl className="grid gap-1.5 rounded-xl bg-neutral-50 px-4 py-3 text-[13px] leading-relaxed text-neutral-700">
+          <div><dt className="inline font-semibold text-neutral-900">加了：</dt><dd className="inline">會出現在下次付款批次，付了就沖掉。</dd></div>
+          <div><dt className="inline font-semibold text-neutral-900">不加：</dt><dd className="inline">之後要付，只能另外記一筆支出。</dd></div>
+        </dl>
+        <PayableRows payables={draft.payables} setPayables={setPayables} locations={locations} />
+      </FinanceCard>
+    </div>
+  );
+}
+
+function PayableRows({
   payables,
   setPayables,
   locations,
@@ -289,20 +487,124 @@ function PayablesStep({
         : (settings?.members ?? []).map((m) => ({ value: m.userId, label: m.name }));
   const set = (i: number, patch: Partial<Payable>) => setPayables((ps) => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)));
   return (
-    <FinanceCard className="flex flex-col gap-3 px-5 py-5">
-      <p className="text-sm text-neutral-600">轉換日前次數包剩下的，系統會自己記成預付場地費。還沒付的老師錢、場租、代墊建議先私下結清，這裡就不用填。</p>
+    <div className="flex flex-col gap-3">
       {payables.map((p, i) => (
         <div key={i} className="grid grid-cols-2 items-center gap-2 border-t border-neutral-100 pt-3 first:border-t-0 first:pt-0 sm:grid-cols-[110px_minmax(0,1fr)_120px_110px_44px] sm:border-t-0 sm:pt-0">
-          <Select size="sm" value={p.kind} onChange={(v) => set(i, { kind: v, partyId: 0 })} options={[{ value: "TEACHER", label: "老師" }, { value: "VENUE", label: "場地" }, { value: "OWNER", label: "代墊" }]} />
-          <Select size="sm" value={p.partyId || undefined} onChange={(v) => set(i, { partyId: v })} options={parties(p.kind)} placeholder="對象" />
-          <Select size="sm" value={p.locationId || undefined} onChange={(v) => set(i, { locationId: v })} options={locations.map((l) => ({ value: l.id, label: l.name }))} placeholder="分部" />
+          <Select size="sm" aria-label="欠誰" value={p.kind} onChange={(v) => set(i, { kind: v, partyId: 0 })} options={[{ value: "TEACHER", label: "老師" }, { value: "VENUE", label: "場地" }, { value: "OWNER", label: "成員代墊" }]} />
+          <Select size="sm" aria-label="對象" value={p.partyId || undefined} onChange={(v) => set(i, { partyId: v })} options={parties(p.kind)} placeholder="對象" />
+          <Select size="sm" aria-label="分部" value={p.locationId || undefined} onChange={(v) => set(i, { locationId: v })} options={locations.map((l) => ({ value: l.id, label: l.name }))} placeholder="分部" />
           <input aria-label="金額" inputMode="decimal" value={p.amount || ""} onChange={(e) => set(i, { amount: Number(e.target.value) || 0 })} className="h-9 rounded-lg border border-neutral-300 px-2 text-right text-sm tabular-nums" placeholder="0" />
           <Button variant="ghost" size="iconSm" aria-label="刪除" onClick={() => setPayables((ps) => ps.filter((_, j) => j !== i))}><Trash2 className="size-4" /></Button>
         </div>
       ))}
-      <Button variant="link" size="sm" className="self-start" onClick={() => setPayables((ps) => [...ps, { kind: "TEACHER", partyId: 0, locationId: locations[0]?.id ?? 0, amount: 0 }])}>
+      <Button variant="secondary" size="sm" className="self-start" onClick={() => setPayables((ps) => [...ps, { kind: "TEACHER", partyId: 0, locationId: locations[0]?.id ?? 0, amount: 0 }])}>
         <Plus className="size-4" />加一筆還沒付的
       </Button>
+    </div>
+  );
+}
+
+/* ───────── 第 8 步：預覽並開帳 ───────── */
+
+/** `blocker`：不是 null 就不能按開帳，顯示在按鈕上方（精靈裡：前面還有步驟沒做完）。 */
+export function OpeningConfirmStep({ blocker }: { blocker?: ReactNode }) {
+  useWatchPreview();
+  const router = useRouter();
+  const isOwner = useIsOwner();
+  const { draft, state, params, result, previewing, clear } = useOpening();
+  const { data: locData } = useGetLocationsQuery();
+  const [open, opening] = useOpenLedgerMutation();
+  const [confirm, setConfirm] = useState(false);
+
+  if (!draft || !state) return <Skeleton className="h-96 rounded-2xl" />;
+  if (state.lockDate) return <Locked lockDate={state.lockDate} />;
+  const locName = (id: number) => locData?.locations.find((l) => l.id === id)?.name ?? "";
+  const date = draft.date;
+
+  const submit = async () => {
+    if (!params) return;
+    try {
+      await open(params).unwrap();
+      clear();
+      toast.success(`已開帳：${date.replaceAll("-", "/")}`);
+      router.push("/finance");
+    } catch (e) {
+      toast.error(financeErrorText(e, "開帳失敗"));
+      setConfirm(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      {!result ? <Skeleton className="h-72 rounded-2xl" /> : <OpeningSheet result={result} locName={locName} />}
+      {result && <DeferredAndReceivable cards={result.cards} />}
+
+      {(result?.errors ?? []).length > 0 && (
+        <p className="text-sm text-danger-700">還有 {result!.errors.length} 個問題要先處理（見「期初現金」）</p>
+      )}
+      {blocker}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[13px] text-neutral-500">
+          {state.opened ? (
+            <>目前從 {state.conversionDate?.replaceAll("-", "/")} 開帳。<Link className="text-primary-800" href="/finance">回總覽</Link></>
+          ) : (
+            "第一次鎖帳前都可以換一天重開"
+          )}
+        </span>
+        <Button
+          disabled={!isOwner || !!blocker || !result || result.errors.length > 0 || previewing}
+          onClick={() => setConfirm(true)}
+        >
+          {state.opened ? "重新開帳" : `從 ${date.replaceAll("-", "/")} 開帳`}
+        </Button>
+      </div>
+      {!isOwner && <p className="text-right text-[13px] text-neutral-500">只有教室擁有者能開帳</p>}
+
+      <ConfirmDialog
+        open={confirm}
+        title={state.opened ? "重新開帳？" : `從 ${date.replaceAll("-", "/")} 開帳？`}
+        message={state.opened ? "帳本會從新的轉換日全部重算（手動分錄保留）。" : "這天以後的事會開始記進帳本。鎖帳前都可以重開。"}
+        confirmLabel={state.opened ? "重新開帳" : "開帳"}
+        isLoading={opening.isLoading}
+        onConfirm={submit}
+        onCancel={() => setConfirm(false)}
+      />
+    </div>
+  );
+}
+
+/** 預收與應收：一列一個數字，點開看是哪幾張卡。 */
+function DeferredAndReceivable({ cards }: { cards: PreviewCard[] }) {
+  const [openKey, setOpenKey] = useState<"deferred" | "receivable" | null>(null);
+  const deferred = cards.filter((c) => c.deferred !== 0);
+  const receivable = cards.filter((c) => c.receivable !== 0);
+  const rows = [
+    { key: "deferred" as const, label: "預收學費（還欠學生的課）", list: deferred, total: deferred.reduce((s, c) => s + c.deferred, 0) },
+    { key: "receivable" as const, label: "應收學費（還沒付的卡）", list: receivable, total: receivable.reduce((s, c) => s + c.receivable, 0) },
+  ];
+  return (
+    <FinanceCard className="overflow-hidden">
+      <ul className="flex flex-col divide-y divide-neutral-100">
+        {rows.map((r) => {
+          const open = openKey === r.key;
+          return (
+            <li key={r.key}>
+              <button
+                type="button"
+                aria-expanded={open}
+                onClick={() => setOpenKey(open ? null : r.key)}
+                className="flex min-h-12 w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left hover:bg-neutral-50 lg:px-5"
+              >
+                <ChevronDown className={cn("size-4 shrink-0 text-neutral-500 transition-transform", open && "rotate-180")} aria-hidden />
+                <span className="min-w-0 flex-1 text-sm font-medium text-neutral-900">{r.label}</span>
+                <span className="text-[13px] text-neutral-500">{r.list.length} 張</span>
+                <Amount cents={r.total} dollar className="w-24 text-right text-sm font-semibold" />
+              </button>
+              {open && <CardList cards={r.list} empty="沒有" receivable={r.key === "receivable"} />}
+            </li>
+          );
+        })}
+      </ul>
     </FinanceCard>
   );
 }
@@ -320,7 +622,7 @@ function OpeningSheet({ result, locName }: { result: OpeningPreviewView; locName
   if (locs.length === 0) return <FinanceCard className="px-5 py-5 text-sm text-neutral-500">期初都是 0</FinanceCard>;
   return (
     <FinanceCard className="overflow-x-auto py-2" aria-label="期初資產負債表">
-      <h2 className="px-5 pb-1 pt-2 text-base font-semibold">{result.conversionDate.replaceAll("-", "/")} 期初資產負債表</h2>
+      <h3 className="px-5 pb-1 pt-2 text-base font-semibold">{result.conversionDate.replaceAll("-", "/")} 期初資產負債表</h3>
       <table className="w-full min-w-[480px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-neutral-200 text-xs text-neutral-500">

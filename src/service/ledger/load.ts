@@ -1,8 +1,8 @@
 // 一次載入整間教室的過帳輸入（docs/finance-v2/03 §3）。跟 feat/finance 的 loadLedger 一樣是整批載入，
 // 所以漏掉某個寫入路徑的 dirty 標記也不會漏帳：每次 sync 都從營運資料重算全部來源的應有分錄。
 import prisma from "@/lib/prisma";
-import { toTaipeiDateKey } from "@/lib/taipei-date";
 import { effectiveRule, resolvePackUnitPrices } from "@/service/finance/periods";
+import { financeStartOf, financeStartSelect } from "@/service/finance/start";
 import { ensureLedgerSetup } from "./setup";
 import { cardDeferredLocation, cardRemainingValue, cardUsageValues, usageValueKey, type ConvertedFrom } from "@/domains/ledger/post/card";
 import type {
@@ -40,21 +40,19 @@ export function dateKeyOfDbDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** 沒啟用財務 → null。 */
+/** 沒啟用財務，或還沒開帳又沒給 conversionDate（開帳預覽才給）→ null。 */
 export async function loadLedgerInputs(
   classroomId: number,
   opts: { conversionDate?: string } = {},
 ): Promise<LedgerInputs | null> {
   const classroom = await prisma.classroom.findUnique({
     where: { id: classroomId },
-    select: { financeEnabledAt: true, financeConversionDate: true, financeLockDate: true, legacyCustodianUserId: true },
+    select: { financeEnabledAt: true, financeLockDate: true, legacyCustodianUserId: true, ...financeStartSelect },
   });
   if (!classroom?.financeEnabledAt) return null;
+  const conversionDate = opts.conversionDate ?? financeStartOf(classroom)?.dateKey;
+  if (!conversionDate) return null;
   await ensureLedgerSetup(classroomId);
-
-  const conversionDate = opts.conversionDate ?? (classroom.financeConversionDate
-    ? dateKeyOfDbDate(classroom.financeConversionDate)
-    : toTaipeiDateKey(classroom.financeEnabledAt));
 
   const [locations, moneyAccounts, accounts, rawCards, rawPeriods, rawExpenses, rawPacks, packPrices, rawPayouts, rawTransfers, rawOwner, rawCounts] = await Promise.all([
     prisma.location.findMany({
@@ -123,9 +121,9 @@ export async function loadLedgerInputs(
     }),
     prisma.venuePack.findMany({
       where: { classroomId },
-      select: { id: true, venueId: true, purchasedAt: true, price: true, paidByUserId: true, voidedAt: true },
+      select: { id: true, venueId: true, purchasedAt: true, price: true, paidByUserId: true, voidedAt: true, venue: { select: { locationId: true } } },
     }),
-    resolvePackUnitPrices(classroomId),
+    resolvePackUnitPrices(classroomId, conversionDate),
     prisma.payout.findMany({ where: { classroomId, status: "PAID" } }),
     prisma.moneyTransfer.findMany({ where: { classroomId, status: "PAID" } }),
     prisma.ownerTransaction.findMany({ where: { classroomId } }),
@@ -149,7 +147,15 @@ export async function loadLedgerInputs(
   const expenseByName = new Map(
     accounts.filter((a) => a.parentId === generalId).map((a) => [a.name.trim(), a.id]),
   );
-  const packPayer = new Map(rawPacks.map((p) => [p.id, p.paidByUserId]));
+  const packs: VenuePackInput[] = rawPacks.map(({ venue, ...p }) => ({ ...p, locationId: venue.locationId }));
+  const packById = new Map(packs.map((p) => [p.id, p]));
+  const moneyAccountIn = (userId: number, locationId: number | null): MoneyAccountInfo | null => {
+    if (locationId !== null) {
+      const m = moneyAccounts.find((a) => !a.archivedAt && a.holderUserId === userId && a.locationId === locationId);
+      if (m) return { id: m.id, locationId: m.locationId };
+    }
+    return maOfUser.get(userId) ?? null;
+  };
 
   const ctx: PostingContext = {
     conversionDate,
@@ -159,9 +165,12 @@ export async function loadLedgerInputs(
     locationExists: (id) => locationIds.has(id),
     expiryUserOf: (id) => expiryUser.get(id) ?? null,
     expenseAccountOf: (category) => expenseByName.get(category.trim()) ?? null,
-    packMoneyAccountOf: (packId) => {
-      const payer = packPayer.get(packId);
-      return payer === undefined ? null : (maOfUser.get(payer) ?? null);
+    moneyAccountIn,
+    packPrepaidLocationOf: (packId) => {
+      const p = packById.get(packId);
+      if (!p) return null;
+      const ma = moneyAccountIn(p.paidByUserId, p.locationId);
+      return ma ? (p.locationId ?? ma.locationId) : null;
     },
     moneyAccount: (id) => maById.get(id) ?? null,
   };
@@ -269,7 +278,7 @@ export async function loadLedgerInputs(
     convertedFrom,
     periods,
     expenses: rawExpenses,
-    packs: rawPacks,
+    packs,
     payouts: rawPayouts.map((p) => ({
       id: p.id,
       partyType: p.partyType as PayoutInput["partyType"],

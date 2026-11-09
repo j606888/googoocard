@@ -18,7 +18,8 @@ const ctx = (over: Partial<PostingContext> = {}): PostingContext => ({
   locationExists: (id) => id === T || id === K,
   expiryUserOf: () => null,
   expenseAccountOf: () => null,
-  packMoneyAccountOf: () => null,
+  moneyAccountIn: (u) => (u === DING ? { id: 100, locationId: T } : u === SEAN ? { id: 200, locationId: K } : null),
+  packPrepaidLocationOf: () => null,
   ...over,
 });
 

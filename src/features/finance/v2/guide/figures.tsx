@@ -98,7 +98,7 @@ export function FigMoneyFlow() {
 /** 一堂課怎麼分帳。 */
 export function FigSplitExample() {
   const rows: { label: string; rule: string; amount: number; to: string }[] = [
-    { label: "場地", rule: "場地次數包（用掉 1 次）", amount: 800, to: "舞蹈教室 A" },
+    { label: "場地", rule: "場地費（次數包扣 1 次）", amount: 800, to: "舞蹈教室 A" },
     { label: "老師", rule: "固定金額", amount: 1500, to: "小美老師" },
     { label: "公積金", rule: "剩下的", amount: 1700, to: "台南公積金" },
   ];

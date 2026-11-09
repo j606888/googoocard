@@ -1,8 +1,9 @@
 import { useGetTeachersQuery } from "@/store/slices/teachers";
 import { useGetLocationsQuery } from "@/store/slices/locations";
-import { useGetFinanceSettingsQuery, useGetFinanceVenuesQuery } from "@/store/slices/finance";
+import { useGetFinancePacksQuery, useGetFinanceSettingsQuery, useGetFinanceVenuesQuery } from "@/store/slices/finance";
 import { useGetMeQuery } from "@/store/slices/me";
 import type { Payee } from "@/domains/finance/types";
+import { venueUnit as unitOfVenue } from "./venueBilling";
 
 export type SplitNames = ReturnType<typeof useSplitNames>;
 
@@ -11,6 +12,7 @@ export function useSplitNames() {
   const { data: teachers = [] } = useGetTeachersQuery();
   const { data: locationData } = useGetLocationsQuery();
   const { data: venueData } = useGetFinanceVenuesQuery();
+  const { data: packData } = useGetFinancePacksQuery();
   const { data: settings } = useGetFinanceSettingsQuery();
   const { data: me } = useGetMeQuery();
 
@@ -34,6 +36,8 @@ export function useSplitNames() {
     const landlord = members.find((m) => m.userId === v.landlordUserId)?.name;
     return landlord ? `${v.name}（${landlord}）` : v.name;
   };
+  /** 「場地費」一堂多少：每次付的價，或目前這包的單價；不知道 → null。 */
+  const venueUnit = (id: number) => unitOfVenue(venues.find((v) => v.id === id), packData?.packs ?? []);
   const payee = (p: Payee) =>
     p.type === "teacher" ? teacher(p.teacherId) : p.type === "fund" ? `${location(p.locationId)}公積金` : venue(p.venueId);
 
@@ -45,6 +49,7 @@ export function useSplitNames() {
     location,
     venue,
     venueLabel,
+    venueUnit,
     payee,
     canEdit: !!me && members.some((m) => m.userId === me.id && m.canSettle),
     ready: !!locationData && !!venueData,

@@ -1,6 +1,8 @@
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
+import { splitRuleSchema } from "@/domains/finance/types";
+import { refsOf } from "./rules";
 
 /** keeper／付款人／到期歸屬人必須是這間教室的保管人（isCustodian），否則 400 NOT_FINANCE_MEMBER。 */
 export async function assertCustodian(userId: number, classroomId: number) {
@@ -11,6 +13,32 @@ export async function assertCustodian(userId: number, classroomId: number) {
   if (!m?.isCustodian) {
     throw new ApiError(400, "NOT_FINANCE_MEMBER", "User is not a custodian of this classroom");
   }
+}
+
+/** 場地回給前端的欄位（不要把整列 spread 出去）。 */
+export const venueSelect = {
+  id: true,
+  name: true,
+  locationId: true,
+  landlordUserId: true,
+  perSessionPrice: true,
+  archivedAt: true,
+} as const;
+
+/** 場地被用過了嗎：分帳規則（整門課或單堂）提到它、有任何次數包（含作廢的）、或帳本／付款有它的分錄。 */
+export async function isVenueUsed(venueId: number, classroomId: number): Promise<boolean> {
+  const [packs, journal, payouts, rules, overrides] = await Promise.all([
+    prisma.venuePack.count({ where: { venueId } }),
+    prisma.journalLine.count({ where: { classroomId, partyType: "VENUE", partyId: venueId } }),
+    prisma.payout.count({ where: { classroomId, partyType: "VENUE", partyId: venueId } }),
+    prisma.lessonSplitRule.findMany({ where: { lesson: { classroomId } }, select: { rule: true } }),
+    prisma.periodSplitOverride.findMany({ where: { lessonPeriod: { lesson: { classroomId } } }, select: { rule: true } }),
+  ]);
+  if (packs + journal + payouts > 0) return true;
+  return [...rules, ...overrides].some((r) => {
+    const parsed = splitRuleSchema.safeParse(r.rule);
+    return parsed.success && refsOf(parsed.data).venueIds.includes(venueId);
+  });
 }
 
 export async function findVenueInClassroom(venueId: number, classroomId: number) {
@@ -36,7 +64,7 @@ export async function withVenueNameCheck<T>(write: Promise<T>): Promise<T> {
 }
 
 /**
- * 這位成員還被哪些財務設定指著（分部負責人、過期收入對象、老師付款人、房東、舊卡保管人）。
+ * 這位成員還被哪些財務設定指著（分部負責人、過期收入對象、房東、舊卡保管人）。
  * 取消他的保管人之前要先改掉，否則會留下指向非保管人的壞參照。只看沒封存的。
  */
 export async function custodianReferences(
@@ -44,20 +72,18 @@ export async function custodianReferences(
   userId: number,
   classroomId: number,
 ): Promise<string[]> {
-  const [keeps, expiries, teachers, venues, classroom] = await Promise.all([
+  const [keeps, expiries, venues, classroom] = await Promise.all([
     db.location.findMany({ where: { classroomId, archivedAt: null, keeperUserId: userId }, select: { name: true } }),
     db.location.findMany({
       where: { classroomId, archivedAt: null, expiryTo: "USER", expiryUserId: userId },
       select: { name: true },
     }),
-    db.teacher.findMany({ where: { classroomId, archivedAt: null, payerUserId: userId }, select: { name: true } }),
     db.venue.findMany({ where: { classroomId, archivedAt: null, landlordUserId: userId }, select: { name: true } }),
     db.classroom.findUnique({ where: { id: classroomId }, select: { legacyCustodianUserId: true } }),
   ]);
   return [
     ...keeps.map((l) => `${l.name}的分部負責人`),
     ...expiries.map((l) => `${l.name}的過期收入對象`),
-    ...teachers.map((t) => `${t.name}的付款人`),
     ...venues.map((v) => `${v.name}的房東`),
     ...(classroom?.legacyCustodianUserId === userId ? ["舊卡保管人"] : []),
   ];

@@ -21,6 +21,8 @@ function prevRange(r: Range): Range {
 export async function financeOverview(classroomId: number, p: { from?: string; to?: string }) {
   const ctx = await loadCtx(classroomId); // 會先過帳
   const d = await ledgerDates(classroomId);
+  // 還沒開帳沒有轉換日（帳本也是空的）；今天之前的月份都當沒有帳。
+  const conversionDate = d.conversionDate ?? todayKey();
   const ids = ctx.locations.map((l) => l.id);
   const to = p.to ?? todayKey();
   const range: Range = { from: p.from ?? `${to.slice(0, 7)}-01`, to };
@@ -73,7 +75,7 @@ export async function financeOverview(classroomId: number, p: { from?: string; t
     const dt = new Date(Date.UTC(y, m - 1 - i, 1));
     const month = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}`;
     const mr = monthRange(month);
-    if (mr.to < d.conversionDate) {
+    if (mr.to < conversionDate) {
       trend.push({ month, income: null, netIncome: null });
       continue;
     }
@@ -85,7 +87,8 @@ export async function financeOverview(classroomId: number, p: { from?: string; t
   const [pendingPayouts, pendingTransfers, sourceErrors] = await Promise.all([
     prisma.payout.findMany({ where: { classroomId, status: "PENDING", voidedAt: null }, select: { amount: true, locationId: true } }),
     prisma.moneyTransfer.findMany({ where: { classroomId, status: "PENDING", voidedAt: null }, select: { amount: true } }),
-    prisma.postingSource.count({ where: { classroomId, error: { not: null } } }),
+    // 開帳前不過帳；殘留的錯誤（舊版開帳前跑過 sync）不算。
+    d.opened ? prisma.postingSource.count({ where: { classroomId, error: { not: null } } }) : 0,
   ]);
   const lastMonthEnd = addDays(`${todayKey().slice(0, 7)}-01`, -1);
   const arNames = await prisma.studentCard.findMany({
@@ -97,7 +100,7 @@ export async function financeOverview(classroomId: number, p: { from?: string; t
     range,
     locations: ctx.locations,
     opened: d.opened,
-    conversionDate: d.conversionDate,
+    conversionDate,
     lockDate: d.lockDate,
     netIncome: pnl.netIncome,
     prevNetIncome: prev.netIncome,
@@ -118,7 +121,7 @@ export async function financeOverview(classroomId: number, p: { from?: string; t
         return { ...x, studentId: c?.student.id ?? null, studentName: c?.student.name ?? null, serialNumber: c?.serialNumber ?? null };
       }),
       ledgerErrors: sourceErrors,
-      closeDue: d.opened && lastMonthEnd >= d.conversionDate && (d.lockDate === null || d.lockDate < lastMonthEnd) ? lastMonthEnd : null,
+      closeDue: d.opened && lastMonthEnd >= conversionDate && (d.lockDate === null || d.lockDate < lastMonthEnd) ? lastMonthEnd : null,
     },
   };
 }

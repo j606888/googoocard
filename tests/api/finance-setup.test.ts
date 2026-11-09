@@ -4,9 +4,6 @@ import {
   resetDb,
   createClassroom,
   createMember,
-  createStudent,
-  createCard,
-  createStudentCard,
   createLocation,
   createLesson,
   createTeacher,
@@ -45,7 +42,7 @@ describe("finance setup checklist", () => {
     ownerId = c.ownerId;
     auth.classroomId = classroomId;
     auth.userId = ownerId;
-    await enableFinanceFor(classroomId, { launch: new Date("2026-11-02T16:00:00Z"), legacyCustodianUserId: ownerId });
+    await enableFinanceFor(classroomId, { launch: new Date("2026-11-02T16:00:00Z"), legacyCustodianUserId: ownerId, opened: false });
     await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isCustodian: true, canSettle: true } });
   });
 
@@ -54,20 +51,22 @@ describe("finance setup checklist", () => {
     expect(items.map((i) => i.key)).toEqual([
       "branches",
       "lessonBranches",
-      "teachers",
       "venues",
       "rules",
       "receivers",
+      "cash",
+      "payables",
       "opening",
     ]);
     const done = Object.fromEntries(items.map((i) => [i.key, i.done]));
     expect(done).toEqual({
       branches: false,
       lessonBranches: true,
-      teachers: true,
       venues: false, // no venue yet
       rules: true,
       receivers: true,
+      cash: false,
+      payables: false,
       opening: false,
     });
     const res = await SETUP_GET(jsonRequest("GET"), routeParams({}));
@@ -102,25 +101,6 @@ describe("finance setup checklist", () => {
     expect(lessonBranches.links).toEqual([{ label: "Bachata 初階", href: `/lessons/${a.id}` }]);
   });
 
-  it("teachers: only teachers of in-progress lessons count; detail names the missing ones", async () => {
-    const { lesson } = await createLesson(classroomId);
-    const active = await createTeacher(classroomId, { name: "Ann" });
-    await prisma.lessonTeacher.create({ data: { lessonId: lesson.id, teacherId: active.id } });
-    await createTeacher(classroomId, { name: "Kathy" }); // no lesson
-    const { lesson: old } = await createLesson(classroomId, { name: "old" });
-    await prisma.lesson.update({ where: { id: old.id }, data: { status: "finished" } });
-    const finishedOnly = await createTeacher(classroomId, { name: "Fin" });
-    await prisma.lessonTeacher.create({ data: { lessonId: old.id, teacherId: finishedOnly.id } });
-
-    const { teachers } = await byKey(classroomId);
-    expect(teachers.done).toBe(false);
-    expect(teachers.detail).toBe("還沒設：Ann");
-    await prisma.teacher.update({ where: { id: active.id }, data: { payerUserId: ownerId } });
-    const after = (await byKey(classroomId)).teachers;
-    expect(after.done).toBe(true);
-    expect(after.detail).toBeUndefined();
-  });
-
   it("GET /finance/lessons lists only lessons that have a split rule", async () => {
     const loc = await createLocation(classroomId);
     const { lesson: withRule } = await createLesson(classroomId, { name: "R", locationId: loc.id });
@@ -152,20 +132,7 @@ describe("finance setup checklist", () => {
     await prisma.lesson.update({ where: { id: lesson.id }, data: { locationId: loc.id } });
     expect((await byKey(classroomId)).lessonBranches.done).toBe(true);
 
-    const teacher = await createTeacher(classroomId);
-    await prisma.lessonTeacher.create({ data: { lessonId: lesson.id, teacherId: teacher.id } });
-    expect((await byKey(classroomId)).teachers.done).toBe(false);
-    await prisma.teacher.update({ where: { id: teacher.id }, data: { payerUserId: ownerId } });
-    expect((await byKey(classroomId)).teachers.done).toBe(true);
-
-    // linked to a finance member also counts
-    await prisma.teacher.update({ where: { id: teacher.id }, data: { payerUserId: null, userId: ownerId } });
-    expect((await byKey(classroomId)).teachers.done).toBe(true);
-    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isCustodian: false, canSettle: false } });
-    expect((await byKey(classroomId)).teachers.done).toBe(false);
-    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isCustodian: true, canSettle: true } });
-
-    const venue = await createVenue(classroomId, { name: "V" });
+    const venue = await createVenue(classroomId, { name: "V", locationId: loc.id });
     expect((await byKey(classroomId)).venues.done).toBe(true); // no venuePack line yet
     expect((await byKey(classroomId)).rules.done).toBe(false);
     await prisma.lessonSplitRule.create({
@@ -200,17 +167,24 @@ describe("finance setup checklist", () => {
       ["expiryTo", "expiryUserId", "id", "keeperUserId", "name"].sort(),
     );
     const t = await (await TEACHERS_GET(jsonRequest("GET"), routeParams({}))).json();
-    expect(Object.keys(t.teachers[0]).sort()).toEqual(["id", "linkSuggestion", "name", "payerUserId", "userId"]);
+    expect(Object.keys(t.teachers[0]).sort()).toEqual(["id", "linkSuggestion", "name", "userId"]);
   });
 
-  it("付款人那一步：付款人有同名、沒連帳號的老師 → 提醒「是本人嗎」，可一鍵連結", async () => {
+  it("老師沒有付款人那一步：checklist 不再有 teachers", async () => {
+    const { lesson } = await createLesson(classroomId);
+    const t = await createTeacher(classroomId, { name: "Ann" });
+    await prisma.lessonTeacher.create({ data: { lessonId: lesson.id, teacherId: t.id } });
+    expect((await setupChecklist(classroomId)).map((i) => i.key)).not.toContain("teachers");
+  });
+
+  it("沒連帳號的老師跟某位成員同名 → 提醒「是本人嗎」，可一鍵連結", async () => {
     const sean = await createMember(classroomId, { email: "sean@test.local", name: "Sean", role: "admin" });
     await prisma.membership.updateMany({ where: { userId: sean.id, classroomId }, data: { isCustodian: true } });
     const helper = await createMember(classroomId, { email: "nini@test.local", name: "Nini", role: "assistant" });
     await prisma.membership.updateMany({ where: { userId: helper.id, classroomId }, data: { isCustodian: true } });
-    const seanT = await createTeacher(classroomId, { name: "Sean", payerUserId: sean.id });
-    const other = await createTeacher(classroomId, { name: "搭檔", payerUserId: sean.id });
-    const niniT = await createTeacher(classroomId, { name: "Nini", payerUserId: helper.id }); // 小幫手也可能是老師（票 23）
+    const seanT = await createTeacher(classroomId, { name: "Sean" });
+    const other = await createTeacher(classroomId, { name: "搭檔" });
+    const niniT = await createTeacher(classroomId, { name: "Nini" }); // 小幫手也可能是老師（票 23）
 
     const list = async () =>
       Object.fromEntries(
@@ -243,7 +217,7 @@ describe("finance setup checklist", () => {
   it("venuePack in a period override also needs a pack", async () => {
     const loc = await createLocation(classroomId);
     const { lesson, period } = await createLesson(classroomId, { withPeriod: true, locationId: loc.id });
-    const venue = await createVenue(classroomId);
+    const venue = await createVenue(classroomId, { locationId: loc.id });
     await prisma.periodSplitOverride.create({
       data: {
         lessonPeriodId: period!.id,
@@ -254,6 +228,24 @@ describe("finance setup checklist", () => {
     expect(lesson.id).toBeGreaterThan(0);
     expect((await byKey(classroomId)).venues.done).toBe(false);
     await createVenuePack(classroomId, venue.id, { sessions: 5, price: 500, paidByUserId: ownerId });
+    expect((await byKey(classroomId)).venues.done).toBe(true);
+  });
+
+  it("a venue used by a rule needs a branch and a billing method (per-session price or a pack)", async () => {
+    const loc = await createLocation(classroomId);
+    const { lesson } = await createLesson(classroomId, { locationId: loc.id });
+    const venue = await createVenue(classroomId, { name: "大樓" });
+    await prisma.lessonSplitRule.create({
+      data: {
+        lessonId: lesson.id,
+        updatedById: ownerId,
+        rule: { lines: [{ kind: "venuePack", venueId: venue.id }], rest: { type: "fund", locationId: loc.id }, fundLocationId: loc.id },
+      },
+    });
+    expect((await byKey(classroomId)).venues).toMatchObject({ done: false, detail: "還沒設好分部或收費：大樓" });
+    await prisma.venue.update({ where: { id: venue.id }, data: { perSessionPrice: 300 } });
+    expect((await byKey(classroomId)).venues.done).toBe(false); // 還沒選分部
+    await prisma.venue.update({ where: { id: venue.id }, data: { locationId: loc.id } });
     expect((await byKey(classroomId)).venues.done).toBe(true);
   });
 

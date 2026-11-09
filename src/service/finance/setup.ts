@@ -1,10 +1,11 @@
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
 import { requireOwner } from "@/lib/authz";
 import { formatMoney } from "@/lib/money";
 import { listStrayReceivers } from "./strayReceivers";
 import { ensureLedgerSetup } from "@/service/ledger/setup";
-import { addMonthsTaipei, parseTaipeiDateRange, toTaipeiDateKey } from "@/lib/taipei-date";
+import { addMonthsTaipei, parseTaipeiDateRange } from "@/lib/taipei-date";
 
 export const CARD_EXPIRY_MONTHS = 6;
 
@@ -16,25 +17,23 @@ export async function assertClassroomMember(userId: number, classroomId: number)
   if (!m) throw new ApiError(400, "NOT_A_MEMBER", "User is not a member of this classroom");
 }
 
-/** 開帳：只有 owner。launchDate 為台北日期 YYYY-MM-DD。 */
-export async function enableFinance(args: {
-  classroomId: number;
-  userId: number;
-  launchDate: string;
-  legacyCustodianUserId: number;
-}) {
-  const { classroomId, userId, launchDate, legacyCustodianUserId } = args;
+/**
+ * 開財務：只有 owner。不問日期——financeEnabledAt＝現在，只是「開了」的旗標；
+ * 財務從哪天算起由開帳時選的轉換日決定（service/finance/start.ts）。
+ * 舊卡的到期日也等開帳才設（轉換日＋CARD_EXPIRY_MONTHS，見 ledger/opening.ts）。
+ */
+export async function enableFinance(args: { classroomId: number; userId: number; legacyCustodianUserId: number }) {
+  const { classroomId, userId, legacyCustodianUserId } = args;
   await requireOwner(userId, classroomId);
   await assertClassroomMember(legacyCustodianUserId, classroomId);
 
-  const launch = parseTaipeiDateRange(launchDate).start;
-  const expiresAt = addMonthsTaipei(launchDate, CARD_EXPIRY_MONTHS);
+  const now = new Date();
 
   await prisma.$transaction(async (tx) => {
     // 條件式更新：同時按兩次也只有一次成功。
     const claimed = await tx.classroom.updateMany({
       where: { id: classroomId, financeEnabledAt: null },
-      data: { financeEnabledAt: launch, legacyCustodianUserId },
+      data: { financeEnabledAt: now, legacyCustodianUserId },
     });
     if (claimed.count === 0) {
       throw new ApiError(409, "FINANCE_ALREADY_ENABLED", "Finance is already enabled");
@@ -50,23 +49,43 @@ export async function enableFinance(args: {
         data: { isCustodian: true },
       });
     }
-    await tx.studentCard.updateMany({
-      where: { student: { classroomId }, expiredAt: null, remainingSessions: { gt: 0 } },
-      data: { expiresAt },
-    });
     await ensureLedgerSetup(classroomId, tx);
   });
 
-  return { launchDate: toTaipeiDateKey(launch), expiresAt };
+  return { enabledAt: now };
+}
+
+/**
+ * 開帳（或重開）時設舊卡的到期日：還有剩格、沒關閉的舊卡 → 轉換日＋CARD_EXPIRY_MONTHS。
+ * 舊卡＝開財務之前或轉換日之前賣的（開財務之後賣的卡建立時就有自己的到期日，studentCard.ts）。
+ * 開財務到開帳之間，舊卡的 expiresAt 維持原樣（通常是 null＝不會過期）。
+ */
+export async function setLegacyCardExpiry(
+  tx: Prisma.TransactionClient,
+  classroomId: number,
+  conversionDate: string,
+  enabledAt: Date,
+) {
+  const conversionStart = parseTaipeiDateRange(conversionDate).start;
+  await tx.studentCard.updateMany({
+    where: {
+      student: { classroomId },
+      expiredAt: null,
+      remainingSessions: { gt: 0 },
+      createdAt: { lt: conversionStart > enabledAt ? conversionStart : enabledAt },
+    },
+    data: { expiresAt: addMonthsTaipei(conversionDate, CARD_EXPIRY_MONTHS) },
+  });
 }
 
 export type ChecklistKey =
   | "branches"
   | "lessonBranches"
-  | "teachers"
   | "venues"
   | "rules"
   | "receivers"
+  | "cash"
+  | "payables"
   | "opening";
 
 export type ChecklistItem = {
@@ -85,13 +104,14 @@ function venueIdsOfRule(rule: unknown): number[] {
 
 /**
  * 開帳清單（spec §9），照順序。沒有東西要設定時視為完成（R25）：
- * 沒有進行中的課 → 課程相關項目完成。場地至少要建一個（次數包只要求有用到的場地）。
+ * 沒有進行中的課 → 課程相關項目完成。場地至少要建一個；規則用到的場地要有分部和收費方式
+ * （每次多少，或至少一包）。
  */
 export async function setupChecklist(classroomId: number): Promise<ChecklistItem[]> {
   return (await loadSetup(classroomId)).items;
 }
 
-/** 開帳精靈第 2、5 步要的進行中課程（分部、有沒有分帳規則）。 */
+/** 開帳精靈第 2、4 步要的進行中課程（分部、有沒有分帳規則）。 */
 export type SetupLesson = { id: number; name: string; locationId: number | null; hasRule: boolean };
 
 export async function loadSetup(classroomId: number): Promise<{ items: ChecklistItem[]; lessons: SetupLesson[] }> {
@@ -108,7 +128,7 @@ export async function loadSetup(classroomId: number): Promise<{ items: Checklist
     throw new ApiError(404, "FINANCE_DISABLED", "Finance is not enabled for this classroom");
   }
 
-  const [locations, lessons, financeMembers, overrides, packs, venueCount] = await Promise.all([
+  const [locations, lessons, overrides, packs, venues] = await Promise.all([
     prisma.location.findMany({
       where: { classroomId, archivedAt: null },
       select: { keeperUserId: true },
@@ -120,33 +140,32 @@ export async function loadSetup(classroomId: number): Promise<{ items: Checklist
         name: true,
         locationId: true,
         splitRule: { select: { rule: true } },
-        teachers: {
-          select: { teacher: { select: { id: true, name: true, payerUserId: true, userId: true } } },
-        },
       },
       orderBy: [{ name: "asc" }, { id: "asc" }],
     }),
-    prisma.membership.findMany({ where: { classroomId, isCustodian: true }, select: { userId: true } }),
     prisma.periodSplitOverride.findMany({
       where: { lessonPeriod: { lesson: { classroomId, status: "inProgress" } } },
       select: { rule: true },
     }),
     prisma.venuePack.findMany({ where: { classroomId, voidedAt: null }, select: { venueId: true } }),
-    prisma.venue.count({ where: { classroomId, archivedAt: null } }),
+    prisma.venue.findMany({
+      where: { classroomId },
+      select: { id: true, name: true, locationId: true, perSessionPrice: true, archivedAt: true },
+    }),
   ]);
-  const financeUserIds = new Set(financeMembers.map((m) => m.userId));
   const venueIdsWithPack = new Set(packs.map((p) => p.venueId));
 
-  // 只算有進行中課的老師（同一位老師教多門課只算一次）。
-  const teachers = [...new Map(lessons.flatMap((l) => l.teachers.map((t) => [t.teacher.id, t.teacher]))).values()];
-  const teachersMissingPayer = teachers.filter(
-    (t) => t.payerUserId == null && !(t.userId != null && financeUserIds.has(t.userId)),
-  );
   const lessonsWithoutBranch = lessons.filter((l) => l.locationId == null);
   const usedVenueIds = new Set([
     ...lessons.flatMap((l) => (l.splitRule ? venueIdsOfRule(l.splitRule.rule) : [])),
     ...overrides.flatMap((o) => venueIdsOfRule(o.rule)),
   ]);
+
+  const venueCount = venues.filter((v) => !v.archivedAt).length;
+  // 規則用到的場地：要有分部，而且有收費方式（每次多少，或至少一包）。
+  const venuesMissingBilling = venues.filter(
+    (v) => usedVenueIds.has(v.id) && (v.locationId == null || (v.perSessionPrice == null && !venueIdsWithPack.has(v.id))),
+  );
 
   const stray = await listStrayReceivers(classroomId);
   const strayAmount = stray.reduce((s, i) => s + i.amount, 0);
@@ -163,18 +182,12 @@ export async function loadSetup(classroomId: number): Promise<{ items: Checklist
         : {}),
     },
     {
-      key: "teachers",
-      done: teachersMissingPayer.length === 0,
-      ...(teachersMissingPayer.length > 0
-        ? { detail: `還沒設：${teachersMissingPayer.map((t) => t.name).join("、")}` }
-        : {}),
-    },
-    {
       key: "venues",
       // 勾了「這間教室不用場地費」就算完成
-      done:
-        classroom.financeNoVenueFee ||
-        (venueCount > 0 && [...usedVenueIds].every((id) => venueIdsWithPack.has(id))),
+      done: classroom.financeNoVenueFee || (venueCount > 0 && venuesMissingBilling.length === 0),
+      ...(!classroom.financeNoVenueFee && venuesMissingBilling.length > 0
+        ? { detail: `還沒設好分部或收費：${venuesMissingBilling.map((v) => v.name).join("、")}` }
+        : {}),
     },
     {
       key: "rules",
@@ -190,6 +203,9 @@ export async function loadSetup(classroomId: number): Promise<{ items: Checklist
         ? { detail: `${stray.length} 筆、$${formatMoney(strayAmount)} 記在不是保管人的人名下` }
         : {}),
     },
+    // 第 6、7 步只是開帳的草稿（存在畫面上，按開帳才一起送出）：伺服器只知道開帳了沒，畫面再依填過沒打勾。
+    { key: "cash", done: classroom.financeOpenedAt != null },
+    { key: "payables", done: classroom.financeOpenedAt != null },
     {
       key: "opening",
       done: classroom.financeOpenedAt != null,

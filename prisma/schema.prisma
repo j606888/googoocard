@@ -64,6 +64,8 @@ model User {
   purchasedStudentCards   StudentCard[]            @relation("PurchasedStudentCards")
   confirmedStudentCards   StudentCard[]            @relation("ConfirmedStudentCards")
   confirmedDropIns        DropInCharge[]           @relation("ConfirmedDropIns")
+  collectedStudentCards   StudentCard[]            @relation("CollectedStudentCards")
+  collectedDropIns        DropInCharge[]           @relation("CollectedDropIns")
   currentClassroomId      Int?
   currentClassroom        Classroom?               @relation(fields: [currentClassroomId], references: [id])
   // 帳號已刪除（匿名化）。非 null = decodeAuthToken 把這個人當成沒登入，
@@ -79,62 +81,62 @@ model User {
 }
 
 model Classroom {
-  id                       Int                      @id @default(autoincrement())
-  ownerId                  Int
-  owner                    User                     @relation("OwnedClassrooms", fields: [ownerId], references: [id])
-  name                     String
-  checkinKey               String?                  @unique // 現場 QR 自助簽到金鑰（貼在教室看板）；可重新產生以作廢舊看板
-  nextStudentNumber        Int                      @default(1) // 下一個要指派的學生編號（每教室各自從 1 開始，遞增不回收）
-  nextCardSerial           Int                      @default(1) // 下一個要指派的課卡流水號（每教室各自從 1 開始；顯示格式見 src/lib/cardSerial.ts）
+  id                      Int                      @id @default(autoincrement())
+  ownerId                 Int
+  owner                   User                     @relation("OwnedClassrooms", fields: [ownerId], references: [id])
+  name                    String
+  checkinKey              String?                  @unique // 現場 QR 自助簽到金鑰（貼在教室看板）；可重新產生以作廢舊看板
+  nextStudentNumber       Int                      @default(1) // 下一個要指派的學生編號（每教室各自從 1 開始，遞增不回收）
+  nextCardSerial          Int                      @default(1) // 下一個要指派的課卡流水號（每教室各自從 1 開始；顯示格式見 src/lib/cardSerial.ts）
   // 軟刪除／封存。非 null = 教室已收掉：從切換選單消失、無法再切進去、
   // 成員的舊 JWT 也進不來（apiRoute 每次請求會重查 membership 並 join 這個條件）。
   // 資料完整保留以便救回；真正清資料留給日後的 purge script。
-  deletedAt                DateTime?
-  memberships              Membership[]
-  cards                    Card[]
-  students                 Student[]
-  lessons                  Lesson[]
-  lessonGroups             LessonGroup[]
-  inviteTokens             InviteToken[]
-  tags                     Tag[]
-  danceStyles              DanceStyle[]
-  locations                Location[]
+  deletedAt               DateTime?
+  memberships             Membership[]
+  cards                   Card[]
+  students                Student[]
+  lessons                 Lesson[]
+  lessonGroups            LessonGroup[]
+  inviteTokens            InviteToken[]
+  tags                    Tag[]
+  danceStyles             DanceStyle[]
+  locations               Location[]
   // 財務（docs/superpowers/specs/2026-11-02-finance-design.md）。非 null = 這間教室已啟用，
   // 值是上線時間；null 的教室完全不受財務規則影響。
-  financeEnabledAt         DateTime?
+  financeEnabledAt        DateTime?
   // 月結發錢時每人月合計取整到這個單位（元），零頭進公積金。
-  financeRoundTo           Int                      @default(1)
+  financeRoundTo          Int                      @default(1)
   // 上線前沒記收款人的錢算誰的。純 Int、沒有 FK（User 不加反向關聯）。
-  legacyCustodianUserId    Int?
+  legacyCustodianUserId   Int?
   // 開帳清單「場地」：這間教室不用場地費（勾了場地步驟就算完成）。
-  financeNoVenueFee        Boolean                  @default(false)
-  venues                   Venue[]
-  venuePacks               VenuePack[]
-  financeExpenses          FinanceExpense[]
+  financeNoVenueFee       Boolean                  @default(false)
+  venues                  Venue[]
+  venuePacks              VenuePack[]
+  financeExpenses         FinanceExpense[]
   // 財務 v2（docs/finance-v2/）：轉換日（開帳日，台北日期）與鎖帳日（含當天以前的分錄不可再動）。
-  financeConversionDate    DateTime?                @db.Date
-  financeLockDate          DateTime?                @db.Date
+  financeConversionDate   DateTime?                @db.Date
+  financeLockDate         DateTime?                @db.Date
   // 開帳時間與參數（方法、實數現金、期初待付）；null = 還沒開帳。鎖帳前可以重開（04 §5）。
-  financeOpenedAt          DateTime?
-  financeOpening           Json?
-  ledgerAccounts           LedgerAccount[]
-  moneyAccounts            MoneyAccount[]
-  journalEntries           JournalEntry[]
-  postingSources           PostingSource[]
-  payoutRuns               PayoutRun[]
-  payouts                  Payout[]
-  moneyTransfers           MoneyTransfer[]
-  ownerTransactions        OwnerTransaction[]
-  cashCounts               CashCount[]
-  financeLockLogs          FinanceLockLog[]
-  financeCloseSignoffs     FinanceCloseSignoff[]
+  financeOpenedAt         DateTime?
+  financeOpening          Json?
+  ledgerAccounts          LedgerAccount[]
+  moneyAccounts           MoneyAccount[]
+  journalEntries          JournalEntry[]
+  postingSources          PostingSource[]
+  payoutRuns              PayoutRun[]
+  payouts                 Payout[]
+  moneyTransfers          MoneyTransfer[]
+  ownerTransactions       OwnerTransaction[]
+  cashCounts              CashCount[]
+  financeLockLogs         FinanceLockLog[]
+  financeCloseSignoffs    FinanceCloseSignoff[]
   // 在 LINE 官方帳號公開課表與價目表——沒綁定的人也看得到（src/service/lineBot.ts）。
-  lineListed               Boolean                  @default(false)
-  createdAt                DateTime                 @default(now())
-  updatedAt                DateTime                 @updatedAt
-  teachers                 Teacher[]
-  User                     User[]
-  notificationPreferences  NotificationPreference[]
+  lineListed              Boolean                  @default(false)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  teachers                Teacher[]
+  User                    User[]
+  notificationPreferences NotificationPreference[]
 }
 
 model Membership {
@@ -297,6 +299,9 @@ model StudentCard {
   // 收款人：錢現在在誰手上（確認付款時可改選其他老師）。
   paidByUserId      Int?
   paidBy            User?               @relation("ConfirmedStudentCards", fields: [paidByUserId], references: [id])
+  // 實際經手收錢的人：開帳整理把收款人改記到保管人時，留下第一位收款人（只寫一次），可復原。
+  collectedByUserId Int?
+  collectedBy       User?               @relation("CollectedStudentCards", fields: [collectedByUserId], references: [id])
   paymentMethod     PaymentMethod?
   paymentReference  String? // 轉帳末五碼，選填
   attendanceRecords AttendanceRecord[]
@@ -404,25 +409,26 @@ model DanceStyle {
 // 分部：同一間教室的不同上課地點（台南、高雄…）。Classroom data managed on
 // /locations; archived, never deleted. Cards are NOT location-bound.
 model Location {
-  id                     Int                   @id @default(autoincrement())
-  classroomId            Int
-  classroom              Classroom             @relation(fields: [classroomId], references: [id])
-  name                   String
-  address                String?
-  sortOrder              Int                   @default(0)
-  archivedAt             DateTime?
-  lessons                Lesson[]
+  id              Int              @id @default(autoincrement())
+  classroomId     Int
+  classroom       Classroom        @relation(fields: [classroomId], references: [id])
+  name            String
+  address         String?
+  sortOrder       Int              @default(0)
+  archivedAt      DateTime?
+  lessons         Lesson[]
   // 財務：這個分部的錢（公積金）由誰保管（User id，純 Int、沒有 FK）。
-  keeperUserId           Int?
+  keeperUserId    Int?
   // 到期卡的剩餘價值歸誰："FUND" | "USER"。
-  expiryTo               String                @default("FUND")
-  expiryUserId           Int?
+  expiryTo        String           @default("FUND")
+  expiryUserId    Int?
   // 公積金期初金額。
-  financeExpenses        FinanceExpense[]
-  moneyAccounts          MoneyAccount[]
-  journalLines           JournalLine[]
-  createdAt              DateTime              @default(now())
-  updatedAt              DateTime              @updatedAt
+  financeExpenses FinanceExpense[]
+  moneyAccounts   MoneyAccount[]
+  journalLines    JournalLine[]
+  venues          Venue[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   // Leads with classroomId, so it also serves classroom lookups.
   @@unique([classroomId, name])
@@ -678,6 +684,9 @@ model DropInCharge {
   // 收款人：錢在誰手上。
   paidByUserId       Int?
   paidBy             User?            @relation("ConfirmedDropIns", fields: [paidByUserId], references: [id])
+  // 實際經手收錢的人（同 StudentCard.collectedByUserId）。
+  collectedByUserId  Int?
+  collectedBy        User?            @relation("CollectedDropIns", fields: [collectedByUserId], references: [id])
   createdAt          DateTime         @default(now())
 }
 
@@ -689,15 +698,20 @@ model DropInCharge {
 
 /// 場地（租借的教室空間），房東是一位成員。
 model Venue {
-  id             Int         @id @default(autoincrement())
-  classroomId    Int
-  classroom      Classroom   @relation(fields: [classroomId], references: [id])
-  name           String
-  landlordUserId Int?
-  archivedAt     DateTime?
-  packs          VenuePack[]
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id              Int         @id @default(autoincrement())
+  classroomId     Int
+  classroom       Classroom   @relation(fields: [classroomId], references: [id])
+  name            String
+  landlordUserId  Int?
+  /// 場地屬於哪個分部：場地費和次數包從這個分部負責人的錢付。
+  locationId      Int?
+  location        Location?   @relation(fields: [locationId], references: [id])
+  /// 收費方式：有值＝每次付這麼多；null＝買次數包（VenuePack）。
+  perSessionPrice Int?
+  archivedAt      DateTime?
+  packs           VenuePack[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   @@unique([classroomId, name])
 }
@@ -759,22 +773,22 @@ model AttendanceAbsence {
 }
 
 model FinanceExpense {
-  id           Int       @id @default(autoincrement())
-  classroomId  Int
-  classroom    Classroom @relation(fields: [classroomId], references: [id])
-  date         DateTime
-  amount       Int
-  locationId   Int
-  location     Location  @relation(fields: [locationId], references: [id])
-  category     String
-  paidByUserId Int
+  id             Int       @id @default(autoincrement())
+  classroomId    Int
+  classroom      Classroom @relation(fields: [classroomId], references: [id])
+  date           DateTime
+  amount         Int
+  locationId     Int
+  location       Location  @relation(fields: [locationId], references: [id])
+  category       String
+  paidByUserId   Int
   // 財務 v2：從哪個資金帳戶付（null＝付款人的預設帳戶）；isAdvance＝付款人用自己的錢代墊（記應付業主款）。
   moneyAccountId Int?
   isAdvance      Boolean   @default(false)
-  note         String?
-  createdById  Int
-  voidedAt     DateTime?
-  createdAt    DateTime  @default(now())
+  note           String?
+  createdById    Int
+  voidedAt       DateTime?
+  createdAt      DateTime  @default(now())
 
   @@index([classroomId, date])
   @@index([locationId])

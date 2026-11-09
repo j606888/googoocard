@@ -1,14 +1,19 @@
 "use client";
 
 // 財務 v2 畫面共用：金額格式、外框（子導覽＋記一筆）、卡片。設計稿：https://claude.ai/artifact/HS4rYcg7kpaAw1tLqsSqN3
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { CircleHelp, Plus } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { BookOpen, CircleHelp, Plus } from "lucide-react";
 import Navbar from "@/features/Navbar";
+import { useFinanceEnabled } from "@/features/nav/useFinanceEnabled";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
+import { useGetFinanceSettingsQuery, useGetFinanceSetupQuery } from "@/store/slices/finance";
+import { useFinanceRole } from "../useCanSettle";
 import RecordDrawer from "./RecordDrawer";
 
 /** 分 → 「1,234」或「1,234.56」（decimals）。負數用真正的減號。 */
@@ -64,6 +69,37 @@ const TABS = [
   { href: "/finance/settings", label: "設定" },
 ];
 
+/** 還沒開帳時只開放這幾頁（開帳精靈、使用教學、財務設定）；其他財務頁一律導去開帳精靈。 */
+const PRE_OPENING_ALLOWED = ["/finance/setup", "/finance/guide", "/finance/settings"];
+const isAllowedBeforeOpening = (pathname: string) => PRE_OPENING_ALLOWED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+
+/**
+ * 開帳前的關卡（walkthrough 回饋 #5）：開帳完成前，總覽／報表／結算與付款／資金帳戶／結帳（含子頁）與「記一筆」都不能用。
+ * 能結算的人 → 導去 /finance/setup；其他人 → 「教室正在開帳設定中」。只是前端導路，API 本來就擋沒開帳的情況。
+ * `state`：loading＝還不知道（先不畫內容，免得閃一下）；blocked＝顯示等待畫面；redirect＝正在導去精靈；ok＝照常。
+ */
+function useOpeningGate(pathname: string): { opened: boolean | null; canSettle: boolean; state: "loading" | "blocked" | "redirect" | "ok" } {
+  const enabled = useFinanceEnabled();
+  const router = useRouter();
+  const { data: setup, isError } = useGetFinanceSetupQuery(undefined, { skip: !enabled });
+  const { isLoading: roleLoading } = useGetFinanceSettingsQuery(undefined, { skip: !enabled });
+  const { canSettle } = useFinanceRole();
+  // 讀不到（沒開財務、錯誤）就不擋，交給頁面自己處理。
+  const opened = !enabled || isError ? true : setup ? !!setup.items.find((i) => i.key === "opening")?.done : null;
+  let state: "loading" | "blocked" | "redirect" | "ok" = "ok";
+  if (opened === false) {
+    if (roleLoading) state = isAllowedBeforeOpening(pathname) ? "ok" : "loading";
+    else if (!canSettle) state = pathname.startsWith("/finance/guide") || pathname.startsWith("/finance/settings") ? "ok" : "blocked";
+    else if (!isAllowedBeforeOpening(pathname)) state = "redirect";
+  } else if (opened === null && !isAllowedBeforeOpening(pathname)) {
+    state = "loading";
+  }
+  useEffect(() => {
+    if (state === "redirect") router.replace("/finance/setup");
+  }, [state, router]);
+  return { opened, canSettle, state };
+}
+
 /** 財務頁外框：子導覽＋「記一筆」。`title` 在子導覽下面。 */
 export function FinanceShell({
   title,
@@ -84,14 +120,53 @@ export function FinanceShell({
 }) {
   const pathname = usePathname();
   const [recording, setRecording] = useState(false);
+  const gate = useOpeningGate(pathname);
+  // 開帳前：上面的分頁換成「開帳設定／財務設定／使用教學」，不給人以為可以跳過開帳。
+  const preOpening = gate.opened === false;
+  const tabs = preOpening
+    ? [
+        ...(gate.canSettle ? [{ href: "/finance/setup", label: "開帳設定" }] : []),
+        { href: "/finance/settings", label: "財務設定" },
+        { href: "/finance/guide", label: "使用教學" },
+      ]
+    : TABS;
+  const showRecord = !noRecord && gate.opened === true;
+  if (gate.state !== "ok") {
+    return (
+      <>
+        <Navbar />
+        <div className="flex flex-col gap-5 p-4 lg:px-8 lg:py-6">
+          {gate.state === "blocked" ? (
+            <EmptyState
+              kind="page"
+              title="教室正在開帳設定中"
+              description="財務帳本設定好之前，這裡還看不到數字；賣卡、點名都照常，不受影響。"
+              action={
+                <Button asChild variant="secondary">
+                  <Link href="/finance/guide">
+                    <BookOpen />看使用教學
+                  </Link>
+                </Button>
+              }
+            />
+          ) : (
+            <div className="flex flex-col gap-3">
+              <Skeleton className="h-10 w-64 rounded-xl" />
+              <Skeleton className="h-28 rounded-2xl" />
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
   return (
     <>
       <Navbar />
       <div className="flex flex-col gap-5 p-4 lg:px-8 lg:py-6">
         <div className="flex items-end justify-between gap-3 border-b border-neutral-200">
           <nav aria-label="財務" className="-mb-px flex gap-5 overflow-x-auto">
-            {TABS.map((t) => {
-              const active = t.exact ? pathname === t.href : pathname.startsWith(t.href);
+            {tabs.map((t) => {
+              const active = "exact" in t && t.exact ? pathname === t.href : pathname.startsWith(t.href);
               return (
                 <Link
                   key={t.href}
@@ -107,7 +182,7 @@ export function FinanceShell({
               );
             })}
           </nav>
-          {!noRecord && (
+          {showRecord && (
             <Button size="sm" className="mb-1.5 hidden lg:inline-flex" onClick={() => setRecording(true)}>
               <Plus />記一筆
             </Button>
@@ -134,7 +209,7 @@ export function FinanceShell({
         {children}
         <div className="h-16 lg:hidden" />
       </div>
-      {!noRecord && (
+      {showRecord && (
         <>
           <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+64px)] z-10 px-4 pb-3 lg:hidden">
             <Button size="lg" className="w-full shadow-lg" onClick={() => setRecording(true)}>
