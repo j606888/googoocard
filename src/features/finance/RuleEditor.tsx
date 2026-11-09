@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, ArrowDown, ArrowUp, Check, ChevronDown, X } from "lucide-react";
 import Menu from "@/components/Menu";
 import Select, { type SelectOption } from "@/components/Select";
+import PayeePicker from "./PayeePicker";
 import Drawer from "@/components/Drawer";
 import InfoTip from "@/components/InfoTip";
 import { Button } from "@/components/ui/button";
@@ -135,8 +136,7 @@ export default function RuleEditor({
   };
 
   const payeeSelect = (p: Payee, set: (p: Payee) => void) => (
-    <Select
-      size="sm"
+    <PayeePicker
       aria-label="給誰"
       className="min-w-0 flex-1"
       value={payeeKey(p)}
@@ -286,8 +286,7 @@ export default function RuleEditor({
           <div className="text-sm font-medium text-neutral-700">這堂課扣完剩下的</div>
           <div className="flex items-center gap-2">
             <span className="shrink-0 text-neutral-500">→ 給</span>
-            <Select
-              size="sm"
+            <PayeePicker
               aria-label="剩下的給誰"
               className="min-w-0 flex-1"
               value={rest.rest.type === "fund" ? `f:${rest.rest.locationId}` : "teachers"}
