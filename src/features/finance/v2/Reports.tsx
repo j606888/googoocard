@@ -3,7 +3,7 @@
 // 報表（docs/finance-v2/05 §3.2–3.6；設計稿「損益表」「資產負債表」）。金額單位「分」。
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, ChevronRight, TriangleAlert } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -53,7 +53,8 @@ export function ReportView({ name, accountId: initialAccount }: { name: ReportNa
   const meta = REPORTS[name];
   const router = useRouter();
   const [month, setMonth] = useState(monthOf(new Date()));
-  const [asOf, setAsOf] = useState(todayKey());
+  const asOfParam = useSearchParams().get("asOf");
+  const [asOf, setAsOf] = useState(asOfParam && /^\d{4}-\d{2}-\d{2}$/.test(asOfParam) ? asOfParam : todayKey());
   const [accountId, setAccountId] = useState<number | undefined>(initialAccount);
   const { data: acData } = useGetLedgerAccountsQuery(undefined, { skip: name !== "general-ledger" });
   const args: LedgerReportArgs =

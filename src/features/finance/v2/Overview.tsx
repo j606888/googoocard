@@ -259,6 +259,12 @@ function OpenedCard({ data }: { data: FinanceOverview }) {
           </li>
         ))}
       </ol>
+      <Link
+        href={`/finance/reports/balance-sheet?asOf=${data.conversionDate}`}
+        className="self-start text-[13px] font-medium text-primary-800 hover:underline"
+      >
+        看開帳那天的資產負債表
+      </Link>
       <Link href="/finance/guide" className="self-start text-[13px] font-medium text-primary-800 hover:underline">
         看完整使用教學
       </Link>

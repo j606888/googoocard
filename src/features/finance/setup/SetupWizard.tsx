@@ -72,15 +72,13 @@ function WizardBody() {
         : null,
     [data, visited],
   );
-  const checked = useRef(false);
+  // 開帳了就一律回總覽——不只第一次載入：剛按完開帳時，總覽的守門可能還拿著舊資料把人送回這裡，
+  // 那時草稿已清掉，若只看第一次就會被釘在第 6 步（2026-11-10 實走遇到）。
   useEffect(() => {
     if (!data || !items || !draft) return;
-    if (!checked.current) {
-      checked.current = true;
-      if (data.items.find((i) => i.key === "opening")?.done) {
-        router.replace("/finance");
-        return;
-      }
+    if (data.items.find((i) => i.key === "opening")?.done) {
+      router.replace("/finance");
+      return;
     }
     if (!requested) {
       const first = items.find((i) => !i.done) ?? items[0];
