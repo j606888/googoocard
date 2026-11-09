@@ -290,34 +290,26 @@ export default function RuleEditor({
               size="sm"
               aria-label="剩下的給誰"
               className="min-w-0 flex-1"
-              value={rest.rest.type}
+              value={rest.rest.type === "fund" ? `f:${rest.rest.locationId}` : "teachers"}
               options={[
-                { value: "teachers", label: "老師（可多位，按比重分）" },
-                { value: "fund", label: "公積金" },
+                ...(rest.rest.type === "fund" ? withCurrent(locationOptions, rest.rest.locationId) : locationOptions).map((o) => ({
+                  value: `f:${o.value}`,
+                  label: o.label,
+                  group: "公積金",
+                })),
+                { value: "teachers", label: "老師（可多位，按比重分）", group: "老師" },
               ]}
-              onChange={(type) =>
-                onChange([
-                  ...lines,
-                  {
-                    ...rest,
-                    rest:
-                      type === "fund"
-                        ? { type: "fund", locationId: rest.fundLocationId }
-                        : { type: "teachers", shares: defaultShares() },
-                  },
-                ])
-              }
+              onChange={(v) => {
+                if (v === "teachers") {
+                  if (rest.rest.type === "teachers") return;
+                  onChange([...lines, { ...rest, rest: { type: "teachers", shares: defaultShares() } }]);
+                } else {
+                  onChange([...lines, { ...rest, rest: { type: "fund", locationId: Number(v.slice(2)) } }]);
+                }
+              }}
             />
           </div>
-          {rest.rest.type === "fund" ? (
-            <Select
-              size="sm"
-              aria-label="哪個公積金"
-              value={rest.rest.locationId}
-              options={withCurrent(locationOptions, rest.rest.locationId)}
-              onChange={(locationId) => onChange([...lines, { ...rest, rest: { type: "fund", locationId } }])}
-            />
-          ) : (
+          {rest.rest.type === "teachers" && (
             <TeacherShares
               names={names}
               shares={rest.rest.shares}
@@ -506,27 +498,32 @@ function TeacherShares({
   onChange: (shares: { teacherId: number; weight: number }[]) => void;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {names.teachers.map((t) => {
         const share = shares.find((s) => s.teacherId === t.id);
         return (
-          <div key={t.id} className="flex items-center gap-2">
-            <label className="flex flex-1 items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="size-4"
-                checked={!!share}
-                onChange={(e) =>
-                  onChange(
-                    e.target.checked ? [...shares, { teacherId: t.id, weight: 1 }] : shares.filter((s) => s.teacherId !== t.id)
-                  )
-                }
-              />
+          <div
+            key={t.id}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full border py-1 pl-2.5 text-sm",
+              share ? "border-primary bg-primary-50 text-neutral-900" : "border-neutral-300 text-neutral-600",
+              share && shares.length > 1 ? "pr-1.5" : "pr-2.5"
+            )}
+          >
+            <button
+              type="button"
+              aria-pressed={!!share}
+              className="flex items-center gap-1"
+              onClick={() =>
+                onChange(share ? shares.filter((s) => s.teacherId !== t.id) : [...shares, { teacherId: t.id, weight: 1 }])
+              }
+            >
+              {share && <Check className="size-3.5 text-primary" aria-hidden />}
               {t.name}
-            </label>
+            </button>
             {share && shares.length > 1 && (
-              <div className="flex items-center gap-1 text-[13px] text-neutral-500">
-                比重
+              <span className="flex items-center gap-1 text-[13px] text-neutral-500">
+                ×
                 <NumInput
                   label={`${t.name}的比重`}
                   value={share.weight}
@@ -534,8 +531,8 @@ function TeacherShares({
                     onChange(shares.map((s) => (s.teacherId === t.id ? { ...s, weight } : s)))
                   }
                 />
-                <span className="w-12 shrink-0 tabular-nums">（{shareText(share.weight, shares)}）</span>
-              </div>
+                <span className="tabular-nums">· {shareText(share.weight, shares)}</span>
+              </span>
             )}
           </div>
         );
