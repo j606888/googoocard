@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import Select from "@/components/Select";
 import { fieldControlClass } from "@/components/Field";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import InfoTip from "@/components/InfoTip";
 import { cn } from "@/lib/utils";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { useGetLocationsQuery } from "@/store/slices/locations";
@@ -341,7 +342,7 @@ export function OpeningCashStep() {
                     ))}
                   </div>
                 )}
-                {open && <CardList cards={mine} empty="沒有算在他手上的舊卡" />}
+                {open && <CardsByMonth cards={mine} conversionDate={draft.date} />}
               </li>
             );
           })}
@@ -410,6 +411,96 @@ function CardList({ cards, empty, receivable }: { cards: PreviewCard[]; empty: s
         </li>
       ))}
     </ul>
+  );
+}
+
+/** YYYY-MM-DD 往前推 n 個月的月份（YYYY-MM）。 */
+function monthsBefore(dateKey: string, n: number): string {
+  const [y, m] = dateKey.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 - n, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/** 期初現金展開某人：舊卡依購買月份分組（新的在上），買超過半年的月份標出來（多半用不完）。 */
+function CardsByMonth({ cards, conversionDate }: { cards: PreviewCard[]; conversionDate: string }) {
+  const groups = useMemo(() => {
+    const byMonth = new Map<string, PreviewCard[]>();
+    for (const c of cards) {
+      const k = c.purchasedOn.slice(0, 7);
+      byMonth.set(k, [...(byMonth.get(k) ?? []), c]);
+    }
+    return [...byMonth.entries()]
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([month, list]) => ({
+        month,
+        cards: [...list].sort((a, b) => b.purchasedOn.localeCompare(a.purchasedOn) || b.deferred - a.deferred),
+        paid: list.reduce((s, c) => s + c.price, 0),
+        left: list.reduce((s, c) => s + c.deferred, 0),
+      }));
+  }, [cards]);
+  const [openMonths, setOpenMonths] = useState<Set<string> | null>(null);
+  if (cards.length === 0) return <p className="bg-neutral-50 px-4 py-3 text-[13px] text-neutral-500 lg:px-5">沒有算在他手上的舊卡</p>;
+
+  const opened = openMonths ?? new Set(cards.length <= 8 ? groups.map((g) => g.month) : []);
+  const toggle = (m: string) => {
+    const next = new Set(opened);
+    if (next.has(m)) next.delete(m);
+    else next.add(m);
+    setOpenMonths(next);
+  };
+  const oldBefore = monthsBefore(conversionDate, 6);
+  const hasOld = groups.some((g) => g.month < oldBefore);
+
+  return (
+    <div className="flex flex-col bg-neutral-50 px-4 py-2 lg:px-5">
+      {hasOld && (
+        <p className="flex items-center gap-1 text-xs text-neutral-500">
+          標「超過半年」的是轉換日前半年以上買的卡，多半用不完
+          <InfoTip label="超過半年的卡說明">這些卡會在轉換日後 6 個月到期，到時還沒上完的部分轉成過期收入。</InfoTip>
+        </p>
+      )}
+      <ul className="flex flex-col">
+        {groups.map((g) => {
+          const [y, m] = g.month.split("-").map(Number);
+          const old = g.month < oldBefore;
+          const isOpen = opened.has(g.month);
+          return (
+            <li key={g.month} className="flex flex-col">
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                onClick={() => toggle(g.month)}
+                className={cn(
+                  "-mx-2 flex min-h-10 cursor-pointer flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg px-2 py-1.5 text-left text-[13px]",
+                  old ? "text-warning-900 hover:bg-warning-50" : "text-neutral-800 hover:bg-neutral-100",
+                )}
+              >
+                <ChevronDown className={cn("size-3.5 shrink-0 transition-transform", old ? "text-warning-700" : "text-neutral-500", isOpen && "rotate-180")} aria-hidden />
+                <span className="font-medium">{y} 年 {m} 月</span>
+                {old && <span className="rounded-full bg-warning-100 px-1.5 py-px text-[11px] font-medium text-warning-900">超過半年</span>}
+                <span className={cn("tabular-nums", old ? "text-warning-800" : "text-neutral-500")}>
+                  · {g.cards.length} 張 · 收 <Amount cents={g.paid} dollar /> · 還剩 <Amount cents={g.left} dollar />
+                </span>
+              </button>
+              {isOpen && (
+                <ul className="mb-1 flex flex-col border-l border-neutral-200 pl-3">
+                  {g.cards.map((c) => (
+                    <li key={c.cardId} className="flex items-start gap-3 py-1 text-[13px]">
+                      <span className="min-w-0 flex-1 break-words text-neutral-800">
+                        <span className="tabular-nums text-neutral-500">{c.purchasedOn.slice(5).replace("-", "/")}</span> · {c.studentName}{" "}
+                        <span className="text-neutral-500">· {c.cardName}</span>
+                        <span className="whitespace-nowrap tabular-nums text-neutral-500">　剩 {c.sessionsLeft} / {c.totalSessions} 堂</span>
+                      </span>
+                      <Amount cents={c.deferred} dollar className="shrink-0 text-right" />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 

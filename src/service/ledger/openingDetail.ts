@@ -10,6 +10,12 @@ export type OpeningCardDetail = {
   cardId: number;
   studentName: string;
   cardName: string;
+  /** 哪天買的（台北日期 YYYY-MM-DD）。 */
+  purchasedOn: string;
+  /** 這張卡總共幾堂。 */
+  totalSessions: number;
+  /** 實收價格（分）。 */
+  price: number;
   /** 轉換日那天開始時還剩幾堂（現在剩的＋轉換日之後用掉的）。 */
   sessionsLeft: number;
   /** 還沒上完的價值（分）。 */
@@ -74,6 +80,9 @@ export async function openingDetail(
           cardId: c.cardId,
           studentName: n?.student.name ?? "",
           cardName: n?.card.name ?? "",
+          purchasedOn: input ? toTaipeiDateKey(input.createdAt) : "",
+          totalSessions: input?.totalSessions ?? 0,
+          price: input ? toCents(input.finalPrice) : 0,
           sessionsLeft: (input?.remainingSessions ?? 0) + usedAfter,
           deferred: c.deferred,
           receivable: c.receivable,
