@@ -103,6 +103,8 @@ function WizardBody() {
   };
   const prev = items[index - 1];
   const next = items[index + 1];
+  // 收款人整理不能跳過：沒改記完就往下走，期初現金會算錯人（使用者以為「確認」就是下一步而漏掉）。
+  const mustFinish = item.key === "receivers";
   const pendingBefore = items.slice(0, index).filter((i) => !i.done);
 
   return (
@@ -150,8 +152,12 @@ function WizardBody() {
             )}
             {next && (
               <div className="flex items-center gap-3">
-                {!item.done && <span className="hidden text-[13px] text-neutral-500 sm:inline">可以先跳過，之後再回來</span>}
-                <Button onClick={() => go(next.key)}>
+                {!item.done && (
+                  <span className={cn("hidden text-[13px] sm:inline", mustFinish ? "font-medium text-warning-900" : "text-neutral-500")}>
+                    {mustFinish ? "每一筆都確認改記後才能下一步" : "可以先跳過，之後再回來"}
+                  </span>
+                )}
+                <Button onClick={() => go(next.key)} disabled={mustFinish && !item.done}>
                   下一步：{SETUP_STEPS[next.key].short}
                   <ChevronRight />
                 </Button>
