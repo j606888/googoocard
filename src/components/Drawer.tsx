@@ -67,8 +67,8 @@ const Drawer = ({
           <X className="size-5" />
         </Button>
       </div>
-      <div className="max-h-[60vh] overflow-y-auto">{children}</div>
-      <div className="mt-auto w-full flex items-center gap-2">
+      <div className="max-h-[60vh] overflow-y-auto px-1 -mx-1 pb-1">{children}</div>
+      <div className="mt-auto w-full flex items-center gap-2 pt-5">
         {footerStart && <div className="shrink-0 mr-1">{footerStart}</div>}
         {secondaryText && (
           <Button
