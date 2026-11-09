@@ -26,10 +26,9 @@ import StatusTag from "@/components/StatusTag";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
-/** Which period gets the 點名 call, and which one 修改／重置 apply to. */
+/** Which period gets the 點名 call. 修改／重置 are offered on every attended period. */
 const periodMarkers = (periods: Period[]) => ({
   firstPendingPeriodId: periods.find((period) => !period.attendanceTakenAt)?.id,
-  lastAttendPeriodId: periods.filter((period) => period.attendanceTakenAt).at(-1)?.id,
 });
 
 /** Phone: the full timeline, oldest first. */
@@ -40,7 +39,7 @@ const PeriodSection = ({
   lesson: Lesson;
   periods: Period[];
 }) => {
-  const { firstPendingPeriodId, lastAttendPeriodId } = periodMarkers(periods);
+  const { firstPendingPeriodId } = periodMarkers(periods);
 
   return (
     <div className="flex flex-col gap-4 px-5">
@@ -56,7 +55,6 @@ const PeriodSection = ({
             key={period.id}
             period={period}
             canCheck={period.id === firstPendingPeriodId}
-            isLastAttend={period.id === lastAttendPeriodId}
             isLastRow={index === periods.length - 1}
           />
         ))}
@@ -82,7 +80,7 @@ export const PeriodColumn = ({
   headcounts: Map<number, number>;
   className?: string;
 }) => {
-  const { firstPendingPeriodId, lastAttendPeriodId } = periodMarkers(periods);
+  const { firstPendingPeriodId } = periodMarkers(periods);
 
   const months: { key: string; label: string; periods: Period[] }[] = [];
   for (const period of [...periods].reverse()) {
@@ -133,7 +131,6 @@ export const PeriodColumn = ({
                       period={period}
                       attended={headcounts.get(period.id)}
                       canCheck={period.id === firstPendingPeriodId}
-                      isLastAttend={period.id === lastAttendPeriodId}
                     />
                   ))}
                 </ol>
@@ -147,7 +144,7 @@ export const PeriodColumn = ({
 };
 
 /** Everything a period row can do — shared by the phone timeline and the desktop column. */
-const usePeriodActions = (period: Period, isLastAttend: boolean) => {
+const usePeriodActions = (period: Period) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editTimeOpen, setEditTimeOpen] = useState(false);
@@ -242,7 +239,7 @@ const usePeriodActions = (period: Period, isLastAttend: boolean) => {
               刪除
             </button>
           )}
-          {isLastAttend && (
+          {attended && (
             <>
               <button
                 className="flex gap-2 items-center rounded-lg px-2.5 py-2 text-sm text-neutral-700 hover:bg-neutral-100 cursor-pointer"
@@ -280,15 +277,13 @@ const DensePeriodRow = ({
   period,
   attended: attendedCount,
   canCheck,
-  isLastAttend,
 }: {
   period: Period;
   attended: number | undefined;
   canCheck: boolean;
-  isLastAttend: boolean;
 }) => {
   const { menuOpen, handleCheck, handleViewAttendance, menuButton, overlays } =
-    usePeriodActions(period, isLastAttend);
+    usePeriodActions(period);
   const startTime = new Date(period.startTime);
   const attended = Boolean(period.attendanceTakenAt);
   const today = isToday(startTime);
@@ -357,16 +352,14 @@ const DensePeriodRow = ({
 const PeriodRow = ({
   period,
   canCheck = false,
-  isLastAttend = false,
   isLastRow = false,
 }: {
   period: Period;
   canCheck?: boolean;
-  isLastAttend?: boolean;
   isLastRow?: boolean;
 }) => {
   const { handleCheck, handleViewAttendance, menuButton, overlays } =
-    usePeriodActions(period, isLastAttend);
+    usePeriodActions(period);
   const startTime = new Date(period.startTime);
   const endTime = new Date(period.endTime);
   const attended = Boolean(period.attendanceTakenAt);

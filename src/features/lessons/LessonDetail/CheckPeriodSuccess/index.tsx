@@ -65,14 +65,6 @@ const CheckPeriodSuccess = () => {
     );
   }, [period, rosterStudents]);
 
-  // Editing here is only offered for the most recently taken period — same
-  // rule PeriodSection's timeline uses, so retroactively editing an old
-  // period (and its card deductions) stays a deliberate, rare action.
-  const lastAttendPeriodId = lesson?.periods
-    .filter((p) => p.attendanceTakenAt)
-    .at(-1)?.id;
-  const isLastAttend = period?.id === lastAttendPeriodId;
-
   // 名冊也要等：不然「缺席」先顯示 0、缺席名單晚一拍才跳出來。
   if (!attendanceRecords || !lesson || isRosterLoading) {
     return (
@@ -254,7 +246,7 @@ const CheckPeriodSuccess = () => {
         {period && <DayCollections date={toTaipeiDateKey(new Date(period.startTime))} />}
 
         <div className="flex flex-col gap-2.5 w-full mt-2">
-          {isLastAttend && (
+          {period?.attendanceTakenAt && (
             <Button asChild variant="secondary" size="lg" className="w-full">
               <Link href={`/lessons/${id}/periods/${periodId}/check-edit`}>
                 <PencilLine className="size-4" />
