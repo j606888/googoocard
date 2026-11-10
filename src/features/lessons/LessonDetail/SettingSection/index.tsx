@@ -272,10 +272,11 @@ const SettingSection = ({
     errorTabs.size > 0
       ? { text: `有 ${errorTabs.size} 個分頁要修正才能儲存`, className: "text-danger-700 font-semibold" }
       : isDirty
-        ? { text: `${dirtyTabCount} 個分頁有變更`, className: "text-warning-900 font-semibold" }
-        : { text: "尚未修改", className: "text-neutral-500" };
-
-  const sectionTitle = "text-xs font-semibold tracking-wider text-neutral-500";
+        ? {
+            text: isDrawer ? `${dirtyTabCount} 個分頁有變更` : "有還沒儲存的變更",
+            className: "text-warning-900 font-semibold",
+          }
+        : { text: "", className: "" };
 
   return (
     <div className={isDrawer ? "flex h-full min-h-0 flex-col" : "flex flex-col"}>
@@ -293,21 +294,26 @@ const SettingSection = ({
         </div>
       )}
 
-      <SegmentedTabs
-        variant="underline"
-        fill={!isDrawer}
-        ariaLabel="課程設定分頁"
-        className={`border-b border-neutral-200 ${isDrawer ? "px-4" : "mx-5 mt-3"}`}
-        value={tab}
-        onChange={setTab}
-        options={tabOptions}
-      />
+      {/* 手機已經在「設定」分頁裡了——不再疊第二排分頁，三段直接往下排。 */}
+      {isDrawer && (
+        <SegmentedTabs
+          variant="underline"
+          ariaLabel="課程設定分頁"
+          className="border-b border-neutral-200 px-4"
+          value={tab}
+          onChange={setTab}
+          options={tabOptions}
+        />
+      )}
 
-      <div className={isDrawer ? "min-h-0 flex-1 overflow-y-auto px-6 py-6" : "px-5 py-5"}>
-        {tab === "basic" && (
+      <div
+        className={
+          isDrawer ? "min-h-0 flex-1 overflow-y-auto px-6 py-6" : "flex flex-col gap-7 px-5 pt-5 pb-28"
+        }
+      >
+        {(!isDrawer || tab === "basic") && (
           <div className="flex flex-col gap-7">
             <section className="flex flex-col gap-4">
-              <h3 className={sectionTitle}>基本資料</h3>
               <InputField
                 label="課程名稱"
                 placeholder="例：Bachata Lv1"
@@ -329,7 +335,6 @@ const SettingSection = ({
               {hasLevels && <LevelSelect level={level} onChange={setLevel} />}
             </section>
             <section className="flex flex-col gap-4 border-t border-neutral-100 pt-6">
-              <h3 className={sectionTitle}>上課方式</h3>
               <LessonKindSelect kind={kind} onChange={setKind} />
               <SessionsPerAttendanceSelect value={sessionsPerAttendance} onChange={setSessionsPerAttendance} />
               <DropInPriceField
@@ -354,10 +359,9 @@ const SettingSection = ({
           </div>
         )}
 
-        {tab === "cards" && (
+        {(!isDrawer || tab === "cards") && (
           <div className="flex flex-col gap-7">
             <section className="flex flex-col gap-4">
-              <h3 className={sectionTitle}>可用課卡</h3>
               <CardSelect
                 error={errors.cards}
                 onChange={(value) => {
@@ -369,7 +373,6 @@ const SettingSection = ({
               />
             </section>
             <section className="flex flex-col gap-4 border-t border-neutral-100 pt-6">
-              <h3 className={sectionTitle}>地點與老師</h3>
               <LocationSelect locationId={locationId} onChange={setLocationId} />
               <LessonGroupSelect groupId={groupId} onChange={setGroupId} />
               <TeacherSelect
@@ -391,46 +394,42 @@ const SettingSection = ({
           </div>
         )}
 
-        {tab === "status" && (
+        {(!isDrawer || tab === "status") && (
           <div className="flex flex-col gap-3">
-            <p className="rounded-xl bg-neutral-100 px-3.5 py-2.5 text-[13px] text-neutral-700">
-              這一頁的操作會先問一次，確認後馬上生效，不用按「儲存變更」。
-            </p>
             <div className="flex items-center gap-4 rounded-xl border border-neutral-200 px-4 py-3.5">
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-neutral-900">{isEndedByHand ? "重新開課" : "結束課程"}</p>
                 <p className="text-[13px] text-neutral-500">
                   {isEndedByHand
                     ? "這門課已手動結束；重新開課或排新時段都會回到「進行中」"
-                    : "移到「已結束」，紀錄都會保留，之後可以重新開課"}
+                    : "紀錄都會保留，之後可以重新開課"}
                 </p>
               </div>
               <Button variant="secondary" size="sm" onClick={() => setConfirming("end")}>
                 {isEndedByHand ? "重新開課" : "結束課程"}
               </Button>
             </div>
-            <div className="flex items-center gap-4 rounded-xl border border-danger-100 px-4 py-3.5">
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-danger-700">刪除課程</p>
-                <p className="text-[13px] text-neutral-500">
-                  {hasNoPeriods
-                    ? "刪除後無法復原"
-                    : `已經有 ${lesson.periods.length} 個時段，不能刪除；要停開請用「結束課程」`}
-                </p>
+            {hasNoPeriods && (
+              <div className="flex items-center gap-4 rounded-xl border border-danger-100 px-4 py-3.5">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-danger-700">刪除課程</p>
+                  <p className="text-[13px] text-neutral-500">刪除後無法復原</p>
+                </div>
+                <Button
+                  variant="dangerSecondary"
+                  size="sm"
+                  onClick={() => setConfirming("delete")}
+                  disabled={isDeleting}
+                >
+                  刪除
+                </Button>
               </div>
-              <Button
-                variant="dangerSecondary"
-                size="sm"
-                onClick={() => setConfirming("delete")}
-                disabled={!hasNoPeriods || isDeleting}
-              >
-                刪除
-              </Button>
-            </div>
+            )}
           </div>
         )}
       </div>
 
+      {(isDrawer || isDirty || errorTabs.size > 0) && (
       <div
         data-in-app={isDrawer ? undefined : "flush-bottom"}
         className={`flex items-center gap-2.5 border-t border-neutral-200 bg-white ${
@@ -448,6 +447,7 @@ const SettingSection = ({
           儲存變更
         </Button>
       </div>
+      )}
 
       <ConfirmDialog
         open={confirming === "end"}

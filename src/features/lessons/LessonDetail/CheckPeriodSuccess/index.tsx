@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { Check, Clock, PencilLine } from "lucide-react";
+import { ArrowLeft, Check, PencilLine } from "lucide-react";
 import SubNavbar from "@/features/SubNavbar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
@@ -11,8 +11,6 @@ import {
   useGetLessonQuery,
   useGetLessonStudentsQuery,
 } from "@/store/slices/lessons";
-import { periodInfo } from "@/lib/utils";
-import { Switch } from "@/components/ui/switch";
 import StudentInfo from "@/components/StudentInfo";
 import PendingStudents from "./PendingStudents";
 import DayCollections from "./DayCollections";
@@ -24,8 +22,9 @@ import { formatMoney } from "@/lib/money";
 import { ConfirmDropInForm } from "./DropInForm";
 import { type DropInOption, lessonDropInOptions } from "@/lib/dropInOptions";
 
+const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+
 const CheckPeriodSuccess = () => {
-  const [showIncome, setShowIncome] = useState(false);
   const isExpanded = useSizeClass() === "expanded";
   const { id, periodId } = useParams();
   const searchParams = useSearchParams();
@@ -44,10 +43,21 @@ const CheckPeriodSuccess = () => {
   const period = lesson?.periods.find(
     (period) => period.id === Number(periodId)
   );
-  const { date, startHour, endHour } = periodInfo(period);
+  // 「11/05（四）20:30–21:30」：手機放在頁首副標，桌面放在標題下面。
+  const when = period
+    ? `${format(new Date(period.startTime), "MM/dd")}（${WEEKDAYS[new Date(period.startTime).getDay()]}）${format(
+        new Date(period.startTime),
+        "HH:mm"
+      )}–${format(new Date(period.endTime), "HH:mm")}`
+    : "";
   const formattedNow =
     period?.attendanceTakenAt &&
     format(period?.attendanceTakenAt, "yyyy/MM/dd, hh:mm a");
+  // 「剩幾堂」是課卡現在的剩餘數，只有最近點名的那一堂顯示才不會被讀成當時的數字。
+  const latestTakenId = [...(lesson?.periods ?? [])]
+    .filter((p) => p.attendanceTakenAt)
+    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0]?.id;
+  const isLatest = period?.id === latestTakenId;
 
   // 已解決 = 扣了卡或付了單堂（$0 的體驗卡 income 是 0，不能拿 income 判斷）。
   const isResolved = (record: AttendanceRecord) => Boolean(record.cardName || record.dropIn);
@@ -118,16 +128,29 @@ const CheckPeriodSuccess = () => {
     );
   }
 
+  const income = Math.round(paidRecords.reduce((sum, record) => sum + record.income, 0));
+
   return (
     <>
       {!isExpanded && (
-        <SubNavbar title={lesson?.name || ""} backUrl={`/lessons/${id}`} />
+        <SubNavbar title={lesson?.name || ""} subtitle={when} backUrl={`/lessons/${id}`} />
       )}
-      {/* 手機維持窄欄；桌面放寬到 3xl——1920px 上不該還是手機寬，
-          但點名結果是一份逐列的清單，全寬拉開反而難讀。 */}
-      <div className="px-5 py-6 lg:px-8 flex flex-col items-center gap-5 max-w-md lg:max-w-3xl mx-auto lg:mx-0 w-full">
-        {justSubmitted ? (
-          <>
+      {/* 手機底下留給浮動的 BottomNav；桌面置中——點名結果是逐列的清單，全寬拉開反而難讀。 */}
+      <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-5 pt-6 pb-28 lg:max-w-2xl lg:px-8 lg:pb-10">
+        {isExpanded && (
+          <div className="flex flex-col gap-1">
+            <Link
+              href={`/lessons/${id}`}
+              className="inline-flex items-center gap-1 self-start text-[13px] text-neutral-600 hover:text-neutral-900"
+            >
+              <ArrowLeft className="size-4" />
+              {lesson.name}
+            </Link>
+            <h1 className="text-xl font-bold text-neutral-900 tabular-nums">{when}</h1>
+          </div>
+        )}
+        {justSubmitted && (
+          <div className="flex flex-col items-center gap-3">
             <div className="flex justify-center items-center rounded-full bg-primary-100 w-20 h-20 ring-8 ring-primary-50">
               <Check className="w-11 h-11 text-primary-700" strokeWidth={2.5} />
             </div>
@@ -135,48 +158,33 @@ const CheckPeriodSuccess = () => {
               <h3 className="text-lg font-bold text-neutral-900">課程簽到成功</h3>
               <p className="text-sm text-neutral-500">{formattedNow}</p>
             </div>
-          </>
-        ) : (
-          <div className="flex flex-col items-center gap-1">
-            <h3 className="text-lg font-bold text-neutral-900">點名紀錄</h3>
-            {formattedNow && <p className="text-sm text-neutral-500">{formattedNow} 完成點名</p>}
           </div>
         )}
 
-        <div className="flex items-center justify-between w-full bg-neutral-50 border border-neutral-200 px-4 py-3 rounded-2xl">
-          <p className="font-medium text-neutral-900">{date}</p>
-          <div className="flex items-center gap-1.5 text-sm text-neutral-600">
-            <Clock className="w-4 h-4" />
-            <span>
-              {startHour} ~ {endHour}
-            </span>
+        <dl className="flex w-full gap-2 text-center">
+          <div className="flex flex-1 flex-col-reverse gap-0.5 rounded-xl bg-primary-50 py-2.5">
+            <dt className="text-xs text-primary-900">出席</dt>
+            <dd className="text-lg font-bold text-primary-900 tabular-nums">{attendanceRecords.length}</dd>
           </div>
-        </div>
-
-        {/* Status summary: attended (present, whether or not their card is
-            resolved yet) / absent / pending resolution */}
-        <div className="flex gap-2 w-full">
-          <div className="flex-1 flex flex-col items-center gap-0.5 bg-primary-50 rounded-xl py-2.5">
-            <span className="text-lg font-bold text-primary-900">{attendanceRecords.length}</span>
-            <span className="text-xs text-primary-900">出席</span>
+          <div className="flex flex-1 flex-col-reverse gap-0.5 rounded-xl bg-danger-50 py-2.5">
+            <dt className="text-xs text-danger-700">缺席</dt>
+            <dd className="text-lg font-bold text-danger-700 tabular-nums">{absentStudents.length}</dd>
           </div>
-          <div className="flex-1 flex flex-col items-center gap-0.5 bg-danger-50 rounded-xl py-2.5">
-            <span className="text-lg font-bold text-danger-700">{absentStudents.length}</span>
-            <span className="text-xs text-danger-700">缺席</span>
+          {pendingRecords.length > 0 && (
+            <div className="flex flex-1 flex-col-reverse gap-0.5 rounded-xl bg-warning-50 py-2.5">
+              <dt className="text-xs text-warning-900">待處理</dt>
+              <dd className="text-lg font-bold text-warning-900 tabular-nums">{pendingRecords.length}</dd>
+            </div>
+          )}
+          <div className="flex flex-1 flex-col-reverse gap-0.5 rounded-xl bg-neutral-100 py-2.5">
+            <dt className="text-xs text-neutral-700">這堂收入</dt>
+            <dd className="text-lg font-bold text-neutral-900 tabular-nums">${formatMoney(income)}</dd>
           </div>
-          <div className="flex-1 flex flex-col items-center gap-0.5 bg-neutral-100 rounded-xl py-2.5">
-            <span className="text-lg font-bold text-neutral-600">{pendingRecords.length}</span>
-            <span className="text-xs text-neutral-600">待處理</span>
-          </div>
-        </div>
+        </dl>
 
         {pendingRecords.length > 0 && (
           <PendingStudents records={pendingRecords} lesson={lesson} periodId={Number(periodId)} />
         )}
-        <div className="flex items-center justify-between w-full">
-          <p className="text-sm font-medium text-neutral-700">顯示收入</p>
-          <Switch checked={showIncome} onCheckedChange={setShowIncome} />
-        </div>
         <div className="flex flex-col gap-2 w-full">
           {paidRecords?.map((attendanceRecord) => (
             <div
@@ -202,33 +210,19 @@ const CheckPeriodSuccess = () => {
                   {attendanceRecord.sessionsUsed > 1 && ` −${attendanceRecord.sessionsUsed}`}
                 </StatusTag>
               )}
-              {/* 沒付的單堂：右邊放「收款」按鈕，不再佔一欄文字 */}
-              {(showIncome || !attendanceRecord.dropIn || attendanceRecord.dropIn.isPaid) && (
-              <div className="text-sm text-neutral-600 w-24 text-right">
-                {showIncome ? (
-                  <span className="font-semibold text-neutral-900">${Math.round(attendanceRecord?.income)}</span>
-                ) : attendanceRecord.dropIn ? (
-                  <span>{attendanceRecord.dropIn.paymentMethod === "TRANSFER" ? "轉帳" : "現金"}</span>
-                ) : (
-                  <span>
-                    剩 {attendanceRecord?.remainingSessions} 堂
-                  </span>
-                )}
-              </div>
-              )}
+              {attendanceRecord.dropIn
+                ? attendanceRecord.dropIn.isPaid && (
+                    <span className="w-16 text-right text-sm text-neutral-600">
+                      {attendanceRecord.dropIn.paymentMethod === "TRANSFER" ? "轉帳" : "現金"}
+                    </span>
+                  )
+                : isLatest && (
+                    <span className="w-16 text-right text-sm tabular-nums text-neutral-600">
+                      剩 {attendanceRecord?.remainingSessions} 堂
+                    </span>
+                  )}
             </div>
           ))}
-          {showIncome && (
-            <div className="flex justify-between w-full px-3 py-2.5 bg-primary-50 rounded-xl mt-2">
-              <span className="text-sm font-semibold text-neutral-700">合計</span>
-              <span className="text-sm font-bold text-primary-900">
-                $
-                {Math.round(
-                  paidRecords?.reduce((acc, record) => acc + record.income, 0)
-                )}
-              </span>
-            </div>
-          )}
         </div>
 
         {absentStudents.length > 0 && (

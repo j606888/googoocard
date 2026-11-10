@@ -36,9 +36,6 @@ const TeacherList = () => {
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-bold text-neutral-900">老師</h2>
-        <p className="text-sm text-neutral-500">
-          誰在教哪些課、下一堂是什麼時候。
-        </p>
       </div>
       <Button onClick={() => setFormKey(Date.now())}>
         <Plus className="size-4" />

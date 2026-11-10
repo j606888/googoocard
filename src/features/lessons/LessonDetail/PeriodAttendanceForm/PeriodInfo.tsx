@@ -46,10 +46,7 @@ const PeriodInfo = ({ period }: { period: Period }) => {
         <div className="flex items-start gap-2 px-1 text-sm font-semibold text-warning-950">
           <TriangleAlert className="w-4 h-4 shrink-0 mt-0.5 text-warning-700" />
           <span>
-            {`這是 ${format(new Date(period.startTime), "M月d日")} 的課，不是今天（${format(
-              new Date(),
-              "M月d日"
-            )}）。確定要點這一堂嗎？`}
+            {`這是 ${format(new Date(period.startTime), "M/d")} 的課，不是今天`}
           </span>
         </div>
       )}

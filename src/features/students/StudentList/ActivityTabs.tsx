@@ -50,9 +50,11 @@ const ActivityTabs = ({
             {count}
             <span className="ml-0.5 text-xs lg:text-sm font-normal text-neutral-500">位</span>
           </span>
-          <span className="hidden lg:block text-xs text-neutral-500 truncate max-w-full">
-            {meta ? meta.desc : "依下面三區排列"}
-          </span>
+          {meta && (
+            <span className="hidden lg:block text-xs text-neutral-500 truncate max-w-full">
+              {meta.desc}
+            </span>
+          )}
         </button>
       );
     })}
