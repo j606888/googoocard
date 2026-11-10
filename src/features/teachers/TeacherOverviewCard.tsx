@@ -11,7 +11,9 @@ const LESSON_LIMIT = 3;
 /** One teacher on the overview: who, which branches, what's next, which lessons. */
 const TeacherOverviewCard = ({ teacher }: { teacher: TeacherOverviewRow }) => {
   const archived = Boolean(teacher.archivedAt);
-  const { nextPeriod, activeLessons } = teacher;
+  const { nextPeriod, activeLessons, assistedLessons } = teacher;
+  const shownAssisted = assistedLessons.slice(0, LESSON_LIMIT);
+  const moreAssisted = assistedLessons.length - shownAssisted.length;
   const shownLessons = activeLessons.slice(0, LESSON_LIMIT);
   const moreLessons = activeLessons.length - shownLessons.length;
 
@@ -67,7 +69,7 @@ const TeacherOverviewCard = ({ teacher }: { teacher: TeacherOverviewRow }) => {
           </div>
 
           {activeLessons.length === 0 ? (
-            <p className="text-sm text-neutral-500">沒有進行中的課</p>
+            assistedLessons.length === 0 && <p className="text-sm text-neutral-500">沒有進行中的課</p>
           ) : (
             <ul className="flex flex-col gap-0.5">
               {shownLessons.map((lesson) => (
@@ -87,6 +89,30 @@ const TeacherOverviewCard = ({ teacher }: { teacher: TeacherOverviewRow }) => {
                 <li className="px-0 pt-1 text-xs text-neutral-500">還有 {moreLessons} 堂</li>
               )}
             </ul>
+          )}
+
+          {assistedLessons.length > 0 && (
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-neutral-500">協助</span>
+              <ul className="flex flex-col gap-0.5">
+                {shownAssisted.map((lesson) => (
+                  <li key={lesson.id}>
+                    <Link
+                      href={`/lessons/${lesson.id}`}
+                      className="relative -mx-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+                    >
+                      <span
+                        className={`size-2 shrink-0 rounded-full ${danceStyleMeta(lesson.danceStyle).dot}`}
+                      />
+                      <span className="truncate">{lesson.name}</span>
+                    </Link>
+                  </li>
+                ))}
+                {moreAssisted > 0 && (
+                  <li className="px-0 pt-1 text-xs text-neutral-500">還有 {moreAssisted} 堂</li>
+                )}
+              </ul>
+            </div>
           )}
         </>
       )}

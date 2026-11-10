@@ -1,111 +1,49 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useGetLessonsQuery } from "@/store/slices/lessons";
 import {
   useGetLessonGroupsQuery,
   useCreateLessonGroupMutation,
 } from "@/store/slices/lessonGroups";
-import { useGetClassroomsQuery } from "@/store/slices/classrooms";
-import {
-  buildLessonSections,
-  shouldUseGroupedView,
-  type SectionId,
-} from "./lessonGrouping";
+import { buildSeries, filterSeries, splitSeries } from "./lessonSeries";
+import type { LessonScope } from "./useLessonScope";
 
-const collapsedKey = (classroomId: number) => `lesson-groups-collapsed:${classroomId}`;
-
-const loadCollapsed = (classroomId: number): SectionId[] => {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(collapsedKey(classroomId)) ?? "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveCollapsed = (classroomId: number, ids: SectionId[]) => {
-  try {
-    localStorage.setItem(collapsedKey(classroomId), JSON.stringify(ids));
-  } catch {
-    // Storage unavailable — collapse just won't survive a reload.
-  }
-};
+export type SeriesTab = "active" | "inactive";
 
 /**
- * 課程列表的資料、篩選狀態、分組與收合。元件只剩排版。
- * 純推導（分組、每列動作、提醒）在 `lessonGrouping.ts`。
+ * 「所有課程」的資料與篩選狀態：整間教室的課一次抓回來，依課種（`LessonGroup`）
+ * 排成 課種 → 期，篩選都在前端做。純推導在 `lessonSeries.ts`。
+ *
+ * `scope`（我的課／分部）是頁面層級的，跟「接下來」共用；這裡自己的是搜尋、舞種、分頁。
  */
-export const useLessonsList = () => {
-  const [activeTab, setActiveTab] = useState("inProgress");
-  const [sort, setSort] = useState("name");
+export const useLessonsList = (scope: LessonScope, myTeacherId: number | null) => {
+  const [tab, setTab] = useState<SeriesTab>("active");
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [danceStyleId, setDanceStyleId] = useState<number | null>(null);
-  const [locationId, setLocationId] = useState<number | null>(null);
-  const [page, setPage] = useState(1);
   const [newGroupName, setNewGroupName] = useState("");
-  const [collapsed, setCollapsed] = useState<SectionId[]>([]);
-
-  const { data: classroomData } = useGetClassroomsQuery();
-  const classroomId = classroomData?.currentClassroomId;
-
-  useEffect(() => {
-    if (classroomId != null) setCollapsed(loadCollapsed(classroomId));
-  }, [classroomId]);
-
-  // Debounce the search input before it hits the query.
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  // Any filter change restarts pagination from the first page.
-  useEffect(() => {
-    setPage(1);
-  }, [activeTab, sort, debouncedSearch, danceStyleId, locationId]);
 
   const { data: groups, isLoading: isGroupsLoading } = useGetLessonGroupsQuery();
-  const useGroupedView = shouldUseGroupedView(
-    debouncedSearch,
-    // Any chip filter flattens the grouped view the same way.
-    danceStyleId ?? locationId,
-    groups?.length ?? 0,
-    activeTab
+  // tab="all" 不帶 page = 不分頁：各期的編號要看到同課種全部的課才排得出來。
+  const { data, isLoading } = useGetLessonsQuery({ tab: "all", sort: "name" });
+  const [createLessonGroup, { isLoading: isCreatingGroup }] = useCreateLessonGroupMutation();
+
+  const all = useMemo(
+    () => buildSeries(data?.lessons ?? [], groups ?? []),
+    [data?.lessons, groups]
   );
-
-  // The grouped view shows every in-progress lesson at once (a studio's
-  // running schedule fits one fetch); only the flat list paginates.
-  const { data: lessons, isLoading, isFetching } = useGetLessonsQuery({
-    tab: activeTab,
-    sort,
-    search: debouncedSearch,
-    danceStyleId,
-    locationId,
-    page: useGroupedView ? undefined : page,
-  }, {
-    // Wait for the groups: they decide paged vs. unpaged, so fetching early
-    // would load the first page and then refetch everything.
-    skip: isGroupsLoading,
-  });
-  const [createLessonGroup, { isLoading: isCreatingGroup }] =
-    useCreateLessonGroupMutation();
-
-  const sections = useMemo(
+  const { active, inactive } = useMemo(
     () =>
-      useGroupedView && lessons
-        ? buildLessonSections(lessons.lessons, groups ?? [])
-        : [],
-    [useGroupedView, lessons, groups]
+      splitSeries(
+        filterSeries(all, {
+          search,
+          danceStyleId,
+          locationId: scope.locationId,
+          teacherId: scope.mine ? myTeacherId : null,
+        })
+      ),
+    [all, search, danceStyleId, scope.locationId, scope.mine, myTeacherId]
   );
-
-  const toggleSection = (id: SectionId) => {
-    setCollapsed((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      if (classroomId != null) saveCollapsed(classroomId, next);
-      return next;
-    });
-  };
 
   const createGroup = async () => {
     const name = newGroupName.trim();
@@ -116,26 +54,20 @@ export const useLessonsList = () => {
   };
 
   return {
-    lessons,
     isLoading: isLoading || isGroupsLoading,
-    isFetching,
-    sections,
-    useGroupedView,
-    isCollapsed: (id: SectionId) => collapsed.includes(id),
-    toggleSection,
-    /** 有在篩選（關鍵字或舞種）——空狀態的文案靠它分岔。 */
-    isFiltering: Boolean(debouncedSearch || danceStyleId || locationId),
-    activeTab,
-    setActiveTab,
-    sort,
-    setSort,
+    /** 這間教室一門課都沒有（不是被篩掉）。 */
+    hasNoLessons: !isLoading && (data?.lessons.length ?? 0) === 0,
+    series: tab === "active" ? active : inactive,
+    counts: { active: active.length, inactive: inactive.length },
+    availableDanceStyleIds: data?.availableDanceStyleIds ?? [],
+    availableLocationIds: data?.availableLocationIds ?? [],
+    isFiltering: Boolean(search.trim() || danceStyleId),
+    tab,
+    setTab,
     search,
     setSearch,
     danceStyleId,
     setDanceStyleId,
-    locationId,
-    setLocationId,
-    loadMore: () => setPage((p) => p + 1),
     newGroupName,
     setNewGroupName,
     createGroup,

@@ -37,6 +37,8 @@ export interface TeacherOverviewRow extends TeacherProfile {
   lessonCount: number;
   /** In-progress lessons this teacher teaches. */
   activeLessons: { id: number; name: string; danceStyle: DanceStyleSummary }[];
+  /** In-progress lessons this person assists (課程小幫手) — never counted as teaching. */
+  assistedLessons: AssistedLesson[];
   /** The period under way (`ongoing`) or the next one; null when nothing is scheduled. */
   nextPeriod: {
     startTime: string;
@@ -45,6 +47,14 @@ export interface TeacherOverviewRow extends TeacherProfile {
     lessonName: string;
     ongoing: boolean;
   } | null;
+}
+
+/** A lesson someone is 小幫手 of — listed under「協助」, outside every stat. */
+export interface AssistedLesson {
+  id: number;
+  name: string;
+  status: string;
+  danceStyle: DanceStyleSummary;
 }
 
 export interface TeachersOverview {
@@ -77,6 +87,8 @@ export interface TeacherDetail {
   previousMonthAttendance: number;
   trend: { month: string; sessions: number; attendance: number }[];
   lessons: TeacherLessonRow[];
+  /** Every lesson this person assists, any status — not part of `stats`／`trend`／`lessons`. */
+  assistedLessons: AssistedLesson[];
   periods: {
     id: number;
     startTime: string;

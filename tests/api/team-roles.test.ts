@@ -173,7 +173,7 @@ describe("PATCH /api/memberships/[id]", () => {
     expect(row.teacher).toMatchObject({ id: mei.id, name: "小美老師" });
   });
 
-  it("換一筆老師資料 → 舊的解除；改回小幫手 → 全部解除", async () => {
+  it("換一筆老師資料 → 舊的解除；改回小幫手 → 連結留著，要解除就明講 null", async () => {
     const { classroom, helper, mei, jay } = await seed();
     const m = await membershipOf(helper.id, classroom.id);
     await patchMember(m.id, { role: "teacher", teacherId: mei.id });
@@ -183,14 +183,24 @@ describe("PATCH /api/memberships/[id]", () => {
     expect(await linkedUser(jay.id)).toBe(helper.id);
 
     expect((await patchMember(m.id, { role: "assistant" })).status).toBe(200);
+    expect((await membershipOf(helper.id, classroom.id)).role).toBe("assistant");
+    expect(await linkedUser(jay.id)).toBe(helper.id);
+
+    expect((await patchMember(m.id, { teacherId: null })).status).toBe(200);
     expect(await linkedUser(jay.id)).toBeNull();
   });
 
-  it("小幫手不能帶老師資料 → 400", async () => {
+  it("小幫手也能連老師資料（課程小幫手就是從老師資料挑的）", async () => {
     const { classroom, helper, mei } = await seed();
     const m = await membershipOf(helper.id, classroom.id);
     const res = await patchMember(m.id, { role: "assistant", teacherId: mei.id });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    expect(await linkedUser(mei.id)).toBe(helper.id);
+    expect((await membershipOf(helper.id, classroom.id)).role).toBe("assistant");
+
+    const members = await (await LIST_MEMBERS(jsonRequest("GET"), routeParams({}))).json();
+    const row = members.find((x: { userId: number }) => x.userId === helper.id);
+    expect(row.teacher).toMatchObject({ id: mei.id });
   });
 
   it("老師資料已經是別人的 → 409，什麼都沒變", async () => {

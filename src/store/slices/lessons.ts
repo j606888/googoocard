@@ -17,6 +17,8 @@ export interface Lesson {
   students: Student[];
   periods: Period[];
   teachers: TeacherSummary[];
+  /** 課程小幫手（整門課）——也是 Teacher，不會跟 teachers 重複。 */
+  assistants: TeacherSummary[];
   danceStyleId: number;
   danceStyle: DanceStyleSummary;
   /** 1 = 初階, 2 = 中階, 3 = 進階 — see src/lib/danceLevels.ts. */
@@ -63,6 +65,7 @@ export interface LessonSummary {
   dropInOptions?: DropInOption[] | null;
   studentCount: number;
   teachers: TeacherSummary[];
+  assistants: TeacherSummary[];
   cardIds: number[];
   groupId: number | null;
   location: LocationSummary | null;
@@ -100,7 +103,10 @@ export interface AgendaPeriod {
     name: string;
     kind: LessonKind;
     danceStyle: DanceStyleSummary;
+    /** 分部 — null when not set. */
+    location: LocationSummary | null;
     teachers: TeacherSummary[];
+    assistants: TeacherSummary[];
     studentCount: number;
     totalPeriods: number;
   };
@@ -145,6 +151,8 @@ export interface Answer {
 export interface DraftLesson {
   lessonName: string;
   teacherIds: number[];
+  /** 課程小幫手（Teacher ids，不能跟 teacherIds 重複）。Omitted on create = none; omitted on update = unchanged. */
+  assistantIds?: number[];
   cardIds: number[];
   danceStyleId: number;
   /** 1 = 初階 (default), 2 = 中階, 3 = 進階. */

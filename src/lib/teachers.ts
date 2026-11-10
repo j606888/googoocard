@@ -66,3 +66,21 @@ export const teacherPayloadSelect = {
   archivedAt: true,
   locations: { select: locationSummarySelect, orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
 } satisfies Prisma.TeacherSelect;
+
+/** 選小幫手時的排序：會當助教的（ASSISTANT／BOTH）排前面，其餘照原順序。 */
+export function assistantsFirst<T extends { kind: TeacherKind }>(teachers: readonly T[]): T[] {
+  const rank = (kind: TeacherKind) => (kind === "TEACHER" ? 1 : 0);
+  return [...teachers].sort((a, b) => rank(a.kind) - rank(b.kind));
+}
+
+/** 「小美、阿傑 · 小幫手 丁丁」——課程標題下那一行的人名；兩邊都沒有回 null。 */
+export function lessonPeopleLabel(
+  teachers: readonly { name: string }[],
+  assistants: readonly { name: string }[] = []
+): string | null {
+  const parts = [
+    teachers.map((t) => t.name).join("、"),
+    assistants.length > 0 ? `小幫手 ${assistants.map((a) => a.name).join("、")}` : "",
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}

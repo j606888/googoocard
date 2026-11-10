@@ -7,6 +7,7 @@ import { ArrowLeft, Check, PencilLine } from "lucide-react";
 import { Lesson } from "@/store/slices/lessons";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { lessonLevelLabel } from "@/lib/danceLevels";
+import { lessonPeopleLabel } from "@/lib/teachers";
 import { Button } from "@/components/ui/button";
 import StatusTag from "@/components/StatusTag";
 import { weeklyScheduleLabel } from "../lessonSchedule";
@@ -35,7 +36,7 @@ const LessonDetailHeader = ({
 
   const facts = [
     lesson.kind === "ongoing" ? "持續開課" : "固定期數",
-    lesson.teachers.length > 0 ? lesson.teachers.map((t) => t.name).join("、") : null,
+    lessonPeopleLabel(lesson.teachers, lesson.assistants),
     lesson.location?.name ?? null,
     schedule,
     lesson.sessionsPerAttendance > 1 ? `每次扣 ${lesson.sessionsPerAttendance} 格` : null,

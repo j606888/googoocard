@@ -136,29 +136,31 @@ enum TeacherKind {
 }
 
 model Teacher {
-  id          Int             @id @default(autoincrement())
-  name        String
+  id              Int               @id @default(autoincrement())
+  name            String
   // Palette key (DANCE_STYLE_COLORS, src/lib/danceStyles.ts) for the avatar.
-  color       String          @default("blue")
+  color           String            @default("blue")
   // An emoji from TEACHER_ICONS (src/lib/teachers.ts) shown instead of the initial.
-  icon        String?
+  icon            String?
   // 這位老師在哪些分部上課——純標示，不限制排課。
-  locations   Location[]
-  note        String?
+  locations       Location[]
+  note            String?
   // Archived, not deleted, once a teacher has lessons — old lessons keep them.
-  archivedAt  DateTime?
-  classroomId Int
-  classroom   Classroom       @relation(fields: [classroomId], references: [id])
-  lessons     LessonTeacher[]
-  // The member (role teacher, or an admin) this teacher is. Their lessons show
-  // under 我接下來的課 on the lessons page. One per user per classroom.
-  userId      Int?
-  user        User?           @relation(fields: [userId], references: [id])
+  archivedAt      DateTime?
+  classroomId     Int
+  classroom       Classroom         @relation(fields: [classroomId], references: [id])
+  lessons         LessonTeacher[]
+  // 這個人當小幫手的課（不算教課，老師頁另列在「協助」）。
+  assistedLessons LessonAssistant[]
+  // The member this teacher is (any role — a 小幫手 can be linked too). The
+  // lessons they teach or assist are "my lessons". One per user per classroom.
+  userId          Int?
+  user            User?             @relation(fields: [userId], references: [id])
   // 老師／助教／都是：只當助教的，排課選老師時不列出；只教課的，點名選助教時不列出。
-  kind        TeacherKind     @default(TEACHER)
-  invites     InviteToken[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  kind            TeacherKind       @default(TEACHER)
+  invites         InviteToken[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@unique([classroomId, userId])
   @@index([classroomId])
@@ -289,23 +291,23 @@ model StudentCard {
 }
 
 model Lesson {
-  id                    Int             @id @default(autoincrement())
+  id                    Int               @id @default(autoincrement())
   name                  String
   classroomId           Int
-  classroom             Classroom       @relation(fields: [classroomId], references: [id])
-  status                String          @default("inProgress")
+  classroom             Classroom         @relation(fields: [classroomId], references: [id])
+  status                String            @default("inProgress")
   endAt                 DateTime?
   // "fixed" = a set run of dates, finished once every period is checked;
   // "ongoing" = keeps adding periods, never auto-finishes (src/lib/lessonKind.ts).
-  kind                  String          @default("fixed")
+  kind                  String            @default("fixed")
   // Set when a teacher ends a lesson by hand — finished regardless of kind.
   endedAt               DateTime?
   danceStyleId          Int
-  danceStyle            DanceStyle      @relation(fields: [danceStyleId], references: [id])
+  danceStyle            DanceStyle        @relation(fields: [danceStyleId], references: [id])
   // Level taught (1 = 初階, 2 = 中階, 3 = 進階 — src/lib/danceLevels.ts).
-  level                 Int             @default(1)
+  level                 Int               @default(1)
   // 每次出席扣幾格課卡（外師課常用 2）。點名當下抄到 AttendanceRecord.sessionsUsed。
-  sessionsPerAttendance Int             @default(1)
+  sessionsPerAttendance Int               @default(1)
   // 單堂價（現場付費，不扣課卡）。null = 這堂不開放單堂付費。
   dropInPrice           Int?
   // 單堂方案（src/lib/dropInOptions.ts）：[{ name, price, note? }]，最多 4 個。
@@ -313,15 +315,17 @@ model Lesson {
   dropInOptions         Json?
   // 分部（台南／高雄…）。選填；課卡不分部限定。
   locationId            Int?
-  location              Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  location              Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
   groupId               Int?
-  group                 LessonGroup?    @relation(fields: [groupId], references: [id])
+  group                 LessonGroup?      @relation(fields: [groupId], references: [id])
   teachers              LessonTeacher[]
+  // 這門課的小幫手（整門課，不分時段）。同一個人不會同時是老師又是小幫手。
+  assistants            LessonAssistant[]
   cards                 LessonCard[]
   periods               LessonPeriod[]
   students              LessonStudent[]
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   @@index([classroomId])
   @@index([groupId])
@@ -398,6 +402,18 @@ model LessonTeacher {
   teacher   Teacher  @relation(fields: [teacherId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([lessonId, teacherId])
+  @@index([teacherId])
+}
+
+model LessonAssistant {
+  id        Int      @id @default(autoincrement())
+  lessonId  Int
+  teacherId Int
+  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+  createdAt DateTime @default(now())
 
   @@unique([lessonId, teacherId])
   @@index([teacherId])

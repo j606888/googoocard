@@ -1,6 +1,7 @@
 import { useId } from "react";
 import Field, { FieldError, FieldLabel } from "@/components/Field";
 import Select from "@/components/Select";
+import { assistantsFirst, TEACHER_KIND_LABELS, type TeacherKind } from "@/lib/teachers";
 import { useCreateTeacherMutation, useGetTeachersQuery } from "@/store/slices/teachers";
 
 /** Which Teacher row a member is: an existing one, a new one by name, or none. */
@@ -15,38 +16,42 @@ const NONE = "";
 /**
  * Picks the Teacher row a member is linked to. Lists active teachers nobody
  * else is linked to (`forUserId`'s own link stays pickable), plus「新增老師」.
- * `optional` adds 不連結 (an admin needn't teach).
+ * `optional` adds 不連結 (an admin or a 小幫手 needn't be one).
+ * `forAssistant` — linking a 小幫手: teachers who assist (助教／都是) come first.
  */
 export default function TeacherPicker({
   value,
   onChange,
   forUserId,
   optional = false,
+  forAssistant = false,
   error,
 }: {
   value: TeacherChoice;
   onChange: (choice: TeacherChoice) => void;
   forUserId: number | null;
   optional?: boolean;
+  forAssistant?: boolean;
   error?: string;
 }) {
   const id = useId();
   const { data: teachers } = useGetTeachersQuery();
-  const linkable = (teachers ?? []).filter(
+  const unlinked = (teachers ?? []).filter(
     (t) => !t.archivedAt && (t.userId === null || t.userId === forUserId)
   );
+  const linkable = forAssistant ? assistantsFirst(unlinked) : unlinked;
   const selectValue =
     value.kind === "existing" ? String(value.id) : value.kind === "new" ? NEW : NONE;
 
   return (
     <div className="flex flex-col gap-1.5">
-      <FieldLabel htmlFor={id}>他是哪一位老師？</FieldLabel>
+      <FieldLabel htmlFor={id}>{forAssistant ? "他是哪一位小幫手？" : "他是哪一位老師？"}</FieldLabel>
       <Select
         id={id}
         value={selectValue}
         error={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
-        placeholder="選擇老師"
+        placeholder={forAssistant ? "選擇老師資料" : "選擇老師"}
         onChange={(v) => {
           onChange(
             v === NEW ? { kind: "new", name: "" } : v === NONE ? { kind: "none" } : { kind: "existing", id: Number(v) }
@@ -57,14 +62,19 @@ export default function TeacherPicker({
           ...linkable.map((t) => ({
             value: String(t.id),
             label: t.name,
-            hint: t.activeLessonCount > 0 ? `${t.activeLessonCount} 堂進行中` : undefined,
+            hint:
+              forAssistant && t.kind !== "TEACHER"
+                ? TEACHER_KIND_LABELS[t.kind]
+                : t.activeLessonCount > 0
+                  ? `${t.activeLessonCount} 堂進行中`
+                  : undefined,
           })),
-          { value: NEW, label: "＋ 新增老師" },
+          { value: NEW, label: forAssistant ? "＋ 新增小幫手" : "＋ 新增老師" },
         ]}
       />
       {value.kind === "new" && (
         <Field
-          label="新老師的名字"
+          label={forAssistant ? "小幫手的名字" : "新老師的名字"}
           className="mt-2"
           placeholder="例如：小美"
           maxLength={30}
@@ -75,7 +85,11 @@ export default function TeacherPicker({
       {error ? (
         <FieldError id={`${id}-error`}>{error}</FieldError>
       ) : (
-        <p className="text-xs text-neutral-500">掛著這位老師的課，會出現在他的課程頁最上面。</p>
+        <p className="text-xs text-neutral-500">
+          {forAssistant
+            ? "他當小幫手（或老師）的課，會出現在他的課程頁最上面。"
+            : "掛著這位老師的課，會出現在他的課程頁最上面。"}
+        </p>
       )}
     </div>
   );
@@ -91,10 +105,11 @@ export function teacherChoiceError(choice: TeacherChoice, required: boolean): st
 /** Turns a choice into a teacher id, creating the teacher first for「新增老師」. */
 export function useResolveTeacherChoice() {
   const [createTeacher] = useCreateTeacherMutation();
-  return async (choice: TeacherChoice): Promise<number | null> => {
+  /** `newKind` — what a teacher created on the spot is (a 小幫手's new row is 助教). */
+  return async (choice: TeacherChoice, newKind?: TeacherKind): Promise<number | null> => {
     if (choice.kind === "none") return null;
     if (choice.kind === "existing") return choice.id;
-    const created = await createTeacher({ name: choice.name.trim() }).unwrap();
+    const created = await createTeacher({ name: choice.name.trim(), kind: newKind }).unwrap();
     return created.id;
   };
 }

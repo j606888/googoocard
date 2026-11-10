@@ -68,6 +68,18 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - **刪除只限沒教過課的老師**（409 `TEACHER_HAS_LESSONS`），其他一律封存。封存的老師不出現在開課選單，但已經掛著這位老師的課照常顯示。
 - 開課 / 改課的 `teacherIds` 會驗證都是本教室的老師（400 `TEACHER_NOT_FOUND`），封存的也算數。
 - 數字會被別處的點名改變，而點名的 mutation 不會 invalidate `Teacher` tag，所以兩頁的 query 都用 `refetchOnMountOrArgChange`。
+- **「協助」另外列**：這個人當課程小幫手的課（`assistedLessons`，見下一節）在總覽卡片與詳情頁的「課程」區塊下方以「協助」小標列出（只列進行中的），**不進** `activeLessons`／`lessons`／`lessonCount`／`nextPeriod`／每月數字。協助過課的人一樣不能刪（409 `TEACHER_HAS_LESSONS`）。
+
+## 課程小幫手（`LessonAssistant`，2026-11）
+
+一門課除了教課的老師（`LessonTeacher`），還可以掛幾位**小幫手**——整門課一份，不分時段。
+
+- **資料**：`LessonAssistant(lessonId, teacherId)`，`Lesson.assistants`／`Teacher.assistedLessons`。小幫手也是教室的 `Teacher`（任何 `kind` 都能選，選單把 `ASSISTANT`／`BOTH` 排前面——`assistantsFirst()`，`src/lib/teachers.ts`）；同一個人可以教 A 課、協助 B 課。`LessonTeacher` 與所有既有的 `teachers` 查詢都沒動，所以教課統計不受影響。
+- **寫入**：`POST /api/lessons`、`PUT /api/lessons/[id]` 收選填的 `assistantIds: number[]`，由 `resolveAssistantIds()`（`src/service/lessonAssistants.ts`）驗證：都要是本教室的老師（400 `ASSISTANT_NOT_FOUND`，封存的也算）、不能同時在 `teacherIds` 裡（400 `ASSISTANT_IS_TEACHER`）。PUT 有送就整份取代；**沒送 = 不動**（舊 client 不會把小幫手洗掉），只把這次變成老師的人從小幫手拿掉。
+- **讀取**：課程清單、課程詳情、`GET /api/lessons/agenda`、`GET /api/me/lessons` 的課程都多一個 `assistants: TeacherSummary[]`（跟 `teachers` 同形狀，`teacherSummarySelect`）。
+- **「我的課」＝我教的＋我協助的**：`getLessonAgenda()` 的 `myUpcoming` 與 `getMyUpcomingPeriods()` 都用 `OR: [teachers, assistants]` 比對 `myTeacherId`。
+- **畫面**：課程設定「課卡與老師」分頁與新增課程表單的「小幫手」多選（`newLesson/AssistantSelect.tsx`，已選成老師的人不列出；把人選成老師會自動從小幫手拿掉）；課程頁標題列寫「Sean · 小幫手 丁丁」（`lessonPeopleLabel()`）。「複製開新期」的 `LessonCloneSource.assistantIds` 會帶進新課。
+- `GET /api/lessons/agenda` 同時改成回**往後 7 天內開始的每一個時段**（原本只取 10 堂），每堂課多帶 `location`。
 
 ## 複習卡資格系統
 
@@ -179,10 +191,11 @@ Classroom（頂層容器，所有實體都屬於一間教室）
   替手動結束的課**排新時段會自動重開**（`POST .../periods` 會清掉 `endedAt`）。
 - **一次排多堂**：`POST /api/lessons/[id]/periods` 接受 `{ startTime, endTime }` 或
   `{ periods: [...] }`（最多 12 筆）。
-- **列表**（`features/lessons/`）：沒篩選的「進行中」依群組**直接展開**（`LessonGroupSection` +
-  `LessonTable`，不再點進群組頁；收合狀態存 localStorage，key 帶 classroomId）。
-  「已結束」與篩選中維持分頁的攤平列表。每列動作由 `lessonRowAction()` 決定：
-  待點名 > 持續開課且沒排下一堂（「＋下一堂」，預設沿用上一堂的星期與時間、推到今天以後）> 無。
+- **列表**（`features/lessons/`，2026-11 改版）：兩區。「接下來」（`AgendaList` + `useLessonAgenda` 的
+  `agendaRows()`）＝還沒點名 → 上課中 → 未來 7 天的時段，一堂一列，補勾遲到是上課中那一列的按鈕。
+  「所有課程」（`SeriesList` + `lessonSeries.ts`）依**課種**排：一個 `LessonGroup` 就是一個課種，
+  底下每門課是一期，「第幾期」照開始日算、不存；沒歸課種的進行中課各自成列，已結束的集中到「未分類」。
+  最上面的「我的課／全部」＋分部同時篩兩區，記在 localStorage（`useLessonScope`，key 帶 classroomId）。
 - 新增課程時選型態；上次選的型態依教室記在 localStorage 當預設。
 
 ## 一次扣多格（外師課，2026-10）
@@ -598,15 +611,16 @@ App 換教室時重新走一次（`epoch` 當 WebView 的 key）。
 | `owner` | 管理員（皇冠） | 建立教室的人，恰好一位（`Classroom.ownerId`）。管理員能做的全部＋封存教室、把教室交給別人 | 退出教室（要先轉出去）、被移除、被改角色 |
 | `admin` | 管理員 | 邀請（指定角色）、改別人的角色、連結老師資料、移除成員（建立者除外） | 封存／轉移教室、改自己的角色 |
 | `teacher` | 老師 | 日常功能全部；**一定連著一筆 `Teacher`**，課程列表最上面的「下一堂／上課中」大卡優先挑自己教的課 | 邀請、改角色、移除成員 |
-| `assistant` | 小幫手 | 日常功能全部（跟老師一樣，收入頁、課卡價格也看得到改得到——刻意的決定） | 同老師；不能連老師資料 |
+| `assistant` | 小幫手 | 日常功能全部（跟老師一樣，收入頁、課卡價格也看得到改得到——刻意的決定）；可以連一筆 `Teacher`（選填），他協助的課就是「我的課」 | 同老師 |
 
 **只有「管人」這件事分權限**：邀請連結的建立／刪除（`/api/invite-tokens`）、`PATCH`／`DELETE /api/memberships/[id]` 走 `assertAdmin(role)`（`src/lib/authz.ts`，403 `NOT_CLASSROOM_ADMIN`）；其他所有 route 對三種角色一視同仁。
 
 （2026-10-26～11-01 曾有「權限同捆包＋個人加減」與可開關的功能模組——水庫、技能樹——2026-11-01 整套移除，回到純角色；見 `docs/roadmap.md`。）
 
 **老師 ↔ 老師資料**：`Teacher.userId`（nullable，`@@unique([classroomId, userId])`——一個人在一間教室最多是一位老師）。
-課程本來就有 `LessonTeacher`，所以「我的課」直接從「掛著我這位老師的課」推導，**不做釘選**：課程列表頂端的大卡（`GET /api/lessons/agenda` 回 `myTeacherId`，`pickHero()` 先挑自己教的課，自己沒課才看全教室，`src/features/lessons/lessonSchedule.ts`）。舊的「我接下來的課」區塊已拿掉；`GET /api/me/lessons`（`getMyUpcomingPeriods()`）還在，目前網頁沒在用。
-- `teacher` 一定要連（`TEACHER_REQUIRED`）；`admin`／`owner` 可選（會教課的管理員）；`assistant` 一律不連，改成小幫手會自動解除。
+課程本來就有 `LessonTeacher`（老師）與 `LessonAssistant`（小幫手），所以「我的課」直接從「掛著我這筆老師資料的課」——**教的＋協助的**——推導，**不做釘選**：課程列表頂端的大卡（`GET /api/lessons/agenda` 回 `myTeacherId`，`pickHero()` 先挑自己的課，自己沒課才看全教室，`src/features/lessons/lessonSchedule.ts`）。舊的「我接下來的課」區塊已拿掉；`GET /api/me/lessons`（`getMyUpcomingPeriods()`）還在，目前網頁沒在用。
+- `teacher` 一定要連（`TEACHER_REQUIRED`）；`admin`／`owner`／`assistant` 可選（會教課的管理員、掛在課程上的小幫手）。2026-11 起小幫手也能連（原本 400 `ASSISTANT_CANNOT_LINK_TEACHER`，已移除）；**改角色不會動連結**，要解除就送 `teacherId: null`。成員設定替小幫手挑老師資料時，`ASSISTANT`／`BOTH` 排前面，當場新增的那筆 `kind = ASSISTANT`。
+- **邀請連結沒變**：只有老師的邀請帶 `teacherId`（`inviteCanLinkTeacher()`，`src/lib/roles.ts`）；小幫手的邀請可多人使用，所以不帶，加入後由管理員在成員設定連。
 - 一筆老師資料只能連一個人（409 `TEACHER_ALREADY_LINKED`）；換連另一筆時舊的自動解除（`linkTeacher()`，`src/service/team.ts`）。
 - 退出、被移除、刪帳號都會解除連結，`Teacher` 本身留著（舊課還掛著它）。
 

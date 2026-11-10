@@ -3,7 +3,6 @@ import { apiRoute, parseBody, parseId } from "@/lib/apiRoute";
 import { ApiError, badRequest } from "@/lib/apiError";
 import { assertAdmin } from "@/lib/authz";
 import { updateMembershipSchema } from "@/lib/schemas";
-import { canLinkTeacher } from "@/lib/roles";
 import { linkTeacher, unlinkTeacher } from "@/service/team";
 
 type Params = { id: string };
@@ -25,8 +24,9 @@ async function findMembershipInClassroom(rawId: string, classroomId: number) {
  *
  * The owner's role isn't changeable here (that's transfer-ownership), and
  * nobody changes their own role — an admin can't lock themselves out by
- * accident. Linking a teacher is allowed for anyone but a 小幫手, including
- * the caller (an admin who also teaches). A teacher always ends up linked.
+ * accident. Linking a teacher is allowed for every role, 小幫手 included (the
+ * lessons they assist become "my lessons"), and for the caller (an admin who
+ * also teaches). A teacher always ends up linked; changing a role keeps the link.
  */
 export const PATCH = apiRoute<Params>(async ({ request, params, userId, classroomId, role: callerRole }) => {
   assertAdmin(callerRole);
@@ -47,13 +47,7 @@ export const PATCH = apiRoute<Params>(async ({ request, params, userId, classroo
     where: { classroomId, userId: membership.userId },
     select: { id: true },
   });
-  let teacherId = body.teacherId !== undefined ? body.teacherId : (current?.id ?? null);
-  if (!canLinkTeacher(role)) {
-    if (body.teacherId) {
-      throw badRequest("ASSISTANT_CANNOT_LINK_TEACHER", "A 小幫手 is not linked to a teacher");
-    }
-    teacherId = null;
-  }
+  const teacherId = body.teacherId !== undefined ? body.teacherId : (current?.id ?? null);
   if (role === "teacher" && teacherId === null) {
     throw badRequest("TEACHER_REQUIRED", "A teacher must be linked to a teacher profile");
   }

@@ -52,6 +52,14 @@ function trendWindow(month: string) {
   };
 }
 
+/** 「協助」清單的一堂課。 */
+const assistedLessonSelect = {
+  id: true,
+  name: true,
+  status: true,
+  danceStyle: { select: danceStyleSummarySelect },
+} as const;
+
 /**
  * Every teacher of the classroom with the in-progress lessons they teach and
  * their current / next period. Teachers with a class coming up first, soonest
@@ -76,6 +84,12 @@ export async function getTeachersOverview(classroomId: number, now = new Date())
           },
           orderBy: { lessonId: "asc" },
         },
+        // 當小幫手的進行中課程——另外列在「協助」，不算教課。
+        assistedLessons: {
+          where: { lesson: { status: "inProgress" } },
+          select: { lesson: { select: assistedLessonSelect } },
+          orderBy: { lessonId: "asc" },
+        },
       },
       orderBy: { id: "asc" },
     }),
@@ -94,7 +108,7 @@ export async function getTeachersOverview(classroomId: number, now = new Date())
     }),
   ]);
 
-  const rows = teachers.map(({ lessons, ...teacher }) => {
+  const rows = teachers.map(({ lessons, assistedLessons, ...teacher }) => {
     const next = upcoming.find((period) =>
       period.lesson.teachers.some((link) => link.teacherId === teacher.id)
     );
@@ -105,6 +119,7 @@ export async function getTeachersOverview(classroomId: number, now = new Date())
       activeLessons: lessons
         .filter(({ lesson }) => lesson.status === "inProgress")
         .map(({ lesson }) => ({ id: lesson.id, name: lesson.name, danceStyle: lesson.danceStyle })),
+      assistedLessons: assistedLessons.map(({ lesson }) => lesson),
       nextPeriod: next
         ? {
             startTime: next.startTime,
@@ -162,6 +177,11 @@ export async function getTeacherDetail(
           },
         },
       },
+      // 當小幫手的課（全部狀態）——不進下面任何統計。
+      assistedLessons: {
+        select: { lesson: { select: assistedLessonSelect } },
+        orderBy: { lessonId: "desc" },
+      },
     },
   });
   if (!teacher) return null;
@@ -192,7 +212,7 @@ export async function getTeacherDetail(
   });
   const studentById = new Map(regularStudents.map((student) => [student.id, student]));
 
-  const { lessons, ...profile } = teacher;
+  const { lessons, assistedLessons, ...profile } = teacher;
   const allStarts = lessons.flatMap(({ lesson }) => lesson.periods.map((p) => p.startTime));
 
   return {
@@ -226,6 +246,7 @@ export async function getTeacherDetail(
       })
       // Most recent first: by last period, lessons without periods last.
       .sort((a, b) => (b.lastStart?.getTime() ?? 0) - (a.lastStart?.getTime() ?? 0)),
+    assistedLessons: assistedLessons.map(({ lesson }) => lesson),
     periods: inMonth.map((period) => ({
       id: period.id,
       startTime: period.startTime,

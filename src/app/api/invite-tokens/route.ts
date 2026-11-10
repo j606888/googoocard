@@ -3,7 +3,7 @@ import { apiRoute, parseBody } from "@/lib/apiRoute";
 import { badRequest } from "@/lib/apiError";
 import { assertAdmin } from "@/lib/authz";
 import { createInviteSchema } from "@/lib/schemas";
-import { canLinkTeacher } from "@/lib/roles";
+import { inviteCanLinkTeacher } from "@/lib/roles";
 import { findLinkableTeacher } from "@/service/team";
 import { nanoid } from "nanoid";
 
@@ -25,7 +25,7 @@ export const POST = apiRoute(async ({ request, classroomId, role: callerRole }) 
   if (role === "teacher" && !teacherId) {
     throw badRequest("TEACHER_REQUIRED", "A teacher invite needs the teacher it links to");
   }
-  const linkTo = teacherId && canLinkTeacher(role) ? teacherId : null;
+  const linkTo = teacherId && inviteCanLinkTeacher(role) ? teacherId : null;
   if (linkTo) {
     await findLinkableTeacher(prisma, classroomId, linkTo, null);
   }

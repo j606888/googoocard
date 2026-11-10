@@ -37,12 +37,12 @@ const LessonGroupSelect = ({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <FieldLabel>群組</FieldLabel>
+      <FieldLabel>課種</FieldLabel>
       <MultiSelect
         options={groupOptions}
         values={groupId !== null ? [groupId] : []}
-        newOptionLabel="新增群組"
-        placeholder="未分類（不加入群組）"
+        newOptionLabel="新增課種"
+        placeholder="未分類（不歸到課種）"
         newOptionOnClick={() => setNewGroupModalOpen(true)}
         onChange={(values) => {
           // MultiSelect appends the newly picked value last — take that as
@@ -52,7 +52,7 @@ const LessonGroupSelect = ({
         }}
       />
       <Drawer
-        title="新增群組"
+        title="新增課種"
         open={newGroupModalOpen}
         onClose={() => setNewGroupModalOpen(false)}
         onSubmit={handleCreateGroup}
@@ -67,7 +67,7 @@ const LessonGroupSelect = ({
           <Field
             label="名稱"
             className="mb-4"
-            placeholder="例如：週日課"
+            placeholder="例如：Bachata Level 1"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
           />

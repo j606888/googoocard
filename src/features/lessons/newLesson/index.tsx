@@ -3,6 +3,7 @@ import { useState } from "react";
 import CardSelect from "./CardSelect";
 import { Button } from "@/components/ui/button";
 import TeacherSelect from "./TeacherSelect";
+import AssistantSelect from "./AssistantSelect";
 import LessonGroupSelect from "./LessonGroupSelect";
 import LocationSelect from "./LocationSelect";
 import { useLocations } from "@/hooks/useLocations";
@@ -104,6 +105,9 @@ const NewLesson = () => {
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(
     initialClone?.teacherIds ?? []
   );
+  const [selectedAssistantIds, setSelectedAssistantIds] = useState<number[]>(
+    initialClone?.assistantIds ?? []
+  );
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>(
     initialClone?.cardIds ?? []
   );
@@ -155,6 +159,8 @@ const NewLesson = () => {
 
   const handleTeacherChange = (value: number[]) => {
     setSelectedTeacherIds(value);
+    // 同一個人不能又是老師又是小幫手——選成老師就從小幫手拿掉。
+    setSelectedAssistantIds((prev) => prev.filter((id) => !value.includes(id)));
     if (errors.teachers) {
       setErrors((prev) => ({ ...prev, teachers: undefined }));
     }
@@ -206,6 +212,7 @@ const NewLesson = () => {
       await createLesson({
         lessonName,
         teacherIds: selectedTeacherIds,
+        assistantIds: selectedAssistantIds,
         cardIds: selectedCardIds,
         danceStyleId,
         // A style without levels has no 階級 picker; its lessons are 初階.
@@ -302,6 +309,11 @@ const NewLesson = () => {
                   error={errors.teachers}
                   onChange={handleTeacherChange}
                   selectedTeacherIds={selectedTeacherIds}
+                />
+                <AssistantSelect
+                  selectedAssistantIds={selectedAssistantIds}
+                  teacherIds={selectedTeacherIds}
+                  onChange={setSelectedAssistantIds}
                 />
                 <CardSelect
                   error={errors.cards}

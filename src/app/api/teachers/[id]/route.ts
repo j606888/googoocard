@@ -39,14 +39,17 @@ export const PATCH = apiRoute<{ id: string }>(async ({ request, params, classroo
   });
 });
 
-// Only a teacher who never had a lesson can be deleted (a typo, a mistake);
+// Only a teacher who never had a lesson (taught or assisted) can be deleted (a typo, a mistake);
 // anyone else is archived, so old lessons keep their teacher.
 export const DELETE = apiRoute<{ id: string }>(async ({ params, classroomId }) => {
   const id = parseId(params.id);
   if (!(await findTeacherInClassroom(id, classroomId))) throw notFound("Teacher");
 
-  const taught = await prisma.lessonTeacher.count({ where: { teacherId: id } });
-  if (taught) {
+  const [taught, assisted] = await Promise.all([
+    prisma.lessonTeacher.count({ where: { teacherId: id } }),
+    prisma.lessonAssistant.count({ where: { teacherId: id } }),
+  ]);
+  if (taught || assisted) {
     throw new ApiError(409, "TEACHER_HAS_LESSONS", "Teacher has lessons; archive instead");
   }
 

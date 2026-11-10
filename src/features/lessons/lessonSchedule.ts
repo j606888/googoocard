@@ -1,11 +1,11 @@
 import { differenceInCalendarDays, format } from "date-fns";
 
 /**
- * 課程列表頂端（下一堂／上課中、還沒點名）與課程頁副標題的純推導。
+ * 課程列表「接下來」與課程頁副標題用的時間標籤（純推導）。
  * 全部吃 `now` 參數——元件每分鐘更新一次 now，畫面自己會從「下一堂」換成「上課中」。
  *
  * 資料來源是 `GET /api/lessons/agenda`（`src/service/lessonAgenda.ts`），
- * 伺服器只負責「撈出可能相關的時段」，挑哪一堂當主角在這裡決定。
+ * 哪一堂算還沒點名／上課中／接下來，在 `useLessonAgenda.ts` 的 `agendaRows()`。
  */
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -16,64 +16,6 @@ export interface ScheduledPeriod {
   endTime: string;
   attendanceTakenAt: string | null;
 }
-
-export type AgendaHero<P extends ScheduledPeriod> =
-  | { kind: "inClass"; period: P }
-  | { kind: "next"; period: P }
-  | null;
-
-const byStart = (a: ScheduledPeriod, b: ScheduledPeriod) =>
-  new Date(a.startTime).getTime() - new Date(b.startTime).getTime() || a.id - b.id;
-
-/** 現在正在上的那一堂（開始 ≤ now < 結束）；兩堂同時在上時取先開始的。 */
-export const inClassPeriod = <P extends ScheduledPeriod>(periods: P[], now: Date): P | null => {
-  const t = now.getTime();
-  return (
-    [...periods]
-      .filter((p) => new Date(p.startTime).getTime() <= t && t < new Date(p.endTime).getTime())
-      .sort(byStart)[0] ?? null
-  );
-};
-
-/** 還沒開始的最近一堂。永遠不會是過去的時段（舊的 NextCell 會把逾期那堂當成「下一堂」）。 */
-export const nextPeriod = <P extends ScheduledPeriod>(periods: P[], now: Date): P | null => {
-  const t = now.getTime();
-  return [...periods].filter((p) => new Date(p.startTime).getTime() > t).sort(byStart)[0] ?? null;
-};
-
-const heroFrom = <P extends ScheduledPeriod>(periods: P[], now: Date): AgendaHero<P> => {
-  const current = inClassPeriod(periods, now);
-  if (current) return { kind: "inClass", period: current };
-  const next = nextPeriod(periods, now);
-  return next ? { kind: "next", period: next } : null;
-};
-
-/**
- * 列表頂端的主角：上課中優先，沒有就是下一堂；都沒有回 null。
- * 有 `isMine`（成員連著老師）時先只看自己教的課，自己沒課可挑才看全教室。
- */
-export const pickHero = <P extends ScheduledPeriod>(
-  periods: P[],
-  now: Date,
-  isMine?: (period: P) => boolean
-): AgendaHero<P> => (isMine && heroFrom(periods.filter(isMine), now)) || heroFrom(periods, now);
-
-/**
- * 還沒點名：已經開始、還沒點名的時段，舊的在前。主角那一堂（上課中）不重複列；
- * 今天稍後才開始的不算。
- */
-export const overduePeriods = <P extends ScheduledPeriod>(
-  periods: P[],
-  now: Date,
-  heroId: number | null
-): P[] => {
-  const t = now.getTime();
-  return periods
-    .filter(
-      (p) => !p.attendanceTakenAt && new Date(p.startTime).getTime() <= t && p.id !== heroId
-    )
-    .sort(byStart);
-};
 
 /** 「今天」「明天（五）」「11/2（日）」。 */
 export const relativeDayLabel = (date: Date, now: Date): string => {

@@ -18,6 +18,7 @@ import DropInPriceField, {
 } from "@/features/lessons/newLesson/DropInPriceField";
 import type { LessonKind } from "@/lib/lessonKind";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
+import AssistantSelect from "@/features/lessons/newLesson/AssistantSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
 import LessonGroupSelect from "@/features/lessons/newLesson/LessonGroupSelect";
 import LocationSelect from "@/features/lessons/newLesson/LocationSelect";
@@ -98,6 +99,9 @@ const SettingSection = ({
   const hasLevels = danceStyleId !== null && (byId.get(danceStyleId)?.hasLevels ?? false);
   const [level, setLevel] = useState<number>(lesson.level);
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(lesson.teachers.map((teacher) => teacher.id));
+  const [selectedAssistantIds, setSelectedAssistantIds] = useState<number[]>(
+    lesson.assistants.map((assistant) => assistant.id)
+  );
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>(lesson.cards.map((card) => card.id));
   const [groupId, setGroupId] = useState<number | null>(lesson.groupId);
   const [locationId, setLocationId] = useState<number | null>(lesson.location?.id ?? null);
@@ -138,6 +142,7 @@ const SettingSection = ({
           JSON.stringify(dropInPlans) !== JSON.stringify(dropInPlansFrom(lesson.dropInOptions))),
       cards:
         !sameIds(selectedTeacherIds, lesson.teachers.map((t) => t.id)) ||
+        !sameIds(selectedAssistantIds, lesson.assistants.map((a) => a.id)) ||
         !sameIds(selectedCardIds, lesson.cards.map((c) => c.id)) ||
         groupId !== lesson.groupId ||
         locationId !== (lesson.location?.id ?? null),
@@ -145,7 +150,8 @@ const SettingSection = ({
     };
   }, [
     lesson, lessonName, danceStyleId, level, kind, sessionsPerAttendance, dropInEnabled,
-    dropInAmount, dropInPlans, selectedTeacherIds, selectedCardIds, groupId, locationId,
+    dropInAmount, dropInPlans, selectedTeacherIds, selectedAssistantIds, selectedCardIds, groupId,
+    locationId,
   ]);
   const dirtyTabCount = Object.values(dirtyByTab).filter(Boolean).length;
   const isDirty = dirtyTabCount > 0;
@@ -188,7 +194,8 @@ const SettingSection = ({
       await updateLesson({
         id: lesson.id,
         draftLesson: {
-          lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId,
+          lessonName, teacherIds: selectedTeacherIds, assistantIds: selectedAssistantIds,
+          cardIds: selectedCardIds, danceStyleId,
           level, kind, sessionsPerAttendance, dropInPrice, dropInOptions, groupId, locationId,
         },
       }).unwrap();
@@ -215,6 +222,7 @@ const SettingSection = ({
     setDropInAmount(lesson.dropInPrice !== null ? String(lesson.dropInPrice) : "");
     setDropInPlans(dropInPlansFrom(lesson.dropInOptions));
     setSelectedTeacherIds(lesson.teachers.map((t) => t.id));
+    setSelectedAssistantIds(lesson.assistants.map((a) => a.id));
     setSelectedCardIds(lesson.cards.map((c) => c.id));
     setGroupId(lesson.groupId);
     setLocationId(lesson.location?.id ?? null);
@@ -368,9 +376,16 @@ const SettingSection = ({
                 error={errors.teachers}
                 onChange={(value) => {
                   setSelectedTeacherIds(value);
+                  // 同一個人不能又是老師又是小幫手——選成老師就從小幫手拿掉。
+                  setSelectedAssistantIds((prev) => prev.filter((id) => !value.includes(id)));
                   clearError("teachers");
                 }}
                 selectedTeacherIds={selectedTeacherIds}
+              />
+              <AssistantSelect
+                selectedAssistantIds={selectedAssistantIds}
+                teacherIds={selectedTeacherIds}
+                onChange={setSelectedAssistantIds}
               />
             </section>
           </div>

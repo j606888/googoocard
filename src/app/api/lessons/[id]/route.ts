@@ -19,6 +19,7 @@ import { cardMatchesLesson } from "@/domains/qualification";
 import { isValidDanceLevel } from "@/lib/danceLevels";
 import { isValidLessonKind, isValidSessionsPerAttendance } from "@/lib/lessonKind";
 import { refreshLesson } from "@/service/lesson";
+import { resolveAssistantIds } from "@/service/lessonAssistants";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -50,6 +51,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           teacher: { select: teacherSummarySelect },
         },
       },
+      assistants: { select: { teacher: { select: teacherSummarySelect } }, orderBy: { id: "asc" } },
       cards: {
         include: {
           card: { include: { danceStyle: { select: danceStyleSummarySelect } } },
@@ -71,6 +73,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     // Whitelist — the raw Student row carries `lineBindKey`. See toStudentPayload.
     students: lesson.students.map((student) => toStudentPayload(student.student)),
     teachers: lesson.teachers.map((teacher) => teacher.teacher),
+    assistants: lesson.assistants.map((assistant) => assistant.teacher),
     cards: lesson.cards.map((card) => card.card),
   };
 
@@ -115,6 +118,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     !(await allTeachersInClassroom(draftLesson.teacherIds, classroomId))
   ) {
     return NextResponse.json({ error: "TEACHER_NOT_FOUND" }, { status: 400 });
+  }
+  // 小幫手也是本教室的 Teacher，而且不能同時是這門課的老師。
+  const assistantIds = await resolveAssistantIds(draftLesson, classroomId);
+  if ("error" in assistantIds) {
+    return NextResponse.json({ error: assistantIds.error }, { status: 400 });
   }
 
   if (
@@ -169,6 +177,19 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     data: draftLesson.teacherIds.map((teacherId) => ({ teacherId, lessonId: parseInt(id) })),
   });
 
+  // 沒送 assistantIds = 不動小幫手；只把剛變成老師的人從小幫手拿掉（老師優先）。
+  await prisma.lessonAssistant.deleteMany({
+    where: {
+      lessonId: parseInt(id),
+      ...(assistantIds.ids === undefined ? { teacherId: { in: draftLesson.teacherIds } } : {}),
+    },
+  });
+  if (assistantIds.ids) {
+    await prisma.lessonAssistant.createMany({
+      data: assistantIds.ids.map((teacherId) => ({ teacherId, lessonId: parseInt(id) })),
+    });
+  }
+
   await prisma.lessonCard.deleteMany({
     where: { lessonId: parseInt(id) },
   });
@@ -190,6 +211,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   }
 
   await prisma.lessonTeacher.deleteMany({ where: { lessonId } });
+  await prisma.lessonAssistant.deleteMany({ where: { lessonId } });
   await prisma.lessonCard.deleteMany({ where: { lessonId } });
   await prisma.lessonStudent.deleteMany({ where: { lessonId } });
   await prisma.lesson.delete({ where: { id: lessonId } });

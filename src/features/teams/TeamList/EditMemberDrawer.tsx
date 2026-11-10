@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
-import { canLinkTeacher, isAdminRole, roleLabel, type AssignableRole } from "@/lib/roles";
+import { roleLabel, type AssignableRole } from "@/lib/roles";
 import { Membership, useUpdateMembershipMutation } from "@/store/slices/memberships";
 import RolePicker from "./RolePicker";
 import TeacherPicker, {
@@ -37,8 +37,8 @@ export default function EditMemberDrawer({
   const resolveTeacher = useResolveTeacherChoice();
   const [isResolving, setIsResolving] = useState(false);
 
-  const linksTeacher = canLinkTeacher(role);
-  const teacherError = linksTeacher ? teacherChoiceError(teacher, role === "teacher") : undefined;
+  // 每種角色都能連老師資料；只有「老師」一定要連。
+  const teacherError = teacherChoiceError(teacher, role === "teacher");
 
   const handleSubmit = async () => {
     if (teacherError) {
@@ -47,7 +47,7 @@ export default function EditMemberDrawer({
     }
     setIsResolving(true);
     try {
-      const teacherId = linksTeacher ? await resolveTeacher(teacher) : null;
+      const teacherId = await resolveTeacher(teacher, role === "assistant" ? "ASSISTANT" : undefined);
       await updateMembership({
         id: membership.id,
         ...(!roleLocked && { role }),
@@ -89,15 +89,14 @@ export default function EditMemberDrawer({
         ) : (
           <RolePicker legend="角色" value={role} onChange={setRole} />
         )}
-        {linksTeacher && (
-          <TeacherPicker
-            value={teacher}
-            onChange={setTeacher}
-            forUserId={membership.userId}
-            optional={isAdminRole(role)}
-            error={showErrors ? teacherError : undefined}
-          />
-        )}
+        <TeacherPicker
+          value={teacher}
+          onChange={setTeacher}
+          forUserId={membership.userId}
+          optional={role !== "teacher"}
+          forAssistant={role === "assistant"}
+          error={showErrors ? teacherError : undefined}
+        />
       </form>
     </Drawer>
   );

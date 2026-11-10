@@ -1,7 +1,7 @@
 import { Prisma, type InviteToken } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ApiError, badRequest } from "@/lib/apiError";
-import { ASSIGNABLE_ROLES, canLinkTeacher, type AssignableRole } from "@/lib/roles";
+import { ASSIGNABLE_ROLES, inviteCanLinkTeacher, type AssignableRole } from "@/lib/roles";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -74,7 +74,7 @@ export async function redeemInvite(
   const role = isAssignableRole(invite.role) ? invite.role : "assistant";
   await tx.inviteToken.update({ where: { id: invite.id }, data: { uses: { increment: 1 } } });
   await tx.membership.create({ data: { userId, classroomId: invite.classroomId, role } });
-  if (invite.teacherId !== null && canLinkTeacher(role)) {
+  if (invite.teacherId !== null && inviteCanLinkTeacher(role)) {
     await tx.teacher.updateMany({
       where: { id: invite.teacherId, classroomId: invite.classroomId, userId: null },
       data: { userId },

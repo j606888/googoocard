@@ -17,6 +17,7 @@ import { weeklyScheduleLabel } from "../lessonSchedule";
 import { headcountByPeriod } from "@/domains/attendance/rosterInsights";
 import ResponsiveDialog from "@/components/ResponsiveDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { lessonPeopleLabel } from "@/lib/teachers";
 import PeriodRecordSheet from "./PeriodRecordSheet";
 import StudentSheet from "@/features/students/StudentSheet";
 
@@ -205,7 +206,7 @@ const LessonDetail = () => {
 
 /** 手機頁首的副標：「Sean · 每週五 20:00–21:00」；時段不規則時只寫老師。 */
 const lessonSubtitle = (lesson: Lesson) =>
-  [lesson.teachers.map((t) => t.name).join("、"), weeklyScheduleLabel(lesson.periods ?? [])]
+  [lessonPeopleLabel(lesson.teachers, lesson.assistants) ?? "", weeklyScheduleLabel(lesson.periods ?? [])]
     .filter(Boolean)
     .join(" · ") || undefined;
 

@@ -41,6 +41,7 @@ export const clearLessonDraft = () => {
 export interface LessonCloneSource {
   lessonName: string;
   teacherIds: number[];
+  assistantIds?: number[];
   cardIds: number[];
   danceStyleId: number | null;
   level?: number;

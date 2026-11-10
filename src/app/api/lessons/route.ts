@@ -4,6 +4,7 @@ import { DraftLesson } from "@/store/slices/lessons";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { refreshLesson, summarizeLessonPeriods } from "@/service/lesson";
+import { resolveAssistantIds } from "@/service/lessonAssistants";
 import { cardMatchesLesson } from "@/domains/qualification";
 import { DEFAULT_DANCE_LEVEL, isValidDanceLevel } from "@/lib/danceLevels";
 import {
@@ -83,6 +84,7 @@ export async function GET(request: Request) {
       location: { select: locationSummarySelect },
       periods: true,
       teachers: { include: { teacher: { select: teacherSummarySelect } } },
+      assistants: { select: { teacher: { select: teacherSummarySelect } }, orderBy: { id: "asc" } },
       cards: { select: { cardId: true } },
       _count: { select: { students: true } },
     },
@@ -120,6 +122,7 @@ export async function GET(request: Request) {
       dropInOptions: parseDropInOptions(lesson.dropInOptions),
       studentCount: lesson._count.students,
       teachers: lesson.teachers.map((t) => t.teacher),
+      assistants: lesson.assistants.map((a) => a.teacher),
       cardIds: lesson.cards.map((c) => c.cardId),
       groupId: lesson.groupId,
       location: lesson.location,
@@ -237,6 +240,11 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json({ error: "TEACHER_NOT_FOUND" }, { status: 400 });
   }
+  // 小幫手也是本教室的 Teacher，而且不能同時是這門課的老師。
+  const assistantIds = await resolveAssistantIds(draftLesson, classroomId);
+  if ("error" in assistantIds) {
+    return NextResponse.json({ error: assistantIds.error }, { status: 400 });
+  }
 
   if (
     draftLesson.groupId != null &&
@@ -290,6 +298,10 @@ export async function POST(request: Request) {
         teacherId,
         lessonId: lesson.id,
       })),
+    });
+
+    await tx.lessonAssistant.createMany({
+      data: (assistantIds.ids ?? []).map((teacherId) => ({ teacherId, lessonId: lesson.id })),
     });
 
     await tx.lessonCard.createMany({

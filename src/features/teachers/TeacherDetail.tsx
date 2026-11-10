@@ -85,6 +85,7 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
   const archived = Boolean(teacher.archivedAt);
   const lessons = data.lessons.filter((lesson) => lesson.status === lessonTab);
   const activeCount = data.lessons.filter((l) => l.status === "inProgress").length;
+  const assistedActive = data.assistedLessons.filter((l) => l.status === "inProgress");
   const maxAttendance = Math.max(1, ...data.trend.map((m) => m.attendance));
 
   const setArchived = async (value: boolean) => {
@@ -153,7 +154,7 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
               <Pencil className="size-4" />
               編輯
             </Button>
-            {data.lessons.length === 0 ? (
+            {data.lessons.length === 0 && data.assistedLessons.length === 0 ? (
               <Button variant="dangerSecondary" onClick={() => setConfirmDelete(true)}>
                 <Trash className="size-4" />
                 刪除
@@ -235,6 +236,27 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
                     </li>
                   ))}
                 </ul>
+              )}
+              {assistedActive.length > 0 && (
+                <div className="flex flex-col gap-1 border-t border-neutral-100 pt-3">
+                  <h4 className="text-xs font-semibold text-neutral-500">協助</h4>
+                  <ul className="flex flex-col">
+                    {assistedActive.map((lesson) => (
+                      <li key={lesson.id}>
+                        <Link
+                          href={`/lessons/${lesson.id}`}
+                          className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm hover:bg-neutral-50"
+                        >
+                          <span
+                            className={`size-2 shrink-0 rounded-full ${danceStyleMeta(lesson.danceStyle).dot}`}
+                          />
+                          <span className="flex-1 truncate">{lesson.name}</span>
+                          <ChevronRight className="w-4 h-4 text-neutral-400 shrink-0" />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </section>
 
