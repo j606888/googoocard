@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft, Check, PencilLine } from "lucide-react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
 import SubNavbar from "@/features/SubNavbar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
@@ -58,6 +58,49 @@ const CheckPeriodSuccess = () => {
     .filter((p) => p.attendanceTakenAt)
     .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0]?.id;
   const isLatest = period?.id === latestTakenId;
+
+  // 上一堂／下一堂只在「已點名」的時段之間移動（同 PeriodRecordSheet 的規則）。
+  const router = useRouter();
+  const takenPeriods = useMemo(
+    () =>
+      [...(lesson?.periods ?? [])]
+        .filter((p) => p.attendanceTakenAt)
+        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()),
+    [lesson?.periods]
+  );
+  const takenIndex = takenPeriods.findIndex((p) => p.id === Number(periodId));
+  const olderTaken = takenIndex > 0 ? takenPeriods[takenIndex - 1] : null;
+  const newerTaken =
+    takenIndex >= 0 && takenIndex < takenPeriods.length - 1 ? takenPeriods[takenIndex + 1] : null;
+  const goToPeriod = (target: { id: number }) =>
+    router.replace(`/lessons/${id}/periods/${target.id}/check-success`);
+  const periodPager = (
+    <div className="flex items-center gap-1">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="text-neutral-600"
+        aria-label="上一堂"
+        disabled={!olderTaken}
+        onClick={() => olderTaken && goToPeriod(olderTaken)}
+      >
+        <ChevronLeft className="size-5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="text-neutral-600"
+        aria-label="下一堂"
+        disabled={!newerTaken}
+        onClick={() => newerTaken && goToPeriod(newerTaken)}
+      >
+        <ChevronRight className="size-5" />
+      </Button>
+    </div>
+  );
+  const showPager = !justSubmitted && takenIndex >= 0;
 
   // 已解決 = 扣了卡或付了單堂（$0 的體驗卡 income 是 0，不能拿 income 判斷）。
   const isResolved = (record: AttendanceRecord) => Boolean(record.cardName || record.dropIn);
@@ -138,17 +181,21 @@ const CheckPeriodSuccess = () => {
       {/* 手機底下留給浮動的 BottomNav；桌面置中——點名結果是逐列的清單，全寬拉開反而難讀。 */}
       <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-5 pt-6 pb-28 lg:max-w-2xl lg:px-8 lg:pb-10">
         {isExpanded && (
-          <div className="flex flex-col gap-1">
-            <Link
-              href={`/lessons/${id}`}
-              className="inline-flex items-center gap-1 self-start text-[13px] text-neutral-600 hover:text-neutral-900"
-            >
-              <ArrowLeft className="size-4" />
-              {lesson.name}
-            </Link>
-            <h1 className="text-xl font-bold text-neutral-900 tabular-nums">{when}</h1>
+          <div className="flex items-end justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <Link
+                href={`/lessons/${id}`}
+                className="inline-flex items-center gap-1 self-start text-[13px] text-neutral-600 hover:text-neutral-900"
+              >
+                <ArrowLeft className="size-4" />
+                {lesson.name}
+              </Link>
+              <h1 className="text-xl font-bold text-neutral-900 tabular-nums">{when}</h1>
+            </div>
+            {showPager && periodPager}
           </div>
         )}
+        {!isExpanded && showPager && <div className="flex justify-end">{periodPager}</div>}
         {justSubmitted && (
           <div className="flex flex-col items-center gap-3">
             <div className="flex justify-center items-center rounded-full bg-primary-100 w-20 h-20 ring-8 ring-primary-50">

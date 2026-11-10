@@ -311,8 +311,9 @@ const SettingSection = ({
           isDrawer ? "min-h-0 flex-1 overflow-y-auto px-6 py-6" : "flex flex-col gap-7 px-5 pt-5 pb-28"
         }
       >
-        {(!isDrawer || tab === "basic") && (
-          <div className="flex flex-col gap-7">
+        {/* 抽屜裡三個分頁都保持掛載（只用 hidden 藏起來）：課卡／老師／分部的查詢在開抽屜時就發出，
+            切到分頁時不會先空白再跳出來。 */}
+        <div className={isDrawer && tab !== "basic" ? "hidden" : "flex flex-col gap-7"}>
             <section className="flex flex-col gap-4">
               <InputField
                 label="課程名稱"
@@ -356,11 +357,9 @@ const SettingSection = ({
                 error={errors.dropInPrice}
               />
             </section>
-          </div>
-        )}
+        </div>
 
-        {(!isDrawer || tab === "cards") && (
-          <div className="flex flex-col gap-7">
+        <div className={isDrawer && tab !== "cards" ? "hidden" : "flex flex-col gap-7"}>
             <section className="flex flex-col gap-4">
               <CardSelect
                 error={errors.cards}
@@ -391,11 +390,9 @@ const SettingSection = ({
                 onChange={setSelectedAssistantIds}
               />
             </section>
-          </div>
-        )}
+        </div>
 
-        {(!isDrawer || tab === "status") && (
-          <div className="flex flex-col gap-3">
+        <div className={isDrawer && tab !== "status" ? "hidden" : "flex flex-col gap-3"}>
             <div className="flex items-center gap-4 rounded-xl border border-neutral-200 px-4 py-3.5">
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-neutral-900">{isEndedByHand ? "重新開課" : "結束課程"}</p>
@@ -425,8 +422,7 @@ const SettingSection = ({
                 </Button>
               </div>
             )}
-          </div>
-        )}
+        </div>
       </div>
 
       {(isDrawer || isDirty || errorTabs.size > 0) && (
