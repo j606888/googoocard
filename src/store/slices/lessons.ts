@@ -1,3 +1,4 @@
+import type { DropInOption } from "@/lib/dropInOptions";
 import { Student } from "./students";
 import { api } from "../api";
 import { Card } from "./cards";
@@ -29,6 +30,8 @@ export interface Lesson {
   sessionsPerAttendance: number;
   /** 單堂價；null = 不開放單堂付費。 */
   dropInPrice: number | null;
+  /** 單堂方案；null = 只有 dropInPrice 一個價錢。讀的時候用 lessonDropInOptions()。 */
+  dropInOptions?: DropInOption[] | null;
   cards: Card[];
   groupId: number | null;
   group: { id: number; name: string } | null;
@@ -57,6 +60,7 @@ export interface LessonSummary {
   endedAt: string | null;
   sessionsPerAttendance: number;
   dropInPrice: number | null;
+  dropInOptions?: DropInOption[] | null;
   studentCount: number;
   teachers: TeacherSummary[];
   cardIds: number[];
@@ -151,6 +155,8 @@ export interface DraftLesson {
   sessionsPerAttendance?: number;
   /** 單堂價；null = 不開放單堂付費。Omitted on update = unchanged. */
   dropInPrice?: number | null;
+  /** 單堂方案（2 個以上才送）；null = 回到單一價。有送時 dropInPrice 以第一個方案為準。 */
+  dropInOptions?: DropInOption[] | null;
   /** LessonGroup to file this lesson under — null means 未分類 (ungrouped). */
   groupId?: number | null;
   /** 分部 — null/omitted = not set (PUT clears it when omitted). */
@@ -181,7 +187,14 @@ export interface AttendanceRecord {
   /** 這筆出席扣了（或綁卡時要扣）幾格。 */
   sessionsUsed: number;
   /** 改付單堂（不扣卡）。有它就沒有 cardName / uncheckedType。 */
-  dropIn?: { id: number; amount: number; isPaid: boolean; paymentMethod: "CASH" | "TRANSFER" | null };
+  dropIn?: {
+    id: number;
+    amount: number;
+    /** 選的單堂方案名稱；沒名字的單一價是 null。 */
+    optionName: string | null;
+    isPaid: boolean;
+    paymentMethod: "CASH" | "TRANSFER" | null;
+  };
 }
 
 export interface UnbindAttendanceRecord {
@@ -371,6 +384,7 @@ const lessonsApi = api.injectEndpoints({
         periodId: number;
         studentId: number;
         amount?: number;
+        optionName?: string;
         isPaid: boolean;
         paymentMethod?: "CASH" | "TRANSFER" | null;
         paymentReference?: string | null;
@@ -385,7 +399,13 @@ const lessonsApi = api.injectEndpoints({
     }),
     confirmDropInPayment: builder.mutation<
       void,
-      { chargeId: number; amount?: number; paymentMethod?: "CASH" | "TRANSFER"; paymentReference?: string | null }
+      {
+        chargeId: number;
+        amount?: number;
+        optionName?: string;
+        paymentMethod?: "CASH" | "TRANSFER";
+        paymentReference?: string | null;
+      }
     >({
       query: ({ chargeId, ...body }) => ({
         url: `drop-in-charges/${chargeId}/confirm-payment`,

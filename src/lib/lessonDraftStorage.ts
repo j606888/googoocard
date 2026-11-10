@@ -1,3 +1,4 @@
+import type { DropInOption } from "@/lib/dropInOptions";
 import { DraftLesson } from "@/store/slices/lessons";
 import type { LessonKind } from "@/lib/lessonKind";
 
@@ -46,6 +47,7 @@ export interface LessonCloneSource {
   kind?: LessonKind;
   sessionsPerAttendance?: number;
   dropInPrice?: number | null;
+  dropInOptions?: DropInOption[] | null;
   groupId?: number | null;
   locationId?: number | null;
   initialPeriod?: { startTime: string; endTime: string };

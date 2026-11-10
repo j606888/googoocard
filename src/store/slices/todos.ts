@@ -22,6 +22,8 @@ export interface Todos {
   unpaidDropIns: {
     id: number;
     amount: number;
+    /** 選的單堂方案名稱；沒名字的單一價是 null。 */
+    optionName: string | null;
     createdAt: string;
     student: TodoStudent;
     lessonId: number;

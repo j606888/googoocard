@@ -11,6 +11,7 @@ import {
 import { canBuyCard, toDanceLevels } from "@/domains/qualification";
 import { cardOptionsFor } from "@/domains/attendance/attendance.service";
 import { fetchStudentsWithValidCards } from "@/service/lessonCards";
+import { type DropInOption, lessonDropInOptions } from "@/lib/dropInOptions";
 
 export interface TodayPeriod {
   periodId: number;
@@ -45,6 +46,8 @@ export interface LessonCardStatus {
   sessionsPerAttendance: number;
   /** Drop-in price (no card, paid after class); null = the lesson takes none. */
   dropInPrice: number | null;
+  /** 單堂方案（src/lib/dropInOptions.ts）；[] = 不收單堂，一個沒名字的 = 只有 dropInPrice。 */
+  dropInOptions: DropInOption[];
   usable: UsableCardOption[];
   /** The card the engine would use on its own; null = the student must choose or buy. */
   autoPickId: number | null;
@@ -347,7 +350,10 @@ async function lessonCardStatus(
     sessionsPerAttendance
   );
   const dropInPrice = lesson.dropInPrice;
-  if (!student) return { sessionsPerAttendance, dropInPrice, usable: [], autoPickId: null, buyable: [] };
+  const dropInOptions = lessonDropInOptions(lesson);
+  if (!student) {
+    return { sessionsPerAttendance, dropInPrice, dropInOptions, usable: [], autoPickId: null, buyable: [] };
+  }
 
   const { usable, autoPick } = cardOptionsFor(student, lesson);
   const levels = toDanceLevels(student.danceQualifications);
@@ -355,6 +361,7 @@ async function lessonCardStatus(
   return {
     sessionsPerAttendance,
     dropInPrice,
+    dropInOptions,
     usable: usable.map((sc) => ({
       studentCardId: sc.id,
       name: sc.card.name,

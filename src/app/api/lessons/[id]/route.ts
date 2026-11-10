@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+import { resolveDropInInput } from "@/lib/dropInOptions";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
@@ -15,7 +17,7 @@ import { DraftLesson } from "@/store/slices/lessons";
 import { toStudentPayload } from "@/service/studentDetail";
 import { cardMatchesLesson } from "@/domains/qualification";
 import { isValidDanceLevel } from "@/lib/danceLevels";
-import { isValidDropInPrice, isValidLessonKind, isValidSessionsPerAttendance } from "@/lib/lessonKind";
+import { isValidLessonKind, isValidSessionsPerAttendance } from "@/lib/lessonKind";
 import { refreshLesson } from "@/service/lesson";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -95,7 +97,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   ) {
     return NextResponse.json({ error: "Invalid sessionsPerAttendance" }, { status: 400 });
   }
-  if (draftLesson.dropInPrice !== undefined && !isValidDropInPrice(draftLesson.dropInPrice)) {
+  const dropIn = resolveDropInInput(draftLesson);
+  if (dropIn === "invalid") {
     return NextResponse.json({ error: "Invalid dropInPrice" }, { status: 400 });
   }
 
@@ -151,7 +154,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       level: draftLesson.level,
       kind: draftLesson.kind,
       sessionsPerAttendance: draftLesson.sessionsPerAttendance,
-      dropInPrice: draftLesson.dropInPrice,
+      dropInPrice: dropIn.dropInPrice,
+      dropInOptions:
+        dropIn.dropInOptions === undefined ? undefined : (dropIn.dropInOptions ?? Prisma.DbNull),
       groupId: draftLesson.groupId ?? null,
       locationId: draftLesson.locationId ?? null,
     },

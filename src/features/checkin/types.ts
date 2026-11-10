@@ -31,6 +31,8 @@ export interface LessonCardStatus {
   sessionsPerAttendance: number;
   /** 單堂價（不扣卡、下課付）；null = 這堂不開放單堂。 */
   dropInPrice: number | null;
+  /** 單堂方案；[] = 不收單堂，只有一個且 name 是 "" = 單一價。 */
+  dropInOptions: { name: string; price: number; note?: string }[];
   usable: UsableCardOption[];
   autoPickId: number | null;
   buyable: BuyableCardOption[];
@@ -88,6 +90,7 @@ export interface CheckinResult {
   status: "checked" | "already_checked" | "no_card" | "drop_in";
   /** status = drop_in：這個時段的單堂費（下課付） */
   dropInAmount?: number;
+  dropInOptionName?: string | null;
   cardName?: string;
   remainingSessions?: number;
   exhausted?: boolean;

@@ -98,9 +98,13 @@ const TimePicker = ({
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger>
+      <PopoverTrigger className="w-full">
         <input
-          className={cn(fieldControlClass(), "h-12 cursor-pointer", !selectedTime?.label && "text-neutral-400")}
+          className={cn(
+            fieldControlClass(),
+            "h-12 w-full cursor-pointer tabular-nums",
+            !selectedTime?.label && "text-neutral-400"
+          )}
           value={selectedTime?.label || "選擇時間"}
           readOnly
         />

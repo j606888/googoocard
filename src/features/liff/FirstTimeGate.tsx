@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Lock, UserPlus, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, fieldControlClass } from "@/components/Field";
 import { cn } from "@/lib/utils";
-import AddFriendPrompt from "./AddFriendPrompt";
 import ClaimSelf from "./ClaimSelf";
 
 export interface FirstTimePrefill {
@@ -20,8 +19,9 @@ export interface FirstTimePrefill {
  * (設計稿 B1 → B2). 「第一次來」registers with just a nickname; 「我來上過課」
  * searches the unbound roster and claims itself (ClaimSelf) — anyone could claim
  * anyone, so each claim waits in the teacher's 待處理 to be confirmed or undone.
- * Either way ends on a「完成」screen before the lesson list: people leave right
- * after binding, so this is where they learn it worked and get asked to add the OA.
+ * Either way goes straight on to the lesson list (a toast confirms) — an extra
+ *「完成」screen read like the end of the flow. Adding the OA is asked once the
+ * check-in is done (CheckinDone / NoClassToday), where it can't interrupt.
  */
 export default function FirstTimeGate({
   prefill,
@@ -35,7 +35,6 @@ export default function FirstTimeGate({
   onRegistered: () => void;
 }) {
   const [step, setStep] = useState<"ask" | "name" | "returning">("ask");
-  const [done, setDone] = useState<{ name: string; kind: "registered" | "claimed" } | null>(null);
   const [name, setName] = useState(prefill.lineName.slice(0, 30));
   const [submitting, setSubmitting] = useState(false);
 
@@ -49,7 +48,8 @@ export default function FirstTimeGate({
         body: JSON.stringify({ key: checkinKey, name: name.trim() }),
       });
       if (!res.ok) throw new Error(`status ${res.status}`);
-      setDone({ name: name.trim(), kind: "registered" });
+      toast.success("登記完成");
+      onRegistered();
     } catch (err) {
       console.error("[liff] register error", err);
       toast.error("登記失敗，請稍後再試或找小幫手");
@@ -81,31 +81,6 @@ export default function FirstTimeGate({
       <span className="font-medium text-neutral-800">{prefill.classroomName}</span>
     </div>
   );
-
-  if (done) {
-    return (
-      <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-neutral-50">
-        <div className="px-5 pt-5 text-sm font-medium text-neutral-800">{prefill.classroomName}</div>
-        <div className="flex flex-1 flex-col gap-6 px-5 py-6">
-          <div className="flex flex-col items-center gap-2 py-6 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-900">
-              <Check className="h-8 w-8 text-white" strokeWidth={3} />
-            </div>
-            <h1 className="text-2xl font-bold">{done.kind === "claimed" ? "綁定完成" : "登記完成"}</h1>
-            <p className="leading-relaxed text-neutral-600">
-              {done.name}，以後打開 LINE 就能直接簽到。
-            </p>
-          </div>
-          <AddFriendPrompt />
-        </div>
-        <div className="px-5 pb-6">
-          <Button type="button" size="lg" className="w-full" onClick={onRegistered}>
-            繼續簽到
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   if (step === "name") {
     return (
@@ -158,7 +133,10 @@ export default function FirstTimeGate({
         <ClaimSelf
           idToken={idToken}
           checkinKey={checkinKey}
-          onClaimed={(claimedName) => setDone({ name: claimedName, kind: "claimed" })}
+          onClaimed={() => {
+            toast.success("綁定完成");
+            onRegistered();
+          }}
           onFirstTime={() => setStep("name")}
         />
       </div>

@@ -308,6 +308,9 @@ model Lesson {
   sessionsPerAttendance Int             @default(1)
   // 單堂價（現場付費，不扣課卡）。null = 這堂不開放單堂付費。
   dropInPrice           Int?
+  // 單堂方案（src/lib/dropInOptions.ts）：[{ name, price, note? }]，最多 4 個。
+  // null = 只有 dropInPrice 一個沒名字的價錢。有值時 dropInPrice 永遠 = 第一個方案的價錢。
+  dropInOptions         Json?
   // 分部（台南／高雄…）。選填；課卡不分部限定。
   locationId            Int?
   location              Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
@@ -610,6 +613,8 @@ model DropInCharge {
   attendanceRecordId Int              @unique
   attendanceRecord   AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
   amount             Int
+  // 記帳當下選的單堂方案名稱（快照）；null = 課程只有一個沒名字的單堂價。
+  optionName         String?
   isPaid             Boolean          @default(false)
   paidAt             DateTime?
   paymentMethod      PaymentMethod?
