@@ -17,8 +17,7 @@ export const GET = apiRoute<{ periodId: string }>(async ({ params, classroomId }
 export const PUT = apiRoute<{ periodId: string }>(async ({ request, params, userId, classroomId }) => {
   await assertCanSettle(userId, classroomId);
   const period = await requirePeriod(parseId(params.periodId), classroomId);
-  const rule = await parseBody(request, splitRuleSchema);
-  await validateRule(classroomId, rule);
+  const rule = await validateRule(classroomId, await parseBody(request, splitRuleSchema), period.lesson.locationId);
   await prisma.periodSplitOverride.upsert({
     where: { lessonPeriodId: period.id },
     create: { lessonPeriodId: period.id, rule, updatedById: userId },

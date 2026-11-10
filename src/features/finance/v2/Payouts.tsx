@@ -12,14 +12,15 @@ import InfoTip from "@/components/InfoTip";
 import Drawer from "@/components/Drawer";
 import Field from "@/components/Field";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { addDays } from "@/domains/ledger/lines";
 import { cn } from "@/lib/utils";
 import { useGetLocationsQuery } from "@/store/slices/locations";
 import {
   useCreatePayoutRunMutation,
   useDeleteMoneyTransferMutation,
   useDeletePayoutMutation,
+  useGetLockStateQuery,
   useGetMoneyAccountsQuery,
+  useGetLedgerReportQuery,
   useGetPayoutRunsQuery,
   useMarkPayoutPaidMutation,
   useMarkTransferDoneMutation,
@@ -28,13 +29,13 @@ import {
   type PayoutView,
   type TransferView,
 } from "@/store/slices/ledger";
-import { financeErrorText, todayKey } from "../financeUi";
+import { defaultAsOf, financeErrorText, todayKey } from "../financeUi";
+import { PayablesView, type PayablesData } from "./Reports";
 import { useFinanceRole } from "../useCanSettle";
 import { Amount, FinanceCard, FinanceShell, amountText } from "./ui";
 
 const KIND: Record<string, string> = { TEACHER_PAYABLE: "老師報酬", VENUE_PAYABLE: "場地費", OWNER_PAYABLE: "代墊／分紅" };
 const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
-const lastMonthEnd = () => addDays(`${todayKey().slice(0, 7)}-01`, -1);
 
 export default function Payouts() {
   const { canSettle } = useFinanceRole();
@@ -90,8 +91,23 @@ export default function Payouts() {
             ))}
         </div>
       )}
+      <StillOwed />
       <CreateRunDrawer open={creating} onClose={() => setCreating(false)} />
     </FinanceShell>
+  );
+}
+
+/** 還要付誰（原本的「應付明細」報表）：到今天為止還欠老師、場地、業主多少。 */
+function StillOwed() {
+  const { data, isLoading } = useGetLedgerReportQuery({ name: "payables", asOf: todayKey() });
+  return (
+    <section className="mt-2 flex flex-col gap-3" aria-label="還要付誰">
+      <div className="flex items-center gap-1.5">
+        <h2 className="text-base font-semibold">還要付誰</h2>
+        <InfoTip label="說明">到今天為止還欠老師、場地、業主的錢。「等學生付款」是學生還沒付錢的那部分，學生付了才變成可以發。</InfoTip>
+      </div>
+      {isLoading ? <Skeleton className="h-40 rounded-2xl" /> : data ? <PayablesView data={data as PayablesData} /> : null}
+    </section>
   );
 }
 
@@ -296,7 +312,10 @@ function TransferRow({ t, from, to, locName, canSettle }: { t: TransferView; fro
 }
 
 function CreateRunDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [asOf, setAsOf] = useState(lastMonthEnd());
+  const { data: lock } = useGetLockStateQuery();
+  const conversionDate = lock?.opened ? lock.conversionDate : null;
+  const [picked, setAsOf] = useState<string | null>(null);
+  const asOf = picked ?? defaultAsOf(conversionDate);
   const [create, { isLoading }] = useCreatePayoutRunMutation();
   const [error, setError] = useState("");
   const submit = async () => {
@@ -313,7 +332,7 @@ function CreateRunDrawer({ open, onClose }: { open: boolean; onClose: () => void
   return (
     <Drawer open={open} onClose={onClose} title="建立付款批次" submitText="列出要付的錢" onSubmit={submit} isLoading={isLoading} disabled={!asOf}>
       <div className="flex flex-col gap-3 pb-4">
-        <Field label="算到哪一天" type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+        <Field label="算到哪一天" type="date" value={asOf} min={conversionDate ?? undefined} onChange={(e) => setAsOf(e.target.value)} />
         <p className="text-[13px] text-neutral-500">列出到這天為止每位老師、場地可以發的錢，以及誰從哪個帳戶付。</p>
         {error && <p className="text-sm text-danger-700">{error}</p>}
       </div>

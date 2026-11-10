@@ -2,7 +2,7 @@
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { ApiError } from "@/lib/apiError";
-import { parseTaipeiDateRange } from "@/lib/taipei-date";
+import { parseTaipeiDateRange, toTaipeiDateKey } from "@/lib/taipei-date";
 import { syncLedger } from "./sync";
 import { checkLedger } from "./check";
 import { loadLedgerInputs, dateKeyOfDbDate } from "./load";
@@ -90,7 +90,8 @@ export async function getCloseChecklist(classroomId: number, asOf: string) {
 
   const [unchecked, inputs, problems, accounts, counts, locations, signoffs, ar] = await Promise.all([
     prisma.lessonPeriod.findMany({
-      where: { lesson: { classroomId }, attendanceTakenAt: null, startTime: { gte: start, lt: end } },
+      // 還沒開始的時段（例如今晚的課）不算「沒點名」
+      where: { lesson: { classroomId }, attendanceTakenAt: null, startTime: { gte: start, lt: end < new Date() ? end : new Date() } },
       select: { id: true, startTime: true, lesson: { select: { id: true, name: true } } },
       orderBy: { startTime: "asc" },
       take: 50,
@@ -139,11 +140,51 @@ export async function getCloseChecklist(classroomId: number, asOf: string) {
       details: ar.map((r) => ({ partyType: r.partyType, partyId: r.partyId, name: arName(r.partyType, r.partyId), amount: Number(r.amount) })) },
     { key: "SPLIT_RULES", done: noRule.size === 0, count: noRule.size,
       details: [...noRule.values()].map((x) => ({ ...x, lessonName: lessonNames.get(x.lessonId) ?? "" })) },
-    { key: "LEDGER_HEALTH", done: problems.length === 0, count: problems.length, details: problems.slice(0, 50) },
+    { key: "LEDGER_HEALTH", done: problems.length === 0, count: problems.length, details: await describeProblems(classroomId, problems.slice(0, 50)) },
     { key: "CASH_COUNTS", done: uncounted.length === 0, count: uncounted.length, optional: true,
       details: uncounted.map((a) => ({ moneyAccountId: a.id, name: a.name, lastCount: lastCount(a.id) })) },
     { key: "SIGNOFFS", done: locations.every((l) => signed.has(l.id)), count: locations.filter((l) => !signed.has(l.id)).length,
       details: locations.map((l) => ({ locationId: l.id, name: l.name, keeperUserId: l.keeperUserId, signed: signed.has(l.id) })) },
   ];
   return { asOf, lockDate: d.lockDate, conversionDate, opened: d.opened, ready: items.every((i) => i.done || i.optional), items };
+}
+
+const SOURCE_LABEL: Record<string, string> = {
+  EXPENSE: "支出", VENUE_PACK: "次數包", PAYOUT: "付款", MONEY_TRANSFER: "轉帳", OWNER_TXN: "老闆存提", CASH_COUNT: "盤點",
+};
+const ERROR_TEXT: Record<string, string> = {
+  NO_MONEY_ACCOUNT: "收錢或付錢的人沒有資金帳戶（他不是保管人）",
+  NO_LOCATION: "找不到分部",
+};
+
+/** 帳本健康檢查：把「記不進帳本」的紀錄翻成人看得懂的一句話＋去哪裡修。 */
+async function describeProblems(classroomId: number, problems: Awaited<ReturnType<typeof checkLedger>>) {
+  const ids = (t: string) =>
+    problems.flatMap((p) => (p.code === "SOURCE_ERROR" && p.sourceType === t ? [p.sourceId as number] : []));
+  const [cards, periods] = await Promise.all([
+    prisma.studentCard.findMany({
+      where: { id: { in: ids("CARD") }, student: { classroomId } },
+      select: { id: true, card: { select: { name: true } }, student: { select: { id: true, name: true } }, paidBy: { select: { name: true } } },
+    }),
+    prisma.lessonPeriod.findMany({
+      where: { id: { in: ids("PERIOD") }, lesson: { classroomId } },
+      select: { id: true, startTime: true, lesson: { select: { id: true, name: true } } },
+    }),
+  ]);
+  return problems.map((p) => {
+    if (p.code !== "SOURCE_ERROR") return { ...p, label: "帳本加總對不起來，請聯絡我們", href: null };
+    const error = ERROR_TEXT[p.error as string] ?? (p.error as string);
+    if (p.sourceType === "CARD") {
+      const c = cards.find((x) => x.id === p.sourceId);
+      const who = c?.paidBy?.name ? `收款人 ${c.paidBy.name}：` : "";
+      return { ...p, label: c ? `${c.student.name} 的「${c.card.name}」— ${who}${error}` : `課卡 #${p.sourceId}：${error}`,
+        href: c ? `/students/${c.student.id}` : null };
+    }
+    if (p.sourceType === "PERIOD") {
+      const x = periods.find((y) => y.id === p.sourceId);
+      return { ...p, label: x ? `${x.lesson.name} ${toTaipeiDateKey(x.startTime).slice(5).replace("-", "/")} 這堂：${error}` : `時段 #${p.sourceId}：${error}`,
+        href: x ? `/lessons/${x.lesson.id}` : null };
+    }
+    return { ...p, label: `${SOURCE_LABEL[p.sourceType as string] ?? "紀錄"} #${p.sourceId}：${error}`, href: null };
+  });
 }

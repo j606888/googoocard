@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { useGetLedgerAccountsQuery, useGetLedgerReportQuery, type LedgerReportArgs } from "@/store/slices/ledger";
 import type { ReportName } from "@/service/ledger/reports";
 import MonthSwitcher from "../MonthSwitcher";
-import { todayKey } from "../financeUi";
+import { DATE_INPUT_MAX, todayKey } from "../financeUi";
 import { Amount, FinanceCard, FinanceShell } from "./ui";
 
 export const REPORTS: Record<ReportName, { title: string; hint: string; dated: "range" | "asOf" }> = {
@@ -29,20 +29,45 @@ export const REPORTS: Record<ReportName, { title: string; hint: string; dated: "
   "general-ledger": { title: "總分類帳", hint: "某個科目的每一筆", dated: "range" },
 };
 
+// 報表清單只放平常會看的三張；給記帳士的收在下面。現金流量在「資金帳戶」、應付明細在「結算與付款」、預收餘額從總覽的「預收學費」點進去。
+const MAIN_REPORTS: ReportName[] = ["lessons", "pnl", "receivables"];
+const ACCOUNTANT_REPORTS: ReportName[] = ["balance-sheet", "trial-balance", "general-ledger"];
+
+function ReportLinks({ names }: { names: ReportName[] }) {
+  return (
+    <FinanceCard className="divide-y divide-neutral-100">
+      {names.map((name) => (
+        <Link key={name} href={`/finance/reports/${name}`} className="flex min-h-14 items-center gap-3 px-5 py-3 hover:bg-neutral-50">
+          <span className="flex flex-1 flex-col gap-0.5">
+            <span className="text-[15px] font-semibold text-neutral-900">{REPORTS[name].title}</span>
+            <span className="text-[13px] text-neutral-500">{REPORTS[name].hint}</span>
+          </span>
+          <ChevronRight className="size-4 text-neutral-500" />
+        </Link>
+      ))}
+    </FinanceCard>
+  );
+}
+
 export function ReportsIndex() {
+  const [open, setOpen] = useState(false);
   return (
     <FinanceShell title="報表" guide="reports">
-      <FinanceCard className="divide-y divide-neutral-100">
-        {(Object.keys(REPORTS) as ReportName[]).map((name) => (
-          <Link key={name} href={`/finance/reports/${name}`} className="flex min-h-14 items-center gap-3 px-5 py-3 hover:bg-neutral-50">
-            <span className="flex flex-1 flex-col gap-0.5">
-              <span className="text-[15px] font-semibold text-neutral-900">{REPORTS[name].title}</span>
-              <span className="text-[13px] text-neutral-500">{REPORTS[name].hint}</span>
-            </span>
-            <ChevronRight className="size-4 text-neutral-500" />
-          </Link>
-        ))}
-      </FinanceCard>
+      <div className="flex flex-col gap-4">
+        <ReportLinks names={MAIN_REPORTS} />
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className="flex min-h-11 cursor-pointer items-center gap-1.5 self-start text-sm font-semibold text-neutral-600 hover:text-neutral-900"
+          >
+            <ChevronRight className={cn("size-4 transition-transform", open && "rotate-90")} aria-hidden />
+            給記帳士
+          </button>
+          {open && <ReportLinks names={ACCOUNTANT_REPORTS} />}
+        </div>
+      </div>
     </FinanceShell>
   );
 }
@@ -81,7 +106,7 @@ export function ReportView({ name, accountId: initialAccount }: { name: ReportNa
       ) : (
         <label className="flex items-center gap-2 text-sm text-neutral-600">
           截至
-          <input type="date" value={asOf} onChange={(e) => e.target.value && setAsOf(e.target.value)} className="h-10 rounded-xl border border-neutral-300 bg-white px-3 text-sm text-neutral-900" />
+          <input type="date" max={DATE_INPUT_MAX} value={asOf} onChange={(e) => e.target.value && setAsOf(e.target.value)} className="h-10 rounded-xl border border-neutral-300 bg-white px-3 text-sm text-neutral-900" />
         </label>
       )}
     </>
@@ -110,13 +135,13 @@ function ReportBody({ name, data }: { name: ReportName; data: Record<string, unk
     case "cash-flow":
       return <CashFlowTable cf={data as unknown as CashFlow} locations={locations} />;
     case "deferred-revenue":
-      return <DeferredView d={data as unknown as Omit<DeferredRollforward, "cards"> & { cards: { cardId: number; balance: number; name: string }[] }} />;
+      return <DeferredView d={data as unknown as Omit<DeferredRollforward, "cards"> & { cards: DeferredCard[] }} />;
     case "receivables":
       return <ReceivablesView data={data as unknown as ReceivablesData} locations={locations} />;
     case "payables":
       return <PayablesView data={data as unknown as PayablesData} />;
     case "lessons":
-      return <LessonsView data={data as unknown as LessonsData} />;
+      return <LessonsView data={data as unknown as LessonsData} locations={locations} />;
     case "trial-balance":
       return <TrialBalanceView data={data as unknown as { rows: TrialBalanceRow[]; totalDebit: number; totalCredit: number }} />;
     case "general-ledger":
@@ -212,7 +237,7 @@ function PnlTable({ pnl, locations }: { pnl: Pnl; locations: Loc[] }) {
     <Table head={["科目", ...locHead(locations)]}>
       {section("收入", pnl.income, "收入合計")}
       {section("上課成本", pnl.directCosts, "上課成本合計")}
-      <LocRow label="毛利（原本的「進公積金」）" x={pnl.grossProfit} locations={locations} tone="key" />
+      <LocRow label="毛利" x={pnl.grossProfit} locations={locations} tone="key" />
       {pnl.expenses.lines.length > 0 && section("營業費用", pnl.expenses, "營業費用合計")}
       <LocRow label="淨利" x={pnl.netIncome} locations={locations} tone="net" />
     </Table>
@@ -258,7 +283,7 @@ function BalanceSheetTable({ bs, locations }: { bs: BalanceSheet; locations: Loc
   );
 }
 
-const CF_LABEL: Record<string, string> = {
+export const CF_LABEL: Record<string, string> = {
   OPENING: "期初分錄",
   TUITION: "收學費",
   DROP_IN: "收單堂",
@@ -273,7 +298,25 @@ const CF_LABEL: Record<string, string> = {
   OTHER: "其他",
 };
 
-function CashFlowTable({ cf, locations }: { cf: CashFlow; locations: Loc[] }) {
+/** 期初現金＋這段期間的期初分錄（開帳那個月）合成一行「期初現金」。 */
+export function mergeCashFlowOpening(cf: CashFlow) {
+  const o = cf.flows.find((f) => f.category === "OPENING");
+  const opening = o
+    ? {
+        byLocation: Object.fromEntries(
+          [...new Set([...Object.keys(cf.opening.byLocation), ...Object.keys(o.byLocation)])].map((k) => [
+            k,
+            (cf.opening.byLocation[Number(k)] ?? 0) + (o.byLocation[Number(k)] ?? 0),
+          ]),
+        ) as Record<number, number>,
+        total: cf.opening.total + o.total,
+      }
+    : cf.opening;
+  return { opening, flows: cf.flows.filter((f) => f.category !== "OPENING"), closing: cf.closing };
+}
+
+function CashFlowTable({ cf: raw, locations }: { cf: CashFlow; locations: Loc[] }) {
+  const cf = mergeCashFlowOpening(raw);
   return (
     <Table head={["", ...locHead(locations)]}>
       <LocRow label="期初現金" x={cf.opening} locations={locations} tone="sub" />
@@ -283,7 +326,43 @@ function CashFlowTable({ cf, locations }: { cf: CashFlow; locations: Loc[] }) {
   );
 }
 
-function DeferredView({ d }: { d: Omit<DeferredRollforward, "cards"> & { cards: { cardId: number; balance: number; name: string }[] } }) {
+type DeferredCard = {
+  cardId: number;
+  balance: number;
+  name: string;
+  purchasedOn: string | null;
+  remainingSessions: number | null;
+  expiresOn: string | null;
+  isPaid: boolean;
+};
+
+/** YYYY-MM-DD 加減月／日（UTC 運算，只看日期）。 */
+function shiftDateKey(key: string, months: number, days = 0): string {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1 + months, d + days)).toISOString().slice(0, 10);
+}
+const slashDate = (key: string) => key.replaceAll("-", "/");
+
+function DeferredView({ d }: { d: Omit<DeferredRollforward, "cards"> & { cards: DeferredCard[] } }) {
+  const [sortBy, setSortBy] = useState<"date" | "amount">("date");
+  const today = todayKey();
+  const halfYearAgo = shiftDateKey(today, -6);
+  const soon = shiftDateKey(today, 0, 30);
+  const cards = [...d.cards].sort((a, b) =>
+    sortBy === "amount"
+      ? b.balance - a.balance
+      : (a.purchasedOn ?? "").localeCompare(b.purchasedOn ?? "") || a.cardId - b.cardId,
+  );
+  const sortHead = (key: "date" | "amount", label: string) => (
+    <button
+      type="button"
+      onClick={() => setSortBy(key)}
+      className={cn("inline-flex items-center gap-1 hover:text-neutral-900", sortBy === key && "font-semibold text-neutral-900")}
+    >
+      {label}
+      {sortBy === key && <span aria-hidden>{key === "date" ? "↑" : "↓"}</span>}
+    </button>
+  );
   const rows: [string, number][] = [
     ["期初", d.opening],
     ["賣出", d.sold],
@@ -304,13 +383,28 @@ function DeferredView({ d }: { d: Omit<DeferredRollforward, "cards"> & { cards: 
           <td className={td}><Amount cents={d.closing} /></td>
         </tr>
       </Table>
-      <Table head={["卡", "還欠的課"]} minWidth={320}>
-        {d.cards.map((c) => (
-          <tr key={c.cardId} className="border-b border-neutral-100">
-            <td className={td}>{c.name}</td>
-            <td className={td}><Amount cents={c.balance} /></td>
-          </tr>
-        ))}
+      <Table head={["卡", sortHead("date", "購買日"), "剩幾堂", "到期日", sortHead("amount", "還欠的課")]} minWidth={640}>
+        {cards.map((c) => {
+          const old = c.purchasedOn !== null && c.purchasedOn < halfYearAgo;
+          const expiring = c.expiresOn !== null && c.expiresOn <= soon;
+          return (
+            <tr key={c.cardId} className="border-b border-neutral-100">
+              <td className={td}>
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  {c.name}
+                  {!c.isPaid && <span className="rounded-full bg-danger-100 px-1.5 py-px text-[11px] font-medium text-danger-700">未付</span>}
+                  {old && <span className="rounded-full bg-warning-100 px-1.5 py-px text-[11px] font-medium text-warning-900">超過半年</span>}
+                </span>
+              </td>
+              <td className={td}>{c.purchasedOn ? slashDate(c.purchasedOn) : "—"}</td>
+              <td className={td}>{c.remainingSessions ?? "—"}</td>
+              <td className={cn(td, expiring && "font-medium text-warning-700")}>
+                {c.expiresOn ? `${slashDate(c.expiresOn)}${c.expiresOn < today ? " 已過期" : ""}` : "—"}
+              </td>
+              <td className={td}><Amount cents={c.balance} /></td>
+            </tr>
+          );
+        })}
       </Table>
     </div>
   );
@@ -348,8 +442,8 @@ function ReceivablesView({ data, locations }: { data: ReceivablesData; locations
   );
 }
 
-type PayablesData = { items: { partyType: string; partyId: number; name: string; payable: number; held: number }[]; totalPayable: number; totalHeld: number };
-function PayablesView({ data }: { data: PayablesData }) {
+export type PayablesData = { items: { partyType: string; partyId: number; name: string; payable: number; held: number }[]; totalPayable: number; totalHeld: number };
+export function PayablesView({ data }: { data: PayablesData }) {
   if (data.items.length === 0) return <EmptyState kind="inline" title="沒有要付的錢" />;
   return (
     <Table head={["對象", "可以發", "等學生付款"]} minWidth={420}>
@@ -371,14 +465,16 @@ function PayablesView({ data }: { data: PayablesData }) {
   );
 }
 
-type LessonsData = { lessons: { lessonId: number; name: string; periods: number; attendance: number; revenue: number; teacher: number; venue: number; gross: number }[] };
-function LessonsView({ data }: { data: LessonsData }) {
+type LessonsData = { lessons: { lessonId: number; name: string; locationIds: number[]; periods: number; attendance: number; revenue: number; teacher: number; venue: number; gross: number }[] };
+function LessonsView({ data, locations }: { data: LessonsData; locations: Loc[] }) {
   if (data.lessons.length === 0) return <EmptyState kind="inline" title="這段期間沒有點名的課" />;
+  const locNames = (ids: number[]) => ids.map((id) => locations.find((l) => l.id === id)?.name).filter(Boolean).join("、") || "—";
   return (
-    <Table head={["課", "堂數", "人次", "收入", "老師", "場地", "毛利"]} minWidth={720}>
+    <Table head={["課", "分部", "堂數", "人次", "收入", "老師", "場地", "毛利"]} minWidth={800}>
       {data.lessons.map((l) => (
         <tr key={l.lessonId} className="border-b border-neutral-100">
           <td className={td}><Link className="text-primary-800 hover:underline" href={`/lessons/${l.lessonId}`}>{l.name}</Link></td>
+          <td className={cn(td, "text-left")}>{locNames(l.locationIds ?? [])}</td>
           <td className={td}>{l.periods}</td>
           <td className={td}>{l.attendance}</td>
           <td className={td}><Amount cents={l.revenue} /></td>

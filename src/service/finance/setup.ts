@@ -114,7 +114,11 @@ export async function setupChecklist(classroomId: number): Promise<ChecklistItem
 /** 開帳精靈第 2、4 步要的進行中課程（分部、有沒有分帳規則）。 */
 export type SetupLesson = { id: number; name: string; locationId: number | null; hasRule: boolean };
 
-export async function loadSetup(classroomId: number): Promise<{ items: ChecklistItem[]; lessons: SetupLesson[] }> {
+/** `conversionDate`：精靈裡期初現金草稿的轉換日——收款人整理照這天判斷（見 strayReceivers.ts）。 */
+export async function loadSetup(
+  classroomId: number,
+  conversionDate?: string,
+): Promise<{ items: ChecklistItem[]; lessons: SetupLesson[] }> {
   const classroom = await prisma.classroom.findUniqueOrThrow({
     where: { id: classroomId },
     select: {
@@ -167,7 +171,7 @@ export async function loadSetup(classroomId: number): Promise<{ items: Checklist
     (v) => usedVenueIds.has(v.id) && (v.locationId == null || (v.perSessionPrice == null && !venueIdsWithPack.has(v.id))),
   );
 
-  const stray = await listStrayReceivers(classroomId);
+  const stray = await listStrayReceivers(classroomId, conversionDate);
   const strayAmount = stray.reduce((s, i) => s + i.amount, 0);
   const items: ChecklistItem[] = [
     {

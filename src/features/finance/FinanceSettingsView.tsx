@@ -59,11 +59,11 @@ export default function FinanceSettingsView() {
         <NoVenueFeeToggle />
         <VenueSettings />
       </Section>
-      <Section id="receivers" title="收的錢在誰手上" hint="收款人不是保管人的錢（例如小幫手代收）會列在這裡，改記到實際拿錢的保管人。平常是空的。">
-        <StrayReceivers />
-      </Section>
       <Section id="general" title="成員與其他" hint="誰是保管人、誰可以結算；發錢取整；舊卡的錢在誰手上（開帳用）。">
         <GeneralSettings />
+      </Section>
+      <Section id="receivers" title="收的錢在誰手上" hint="收款人不是保管人的錢（例如小幫手代收）會列在這裡，改記到實際拿錢的保管人。平常是空的。">
+        <StrayReceivers />
       </Section>
       <Section id="journal" title="手動分錄" hint="記錯了只能沖銷，不能刪改。新的在「記一筆 → 手動分錄」。">
         <JournalList />

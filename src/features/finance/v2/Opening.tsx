@@ -34,7 +34,7 @@ import {
   type OpeningState,
 } from "@/store/slices/ledger";
 import type { OpeningParams } from "@/service/ledger/opening";
-import { financeErrorText, todayKey } from "../financeUi";
+import { DATE_INPUT_MAX, financeErrorText, todayKey } from "../financeUi";
 import { useFinanceRole } from "../useCanSettle";
 import { AddAccountDrawer } from "./Accounts";
 import { Amount, FinanceCard, FinanceShell, useIsOwner } from "./ui";
@@ -75,10 +75,26 @@ function useOpening(): Ctx {
   return c;
 }
 
-/** 精靈左側用：草稿（還沒載入是 null）＋把第 6、7 步標成看過。 */
-export function useOpeningDraft(): { draft: OpeningDraft | null; markVisited: (k: "cash" | "payables") => void } {
+/**
+ * 精靈左側用：草稿（還沒載入是 null）＋把第 6、7 步標成看過＋試算有沒有錯（還沒試算是 null）。
+ * `watch`：精靈在期初現金看過之後掛著它，離開那一步也會跟著草稿重算，打勾才準。
+ */
+export function useOpeningDraft(): {
+  draft: OpeningDraft | null;
+  markVisited: (k: "cash" | "payables") => void;
+  previewHasErrors: boolean | null;
+  watch: () => () => void;
+} {
   const c = useOpening();
-  return { draft: c.draft, markVisited: c.markVisited };
+  return { draft: c.draft, markVisited: c.markVisited, previewHasErrors: c.result ? c.result.errors.length > 0 : null, watch: c.watch };
+}
+
+/**
+ * 草稿的轉換日，不在 OpeningDraftProvider 裡（例：財務設定頁）或草稿還沒載入 → undefined。
+ * 收款人整理照這天判斷要改記哪些（跟期初現金同一條規則），兩步才對得起來。
+ */
+export function useOpeningDraftDate(): string | undefined {
+  return useContext(OpeningCtx)?.draft?.date || undefined;
 }
 
 const storageKey = (classroomId: number) => `finance-opening-draft:${classroomId}`;
@@ -309,7 +325,7 @@ export function OpeningCashStep() {
               {q.label}
             </Button>
           ))}
-          <input aria-label="轉換日（自己選一天）" type="date" value={draft.date} onChange={(e) => update({ date: e.target.value })} className={cn(fieldControlClass(), "h-10 w-44 px-3 text-sm")} />
+          <input aria-label="轉換日（自己選一天）" type="date" max={DATE_INPUT_MAX} value={draft.date} onChange={(e) => update({ date: e.target.value })} className={cn(fieldControlClass(), "h-10 w-44 px-3 text-sm")} />
         </div>
       </FinanceCard>
 
@@ -334,13 +350,32 @@ export function OpeningCashStep() {
       {missing.length > 0 && (
         <div className="flex flex-col gap-2 rounded-xl bg-warning-50 px-4 py-3">
           <span className="text-sm font-semibold text-warning-950">這些人收過錢，但還沒有資金帳戶</span>
-          {missing.map((e) => (
-            <div key={e.userId} className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="flex-1">{userName(e.userId!)} · {e.cardIds?.length ?? 0} 張卡</span>
-              <Button size="sm" variant="secondary" onClick={() => setAddFor(e.userId!)}>建帳戶</Button>
-            </div>
-          ))}
-          <span className="text-[13px] text-warning-950">要先在財務設定把他勾成保管人。</span>
+          {missing.map((e) => {
+            const uid = e.userId!;
+            const isCustodian = custodians.some((m) => m.userId === uid);
+            return (
+              <div key={uid} className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span>{userName(uid)} · {e.cardIds?.length ?? 0} 張卡</span>
+                  {!isCustodian && <span className="text-[13px] text-warning-950">不是保管人，這些錢要改記到保管人名下</span>}
+                </span>
+                {isCustodian ? (
+                  <Button size="sm" variant="secondary" onClick={() => setAddFor(uid)}>建帳戶</Button>
+                ) : canSettle && custodianOptions.length > 0 ? (
+                  <Select
+                    size="sm"
+                    className="w-40"
+                    aria-label={`${userName(uid)} 收的錢改記到哪位保管人`}
+                    placeholder="改記到保管人"
+                    disabled={busy}
+                    onChange={(v) => void move(e.cardIds ?? [], v)}
+                    options={custodianOptions}
+                  />
+                ) : null}
+              </div>
+            );
+          })}
+          {custodianOptions.length === 0 && <span className="text-[13px] text-warning-950">要先在財務設定勾一位保管人。</span>}
         </div>
       )}
 

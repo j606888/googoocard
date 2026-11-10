@@ -14,7 +14,6 @@ import type { Payee } from "@/domains/finance/types";
 import { formatMoney } from "@/lib/money";
 import {
   checkRule,
-  deficitFundOf,
   hasVenuePack,
   newPercentRow,
   PCT_PRESETS,
@@ -82,6 +81,7 @@ export default function RuleEditor({
   sample,
   scopeNote,
   lessonTeacherIds = [],
+  lessonLocationId = null,
   status,
 }: {
   /** 試算下面的狀態列（錯誤／checkRule）；電腦版跟試算一起釘在右欄。 */
@@ -94,14 +94,18 @@ export default function RuleEditor({
   scopeNote?: string;
   /** 這門課的老師：「剩下的」切到老師時預設全勾、平分。 */
   lessonTeacherIds?: number[];
+  /** 課程標的分部：收入、老師、場地都記在這裡；預設的場地與公積金從這個分部挑。 */
+  lessonLocationId?: number | null;
 }) {
   const lines = rows.slice(0, -1);
   const rest = rows[rows.length - 1];
 
+  // 公積金只能選這門課的分部（2026-11-10）；課沒標分部才列全部
+  const fundLocations = lessonLocationId === null ? names.locations : names.locations.filter((l) => l.id === lessonLocationId);
   // 一個下拉、三組標題：老師／公積金／場地
   const payeeGroups: { type: Payee["type"]; group: string; options: SelectOption<string>[] }[] = [
     { type: "teacher", group: "老師", options: names.teachers.map((t) => ({ value: `t:${t.id}`, label: t.name })) },
-    { type: "fund", group: "公積金", options: names.locations.map((l) => ({ value: `f:${l.id}`, label: `${l.name}公積金` })) },
+    { type: "fund", group: "公積金", options: fundLocations.map((l) => ({ value: `f:${l.id}`, label: `${l.name}公積金` })) },
     { type: "venue", group: "場地", options: names.venues.map((v) => ({ value: `v:${v.id}`, label: names.venueLabel(v.id) })) },
   ];
   // 規則裡已經封存的對象也要留在選項裡（放進它那一組），不然下拉會顯示空白
@@ -110,13 +114,30 @@ export default function RuleEditor({
     const missing = !payeeGroups.some((g) => g.options.some((o) => o.value === key));
     return payeeGroups.flatMap(({ type, group, options }) => [
       ...options,
-      ...(missing && current.type === type ? [{ value: key, label: `${names.payee(current)}（已封存）` }] : []),
+      ...(missing && current.type === type ? [{ value: key, label: `${names.payee(current)}（${current.type === "fund" && names.locations.some((l) => l.id === current.locationId) ? "別的分部，請改掉" : "已封存"}）` }] : []),
     ].map((o) => ({ ...o, group })));
   };
   const withCurrent = (opts: { value: number; label: string }[], id: number) =>
-    opts.some((o) => o.value === id) ? opts : [...opts, { value: id, label: `${names.location(id)}公積金（已封存）` }];
-  const locationOptions = names.locations.map((l) => ({ value: l.id, label: `${l.name}公積金` }));
-  const defaultFund = locationOptions[0]?.value ?? 0;
+    opts.some((o) => o.value === id)
+      ? opts
+      : [...opts, { value: id, label: `${names.location(id)}公積金（${names.locations.some((l) => l.id === id) ? "別的分部，請改掉" : "已封存"}）` }];
+  const locationOptions = fundLocations.map((l) => ({ value: l.id, label: `${l.name}公積金` }));
+  const defaultFund = lessonLocationId ?? locationOptions[0]?.value ?? 0;
+  // 「＋場地費」先挑這門課分部的場地
+  const defaultVenue = names.venues.find((v) => v.locationId === lessonLocationId) ?? names.venues[0];
+  const lessonTeachers = lessonTeacherIds.map((id) => names.teacher(id)).filter(Boolean);
+  // 規則裡用到別的分部的場地（可以，但提醒）或公積金（不行，存不了）
+  const otherVenues = lessonLocationId === null ? [] : rows.flatMap((r) => {
+    if (r.type !== "venuePack") return [];
+    const v = names.venues.find((x) => x.id === r.venueId);
+    return v && v.locationId !== null && v.locationId !== lessonLocationId ? [names.venueLabel(v.id)] : [];
+  });
+  const otherFund = lessonLocationId !== null && rows.some((r) =>
+    r.type === "rest"
+      ? r.rest.type === "fund" && r.rest.locationId !== lessonLocationId
+      : r.type !== "venuePack" && r.to.type === "fund" && r.to.locationId !== lessonLocationId,
+  );
+
   const firstPayee: Payee = names.teachers[0]
     ? { type: "teacher", teacherId: names.teachers[0].id }
     : { type: "fund", locationId: defaultFund };
@@ -155,6 +176,23 @@ export default function RuleEditor({
           每一行從這堂收入裡扣一筆，最後一行「扣完剩下的」給老師或公積金。收入不夠扣時，老師拿 0，差額由公積金吸收（見最後一行下方）。
         </InfoTip>
       </div>
+      {lessonTeachers.length > 0 && (
+        <p className="-mt-1 text-[13px] text-neutral-500">這門課的老師：{lessonTeachers.join("、")}</p>
+      )}
+      {otherFund && (
+        <p className="flex items-start gap-1.5 rounded-lg bg-danger-50 px-3 py-2 text-[13px] text-danger-700">
+          <AlertTriangle aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+          <span>這門課在{names.location(lessonLocationId!)}，公積金只能選{names.location(lessonLocationId!)}公積金，請改掉標「別的分部」的那一行。</span>
+        </p>
+      )}
+      {otherVenues.length > 0 && (
+        <p className="flex items-start gap-1.5 rounded-lg bg-warning-50 px-3 py-2 text-[13px] text-warning-800">
+          <AlertTriangle aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+          <span>
+            {[...new Set(otherVenues)].join("、")}是別的分部的場地；這門課在{names.location(lessonLocationId!)}，場地費會記在{names.location(lessonLocationId!)}。確定沒選錯再存檔。
+          </span>
+        </p>
+      )}
 
       {lines.map((row, i) => (
         <div key={i} className="flex flex-col gap-2 rounded-xl border border-neutral-200 p-3">
@@ -275,7 +313,7 @@ export default function RuleEditor({
           variant="secondary"
           size="sm"
           disabled={hasVenuePack(rows) || names.venues.length === 0}
-          onClick={() => setLines([...lines, { type: "venuePack", venueId: names.venues[0].id }])}
+          onClick={() => setLines([...lines, { type: "venuePack", venueId: defaultVenue.id }])}
         >
           ＋場地費
         </Button>
@@ -315,12 +353,12 @@ export default function RuleEditor({
               onChange={(shares) => onChange([...lines, { ...rest, rest: { type: "teachers", shares } }])}
             />
           )}
-          <DeficitFund
-            rest={rest}
-            names={names}
-            options={withCurrent(locationOptions, rest.fundLocationId)}
-            onChange={(fundLocationId) => onChange([...lines, { ...rest, fundLocationId }])}
-          />
+          <div className="mt-1 flex flex-wrap items-center gap-1 border-t border-neutral-100 pt-2 text-[13px] text-neutral-500">
+            不夠扣時由 {names.location(defaultFund)}公積金 吸收
+            <InfoTip label="不夠扣時誰吸收">
+              上面幾行扣完如果是負的（收入不夠付固定金額或場地費），老師拿 0，差額記在這門課所在分部的公積金。
+            </InfoTip>
+          </div>
         </div>
       )}
 
@@ -330,54 +368,6 @@ export default function RuleEditor({
         {rest.type === "rest" && <SplitPreview rows={rows} names={names} />}
         {status}
       </div>
-    </div>
-  );
-}
-
-/** 「剩下的」那行底下的小字：不夠扣時哪個公積金吸收；剩下的給老師時可以改（存在 fundLocationId）。 */
-function DeficitFund({
-  rest,
-  names,
-  options,
-  onChange,
-}: {
-  rest: Extract<RuleRow, { type: "rest" }>;
-  names: SplitNames;
-  options: { value: number; label: string }[];
-  onChange: (fundLocationId: number) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const toFund = rest.rest.type === "fund";
-  return (
-    <div className="mt-1 flex flex-col gap-2 border-t border-neutral-100 pt-2">
-      <div className="flex flex-wrap items-center gap-1 text-[13px] text-neutral-500">
-        不夠扣時由 {names.location(deficitFundOf(rest))}公積金 吸收
-        <InfoTip label="不夠扣時誰吸收">
-          上面幾行扣完如果是負的（收入不夠付固定金額或場地費），老師拿 0，差額記在這個公積金。
-          {toFund ? "剩下的給公積金時，就是同一個公積金。" : "預設是課程所在分部的公積金。"}
-        </InfoTip>
-        {!toFund && !editing && (
-          <button
-            type="button"
-            className="cursor-pointer text-primary-700 underline-offset-2 hover:underline"
-            onClick={() => setEditing(true)}
-          >
-            改
-          </button>
-        )}
-      </div>
-      {!toFund && editing && (
-        <Select
-          size="sm"
-          aria-label="不夠扣時由哪個公積金吸收"
-          value={rest.fundLocationId}
-          options={options}
-          onChange={(id) => {
-            onChange(id);
-            setEditing(false);
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -547,6 +537,7 @@ export function RuleEditorDrawer({
   scopeNote,
   sample,
   lessonTeacherIds,
+  lessonLocationId,
   initialRows,
   names,
   isLoading,
@@ -560,6 +551,7 @@ export function RuleEditorDrawer({
   scopeNote?: string;
   sample?: RuleSample;
   lessonTeacherIds?: number[];
+  lessonLocationId?: number | null;
   initialRows: RuleRow[];
   names: SplitNames;
   isLoading?: boolean;
@@ -588,6 +580,7 @@ export function RuleEditorDrawer({
         sample={sample}
         scopeNote={scopeNote}
         lessonTeacherIds={lessonTeacherIds}
+        lessonLocationId={lessonLocationId}
         status={
           <>
       {error && <p className="text-[13px] text-danger-700">{error}</p>}

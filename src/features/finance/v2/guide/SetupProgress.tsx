@@ -10,8 +10,9 @@ import { SETUP_STEPS, setupStepHref } from "../../setup/steps";
 
 export default function SetupProgress() {
   const enabled = useFinanceEnabled();
-  const { data, isLoading } = useGetFinanceSetupQuery(undefined, { skip: !enabled });
+  const { data, isLoading } = useGetFinanceSetupQuery(undefined, { skip: enabled !== true });
 
+  if (enabled === undefined) return <Skeleton className="h-48 rounded-2xl" />;
   if (!enabled) {
     return (
       <Box>

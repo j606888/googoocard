@@ -2,7 +2,10 @@ import type { Payee, ResolvedLine, RestTarget, SplitLine, SplitRule } from "@/do
 import { computeSplit } from "@/domains/finance/split";
 import { formatMoney } from "@/lib/money";
 
-/** 表單的一列。最後一列固定是「剩下的」（rest），它同時帶著這堂課的基金分部。 */
+/**
+ * 表單的一列。最後一列固定是「剩下的」（rest），它同時帶著 fundLocationId：不夠扣時差額由哪個分部的公積金吸收。
+ * 收入、老師、場地一律記在課程標的分部（Lesson.locationId），規則裡的公積金只決定剩下的錢給誰。
+ */
 export type RuleRow =
   | { type: "fixed"; amount: number; to: Payee }
   | { type: "percentIncome"; pct: number; to: Payee }
@@ -47,7 +50,7 @@ export function rowsToRule(rows: RuleRow[]): SplitRule {
   return { lines, rest: last.rest, fundLocationId: last.fundLocationId };
 }
 
-/** 沒有規則時編輯器的起點：全部進這堂課的基金。 */
+/** 沒有規則時編輯器的起點：剩下的全部進這個分部的公積金。 */
 export function emptyRows(fundLocationId: number): RuleRow[] {
   return [{ type: "rest", rest: { type: "fund", locationId: fundLocationId }, fundLocationId }];
 }
@@ -92,7 +95,7 @@ export function remainingBeforeRow(
   return { deducted: income - remaining, remaining: Math.max(0, remaining) };
 }
 
-/** 不夠扣時誰吸收：剩下的給公積金 → 那個公積金；給老師 → 這堂課的基金（跟分帳引擎一樣）。 */
+/** 不夠扣時誰吸收：剩下的給公積金 → 那個公積金；給老師 → fundLocationId 那個分部的公積金（跟分帳引擎一樣）。 */
 export const deficitFundOf = (rest: Extract<RuleRow, { type: "rest" }>): number =>
   rest.rest.type === "fund" ? rest.rest.locationId : rest.fundLocationId;
 
@@ -253,8 +256,9 @@ const EPS = 1e-9;
  * - 「這堂收入的」比例合計超過 100% → 一定不夠扣
  * - 有固定金額 → 收入低於某個數就不夠扣（算出那個數）
  * - 否則分得完：比例合計（「前面扣完剩下的」換算成佔收入幾 %）、剩下的給誰
- * 差額由誰吸收跟分帳引擎一樣：剩下的給公積金 → 那個公積金，否則這堂課的基金。
+ * 差額由誰吸收跟分帳引擎一樣：剩下的給公積金 → 那個公積金，否則 fundLocationId 那個分部的公積金。
  * 「場地費」行算成固定金額（場地每次多少）；不知道價錢就不算進來（試算那邊有說）。
+ * 句子裡叫「場地費」／「固定金額」／「場地費＋固定金額」；門檻因為先抽的比例變高時，把比例講出來。
  */
 export function checkRule(rows: RuleRow[], n: Pick<Namer, "teacher" | "location">, unitOf?: VenueUnitOf): RuleCheck | null {
   const rest = rows[rows.length - 1];
@@ -262,10 +266,14 @@ export function checkRule(rows: RuleRow[], n: Pick<Namer, "teacher" | "location"
   const lines = rows.slice(0, -1);
   const fund = `${n.location(deficitFundOf(rest))}公積金`;
   const pctIncome = lines.reduce((s, r) => s + (r.type === "percentIncome" ? r.pct : 0), 0);
-  const fixed = lines.reduce(
-    (s, r) => s + (r.type === "fixed" ? r.amount : r.type === "venuePack" ? (unitOf?.(r.venueId) ?? 0) : 0),
+  // 場地費（場地費行、付給場地的固定金額）和其他固定金額分開算，句子裡才叫得出是哪一種
+  const venueFee = lines.reduce(
+    (s, r) => s + (r.type === "venuePack" ? (unitOf?.(r.venueId) ?? 0) : r.type === "fixed" && r.to.type === "venue" ? r.amount : 0),
     0,
   );
+  const otherFixed = lines.reduce((s, r) => s + (r.type === "fixed" && r.to.type !== "venue" ? r.amount : 0), 0);
+  const fixed = venueFee + otherFixed;
+  const fixedLabel = venueFee > 0 && otherFixed > 0 ? "場地費＋固定金額" : venueFee > 0 ? "場地費" : "固定金額";
   const round = (x: number) => Math.round(x * 100) / 100;
 
   if (pctIncome > 100 + EPS) {
@@ -273,7 +281,7 @@ export function checkRule(rows: RuleRow[], n: Pick<Namer, "teacher" | "location"
   }
   if (fixed > 0) {
     if (pctIncome >= 100 - EPS) {
-      return { ok: false, text: `比例已是收入的 100%，固定金額 $${formatMoney(fixed)} 一定由${fund}吸收` };
+      return { ok: false, text: `比例已是收入的 100%，${fixedLabel} $${formatMoney(fixed)} 一定由${fund}吸收` };
     }
     // 最少收多少才扣得完：扣完剩的隨收入遞增 → 二分找門檻（整數元）
     let lo = 0;
@@ -284,12 +292,14 @@ export function checkRule(rows: RuleRow[], n: Pick<Namer, "teacher" | "location"
       if (finalRemaining(lines, mid, unitOf) >= -EPS) hi = mid;
       else lo = mid + 1;
     }
+    // 門檻比合計高，是因為前面先抽了比例：說出來，不然看不懂為什麼不是合計那個數
+    const extra = pctIncome > EPS ? `加上先抽的 ${round(pctIncome)}%` : "加上前面先抽的比例";
     return {
       ok: false,
       text:
         lo === Math.ceil(fixed)
-          ? `固定金額合計 $${formatMoney(fixed)}，收入低於這個數時由${fund}吸收`
-          : `固定金額合計 $${formatMoney(fixed)}，收入低於 $${formatMoney(lo)} 時由${fund}吸收`,
+          ? `${fixedLabel}合計 $${formatMoney(fixed)}，這堂收入低於這個數時由${fund}吸收`
+          : `${fixedLabel}合計 $${formatMoney(fixed)}，${extra}，這堂收入低於 $${formatMoney(lo)} 時由${fund}吸收`,
     };
   }
 

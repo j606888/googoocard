@@ -112,7 +112,7 @@ const SettingSection = ({
 
   const [updateLesson, { isLoading }] = useUpdateLessonMutation();
   // 財務開啟的教室：每門課都要有分部（server 回 LOCATION_REQUIRED）。
-  const financeOn = useFinanceEnabled();
+  const financeOn = useFinanceEnabled() === true;
   const [deleteLesson, { isLoading: isDeleting }] = useDeleteLessonMutation();
   const [endLesson, { isLoading: isEnding }] = useEndLessonMutation();
   const [reopenLesson, { isLoading: isReopening }] = useReopenLessonMutation();

@@ -10,11 +10,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { splitRuleSchema } from "@/domains/finance/types";
 import type { Lesson, LessonStudent } from "@/store/slices/lessons";
 import {
-  useCopyLessonRuleMutation,
   useDeletePeriodRuleMutation,
   useGetLessonPeriodFinanceQuery,
   useGetLessonRuleQuery,
   useGetRuledLessonsQuery,
+  useLazyGetLessonRuleQuery,
   useLazyGetPeriodRuleQuery,
   useSaveLessonRuleMutation,
   useSavePeriodRuleMutation,
@@ -43,13 +43,14 @@ export default function LessonSplitPanel({
   // 只列有分帳規則的課，沒規則的複製了也沒用。
   const { data: lessonsData } = useGetRuledLessonsQuery();
   const [saveLesson, { isLoading: savingLesson }] = useSaveLessonRuleMutation();
-  const [copyRule, { isLoading: copying }] = useCopyLessonRuleMutation();
+  const [fetchLessonRule, { isFetching: copying }] = useLazyGetLessonRuleQuery();
   const [savePeriod, { isLoading: savingPeriod }] = useSavePeriodRuleMutation();
   const [resetPeriod] = useDeletePeriodRuleMutation();
   const [fetchPeriodRule] = useLazyGetPeriodRuleQuery();
   const [seed, setSeed] = useState<RuleRow[] | null>(null);
   const [editing, setEditing] = useState<"lesson" | number | null>(null);
   const [copyFrom, setCopyFrom] = useState<number | null>(null);
+  const [copiedFrom, setCopiedFrom] = useState<string | null>(null);
 
   const parsed = ruleData?.rule ? splitRuleSchema.safeParse(ruleData.rule) : null;
   const rule = parsed?.success ? parsed.data : null;
@@ -69,6 +70,24 @@ export default function LessonSplitPanel({
   const close = () => {
     setEditing(null);
     setSeed(null);
+    setCopiedFrom(null);
+  };
+  // 複製＝打開編輯器、先填好那門課的規則，存檔才算數。
+  const openCopy = async (fromLessonId: number) => {
+    try {
+      const r = await fetchLessonRule(fromLessonId).unwrap();
+      const parsedFrom = r.rule ? splitRuleSchema.safeParse(r.rule) : null;
+      if (!parsedFrom?.success) {
+        toast.error("那門課還沒設分帳規則");
+        return;
+      }
+      setSeed(ruleToRows({ ...parsedFrom.data, fundLocationId: defaultFund }));
+      setCopiedFrom(copyOptions.find((o) => o.value === fromLessonId)?.label ?? "另一門課");
+      setEditing("lesson");
+      setCopyFrom(null);
+    } catch {
+      toast.error("讀不到那門課的規則");
+    }
   };
   const run = async (p: Promise<unknown>, ok: string): Promise<boolean> => {
     try {
@@ -78,7 +97,13 @@ export default function LessonSplitPanel({
       return true;
     } catch (e) {
       const code = (e as { data?: { code?: string } })?.data?.code;
-      toast.error(code === "NO_RULE" ? "那門課還沒設分帳規則" : "儲存失敗，請再試一次");
+      toast.error(
+        code === "NO_RULE"
+          ? "那門課還沒設分帳規則"
+          : code === "FUND_OTHER_BRANCH"
+            ? "公積金只能選這門課所在分部的"
+            : "儲存失敗，請再試一次",
+      );
       return false;
     }
   };
@@ -96,7 +121,8 @@ export default function LessonSplitPanel({
     setEditing(p.periodId);
   };
   const onSave = (rows: RuleRow[]) => {
-    const next = rowsToRule(rows);
+    // 「不夠扣時誰吸收」一律是課程所在分部（2026-11-10）
+    const next = { ...rowsToRule(rows), fundLocationId: defaultFund };
     return editing === "lesson"
       ? run(saveLesson({ lessonId: lesson.id, rule: next }).unwrap(), "已儲存分帳規則")
       : run(savePeriod({ periodId: editing as number, rule: next }).unwrap(), "這一堂已改用特別的規則");
@@ -159,12 +185,7 @@ export default function LessonSplitPanel({
             size="sm"
             disabled={copyFrom === null}
             isLoading={copying}
-            onClick={() =>
-              copyFrom !== null &&
-              run(copyRule({ lessonId: lesson.id, fromLessonId: copyFrom }).unwrap(), "已複製規則").then(
-                (ok) => ok && setCopyFrom(null)
-              )
-            }
+            onClick={() => copyFrom !== null && openCopy(copyFrom)}
           >
             複製
           </Button>
@@ -194,7 +215,13 @@ export default function LessonSplitPanel({
         <RuleEditorDrawer
           open
           title={editing === "lesson" ? "分帳規則" : "只改這一堂"}
-          subtitle={editing === "lesson" ? lesson.name : "其他堂不受影響"}
+          subtitle={
+            editing === "lesson"
+              ? copiedFrom
+                ? `${lesson.name} · 從「${copiedFrom}」複製，確認後再存檔`
+                : lesson.name
+              : "其他堂不受影響"
+          }
           scopeNote={
             editing === "lesson"
               ? `只影響「${lesson.name}」從開帳以來的每一堂（已鎖帳的日子不動，差額記在鎖帳日隔天）；某一堂特別（例如請了外師），改用那一堂的「只改這一堂」。`
@@ -202,6 +229,7 @@ export default function LessonSplitPanel({
           }
           sample={ruleSample(editing)}
           lessonTeacherIds={lesson.teachers.map((t) => t.id)}
+          lessonLocationId={lesson.locationId}
           initialRows={startRows}
           names={names}
           isLoading={savingLesson || savingPeriod}

@@ -77,9 +77,10 @@ export function postPeriod(period: PeriodInput, ctx: PostingContext): PostResult
   const date = toTaipeiDateKey(period.startTime);
   if (date < ctx.conversionDate) return { lines, errors };
 
+  // 一律記在課程標的分部；規則裡的公積金只決定「剩下的錢」歸誰（02 §3.2，2026-11-10 定案）。
   const fund =
-    period.fundLocationId !== null && ctx.locationExists(period.fundLocationId)
-      ? period.fundLocationId
+    period.locationId !== null && ctx.locationExists(period.locationId)
+      ? period.locationId
       : ctx.defaultLocationId;
   if (fund === null) return { lines, errors: ["NO_LOCATION"] };
   const lp = period.id;

@@ -11,21 +11,30 @@ import EmptyState from "@/components/EmptyState";
 import InfoTip from "@/components/InfoTip";
 import Field from "@/components/Field";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { addDays } from "@/domains/ledger/lines";
 import { cn } from "@/lib/utils";
 import { useGetMeQuery } from "@/store/slices/me";
 import { useGetFinanceSettingsQuery } from "@/store/slices/finance";
 import { useGetCloseChecklistQuery, useGetLockStateQuery, useSetLockDateMutation, useSignOffBranchMutation, type CloseChecklist } from "@/store/slices/ledger";
-import { financeErrorText, todayKey } from "../financeUi";
+import { DATE_INPUT_MAX, defaultAsOf, financeErrorText } from "../financeUi";
 import { useFinanceRole } from "../useCanSettle";
 import { Amount, FinanceCard, FinanceShell, useIsOwner } from "./ui";
 
-const lastMonthEnd = () => addDays(`${todayKey().slice(0, 7)}-01`, -1);
 const slash = (d: string) => d.replaceAll("-", "/");
+/** 時段開始時間：11/3 19:30（台北時間）。 */
+const periodTime = (iso: string) => {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("zh-TW", { month: "numeric", day: "numeric", timeZone: "Asia/Taipei" });
+  const time = d.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Asia/Taipei" });
+  return `${date} ${time}`;
+};
 
 export default function Close() {
-  const [asOf, setAsOf] = useState(lastMonthEnd());
-  const { data, isLoading, isError } = useGetCloseChecklistQuery({ asOf });
+  const { data: lock, isLoading: lockLoading } = useGetLockStateQuery();
+  const conversionDate = lock?.opened ? lock.conversionDate : null;
+  const [picked, setAsOf] = useState<string | null>(null);
+  const asOf = picked ?? defaultAsOf(conversionDate);
+  const { data, isLoading: listLoading, isError } = useGetCloseChecklistQuery({ asOf }, { skip: lockLoading });
+  const isLoading = lockLoading || listLoading;
   const items = data?.items ?? [];
   const done = items.filter((i) => i.done).length;
 
@@ -36,7 +45,7 @@ export default function Close() {
       actions={
         <>
           {data && <span className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-700 tabular-nums">完成 {done} / {items.length}</span>}
-          <input type="date" aria-label="結帳到哪一天" value={asOf} onChange={(e) => e.target.value && setAsOf(e.target.value)} className="h-10 rounded-xl border border-neutral-300 bg-white px-3 text-sm" />
+          <input type="date" aria-label="結帳到哪一天" value={asOf} min={conversionDate ?? undefined} max={DATE_INPUT_MAX} onChange={(e) => e.target.value && setAsOf(e.target.value)} className="h-10 rounded-xl border border-neutral-300 bg-white px-3 text-sm" />
         </>
       }
     >
@@ -105,7 +114,7 @@ function Details({ item, asOf }: { item: Item; asOf: string }) {
           {(item.details as { periodId: number; lessonId: number; lessonName: string; startTime: string }[]).slice(0, 8).map((p) =>
             box(
               <>
-                <span className="flex-1">{p.lessonName} · {new Date(p.startTime).toLocaleDateString("zh-TW", { month: "numeric", day: "numeric", timeZone: "Asia/Taipei" })}</span>
+                <span className="flex-1">{p.lessonName} · {periodTime(p.startTime)}</span>
                 <Link className="font-semibold text-primary-800" href={`/lessons/${p.lessonId}`}>去點名</Link>
               </>,
               p.periodId,
@@ -130,7 +139,20 @@ function Details({ item, asOf }: { item: Item; asOf: string }) {
         </div>
       );
     case "LEDGER_HEALTH":
-      return <span className="text-sm text-neutral-600">{item.count} 個問題：有紀錄記不進帳本（常見原因：收錢的人沒有資金帳戶）。</span>;
+      return (
+        <div className="flex flex-col gap-1.5">
+          {(item.details as { label: string; href: string | null }[]).map((p, i) =>
+            box(
+              <>
+                <span className="flex-1">{p.label}</span>
+                {p.href && <Link className="font-semibold text-primary-800" href={p.href}>去看</Link>}
+              </>,
+              i,
+            ),
+          )}
+          <p className="text-[13px] text-neutral-500">收錢的人不是保管人時，到「設定 → 成員」把他設成保管人，或把那張卡的收款人改成保管人。</p>
+        </div>
+      );
     case "CASH_COUNTS":
       return <Link href="/finance/accounts" className="text-sm font-semibold text-primary-800">{item.count} 個帳戶還沒盤點</Link>;
     case "SIGNOFFS":
@@ -225,7 +247,7 @@ function LockPanel({ asOf }: { asOf: string }) {
         ) : (
           canSettle && (
             <>
-              <Field label="鎖到哪一天" type="date" value={target} onChange={(e) => setDate(e.target.value)} />
+              <Field label="鎖到哪一天" type="date" value={target} min={data?.opened ? data.conversionDate : undefined} onChange={(e) => setDate(e.target.value)} />
               <Button disabled={!target || (backward && !isOwner) || target === data?.lockDate} onClick={() => setConfirm("lock")}>
                 {backward ? "把鎖帳日往前" : "鎖帳"}
               </Button>

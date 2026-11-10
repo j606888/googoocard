@@ -3,7 +3,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import Link from "next/link";
-import { roleLabel } from "@/lib/roles";
+import { financeRoleLabel } from "./roleLabel";
 import { toast } from "sonner";
 import Field from "@/components/Field";
 import Select from "@/components/Select";
@@ -27,7 +27,7 @@ function BranchRow({ loc }: { loc: FinanceLocation }) {
 
   // 負責人列全部成員：保管人在前；選了不是保管人的人，先把他設成保管人再指派。
   const memberHint = (m: (typeof allMembers)[number]) =>
-    [roleLabel(m.role), m.teacherName && `老師「${m.teacherName}」`].filter(Boolean).join(" · ");
+    [financeRoleLabel(m.role), m.teacherName && `老師「${m.teacherName}」`].filter(Boolean).join(" · ");
   const keeperOptions = [
     ...allMembers
       .filter((m) => m.isCustodian)

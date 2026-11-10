@@ -1,7 +1,17 @@
+import { addDays } from "@/domains/ledger/lines";
 import { toTaipeiDateKey } from "@/lib/taipei-date";
 
 /** 台北今天 YYYY-MM-DD。 */
 export const todayKey = () => toTaipeiDateKey(new Date());
+
+/** 日期欄的上限：擋掉 6 位數的年份（瀏覽器預設可以打到 275760 年）。 */
+export const DATE_INPUT_MAX = "9999-12-31";
+
+/** 「算到／結帳到哪一天」的預設：上個月底；若上個月底在開帳日之前（剛開帳的第一個月），改成今天。 */
+export function defaultAsOf(conversionDate?: string | null): string {
+  const lastMonthEnd = addDays(`${todayKey().slice(0, 7)}-01`, -1);
+  return conversionDate && lastMonthEnd < conversionDate ? todayKey() : lastMonthEnd;
+}
 
 const ERROR_TEXT: Record<string, string> = {
   REFUND_EXCEEDS_VALUE: "退費金額超過這張卡剩下的價值",

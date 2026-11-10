@@ -20,7 +20,6 @@ const auth = vi.hoisted(() => ({ userId: 1, classroomId: 0 as number | undefined
 vi.mock("@/lib/auth", () => ({ decodeAuthToken: async () => auth }));
 
 import { GET, PUT, DELETE } from "@/app/api/finance/lessons/[id]/rule/route";
-import { POST as COPY } from "@/app/api/finance/lessons/[id]/rule/copy/route";
 import { GET as GET_PERIOD, PUT as PUT_PERIOD, DELETE as DELETE_PERIOD } from "@/app/api/finance/periods/[periodId]/rule/route";
 import { DELETE as DELETE_LESSON } from "@/app/api/lessons/[id]/route";
 import { DELETE as DELETE_LESSON_PERIOD } from "@/app/api/lessons/[id]/periods/[periodId]/route";
@@ -81,16 +80,15 @@ describe("finance split rule APIs", () => {
     expect((await put({ ...rule, fundLocationId: foreignLoc })).status).toBe(400);
   });
 
-  it("copy rule from another lesson", async () => {
-    await put(rule);
-    const { lesson: other } = await createLesson(classroomId);
-    const res = await COPY(jsonRequest("POST", { fromLessonId: lessonId }), idp(other.id));
-    expect(res.status).toBe(200);
-    const row = await prisma.lessonSplitRule.findUniqueOrThrow({ where: { lessonId: other.id } });
-    expect(row.rule).toEqual(rule);
-    const { lesson: empty } = await createLesson(classroomId);
-    const none = await COPY(jsonRequest("POST", { fromLessonId: empty.id }), idp(other.id));
-    expect(none.status).toBe(404);
+  it("a lesson with a branch only accepts its own branch's fund; the deficit fund is pinned to it", async () => {
+    const other = (await createLocation(classroomId, { name: "高雄" })).id;
+    await prisma.lesson.update({ where: { id: lessonId }, data: { locationId } });
+    const bad = await put({ ...rule, rest: { type: "fund", locationId: other } });
+    expect(bad.status).toBe(400);
+    expect((await bad.json()).code).toBe("FUND_OTHER_BRANCH");
+    expect((await put({ ...rule, fundLocationId: other })).status).toBe(200);
+    const row = await prisma.lessonSplitRule.findUniqueOrThrow({ where: { lessonId } });
+    expect((row.rule as { fundLocationId: number }).fundLocationId).toBe(locationId);
   });
 
   it("override for one period, and delete", async () => {
@@ -159,6 +157,5 @@ describe("finance split rule APIs", () => {
     expect((await put(rule)).status).toBe(403);
     expect((await DELETE(jsonRequest("DELETE"), idp(lessonId))).status).toBe(403);
     expect((await PUT_PERIOD(jsonRequest("PUT", rule), routeParams({ periodId: String(periodId) }))).status).toBe(403);
-    expect((await COPY(jsonRequest("POST", { fromLessonId: lessonId }), idp(lessonId))).status).toBe(403);
   });
 });

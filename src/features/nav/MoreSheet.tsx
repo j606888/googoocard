@@ -31,7 +31,7 @@ const MoreSheet = ({ open, onClose }: MoreSheetProps) => {
   const [logout] = useLogoutMutation();
   const install = useInstallState();
   const { data: me } = useGetMeQuery();
-  const financeEnabled = useFinanceEnabled();
+  const financeEnabled = useFinanceEnabled() === true;
   const [installGuideOpen, setInstallGuideOpen] = useState(false);
 
   const handleLogout = async () => {

@@ -17,8 +17,7 @@ export const GET = apiRoute<{ id: string }>(async ({ params, classroomId }) => {
 export const PUT = apiRoute<{ id: string }>(async ({ request, params, userId, classroomId }) => {
   await assertCanSettle(userId, classroomId);
   const lesson = await requireLesson(parseId(params.id), classroomId);
-  const rule = await parseBody(request, splitRuleSchema);
-  await validateRule(classroomId, rule);
+  const rule = await validateRule(classroomId, await parseBody(request, splitRuleSchema), lesson.locationId);
   await saveLessonRule(lesson.id, rule, userId);
   return { rule };
 });

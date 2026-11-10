@@ -1,5 +1,6 @@
 // 財務 v2 P4：報表（docs/finance-v2/05 §3）。用十一月情境驗證每張表的數字與互相勾稽。
 import { describe, it, expect, beforeAll, vi } from "vitest";
+import prisma from "@/lib/prisma";
 import { resetDb, createClassroom } from "../factories";
 import { seedNovember, type NovemberWorld } from "../ledgerScenario";
 
@@ -16,10 +17,12 @@ const NOV = "from=2026-11-01&to=2026-11-30";
 describe("ledger reports (finance v2 P4)", () => {
   let w: NovemberWorld;
   let dingId: number;
+  let classroomId: number;
 
   beforeAll(async () => {
     await resetDb();
     const c = await createClassroom();
+    classroomId = c.id;
     dingId = c.ownerId;
     auth.userId = dingId;
     auth.classroomId = c.id;
@@ -74,7 +77,12 @@ describe("ledger reports (finance v2 P4)", () => {
     expect(body.opening + body.sold - body.recognized - body.closed).toBe(body.closing);
     expect(body.closing).toBe(706670 + 166667);
     expect(body.sold).toBe(1400000); // 7 張 $2,000 的卡（含阿傑沒付的；贈送卡 $0 不算）
-    expect(body.cards.find((c: { cardId: number }) => c.cardId === w.jie.cardId)).toMatchObject({ balance: 166667 });
+    expect(body.cards.find((c: { cardId: number }) => c.cardId === w.jie.cardId)).toMatchObject({
+      balance: 166667,
+      isPaid: false,
+      purchasedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      remainingSessions: expect.any(Number),
+    });
     expect(body.cards[0].name).toMatch(/·/);
   });
 
@@ -101,6 +109,7 @@ describe("ledger reports (finance v2 P4)", () => {
     expect(by("Bachata Training").revenue).toBe(33333 * 2 + 35000);
     expect(by("週四期班").periods).toBe(2);
     expect(by("Body movement").gross).toBe(0); // 剩下的全給 Sean
+    expect(by("Bachata Training").locationIds).toHaveLength(1);
   });
 
   it("general ledger of the cash parent shows every money account movement with a running balance", async () => {
@@ -117,5 +126,26 @@ describe("ledger reports (finance v2 P4)", () => {
     expect((await get("general-ledger", NOV)).status).toBe(400);
     expect((await get("pnl", "from=2026-12-01&to=2026-11-01")).status).toBe(400);
     expect((await get("pnl", "from=11/1")).status).toBe(400);
+  });
+
+  it("money account statement says who a payment went to and where a transfer went", async () => {
+    const mas = await prisma.moneyAccount.findMany({ where: { classroomId }, orderBy: { id: "asc" } });
+    const from = mas.find((m) => m.locationId === w.T.id)!;
+    const to = mas.find((m) => m.id !== from.id)!;
+    await prisma.payout.create({
+      data: {
+        classroomId, partyType: "TEACHER", partyId: w.tDing.id, payableKey: "TEACHER_PAYABLE", locationId: w.T.id,
+        amount: 10000, paidAmount: 10000, fromMoneyAccountId: from.id, status: "PAID", paidDate: new Date("2026-11-29T00:00:00Z"), createdById: dingId,
+      },
+    });
+    await prisma.moneyTransfer.create({
+      data: { classroomId, fromMoneyAccountId: from.id, toMoneyAccountId: to.id, amount: 5000, status: "PAID", date: new Date("2026-11-29T00:00:00Z"), createdById: dingId },
+    });
+    const gl = (accountId: number) => get("general-ledger", `${NOV}&accountId=${accountId}`);
+    const out = (await gl(from.accountId)).body.lines;
+    expect(out.find((l: { sourceType: string }) => l.sourceType === "PAYOUT")).toMatchObject({ amount: -10000, party: "丁丁" });
+    expect(out.find((l: { sourceType: string }) => l.sourceType === "MONEY_TRANSFER")).toMatchObject({ amount: -5000, party: `轉給 ${to.name}` });
+    const inn = (await gl(to.accountId)).body.lines;
+    expect(inn.find((l: { sourceType: string }) => l.sourceType === "MONEY_TRANSFER")).toMatchObject({ amount: 5000, party: `來自 ${from.name}` });
   });
 });

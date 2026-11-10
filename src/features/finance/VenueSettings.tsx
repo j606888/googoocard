@@ -83,9 +83,13 @@ function billingText(venue: FinanceVenue, packs: FinancePack[], n: Names): strin
     return `每次 ${money(venue.perSessionPrice)}${landlord ? `（付給${landlord}）` : ""}`;
   }
   const cur = currentPack(venue.id, packs);
-  if (!cur) return "儲值包 · 還沒有包";
+  if (!cur) return "次數包 · 還沒有包";
   const left = sessionsLeft(venue.id, packs);
-  return `儲值包 · 目前這包 ${cur.sessions} 次 ${money(cur.price)}（每次 ${money(packUnit(cur))}）· ${
+  // 開帳前手上的那包（購買日記成 1970 年）：只知道還剩幾次，不說「這包幾次多少錢」。
+  if (new Date(cur.purchasedAt).getUTCFullYear() < 2000) {
+    return `次數包 · 開帳前手上的 · ${left > 0 ? `還剩 ${left} 次（每次 ${money(packUnit(cur))}）` : "用完了，記得買新的一包"}`;
+  }
+  return `次數包 · 目前這包 ${cur.sessions} 次 ${money(cur.price)}（每次 ${money(packUnit(cur))}）· ${
     left > 0 ? `還剩 ${left} 次` : "用完了，記得買新的一包"
   }`;
 }

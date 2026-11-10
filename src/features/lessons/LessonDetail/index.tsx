@@ -29,7 +29,7 @@ export const TABS = [
 export const FINANCE_TAB = { name: "分帳", query: "split" };
 
 const LessonDetail = () => {
-  const financeEnabled = useFinanceEnabled();
+  const financeEnabled = useFinanceEnabled() === true;
   const { id } = useParams();
   // 只掛載其中一棵樹。兩棵都掛的話 PeriodSection / AttendanceOverview /
   // SettingSection 會各跑兩次（見 docs/ui-responsive.md 的「代價一」）。

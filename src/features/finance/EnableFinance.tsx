@@ -8,7 +8,7 @@ import { FieldError, FieldLabel } from "@/components/Field";
 import InfoTip from "@/components/InfoTip";
 import Select from "@/components/Select";
 import { Button } from "@/components/ui/button";
-import { roleLabel } from "@/lib/roles";
+import { financeRoleLabel } from "./roleLabel";
 import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 import { useEnableFinanceMutation, useGetFinanceSettingsQuery } from "@/store/slices/finance";
 
@@ -68,7 +68,7 @@ export default function EnableFinance() {
           options={members.map((m) => ({
             value: m.userId,
             label: m.name,
-            hint: [roleLabel(m.role), m.teacherName && `老師「${m.teacherName}」`].filter(Boolean).join(" · "),
+            hint: [financeRoleLabel(m.role), m.teacherName && `老師「${m.teacherName}」`].filter(Boolean).join(" · "),
           }))}
           placeholder="選一位"
         />
@@ -91,7 +91,7 @@ function GuideCta() {
       className="flex flex-col gap-0.5 rounded-2xl border border-primary-300 bg-primary-50 px-4 py-3 text-primary-900 hover:border-primary-300"
     >
       <span className="text-[15px] font-semibold">第一次用財務？先看使用教學（開新分頁）</span>
-      <span className="text-[13px] text-primary-800">10 分鐘看懂錢怎麼流、開了之後要設定哪些東西、常卡住的地方。</span>
+      <span className="text-[13px] text-primary-800">15 分鐘看懂錢怎麼流、開了之後要設定哪些東西、常卡住的地方。</span>
     </Link>
   );
 }

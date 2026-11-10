@@ -11,7 +11,7 @@ import Drawer from "@/components/Drawer";
 import Field, { FieldLabel } from "@/components/Field";
 import Select from "@/components/Select";
 import { monthOf } from "@/domains/finance/months";
-import { monthRange } from "@/domains/ledger/reports";
+import { monthRange, type CashFlow } from "@/domains/ledger/reports";
 import { cn } from "@/lib/utils";
 import { useGetLocationsQuery } from "@/store/slices/locations";
 import {
@@ -26,6 +26,7 @@ import { financeErrorText } from "../financeUi";
 import { useFinanceMembers } from "../useFinanceForm";
 import { useFinanceRole } from "../useCanSettle";
 import { Amount, FinanceCard, FinanceShell, amountText, parseYuan } from "./ui";
+import { CF_LABEL, mergeCashFlowOpening } from "./Reports";
 
 const SOURCE: Record<string, string> = {
   CARD: "收學費",
@@ -44,6 +45,7 @@ export default function Accounts() {
   const { data: locData } = useGetLocationsQuery();
   const [selected, setSelected] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
+  const [month, setMonth] = useState(monthOf(new Date()));
   const accounts = (data?.accounts ?? []).filter((a) => !a.archivedAt || a.balance !== 0);
   const current = accounts.find((a) => a.id === selected) ?? accounts.find((a) => a.holderUserId === meId) ?? accounts[0];
   const locName = (id: number) => locData?.locations.find((l) => l.id === id)?.name ?? "";
@@ -52,7 +54,12 @@ export default function Accounts() {
     <FinanceShell
       guide="accounts"
       title="資金帳戶"
-      actions={canSettle && <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>新增資金帳戶</Button>}
+      actions={
+        <>
+          <MonthSwitcher month={month} onChange={setMonth} />
+          {canSettle && <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>新增資金帳戶</Button>}
+        </>
+      }
     >
       {isLoading ? (
         <Skeleton className="h-80 rounded-2xl" />
@@ -61,6 +68,8 @@ export default function Accounts() {
       ) : !current ? (
         <EmptyState kind="inline" title="還沒有資金帳戶" />
       ) : (
+        <div className="flex flex-col gap-4">
+        <MonthFlow month={month} />
         <div className="flex flex-wrap items-start gap-4">
           <div className="flex w-full flex-col gap-2 lg:w-72">
             {accounts.map((a) => {
@@ -88,8 +97,9 @@ export default function Accounts() {
           </div>
           <div className="flex min-w-0 flex-[999_1_480px] flex-col gap-4">
             <CashCount key={current.id} account={current} canCount={canSettle || current.holderUserId === meId} />
-            <Movements account={current} />
+            <Movements account={current} month={month} />
           </div>
+        </div>
         </div>
       )}
       <AddAccountDrawer open={adding} onClose={() => setAdding(false)} />
@@ -138,8 +148,48 @@ function CashCount({ account, canCount }: { account: MoneyAccountView; canCount:
 
 type Gl = { opening: number; closing: number; lines: { entryId: number; date: string; amount: number; running: number; sourceType: string | null; entryKind: string; party: string | null }[] };
 
-function Movements({ account }: { account: MoneyAccountView }) {
-  const [month, setMonth] = useState(monthOf(new Date()));
+/** 這個月全教室的錢從哪來、去哪（原本的「現金流量」報表），精簡成兩欄。 */
+function MonthFlow({ month }: { month: string }) {
+  const { data, isLoading } = useGetLedgerReportQuery({ name: "cash-flow", ...monthRange(month) });
+  if (isLoading) return <Skeleton className="h-28 rounded-2xl" />;
+  if (!data) return null;
+  const cf = mergeCashFlowOpening(data as CashFlow);
+  const flows = cf.flows.filter((f) => f.total !== 0);
+  const ins = flows.filter((f) => f.total > 0);
+  const outs = flows.filter((f) => f.total < 0);
+  const list = (title: string, xs: typeof flows) => (
+    <div className="flex min-w-0 flex-1 basis-56 flex-col gap-1">
+      <span className="text-[13px] text-neutral-500">{title}</span>
+      {xs.length === 0 ? (
+        <span className="text-sm text-neutral-400">沒有</span>
+      ) : (
+        xs.map((f) => (
+          <div key={f.category} className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-neutral-700">{CF_LABEL[f.category] ?? f.category}</span>
+            <Amount cents={Math.abs(f.total)} dollar className="font-medium" />
+          </div>
+        ))
+      )}
+    </div>
+  );
+  return (
+    <FinanceCard className="flex flex-col gap-3 px-5 py-4" aria-label="這個月的錢">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <h2 className="text-base font-semibold">{Number(month.slice(5))} 月的錢</h2>
+        <InfoTip label="說明">全部資金帳戶加起來：月初有多少、這個月進來和出去的，月底剩多少。帳戶之間轉來轉去不算。</InfoTip>
+        <span className="ml-auto text-[13px] text-neutral-500 tabular-nums">
+          月初 <Amount cents={cf.opening.total} dollar /> → 月底 <Amount cents={cf.closing.total} dollar className="font-semibold text-neutral-900" />
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-x-8 gap-y-3">
+        {list("進來", ins)}
+        {list("出去", outs)}
+      </div>
+    </FinanceCard>
+  );
+}
+
+function Movements({ account, month }: { account: MoneyAccountView; month: string }) {
   const { data, isLoading } = useGetLedgerReportQuery({ name: "general-ledger", accountId: account.accountId, ...monthRange(month) });
   const gl = data as Gl | undefined;
   const lines = [...(gl?.lines ?? [])].reverse();
@@ -147,7 +197,6 @@ function Movements({ account }: { account: MoneyAccountView }) {
     <FinanceCard className="overflow-x-auto pb-2 pt-3.5" aria-label="明細">
       <div className="flex flex-wrap items-center justify-between gap-2 px-5 pb-2">
         <h2 className="text-base font-semibold">明細</h2>
-        <MonthSwitcher month={month} onChange={setMonth} />
       </div>
       {isLoading ? (
         <Skeleton className="mx-5 h-40 rounded-xl" />

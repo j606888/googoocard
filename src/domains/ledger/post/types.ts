@@ -79,8 +79,8 @@ export type PeriodDropIn = {
 export type PeriodInput = {
   id: number;
   startTime: Date;
-  /** 這堂課的基金分部（規則的 fundLocationId；沒規則 → 上課分部）。 */
-  fundLocationId: number | null;
+  /** 這堂課的分部（課程標的分部）：收入、老師報酬、場地費都記在這裡。null → 預設分部。 */
+  locationId: number | null;
   rule: SplitRule | null;
   /** 這堂的場地費（規則有 venuePack 行時）：packId null＝每次付的場地；pack null＝沒設收費也沒有包。 */
   pack: { venueId: number; packId: number | null; unit: number } | null;

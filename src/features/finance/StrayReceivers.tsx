@@ -19,6 +19,7 @@ import {
 } from "@/store/slices/finance";
 import { financeErrorText } from "./financeUi";
 import { useFinanceMembers } from "./useFinanceForm";
+import { useOpeningDraftDate } from "./v2/Opening";
 
 const rowKey = (i: { kind: string; id: number }) => `${i.kind}:${i.id}`;
 const shortDate = (d: string) => d.slice(5).replace("-", "/");
@@ -28,13 +29,14 @@ const sum = (rows: { amount: number }[]) => rows.reduce((s, r) => s + r.amount, 
 const SKIP = 0;
 
 /**
- * 開帳：收款人不是保管人的已付款卡／單堂（上線後收的，和上線前還有剩格的卡）。
+ * 開帳：收款人不是保管人的已付款卡／單堂（轉換日後收的，和轉換日還有預收的舊卡；在精靈裡照草稿的轉換日）。
  * 左邊依「誰收的」分組，整組一次選要改給哪位保管人（展開可逐筆改）；
  * 右邊即時預覽「改記後」每位保管人多了多少 → 一次確認改記。手機上預覽放在清單上方
  * （精靈的「下一步」已經貼底，不再疊第二條）。改記過的列在「已改記」，留著原收款人，可以復原。
  */
 export default function StrayReceivers() {
-  const { data } = useGetStrayReceiversQuery();
+  const conversionDate = useOpeningDraftDate();
+  const { data } = useGetStrayReceiversQuery(conversionDate ? { conversionDate } : undefined);
   const { data: settings } = useGetFinanceSettingsQuery();
   const { options } = useFinanceMembers();
   const [reassign, { isLoading }] = useReassignStrayReceiversMutation();
@@ -99,6 +101,7 @@ export default function StrayReceivers() {
           cardIds: rows.filter((r) => r.kind === "card").map((r) => r.id),
           dropInIds: rows.filter((r) => r.kind === "dropIn").map((r) => r.id),
         })),
+        conversionDate,
       }).unwrap();
       setGroupTargets(new Map());
       setRowTargets(new Map());

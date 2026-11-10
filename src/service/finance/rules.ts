@@ -40,13 +40,27 @@ export async function validateRuleRefs(classroomId: number, rule: SplitRule): Pr
   }
 }
 
-export async function validateRule(classroomId: number, rule: SplitRule) {
+/**
+ * 存規則前檢查並整理（2026-11-10 定案：錢一律記在課程標的分部）：
+ * 規則裡的公積金只能是這門課的分部（否則 400 FUND_OTHER_BRANCH），「不夠扣時誰吸收」也固定是這個分部。
+ * 課沒標分部時不檢查。回傳要存的規則。
+ */
+export async function validateRule(classroomId: number, rule: SplitRule, lessonLocationId: number | null = null): Promise<SplitRule> {
   assertSingleVenuePack(rule);
   await validateRuleRefs(classroomId, rule);
+  if (lessonLocationId === null) return rule;
+  const funds = [
+    ...rule.lines.flatMap((l) => (l.kind !== "venuePack" && l.to.type === "fund" ? [l.to.locationId] : [])),
+    ...(rule.rest.type === "fund" ? [rule.rest.locationId] : []),
+  ];
+  if (funds.some((id) => id !== lessonLocationId)) {
+    throw new ApiError(400, "FUND_OTHER_BRANCH", "A rule may only use the fund of the lesson's own branch");
+  }
+  return { ...rule, fundLocationId: lessonLocationId };
 }
 
 export async function requireLesson(lessonId: number, classroomId: number) {
-  const l = await prisma.lesson.findFirst({ where: { id: lessonId, classroomId }, select: { id: true } });
+  const l = await prisma.lesson.findFirst({ where: { id: lessonId, classroomId }, select: { id: true, locationId: true } });
   if (!l) throw new ApiError(404, "NOT_FOUND", "Lesson not found");
   return l;
 }
@@ -54,7 +68,7 @@ export async function requireLesson(lessonId: number, classroomId: number) {
 export async function requirePeriod(periodId: number, classroomId: number) {
   const p = await prisma.lessonPeriod.findFirst({
     where: { id: periodId, lesson: { classroomId } },
-    select: { id: true },
+    select: { id: true, lesson: { select: { locationId: true } } },
   });
   if (!p) throw new ApiError(404, "NOT_FOUND", "Period not found");
   return p;

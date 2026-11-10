@@ -137,7 +137,30 @@ export async function runReport(classroomId: number, name: ReportName, p: Report
     case "deferred-revenue": {
       const r = deferredRollforward(ctx.rows, ctx.accounts, rangeOf(p), p.locationId);
       const nameOf = await partyNames(classroomId, r.cards.map((c) => ({ partyType: "STUDENT_CARD", partyId: c.cardId })));
-      return { ...base, range: rangeOf(p), ...r, cards: r.cards.map((c) => ({ ...c, name: nameOf("STUDENT_CARD", c.cardId) })) };
+      const info = new Map(
+        (
+          await prisma.studentCard.findMany({
+            where: { id: { in: r.cards.map((c) => c.cardId) }, student: { classroomId } },
+            select: { id: true, createdAt: true, remainingSessions: true, expiresAt: true, isPaid: true },
+          })
+        ).map((s) => [s.id, s]),
+      );
+      return {
+        ...base,
+        range: rangeOf(p),
+        ...r,
+        cards: r.cards.map((c) => {
+          const s = info.get(c.cardId);
+          return {
+            ...c,
+            name: nameOf("STUDENT_CARD", c.cardId),
+            purchasedOn: s ? toTaipeiDateKey(s.createdAt) : null,
+            remainingSessions: s?.remainingSessions ?? null,
+            expiresOn: s?.expiresAt ? toTaipeiDateKey(s.expiresAt) : null,
+            isPaid: s?.isPaid ?? true,
+          };
+        }),
+      };
     }
     case "receivables": {
       const list = partyBalances(ctx.rows, [acc("AR").id], asOf, "ASSET").filter((x) => p.locationId === undefined || x.locationId === p.locationId);
@@ -174,11 +197,12 @@ export async function runReport(classroomId: number, name: ReportName, p: Report
         select: { id: true, lesson: { select: { id: true, name: true } }, _count: { select: { attendanceRecords: true } } },
       });
       const byId = new Map(info.map((i) => [i.id, i]));
-      const lessons = new Map<number, { lessonId: number; name: string; periods: number; attendance: number; revenue: number; teacher: number; venue: number; gross: number }>();
+      const lessons = new Map<number, { lessonId: number; name: string; locationIds: number[]; periods: number; attendance: number; revenue: number; teacher: number; venue: number; gross: number }>();
       for (const x of periods) {
         const i = byId.get(x.lessonPeriodId);
         if (!i) continue;
-        const cur = lessons.get(i.lesson.id) ?? { lessonId: i.lesson.id, name: i.lesson.name, periods: 0, attendance: 0, revenue: 0, teacher: 0, venue: 0, gross: 0 };
+        const cur = lessons.get(i.lesson.id) ?? { lessonId: i.lesson.id, name: i.lesson.name, locationIds: [], periods: 0, attendance: 0, revenue: 0, teacher: 0, venue: 0, gross: 0 };
+        if (!cur.locationIds.includes(x.locationId)) cur.locationIds.push(x.locationId);
         cur.periods++;
         cur.attendance += i._count.attendanceRecords;
         cur.revenue += x.revenue;
@@ -194,17 +218,47 @@ export async function runReport(classroomId: number, name: ReportName, p: Report
       if (!account) throw new ApiError(400, "ACCOUNT_REQUIRED", "accountId is required");
       const children = ctx.accounts.filter((a) => a.parentId === account.id).map((a) => a.id);
       const r = generalLedger(ctx.rows, account, children, rangeOf(p), p.locationId);
-      const nameOf = await partyNames(
-        classroomId,
-        r.lines.filter((l) => l.partyType !== null).map((l) => ({ partyType: l.partyType!, partyId: l.partyId! })),
+      // 沒有對象的行（付款、轉帳的現金行）：從同一張分錄的其他行找對象——付給誰、轉給哪個資金帳戶。
+      const entryIds = new Set(r.lines.filter((l) => l.partyType === null).map((l) => l.entryId));
+      const siblings = new Map<number, LedgerRow[]>();
+      for (const row of ctx.rows) {
+        if (!entryIds.has(row.entryId)) continue;
+        siblings.set(row.entryId, [...(siblings.get(row.entryId) ?? []), row]);
+      }
+      const moneyAccounts = new Map(
+        (await prisma.moneyAccount.findMany({ where: { classroomId }, select: { accountId: true, name: true } })).map((m) => [m.accountId, m.name]),
       );
+      const counterOf = (l: LedgerRow): { partyType: string; partyId: number } | { moneyAccount: string; out: boolean } | null => {
+        if (l.partyType !== null) return null;
+        const others = (siblings.get(l.entryId) ?? []).filter((o) => o.accountId !== l.accountId);
+        const ma = others.find((o) => moneyAccounts.has(o.accountId) && Math.sign(o.amount) === -Math.sign(l.amount));
+        if (ma) return { moneyAccount: moneyAccounts.get(ma.accountId)!, out: l.amount < 0 };
+        // 分部往來的行對象是分部，不算
+        const party = others.find((o) => o.partyType !== null && o.partyType !== "LOCATION" && o.partyId !== null);
+        return party ? { partyType: party.partyType!, partyId: party.partyId! } : null;
+      };
+      const counters = r.lines.map(counterOf);
+      const nameOf = await partyNames(classroomId, [
+        ...r.lines.filter((l) => l.partyType !== null).map((l) => ({ partyType: l.partyType!, partyId: l.partyId! })),
+        ...counters.flatMap((c) => (c && "partyType" in c ? [c] : [])),
+      ]);
       return {
         ...base,
         range: rangeOf(p),
         account,
         opening: r.opening,
         closing: r.closing,
-        lines: r.lines.map((l) => ({ ...l, party: l.partyType ? nameOf(l.partyType, l.partyId!) : null })),
+        lines: r.lines.map((l, i) => {
+          const c = counters[i];
+          const party = l.partyType
+            ? nameOf(l.partyType, l.partyId!)
+            : c === null
+              ? null
+              : "moneyAccount" in c
+                ? `${c.out ? "轉給" : "來自"} ${c.moneyAccount}`
+                : nameOf(c.partyType, c.partyId);
+          return { ...l, party };
+        }),
       };
     }
   }

@@ -76,6 +76,19 @@ describe("venue billing follows the venue's branch", () => {
     expect(await sum("EXPENSE_VENUE", { locationId: T })).toBe(40000);
   });
 
+  it("costs land on the lesson's own branch even when the rule's fund is another branch", async () => {
+    const hall = await createVenue(classroomId, { name: "大樓", locationId: T, perSessionPrice: 500 });
+    // 從高雄的課複製過來的規則：公積金是高雄，但課標在台南
+    const rule: SplitRule = { lines: [{ kind: "venuePack", venueId: hall.id }], rest: { type: "fund", locationId: K }, fundLocationId: K };
+    const { lesson } = await createLesson(classroomId, { locationId: T });
+    await prisma.lessonSplitRule.create({ data: { lessonId: lesson.id, rule, updatedById: dingId } });
+    await taken(lesson.id, "2026-11-02T12:00:00Z");
+    await syncLedger(classroomId);
+
+    expect(await sum("EXPENSE_VENUE", { locationId: T })).toBe(50000);
+    expect(await sum("EXPENSE_VENUE", { locationId: K })).toBe(0);
+  });
+
   it("a per-session venue charges its price each period, payable paid by the venue branch keeper", async () => {
     const hall = await createVenue(classroomId, { name: "大樓", locationId: K, perSessionPrice: 500 });
     const lesson = await ruledLesson(hall.id);

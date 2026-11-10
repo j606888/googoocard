@@ -33,11 +33,3 @@ export async function financeStart(classroomId: number): Promise<FinanceStart | 
  * 開帳前記的也一樣——那時還不知道轉換日。
  */
 export const BEFORE_CONVERSION_PURCHASED_AT = new Date("2000-01-01T00:00:00+08:00");
-
-/**
- * 開帳前就要用的整理（收款人整理）的下限：已開帳 → 轉換日；還沒 → 開財務那一刻
- * （那時還不知道轉換日；開帳時若選得更早，開帳後這份清單會補上中間那幾天）。
- */
-export async function financeSince(classroomId: number, enabledAt: Date): Promise<Date> {
-  return (await financeStart(classroomId))?.start ?? enabledAt;
-}

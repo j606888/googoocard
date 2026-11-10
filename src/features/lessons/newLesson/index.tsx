@@ -135,7 +135,7 @@ const NewLesson = () => {
   const [createLesson, { isLoading }] = useCreateLessonMutation();
   const router = useRouter();
   // 財務開啟的教室：每門課都要有分部（server 回 LOCATION_REQUIRED）。
-  const financeOn = useFinanceEnabled();
+  const financeOn = useFinanceEnabled() === true;
 
   const handleLessonNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (errors.lessonName) {

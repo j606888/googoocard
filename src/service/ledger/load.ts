@@ -262,7 +262,7 @@ export async function loadLedgerInputs(
     return {
       id: p.id,
       startTime: p.startTime,
-      fundLocationId: rule?.fundLocationId ?? p.lesson.locationId,
+      locationId: p.lesson.locationId,
       rule,
       pack: pack ? { venueId: pack.venueId, packId: pack.packId, unit: pack.unit } : null,
       usages,

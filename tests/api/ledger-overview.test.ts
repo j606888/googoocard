@@ -46,6 +46,11 @@ describe("finance overview & statements (finance v2 P6)", () => {
     expect(body.payable.total).toBe(511716);
     expect(body.held.total).toBe(22222);
     expect(body.receivable).toMatchObject({ total: 200000, count: 1, maxAgeDays: 4 });
+    // 阿傑沒付的卡：不算進「欠的」
+    expect(body.cardReceivable.total).toBe(200000);
+    expect(body.cardReceivable.byLocation[w.T.id]).toBe(200000);
+    expect(body.cashOverShort.total).toBe(0);
+    for (const l of body.losingLessons) expect(l.total).toBeLessThan(0);
     expect(body.fund.byLocation[w.T.id]).toBeCloseTo(-23891, -1);
     expect(body.trend).toHaveLength(6);
     expect(body.trend[4].income).toBeNull(); // 10 月：開帳前
@@ -78,5 +83,20 @@ describe("finance overview & statements (finance v2 P6)", () => {
     expect(owed._sum.amount).toBe(-30000);
     const { body } = await get(ACCOUNTS, "http://t/");
     expect(body.accounts.find((a: { systemKey: string }) => a.systemKey === "CASH")).toBeTruthy();
+  });
+
+  it("a cash-count shortage shows as part of expenses; next-step hints at the start of a month", async () => {
+    let { body } = await get(OVERVIEW, "http://t/?from=2026-12-01&to=2026-12-31");
+    // 12/3：月初、還沒建 11 月的付款批次、兩個現金帳戶都還沒盤點
+    expect(body.todos.hints.payoutRunDue).toBe(true);
+    expect(body.todos.hints.countDue).toHaveLength(2);
+    const ma = body.cash.accounts[0];
+    await prisma.cashCount.create({
+      data: { classroomId, moneyAccountId: ma.id, date: new Date("2026-12-02T00:00:00Z"), systemBalance: ma.balance, counted: ma.balance - 2200, createdById: dingId },
+    });
+    ({ body } = await get(OVERVIEW, "http://t/?from=2026-12-01&to=2026-12-31"));
+    expect(body.cashOverShort.total).toBe(2200);
+    expect(body.expenses.total).toBe(30000 + 2200); // 海報 $300 + 盤點短少 $22
+    expect(body.todos.hints.countDue.map((m: { id: number }) => m.id)).not.toContain(ma.id);
   });
 });

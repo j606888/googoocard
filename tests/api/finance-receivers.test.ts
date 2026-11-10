@@ -21,7 +21,9 @@ vi.mock("@/lib/auth", () => ({
 
 import { GET, POST } from "@/app/api/finance/receivers/route";
 import { POST as RESTORE } from "@/app/api/finance/receivers/restore/route";
-import { setupChecklist } from "@/service/finance/setup";
+import { POST as PREVIEW } from "@/app/api/finance/opening/preview/route";
+import { loadSetup, setupChecklist } from "@/service/finance/setup";
+import { ensureLedgerSetup } from "@/service/ledger/setup";
 
 const LAUNCH = new Date("2026-10-31T16:00:00Z"); // 11/1 台北
 
@@ -322,5 +324,92 @@ describe("opening: money received by non-custodians", () => {
       expect(locked.status).toBe(409);
       expect(await holder(a.id)).toEqual([ownerId, null]);
     });
+  });
+});
+
+describe("step 5 follows the draft conversion date (staging walkthrough 2026-11-10)", () => {
+  // 11/10 開財務、還沒開帳；精靈裡轉換日選 11/1。vv 不是保管人，10/1 收了一張卡、11/3～11/5 上完；
+  // 11/5 又收了一張卡。兩張都該在第 5 步出現，否則第 6 步會卡在「vv 還沒有資金帳戶」。
+  const at = (ymd: string, hour = 12) => new Date(`${ymd}T${String(hour - 8).padStart(2, "0")}:00:00Z`);
+  const C = "2026-11-01";
+  let classroomId: number;
+  let ownerId: number;
+  let vvId: number;
+  let usedUpId: number;
+  let lateId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    const c = await createClassroom();
+    classroomId = c.id;
+    ownerId = c.ownerId;
+    auth.classroomId = classroomId;
+    auth.userId = ownerId;
+    await prisma.membership.updateMany({ where: { userId: ownerId, classroomId }, data: { isCustodian: true, canSettle: true } });
+    vvId = (await createMember(classroomId, { name: "vv", email: "vv@test.local" })).id;
+    await enableFinanceFor(classroomId, { launch: new Date("2026-11-10T04:00:00Z"), legacyCustodianUserId: ownerId, opened: false });
+    const loc = await createLocation(classroomId, { name: "台南" });
+    await prisma.location.update({ where: { id: loc.id }, data: { keeperUserId: ownerId } });
+    await ensureLedgerSetup(classroomId);
+
+    const type = await createCard(classroomId);
+    const { lesson } = await createLesson(classroomId, { locationId: loc.id });
+    const student = await createStudent(classroomId);
+    const usedUp = await createStudentCard(student.id, type.id, { finalPrice: 2000, totalSessions: 4, remainingSessions: 0, createdAt: at("2026-10-01") });
+    await prisma.studentCard.update({ where: { id: usedUp.id }, data: { paidByUserId: vvId } });
+    usedUpId = usedUp.id;
+    for (const d of ["2026-10-08", "2026-10-15", "2026-11-03", "2026-11-05"]) {
+      const p = await prisma.lessonPeriod.create({ data: { lessonId: lesson.id, startTime: at(d, 20), endTime: at(d, 21), attendanceTakenAt: at(d, 21) } });
+      await prisma.attendanceRecord.create({ data: { lessonPeriodId: p.id, studentId: student.id, studentCardId: usedUp.id, sessionsUsed: 1 } });
+    }
+    const late = await createStudentCard(student.id, type.id, { finalPrice: 1800, createdAt: at("2026-11-05") });
+    await prisma.studentCard.update({ where: { id: late.id }, data: { paidByUserId: vvId } });
+    lateId = late.id;
+  });
+
+  const listIds = async (conversionDate?: string) => {
+    const res = await GET(new Request(`http://test.local/api${conversionDate ? `?conversionDate=${conversionDate}` : ""}`), routeParams({}));
+    expect(res.status).toBe(200);
+    return ((await res.json()).items as { id: number }[]).map((i) => i.id).sort();
+  };
+  const previewErrors = async () => {
+    const res = await PREVIEW(jsonRequest("POST", { conversionDate: C, method: "CONVENTION" }), routeParams({}));
+    expect(res.status).toBe(200);
+    return (await res.json()).errors as { code: string; userId?: number; cardIds?: number[] }[];
+  };
+
+  it("lists exactly what the opening would fail on, reassigns it, and the opening preview is clean afterwards", async () => {
+    // 照開財務那天（11/10）看：用完的卡那天已經沒有預收 → 不在清單；草稿選 11/1 → 兩張都在
+    expect(await listIds()).toEqual([lateId]);
+    expect(await listIds(C)).toEqual([usedUpId, lateId].sort());
+    const setup = await loadSetup(classroomId, C);
+    expect(setup.items.find((i) => i.key === "receivers")!.done).toBe(false);
+
+    // 第 6 步：用完的那張（11/1 還有 2 堂沒上）沒有資金帳戶可記
+    expect(await previewErrors()).toEqual([expect.objectContaining({ code: "NO_MONEY_ACCOUNT", userId: vvId, cardIds: [usedUpId] })]);
+
+    const res = await POST(
+      jsonRequest("POST", { moves: [{ toUserId: ownerId, cardIds: [usedUpId, lateId], dropInIds: [] }], conversionDate: C }),
+      routeParams({}),
+    );
+    expect(await res.json()).toEqual({ cards: 2, dropIns: 0 });
+    const moved = await prisma.studentCard.findUniqueOrThrow({ where: { id: usedUpId } });
+    expect([moved.paidByUserId, moved.collectedByUserId]).toEqual([ownerId, vvId]);
+
+    expect(await listIds(C)).toEqual([]);
+    expect((await loadSetup(classroomId, C)).items.find((i) => i.key === "receivers")!.done).toBe(true);
+    expect((await previewErrors()).filter((e) => e.code === "NO_MONEY_ACCOUNT")).toEqual([]);
+  });
+
+  it("step 6 can reassign a non-custodian's opening cards straight to a custodian (and undo)", async () => {
+    const res = await POST(
+      jsonRequest("POST", { moves: [{ toUserId: ownerId, cardIds: [usedUpId], dropInIds: [] }], conversionDate: C }),
+      routeParams({}),
+    );
+    expect(await res.json()).toEqual({ cards: 1, dropIns: 0 });
+    expect(await previewErrors()).toEqual([]);
+
+    await RESTORE(jsonRequest("POST", { cardIds: [usedUpId], dropInIds: [] }), routeParams({}));
+    expect((await previewErrors()).map((e) => e.code)).toEqual(["NO_MONEY_ACCOUNT"]);
   });
 });

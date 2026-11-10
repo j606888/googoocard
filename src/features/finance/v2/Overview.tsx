@@ -23,8 +23,15 @@ export default function Overview() {
   const [month, setMonth] = useState(monthOf(new Date()));
   const [loc, setLoc] = useState<number | null>(null);
   const range = monthRange(month);
-  const { data, isLoading, isError } = useGetFinanceOverviewQuery(range, { skip: !enabled, refetchOnFocus: true });
+  const { data, isLoading, isError } = useGetFinanceOverviewQuery(range, { skip: enabled !== true, refetchOnFocus: true });
 
+  if (enabled === undefined) {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+      </div>
+    );
+  }
   if (!enabled) return <EnableFinance />;
 
   return (
@@ -82,7 +89,8 @@ function Kpi({ href, label, children, sub }: { href: string; label: string; chil
 function OverviewBody({ data, loc }: { data: FinanceOverview; loc: number | null }) {
   const accounts = data.cash.accounts.filter((a) => loc === null || a.locationId === loc);
   const cash = pick(data.cash, loc);
-  const owed = pick(data.deferred, loc) + pick(data.payable, loc) + pick(data.held, loc);
+  // 沒付的卡：預收記了但錢還沒進來，不算欠的（不然賣一張沒付的卡就會變「差」）
+  const owed = pick(data.deferred, loc) + pick(data.payable, loc) + pick(data.held, loc) - pick(data.cardReceivable, loc);
   const gap = owed - cash;
   const net = pick(data.netIncome, loc);
   const fundLocs = loc === null ? data.locations : data.locations.filter((l) => l.id === loc);
@@ -90,15 +98,18 @@ function OverviewBody({ data, loc }: { data: FinanceOverview; loc: number | null
   const receivables = todos.receivables.filter((r) => loc === null || r.locationId === loc);
   // 開帳後還沒有任何收入（近六個月都是 0／沒帳）＝還沒上過課
   const noIncomeYet = data.opened && data.trend.every((t) => !t.income || pick(t.income, loc) === 0);
-  const monthIdle = pick(data.grossProfit, loc) === 0 && pick(data.expenses, loc) === 0;
+  const monthIdle = pick(data.income, loc) === 0 && pick(data.grossProfit, loc) === 0 && pick(data.expenses, loc) === 0;
   const hint = (text: string) => <span className="text-neutral-400">{text}</span>;
+  const overShort = pick(data.cashOverShort, loc);
+  const losing = data.losingLessons.map((l) => ({ ...l, gross: pick(l, loc) })).filter((l) => l.gross < 0);
+  const nothingToDo = todos.pendingPayouts.count + todos.pendingTransfers.count + receivables.length + todos.ledgerErrors === 0 && !todos.closeDue;
 
   return (
     <div className="flex flex-col gap-4">
       {data.opened && <OpenedCard data={data} />}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <Kpi href="/finance/reports/pnl" label="本月淨利" sub={monthIdle ? hint("這個月還沒有收入或支出") : <>毛利 <Amount cents={pick(data.grossProfit, loc)} dollar /> · 支出 <Amount cents={pick(data.expenses, loc)} dollar /></>}>
+        <Kpi href="/finance/reports/pnl" label="本月淨利" sub={monthIdle ? hint("這個月還沒有收入或支出") : <>收入 <Amount cents={pick(data.income, loc)} dollar /> · 毛利 <Amount cents={pick(data.grossProfit, loc)} dollar /> · 支出 <Amount cents={pick(data.expenses, loc)} dollar />{overShort !== 0 && <>（含盤點{overShort > 0 ? "短少" : "多出"} <Amount cents={Math.abs(overShort)} dollar />）</>}</>}>
           <Amount cents={net} dollar />
         </Kpi>
         <Kpi
@@ -154,7 +165,7 @@ function OverviewBody({ data, loc }: { data: FinanceOverview; loc: number | null
       <FinanceCard className="flex flex-col gap-3 px-5 py-4">
         <div className="flex items-center gap-1.5">
           <h2 className="text-[15px] font-semibold">手上的錢 vs 欠的</h2>
-          <InfoTip label="說明">欠的＝預收學費（還沒上的課）＋應付老師與場地。手上的錢比欠的少，表示已經先用了學生的預付款。</InfoTip>
+          <InfoTip label="說明">欠的＝預收學費（還沒上的課）＋應付老師與場地，扣掉還沒付錢的卡（錢還沒進來）。手上的錢比欠的少，表示已經先用了學生的預付款。</InfoTip>
           {gap > 0 ? (
             <span className="ml-auto rounded-full bg-warning-100 px-2.5 py-0.5 text-sm font-semibold text-warning-950">差 {amountText(gap, { dollar: true })}</span>
           ) : (
@@ -164,6 +175,23 @@ function OverviewBody({ data, loc }: { data: FinanceOverview; loc: number | null
         <Bar label="手上的錢" value={cash} max={Math.max(cash, owed, 1)} tone="bg-primary-600" />
         <Bar label="預收＋應付" value={owed} max={Math.max(cash, owed, 1)} tone="bg-neutral-400" />
       </FinanceCard>
+
+      {losing.length > 0 && (
+        <FinanceCard className="flex flex-col px-5 py-4" aria-label="本月虧錢的課">
+          <div className="mb-1 flex items-center gap-1.5">
+            <h2 className="text-[15px] font-semibold">本月虧錢的課</h2>
+            <InfoTip label="說明">這個月這門課的收入，不夠付老師和場地。</InfoTip>
+            <Link href="/finance/reports/lessons" className="ml-auto text-[13px] font-medium text-primary-800 hover:underline">課程獲利</Link>
+          </div>
+          {losing.map((l) => (
+            <Link key={l.lessonId} href={`/lessons/${l.lessonId}`} className="flex min-h-11 items-center gap-3 border-t border-neutral-100 py-2.5 text-sm">
+              <span className="flex-1 truncate font-medium text-neutral-900">{l.name}</span>
+              <Amount cents={l.gross} dollar className="font-semibold text-danger-700" />
+              <ChevronRight className="size-4 text-neutral-500" />
+            </Link>
+          ))}
+        </FinanceCard>
+      )}
 
       <div className="flex flex-wrap gap-3">
         <Trend data={data} loc={loc} />
@@ -185,9 +213,7 @@ function OverviewBody({ data, loc }: { data: FinanceOverview; loc: number | null
           ))}
           {todos.closeDue && <Todo href="/finance/close" title={`${Number(todos.closeDue.slice(5, 7))} 月還沒結帳`} sub="結帳清單" />}
           {todos.ledgerErrors > 0 && <Todo href="/finance/close" title="帳本有記不進去的紀錄" sub={`${todos.ledgerErrors} 筆`} />}
-          {todos.pendingPayouts.count + todos.pendingTransfers.count + receivables.length + todos.ledgerErrors === 0 && !todos.closeDue && (
-            <p className="py-3 text-sm text-neutral-500">沒有要處理的事</p>
-          )}
+          {nothingToDo && <NextSteps data={data} loc={loc} />}
         </FinanceCard>
       </div>
     </div>
@@ -284,6 +310,25 @@ function Bar({ label, value, max, tone }: { label: string; value: number; max: n
   );
 }
 
+/** 沒有要處理的事時，給一兩個下一步（月初建付款批次、這個月還沒盤點），都沒有就一句平常怎麼做。 */
+function NextSteps({ data, loc }: { data: FinanceOverview; loc: number | null }) {
+  const { payoutRunDue, countDue } = data.todos.hints;
+  const count = countDue.filter((m) => loc === null || m.locationId === loc);
+  const steps: { href: string; title: string; sub: string }[] = [];
+  if (payoutRunDue) steps.push({ href: "/finance/payouts", title: "月初了：建立上個月的付款批次", sub: "結算與付款" });
+  if (count.length > 0) {
+    steps.push({ href: "/finance/accounts", title: "數一下手上的錢（盤點）", sub: count.map((m) => m.name).join("、") });
+  }
+  if (steps.length === 0) {
+    return <p className="py-3 text-sm text-neutral-500">平常照常賣卡、點名就好；有花錢按右上角「記一筆」</p>;
+  }
+  return (
+    <>
+      {steps.slice(0, 2).map((s) => <Todo key={s.title} {...s} />)}
+    </>
+  );
+}
+
 function Todo({ href, title, sub }: { href: string; title: string; sub: string }) {
   return (
     <Link href={href} className="flex min-h-11 items-center gap-3 border-t border-neutral-100 py-3">
@@ -304,7 +349,9 @@ function Trend({ data, loc }: { data: FinanceOverview; loc: number | null }) {
   }));
   const max = Math.max(1, ...vals.flatMap((v) => [Math.abs(v.income ?? 0), Math.abs(v.net ?? 0)]));
   const h = (x: number) => `${(Math.abs(x) / max) * 100}%`;
-  const hasData = vals.some((v) => v.income !== null && (v.income !== 0 || (v.net ?? 0) !== 0));
+  // 開帳後有任何一個月有帳就畫（0 元的月份畫成沒有柱子）；全都沒帳才說「第一個月結束才會有圖」。
+  const hasData = vals.some((v) => v.income !== null);
+  const allZero = vals.every((v) => !v.income && !v.net);
   return (
     <FinanceCard className="flex min-w-0 flex-[2_1_420px] flex-col gap-3 px-5 py-4" aria-label="近六個月">
       <div className="flex flex-wrap items-center gap-4">
@@ -312,7 +359,9 @@ function Trend({ data, loc }: { data: FinanceOverview; loc: number | null }) {
         <span className="flex items-center gap-1.5 text-[13px] text-neutral-500"><span className="size-2.5 rounded-sm bg-primary-600" />收入</span>
         <span className="flex items-center gap-1.5 text-[13px] text-neutral-500"><span className="size-2.5 rounded-sm bg-[#C96A3B]" />淨利</span>
       </div>
-      {hasData ? (
+      {hasData && allZero ? (
+        <p className="py-6 text-sm text-neutral-500">{loc === null ? "近六個月還沒有收入" : "這個分部近六個月還沒有收入"}</p>
+      ) : hasData ? (
         <>
           <div className="grid h-44 grid-cols-6 items-end gap-3 border-b border-neutral-300 px-1">
             {vals.map((v) =>

@@ -152,8 +152,9 @@ export interface FinanceTeacher {
 
 const financeApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getFinanceSetup: builder.query<SetupResponse, void>({
-      query: () => "finance/setup",
+    /** conversionDate：精靈草稿的轉換日（收款人整理照這天判斷）；沒帶 → 伺服器用開帳日／開財務那天。 */
+    getFinanceSetup: builder.query<SetupResponse, { conversionDate?: string } | void>({
+      query: (arg) => (arg?.conversionDate ? `finance/setup?conversionDate=${arg.conversionDate}` : "finance/setup"),
       providesTags: ["Finance", "Lesson", "Teacher", "Location"],
     }),
     enableFinance: builder.mutation<unknown, { legacyCustodianUserId: number }>({
@@ -170,6 +171,20 @@ const financeApi = api.injectEndpoints({
     setMemberFinance: builder.mutation<unknown, { userId: number; isCustodian?: boolean; canSettle?: boolean }>({
       query: ({ userId, ...body }) => ({ url: `finance/members/${userId}`, method: "PATCH", body }),
       invalidatesTags: ["Membership", "Classroom", "Finance"],
+      // 勾選先在畫面上變（不用等重抓），失敗再還原
+      async onQueryStarted({ userId, ...body }, { dispatch, queryFulfilled }) {
+        const patch = dispatch(
+          financeApi.util.updateQueryData("getFinanceSettings", undefined, (draft) => {
+            const m = draft.members.find((x) => x.userId === userId);
+            if (m) Object.assign(m, body);
+          }),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
     }),
     getFinanceLocations: builder.query<{ locations: FinanceLocation[] }, void>({
       query: () => "finance/locations",
@@ -187,8 +202,11 @@ const financeApi = api.injectEndpoints({
       query: ({ id, locationId }) => ({ url: `finance/lessons/${id}/location`, method: "PATCH", body: { locationId } }),
       invalidatesTags: ["Finance", "Lesson"],
     }),
-    getStrayReceivers: builder.query<{ items: StrayReceiverItem[]; reassigned: ReassignedReceiverItem[] }, void>({
-      query: () => "finance/receivers",
+    getStrayReceivers: builder.query<
+      { items: StrayReceiverItem[]; reassigned: ReassignedReceiverItem[] },
+      { conversionDate?: string } | void
+    >({
+      query: (arg) => (arg?.conversionDate ? `finance/receivers?conversionDate=${arg.conversionDate}` : "finance/receivers"),
       providesTags: ["Finance", "Membership", "StudentCard"],
     }),
     reassignStrayReceivers: builder.mutation<
@@ -272,14 +290,6 @@ const financeApi = api.injectEndpoints({
       query: ({ lessonId, rule }) => ({ url: `finance/lessons/${lessonId}/rule`, method: "PUT", body: rule }),
       invalidatesTags: ["Finance"],
     }),
-    copyLessonRule: builder.mutation<unknown, { lessonId: number; fromLessonId: number }>({
-      query: ({ lessonId, fromLessonId }) => ({
-        url: `finance/lessons/${lessonId}/rule/copy`,
-        method: "POST",
-        body: { fromLessonId },
-      }),
-      invalidatesTags: ["Finance"],
-    }),
     getLessonPeriodFinance: builder.query<PeriodFinance[], number>({
       query: (lessonId) => `finance/periods?lessonId=${lessonId}`,
       providesTags: ["Finance", "Attendance", "AttendanceRecord", "StudentCard"],
@@ -323,8 +333,8 @@ export const {
   useDeletePackMutation,
   useRefundCardMutation,
   useGetLessonRuleQuery,
+  useLazyGetLessonRuleQuery,
   useSaveLessonRuleMutation,
-  useCopyLessonRuleMutation,
   useGetLessonPeriodFinanceQuery,
   useSavePeriodRuleMutation,
   useLazyGetPeriodRuleQuery,

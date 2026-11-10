@@ -81,11 +81,12 @@ const isAllowedBeforeOpening = (pathname: string) => PRE_OPENING_ALLOWED.some((p
 function useOpeningGate(pathname: string): { opened: boolean | null; canSettle: boolean; state: "loading" | "blocked" | "redirect" | "ok" } {
   const enabled = useFinanceEnabled();
   const router = useRouter();
-  const { data: setup, isError } = useGetFinanceSetupQuery(undefined, { skip: !enabled });
-  const { isLoading: roleLoading } = useGetFinanceSettingsQuery(undefined, { skip: !enabled });
+  const { data: setup, isError } = useGetFinanceSetupQuery(undefined, { skip: enabled !== true });
+  const { isLoading: roleLoading } = useGetFinanceSettingsQuery(undefined, { skip: enabled !== true });
   const { canSettle } = useFinanceRole();
-  // 讀不到（沒開財務、錯誤）就不擋，交給頁面自己處理。
-  const opened = !enabled || isError ? true : setup ? !!setup.items.find((i) => i.key === "opening")?.done : null;
+  // 讀不到（沒開財務、錯誤）就不擋，交給頁面自己處理；教室清單還在載入（undefined）→ 還不知道。
+  const opened =
+    enabled === undefined ? null : !enabled || isError ? true : setup ? !!setup.items.find((i) => i.key === "opening")?.done : null;
   let state: "loading" | "blocked" | "redirect" | "ok" = "ok";
   if (opened === false) {
     if (roleLoading) state = isAllowedBeforeOpening(pathname) ? "ok" : "loading";

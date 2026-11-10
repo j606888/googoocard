@@ -17,7 +17,7 @@ const BottomNav = () => {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const financeEnabled = useFinanceEnabled();
+  const financeEnabled = useFinanceEnabled() === true;
   const { data: unpaidCards } = useGetUnpaidStudentCardsQuery();
   const unpaidCount = unpaidCards?.length ?? 0;
 

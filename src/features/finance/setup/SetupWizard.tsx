@@ -2,7 +2,7 @@
 
 // 開帳精靈 /finance/setup：左邊（手機在上面）是八步的進度，右邊是這一步要做的事。
 // 第 1–5 步做完會依 GET /finance/setup 自動打勾；第 6、7 步（期初現金、還沒付的錢）是開帳草稿，
-// 看過就打勾（OpeningDraftProvider）；步驟可以自由跳，只有第 8 步「預覽並開帳」要等前面都做完，按下去才一次送出。
+// 看過就打勾（期初現金還要試算沒有錯，OpeningDraftProvider）；步驟可以自由跳，只有第 8 步「預覽並開帳」要等前面都做完，按下去才一次送出。
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -51,10 +51,11 @@ export default function SetupWizard() {
 function WizardBody() {
   const router = useRouter();
   const params = useSearchParams();
-  const { data, isLoading } = useGetFinanceSetupQuery();
+  const { draft, markVisited, previewHasErrors, watch } = useOpeningDraft();
+  // 收款人整理照草稿的轉換日判斷（跟期初現金同一條規則）
+  const { data, isLoading } = useGetFinanceSetupQuery(draft?.date ? { conversionDate: draft.date } : undefined);
   const { isLoading: roleLoading } = useGetFinanceSettingsQuery();
   const { canSettle } = useFinanceRole();
-  const { draft, markVisited } = useOpeningDraft();
   const topRef = useRef<HTMLDivElement>(null);
 
   const rawStep = params.get("step");
@@ -64,13 +65,20 @@ function WizardBody() {
   // 網址沒帶步驟時，把「第一個還沒做完的步驟」寫進網址釘住：之後這步做完、資料重抓，也不會自己跳到下一步，
   // 只有按上一步／下一步或點左邊清單才換。
   // 第 6、7 步伺服器只知道開帳了沒，看過了沒以畫面上的草稿為準。
+  // 期初現金要「看過」而且試算沒有錯（例：有保管人還沒有資金帳戶）才算完成。
   const visited = draft?.visited;
+  const cashVisited = !!visited?.cash;
+  useEffect(() => (cashVisited ? watch() : undefined), [cashVisited, watch]);
   const items = useMemo<Item[] | null>(
     () =>
       data
-        ? data.items.map((i) => ((i.key === "cash" || i.key === "payables") && !i.done ? { ...i, done: !!visited?.[i.key] } : i))
+        ? data.items.map((i) => {
+            if (i.done || (i.key !== "cash" && i.key !== "payables")) return i;
+            const done = i.key === "cash" ? cashVisited && previewHasErrors === false : !!visited?.payables;
+            return { ...i, done };
+          })
         : null,
-    [data, visited],
+    [data, visited, cashVisited, previewHasErrors],
   );
   // 開帳了就一律回總覽——不只第一次載入：剛按完開帳時，總覽的守門可能還拿著舊資料把人送回這裡，
   // 那時草稿已清掉，若只看第一次就會被釘在第 6 步（2026-11-10 實走遇到）。
@@ -337,14 +345,27 @@ function Panel({ children, className }: { children: React.ReactNode; className?:
   return <FinanceCard className={cn("px-4 py-4 lg:px-5", className)}>{children}</FinanceCard>;
 }
 
+/**
+ * 第一次載入時排好的順序就固定住：存檔後資料重抓，列表不會跳來跳去（例如剛設好規則的課跑到最下面）。
+ * 之後才出現的項目接在最後。
+ */
+function useFrozenOrder<T extends { id: number }>(items: T[], compare: (a: T, b: T) => number): T[] {
+  const [order] = useState(() => [...items].sort(compare).map((i) => i.id));
+  return useMemo(() => {
+    const rank = new Map(order.map((id, i) => [id, i]));
+    const at = (x: T, i: number) => rank.get(x.id) ?? order.length + i;
+    return items.map((x, i) => [x, at(x, i)] as const).sort((a, b) => a[1] - b[1]).map(([x]) => x);
+  }, [items, order]);
+}
+
 /** 第 2 步：沒標分部的課排前面，每門課直接選分部。 */
 function LessonBranches({ lessons }: { lessons: SetupLesson[] }) {
   const { data: locData } = useGetLocationsQuery();
   const [setLocation] = useSetLessonLocationMutation();
   const locations = (locData?.locations ?? []).filter((l) => !l.archivedAt);
+  const sorted = useFrozenOrder(lessons, (a, b) => Number(a.locationId != null) - Number(b.locationId != null));
   if (lessons.length === 0) return <p className="text-sm text-neutral-500">沒有進行中的課，這步不用做。</p>;
   if (locData && locations.length === 0) return <p className="text-sm text-neutral-500">還沒有分部，請先完成第 1 步。</p>;
-  const sorted = [...lessons].sort((a, b) => Number(a.locationId != null) - Number(b.locationId != null));
   return (
     <ul className="flex flex-col divide-y divide-neutral-100">
       {sorted.map((l) => (
@@ -397,8 +418,8 @@ function VenuesStep() {
 /** 第 4 步：每門進行中的課一列，點開就在這裡設規則（跟課程頁的分帳分頁同一個元件）。 */
 function LessonRules({ lessons }: { lessons: SetupLesson[] }) {
   const [openId, setOpenId] = useState<number | null>(null);
+  const sorted = useFrozenOrder(lessons, (a, b) => Number(a.hasRule) - Number(b.hasRule));
   if (lessons.length === 0) return <Panel><p className="text-sm text-neutral-500">沒有進行中的課，這步不用做。</p></Panel>;
-  const sorted = [...lessons].sort((a, b) => Number(a.hasRule) - Number(b.hasRule));
   return (
     <FinanceCard className="overflow-hidden">
       <ul className="flex flex-col divide-y divide-neutral-100">

@@ -3,13 +3,14 @@ import { ApiError } from "@/lib/apiError";
 import { assertCanSettle, assertFinanceEnabled } from "./access";
 import { assertCustodian } from "./config";
 import { soldLocationFor } from "./receiver";
-import { financeSince, financeStart } from "./start";
-import { computeOpening } from "@/domains/ledger/opening";
+import { financeStart } from "./start";
+import { cardNeedsHolderAccount, computeOpening } from "@/domains/ledger/opening";
+import { parseTaipeiDateRange, toTaipeiDateKey } from "@/lib/taipei-date";
 import { loadLedgerInputs } from "@/service/ledger/load";
 
 /**
- * 開帳：上線日之後收的錢、收款人卻不是保管人（例：開帳前小幫手代收），以及上線前的卡
- * 收款人不是保管人、還有剩格的（那份預收還在他手上）。
+ * 開帳：轉換日之後收的錢、收款人卻不是保管人（例：開帳前小幫手代收），以及轉換日前的卡
+ * 收款人不是保管人、轉換日還有預收的（那份錢算在他手上）——就是期初現金／過帳會說「沒有資金帳戶」的那些。
  * 之後的收款只能選保管人，所以這是一次性的整理——改記到一位保管人名下，
  * 帳本才知道錢在哪個資金帳戶（收款人沒有資金帳戶的卡記不進帳）。
  */
@@ -27,34 +28,52 @@ export type StrayReceiverItem = {
   collectedByName: string | null;
 };
 
-async function strayWhere(classroomId: number) {
+/** GET 的 ?conversionDate=YYYY-MM-DD（格式不對就當沒帶）。 */
+export function conversionDateParam(request: Request): string | undefined {
+  const v = new URL(request.url).searchParams.get("conversionDate");
+  return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined;
+}
+
+/**
+ * 收款人整理看的轉換日：帶了就用（精靈裡期初現金草稿的日期）；沒帶 → 已開帳的轉換日，
+ * 再不然開財務那天（跟期初現金的建議日一樣）。
+ */
+async function strayDate(classroomId: number, financeEnabledAt: Date, conversionDate?: string): Promise<string> {
+  if (conversionDate) return conversionDate;
+  return (await financeStart(classroomId))?.dateKey ?? toTaipeiDateKey(financeEnabledAt);
+}
+
+/**
+ * 要改記的：收款人不是保管人、而且帳本會用到收款人資金帳戶的（跟期初現金／過帳同一條規則
+ * cardNeedsHolderAccount——轉換日後收的錢，和轉換日還有預收的舊卡），單堂則是轉換日（含）之後收的。
+ */
+async function strayWhere(classroomId: number, conversionDate?: string) {
   const { financeEnabledAt } = await assertFinanceEnabled(classroomId);
+  const date = await strayDate(classroomId, financeEnabledAt, conversionDate);
   const custodians = await prisma.membership.findMany({
     where: { classroomId, isCustodian: true },
     select: { userId: true },
   });
-  const paidByUserId = { not: null, notIn: custodians.map((m) => m.userId) };
-  const since = await financeSince(classroomId, financeEnabledAt);
-  const sinceLaunch = [{ createdAt: { gte: since } }, { paidAt: { gte: since } }];
+  const custodianIds = new Set(custodians.map((m) => m.userId));
+  const paidByUserId = { not: null, notIn: [...custodianIds] };
+  const inputs = await loadLedgerInputs(classroomId, { conversionDate: date });
+  const cardIds = (inputs?.cards ?? [])
+    .filter((c) => c.paidByUserId !== null && !custodianIds.has(c.paidByUserId) && cardNeedsHolderAccount(c, date))
+    .map((c) => c.id);
+  const since = parseTaipeiDateRange(date).start;
   return {
-    card: {
-      student: { classroomId },
-      isPaid: true,
-      paidByUserId,
-      // 上線前的卡：還開著、還有剩格才要改
-      OR: [...sinceLaunch, { expiredAt: null, remainingSessions: { gt: 0 } }],
-    },
+    card: { student: { classroomId }, isPaid: true, paidByUserId, id: { in: cardIds } },
     dropIn: {
       attendanceRecord: { lessonPeriod: { lesson: { classroomId } } },
       isPaid: true,
       paidByUserId,
-      OR: sinceLaunch,
+      OR: [{ createdAt: { gte: since } }, { paidAt: { gte: since } }],
     },
   };
 }
 
-export async function listStrayReceivers(classroomId: number): Promise<StrayReceiverItem[]> {
-  const where = await strayWhere(classroomId);
+export async function listStrayReceivers(classroomId: number, conversionDate?: string): Promise<StrayReceiverItem[]> {
+  const where = await strayWhere(classroomId, conversionDate);
   const [cards, dropIns] = await Promise.all([
     prisma.studentCard.findMany({
       where: where.card,
@@ -168,7 +187,7 @@ export async function reassignStrayReceivers(args: {
   const { classroomId, userId, moves, conversionDate } = args;
   await assertCanSettle(userId, classroomId);
   for (const m of moves) await assertCustodian(m.toUserId, classroomId);
-  const where = await strayWhere(classroomId);
+  const where = await strayWhere(classroomId, conversionDate);
   const soldLocations = await Promise.all(moves.map((m) => soldLocationFor(classroomId, m.toUserId)));
   let openingCards = new Map<number, number>();
   if (conversionDate) {

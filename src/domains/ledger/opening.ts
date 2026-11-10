@@ -49,6 +49,22 @@ export function deferredAtConversion(card: CardInput, conversionDate: string): n
   return cardRemainingValue(card) + after;
 }
 
+/**
+ * 這張卡在帳本裡要用到收款人的資金帳戶嗎（收款人沒有 → NO_MONEY_ACCOUNT）：
+ * - 轉換日（含）之後才付款：付款那天記進收款人的資金帳戶（postCard）；
+ * - 轉換日前就付清、轉換日還開著、還有沒認列的價值：約定法的期初現金算在收款人手上（computeOpening）。
+ * 收款人整理（service/finance/strayReceivers.ts）用同一條規則挑「要改記到保管人」的卡，兩邊才不會對不上。
+ */
+export function cardNeedsHolderAccount(card: CardInput, conversionDate: string): boolean {
+  const C = conversionDate;
+  if (!card.isPaid) return false;
+  const payDate = toTaipeiDateKey(card.paidAt ?? card.createdAt);
+  if (payDate >= C) return card.origin === "PURCHASE" && card.finalPrice !== 0;
+  if (toTaipeiDateKey(card.createdAt) >= C) return false;
+  if (card.expiredAt && toTaipeiDateKey(card.expiredAt) < C) return false;
+  return deferredAtConversion(card, C) !== 0;
+}
+
 export function computeOpening(input: OpeningInput): OpeningResult {
   const C = input.conversionDate;
   const { ctx } = input;
@@ -79,7 +95,7 @@ export function computeOpening(input: OpeningInput): OpeningResult {
     if (receivable !== 0) other.push({ date: C, account: { key: "AR" }, locationId: loc, amount: receivable, party });
 
     // 約定法：舊卡的錢還在當初收錢的人那裡
-    if (input.method === "CONVENTION" && paidBefore && deferred !== 0) {
+    if (input.method === "CONVENTION" && paidBefore && cardNeedsHolderAccount(card, C)) {
       const ma = holder !== null ? ctx.moneyAccountOf(holder) : null;
       if (!ma) {
         const key = holder ?? -1;

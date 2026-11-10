@@ -92,6 +92,8 @@ export default function Field({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : undefined}
           className={cn(fieldControlClass(!!error), "h-12", isPassword && "pr-13")}
+          // 日期欄預設上限：擋掉 6 位數的年份；要別的上限就自己傳 max。
+          max={type === "date" ? "9999-12-31" : undefined}
           {...inputProps}
         />
         {isPassword && (

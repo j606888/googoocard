@@ -16,8 +16,6 @@ export type PeriodFinance = {
   lessonId: number;
   lessonName: string;
   locationId: number | null;
-  /** 這堂課的基金（規則的 fundLocationId；沒規則 → 上課分部）。分部報表依它歸類（spec「週日課」）。 */
-  fundLocationId: number | null;
   startTime: Date;
   month: string; // 台北 YYYY-MM
   income: { total: number; realized: IncomeSource[]; pending: PendingNote[] };
@@ -48,14 +46,6 @@ export function effectiveRule(period: {
     return { rule: splitRuleSchema.parse(period.lesson.splitRule.rule), source: "lesson" };
   }
   return { rule: null, source: "none" };
-}
-
-/** 這堂課的基金：時段實際套用的規則的 fundLocationId；沒規則 → 上課分部。 */
-export function periodFundLocationId(period: {
-  splitOverride: { rule: Prisma.JsonValue } | null;
-  lesson: { locationId: number | null; splitRule: { rule: Prisma.JsonValue } | null };
-}): number | null {
-  return effectiveRule(period).rule?.fundLocationId ?? period.lesson.locationId;
 }
 
 function venuePackIdOf(rule: SplitRule | null): number | null {
@@ -289,7 +279,6 @@ export async function loadPeriodFinance(
       lessonId: period.lesson.id,
       lessonName: period.lesson.name,
       locationId: period.lesson.locationId,
-      fundLocationId: rule?.fundLocationId ?? period.lesson.locationId,
       startTime: period.startTime,
       month: toTaipeiMonthKey(period.startTime),
       income: { total: income.total, realized: income.realized, pending: income.pending },

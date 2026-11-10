@@ -171,12 +171,12 @@ describe("checkRule", () => {
       { type: "fixed", amount: 500, to: { type: "venue", venueId: 7 } },
       teachersRest,
     ];
-    expect(checkRule(rows, n)).toEqual({ ok: false, text: "固定金額合計 $2,500，收入低於這個數時由台南公積金吸收" });
+    expect(checkRule(rows, n)).toEqual({ ok: false, text: "場地費＋固定金額合計 $2,500，這堂收入低於這個數時由台南公積金吸收" });
   });
 
   it("固定金額＋收入比例：算出真正的門檻", () => {
     const rows = ruleToRows(tainan); // 1/3 + 1/3 + $300 → 至少 $900
-    expect(checkRule(rows, n)).toEqual({ ok: false, text: "固定金額合計 $300，收入低於 $900 時由台南公積金吸收" });
+    expect(checkRule(rows, n)).toEqual({ ok: false, text: "場地費合計 $300，加上先抽的 66.67%，這堂收入低於 $900 時由台南公積金吸收" });
   });
 
   it("「前面扣完剩下的」放在固定金額前面也算進門檻", () => {
@@ -185,13 +185,13 @@ describe("checkRule", () => {
       { type: "fixed", amount: 600, to: t(5) },
       teachersRest,
     ];
-    expect(checkRule(rows, n)?.text).toBe("固定金額合計 $600，收入低於 $1,200 時由台南公積金吸收");
+    expect(checkRule(rows, n)?.text).toBe("固定金額合計 $600，加上前面先抽的比例，這堂收入低於 $1,200 時由台南公積金吸收");
   });
 
   it("場地費行用場地的價錢算門檻；不知道價錢就不算", () => {
     const rows: RuleRow[] = [{ type: "venuePack", venueId: 9 }, { type: "fixed", amount: 200, to: t(4) }, teachersRest];
-    expect(checkRule(rows, n, () => 300)?.text).toBe("固定金額合計 $500，收入低於這個數時由台南公積金吸收");
-    expect(checkRule(rows, n)?.text).toBe("固定金額合計 $200，收入低於這個數時由台南公積金吸收");
+    expect(checkRule(rows, n, () => 300)?.text).toBe("場地費＋固定金額合計 $500，這堂收入低於這個數時由台南公積金吸收");
+    expect(checkRule(rows, n)?.text).toBe("固定金額合計 $200，這堂收入低於這個數時由台南公積金吸收");
   });
 
   it("比例剛好 100%：剩下的拿 0", () => {

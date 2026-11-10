@@ -218,7 +218,7 @@ export async function openLedger(classroomId: number, userId: number, params: Op
             classroomId,
             date: new Date(`${params.conversionDate}T00:00:00Z`),
             kind: "OPENING",
-            memo: params.method === "CONVENTION" ? "期初（約定法）" : "期初（實數）",
+            memo: params.method === "CONVENTION" ? "期初（系統算的）" : "期初（自己填的）",
             createdById: userId,
             lines: {
               createMany: {

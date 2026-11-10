@@ -1,6 +1,6 @@
 // 財務總覽（docs/finance-v2/05 §3.1）：幾個總覽數字、償付一行、近六個月、要處理的事。金額單位「分」。
 import prisma from "@/lib/prisma";
-import { balanceSheet, monthRange, partyBalances, profitAndLoss, type Range } from "@/domains/ledger/reports";
+import { balanceSheet, monthRange, partyBalances, periodProfits, profitAndLoss, type Range } from "@/domains/ledger/reports";
 import { addDays } from "@/domains/ledger/lines";
 import { loadCtx } from "./reports";
 import { ledgerDates, todayKey } from "./guard";
@@ -27,29 +27,31 @@ export async function financeOverview(classroomId: number, p: { from?: string; t
   const to = p.to ?? todayKey();
   const range: Range = { from: p.from ?? `${to.slice(0, 7)}-01`, to };
   const key = (k: string) => ctx.accounts.find((a) => a.systemKey === k)!.id;
+  // 時點餘額（資金、預收、應付、應收、帳齡）看「這個月底或今天，取早的」：這個月還沒過完，不能拿月底算帳齡。
+  const asOf = range.to < todayKey() ? range.to : todayKey();
 
   const pnl = profitAndLoss(ctx.rows, ctx.accounts, range, ids);
   const prev = profitAndLoss(ctx.rows, ctx.accounts, prevRange(range), ids);
-  const bs = balanceSheet(ctx.rows, ctx.accounts, range.to, ids);
+  const bs = balanceSheet(ctx.rows, ctx.accounts, asOf, ids);
   const fund = bs.equity.find((l) => l.key === "FUND")!;
 
   // 資金帳戶
   const mas = await prisma.moneyAccount.findMany({
     where: { classroomId },
-    select: { id: true, name: true, holderUserId: true, locationId: true, accountId: true, archivedAt: true },
+    select: { id: true, name: true, kind: true, holderUserId: true, locationId: true, accountId: true, archivedAt: true },
     orderBy: [{ holderUserId: "asc" }, { id: "asc" }],
   });
   const cash = empty(ids);
   const accounts = mas
     .map((m) => {
-      const balance = ctx.rows.filter((r) => r.accountId === m.accountId && r.date <= range.to).reduce((s, r) => s + r.amount, 0);
+      const balance = ctx.rows.filter((r) => r.accountId === m.accountId && r.date <= asOf).reduce((s, r) => s + r.amount, 0);
       addTo(cash, m.locationId, balance);
       return { id: m.id, name: m.name, holderUserId: m.holderUserId, locationId: m.locationId, balance, archived: m.archivedAt !== null };
     })
     .filter((m) => !m.archived || m.balance !== 0);
 
   // 預收：每張卡的餘額與剩幾堂
-  const deferredCards = partyBalances(ctx.rows, [key("DEFERRED_REVENUE")], range.to, "LIABILITY").filter((x) => x.partyType === "STUDENT_CARD");
+  const deferredCards = partyBalances(ctx.rows, [key("DEFERRED_REVENUE")], asOf, "LIABILITY").filter((x) => x.partyType === "STUDENT_CARD");
   const deferred = empty(ids);
   for (const c of deferredCards) addTo(deferred, c.locationId, c.balance);
   const cards = await prisma.studentCard.findMany({
@@ -60,13 +62,42 @@ export async function financeOverview(classroomId: number, p: { from?: string; t
   // 應付（可發＋代墊／分紅）與待學生付款
   const payable = empty(ids);
   const held = empty(ids);
-  for (const x of partyBalances(ctx.rows, ["TEACHER_PAYABLE", "VENUE_PAYABLE", "OWNER_PAYABLE"].map(key), range.to, "LIABILITY")) addTo(payable, x.locationId, x.balance);
-  for (const x of partyBalances(ctx.rows, [key("TEACHER_PAYABLE_HELD")], range.to, "LIABILITY")) addTo(held, x.locationId, x.balance);
+  for (const x of partyBalances(ctx.rows, ["TEACHER_PAYABLE", "VENUE_PAYABLE", "OWNER_PAYABLE"].map(key), asOf, "LIABILITY")) addTo(payable, x.locationId, x.balance);
+  for (const x of partyBalances(ctx.rows, [key("TEACHER_PAYABLE_HELD")], asOf, "LIABILITY")) addTo(held, x.locationId, x.balance);
 
   // 應收
-  const ar = partyBalances(ctx.rows, [key("AR")], range.to, "ASSET");
+  const ar = partyBalances(ctx.rows, [key("AR")], asOf, "ASSET");
   const receivable = empty(ids);
-  for (const x of ar) addTo(receivable, x.locationId, x.balance);
+  // 賣出沒付的卡：預收已經記了，錢還沒進來 → 「欠的」要扣掉這部分，不然賣一張沒付的卡就變成「差」。單堂不扣（沒有預收）。
+  const cardReceivable = empty(ids);
+  for (const x of ar) {
+    addTo(receivable, x.locationId, x.balance);
+    if (x.partyType === "STUDENT_CARD") addTo(cardReceivable, x.locationId, x.balance);
+  }
+
+  // 支出裡盤點短少（多出為負）的部分
+  const overShortId = key("CASH_OVER_SHORT");
+  const overShortLine = pnl.expenses.lines.find((l) => l.accountId === overShortId);
+  const cashOverShort: ByLoc = overShortLine ? { byLocation: { ...overShortLine.byLocation }, total: overShortLine.total } : empty(ids);
+
+  // 這段期間虧錢的課（課的毛利＝收入－老師－場地）
+  const periods = periodProfits(ctx.rows, ctx.accounts, range);
+  const periodInfo = await prisma.lessonPeriod.findMany({
+    where: { id: { in: periods.map((x) => x.lessonPeriodId) }, lesson: { classroomId } },
+    select: { id: true, lesson: { select: { id: true, name: true } } },
+  });
+  const lessonOf = new Map(periodInfo.map((x) => [x.id, x.lesson]));
+  const lessonGross = new Map<number, { lessonId: number; name: string } & ByLoc>();
+  for (const x of periods) {
+    const l = lessonOf.get(x.lessonPeriodId);
+    if (!l) continue;
+    const cur = lessonGross.get(l.id) ?? { lessonId: l.id, name: l.name, ...empty(ids) };
+    addTo(cur, x.locationId, x.gross);
+    lessonGross.set(l.id, cur);
+  }
+  const losingLessons = [...lessonGross.values()]
+    .filter((l) => l.total < 0 || Object.values(l.byLocation).some((v) => v < 0))
+    .sort((a, b) => a.total - b.total);
 
   // 近六個月（轉換日之前的月份是 null）
   const trend: { month: string; income: ByLoc | null; netIncome: ByLoc | null }[] = [];
@@ -90,7 +121,23 @@ export async function financeOverview(classroomId: number, p: { from?: string; t
     // 開帳前不過帳；殘留的錯誤（舊版開帳前跑過 sync）不算。
     d.opened ? prisma.postingSource.count({ where: { classroomId, error: { not: null } } }) : 0,
   ]);
-  const lastMonthEnd = addDays(`${todayKey().slice(0, 7)}-01`, -1);
+  const thisMonthStart = `${todayKey().slice(0, 7)}-01`;
+  const lastMonthEnd = addDays(thisMonthStart, -1);
+  const lastMonthStart = `${lastMonthEnd.slice(0, 7)}-01`;
+  // 沒有要處理的事時給的下一步提示：月初還沒建上個月的付款批次、這個月還沒盤點的現金帳戶
+  const [lastMonthRun, countedThisMonth] = await Promise.all([
+    prisma.payoutRun.count({ where: { classroomId, asOf: { gte: new Date(`${lastMonthStart}T00:00:00Z`) } } }),
+    prisma.cashCount.findMany({
+      where: { classroomId, voidedAt: null, date: { gte: new Date(`${thisMonthStart}T00:00:00Z`) } },
+      select: { moneyAccountId: true },
+    }),
+  ]);
+  const dayOfMonth = Number(todayKey().slice(8, 10));
+  const payoutRunDue = d.opened && dayOfMonth <= 5 && lastMonthEnd >= conversionDate && lastMonthRun === 0 && payable.total > 0;
+  const counted = new Set(countedThisMonth.map((c) => c.moneyAccountId));
+  const countDue = d.opened
+    ? mas.filter((m) => m.archivedAt === null && m.kind === "CASH" && !counted.has(m.id)).map((m) => ({ id: m.id, name: m.name, locationId: m.locationId }))
+    : [];
   const arNames = await prisma.studentCard.findMany({
     where: { id: { in: ar.filter((x) => x.partyType === "STUDENT_CARD").map((x) => x.partyId) } },
     select: { id: true, serialNumber: true, student: { select: { id: true, name: true } } },
@@ -104,13 +151,17 @@ export async function financeOverview(classroomId: number, p: { from?: string; t
     lockDate: d.lockDate,
     netIncome: pnl.netIncome,
     prevNetIncome: prev.netIncome,
+    income: { byLocation: pnl.income.byLocation, total: pnl.income.total },
     grossProfit: pnl.grossProfit,
     expenses: { byLocation: pnl.expenses.byLocation, total: pnl.expenses.total },
+    cashOverShort,
     cash: { ...cash, accounts },
     deferred: { ...deferred, cards: cards.length, sessions: cards.reduce((s, c) => s + Math.max(0, c.remainingSessions), 0) },
     payable,
     held,
     receivable: { ...receivable, count: ar.length, maxAgeDays: ar.reduce((m, x) => Math.max(m, x.ageDays), 0) },
+    cardReceivable,
+    losingLessons,
     fund: { byLocation: fund.byLocation, total: fund.total },
     trend,
     todos: {
@@ -121,6 +172,7 @@ export async function financeOverview(classroomId: number, p: { from?: string; t
         return { ...x, studentId: c?.student.id ?? null, studentName: c?.student.name ?? null, serialNumber: c?.serialNumber ?? null };
       }),
       ledgerErrors: sourceErrors,
+      hints: { payoutRunDue, countDue },
       closeDue: d.opened && lastMonthEnd >= conversionDate && (d.lockDate === null || d.lockDate < lastMonthEnd) ? lastMonthEnd : null,
     },
   };
