@@ -174,7 +174,7 @@ const LessonDetail = () => {
         <div>
           <LessonTabs activeTab={activeTab} onTabChange={requestTabChange} />
           {activeTab === "periods" && (
-            <PeriodSection lesson={lesson} periods={lesson?.periods || []} />
+            <PeriodSection lesson={lesson} periods={lesson?.periods || []} headcounts={headcounts} />
           )}
           {activeTab === "students" && (
             <div className="px-5 pb-4">
