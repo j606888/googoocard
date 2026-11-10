@@ -327,7 +327,7 @@ const DensePeriodRow = ({
       <span className="w-[82px] shrink-0 text-sm font-semibold tabular-nums text-neutral-900">
         {format(startTime, "MM/dd")}（{WEEKDAYS[startTime.getDay()]}）
       </span>
-      <span className="min-w-0 flex-1 truncate text-xs text-neutral-500">
+      <span className="min-w-0 flex-1 whitespace-nowrap text-xs tabular-nums text-neutral-500">
         {format(startTime, "HH:mm")}–{format(new Date(period.endTime), "HH:mm")}
       </span>
       {attended ? (

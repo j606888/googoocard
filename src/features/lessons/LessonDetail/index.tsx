@@ -97,7 +97,7 @@ const LessonDetail = () => {
               </div>
             </div>
             <div className="flex max-w-[1240px] items-start gap-6">
-              <div className="w-[300px] shrink-0 rounded-2xl border border-neutral-200 py-4">
+              <div className="w-[328px] shrink-0 rounded-2xl border border-neutral-200 py-4">
                 <PeriodTimelineSkeleton />
               </div>
               <div className="flex-1 flex flex-col gap-4">
@@ -126,7 +126,7 @@ const LessonDetail = () => {
               headcounts={headcounts}
               activePeriodId={recordPeriodId}
               onViewRecord={setRecordPeriodId}
-              className="sticky top-6 h-[calc(100vh-3rem)] max-h-[820px] w-[300px] shrink-0"
+              className="sticky top-6 h-[calc(100vh-3rem)] max-h-[820px] w-[328px] shrink-0"
             />
             <div className="min-w-0 flex-1">
               <AttendanceOverview
