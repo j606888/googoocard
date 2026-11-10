@@ -73,7 +73,7 @@ const GroupDetail = () => {
           <div className="flex flex-wrap gap-2">
             <div className="flex items-center gap-1.5 bg-white border border-neutral-200 rounded-full px-3 py-1.5 text-xs text-neutral-600">
               <BookOpenText className="w-3.5 h-3.5" />
-              {lessons?.lessons.length ?? 0} 堂課
+              {lessons?.lessons.length ?? 0} 期
             </div>
             {studentCount > 0 && (
               <div className="flex items-center gap-1.5 bg-white border border-neutral-200 rounded-full px-3 py-1.5 text-xs text-neutral-600">
@@ -97,7 +97,7 @@ const GroupDetail = () => {
             className="w-full h-12 rounded-2xl border-[1.5px] border-dashed border-neutral-300 text-neutral-500 hover:bg-transparent hover:border-neutral-400 hover:text-neutral-700"
           >
             <Plus className="w-4 h-4" />
-            {isUngrouped ? "新增課程" : "新增這天的堂"}
+            {isUngrouped ? "新增課程" : "開新一期"}
           </Button>
         </div>
       )}

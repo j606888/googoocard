@@ -149,6 +149,10 @@ const moreButton =
  * "pane"    —— 右側抽屜：頭像縮小；換學生／開啟完整頁／關閉在抽屜自己的頂列（StudentsTableView）。
  * "compact" —— 手機：app bar ＋ 大頭貼與姓名。
  */
+/** 返回連結寫的是「實際會回去的地方」——從課程頁點進來就寫課程，不是一律寫學生。 */
+const backLabel = (href: string) =>
+  href.startsWith("/lessons") ? "課程" : href.startsWith("/cards") ? "課卡" : "學生";
+
 const StudentDetailHeader = ({
   student,
   backHref = "/students",
@@ -169,7 +173,7 @@ const StudentDetailHeader = ({
           className="inline-flex items-center gap-1 text-sm text-neutral-600 hover:text-neutral-900 mb-3"
         >
           <ArrowLeft className="w-4 h-4" />
-          學生
+          {backLabel(backHref)}
         </Link>
       )}
 

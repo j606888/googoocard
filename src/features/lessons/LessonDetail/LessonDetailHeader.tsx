@@ -54,7 +54,7 @@ const LessonDetailHeader = ({
           <ArrowLeft className="size-4" />
           課程
         </Link>
-        {lesson.group && (
+        {lesson.group && lesson.group.name !== lesson.name && (
           <>
             <span aria-hidden="true">/</span>
             <Link href={`/lessons/groups/${lesson.group.id}`} className="hover:text-neutral-800">
@@ -69,7 +69,7 @@ const LessonDetailHeader = ({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-2.5">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-[32px] leading-tight font-bold tracking-tight text-neutral-900">{lesson.name}</h1>
+            <h1 className="text-2xl font-bold text-neutral-900">{lesson.name}</h1>
             <StatusTag tone={isFinished ? "neutral" : "positive"}>{isFinished ? "已結束" : "進行中"}</StatusTag>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-600">

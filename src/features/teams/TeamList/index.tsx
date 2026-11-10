@@ -104,7 +104,7 @@ const TeamList = () => {
       <div className="flex w-full max-w-[760px] flex-col gap-5 px-4 py-4 lg:gap-6 lg:px-8 lg:py-8">
         <header className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <h2 className="text-2xl font-bold lg:text-[28px]">團隊</h2>
+            <h2 className="text-2xl font-bold">團隊</h2>
             <p className="truncate text-[13px] text-neutral-500 lg:text-sm">
               {classroomName}
               {memberships && `・${memberships.length} 位成員`}

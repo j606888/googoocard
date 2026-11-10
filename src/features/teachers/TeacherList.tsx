@@ -47,7 +47,7 @@ const TeacherList = () => {
   if (isLoading || !data) {
     return (
       <>
-        <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-8 flex flex-col gap-5" aria-busy="true">
+        <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-6 flex flex-col gap-5" aria-busy="true">
           {header}
           <TeacherListSkeleton />
         </div>
@@ -64,7 +64,7 @@ const TeacherList = () => {
 
   return (
     <>
-      <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-8 flex flex-col gap-5">
+      <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-6 flex flex-col gap-5">
         {header}
 
         {data.unassignedLessonCount > 0 && (
