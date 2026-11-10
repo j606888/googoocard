@@ -271,7 +271,7 @@ const CheckPeriodSuccess = () => {
 export default CheckPeriodSuccess;
 
 /** 這筆出席付單堂：已付是灰色標籤，沒付是淡橘標籤＋收款。 */
-const DropInStatus = ({
+export const DropInStatus = ({
   dropIn,
   options,
   studentName,

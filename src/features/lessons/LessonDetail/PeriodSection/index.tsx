@@ -72,12 +72,18 @@ export const PeriodColumn = ({
   lesson,
   periods,
   headcounts,
+  activePeriodId,
+  onViewRecord,
   className = "",
 }: {
   lesson: Lesson;
   periods: Period[];
   /** Attended count per period id (taken periods only). */
   headcounts: Map<number, number>;
+  /** The period whose record is open in the side sheet. */
+  activePeriodId?: number | null;
+  /** Open a taken period's record in place instead of navigating to its page. */
+  onViewRecord?: (periodId: number) => void;
   className?: string;
 }) => {
   const { firstPendingPeriodId } = periodMarkers(periods);
@@ -131,6 +137,8 @@ export const PeriodColumn = ({
                       period={period}
                       attended={headcounts.get(period.id)}
                       canCheck={period.id === firstPendingPeriodId}
+                      active={period.id === activePeriodId}
+                      onViewRecord={onViewRecord}
                     />
                   ))}
                 </ol>
@@ -144,7 +152,7 @@ export const PeriodColumn = ({
 };
 
 /** Everything a period row can do — shared by the phone timeline and the desktop column. */
-const usePeriodActions = (period: Period) => {
+const usePeriodActions = (period: Period, onViewRecord?: (periodId: number) => void) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editTimeOpen, setEditTimeOpen] = useState(false);
@@ -173,6 +181,10 @@ const usePeriodActions = (period: Period) => {
   };
 
   const handleViewAttendance = () => {
+    if (onViewRecord) {
+      onViewRecord(period.id);
+      return;
+    }
     router.push(
       `/lessons/${period.lessonId}/periods/${period.id}/check-success`
     );
@@ -277,13 +289,17 @@ const DensePeriodRow = ({
   period,
   attended: attendedCount,
   canCheck,
+  active = false,
+  onViewRecord,
 }: {
   period: Period;
   attended: number | undefined;
   canCheck: boolean;
+  active?: boolean;
+  onViewRecord?: (periodId: number) => void;
 }) => {
   const { menuOpen, handleCheck, handleViewAttendance, menuButton, overlays } =
-    usePeriodActions(period);
+    usePeriodActions(period, onViewRecord);
   const startTime = new Date(period.startTime);
   const attended = Boolean(period.attendanceTakenAt);
   const today = isToday(startTime);
@@ -294,7 +310,7 @@ const DensePeriodRow = ({
   return (
     <li
       className={`group flex h-11 items-center gap-2.5 rounded-lg px-1.5 ${
-        today && !attended ? "bg-warning-50" : ""
+        active ? "bg-primary-50" : today && !attended ? "bg-warning-50" : ""
       } ${onRowClick ? "cursor-pointer hover:bg-neutral-50" : ""}`}
       onClick={onRowClick}
     >
@@ -308,8 +324,8 @@ const DensePeriodRow = ({
               : "border-[1.5px] border-neutral-300"
         }`}
       />
-      <span className="w-[74px] shrink-0 text-sm font-semibold text-neutral-900">
-        {format(startTime, "M/d")}（{WEEKDAYS[startTime.getDay()]}）
+      <span className="w-[82px] shrink-0 text-sm font-semibold tabular-nums text-neutral-900">
+        {format(startTime, "MM/dd")}（{WEEKDAYS[startTime.getDay()]}）
       </span>
       <span className="min-w-0 flex-1 truncate text-xs text-neutral-500">
         {format(startTime, "HH:mm")}–{format(new Date(period.endTime), "HH:mm")}
@@ -368,7 +384,7 @@ const PeriodRow = ({
   // (with the confirm below), but not shouted about.
   const isDue = startTime.getTime() <= endOfDay(new Date()).getTime();
   const daysUntil = differenceInCalendarDays(startTime, new Date());
-  const date = format(startTime, "M/d");
+  const date = format(startTime, "MM/dd");
   const weekday = WEEKDAYS[startTime.getDay()];
   const startHour = format(startTime, "HH:mm");
   const endHour = format(endTime, "HH:mm");

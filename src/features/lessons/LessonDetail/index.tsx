@@ -17,6 +17,8 @@ import { weeklyScheduleLabel } from "../lessonSchedule";
 import { headcountByPeriod } from "@/domains/attendance/rosterInsights";
 import ResponsiveDialog from "@/components/ResponsiveDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import PeriodRecordSheet from "./PeriodRecordSheet";
+import StudentSheet from "@/features/students/StudentSheet";
 
 export const TABS = [
   { name: "時段", query: "periods" },
@@ -32,6 +34,13 @@ const LessonDetail = () => {
   const [activeTab, setActiveTab] = useState("periods");
   const [showSettings, setShowSettings] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
+  // 桌面：時段紀錄與學生詳情開在右側抽屜，名單留在原地。一次只開一個。
+  const [recordPeriodId, setRecordPeriodId] = useState<number | null>(null);
+  const [sheetStudentId, setSheetStudentId] = useState<number | null>(null);
+  const openStudent = (studentId: number) => {
+    setRecordPeriodId(null);
+    setSheetStudentId(studentId);
+  };
   /** What to do once the teacher agrees to throw unsaved settings away. */
   const [pendingDiscard, setPendingDiscard] = useState<(() => void) | null>(null);
   const { data: lesson, isLoading: isLessonLoading } = useGetLessonQuery(
@@ -115,12 +124,32 @@ const LessonDetail = () => {
               lesson={lesson}
               periods={lesson.periods || []}
               headcounts={headcounts}
+              activePeriodId={recordPeriodId}
+              onViewRecord={setRecordPeriodId}
               className="sticky top-6 h-[calc(100vh-3rem)] max-h-[820px] w-[300px] shrink-0"
             />
             <div className="min-w-0 flex-1">
-              <AttendanceOverview lesson={lesson} students={students || []} />
+              <AttendanceOverview
+                lesson={lesson}
+                students={students || []}
+                onViewPeriod={setRecordPeriodId}
+                onOpenStudent={openStudent}
+              />
             </div>
           </div>
+          <PeriodRecordSheet
+            lesson={lesson}
+            students={students || []}
+            periodId={recordPeriodId}
+            onSelect={setRecordPeriodId}
+            onClose={() => setRecordPeriodId(null)}
+            onOpenStudent={openStudent}
+          />
+          <StudentSheet
+            studentId={sheetStudentId}
+            onClose={() => setSheetStudentId(null)}
+            from={`/lessons/${lesson.id}`}
+          />
           <ResponsiveDialog
             open={showSettings}
             onClose={requestCloseSettings}

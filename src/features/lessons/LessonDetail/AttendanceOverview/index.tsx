@@ -24,11 +24,16 @@ const AttendanceOverview = ({
   lesson,
   students,
   variant = "expanded",
+  onViewPeriod,
+  onOpenStudent,
 }: {
   lesson: Lesson;
   students: LessonStudent[];
   /** `compact` = the phone 學生 tab: slimmer chart and roster. */
   variant?: "compact" | "expanded";
+  /** Desktop: open a taken period's record / a student in a side sheet. */
+  onViewPeriod?: (periodId: number) => void;
+  onOpenStudent?: (studentId: number) => void;
 }) => {
   // Memoised for the identity, not the cost: the `?? []` would otherwise hand
   // the two memos below a fresh array on every render of a lesson with no
@@ -46,6 +51,10 @@ const AttendanceOverview = ({
   );
 
   const attentionIds = useMemo(() => new Set(items.map((item) => item.student.id)), [items]);
+  const takenPeriodIds = useMemo(
+    () => new Set(periods.filter((period) => period.attendanceTakenAt).map((period) => period.id)),
+    [periods]
+  );
   const acceptedCardNames = (lesson.cards ?? []).map((card) => card.name);
 
   if (variant === "compact") {
@@ -68,7 +77,13 @@ const AttendanceOverview = ({
         data={headcounts}
         attendanceRate={lessonAttendanceRate(students).rate}
       />
-      <RosterTable rows={rows} attentionIds={attentionIds} />
+      <RosterTable
+        rows={rows}
+        attentionIds={attentionIds}
+        takenPeriodIds={takenPeriodIds}
+        onViewPeriod={onViewPeriod}
+        onOpenStudent={onOpenStudent}
+      />
       <AttentionList items={items} acceptedCardNames={acceptedCardNames} variant="expanded" />
     </div>
   );
