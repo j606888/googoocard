@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { ChevronRight, Copy, PencilLine, Plus, Trash } from "lucide-react";
+import { BookOpenText, ChevronRight, Copy, PencilLine, Plus, Trash } from "lucide-react";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Drawer from "@/components/Drawer";
@@ -24,6 +24,7 @@ import {
   termSummary,
   UNCLASSIFIED_KEY,
   type LessonSeries,
+  type LocationSection,
   type SeriesTerm,
 } from "./lessonSeries";
 
@@ -239,6 +240,12 @@ const SeriesRow = ({
           </ul>
           {series.groupId !== null && (
             <div className="flex flex-wrap items-center gap-1 border-t border-neutral-100 bg-neutral-50 px-4 py-1.5 lg:pl-14">
+              <Button variant="ghost" size="sm" className="gap-1 text-primary-700" asChild>
+                <Link href={`/lessons/groups/${series.groupId}`}>
+                  <BookOpenText className="size-4" />
+                  課種頁
+                </Link>
+              </Button>
               <Button variant="ghost" size="sm" className="gap-1 text-primary-700" onClick={openNewTerm}>
                 <Plus className="size-4" />
                 開新一期
@@ -309,8 +316,50 @@ const SeriesRow = ({
  * 「所有課程」：一列一個課種，展開才看各期。整張表只有一個表頭。
  * 手機與桌面同一棵樹——手機把後面幾欄收成名稱下面的一行摘要。
  */
-const SeriesList = ({ series, now }: { series: LessonSeries[]; now: Date }) => {
+const SeriesList = ({
+  series,
+  now,
+  sections,
+}: {
+  series: LessonSeries[];
+  now: Date;
+  /** 「開課中」依分部分區（`sectionByLocation`）；不傳就是一整張表。 */
+  sections?: LocationSection[];
+}) => {
   const [scheduling, setScheduling] = useState<LessonSummary | null>(null);
+  if (sections) {
+    return (
+      <div className="flex flex-col gap-5">
+        {sections.map((section) => (
+          <section key={section.location?.id ?? "none"} className="flex flex-col gap-2">
+            <h3 className="text-sm font-semibold text-neutral-800">
+              {section.location?.name ?? "未設分部"}
+              <span className="ml-2 font-normal text-neutral-600">{section.series.length} 個課種開課中</span>
+            </h3>
+            <SeriesTable series={section.series} now={now} onSchedule={setScheduling} />
+          </section>
+        ))}
+        {scheduling && <NextPeriodDrawer lesson={scheduling} onClose={() => setScheduling(null)} />}
+      </div>
+    );
+  }
+  return (
+    <>
+      <SeriesTable series={series} now={now} onSchedule={setScheduling} />
+      {scheduling && <NextPeriodDrawer lesson={scheduling} onClose={() => setScheduling(null)} />}
+    </>
+  );
+};
+
+const SeriesTable = ({
+  series,
+  now,
+  onSchedule,
+}: {
+  series: LessonSeries[];
+  now: Date;
+  onSchedule: (lesson: LessonSummary) => void;
+}) => {
   return (
     <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
       <div
@@ -326,10 +375,9 @@ const SeriesList = ({ series, now }: { series: LessonSeries[]; now: Date }) => {
       </div>
       <ul>
         {series.map((item) => (
-          <SeriesRow key={item.key} series={item} now={now} onSchedule={setScheduling} />
+          <SeriesRow key={item.key} series={item} now={now} onSchedule={onSchedule} />
         ))}
       </ul>
-      {scheduling && <NextPeriodDrawer lesson={scheduling} onClose={() => setScheduling(null)} />}
     </div>
   );
 };

@@ -168,3 +168,30 @@ export const termSummary = (series: LessonSeries): string => {
     ? `第 ${term.number} 期 · ${progress}`
     : progress;
 };
+
+export interface LocationSection {
+  /** null = 沒設分部的期。 */
+  location: { id: number; name: string } | null;
+  series: LessonSeries[];
+}
+
+/**
+ * 「開課中」依分部分區：一個課種在兩個分部都有開，就兩區都列，
+ * 每一區只看那個分部正在開的期（第幾期、下一堂都照那一期）。
+ * `locations` 照分部的排序傳進來；沒設分部的期墊在最後一區。
+ */
+export const sectionByLocation = (
+  series: LessonSeries[],
+  locations: { id: number; name: string }[]
+): LocationSection[] => {
+  const sections: LocationSection[] = [...locations, null].map((location) => ({
+    location,
+    series: series.flatMap((s) => {
+      const active = s.active.filter(
+        (term) => (term.lesson.location?.id ?? null) === (location?.id ?? null)
+      );
+      return active.length > 0 ? [{ ...s, active, lead: active[0] }] : [];
+    }),
+  }));
+  return sections.filter((section) => section.series.length > 0);
+};

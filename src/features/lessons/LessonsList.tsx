@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Sparkles } from "lucide-react";
 import AgendaList from "./AgendaList";
 import SeriesList from "./SeriesList";
-import OrganizeSeriesDrawer from "./OrganizeSeriesDrawer";
 import { useLessonsList } from "./useLessonsList";
 import { useLessonAgenda } from "./useLessonAgenda";
 import { useLessonScope } from "./useLessonScope";
+import { unorganizedLessonCount } from "./seriesSuggest";
+import { sectionByLocation } from "./lessonSeries";
 import Drawer from "@/components/Drawer";
 import EmptyState from "@/components/EmptyState";
 import Field, { fieldControlClass } from "@/components/Field";
@@ -43,7 +44,11 @@ const LessonsList = () => {
   const list = useLessonsList(scope, agenda.myTeacherId);
   const [searchOpen, setSearchOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
-  const [organizeOpen, setOrganizeOpen] = useState(false);
+
+  const unorganized = useMemo(
+    () => unorganizedLessonCount(list.allLessons, list.groups),
+    [list.allLessons, list.groups]
+  );
 
   const { byId } = useDanceStyles();
   const styleOptions = [...byId.values()].filter((style) =>
@@ -166,6 +171,19 @@ const LessonsList = () => {
               <h2 id="series-heading" className="text-[15px] font-bold text-neutral-900">
                 所有課程
               </h2>
+              {unorganized > 0 && (
+                <button
+                  type="button"
+                  onClick={() => router.push("/lessons/organize")}
+                  className="flex items-center gap-3 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3 text-left hover:bg-primary-100"
+                >
+                  <Sparkles aria-hidden="true" className="size-5 shrink-0 text-primary-700" />
+                  <span className="min-w-0 flex-1 text-sm text-neutral-800">
+                    有 {unorganized} 門舊課還沒歸到課種，用翻新精靈一次整理課種、分部和小幫手
+                  </span>
+                  <span className="shrink-0 text-sm font-medium text-primary-700">開始</span>
+                </button>
+              )}
               <div className="flex flex-wrap items-center gap-2.5">
                 {isExpanded ? (
                   searchField
@@ -235,7 +253,15 @@ const LessonsList = () => {
                   }
                 />
               ) : (
-                <SeriesList series={list.series} now={agenda.now} />
+                <SeriesList
+                  series={list.series}
+                  now={agenda.now}
+                  sections={
+                    list.tab === "active" && scope.locationId === null && allLocations.length > 1
+                      ? sectionByLocation(list.series, allLocations)
+                      : undefined
+                  }
+                />
               )}
 
               <div className="flex flex-wrap gap-1">
@@ -252,21 +278,15 @@ const LessonsList = () => {
                   variant="ghost"
                   size="sm"
                   className="text-neutral-600"
-                  onClick={() => setOrganizeOpen(true)}
+                  onClick={() => router.push("/lessons/organize")}
                 >
-                  整理課種
+                  翻新精靈
                 </Button>
               </div>
             </section>
           </>
         )}
 
-        <OrganizeSeriesDrawer
-          open={organizeOpen}
-          onClose={() => setOrganizeOpen(false)}
-          lessons={list.allLessons}
-          groups={list.groups}
-        />
         <Drawer
           title="新增課種"
           open={createGroupOpen}

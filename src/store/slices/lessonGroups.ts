@@ -6,6 +6,13 @@ export interface LessonGroup {
   lessonCount: number;
 }
 
+export interface LessonGroupStudents {
+  lessons: {
+    lessonId: number;
+    students: { id: number; name: string; avatarUrl: string }[];
+  }[];
+}
+
 const lessonGroupsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getLessonGroups: builder.query<LessonGroup[], void>({
@@ -28,13 +35,25 @@ const lessonGroupsApi = api.injectEndpoints({
       }),
       invalidatesTags: ["LessonGroup", "Lesson"],
     }),
-    /** 整理課種：一次把好幾門課歸到各自的課種，課種照名稱找、沒有就建。 */
+    /**
+     * 翻新精靈：一次把好幾門課歸到各自的課種（照名稱找、沒有就建），
+     * 並設好每一期的分部與小幫手。被搬空的舊群組會刪掉。
+     */
     organizeLessonGroups: builder.mutation<
-      { updated: number },
-      { series: { name: string; lessonIds: number[] }[] }
+      { updated: number; removedGroups: number },
+      {
+        series: { name: string; lessonIds: number[] }[];
+        ungroupLessonIds?: number[];
+        lessons?: { id: number; locationId: number | null; assistantIds: number[] }[];
+      }
     >({
       query: (body) => ({ url: "lesson-groups/organize", method: "POST", body }),
-      invalidatesTags: ["LessonGroup", "Lesson"],
+      invalidatesTags: ["LessonGroup", "Lesson", "Teacher"],
+    }),
+    /** 課種頁：每一期上過課的學生。 */
+    getLessonGroupStudents: builder.query<LessonGroupStudents, number>({
+      query: (id) => `lesson-groups/${id}/students`,
+      providesTags: ["LessonGroup", "Lesson"],
     }),
     deleteLessonGroup: builder.mutation<void, number>({
       query: (id) => ({
@@ -54,4 +73,5 @@ export const {
   useRenameLessonGroupMutation,
   useDeleteLessonGroupMutation,
   useOrganizeLessonGroupsMutation,
+  useGetLessonGroupStudentsQuery,
 } = lessonGroupsApi;

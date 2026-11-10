@@ -196,6 +196,15 @@ Classroom（頂層容器，所有實體都屬於一間教室）
   「所有課程」（`SeriesList` + `lessonSeries.ts`）依**課種**排：一個 `LessonGroup` 就是一個課種，
   底下每門課是一期，「第幾期」照開始日算、不存；沒歸課種的進行中課各自成列，已結束的集中到「未分類」。
   最上面的「我的課／全部」＋分部同時篩兩區，記在 localStorage（`useLessonScope`，key 帶 classroomId）。
+  「開課中」沒篩分部時依分部分區（`sectionByLocation`），兩個分部都在開的課種兩區都列。
+- **課種頁**（`/lessons/groups/[id]`，`GroupDetail`）：共幾期、各分部各幾期、開課中／已停；每一期點開看
+  上過課的學生（`GET /api/lesson-groups/[id]/students`，`LessonStudent`）。
+- **翻新精靈**（`/lessons/organize`，`OrganizeWizard` + `seriesSuggest.ts`）：把改版前的課整理成課種，
+  四步：課種歸類 → 每期分部 → 每期小幫手 → 確認，送 `POST /api/lesson-groups/organize` 一個 transaction 寫完。
+  改版前的 `LessonGroup` 是時段班（「週日課程」）——名稱對不上底下任何一門課的課名就當舊群組（`isSeriesGroup`），
+  拆開重排，搬空的舊群組刪掉；「週日班」不另外存，星期幾從第一堂算。課名正規化拿掉編號（`1. `）、括號、
+  第 N 期、月份；括號裡的分部代號（`[KH]` → 高雄）當預設分部，沒有就用排序第一個分部。
+  有舊課沒整理時課程頁會出提示（`unorganizedLessonCount`）。可以重跑：已是課種的群組原樣帶入。
 - 新增課程時選型態；上次選的型態依教室記在 localStorage 當預設。
 
 ## 一次扣多格（外師課，2026-10）

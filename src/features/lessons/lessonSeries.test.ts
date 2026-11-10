@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { LessonSummary } from "@/store/slices/lessons";
-import { buildSeries, filterSeries, splitSeries, termSummary, UNCLASSIFIED_KEY } from "./lessonSeries";
+import {
+  buildSeries,
+  filterSeries,
+  sectionByLocation,
+  splitSeries,
+  termSummary,
+  UNCLASSIFIED_KEY,
+} from "./lessonSeries";
 
 let nextId = 1;
 const lesson = (over: Partial<LessonSummary>): LessonSummary =>
@@ -78,5 +85,24 @@ describe("filterSeries / splitSeries", () => {
     const { active, inactive } = splitSeries(buildSeries([later, sooner, done], []));
     expect(active.map((s) => s.name)).toEqual(["sooner", "later"]);
     expect(inactive.map((s) => s.key)).toEqual([UNCLASSIFIED_KEY]);
+  });
+});
+
+describe("sectionByLocation", () => {
+  it("lists a 課種 under every 分部 it runs in, with that 分部's terms only", () => {
+    const tainan = { id: 1, name: "台南" };
+    const kaohsiung = { id: 2, name: "高雄" };
+    const term = (id: number, location: { id: number; name: string } | null) => ({
+      lesson: { id, location, status: "inProgress" } as LessonSummary,
+      number: id,
+    });
+    const both = { key: "a", groupId: 1, name: "Bachata", terms: [], active: [term(1, tainan), term(2, kaohsiung)], lead: null };
+    const loose = { key: "b", groupId: 2, name: "Salsa", terms: [], active: [term(3, null)], lead: null };
+    const sections = sectionByLocation([both, loose], [tainan, kaohsiung]);
+    expect(sections.map((s) => [s.location?.name ?? null, s.series.map((x) => x.lead!.lesson.id)])).toEqual([
+      ["台南", [1]],
+      ["高雄", [2]],
+      [null, [3]],
+    ]);
   });
 });
