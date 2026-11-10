@@ -6,6 +6,7 @@ import KiwiLogo from "@/components/KiwiLogo";
 import LocationBadge from "@/components/LocationBadge";
 import StatusTag from "@/components/StatusTag";
 import { Button } from "@/components/ui/button";
+import AddFriendPrompt from "@/features/liff/AddFriendPrompt";
 import SessionDots from "@/features/students/StudentDetail/CardsSection/SessionDots";
 import { isLowRemaining } from "@/features/students/StudentDetail/CardsSection/cardStatus";
 import {
@@ -55,6 +56,7 @@ export default function NoClassToday({ data }: { data: TodayResponse }) {
         </div>
       </div>
 
+      <AddFriendPrompt />
       <NextLessonCard lesson={data.nextLesson} />
       {data.upcoming.length > 0 && <Upcoming periods={data.upcoming} />}
       {data.myCards && <MyCards cards={data.myCards} />}

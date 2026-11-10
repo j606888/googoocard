@@ -236,7 +236,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 `/api/liff/today` 帶學生時，每堂課多回 `cardStatus = { usable, autoPickId, buyable }`（`src/service/checkin.ts` 的 `lessonCardStatus()`，跟引擎同一套規則），LIFF 畫面據此顯示「使用 X（剩 n 堂）」／多張卡讓學生選／「還沒有能用的課卡，下一步選一張」。`POST /api/liff/checkin` 回 `{ results, purchased, amountDue, unpaidCards }`，完成畫面寫「下課請找小幫手付款 $X」並提醒舊的未付卡。**不另外推播給學生**（當場買卡時老師端照常收到「待確認收款」`UNPAID_CARD` 推播）。
 
-**加好友提示**：掃門口 QR 進來的人不一定加了官方帳號（LIFF 的 Add friend option 只在第一次授權時問、可以拒絕；建議設 Aggressive）。沒加好友就收不到續卡提醒、聊天室叫不出選單，所以完成畫面用 `liff.getFriendship()` 再查一次，沒加就顯示「加好友」（`AddFriendPrompt`，連 `line.me/R/ti/p/<NEXT_PUBLIC_LINE_OA_ID>`）。LIFF 沒連到官方帳號（getFriendship 丟錯）或沒設 OA ID 時不顯示。
+**加好友提示**：掃門口 QR 進來的人不一定加了官方帳號（LIFF 的 Add friend option 只在第一次授權時問、可以拒絕；建議設 Aggressive）。沒加好友就收不到續卡提醒、聊天室叫不出選單，所以用 `liff.getFriendship()` 再查一次，沒加就顯示「加好友」（`AddFriendPrompt`，三處：門口登記／認領完成後的「登記完成／綁定完成」畫面（`FirstTimeGate`，按「繼續簽到」才進選課——很多人綁完就離開）、今天沒課（`NoClassToday`）、簽到完成頁；連 `line.me/R/ti/p/<NEXT_PUBLIC_LINE_OA_ID>`）。LIFF 沒連到官方帳號（getFriendship 丟錯）或沒設 OA ID 時不顯示。
 
 ### LINE 模擬器（`/dev/line`，測試環境限定）
 

@@ -8,8 +8,8 @@ const OA_ID = process.env.NEXT_PUBLIC_LINE_OA_ID ?? "";
 
 /**
  * 「加入官方帳號」：掃門口 QR 進來的人不一定加了好友，沒加就收不到續卡提醒、聊天室
- * 也叫不出選單。LIFF 的 Add friend option（Aggressive）只問一次、可以拒絕，所以簽到
- * 完成時再用 getFriendship() 檢查一次。查不到（LIFF 沒連官方帳號）就不顯示。
+ * 也叫不出選單。LIFF 的 Add friend option（Aggressive）只問一次、可以拒絕，所以綁定
+ * 完成、今天沒課、簽到完成這三處都用 getFriendship() 再檢查一次。查不到（LIFF 沒連官方帳號）就不顯示。
  */
 const AddFriendPrompt = () => {
   const [show, setShow] = useState(false);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Copy, Printer, RefreshCw } from "lucide-react";
+import { Copy, Printer } from "lucide-react";
 import { toast } from "sonner";
 import {
   useGetCheckinKeyQuery,
@@ -10,6 +10,7 @@ import {
 } from "@/store/slices/classrooms";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import IpadDisplayCard from "./IpadDisplayCard";
 
 const PageHeader = () => (
@@ -63,7 +64,6 @@ const CheckinQr = () => {
           <Skeleton className="h-9 w-full rounded-xl" />
           <Skeleton className="h-11 w-full rounded-xl" />
           <Skeleton className="h-11 w-full rounded-xl" />
-          <Skeleton className="mx-auto h-11 w-40 rounded-xl" />
         </div>
       </div>
     );
@@ -127,38 +127,28 @@ const CheckinQr = () => {
           列印看板
         </Button>
 
-        {confirmingRotate ? (
-          <div className="flex flex-col gap-3 rounded-2xl border border-warning-300 bg-warning-50 p-4">
-            <p className="text-sm leading-relaxed text-warning-950">
-              重新產生後，目前貼在教室的 QR Code 會立刻失效，需要重印一張；iPad 顯示頁也要重新開啟。確定要繼續嗎？
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => setConfirmingRotate(false)}
-                className="flex-1 bg-white"
-              >
-                取消
-              </Button>
-              <Button
-                variant="danger"
-                isLoading={isRotating}
-                onClick={handleRotate}
-                className="flex-1"
-              >
-                {isRotating ? "產生中…" : "確定重新產生"}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <Button variant="ghost" onClick={() => setConfirmingRotate(true)}>
-            <RefreshCw className="size-4" />
-            重新產生 QR Code
-          </Button>
-        )}
       </div>
 
       <IpadDisplayCard displayUrl={data.displayUrl} classroomName={data.classroomName} />
+
+      {/* Rarely needed and destructive — deliberately a quiet footer link. */}
+      <button
+        type="button"
+        onClick={() => setConfirmingRotate(true)}
+        className="self-center py-3 text-xs text-neutral-500 underline underline-offset-2 print:hidden"
+      >
+        QR Code 外流了？重新產生
+      </button>
+      <ConfirmDialog
+        open={confirmingRotate}
+        title="重新產生簽到 QR Code？"
+        message="目前貼在教室的海報與 iPad 顯示頁會立刻失效，學生掃舊的 QR Code 會打不開。你需要重新列印海報、並在 iPad 重新開啟顯示頁。這個動作無法復原。"
+        confirmLabel="確定重新產生"
+        variant="danger"
+        isLoading={isRotating}
+        onConfirm={handleRotate}
+        onCancel={() => setConfirmingRotate(false)}
+      />
     </div>
   );
 };
