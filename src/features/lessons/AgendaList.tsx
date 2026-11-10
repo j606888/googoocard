@@ -74,15 +74,14 @@ const AgendaItem = ({ row, now }: { row: AgendaRow; now: Date }) => {
 
   return (
     <li
-      className={`flex min-h-16 items-center gap-3 px-4 py-2 lg:min-h-14 ${
+      className={`flex min-h-[72px] items-center gap-3 px-4 py-2.5 lg:min-h-14 lg:py-2 ${
         state === "overdue" ? "bg-warning-50" : ""
       }`}
     >
-      <div className="w-[92px] shrink-0 tabular-nums lg:flex lg:w-[168px] lg:items-baseline lg:gap-3">
-        <p className="text-sm font-semibold text-neutral-900">{dateLabel(start)}</p>
-        <p className="text-[13px] text-neutral-600 lg:text-sm lg:font-semibold lg:text-neutral-900">
-          {format(start, "HH:mm")}
-        </p>
+      {/* 手機太窄，日期欄會把課名擠到只剩幾個字——日期時間改放課名下面那一行。 */}
+      <div className="hidden w-[168px] shrink-0 items-baseline gap-3 text-sm font-semibold tabular-nums text-neutral-900 lg:flex">
+        <p>{dateLabel(start)}</p>
+        <p>{format(start, "HH:mm")}</p>
       </div>
       <Link href={`/lessons/${period.lesson.id}`} className="min-w-0 flex-1">
         <p className="truncate text-[15px] font-semibold text-neutral-900">
@@ -93,8 +92,13 @@ const AgendaItem = ({ row, now }: { row: AgendaRow; now: Date }) => {
             </span>
           )}
         </p>
+        <p className="truncate text-[13px] tabular-nums text-neutral-700 lg:hidden">
+          <span className="font-semibold text-neutral-900">
+            {dateLabel(start)} {format(start, "HH:mm")}
+          </span>
+          {status.text && <span className={`font-semibold ${status.className}`}> · {status.text}</span>}
+        </p>
         <p className="truncate text-xs text-neutral-600 lg:hidden">
-          {status.text && <span className={`font-semibold ${status.className}`}>{status.text} · </span>}
           {[people, count].filter(Boolean).join(" · ")}
         </p>
       </Link>
