@@ -140,6 +140,10 @@ model Teacher {
   name        String
   // Palette key (DANCE_STYLE_COLORS, src/lib/danceStyles.ts) for the avatar.
   color       String          @default("blue")
+  // An emoji from TEACHER_ICONS (src/lib/teachers.ts) shown instead of the initial.
+  icon        String?
+  // 這位老師在哪些分部上課——純標示，不限制排課。
+  locations   Location[]
   note        String?
   // Archived, not deleted, once a teacher has lessons — old lessons keep them.
   archivedAt  DateTime?
@@ -357,6 +361,7 @@ model Location {
   sortOrder   Int       @default(0)
   archivedAt  DateTime?
   lessons     Lesson[]
+  teachers    Teacher[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { apiRoute, parseBody, parseId, parseQuery } from "@/lib/apiRoute";
 import { ApiError, notFound } from "@/lib/apiError";
-import { findTeacherInClassroom } from "@/lib/authz";
+import { findTeacherInClassroom, requireLocationsInClassroom } from "@/lib/authz";
 import { teacherMonthQuerySchema, updateTeacherSchema } from "@/lib/schemas";
 import { toTaipeiMonthKey } from "@/lib/taipei-date";
 import { teacherPayloadSelect } from "@/lib/teachers";
@@ -20,12 +20,17 @@ export const PATCH = apiRoute<{ id: string }>(async ({ request, params, classroo
   const teacher = await findTeacherInClassroom(id, classroomId);
   if (!teacher) throw notFound("Teacher");
 
-  const { archived, ...fields } = await parseBody(request, updateTeacherSchema);
+  const { archived, locationIds, ...fields } = await parseBody(request, updateTeacherSchema);
+  const locations =
+    locationIds === undefined
+      ? undefined
+      : await requireLocationsInClassroom(locationIds, classroomId);
 
   return prisma.teacher.update({
     where: { id },
     data: {
       ...fields,
+      ...(locations ? { locations: { set: locations.map((id) => ({ id })) } } : {}),
       ...(archived === undefined
         ? {}
         : { archivedAt: archived ? (teacher.archivedAt ?? new Date()) : null }),

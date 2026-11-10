@@ -1,10 +1,5 @@
-import { apiRoute, parseQuery } from "@/lib/apiRoute";
-import { teacherMonthQuerySchema } from "@/lib/schemas";
-import { toTaipeiMonthKey } from "@/lib/taipei-date";
+import { apiRoute } from "@/lib/apiRoute";
 import { getTeachersOverview } from "@/service/teachers";
 
-// The teachers page: every teacher with the month's numbers and trend.
-export const GET = apiRoute(async ({ request, classroomId }) => {
-  const { month } = parseQuery(request, teacherMonthQuerySchema);
-  return getTeachersOverview(classroomId, month ?? toTaipeiMonthKey(new Date()));
-});
+// The teachers page: every teacher with the lessons they teach and what's next.
+export const GET = apiRoute(async ({ classroomId }) => getTeachersOverview(classroomId));

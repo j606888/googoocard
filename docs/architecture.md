@@ -53,15 +53,18 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - 顏色：`color` 存色盤 key（`DANCE_STYLE_COLORS`），對應的 Tailwind class 寫死在 `src/lib/danceStyleColors.ts`（`danceStyleMeta(style)`），因為 Tailwind 只認得靜態 class。
 - 前端：老師端用 `useDanceStyles()`（`styles` = 未封存、`byId` = 全部）；LIFF、QR 看板、公開學生頁讀 API 回應裡附帶的 `danceStyle`（它們沒有老師 session）。
 
-## 老師頁（2026-10）
+## 老師頁（2026-10，2026-11 列表瘦身）
 
-`/teachers` 是總覽（`GET /api/teachers/overview?month=`）、`/teachers/[id]` 是詳情（`GET /api/teachers/[id]?month=`），
+`/teachers` 是總覽（`GET /api/teachers/overview`，不帶月份）、`/teachers/[id]` 是詳情（`GET /api/teachers/[id]?month=`），
 彙總都在 `src/service/teachers.ts`，純計算在 `src/lib/teacherStats.ts`（有單元測試）。`GET /api/teachers` 維持輕量清單給開課的老師選單用。
 
+- **總覽只回答三件事**：這位老師教哪些進行中的課（`activeLessons`）、上課中／下一堂（`nextPeriod`，`ongoing` = 現在正在上）、屬於哪些分部。排序：下一堂越近越前面。統計卡、月份切換、每卡三個數字、近 6 個月長條圖都刻意拿掉了（2026-11-10）——每月數字只留在詳情頁。
+- **分部**（`Teacher.locations`，多對多 `_LocationToTeacher`）是**純標示**：不限制排課、不影響金流，也不從課程推導。寫入用 `locationIds`（整份取代），以 `requireLocationsInClassroom()` 驗證（400 `LOCATION_NOT_FOUND`）。
+- **圖示**（`Teacher.icon`）是 `TEACHER_ICONS`（`src/lib/teachers.ts`）裡的一個 emoji，`null` = 顯示名字第一個字。
 - **只算已點名的時段**（`attendanceTakenAt` 有值）——跟收入頁同一條規則。學生自助簽到在老師定案前不算；時段結束了還沒點名的算「待點名」。月份以台北時間切。
-- 一堂課有兩位老師時，**兩位都各算一堂**；總覽最上面的教室合計（`totals`）則是一個時段只算一次。
+- 一堂課有兩位老師時，**兩位都各算一堂**。
 - 老師「教的舞種」**從老師教過的課推導**，不存資料表——不用維護，也不會跟實際排課不一致。
-- 代表色沿用舞種的色盤 key（`DANCE_STYLE_COLORS`），新老師預設取第一個沒被在職老師用掉的顏色（`firstFreeTeacherColor`）。
+- 代表色用 `TEACHER_COLORS` = 舞種的 10 個色盤 key ＋ 8 個只給老師的冷色（`EXTRA_PALETTE_COLORS`，`src/lib/danceStyles.ts`）；舞種仍只能選原本 10 個。新老師預設取第一個沒被在職老師用掉的顏色（`firstFreeTeacherColor`，只從原本 10 個挑）。
 - **刪除只限沒教過課的老師**（409 `TEACHER_HAS_LESSONS`），其他一律封存。封存的老師不出現在開課選單，但已經掛著這位老師的課照常顯示。
 - 開課 / 改課的 `teacherIds` 會驗證都是本教室的老師（400 `TEACHER_NOT_FOUND`），封存的也算數。
 - 數字會被別處的點名改變，而點名的 mutation 不會 invalidate `Teacher` tag，所以兩頁的 query 都用 `refetchOnMountOrArgChange`。

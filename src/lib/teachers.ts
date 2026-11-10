@@ -1,8 +1,22 @@
 import type { Prisma } from "@prisma/client";
-import type { DanceStyleColor } from "@/lib/danceStyles";
+import { PALETTE_COLORS, type DanceStyleColor, type PaletteColor } from "@/lib/danceStyles";
+import { locationSummarySelect } from "@/lib/locations";
 
 // Teachers reuse the dance-style palette keys (and `danceStyleClasses()` for the
 // Tailwind classes), so a teacher's colour can't drift from what the UI knows.
+// They also get the extra cool colours dance styles don't offer.
+export const TEACHER_COLORS = PALETTE_COLORS;
+export type TeacherColor = PaletteColor;
+
+/** Emoji a teacher may show on their avatar instead of their initial (`Teacher.icon`). */
+export const TEACHER_ICONS = [
+  "⭐", "🔥", "⚡", "🌙", "☀️", "🌈",
+  "🌊", "🍀", "🌸", "🌹", "🎵", "🎧",
+  "💃", "🕺", "👑", "💎", "🦋", "❤️",
+  "🐱", "🐶", "🦊", "🐻", "🐼", "🐰",
+  "🦁", "🐯", "🐧", "🦄", "🍑", "🍋",
+] as const;
+export type TeacherIcon = (typeof TEACHER_ICONS)[number];
 
 /** The order new teachers take colours in — the migration that added `color`
  * assigned existing teachers in this same order. */
@@ -46,7 +60,9 @@ export const teacherSummarySelect = {
 /** The teacher's own fields in API responses — a `select`, never a spread row. */
 export const teacherPayloadSelect = {
   ...teacherSummarySelect,
+  icon: true,
   note: true,
   kind: true,
   archivedAt: true,
+  locations: { select: locationSummarySelect, orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
 } satisfies Prisma.TeacherSelect;

@@ -119,11 +119,19 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
         </Link>
 
         <div className="rounded-2xl border border-neutral-200 bg-white p-5 lg:p-6 flex flex-wrap items-center gap-4">
-          <TeacherAvatar name={teacher.name} color={teacher.color} size="lg" muted={archived} />
+          <TeacherAvatar name={teacher.name} color={teacher.color} icon={teacher.icon} size="lg" muted={archived} />
           <div className="flex flex-col gap-2 flex-[1_1_240px] min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold">{teacher.name}</h1>
               {archived && <StatusTag tone="neutral">已封存</StatusTag>}
+              {teacher.locations.map((location) => (
+                <span
+                  key={location.id}
+                  className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700"
+                >
+                  {location.name}
+                </span>
+              ))}
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {data.danceStyles.map((style) => (
