@@ -10,7 +10,12 @@ import { useDanceStyles } from "@/hooks/useDanceStyles";
 import LevelSelect from "@/features/lessons/newLesson/LevelSelect";
 import LessonKindSelect from "@/features/lessons/newLesson/LessonKindSelect";
 import SessionsPerAttendanceSelect from "@/features/lessons/newLesson/SessionsPerAttendanceSelect";
-import DropInPriceField, { parseDropInPrice } from "@/features/lessons/newLesson/DropInPriceField";
+import DropInPriceField, {
+  type DropInPlans,
+  buildDropInOptions,
+  dropInPlansFrom,
+  parseDropInPrice,
+} from "@/features/lessons/newLesson/DropInPriceField";
 import type { LessonKind } from "@/lib/lessonKind";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
@@ -104,6 +109,7 @@ const SettingSection = ({
   const [dropInAmount, setDropInAmount] = useState<string>(
     lesson.dropInPrice !== null ? String(lesson.dropInPrice) : ""
   );
+  const [dropInPlans, setDropInPlans] = useState<DropInPlans>(() => dropInPlansFrom(lesson.dropInOptions));
   const [errors, setErrors] = useState<FormErrors>({});
 
   const [updateLesson, { isLoading }] = useUpdateLessonMutation();
@@ -127,7 +133,9 @@ const SettingSection = ({
         kind !== lesson.kind ||
         sessionsPerAttendance !== lesson.sessionsPerAttendance ||
         dropInEnabled !== (lesson.dropInPrice !== null) ||
-        (dropInEnabled && dropInAmount !== savedDropIn),
+        (dropInEnabled && dropInAmount !== savedDropIn) ||
+        (dropInEnabled &&
+          JSON.stringify(dropInPlans) !== JSON.stringify(dropInPlansFrom(lesson.dropInOptions))),
       cards:
         !sameIds(selectedTeacherIds, lesson.teachers.map((t) => t.id)) ||
         !sameIds(selectedCardIds, lesson.cards.map((c) => c.id)) ||
@@ -137,7 +145,7 @@ const SettingSection = ({
     };
   }, [
     lesson, lessonName, danceStyleId, level, kind, sessionsPerAttendance, dropInEnabled,
-    dropInAmount, selectedTeacherIds, selectedCardIds, groupId, locationId,
+    dropInAmount, dropInPlans, selectedTeacherIds, selectedCardIds, groupId, locationId,
   ]);
   const dirtyTabCount = Object.values(dirtyByTab).filter(Boolean).length;
   const isDirty = dirtyTabCount > 0;
@@ -165,19 +173,23 @@ const SettingSection = ({
       dropInEnabled,
       dropInPrice,
     });
+    const dropInOptions = buildDropInOptions(dropInEnabled, dropInAmount, dropInPlans);
+    if (!next.dropInPrice && dropInOptions === undefined) {
+      next.dropInPrice = "每個方案都要有名稱和金額，名稱不能重複";
+    }
     setErrors(next);
     const firstError = (Object.keys(next) as (keyof FormErrors)[])[0];
     if (firstError) {
       setTab(ERROR_TAB[firstError]);
       return;
     }
-    if (danceStyleId === null || dropInPrice === undefined) return;
+    if (danceStyleId === null || dropInPrice === undefined || dropInOptions === undefined) return;
     try {
       await updateLesson({
         id: lesson.id,
         draftLesson: {
           lessonName, teacherIds: selectedTeacherIds, cardIds: selectedCardIds, danceStyleId,
-          level, kind, sessionsPerAttendance, dropInPrice, groupId, locationId,
+          level, kind, sessionsPerAttendance, dropInPrice, dropInOptions, groupId, locationId,
         },
       }).unwrap();
     } catch {
@@ -201,6 +213,7 @@ const SettingSection = ({
     setSessionsPerAttendance(lesson.sessionsPerAttendance);
     setDropInEnabled(lesson.dropInPrice !== null);
     setDropInAmount(lesson.dropInPrice !== null ? String(lesson.dropInPrice) : "");
+    setDropInPlans(dropInPlansFrom(lesson.dropInOptions));
     setSelectedTeacherIds(lesson.teachers.map((t) => t.id));
     setSelectedCardIds(lesson.cards.map((c) => c.id));
     setGroupId(lesson.groupId);
@@ -320,6 +333,11 @@ const SettingSection = ({
                 }}
                 onAmountChange={(amount) => {
                   setDropInAmount(amount);
+                  clearError("dropInPrice");
+                }}
+                plans={dropInPlans}
+                onPlansChange={(plans) => {
+                  setDropInPlans(plans);
                   clearError("dropInPrice");
                 }}
                 error={errors.dropInPrice}

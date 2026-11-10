@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { lessonDropInOptions } from "@/lib/dropInOptions";
 import { format, isToday } from "date-fns";
 import { ArrowLeft, Check, PencilLine } from "lucide-react";
 import { Lesson } from "@/store/slices/lessons";
@@ -38,7 +39,11 @@ const LessonDetailHeader = ({
     lesson.location?.name ?? null,
     schedule,
     lesson.sessionsPerAttendance > 1 ? `每次扣 ${lesson.sessionsPerAttendance} 格` : null,
-    lesson.dropInPrice !== null ? `單堂 $${lesson.dropInPrice.toLocaleString()}` : null,
+    lesson.dropInPrice !== null
+      ? `單堂 ${lessonDropInOptions(lesson)
+          .map((o) => `$${o.price.toLocaleString()}`)
+          .join("／")}`
+      : null,
   ].filter(Boolean) as string[];
 
   return (

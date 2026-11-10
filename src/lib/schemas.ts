@@ -52,6 +52,8 @@ export const confirmPaymentSchema = z.object({
 /** 單堂費確認收款：多一個 `amount`，收的時候才打折（學生在 LINE 自己選單堂時記的是牌價）。 */
 export const confirmDropInPaymentSchema = confirmPaymentSchema.extend({
   amount: money.optional(),
+  /** 收款時改方案（學生選錯了）；省略 = 不動。 */
+  optionName: z.string().trim().max(20).optional(),
 });
 
 /**
@@ -61,6 +63,8 @@ export const confirmDropInPaymentSchema = confirmPaymentSchema.extend({
  */
 export const chargeDropInSchema = z.object({
   amount: money.optional(),
+  /** 單堂方案名稱；省略 = 課程的第一個（預設）方案。 */
+  optionName: z.string().trim().max(20).optional(),
   isPaid: z.boolean(),
   paymentMethod: z.enum(PaymentMethod).nullish(),
   paymentReference: z.string().trim().max(20).nullish(),

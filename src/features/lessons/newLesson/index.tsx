@@ -15,7 +15,12 @@ import DanceStyleSelect from "./DanceStyleSelect";
 import LevelSelect from "./LevelSelect";
 import LessonKindSelect from "./LessonKindSelect";
 import SessionsPerAttendanceSelect from "./SessionsPerAttendanceSelect";
-import DropInPriceField, { parseDropInPrice } from "./DropInPriceField";
+import DropInPriceField, {
+  type DropInPlans,
+  buildDropInOptions,
+  dropInPlansFrom,
+  parseDropInPrice,
+} from "./DropInPriceField";
 import {
   DEFAULT_LESSON_KIND,
   DEFAULT_SESSIONS_PER_ATTENDANCE,
@@ -44,6 +49,7 @@ const validationErrors = {
   periods: "請至少新增一個時段",
   danceStyle: "請選擇舞種",
   dropInPrice: "請輸入單堂價",
+  dropInOptions: "每個方案都要有名稱和金額，名稱不能重複",
 };
 
 const NewLesson = () => {
@@ -91,6 +97,9 @@ const NewLesson = () => {
   );
   const [dropInAmount, setDropInAmount] = useState<string>(
     initialClone?.dropInPrice != null ? String(initialClone.dropInPrice) : ""
+  );
+  const [dropInPlans, setDropInPlans] = useState<DropInPlans>(() =>
+    dropInPlansFrom(initialClone?.dropInOptions)
   );
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(
     initialClone?.teacherIds ?? []
@@ -182,9 +191,18 @@ const NewLesson = () => {
       dropInEnabled,
       dropInPrice: parseDropInPrice(dropInEnabled, dropInAmount),
     });
-    setErrors(errors);
     const dropInPrice = parseDropInPrice(dropInEnabled, dropInAmount);
-    if (Object.keys(errors).length === 0 && danceStyleId !== null && dropInPrice !== undefined) {
+    const dropInOptions = buildDropInOptions(dropInEnabled, dropInAmount, dropInPlans);
+    if (!errors.dropInPrice && dropInOptions === undefined) {
+      errors.dropInPrice = validationErrors.dropInOptions;
+    }
+    setErrors(errors);
+    if (
+      Object.keys(errors).length === 0 &&
+      danceStyleId !== null &&
+      dropInPrice !== undefined &&
+      dropInOptions !== undefined
+    ) {
       await createLesson({
         lessonName,
         teacherIds: selectedTeacherIds,
@@ -195,6 +213,7 @@ const NewLesson = () => {
         kind,
         sessionsPerAttendance,
         dropInPrice,
+        dropInOptions,
         groupId: selectedGroupId,
         locationId,
         periods,
@@ -265,6 +284,11 @@ const NewLesson = () => {
                   }}
                   onAmountChange={(amount) => {
                     setDropInAmount(amount);
+                    setErrors((prev) => ({ ...prev, dropInPrice: undefined }));
+                  }}
+                  plans={dropInPlans}
+                  onPlansChange={(plans) => {
+                    setDropInPlans(plans);
                     setErrors((prev) => ({ ...prev, dropInPrice: undefined }));
                   }}
                   error={errors.dropInPrice}

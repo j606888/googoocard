@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import StatusTag from "@/components/StatusTag";
 import { formatMoney } from "@/lib/money";
 import { ConfirmDropInForm } from "./DropInForm";
+import { type DropInOption, lessonDropInOptions } from "@/lib/dropInOptions";
 
 const CheckPeriodSuccess = () => {
   const [showIncome, setShowIncome] = useState(false);
@@ -190,7 +191,11 @@ const CheckPeriodSuccess = () => {
                 className="mr-auto"
               />
               {attendanceRecord.dropIn ? (
-                <DropInStatus dropIn={attendanceRecord.dropIn} studentName={attendanceRecord.studentName} />
+                <DropInStatus
+                  dropIn={attendanceRecord.dropIn}
+                  options={lessonDropInOptions(lesson)}
+                  studentName={attendanceRecord.studentName}
+                />
               ) : (
                 <StatusTag tone="positive">
                   {attendanceRecord?.cardName}
@@ -268,16 +273,34 @@ export default CheckPeriodSuccess;
 /** 這筆出席付單堂：已付是灰色標籤，沒付是淡橘標籤＋收款。 */
 const DropInStatus = ({
   dropIn,
+  options,
   studentName,
 }: {
   dropIn: NonNullable<AttendanceRecord["dropIn"]>;
+  options: DropInOption[];
   studentName: string;
-}) =>
-  dropIn.isPaid ? (
-    <StatusTag tone="neutral">單堂 ${formatMoney(dropIn.amount)}</StatusTag>
+}) => {
+  // 選了非預設方案（複習價、雙人合報…）用醒目的標籤，收款時一眼核對。
+  const isSpecial = Boolean(dropIn.optionName) && dropIn.optionName !== options[0]?.name;
+  const plan = dropIn.optionName ? (
+    <StatusTag tone={isSpecial ? "outline" : "neutral"}>{dropIn.optionName}</StatusTag>
+  ) : null;
+  return dropIn.isPaid ? (
+    <>
+      {plan}
+      <StatusTag tone="neutral">單堂 ${formatMoney(dropIn.amount)}</StatusTag>
+    </>
   ) : (
     <>
+      {plan}
       <StatusTag tone="warning">單堂未付 ${formatMoney(dropIn.amount)}</StatusTag>
-      <ConfirmDropInForm chargeId={dropIn.id} amount={dropIn.amount} studentName={studentName} />
+      <ConfirmDropInForm
+        chargeId={dropIn.id}
+        amount={dropIn.amount}
+        optionName={dropIn.optionName}
+        options={options}
+        studentName={studentName}
+      />
     </>
   );
+};

@@ -18,7 +18,8 @@ import {
 // drop-in price (`dropIn: true`, no card, paid after class). Anything that would
 // leave a period unpaid for is refused with `card_required`.
 export async function POST(request: Request) {
-  const { studentId, lessonId, periodIds, studentCardId, buyCardId, dropIn } = await request.json();
+  const { studentId, lessonId, periodIds, studentCardId, buyCardId, dropIn, dropInOption } =
+    await request.json();
 
   const resolved = await resolveOwnedStudent(bearerToken(request), studentId);
   if (!resolved.ok) {
@@ -39,7 +40,9 @@ export async function POST(request: Request) {
   let card: SelfCheckInCardChoice | undefined;
   if (studentCardId) card = { studentCardId: Number(studentCardId) };
   else if (buyCardId) card = { buyCardId: Number(buyCardId) };
-  else if (dropIn === true) card = { dropIn: true };
+  else if (dropIn === true) {
+    card = { dropIn: true, optionName: typeof dropInOption === "string" ? dropInOption : undefined };
+  }
 
   let outcome;
   try {
