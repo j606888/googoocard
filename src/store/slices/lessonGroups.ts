@@ -26,7 +26,15 @@ const lessonGroupsApi = api.injectEndpoints({
         method: "PUT",
         body: { name },
       }),
-      invalidatesTags: ["LessonGroup"],
+      invalidatesTags: ["LessonGroup", "Lesson"],
+    }),
+    /** 整理課種：一次把好幾門課歸到各自的課種，課種照名稱找、沒有就建。 */
+    organizeLessonGroups: builder.mutation<
+      { updated: number },
+      { series: { name: string; lessonIds: number[] }[] }
+    >({
+      query: (body) => ({ url: "lesson-groups/organize", method: "POST", body }),
+      invalidatesTags: ["LessonGroup", "Lesson"],
     }),
     deleteLessonGroup: builder.mutation<void, number>({
       query: (id) => ({
@@ -45,4 +53,5 @@ export const {
   useCreateLessonGroupMutation,
   useRenameLessonGroupMutation,
   useDeleteLessonGroupMutation,
+  useOrganizeLessonGroupsMutation,
 } = lessonGroupsApi;

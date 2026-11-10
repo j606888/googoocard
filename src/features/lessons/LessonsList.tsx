@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import AgendaList from "./AgendaList";
 import SeriesList from "./SeriesList";
+import OrganizeSeriesDrawer from "./OrganizeSeriesDrawer";
 import { useLessonsList } from "./useLessonsList";
 import { useLessonAgenda } from "./useLessonAgenda";
 import { useLessonScope } from "./useLessonScope";
@@ -42,6 +43,7 @@ const LessonsList = () => {
   const list = useLessonsList(scope, agenda.myTeacherId);
   const [searchOpen, setSearchOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [organizeOpen, setOrganizeOpen] = useState(false);
 
   const { byId } = useDanceStyles();
   const styleOptions = [...byId.values()].filter((style) =>
@@ -236,19 +238,35 @@ const LessonsList = () => {
                 <SeriesList series={list.series} now={agenda.now} />
               )}
 
-              <Button
-                variant="ghost"
-                size="sm"
-                className="self-start gap-1 text-neutral-600"
-                onClick={() => setCreateGroupOpen(true)}
-              >
-                <Plus className="size-4" />
-                新增課種
-              </Button>
+              <div className="flex flex-wrap gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 text-neutral-600"
+                  onClick={() => setCreateGroupOpen(true)}
+                >
+                  <Plus className="size-4" />
+                  新增課種
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-neutral-600"
+                  onClick={() => setOrganizeOpen(true)}
+                >
+                  整理課種
+                </Button>
+              </div>
             </section>
           </>
         )}
 
+        <OrganizeSeriesDrawer
+          open={organizeOpen}
+          onClose={() => setOrganizeOpen(false)}
+          lessons={list.allLessons}
+          groups={list.groups}
+        />
         <Drawer
           title="新增課種"
           open={createGroupOpen}

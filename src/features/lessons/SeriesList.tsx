@@ -4,7 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { ChevronRight, Copy, Plus } from "lucide-react";
+import { ChevronRight, Copy, PencilLine, Plus, Trash } from "lucide-react";
+import { toast } from "sonner";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import Drawer from "@/components/Drawer";
+import Field from "@/components/Field";
+import {
+  useDeleteLessonGroupMutation,
+  useRenameLessonGroupMutation,
+} from "@/store/slices/lessonGroups";
 import { Button } from "@/components/ui/button";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import type { LessonSummary } from "@/store/slices/lessons";
@@ -103,6 +111,27 @@ const SeriesRow = ({
   const isSingle = series.groupId === null && series.key !== UNCLASSIFIED_KEY;
   const students = series.active.reduce((sum, term) => sum + term.lesson.studentCount, 0);
   const panelId = `series-${series.key}`;
+  const [renaming, setRenaming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [newName, setNewName] = useState(series.name);
+  const [renameGroup, { isLoading: isRenaming }] = useRenameLessonGroupMutation();
+  const [deleteGroup, { isLoading: isDeleting }] = useDeleteLessonGroupMutation();
+
+  const handleRename = async () => {
+    const name = newName.trim();
+    if (!name || series.groupId === null) return;
+    try {
+      await renameGroup({ id: series.groupId, name }).unwrap();
+      setRenaming(false);
+    } catch {
+      toast.error("改名失敗，可能已經有同名的課種");
+    }
+  };
+  const handleDelete = async () => {
+    if (series.groupId === null) return;
+    await deleteGroup(series.groupId);
+    setDeleting(false);
+  };
 
   const openNewTerm = () => {
     const source = series.terms[0]?.lesson;
@@ -208,16 +237,70 @@ const SeriesRow = ({
               <TermRow key={term.lesson.id} term={term} series={series} now={now} />
             ))}
           </ul>
-          {series.key !== UNCLASSIFIED_KEY && (
-            <div className="border-t border-neutral-100 bg-neutral-50 px-4 py-1.5 lg:pl-14">
+          {series.groupId !== null && (
+            <div className="flex flex-wrap items-center gap-1 border-t border-neutral-100 bg-neutral-50 px-4 py-1.5 lg:pl-14">
               <Button variant="ghost" size="sm" className="gap-1 text-primary-700" onClick={openNewTerm}>
                 <Plus className="size-4" />
                 開新一期
               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-neutral-600"
+                onClick={() => {
+                  setNewName(series.name);
+                  setRenaming(true);
+                }}
+              >
+                <PencilLine className="size-4" />
+                改名
+              </Button>
+              {series.terms.length === 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 text-danger-700"
+                  onClick={() => setDeleting(true)}
+                >
+                  <Trash className="size-4" />
+                  刪除
+                </Button>
+              )}
             </div>
           )}
         </div>
       )}
+
+      {renaming && (
+        <Drawer
+          title="課種改名"
+          open
+          onClose={() => setRenaming(false)}
+          onSubmit={handleRename}
+          isLoading={isRenaming}
+          disabled={!newName.trim()}
+          submitText="儲存"
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleRename();
+            }}
+          >
+            <Field label="名稱" className="mb-4" value={newName} onChange={(e) => setNewName(e.target.value)} />
+          </form>
+        </Drawer>
+      )}
+      <ConfirmDialog
+        open={deleting}
+        title={`刪除「${series.name}」？`}
+        message="這個課種底下沒有任何課，刪掉不影響其他資料。"
+        confirmLabel="刪除"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleting(false)}
+      />
     </li>
   );
 };

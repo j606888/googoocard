@@ -55,6 +55,9 @@ export const useLessonsList = (scope: LessonScope, myTeacherId: number | null) =
 
   return {
     isLoading: isLoading || isGroupsLoading,
+    /** 整理課種要看全部的課與課種（不受篩選影響）。 */
+    allLessons: data?.lessons ?? [],
+    groups: groups ?? [],
     /** 這間教室一門課都沒有（不是被篩掉）。 */
     hasNoLessons: !isLoading && (data?.lessons.length ?? 0) === 0,
     series: tab === "active" ? active : inactive,
