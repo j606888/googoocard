@@ -5,7 +5,8 @@ import { AlertTriangle, ArrowDown, ArrowUp, Check, ChevronDown, X } from "lucide
 import Menu from "@/components/Menu";
 import Select, { type SelectOption } from "@/components/Select";
 import PayeePicker from "./PayeePicker";
-import Drawer from "@/components/Drawer";
+import ResponsiveDialog, { ResponsiveDialogTitle } from "@/components/ResponsiveDialog";
+import { useSizeClass } from "@/hooks/useMediaQuery";
 import InfoTip from "@/components/InfoTip";
 import { Button } from "@/components/ui/button";
 import { fieldControlClass } from "@/components/Field";
@@ -83,9 +84,12 @@ export default function RuleEditor({
   lessonTeacherIds = [],
   lessonLocationId = null,
   status,
+  footer,
 }: {
   /** 試算下面的狀態列（錯誤／checkRule）；電腦版跟試算一起釘在右欄。 */
   status?: React.ReactNode;
+  /** 儲存按鈕：電腦版在右欄底部，手機在最底下。 */
+  footer?: React.ReactNode;
   rows: RuleRow[];
   onChange: (rows: RuleRow[]) => void;
   names: SplitNames;
@@ -97,6 +101,7 @@ export default function RuleEditor({
   /** 課程標的分部：收入、老師、場地都記在這裡；預設的場地與公積金從這個分部挑。 */
   lessonLocationId?: number | null;
 }) {
+  const expanded = useSizeClass() === "expanded";
   const lines = rows.slice(0, -1);
   const rest = rows[rows.length - 1];
 
@@ -166,8 +171,7 @@ export default function RuleEditor({
     />
   );
 
-  return (
-    <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6">
+  const editor = (
       <div className="flex flex-col gap-3">
       <div className="flex items-center gap-1 text-sm font-medium text-neutral-900">
         這堂課的課卡收入，由上往下扣：
@@ -194,9 +198,17 @@ export default function RuleEditor({
         </p>
       )}
 
+      {lines.length > 0 && (
+      <div className="flex flex-col divide-y divide-neutral-100 border-y border-neutral-100">
       {lines.map((row, i) => (
-        <div key={i} className="flex flex-col gap-2 rounded-xl border border-neutral-200 p-3">
+        <div key={i} className="flex flex-col gap-2 py-3">
           <div className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="flex size-5 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs font-medium tabular-nums text-neutral-600"
+            >
+              {i + 1}
+            </span>
             <div className="flex-1 text-sm font-medium text-neutral-700">
               {row.type === "fixed" ? "固定金額" : row.type === "venuePack" ? "場地費" : "比例"}
             </div>
@@ -293,6 +305,8 @@ export default function RuleEditor({
           )}
         </div>
       ))}
+      </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <Button
@@ -320,7 +334,7 @@ export default function RuleEditor({
       </div>
 
       {rest.type === "rest" && (
-        <div className="flex flex-col gap-2 rounded-xl border border-neutral-200 p-3">
+        <div className="mt-1 flex flex-col gap-2 border-t border-neutral-200 pt-4">
           <div className="text-sm font-medium text-neutral-700">這堂課扣完剩下的</div>
           <div className="flex items-center gap-2">
             <span className="shrink-0 text-neutral-500">→ 給</span>
@@ -353,7 +367,7 @@ export default function RuleEditor({
               onChange={(shares) => onChange([...lines, { ...rest, rest: { type: "teachers", shares } }])}
             />
           )}
-          <div className="mt-1 flex flex-wrap items-center gap-1 border-t border-neutral-100 pt-2 text-[13px] text-neutral-500">
+          <div className="mt-1 flex flex-wrap items-center gap-1 text-[13px] text-neutral-500">
             不夠扣時由 {names.location(defaultFund)}公積金 吸收
             <InfoTip label="不夠扣時誰吸收">
               上面幾行扣完如果是負的（收入不夠付固定金額或場地費），老師拿 0，差額記在這門課所在分部的公積金。
@@ -361,14 +375,36 @@ export default function RuleEditor({
           </div>
         </div>
       )}
-
       </div>
+  );
 
-      <div className="flex flex-col gap-3 lg:sticky lg:top-0">
-        {rest.type === "rest" && <SplitPreview rows={rows} names={names} />}
-        {status}
+  const aside = (
+    <>
+      {rest.type === "rest" && <SplitPreview rows={rows} names={names} />}
+      {status}
+    </>
+  );
+
+  // 電腦版：左欄規則自己捲動，右欄試算＋儲存不動；手機：一起捲、儲存釘在最底下
+  if (expanded) {
+    return (
+      <div className="flex min-h-0 flex-1 gap-6">
+        <div className="min-w-0 flex-1 overflow-y-auto pb-1 pl-1 pr-3 -ml-1">{editor}</div>
+        <div className="flex w-[300px] shrink-0 flex-col gap-3">
+          {aside}
+          <div className="mt-auto flex justify-end pt-3">{footer}</div>
+        </div>
       </div>
-    </div>
+    );
+  }
+  return (
+    <>
+      <div className="-mx-1 flex max-h-[60vh] flex-col gap-4 overflow-y-auto px-1 pb-1">
+        {editor}
+        {aside}
+      </div>
+      <div className="pt-5">{footer}</div>
+    </>
   );
 }
 
@@ -415,7 +451,7 @@ function SplitPreview({ rows, names }: { rows: RuleRow[]; names: SplitNames }) {
   const [custom, setCustom] = useState("");
   const { items, deficit, deficitFund, unknownVenue } = previewSplit(rows, income, names.venueUnit);
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-neutral-200 p-3">
+    <div className="flex flex-col gap-3 rounded-xl bg-neutral-100/70 p-4">
       <div className="text-sm font-medium text-neutral-900">試算</div>
       <div className="flex flex-wrap items-center gap-2">
         {PREVIEW_AMOUNTS.map((a) => (
@@ -487,32 +523,27 @@ function TeacherShares({
   onChange: (shares: { teacherId: number; weight: number }[]) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-2">
       {names.teachers.map((t) => {
         const share = shares.find((s) => s.teacherId === t.id);
         return (
-          <div
-            key={t.id}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full border py-1 pl-2.5 text-sm",
-              share ? "border-primary bg-primary-50 text-neutral-900" : "border-neutral-300 text-neutral-600",
-              share && shares.length > 1 ? "pr-1.5" : "pr-2.5"
-            )}
-          >
-            <button
-              type="button"
-              aria-pressed={!!share}
-              className="flex items-center gap-1"
-              onClick={() =>
-                onChange(share ? shares.filter((s) => s.teacherId !== t.id) : [...shares, { teacherId: t.id, weight: 1 }])
-              }
-            >
-              {share && <Check className="size-3.5 text-primary" aria-hidden />}
+          <div key={t.id} className="flex min-h-11 items-center gap-2">
+            <label className="flex flex-1 items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="size-4"
+                checked={!!share}
+                onChange={(e) =>
+                  onChange(
+                    e.target.checked ? [...shares, { teacherId: t.id, weight: 1 }] : shares.filter((s) => s.teacherId !== t.id)
+                  )
+                }
+              />
               {t.name}
-            </button>
+            </label>
             {share && shares.length > 1 && (
-              <span className="flex items-center gap-1 text-[13px] text-neutral-500">
-                ×
+              <div className="flex items-center gap-1 text-[13px] text-neutral-500">
+                比重
                 <NumInput
                   label={`${t.name}的比重`}
                   value={share.weight}
@@ -520,8 +551,8 @@ function TeacherShares({
                     onChange(shares.map((s) => (s.teacherId === t.id ? { ...s, weight } : s)))
                   }
                 />
-                <span className="tabular-nums">· {shareText(share.weight, shares)}</span>
-              </span>
+                <span className="w-12 shrink-0 tabular-nums">（{shareText(share.weight, shares)}）</span>
+              </div>
             )}
           </div>
         );
@@ -562,18 +593,32 @@ export function RuleEditorDrawer({
   const error = validateRows(rows);
   const check = error ? null : checkRule(rows, names, names.venueUnit);
   return (
-    <Drawer
-      open={open}
-      title={title}
-      subtitle={subtitle}
-      submitText="儲存"
-      size="wide"
-      isLoading={isLoading}
-      disabled={!!error}
-      onClose={onClose}
-      onSubmit={() => onSave(rows)}
-    >
+    <ResponsiveDialog open={open} onClose={onClose} className="lg:max-w-5xl">
+      <div className="relative mb-5 flex flex-col items-center justify-center px-11">
+        <ResponsiveDialogTitle className="text-center text-lg font-bold text-neutral-900">{title}</ResponsiveDialogTitle>
+        {subtitle && <p className="mt-0.5 text-center text-[13px] text-neutral-500">{subtitle}</p>}
+        <Button
+          variant="ghost"
+          size="iconSm"
+          className="absolute -right-1 -top-1.5 text-neutral-500"
+          onClick={onClose}
+          aria-label="關閉"
+        >
+          <X className="size-5" />
+        </Button>
+      </div>
       <RuleEditor
+        footer={
+          <Button
+            type="submit"
+            disabled={!!error}
+            isLoading={isLoading}
+            className="w-full lg:w-auto lg:px-8"
+            onClick={() => !isLoading && onSave(rows)}
+          >
+            儲存
+          </Button>
+        }
         rows={rows}
         onChange={setRows}
         names={names}
@@ -603,6 +648,6 @@ export function RuleEditorDrawer({
           </>
         }
       />
-    </Drawer>
+    </ResponsiveDialog>
   );
 }
