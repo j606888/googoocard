@@ -42,7 +42,7 @@ const countFor = ({ period }: AgendaRow) => {
   return arrived > 0 ? `已簽到 ${arrived} 人` : `${period.lesson.studentCount} 人`;
 };
 
-const AgendaItem = ({ row, now }: { row: AgendaRow; now: Date }) => {
+const AgendaItem = ({ row, now, showLocation }: { row: AgendaRow; now: Date; showLocation: boolean }) => {
   const { period, state } = row;
   const [lateOpen, setLateOpen] = useState(false);
   const start = new Date(period.startTime);
@@ -52,6 +52,7 @@ const AgendaItem = ({ row, now }: { row: AgendaRow; now: Date }) => {
   const status = statusFor(row, now);
   const people = peopleFor(row);
   const count = countFor(row);
+  const locationName = period.lesson.location?.name;
 
   // 名冊只有打開「補勾遲到」時才需要。
   const { data: roster } = useGetLessonStudentsQuery(
@@ -83,6 +84,12 @@ const AgendaItem = ({ row, now }: { row: AgendaRow; now: Date }) => {
         <p>{dateLabel(start)}</p>
         <p>{format(start, "HH:mm")}</p>
       </div>
+      {/* 分部：教室有分部才多這一欄，沒設的留空讓欄位對齊。 */}
+      {showLocation && (
+        <span className="hidden w-14 shrink-0 truncate text-[13px] font-medium text-neutral-700 lg:block">
+          {locationName}
+        </span>
+      )}
       <Link href={`/lessons/${period.lesson.id}`} className="min-w-0 flex-1">
         <p className="truncate text-[15px] font-semibold text-neutral-900">
           {period.lesson.name}
@@ -99,7 +106,7 @@ const AgendaItem = ({ row, now }: { row: AgendaRow; now: Date }) => {
           {status.text && <span className={`font-semibold ${status.className}`}> · {status.text}</span>}
         </p>
         <p className="truncate text-xs text-neutral-600 lg:hidden">
-          {[people, count].filter(Boolean).join(" · ")}
+          {[showLocation ? locationName : null, people, count].filter(Boolean).join(" · ")}
         </p>
       </Link>
       <span className={`hidden w-[150px] shrink-0 text-[13px] font-semibold lg:block ${status.className}`}>
@@ -163,7 +170,12 @@ const AgendaList = ({
     ) : (
       <ul className="divide-y divide-neutral-100 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
         {rows.map((row) => (
-          <AgendaItem key={row.period.id} row={row} now={now} />
+          <AgendaItem
+            key={row.period.id}
+            row={row}
+            now={now}
+            showLocation={rows.some((r) => r.period.lesson.location)}
+          />
         ))}
       </ul>
     )}
