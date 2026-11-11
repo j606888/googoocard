@@ -3,10 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Archive, ArchiveRestore, ChevronLeft, ChevronRight, Pencil, Trash } from "lucide-react";
-import ConfirmDialog from "@/components/ConfirmDialog";
+import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import EmptyState from "@/components/EmptyState";
 import StatusTag, { type StatusTone } from "@/components/StatusTag";
@@ -17,16 +14,13 @@ import { lessonLevelLabel } from "@/lib/danceLevels";
 import { studentDetailHref } from "@/lib/studentNav";
 import type { PeriodState } from "@/lib/teacherStats";
 import {
-  useDeleteTeacherMutation,
   useGetTeacherQuery,
-  useUpdateTeacherMutation,
   type TeacherDetail as Detail,
   type TeacherLessonRow,
 } from "@/store/slices/teachers";
 import MonthSwitcher from "./MonthSwitcher";
 import StatTile from "./StatTile";
 import TeacherAvatar from "./TeacherAvatar";
-import TeacherForm from "./TeacherForm";
 import { monthLabel, periodLabel, shortMonthLabel, sinceLabel } from "./format";
 
 type LessonTab = "inProgress" | "finished";
@@ -60,17 +54,12 @@ function lessonMeta(lesson: TeacherLessonRow): string {
 }
 
 const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string }) => {
-  const router = useRouter();
   const [month, setMonth] = useState(initialMonth);
   const [lessonTab, setLessonTab] = useState<LessonTab>("inProgress");
-  const [formKey, setFormKey] = useState<number | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const { data, isLoading, isError } = useGetTeacherQuery(
     { id, month },
     { refetchOnMountOrArgChange: true }
   );
-  const [updateTeacher] = useUpdateTeacherMutation();
-  const [deleteTeacher, { isLoading: deleting }] = useDeleteTeacherMutation();
 
   if (isError) {
     return (
@@ -87,26 +76,6 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
   const activeCount = data.lessons.filter((l) => l.status === "inProgress").length;
   const assistedActive = data.assistedLessons.filter((l) => l.status === "inProgress");
   const maxAttendance = Math.max(1, ...data.trend.map((m) => m.attendance));
-
-  const setArchived = async (value: boolean) => {
-    try {
-      await updateTeacher({ id: teacher.id, archived: value }).unwrap();
-      toast.success(value ? `已封存 ${teacher.name}` : `已還原 ${teacher.name}`);
-    } catch {
-      toast.error("操作失敗，請稍後再試");
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await deleteTeacher({ id: teacher.id }).unwrap();
-      toast.success(`已刪除 ${teacher.name}`);
-      router.push("/teachers");
-    } catch {
-      toast.error("刪除失敗，請稍後再試");
-      setConfirmDelete(false);
-    }
-  };
 
   return (
     <>
@@ -149,32 +118,13 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
               </span>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setFormKey(Date.now())}>
+          {/* 名冊（新增、編輯、封存）在團隊頁管，老師頁只看數字。 */}
+          <Button variant="secondary" asChild>
+            <Link href={`/teams?person=${teacher.id}`}>
               <Pencil className="size-4" />
-              編輯
-            </Button>
-            {data.lessons.length === 0 && data.assistedLessons.length === 0 ? (
-              <Button variant="dangerSecondary" onClick={() => setConfirmDelete(true)}>
-                <Trash className="size-4" />
-                刪除
-              </Button>
-            ) : archived ? (
-              <Button variant="secondary" onClick={() => setArchived(false)}>
-                <ArchiveRestore className="size-4" />
-                還原
-              </Button>
-            ) : (
-              <Button
-                variant="secondary"
-                title="封存後不會出現在開課的老師選單，舊課照常顯示"
-                onClick={() => setArchived(true)}
-              >
-                <Archive className="size-4" />
-                封存
-              </Button>
-            )}
-          </div>
+              到團隊編輯
+            </Link>
+          </Button>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -355,28 +305,15 @@ const TeacherDetail = ({ id, initialMonth }: { id: number; initialMonth: string 
               {teacher.note ? (
                 <p className="text-sm whitespace-pre-line leading-relaxed">{teacher.note}</p>
               ) : (
-                <Button variant="link" onClick={() => setFormKey(Date.now())} className="self-start text-sm">
+                <Link href={`/teams?person=${teacher.id}`} className="self-start text-sm text-primary-700">
                   ＋ 加上備註（例如可排課的時段）
-                </Button>
+                </Link>
               )}
             </section>
           </div>
         </div>
       </div>
 
-      {formKey !== null && (
-        <TeacherForm key={formKey} open teacher={teacher} onClose={() => setFormKey(null)} />
-      )}
-      <ConfirmDialog
-        variant="danger"
-        open={confirmDelete}
-        title={`刪除 ${teacher.name}？`}
-        message="這位老師沒有教過任何課，刪除後無法復原。"
-        confirmLabel="刪除"
-        isLoading={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirmDelete(false)}
-      />
     </>
   );
 };

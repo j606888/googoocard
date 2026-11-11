@@ -2,9 +2,9 @@ import { ASSIGNABLE_ROLES, ROLE_LABELS, type AssignableRole } from "@/lib/roles"
 import { cn } from "@/lib/utils";
 
 const ROLE_DESCRIPTIONS: Record<AssignableRole, string> = {
-  admin: "可以邀請、改角色、把人移出教室",
-  teacher: "連到一筆老師資料，課程頁最上面是自己接下來的課",
-  assistant: "幫忙點名、收款，看全部課程",
+  admin: "日常功能之外，還能邀請、改角色、把人移出教室",
+  teacher: "日常功能都能用：點名、收款、課程、學生",
+  assistant: "跟老師一樣，日常功能都能用",
 };
 
 /** The three roles as radio cards — invite and role change share it. */

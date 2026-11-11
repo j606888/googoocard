@@ -3,7 +3,7 @@ import { apiRoute, parseBody, parseId } from "@/lib/apiRoute";
 import { ApiError, badRequest } from "@/lib/apiError";
 import { assertAdmin } from "@/lib/authz";
 import { updateMembershipSchema } from "@/lib/schemas";
-import { linkTeacher, unlinkTeacher } from "@/service/team";
+import { ensurePerson, linkTeacher, unlinkTeacher } from "@/service/team";
 
 type Params = { id: string };
 
@@ -20,13 +20,14 @@ async function findMembershipInClassroom(rawId: string, classroomId: number) {
 }
 
 /**
- * Change someone's role and/or which Teacher row they are. 管理員 only.
+ * Change someone's role and/or which person record they are. 管理員 only.
  *
  * The owner's role isn't changeable here (that's transfer-ownership), and
  * nobody changes their own role — an admin can't lock themselves out by
- * accident. Linking a teacher is allowed for every role, 小幫手 included (the
- * lessons they assist become "my lessons"), and for the caller (an admin who
- * also teaches). A teacher always ends up linked; changing a role keeps the link.
+ * accident. Re-linking to another person (the roster already had them before
+ * they joined) is allowed for every member, the caller included; unlinking
+ * isn't — every member is exactly one person. The record they leave behind
+ * is archived if it never had a lesson.
  */
 export const PATCH = apiRoute<Params>(async ({ request, params, userId, classroomId, role: callerRole }) => {
   assertAdmin(callerRole);
@@ -47,18 +48,20 @@ export const PATCH = apiRoute<Params>(async ({ request, params, userId, classroo
     where: { classroomId, userId: membership.userId },
     select: { id: true },
   });
-  const teacherId = body.teacherId !== undefined ? body.teacherId : (current?.id ?? null);
-  if (role === "teacher" && teacherId === null) {
-    throw badRequest("TEACHER_REQUIRED", "A teacher must be linked to a teacher profile");
+  if (body.teacherId === null) {
+    throw badRequest("PERSON_REQUIRED", "Every member is linked to a person record");
   }
+  const teacherId = body.teacherId ?? current?.id ?? null;
 
   await prisma.$transaction(async (tx) => {
     if (role !== membership.role) {
       await tx.membership.update({ where: { id: membership.id }, data: { role } });
     }
-    if (teacherId !== (current?.id ?? null)) {
+    if (teacherId !== null && teacherId !== (current?.id ?? null)) {
       await linkTeacher(tx, classroomId, membership.userId, teacherId);
     }
+    // 補建前就加入、還沒有人員資料的成員（遷移前的資料）。
+    if (teacherId === null) await ensurePerson(tx, classroomId, membership.userId, role);
   });
 
   return { success: true };
@@ -84,17 +87,17 @@ export const DELETE = apiRoute<Params>(async ({ params, userId, classroomId, rol
     throw new ApiError(403, "CANNOT_REMOVE_OWNER", "The classroom owner cannot be removed");
   }
 
-  await prisma.$transaction([
-    prisma.membership.delete({ where: { id: membership.id } }),
-    // The Teacher row stays (old lessons keep it); it just stops being them.
-    unlinkTeacher(prisma, classroomId, membership.userId),
+  await prisma.$transaction(async (tx) => {
+    await tx.membership.delete({ where: { id: membership.id } });
+    // The person record stays (old lessons keep it); it just stops being them.
+    await unlinkTeacher(tx, classroomId, membership.userId);
     // Their next login would otherwise land them back in a classroom they're
     // no longer part of.
-    prisma.user.updateMany({
+    await tx.user.updateMany({
       where: { id: membership.userId, currentClassroomId: classroomId },
       data: { currentClassroomId: null },
-    }),
-  ]);
+    });
+  });
 
   return { success: true };
 });

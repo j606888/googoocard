@@ -15,6 +15,7 @@ import { GET as LIST_MEMBERS } from "@/app/api/memberships/route";
 import { PATCH as UPDATE_MEMBER, DELETE as REMOVE_MEMBER } from "@/app/api/memberships/[id]/route";
 import { GET as MY_LESSONS } from "@/app/api/me/lessons/route";
 import { joinClassroom } from "@/service/classroom";
+import { POST as CREATE_CLASSROOM } from "@/app/api/classrooms/route";
 
 const OWNER_ID = 1;
 
@@ -57,11 +58,11 @@ describe("POST /api/invite-tokens", () => {
     expect(await prisma.inviteToken.count()).toBe(0);
   });
 
-  it("老師的邀請一定要指定老師資料 → 400 TEACHER_REQUIRED", async () => {
+  it("沒指定人員資料的邀請也可以（加入時自動建一筆）", async () => {
     await seed();
-    const res = await createInvite({ maxUses: 1, role: "teacher" });
-    expect(res.status).toBe(400);
-    expect((await res.json()).code).toBe("TEACHER_REQUIRED");
+    const res = await createInvite({ maxUses: 2, role: "teacher" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ maxUses: 2, teacher: null });
   });
 
   it("已經連到別人的老師資料不能再邀請 → 409", async () => {
@@ -80,13 +81,15 @@ describe("POST /api/invite-tokens", () => {
     expect((await res.json()).code).toBe("TEACHER_NOT_FOUND");
   });
 
-  it("老師的邀請只能用一次；小幫手的邀請不帶老師", async () => {
-    const { mei } = await seed();
+  it("指定人員資料的邀請只能用一次，任何角色都可以指定", async () => {
+    const { mei, jay } = await seed();
     await createInvite({ maxUses: 5, role: "teacher", teacherId: mei.id });
-    await createInvite({ maxUses: 3, role: "assistant", teacherId: mei.id });
+    await createInvite({ maxUses: 3, role: "assistant", teacherId: jay.id });
+    await createInvite({ maxUses: 3, role: "assistant" });
     const invites = await (await LIST_INVITES(jsonRequest("GET"), routeParams({}))).json();
     expect(invites.map((i: { role: string; maxUses: number; teacher: { id: number } | null }) => [i.role, i.maxUses, i.teacher?.id ?? null])).toEqual([
       ["teacher", 1, mei.id],
+      ["assistant", 1, jay.id],
       ["assistant", 3, null],
     ]);
   });
@@ -123,7 +126,27 @@ describe("加入邀請", () => {
     expect((await membershipOf(newbie.id, classroom.id)).role).toBe("admin");
   });
 
-  it("老師資料在等待期間被連給別人 → 還是以老師加入，只是沒連上", async () => {
+  it("用沒指定人員的邀請加入 → 自動建一筆人員資料，身分照角色", async () => {
+    const { classroom } = await seed();
+    const helperInvite = await (await createInvite({ maxUses: 5, role: "assistant" })).json();
+    const adminInvite = await (await createInvite({ maxUses: 1, role: "admin" })).json();
+
+    const nora = await prisma.user.create({ data: { email: "nora@test.local", name: "Nora", password: "x" } });
+    expect(await joinClassroom({ userId: nora.id, token: helperInvite.token })).toBe(classroom.id);
+    const boss = await prisma.user.create({ data: { email: "boss@test.local", name: "老闆", password: "x" } });
+    expect(await joinClassroom({ userId: boss.id, token: adminInvite.token })).toBe(classroom.id);
+
+    const people = await prisma.teacher.findMany({
+      where: { classroomId: classroom.id, userId: { in: [nora.id, boss.id] } },
+      orderBy: { id: "asc" },
+    });
+    expect(people.map((p) => [p.name, p.kind])).toEqual([
+      ["Nora", "ASSISTANT"],
+      ["老闆", "NONE"],
+    ]);
+  });
+
+  it("老師資料在等待期間被連給別人 → 還是以老師加入，另外建一筆自己的", async () => {
     const { classroom, helper, mei } = await seed();
     const invite = await (await createInvite({ maxUses: 1, role: "teacher", teacherId: mei.id })).json();
     await prisma.teacher.update({ where: { id: mei.id }, data: { userId: helper.id } });
@@ -133,6 +156,8 @@ describe("加入邀請", () => {
     expect((await JOIN(jsonRequest("POST"), routeParams({ id: invite.token }))).status).toBe(200);
     expect((await membershipOf(newbie.id, classroom.id)).role).toBe("teacher");
     expect(await linkedUser(mei.id)).toBe(helper.id);
+    const own = await prisma.teacher.findFirstOrThrow({ where: { classroomId: classroom.id, userId: newbie.id } });
+    expect(own).toMatchObject({ name: "N", kind: "TEACHER" });
   });
 
   it("公開查詢邀請只回教室名稱和角色，不外流簽到 key", async () => {
@@ -157,15 +182,21 @@ describe("加入邀請", () => {
 });
 
 describe("PATCH /api/memberships/[id]", () => {
-  it("小幫手改成老師要連老師資料；連了之後成員列表帶出來", async () => {
+  it("每個成員都要有人員資料：不能解除；還沒有的改角色時補建；連了之後成員列表帶出來", async () => {
     const { classroom, helper, mei } = await seed();
     const m = await membershipOf(helper.id, classroom.id);
 
-    const missing = await patchMember(m.id, { role: "teacher" });
-    expect(missing.status).toBe(400);
-    expect((await missing.json()).code).toBe("TEACHER_REQUIRED");
+    const unlink = await patchMember(m.id, { teacherId: null });
+    expect(unlink.status).toBe(400);
+    expect((await unlink.json()).code).toBe("PERSON_REQUIRED");
 
+    expect((await patchMember(m.id, { role: "teacher" })).status).toBe(200);
+    const created = await prisma.teacher.findFirstOrThrow({ where: { userId: helper.id } });
+    expect(created).toMatchObject({ name: "小安", kind: "TEACHER" });
+
+    // 改連到名冊上本來就有的那筆：自動建的那筆沒上過課，收起來。
     expect((await patchMember(m.id, { role: "teacher", teacherId: mei.id })).status).toBe(200);
+    expect((await prisma.teacher.findUniqueOrThrow({ where: { id: created.id } })).archivedAt).not.toBeNull();
     expect((await membershipOf(helper.id, classroom.id)).role).toBe("teacher");
 
     const members = await (await LIST_MEMBERS(jsonRequest("GET"), routeParams({}))).json();
@@ -173,7 +204,7 @@ describe("PATCH /api/memberships/[id]", () => {
     expect(row.teacher).toMatchObject({ id: mei.id, name: "小美老師" });
   });
 
-  it("換一筆老師資料 → 舊的解除；改回小幫手 → 連結留著，要解除就明講 null", async () => {
+  it("換一筆人員資料 → 舊的解除；改回小幫手 → 連結留著", async () => {
     const { classroom, helper, mei, jay } = await seed();
     const m = await membershipOf(helper.id, classroom.id);
     await patchMember(m.id, { role: "teacher", teacherId: mei.id });
@@ -185,9 +216,6 @@ describe("PATCH /api/memberships/[id]", () => {
     expect((await patchMember(m.id, { role: "assistant" })).status).toBe(200);
     expect((await membershipOf(helper.id, classroom.id)).role).toBe("assistant");
     expect(await linkedUser(jay.id)).toBe(helper.id);
-
-    expect((await patchMember(m.id, { teacherId: null })).status).toBe(200);
-    expect(await linkedUser(jay.id)).toBeNull();
   });
 
   it("小幫手也能連老師資料（課程小幫手就是從老師資料挑的）", async () => {
@@ -215,7 +243,7 @@ describe("PATCH /api/memberships/[id]", () => {
     expect(await linkedUser(mei.id)).toBe(other.id);
   });
 
-  it("不能改建立者或自己的角色，但可以替自己連老師資料", async () => {
+  it("不能改建立者或自己的角色，但可以替自己連人員資料", async () => {
     const { classroom, helper, mei } = await seed();
     const ownerM = await membershipOf(OWNER_ID, classroom.id);
     const admin = await createMember(classroom.id, { email: "admin@test.local", role: "admin" });
@@ -256,6 +284,8 @@ describe("DELETE /api/memberships/[id]", () => {
     expect(res.status).toBe(200);
     expect(await linkedUser(mei.id)).toBeNull();
     expect(await prisma.teacher.count()).toBe(2);
+    // 小美老師沒上過課 → 一起收起來（封存，不刪）。
+    expect((await prisma.teacher.findUniqueOrThrow({ where: { id: mei.id } })).archivedAt).not.toBeNull();
   });
 
   it("管理員不能移出建立者；老師不能移出任何人", async () => {
@@ -321,5 +351,18 @@ describe("GET /api/me/lessons", () => {
       "阿傑老師",
       "小美老師",
     ]);
+  });
+});
+
+describe("POST /api/classrooms", () => {
+  it("建立教室的人自動有一筆「不上課」的人員資料", async () => {
+    await resetDb();
+    const user = await prisma.user.create({ data: { email: "new@test.local", name: "新老闆", password: "x" } });
+    as(user.id, "owner");
+    const res = await CREATE_CLASSROOM(jsonRequest("POST", { name: "New Studio" }), routeParams({}));
+    expect(res.status).toBe(200);
+    const { classroom } = await res.json();
+    const person = await prisma.teacher.findFirstOrThrow({ where: { classroomId: classroom.id } });
+    expect(person).toMatchObject({ name: "新老闆", kind: "NONE", userId: user.id });
   });
 });

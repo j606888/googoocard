@@ -218,7 +218,7 @@ describe("課程小幫手", () => {
   });
 
   describe("小幫手成員連老師資料", () => {
-    it("PATCH /api/memberships/[id]：小幫手可以連、可以解除；/api/me/lessons 帶出協助的課", async () => {
+    it("PATCH /api/memberships/[id]：小幫手可以連人員資料；/api/me/lessons 帶出協助的課", async () => {
       const helper = await createMember(classroomId, { email: "ding@test.local", name: "丁丁" });
       const membership = await prisma.membership.findFirstOrThrow({
         where: { userId: helper.id, classroomId },
@@ -241,11 +241,6 @@ describe("課程小幫手", () => {
       expect(mine.teacher).toMatchObject({ id: ding.id });
       expect(mine.periods.map((p: { lesson: { id: number } }) => p.lesson.id)).toEqual([lesson.id]);
       expect(mine.periods[0].lesson.assistants).toEqual([{ id: ding.id, name: "丁丁", color: "blue" }]);
-
-      auth.userId = 1;
-      auth.role = "owner";
-      expect((await patch({ teacherId: null })).status).toBe(200);
-      expect((await prisma.teacher.findUniqueOrThrow({ where: { id: ding.id } })).userId).toBeNull();
     });
   });
 

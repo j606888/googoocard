@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
 import { roleLabel, type AssignableRole } from "@/lib/roles";
+import { kindForRole } from "@/lib/teachers";
 import { Membership, useUpdateMembershipMutation } from "@/store/slices/memberships";
 import RolePicker from "./RolePicker";
 import TeacherPicker, {
@@ -13,10 +14,8 @@ import TeacherPicker, {
 import { teamErrorMessage } from "./teamErrors";
 
 /**
- * 管理員 changing a member's role and teacher link. The owner's own role and
- * your own role are shown but not editable (the API refuses both) — the
- * teacher link still is, so an admin who also teaches can link themselves.
- * Mount with `key={membership.id}` so the form resets per member.
+ * 管理員改成員的角色（權限），以及他連到名冊上的哪一筆人員資料。建立者與自己的角色
+ * 只顯示不能改（API 也會擋）；人員資料可以改。Mount with `key={membership.id}`.
  */
 export default function EditMemberDrawer({
   membership,
@@ -37,8 +36,8 @@ export default function EditMemberDrawer({
   const resolveTeacher = useResolveTeacherChoice();
   const [isResolving, setIsResolving] = useState(false);
 
-  // 每種角色都能連老師資料；只有「老師」一定要連。
-  const teacherError = teacherChoiceError(teacher, role === "teacher");
+  // 每個成員都連著一筆人員資料（加入時自動建的）。
+  const teacherError = teacherChoiceError(teacher, true);
 
   const handleSubmit = async () => {
     if (teacherError) {
@@ -47,7 +46,7 @@ export default function EditMemberDrawer({
     }
     setIsResolving(true);
     try {
-      const teacherId = await resolveTeacher(teacher, role === "assistant" ? "ASSISTANT" : undefined);
+      const teacherId = await resolveTeacher(teacher, kindForRole(role));
       await updateMembership({
         id: membership.id,
         ...(!roleLocked && { role }),
@@ -93,8 +92,6 @@ export default function EditMemberDrawer({
           value={teacher}
           onChange={setTeacher}
           forUserId={membership.userId}
-          optional={role !== "teacher"}
-          forAssistant={role === "assistant"}
           error={showErrors ? teacherError : undefined}
         />
       </form>

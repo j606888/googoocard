@@ -2,20 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Plus } from "lucide-react";
+import { AlertTriangle, Users } from "lucide-react";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetTeachersOverviewQuery } from "@/store/slices/teachers";
-import TeacherForm from "./TeacherForm";
 import TeacherOverviewCard from "./TeacherOverviewCard";
 
 type Tab = "active" | "archived";
 
 const TeacherList = () => {
   const [tab, setTab] = useState<Tab>("active");
-  const [formKey, setFormKey] = useState<number | null>(null);
   // 上課中／下一堂 depend on the clock, and lesson edits elsewhere don't
   // invalidate this — refetch whenever the page is opened.
   const { data, isLoading, isError, refetch } = useGetTeachersOverviewQuery(undefined, {
@@ -37,9 +35,12 @@ const TeacherList = () => {
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-bold text-neutral-900">老師</h2>
       </div>
-      <Button onClick={() => setFormKey(Date.now())}>
-        <Plus className="size-4" />
-        新增老師
+      {/* 名冊在團隊頁管：新增、編輯、封存、邀請都在那裡。 */}
+      <Button variant="secondary" asChild>
+        <Link href="/teams">
+          <Users className="size-4" />
+          管理名冊
+        </Link>
       </Button>
     </div>
   );
@@ -51,9 +52,6 @@ const TeacherList = () => {
           {header}
           <TeacherListSkeleton />
         </div>
-        {formKey !== null && (
-          <TeacherForm key={formKey} open onClose={() => setFormKey(null)} />
-        )}
       </>
     );
   }
@@ -97,7 +95,7 @@ const TeacherList = () => {
           <EmptyState
             kind="page"
             title="還沒有老師"
-            description="先新增老師，開課時才能指定誰來教。"
+            description="到「團隊」新增老師，開課時才能指定誰來教。"
           />
         ) : (
           <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
@@ -108,9 +106,6 @@ const TeacherList = () => {
         )}
       </div>
 
-      {formKey !== null && (
-        <TeacherForm key={formKey} open onClose={() => setFormKey(null)} />
-      )}
     </>
   );
 };

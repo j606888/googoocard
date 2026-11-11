@@ -618,20 +618,31 @@ App 換教室時重新走一次（`epoch` 當 WebView 的 key）。
 | role | 畫面 | 可做 | 不可做 |
 |---|---|---|---|
 | `owner` | 管理員（皇冠） | 建立教室的人，恰好一位（`Classroom.ownerId`）。管理員能做的全部＋封存教室、把教室交給別人 | 退出教室（要先轉出去）、被移除、被改角色 |
-| `admin` | 管理員 | 邀請（指定角色）、改別人的角色、連結老師資料、移除成員（建立者除外） | 封存／轉移教室、改自己的角色 |
-| `teacher` | 老師 | 日常功能全部；**一定連著一筆 `Teacher`**，課程列表最上面的「下一堂／上課中」大卡優先挑自己教的課 | 邀請、改角色、移除成員 |
-| `assistant` | 小幫手 | 日常功能全部（跟老師一樣，收入頁、課卡價格也看得到改得到——刻意的決定）；可以連一筆 `Teacher`（選填），他協助的課就是「我的課」 | 同老師 |
+| `admin` | 管理員 | 邀請（指定角色）、改別人的角色、改連人員資料、移除成員（建立者除外） | 封存／轉移教室、改自己的角色 |
+| `teacher` | 老師 | 日常功能全部 | 邀請、改角色、移除成員 |
+| `assistant` | 小幫手 | 日常功能全部（跟老師一樣，收入頁、課卡價格也看得到改得到——刻意的決定） | 同老師 |
+
+（每種角色都連著一筆人員資料，見下面「團隊＝名冊」。）
 
 **只有「管人」這件事分權限**：邀請連結的建立／刪除（`/api/invite-tokens`）、`PATCH`／`DELETE /api/memberships/[id]` 走 `assertAdmin(role)`（`src/lib/authz.ts`，403 `NOT_CLASSROOM_ADMIN`）；其他所有 route 對三種角色一視同仁。
 
 （2026-10-26～11-01 曾有「權限同捆包＋個人加減」與可開關的功能模組——水庫、技能樹——2026-11-01 整套移除，回到純角色；見 `docs/roadmap.md`。）
 
-**老師 ↔ 老師資料**：`Teacher.userId`（nullable，`@@unique([classroomId, userId])`——一個人在一間教室最多是一位老師）。
-課程本來就有 `LessonTeacher`（老師）與 `LessonAssistant`（小幫手），所以「我的課」直接從「掛著我這筆老師資料的課」——**教的＋協助的**——推導，**不做釘選**：課程列表頂端的大卡（`GET /api/lessons/agenda` 回 `myTeacherId`，`pickHero()` 先挑自己的課，自己沒課才看全教室，`src/features/lessons/lessonSchedule.ts`）。舊的「我接下來的課」區塊已拿掉；`GET /api/me/lessons`（`getMyUpcomingPeriods()`）還在，目前網頁沒在用。
-- `teacher` 一定要連（`TEACHER_REQUIRED`）；`admin`／`owner`／`assistant` 可選（會教課的管理員、掛在課程上的小幫手）。2026-11 起小幫手也能連（原本 400 `ASSISTANT_CANNOT_LINK_TEACHER`，已移除）；**改角色不會動連結**，要解除就送 `teacherId: null`。成員設定替小幫手挑老師資料時，`ASSISTANT`／`BOTH` 排前面，當場新增的那筆 `kind = ASSISTANT`。
-- **邀請連結沒變**：只有老師的邀請帶 `teacherId`（`inviteCanLinkTeacher()`，`src/lib/roles.ts`）；小幫手的邀請可多人使用，所以不帶，加入後由管理員在成員設定連。
-- 一筆老師資料只能連一個人（409 `TEACHER_ALREADY_LINKED`）；換連另一筆時舊的自動解除（`linkTeacher()`，`src/service/team.ts`）。
-- 退出、被移除、刪帳號都會解除連結，`Teacher` 本身留著（舊課還掛著它）。
+**團隊＝名冊（2026-11 團隊與老師合併）**：一個人＝一筆人員資料（`Teacher`：名字、代表色、`kind` 身分、分部）；
+有帳號的另外連一筆 `Membership`（`role`＝權限）。`Teacher.userId` nullable、`@@unique([classroomId, userId])`。
+三種情況都在 `/teams` 同一張名冊（`features/teams/TeamList`，`PersonRow`）：有帳號也上課、沒帳號的外師、有帳號但不上課。
+- **每個成員都有一筆人員資料**：加入（`redeemInvite()`）、建立教室時由 `ensurePerson()`（`src/service/team.ts`）自動建，
+  名字取帳號名字，身分照角色（`kindForRole()`：小幫手 → `ASSISTANT`、老師 → `TEACHER`、管理員 → `NONE`）。
+  migration `20261111140100_person_for_every_member` 補建既有成員的。`PATCH /api/memberships/[id]` 不能送 `teacherId: null`（400 `PERSON_REQUIRED`）。
+- **`kind`**：`TEACHER`／`ASSISTANT`／`BOTH`／`NONE`（不上課）。排課的老師選單 `canTeach()`＝TEACHER／BOTH；
+  小幫手選單 `assistantsFirst()` 拿掉 `NONE`、小幫手排前面；老師頁總覽不列 `NONE`。
+- **邀請**：一般連結可多次使用，加入的人自動上名冊。名冊上沒帳號的人從那一列按「邀請」＝帶 `teacherId` 的連結，
+  **任何角色都能帶、一律單次**，加入後帳號連到那一筆。
+- **改連**：成員可以改連到名冊上本來就有的那筆（加入前先建好、有上課紀錄的）；`linkTeacher()` 把舊的那筆解除，
+  沒上過課就封存（`archiveIfUnused()`）。一筆只能連一個人（409 `TEACHER_ALREADY_LINKED`）。
+- **離開／被移除**：人員資料留著（舊課還掛著它），只解除帳號；沒上過課的封存。連著帳號的人員資料不能封存、不能刪（409 `PERSON_HAS_ACCOUNT`）。
+- 新增、編輯、封存、刪除人員都在 `/teams`；老師頁（`/teachers`）只看數字，「到團隊編輯」連到 `/teams?person=<id>`。
+- 「我的課」＝掛著我這筆人員資料的課——**教的＋協助的**，**不做釘選**：課程列表頂端的大卡（`GET /api/lessons/agenda` 回 `myTeacherId`，`pickHero()`，`src/features/lessons/lessonSchedule.ts`）。
 
 **邀請連結帶角色**：`InviteToken.role`＋`teacherId`。老師的連結一定指定一筆老師資料、只能用一次（`maxUses` 強制 1）。
 兩條加入路徑（`POST /api/invite-tokens/[token]/join`，以及註冊／登入帶 `token` 的 `joinClassroom()`）都走 `redeemInvite()`；

@@ -1,3 +1,4 @@
+import { ensurePerson } from "@/service/team";
 import prisma from "@/lib/prisma";
 import { createAuthSession, decodeAuthToken } from "@/lib/auth";
 import { sessionRoute, parseBody } from "@/lib/apiRoute";
@@ -46,6 +47,7 @@ export const POST = sessionRoute(async ({ request, userId }) => {
     await tx.membership.create({
       data: { userId, classroomId: created.id, role: "owner" },
     });
+    await ensurePerson(tx, created.id, userId, "owner");
 
     return created;
   });

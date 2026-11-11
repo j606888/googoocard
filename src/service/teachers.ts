@@ -68,7 +68,8 @@ const assistedLessonSelect = {
 export async function getTeachersOverview(classroomId: number, now = new Date()) {
   const [teachers, upcoming, unassignedLessonCount] = await Promise.all([
     prisma.teacher.findMany({
-      where: { classroomId },
+      // 不上課的（只管事的管理員）不在老師頁。
+      where: { classroomId, kind: { not: "NONE" } },
       select: {
         ...teacherPayloadSelect,
         lessons: {

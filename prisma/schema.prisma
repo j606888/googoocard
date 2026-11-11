@@ -129,10 +129,12 @@ model Membership {
 }
 
 /// 老師在教室裡做什麼：TEACHER 只教課、ASSISTANT 只當助教、BOTH 都會。
+// 這個人在課程裡做什麼。NONE = 不上課（團隊裡只管事的管理員）：兩邊的選單都不列。
 enum TeacherKind {
   TEACHER
   ASSISTANT
   BOTH
+  NONE
 }
 
 model Teacher {
@@ -156,7 +158,7 @@ model Teacher {
   // lessons they teach or assist are "my lessons". One per user per classroom.
   userId          Int?
   user            User?             @relation(fields: [userId], references: [id])
-  // 老師／助教／都是：只當助教的，排課選老師時不列出；只教課的，點名選助教時不列出。
+  // 老師／小幫手／都有／不上課：只當小幫手的，排課選老師時不列出；不上課的兩邊都不列。
   kind            TeacherKind       @default(TEACHER)
   invites         InviteToken[]
   createdAt       DateTime          @default(now())

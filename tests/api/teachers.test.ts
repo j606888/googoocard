@@ -405,3 +405,30 @@ describe("課程的 teacherIds 要是本教室的老師", () => {
     expect(ok.status).toBe(200);
   });
 });
+
+describe("團隊與老師合併：人員資料連著帳號", () => {
+  let classroomId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    classroomId = (await createClassroom()).id;
+    auth.classroomId = classroomId;
+  });
+
+  it("連著帳號的人員資料不能刪、不能封存（要先移出團隊）", async () => {
+    const person = await prisma.teacher.create({ data: { classroomId, name: "丁丁", userId: 1 } });
+    const del = await DELETE(jsonRequest("DELETE"), routeParams({ id: String(person.id) }));
+    expect(del.status).toBe(409);
+    expect((await del.json()).code).toBe("PERSON_HAS_ACCOUNT");
+    const archive = await PATCH(jsonRequest("PATCH", { archived: true }), routeParams({ id: String(person.id) }));
+    expect(archive.status).toBe(409);
+    expect((await prisma.teacher.findUniqueOrThrow({ where: { id: person.id } })).archivedAt).toBeNull();
+  });
+
+  it("不上課的人不在老師頁", async () => {
+    await prisma.teacher.create({ data: { classroomId, name: "老闆", kind: "NONE" } });
+    await createTeacher(classroomId, "Sean");
+    const body = await (await OVERVIEW(getRequest(), routeParams({}))).json();
+    expect(body.teachers.map((t: { name: string }) => t.name)).toEqual(["Sean"]);
+  });
+});

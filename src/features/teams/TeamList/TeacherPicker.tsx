@@ -1,7 +1,7 @@
 import { useId } from "react";
 import Field, { FieldError, FieldLabel } from "@/components/Field";
 import Select from "@/components/Select";
-import { assistantsFirst, TEACHER_KIND_LABELS, type TeacherKind } from "@/lib/teachers";
+import { TEACHER_KIND_LABELS, type TeacherKind } from "@/lib/teachers";
 import { useCreateTeacherMutation, useGetTeachersQuery } from "@/store/slices/teachers";
 
 /** Which Teacher row a member is: an existing one, a new one by name, or none. */
@@ -14,24 +14,18 @@ const NEW = "new";
 const NONE = "";
 
 /**
- * Picks the Teacher row a member is linked to. Lists active teachers nobody
- * else is linked to (`forUserId`'s own link stays pickable), plus「新增老師」.
- * `optional` adds 不連結 (an admin or a 小幫手 needn't be one).
- * `forAssistant` — linking a 小幫手: teachers who assist (助教／都是) come first.
+ * 成員連到名冊上的哪一筆人員資料。列出還沒連給別人的人（`forUserId` 自己那筆也列），
+ * 加上「新增人員」。只有在名冊上本來就有他（加入前先建好的）時才需要改。
  */
 export default function TeacherPicker({
   value,
   onChange,
   forUserId,
-  optional = false,
-  forAssistant = false,
   error,
 }: {
   value: TeacherChoice;
   onChange: (choice: TeacherChoice) => void;
   forUserId: number | null;
-  optional?: boolean;
-  forAssistant?: boolean;
   error?: string;
 }) {
   const id = useId();
@@ -39,42 +33,36 @@ export default function TeacherPicker({
   const unlinked = (teachers ?? []).filter(
     (t) => !t.archivedAt && (t.userId === null || t.userId === forUserId)
   );
-  const linkable = forAssistant ? assistantsFirst(unlinked) : unlinked;
+  const linkable = unlinked;
   const selectValue =
     value.kind === "existing" ? String(value.id) : value.kind === "new" ? NEW : NONE;
 
   return (
     <div className="flex flex-col gap-1.5">
-      <FieldLabel htmlFor={id}>{forAssistant ? "他是哪一位小幫手？" : "他是哪一位老師？"}</FieldLabel>
+      <FieldLabel htmlFor={id}>他是名冊上的哪一位？</FieldLabel>
       <Select
         id={id}
         value={selectValue}
         error={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
-        placeholder={forAssistant ? "選擇老師資料" : "選擇老師"}
+        placeholder="選擇人員"
         onChange={(v) => {
           onChange(
             v === NEW ? { kind: "new", name: "" } : v === NONE ? { kind: "none" } : { kind: "existing", id: Number(v) }
           );
         }}
         options={[
-          ...(optional ? [{ value: NONE, label: "不連結" }] : []),
           ...linkable.map((t) => ({
             value: String(t.id),
             label: t.name,
-            hint:
-              forAssistant && t.kind !== "TEACHER"
-                ? TEACHER_KIND_LABELS[t.kind]
-                : t.activeLessonCount > 0
-                  ? `${t.activeLessonCount} 堂進行中`
-                  : undefined,
+            hint: TEACHER_KIND_LABELS[t.kind],
           })),
-          { value: NEW, label: forAssistant ? "＋ 新增小幫手" : "＋ 新增老師" },
+          { value: NEW, label: "＋ 新增人員" },
         ]}
       />
       {value.kind === "new" && (
         <Field
-          label={forAssistant ? "小幫手的名字" : "新老師的名字"}
+          label="名字"
           className="mt-2"
           placeholder="例如：小美"
           maxLength={30}
@@ -86,9 +74,7 @@ export default function TeacherPicker({
         <FieldError id={`${id}-error`}>{error}</FieldError>
       ) : (
         <p className="text-xs text-neutral-500">
-          {forAssistant
-            ? "他當小幫手（或老師）的課，會出現在他的課程頁最上面。"
-            : "掛著這位老師的課，會出現在他的課程頁最上面。"}
+          通常不用改。名冊上本來就有他（加入前先建好、有上課紀錄）時，改連過去，加入時自動建的那筆會收起來。
         </p>
       )}
     </div>
@@ -97,8 +83,8 @@ export default function TeacherPicker({
 
 /** A picker error for a choice that can't be submitted yet, or undefined. */
 export function teacherChoiceError(choice: TeacherChoice, required: boolean): string | undefined {
-  if (choice.kind === "none") return required ? "老師要連結一筆老師資料" : undefined;
-  if (choice.kind === "new" && !choice.name.trim()) return "請輸入老師的名字";
+  if (choice.kind === "none") return required ? "請選一筆人員資料" : undefined;
+  if (choice.kind === "new" && !choice.name.trim()) return "請輸入名字";
   return undefined;
 }
 

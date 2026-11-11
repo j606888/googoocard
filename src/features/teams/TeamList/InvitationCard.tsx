@@ -8,6 +8,8 @@ import { roleLabel } from "@/lib/roles";
 
 const NEXT_PUBLIC_HOST_URL = process.env.NEXT_PUBLIC_HOST_URL;
 
+export const inviteUrl = (token: string) => `${NEXT_PUBLIC_HOST_URL}/invitations?token=${token}`;
+
 /**
  * One invite link: URL, the role it hands out, usage, copy and delete. A stacked card on phones, a
  * single row inside the invitations card from `lg:` up.
@@ -19,7 +21,7 @@ const InvitationCard = ({
   inviteToken: InviteToken;
   onDelete: (id: number) => void;
 }) => {
-  const url = `${NEXT_PUBLIC_HOST_URL}/invitations?token=${inviteToken.token}`;
+  const url = inviteUrl(inviteToken.token);
   const usedRatio = inviteToken.maxUses > 0 ? Math.min(inviteToken.uses / inviteToken.maxUses, 1) : 0;
 
   const usage = (
@@ -28,7 +30,7 @@ const InvitationCard = ({
         {roleLabel(inviteToken.role)}
       </StatusTag>
       {inviteToken.teacher && (
-        <span className="text-xs text-neutral-600">連到 {inviteToken.teacher.name}</span>
+        <span className="text-xs text-neutral-600">給 {inviteToken.teacher.name}</span>
       )}
       <div className="h-1 w-16 overflow-hidden rounded-full bg-neutral-200">
         <div className="h-full bg-primary-700" style={{ width: `${usedRatio * 100}%` }} />

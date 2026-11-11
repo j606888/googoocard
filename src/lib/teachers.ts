@@ -39,11 +39,28 @@ export function firstFreeTeacherColor(taken: { color: string }[]): DanceStyleCol
   return TEACHER_COLOR_ORDER.find((color) => !used.has(color)) ?? TEACHER_COLOR_ORDER[0];
 }
 
-/** 老師在教室裡做什麼（`Teacher.kind`）。只當助教的不列在排課的老師選單。 */
-export const TEACHER_KINDS = ["TEACHER", "ASSISTANT", "BOTH"] as const;
+/**
+ * 這個人在課程裡做什麼（`Teacher.kind`）。只當小幫手的不列在排課的老師選單；
+ * 不上課的（團隊裡只管事的管理員）兩邊都不列。
+ */
+export const TEACHER_KINDS = ["TEACHER", "ASSISTANT", "BOTH", "NONE"] as const;
 export type TeacherKind = (typeof TEACHER_KINDS)[number];
-export const TEACHER_KIND_LABELS: Record<TeacherKind, string> = { TEACHER: "老師", ASSISTANT: "助教", BOTH: "都是" };
-export const canTeach = (kind: TeacherKind) => kind !== "ASSISTANT";
+export const TEACHER_KIND_LABELS: Record<TeacherKind, string> = {
+  TEACHER: "老師",
+  ASSISTANT: "小幫手",
+  BOTH: "老師＋小幫手",
+  NONE: "不上課",
+};
+export const canTeach = (kind: TeacherKind) => kind === "TEACHER" || kind === "BOTH";
+/** 小幫手選單列誰：會上課的都可以（老師也會幫別人的課），不上課的不列。 */
+export const canAssist = (kind: TeacherKind) => kind !== "NONE";
+
+/** 成員加入時自動建的人員資料，身分照角色：小幫手 → 小幫手、老師 → 老師、管理員 → 不上課。 */
+export function kindForRole(role: string): TeacherKind {
+  if (role === "assistant") return "ASSISTANT";
+  if (role === "teacher") return "TEACHER";
+  return "NONE";
+}
 
 /** The avatar letter: first character (a whole CJK character or emoji), upper-cased. */
 export function teacherInitial(name: string): string {
@@ -67,10 +84,10 @@ export const teacherPayloadSelect = {
   locations: { select: locationSummarySelect, orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
 } satisfies Prisma.TeacherSelect;
 
-/** 選小幫手時的排序：會當助教的（ASSISTANT／BOTH）排前面，其餘照原順序。 */
+/** 選小幫手時的名單：不上課的拿掉，會當小幫手的（ASSISTANT／BOTH）排前面，其餘照原順序。 */
 export function assistantsFirst<T extends { kind: TeacherKind }>(teachers: readonly T[]): T[] {
   const rank = (kind: TeacherKind) => (kind === "TEACHER" ? 1 : 0);
-  return [...teachers].sort((a, b) => rank(a.kind) - rank(b.kind));
+  return teachers.filter((t) => canAssist(t.kind)).sort((a, b) => rank(a.kind) - rank(b.kind));
 }
 
 /** 「小美、阿傑 · 小幫手 丁丁」——課程標題下那一行的人名；兩邊都沒有回 null。 */

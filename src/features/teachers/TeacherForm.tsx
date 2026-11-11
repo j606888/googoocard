@@ -28,9 +28,10 @@ import {
 } from "@/store/slices/teachers";
 
 const KIND_HINTS: Record<TeacherKind, string> = {
-  TEACHER: "只教課：點名選「今天的助教」時不會列出。",
-  ASSISTANT: "只當助教：排課選老師時不會列出；選助教時排在最前面。",
-  BOTH: "排課和選助教時都會列出。",
+  TEACHER: "排課選老師時列出；也可以被選成別堂課的小幫手。",
+  ASSISTANT: "選課程小幫手時排在最前面；排課選老師時不列出。",
+  BOTH: "老師和小幫手的選單都會列出。",
+  NONE: "只管事、不上課：老師和小幫手的選單都不列，也不在老師頁。",
 };
 
 /**
@@ -85,7 +86,7 @@ const TeacherForm = ({
   const handleSubmit = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("請輸入老師名字");
+      setError("請輸入名字");
       return;
     }
     try {
@@ -103,7 +104,7 @@ const TeacherForm = ({
 
   return (
     <Drawer
-      title={teacher ? `編輯 ${teacher.name}` : defaultKind === "ASSISTANT" ? "新增助教" : "新增老師"}
+      title={teacher ? `編輯 ${teacher.name}` : "新增人員"}
       open={open}
       onClose={onClose}
       onSubmit={handleSubmit}

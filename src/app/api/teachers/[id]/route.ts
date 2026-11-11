@@ -21,6 +21,9 @@ export const PATCH = apiRoute<{ id: string }>(async ({ request, params, classroo
   if (!teacher) throw notFound("Teacher");
 
   const { archived, locationIds, ...fields } = await parseBody(request, updateTeacherSchema);
+  if (archived && teacher.userId !== null) {
+    throw new ApiError(409, "PERSON_HAS_ACCOUNT", "Remove the member from the team first");
+  }
   const locations =
     locationIds === undefined
       ? undefined
@@ -43,7 +46,11 @@ export const PATCH = apiRoute<{ id: string }>(async ({ request, params, classroo
 // anyone else is archived, so old lessons keep their teacher.
 export const DELETE = apiRoute<{ id: string }>(async ({ params, classroomId }) => {
   const id = parseId(params.id);
-  if (!(await findTeacherInClassroom(id, classroomId))) throw notFound("Teacher");
+  const teacher = await findTeacherInClassroom(id, classroomId);
+  if (!teacher) throw notFound("Teacher");
+  if (teacher.userId !== null) {
+    throw new ApiError(409, "PERSON_HAS_ACCOUNT", "Remove the member from the team first");
+  }
 
   const [taught, assisted] = await Promise.all([
     prisma.lessonTeacher.count({ where: { teacherId: id } }),
