@@ -13,7 +13,7 @@ import { useGetMeQuery } from "@/store/slices/me";
 import { isAdminRole } from "@/lib/roles";
 import InviteDrawer from "@/features/teams/TeamList/InviteDrawer";
 import TeacherForm from "./TeacherForm";
-import TeacherOverviewCard from "./TeacherOverviewCard";
+import TeacherRow, { TEACHER_ROW_COLUMNS } from "./TeacherRow";
 
 type Tab = "active" | "archived";
 
@@ -21,6 +21,7 @@ const TeacherList = () => {
   const [tab, setTab] = useState<Tab>("active");
   const [formKey, setFormKey] = useState<number | null>(null);
   const [inviting, setInviting] = useState<TeacherOverviewRow | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);
   const { data: memberships } = useGetMembershipsQuery();
   const { data: me } = useGetMeQuery();
   const isAdmin = isAdminRole(memberships?.find((m) => m.userId === me?.id)?.role);
@@ -57,7 +58,7 @@ const TeacherList = () => {
   if (isLoading || !data) {
     return (
       <>
-        <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-6 flex flex-col gap-5" aria-busy="true">
+        <div className="w-full max-w-[1040px] px-5 py-4 lg:px-8 lg:py-6 flex flex-col gap-5" aria-busy="true">
           {header}
           <TeacherListSkeleton />
         </div>
@@ -72,7 +73,7 @@ const TeacherList = () => {
 
   return (
     <>
-      <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-6 flex flex-col gap-5">
+      <div className="w-full max-w-[1040px] px-5 py-4 lg:px-8 lg:py-6 flex flex-col gap-5">
         {header}
 
         {data.unassignedLessonCount > 0 && (
@@ -108,17 +109,38 @@ const TeacherList = () => {
             description="先新增老師，開課時才能指定誰來教。"
           />
         ) : (
-          <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
-            {shown.map((teacher) => (
-              <TeacherOverviewCard
-                key={teacher.id}
-                teacher={teacher}
-                accountEmail={teacher.userId !== null ? memberByUser.get(teacher.userId)?.user.email : undefined}
-                isMe={teacher.userId !== null && teacher.userId === me?.id}
-                onInvite={isAdmin ? () => setInviting(teacher) : undefined}
-              />
-            ))}
-          </div>
+          <section className="flex flex-col">
+            <div
+              className={`hidden rounded-t-2xl border border-b-0 border-neutral-200 bg-neutral-50 px-5 py-2.5 text-xs text-neutral-500 ${TEACHER_ROW_COLUMNS}`}
+            >
+              <span>老師</span>
+              <span>下一堂</span>
+              <span>進行中</span>
+              <span>帳號</span>
+              <span />
+            </div>
+            <ul className="divide-y divide-neutral-100 rounded-2xl border border-neutral-200 bg-white lg:rounded-t-none">
+              {shown.map((teacher) => {
+                const member = teacher.userId !== null ? memberByUser.get(teacher.userId) : undefined;
+                const accountLabel =
+                  teacher.userId === null
+                    ? null
+                    : teacher.userId === me?.id
+                      ? "你"
+                      : (member?.user.email ?? "已連結帳號");
+                return (
+                  <TeacherRow
+                    key={teacher.id}
+                    teacher={teacher}
+                    open={openId === teacher.id}
+                    onToggle={() => setOpenId(openId === teacher.id ? null : teacher.id)}
+                    accountLabel={accountLabel}
+                    onInvite={isAdmin ? () => setInviting(teacher) : undefined}
+                  />
+                );
+              })}
+            </ul>
+          </section>
         )}
       </div>
 
@@ -128,26 +150,19 @@ const TeacherList = () => {
   );
 };
 
-/** Overview cards while loading; the page header above is real. */
+/** List rows while loading; the page header above is real. */
 const TeacherListSkeleton = () => (
-  <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
-    {["", "", "opacity-50"].map((fade, i) => (
-      <div key={i} className={`rounded-2xl border border-neutral-200 bg-white p-5 flex flex-col gap-4 ${fade}`}>
-        <div className="flex items-center gap-3">
-          <Skeleton className="size-12 shrink-0" />
-          <div className="flex flex-col gap-2 flex-1">
-            <Skeleton className={`h-4 ${i === 1 ? "w-20" : "w-28"}`} />
-            <Skeleton className="h-5 w-16" />
-          </div>
+  <ul className="divide-y divide-neutral-100 rounded-2xl border border-neutral-200 bg-white">
+    {["w-24", "w-20", "w-28", "w-16"].map((width, i) => (
+      <li key={i} className={`flex items-center gap-3 px-5 py-3.5 ${i === 3 ? "opacity-50" : ""}`}>
+        <Skeleton className="size-9 shrink-0 rounded-full" />
+        <div className="flex flex-col gap-2 flex-1">
+          <Skeleton className={`h-4 ${width}`} />
+          <Skeleton className="h-3 w-32" />
         </div>
-        <Skeleton className="h-14 w-full rounded-xl" />
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-      </div>
+      </li>
     ))}
-  </div>
+  </ul>
 );
 
 export default TeacherList;

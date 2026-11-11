@@ -37,10 +37,10 @@ export interface TeacherOverviewRow extends TeacherProfile {
   /** 連到的帳號（團隊成員），沒帳號是 null。 */
   userId: number | null;
   lessonCount: number;
-  /** In-progress lessons this teacher teaches. */
-  activeLessons: { id: number; name: string; danceStyle: DanceStyleSummary }[];
+  /** In-progress lessons this teacher teaches; `firstStart` = the first period (for「週四 20:30」). */
+  activeLessons: { id: number; name: string; danceStyle: DanceStyleSummary; firstStart: string | null }[];
   /** In-progress lessons this person assists (課程小幫手) — never counted as teaching. */
-  assistedLessons: AssistedLesson[];
+  assistedLessons: (AssistedLesson & { firstStart: string | null })[];
   /** The period under way (`ongoing`) or the next one; null when nothing is scheduled. */
   nextPeriod: {
     startTime: string;

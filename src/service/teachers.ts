@@ -60,6 +60,11 @@ const assistedLessonSelect = {
   danceStyle: { select: danceStyleSummarySelect },
 } as const;
 
+/** 列表展開時顯示「週四 20:30」用：第一堂的開始時間。 */
+const firstPeriodSelect = {
+  periods: { select: { startTime: true }, orderBy: { startTime: "asc" }, take: 1 },
+} as const;
+
 /**
  * Every teacher of the classroom with the in-progress lessons they teach and
  * their current / next period. Teachers with a class coming up first, soonest
@@ -81,6 +86,7 @@ export async function getTeachersOverview(classroomId: number, now = new Date())
                 name: true,
                 status: true,
                 danceStyle: { select: danceStyleSummarySelect },
+                ...firstPeriodSelect,
               },
             },
           },
@@ -89,7 +95,7 @@ export async function getTeachersOverview(classroomId: number, now = new Date())
         // 當小幫手的進行中課程——另外列在「協助」，不算教課。
         assistedLessons: {
           where: { lesson: { status: "inProgress" } },
-          select: { lesson: { select: assistedLessonSelect } },
+          select: { lesson: { select: { ...assistedLessonSelect, ...firstPeriodSelect } } },
           orderBy: { lessonId: "asc" },
         },
       },
@@ -120,8 +126,16 @@ export async function getTeachersOverview(classroomId: number, now = new Date())
       lessonCount: lessons.length,
       activeLessons: lessons
         .filter(({ lesson }) => lesson.status === "inProgress")
-        .map(({ lesson }) => ({ id: lesson.id, name: lesson.name, danceStyle: lesson.danceStyle })),
-      assistedLessons: assistedLessons.map(({ lesson }) => lesson),
+        .map(({ lesson }) => ({
+          id: lesson.id,
+          name: lesson.name,
+          danceStyle: lesson.danceStyle,
+          firstStart: lesson.periods[0]?.startTime ?? null,
+        })),
+      assistedLessons: assistedLessons.map(({ lesson: { periods, ...lesson } }) => ({
+        ...lesson,
+        firstStart: periods[0]?.startTime ?? null,
+      })),
       nextPeriod: next
         ? {
             startTime: next.startTime,

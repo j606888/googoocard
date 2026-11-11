@@ -58,6 +58,8 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 `/teachers` 是總覽（`GET /api/teachers/overview`，不帶月份）、`/teachers/[id]` 是詳情（`GET /api/teachers/[id]?month=`），
 彙總都在 `src/service/teachers.ts`，純計算在 `src/lib/teacherStats.ts`（有單元測試）。`GET /api/teachers` 維持輕量清單給開課的老師選單用。
 
+- **列表是條列式**（2026-11-11，`TeacherRow`）：一列一位老師——老師（分部）、下一堂、進行中幾門、帳號；按一下就地展開看教的／協助的進行中課程（各自「週四 20:30」，取第一堂 `firstStart`），再「看細節」。手機只留名字＋下一堂。
+- **細節頁分四個分頁**（`?tab=`，預設課程）：課程（進行中／已結束／協助）、時段（某個月的時段與點名狀態）、數字（月統計＋近 6 個月＋常來的學生）、資料（名字、頭像、身分、分部、帳號、備註，編輯／封存／刪除在這裡）。頂端只留頭像、名字、一行摘要。
 - **總覽只回答三件事**：這位老師教哪些進行中的課（`activeLessons`）、上課中／下一堂（`nextPeriod`，`ongoing` = 現在正在上）、屬於哪些分部。排序：下一堂越近越前面。統計卡、月份切換、每卡三個數字、近 6 個月長條圖都刻意拿掉了（2026-11-10）——每月數字只留在詳情頁。
 - **分部**（`Teacher.locations`，多對多 `_LocationToTeacher`）是**純標示**：不限制排課、不影響金流，也不從課程推導。寫入用 `locationIds`（整份取代），以 `requireLocationsInClassroom()` 驗證（400 `LOCATION_NOT_FOUND`）。
 - **圖示**（`Teacher.icon`）是 `TEACHER_ICONS`（`src/lib/teachers.ts`）裡的一個 key（`star`、`footprints`…），由 `features/teachers/teacherIcons.tsx` 畫成 lucide 單色線條，放在代表色的淡底上（`danceStyleClasses(color).badge`）；`null` = 實心色底＋名字第一個字。2026-11-11 從 emoji 換過來（migration `20261111180000_teacher_line_icons` 把舊 emoji 對到最接近的圖示，對不到的清成 `null`）。
@@ -68,7 +70,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - **刪除只限沒教過課的老師**（409 `TEACHER_HAS_LESSONS`），其他一律封存。封存的老師不出現在開課選單，但已經掛著這位老師的課照常顯示。
 - 開課 / 改課的 `teacherIds` 會驗證都是本教室的老師（400 `TEACHER_NOT_FOUND`），封存的也算數。
 - 數字會被別處的點名改變，而點名的 mutation 不會 invalidate `Teacher` tag，所以兩頁的 query 都用 `refetchOnMountOrArgChange`。
-- **「協助」另外列**：這個人當課程小幫手的課（`assistedLessons`，見下一節）在總覽卡片與詳情頁的「課程」區塊下方以「協助」小標列出（只列進行中的），**不進** `activeLessons`／`lessons`／`lessonCount`／`nextPeriod`／每月數字。協助過課的人一樣不能刪（409 `TEACHER_HAS_LESSONS`）。
+- **「協助」另外列**：這個人當課程小幫手的課（`assistedLessons`，見下一節）在列表展開處與詳情頁「課程」分頁的「協助」列出（列表只列進行中的），**不進** `activeLessons`／`lessons`／`lessonCount`／`nextPeriod`／每月數字。協助過課的人一樣不能刪（409 `TEACHER_HAS_LESSONS`）。
 
 ## 課程小幫手（`LessonAssistant`，2026-11）
 
@@ -631,7 +633,7 @@ App 換教室時重新走一次（`epoch` 當 WebView 的 key）。
 **老師頁＝會教課的人，團隊頁＝有帳號的人（2026-11）**：一個人＝一筆人員資料（`Teacher`：名字、代表色、`kind` 身分、分部）；
 有帳號的另外連一筆 `Membership`（`role`＝權限）。`Teacher.userId` nullable、`@@unique([classroomId, userId])`。
 - **`/teachers`**：只列 `kind` 是 `TEACHER`／`BOTH` 的人（`getTeachersOverview()` 用 `notIn: [ASSISTANT, NONE]`），沒帳號也行（空殼）。
-  「新增老師」、編輯、封存、刪除都在這裡；卡片底部顯示連到的帳號，沒帳號的管理員可以按「邀請」（帶 `teacherId` 的單次連結，加入後自動連過去）。
+  「新增老師」、編輯、封存、刪除都在這裡；「帳號」欄顯示連到的帳號，沒帳號的展開後管理員可以按「邀請加入」（帶 `teacherId` 的單次連結，加入後自動連過去）。
 - **`/teams`**（`features/teams/TeamList`，`MemberRow`）：只列成員（帳號）＋邀請連結。「老師身分」一欄：連到老師 X／不教課／還沒連。
   老師頁上有**同名、沒帳號**的老師（`suggestedTeacher()`，`teacherLink.ts`）或角色是老師卻沒連的，顯示提醒——**不自動連**（名字會撞），管理員按「連到老師」（`LinkTeacherDrawer`）。
 - **每個成員背後都有一筆人員資料**：加入（`redeemInvite()`）、建立教室時由 `ensurePerson()`（`src/service/team.ts`）自動建，
