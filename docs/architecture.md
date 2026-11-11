@@ -60,7 +60,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 - **總覽只回答三件事**：這位老師教哪些進行中的課（`activeLessons`）、上課中／下一堂（`nextPeriod`，`ongoing` = 現在正在上）、屬於哪些分部。排序：下一堂越近越前面。統計卡、月份切換、每卡三個數字、近 6 個月長條圖都刻意拿掉了（2026-11-10）——每月數字只留在詳情頁。
 - **分部**（`Teacher.locations`，多對多 `_LocationToTeacher`）是**純標示**：不限制排課、不影響金流，也不從課程推導。寫入用 `locationIds`（整份取代），以 `requireLocationsInClassroom()` 驗證（400 `LOCATION_NOT_FOUND`）。
-- **圖示**（`Teacher.icon`）是 `TEACHER_ICONS`（`src/lib/teachers.ts`）裡的一個 emoji，`null` = 顯示名字第一個字。
+- **圖示**（`Teacher.icon`）是 `TEACHER_ICONS`（`src/lib/teachers.ts`）裡的一個 key（`star`、`footprints`…），由 `features/teachers/teacherIcons.tsx` 畫成 lucide 單色線條，放在代表色的淡底上（`danceStyleClasses(color).badge`）；`null` = 實心色底＋名字第一個字。2026-11-11 從 emoji 換過來（migration `20261111180000_teacher_line_icons` 把舊 emoji 對到最接近的圖示，對不到的清成 `null`）。
 - **只算已點名的時段**（`attendanceTakenAt` 有值）——跟收入頁同一條規則。學生自助簽到在老師定案前不算；時段結束了還沒點名的算「待點名」。月份以台北時間切。
 - 一堂課有兩位老師時，**兩位都各算一堂**。
 - 老師「教的舞種」**從老師教過的課推導**，不存資料表——不用維護，也不會跟實際排課不一致。

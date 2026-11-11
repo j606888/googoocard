@@ -7,6 +7,7 @@ import Field, { FieldLabel, fieldControlClass } from "@/components/Field";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import PaletteColorPicker from "@/features/danceStyles/PaletteColorPicker";
 import { danceStyleClasses } from "@/lib/danceStyleColors";
+import { TEACHER_ICON_GLYPHS } from "./teacherIcons";
 import type { LocationSummary } from "@/lib/locations";
 import {
   firstFreeTeacherColor,
@@ -142,23 +143,28 @@ const TeacherForm = ({
             圖示
             <span className="ml-1 text-sm font-normal text-neutral-500">（選填，不選就用名字第一個字）</span>
           </legend>
-          <div className="grid grid-cols-6 gap-2 p-1">
+          <div className="grid grid-cols-7 gap-2 p-1">
             {[null, ...TEACHER_ICONS].map((option) => {
               const selected = option === icon;
+              const glyph = option ? TEACHER_ICON_GLYPHS[option] : null;
+              const palette = danceStyleClasses(color);
               return (
                 <button
                   key={option ?? "initial"}
                   type="button"
-                  aria-label={option ?? "用名字第一個字"}
+                  title={glyph?.label ?? "名字第一個字"}
+                  aria-label={glyph?.label ?? "用名字第一個字"}
                   aria-pressed={selected}
                   onClick={() => setIcon(option)}
                   className={`h-11 rounded-lg flex items-center justify-center cursor-pointer leading-none ${
-                    option
-                      ? "bg-neutral-100 text-2xl"
-                      : `${danceStyleClasses(color).bg} text-base font-semibold text-white`
+                    glyph
+                      ? selected
+                        ? palette.badge
+                        : "bg-neutral-50 text-neutral-700 hover:bg-neutral-100"
+                      : `${palette.bg} text-base font-semibold text-white`
                   } ${selected ? "ring-2 ring-offset-2 ring-neutral-900" : ""}`}
                 >
-                  {option ?? teacherInitial(name || "?")}
+                  {glyph ? <glyph.Icon className="size-5" strokeWidth={1.75} /> : teacherInitial(name || "?")}
                 </button>
               );
             })}

@@ -1,5 +1,6 @@
 import { danceStyleClasses } from "@/lib/danceStyleColors";
 import { teacherInitial } from "@/lib/teachers";
+import { teacherIconGlyph } from "./teacherIcons";
 
 const SIZES = {
   sm: "w-9 h-9 text-sm",
@@ -7,10 +8,12 @@ const SIZES = {
   lg: "w-16 h-16 text-2xl",
 };
 
-// Emoji read smaller than a letter at the same font size.
-const ICON_SIZES = { sm: "text-lg", md: "text-2xl", lg: "text-[32px]" };
+const ICON_SIZES = { sm: "size-[18px]", md: "size-6", lg: "size-8" };
 
-/** The teacher's emoji — or, without one, their initial — on their palette colour. */
+/**
+ * The teacher's avatar on their palette colour: the initial on the solid colour, or —
+ * with an icon — a single-colour line icon on a pale tint of it (`badge` = light bg + dark text).
+ */
 const TeacherAvatar = ({
   name,
   color,
@@ -24,15 +27,19 @@ const TeacherAvatar = ({
   size?: keyof typeof SIZES;
   /** Archived teachers fade out. */
   muted?: boolean;
-}) => (
-  <span
-    aria-hidden="true"
-    className={`${SIZES[size]} ${icon ? ICON_SIZES[size] : ""} ${danceStyleClasses(color).bg} ${
-      muted ? "opacity-50" : ""
-    } rounded-full shrink-0 flex items-center justify-center font-semibold leading-none text-white`}
-  >
-    {icon || teacherInitial(name)}
-  </span>
-);
+}) => {
+  const glyph = teacherIconGlyph(icon);
+  const palette = danceStyleClasses(color);
+  return (
+    <span
+      aria-hidden="true"
+      className={`${SIZES[size]} ${glyph ? palette.badge : `${palette.bg} text-white`} ${
+        muted ? "opacity-50" : ""
+      } rounded-full shrink-0 flex items-center justify-center font-semibold leading-none`}
+    >
+      {glyph ? <glyph.Icon className={ICON_SIZES[size]} strokeWidth={1.75} /> : teacherInitial(name)}
+    </span>
+  );
+};
 
 export default TeacherAvatar;

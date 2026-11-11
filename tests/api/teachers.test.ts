@@ -142,7 +142,7 @@ describe("/api/teachers", () => {
     expect((await res.json()).archivedAt).toBeNull();
   });
 
-  it("POST / PATCH take an emoji icon, a cool colour and the branches", async () => {
+  it("POST / PATCH take a line icon, a cool colour and the branches", async () => {
     const tainan = await createLocation(classroomId, { name: "台南", sortOrder: 0 });
     const kaohsiung = await createLocation(classroomId, { name: "高雄", sortOrder: 1 });
 
@@ -150,7 +150,7 @@ describe("/api/teachers", () => {
       jsonRequest("POST", {
         name: "Sean",
         color: "sky",
-        icon: "⭐",
+        icon: "star",
         locationIds: [kaohsiung.id, tainan.id],
       }),
       routeParams({})
@@ -159,7 +159,7 @@ describe("/api/teachers", () => {
     expect(res.status).toBe(200);
     expect(created).toMatchObject({
       color: "sky",
-      icon: "⭐",
+      icon: "star",
       locations: [
         { id: tainan.id, name: "台南" },
         { id: kaohsiung.id, name: "高雄" },
@@ -186,6 +186,8 @@ describe("/api/teachers", () => {
     const id = String(sean.id);
 
     expect((await POST(jsonRequest("POST", { name: "Nini", icon: "x" }), routeParams({}))).status).toBe(400);
+    // 舊的 emoji 已經不在清單上（2026-11 換成線條圖示）。
+    expect((await POST(jsonRequest("POST", { name: "Nini", icon: "⭐" }), routeParams({}))).status).toBe(400);
     const res = await POST(
       jsonRequest("POST", { name: "Nini", locationIds: [theirs.id] }),
       routeParams({})

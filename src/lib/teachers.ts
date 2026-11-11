@@ -8,13 +8,17 @@ import { locationSummarySelect } from "@/lib/locations";
 export const TEACHER_COLORS = PALETTE_COLORS;
 export type TeacherColor = PaletteColor;
 
-/** Emoji a teacher may show on their avatar instead of their initial (`Teacher.icon`). */
+/**
+ * Line icons a teacher may show on their avatar instead of their initial (`Teacher.icon`).
+ * Stored as these keys; drawn by `TEACHER_ICON_GLYPHS` (`features/teachers/teacherIcons.tsx`).
+ * Replaced the emoji set on 2026-11-11 (migration `20261111180000_teacher_line_icons`).
+ */
 export const TEACHER_ICONS = [
-  "⭐", "🔥", "⚡", "🌙", "☀️", "🌈",
-  "🌊", "🍀", "🌸", "🌹", "🎵", "🎧",
-  "💃", "🕺", "👑", "💎", "🦋", "❤️",
-  "🐱", "🐶", "🦊", "🐻", "🐼", "🐰",
-  "🦁", "🐯", "🐧", "🦄", "🍑", "🍋",
+  "star", "sparkles", "flame", "zap", "moon", "sun",
+  "cloud", "waves", "leaf", "mountain", "music", "headphones",
+  "crown", "gem", "heart", "smile", "cat", "paw",
+  "bird", "feather", "rocket", "coffee", "umbrella", "anchor",
+  "compass", "footprints",
 ] as const;
 export type TeacherIcon = (typeof TEACHER_ICONS)[number];
 
