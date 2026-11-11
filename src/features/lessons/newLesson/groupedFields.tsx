@@ -12,7 +12,7 @@ import { useLocations } from "@/hooks/useLocations";
 import { useGetCardsQuery } from "@/store/slices/cards";
 import { useGetLessonGroupsQuery } from "@/store/slices/lessonGroups";
 import { useGetTeachersQuery } from "@/store/slices/teachers";
-import { ActionRow, CheckRow, GroupedRow, GroupedSection, InlineInput } from "./grouped";
+import { ActionRow, CheckRow, GROUP_CARD, GroupedRow, GroupedSection, InlineInput, SegmentedControl, TRACK_BG } from "./grouped";
 import type { SeriesChoice } from "./SeriesPicker";
 
 /**
@@ -121,7 +121,7 @@ export const ToggleSwitch = ({
     aria-label={label}
     onClick={() => onChange(!checked)}
     className={`relative h-[31px] w-[51px] shrink-0 cursor-pointer rounded-full transition-colors ${
-      checked ? "bg-primary-600" : "bg-neutral-300"
+      checked ? "bg-primary-600" : TRACK_BG
     }`}
   >
     <span
@@ -132,27 +132,46 @@ export const ToggleSwitch = ({
   </button>
 );
 
+/** 舞種：四個以內畫成分段控制（帶色點），再多就整列打勾。`children` 是接在下面的列（階級）。 */
 export const DanceStyleGroup = ({
   danceStyleId,
   onChange,
   error,
+  footer,
   children,
 }: {
   danceStyleId: number | null;
   onChange: (id: number) => void;
   error?: string;
-  /** 舞種下面接的列（階級）。 */
+  footer?: string;
   children?: React.ReactNode;
 }) => {
   const { styles } = useDanceStyles();
+  const dot = (style: (typeof styles)[number]) => (
+    <span className={`size-2 shrink-0 rounded-full ${danceStyleMeta(style).dot}`} />
+  );
+  if (styles.length > 0 && styles.length <= 4 && danceStyleId !== null) {
+    return (
+      <GroupedSection title="舞種" error={error} footer={footer} bare>
+        <SegmentedControl
+          ariaLabel="舞種"
+          className="[&>button]:h-9"
+          value={danceStyleId}
+          onChange={onChange}
+          options={styles.map((style) => ({ value: style.id, label: style.name, leading: dot(style) }))}
+        />
+        {children && <div className={GROUP_CARD}>{children}</div>}
+      </GroupedSection>
+    );
+  }
   return (
-    <GroupedSection title="舞種" error={error}>
+    <GroupedSection title="舞種" error={error} footer={footer}>
       {styles.map((style) => (
         <CheckRow
           key={style.id}
           checked={style.id === danceStyleId}
           onToggle={() => onChange(style.id)}
-          leading={<span className={`size-2.5 shrink-0 rounded-full ${danceStyleMeta(style).dot}`} />}
+          leading={dot(style)}
         >
           {style.name}
         </CheckRow>

@@ -7,7 +7,6 @@ import { useGetLessonsQuery } from "@/store/slices/lessons";
 import { seriesNameKey, seriesDisplayName } from "../seriesSuggest";
 import { termNumbers } from "../termLabels";
 import { useLocations } from "@/hooks/useLocations";
-import SubNavbar from "@/features/SubNavbar";
 import AddPeriodForm from "./AddPeriodForm";
 import { useCreateLessonMutation } from "@/store/slices/lessons";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -34,7 +33,7 @@ import {
   setLastLessonKind,
 } from "@/lib/lessonDraftStorage";
 import Link from "next/link";
-import { ArrowLeft, Check, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, X } from "lucide-react";
 import { DANCE_LEVELS } from "@/lib/danceLevels";
 import { ActionRow, GROUPED_PAGE_BG, GroupedRow, GroupedSection, SegmentedControl } from "./grouped";
 import { AssistantGroup, CardGroup, DanceStyleGroup, LocationGroup, SeriesGroup, TeacherGroup } from "./groupedFields";
@@ -346,59 +345,133 @@ const NewLesson = () => {
   const cardNames = selectedCardIds.map((id) => cardList.find((c) => c.id === id)?.name).filter(Boolean);
   const title = initialClone ? "開新一期" : "新增課程";
   const isPreview = step === STEPS.length - 1;
+  const submitLabel = initialClone ? "開這一期" : "建立課程";
+  const nextLabel = `下一步：${STEPS[step + 1]}`;
+  const subtitle = [
+    "開一堂課一定要有的，其他下一步再說。",
+    initialClone ? "沿用上一期的設定，有變再改。" : "在哪上、誰教、能不能單堂付費。",
+    "一堂一堂加進來，下一堂預設隔一週。",
+    "確認一下，沒問題就建立。",
+  ][step];
+  const primaryAction = isPreview ? (
+    <Button onClick={handleSubmit} isLoading={isLoading}>
+      {submitLabel}
+    </Button>
+  ) : (
+    <Button onClick={handleNext}>{nextLabel}</Button>
+  );
 
   return (
-    <>
-      {!isExpanded && <SubNavbar title={title} backUrl="/lessons" />}
-
-      <div className={`min-h-dvh w-full ${GROUPED_PAGE_BG}`}>
-      <div className="mx-auto flex w-full max-w-[640px] flex-col gap-6 px-4 pt-4 pb-32 lg:px-6 lg:pt-8">
-        {isExpanded && (
-          <div className="flex items-center gap-3">
-            <Link href="/lessons" aria-label="回課程" className="text-neutral-400 hover:text-neutral-600 transition-colors">
-              <ArrowLeft className="w-5 h-5" />
+    <div className={`min-h-dvh w-full ${GROUPED_PAGE_BG}`}>
+      {/* 手機：iOS 式上方列，取消／標題／下一步（下一步也在表單最後一顆）。 */}
+      {!isExpanded && (
+        <div className="sticky top-0 z-20 grid h-13 grid-cols-[1fr_auto_1fr] items-center border-b border-[#e4ebe7] px-4 bg-[#f3f6f4]/90 backdrop-blur">
+          {step > 0 ? (
+            <button type="button" onClick={() => goTo(step - 1)} className="flex cursor-pointer items-center justify-self-start text-[17px] text-primary-700">
+              <ChevronLeft className="-ml-1.5 size-5" />上一步
+            </button>
+          ) : (
+            <Link href="/lessons" className="justify-self-start text-[17px] text-primary-700">
+              取消
             </Link>
-            <span className="text-[15px] text-neutral-500">{title}</span>
-          </div>
-        )}
+          )}
+          <span className="text-[17px] font-semibold text-neutral-900">{title}</span>
+          <button
+            type="button"
+            onClick={isPreview ? handleSubmit : handleNext}
+            disabled={isLoading}
+            className="cursor-pointer justify-self-end text-[17px] font-semibold text-primary-700 disabled:opacity-50"
+          >
+            {isPreview ? "建立" : "下一步"}
+          </button>
+        </div>
+      )}
 
-        <nav aria-label="步驟" className="flex flex-col gap-2">
-          <ol className="grid grid-cols-4 gap-1.5">
-            {STEPS.map((label, index) => {
-              const active = index === step;
-              const done = index < STEPS.length - 1 && stepDone(index);
-              return (
-                <li key={label}>
-                  <button
-                    type="button"
-                    onClick={() => goTo(index)}
-                    aria-current={active ? "step" : undefined}
-                    className="group flex w-full cursor-pointer flex-col gap-1.5 pt-1 text-left"
-                  >
-                    <span
-                      className={`h-1 rounded-full transition-colors ${
-                        active ? "bg-primary-700" : done ? "bg-primary-300" : "bg-neutral-300"
-                      }`}
-                    />
-                    <span
-                      className={`flex items-center gap-1 text-[13px] ${
-                        active ? "font-semibold text-neutral-900" : "text-neutral-500 group-hover:text-neutral-800"
+      <div className="flex w-full items-start gap-12 px-4 pt-4 pb-10 lg:px-12 lg:pt-8 lg:pb-16">
+        {/* 電腦：左邊直的步驟，隨時可以跳。 */}
+        {isExpanded && (
+          <nav aria-label="步驟" className="sticky top-8 flex w-[200px] shrink-0 flex-col gap-1">
+            <Link href="/lessons" className="mb-4 flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-800">
+              <ArrowLeft className="size-4" />課程
+            </Link>
+            <span className="mb-1.5 text-[13px] text-neutral-500">{title}</span>
+            <ol className="flex flex-col gap-1">
+              {STEPS.map((label, index) => {
+                const active = index === step;
+                const done = index < STEPS.length - 1 && stepDone(index);
+                return (
+                  <li key={label}>
+                    <button
+                      type="button"
+                      onClick={() => goTo(index)}
+                      aria-current={active ? "step" : undefined}
+                      className={`flex h-11 w-full cursor-pointer items-center gap-3 rounded-[10px] px-3 text-left text-[15px] transition-colors ${
+                        active
+                          ? "bg-white font-semibold text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+                          : "text-neutral-700 hover:bg-white/60"
                       }`}
                     >
-                      {done && !active && <Check aria-label="已完成" className="size-3.5 text-primary-700" />}
+                      <span
+                        className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs ${
+                          active
+                            ? "bg-primary-900 text-white"
+                            : done
+                              ? "bg-primary-100 text-primary-700"
+                              : "border-[1.5px] border-neutral-300 text-neutral-500"
+                        }`}
+                      >
+                        {done && !active ? <Check aria-label="已完成" className="size-3.5" strokeWidth={3} /> : index + 1}
+                      </span>
                       {label}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+        )}
 
-        <h1 className="text-[28px] font-bold tracking-tight text-neutral-900 lg:text-[32px]">
-          {STEPS[step]}
-        </h1>
+        <div className="flex w-full min-w-0 max-w-[760px] flex-col gap-6 lg:gap-7">
+          {!isExpanded && (
+            <nav aria-label="步驟" className="flex flex-col gap-2">
+              <ol className="grid grid-cols-4 gap-1">
+                {STEPS.map((label, index) => (
+                  <li key={label}>
+                    <button
+                      type="button"
+                      onClick={() => goTo(index)}
+                      aria-label={label}
+                      aria-current={index === step ? "step" : undefined}
+                      className="flex h-4 w-full cursor-pointer items-center"
+                    >
+                      <span
+                        className={`h-1 w-full rounded-full ${
+                          index === step
+                            ? "bg-primary-900"
+                            : index < STEPS.length - 1 && stepDone(index)
+                              ? "bg-primary-300"
+                              : "bg-[#d5dfd9]"
+                        }`}
+                      />
+                    </button>
+                  </li>
+                ))}
+              </ol>
+              <span className="text-[13px] text-neutral-500">
+                第 {step + 1} 步，共 {STEPS.length} 步
+              </span>
+            </nav>
+          )}
 
+          <header className="flex items-end justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-[28px] font-bold tracking-tight text-neutral-900 lg:text-[30px]">{STEPS[step]}</h1>
+              <p className="text-[15px] text-neutral-500">{subtitle}</p>
+            </div>
+            {isExpanded && <div className="shrink-0 [&>button]:h-10 [&>button]:rounded-[10px]">{primaryAction}</div>}
+          </header>
+
+          <div className="flex flex-col gap-6 lg:gap-5">
         {step === 0 && (
           <>
             <SeriesGroup
@@ -411,7 +484,12 @@ const NewLesson = () => {
               baseName={baseName}
               error={errors.lessonName}
             />
-            <DanceStyleGroup danceStyleId={danceStyleId} onChange={handleDanceStyleChange} error={errors.danceStyle}>
+            <DanceStyleGroup
+              danceStyleId={danceStyleId}
+              onChange={handleDanceStyleChange}
+              error={errors.danceStyle}
+              footer={series?.type === "existing" ? "跟著課種帶入，要改再改。" : undefined}
+            >
               {hasLevels && (
                 <GroupedRow label="階級">
                   <SegmentedControl
@@ -432,10 +510,11 @@ const NewLesson = () => {
                   : "固定堂數：先排好幾堂，上完自動結束。"
               }
             >
-              <div className="flex flex-col gap-2 px-4 py-3">
-                <span className="text-[15px] text-neutral-900">型態</span>
+              <div className="flex flex-col gap-2 px-4 py-3 lg:flex-row lg:items-center lg:gap-4 lg:py-2.5">
+                <span className="text-[15px] text-neutral-900 lg:flex-1">型態</span>
                 <SegmentedControl
                   ariaLabel="課程型態"
+                  className="lg:w-64"
                   value={kind}
                   onChange={setPickedKind}
                   options={[
@@ -465,9 +544,6 @@ const NewLesson = () => {
 
         {step === 1 && (
           <>
-            {initialClone && (
-              <p className="-mt-3 px-4 text-[15px] text-neutral-500">沿用上一期的設定，有變再改。</p>
-            )}
             <LocationGroup locationId={locationId} onChange={setPickedLocationId} />
             <TeacherGroup
               selectedTeacherIds={selectedTeacherIds}
@@ -505,9 +581,9 @@ const NewLesson = () => {
 
         {step === 2 && (
           <GroupedSection
-            title={`時段 · ${periods.length} 個`}
+            title="時段"
             error={errors.periods}
-            footer={periods.length === 0 && !addingPeriod ? "至少加一個時段才能開課。" : undefined}
+            footer={periods.length === 0 ? "至少加一個時段才能開課。" : `共 ${periods.length} 堂。`}
           >
             {periods.map((p, index) => (
               <div key={p.startTime} className="flex min-h-12 items-center gap-3 px-4">
@@ -543,7 +619,6 @@ const NewLesson = () => {
 
         {isPreview && (
           <>
-            <p className="-mt-3 px-4 text-[15px] text-neutral-500">確認一下，沒問題就建立。</p>
             <PreviewSection title="基本設定" missing={!stepDone(0)} onEdit={() => goTo(0)}>
               <GroupedRow label="課種">{baseName || "—"}</GroupedRow>
               {lessonName && lessonName !== baseName && <GroupedRow label="這一期叫">{lessonName}</GroupedRow>}
@@ -581,27 +656,21 @@ const NewLesson = () => {
             </PreviewSection>
           </>
         )}
-      </div>
-      </div>
+          </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-200 bg-white/95 backdrop-blur lg:left-64">
-        <div className="mx-auto flex w-full max-w-[640px] items-center gap-3 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:px-6">
-          {step > 0 && (
-            <Button variant="secondary" onClick={() => goTo(step - 1)}>
-              上一步
-            </Button>
-          )}
-          <span className="flex-1" />
-          {isPreview ? (
-            <Button onClick={handleSubmit} isLoading={isLoading}>
-              {title === "開新一期" ? "開這一期" : "建立課程"}
-            </Button>
-          ) : (
-            <Button onClick={handleNext}>{step === STEPS.length - 2 ? "預覽" : "下一步"}</Button>
-          )}
+          {/* 表單最後：跟著內容走，不固定在畫面底部。 */}
+          <div className="flex items-center gap-3 border-t border-[#e4ebe7] pt-5">
+            {isExpanded && step > 0 && (
+              <Button variant="secondary" onClick={() => goTo(step - 1)}>
+                上一步
+              </Button>
+            )}
+            <span className="hidden flex-1 lg:block" />
+            <div className="flex-1 lg:flex-none [&>button]:w-full max-lg:[&>button]:h-13 max-lg:[&>button]:text-[17px]">{primaryAction}</div>
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

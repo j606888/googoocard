@@ -3,47 +3,61 @@ import { cn } from "@/lib/utils";
 
 /**
  * 新增課程用的「分組清單」元件（Apple 設定頁的做法，2026-11-11 使用者挑的風格）：
- * 淺灰底上的白色圓角群組、細分隔線、群組上方小標、下方註解；
+ * 淡灰綠底（鼠尾草，配咕咕卡的綠）上的白色圓角群組、細分隔線；
  * 選項用整列打勾（`CheckRow`）、少數互斥選項用分段控制（`SegmentedControl`）。
+ * 手機：群組上方小標、下方註解。電腦（lg）：設定頁兩欄，左邊粗體標題＋註解、右邊群組。
  */
 
-export const GROUPED_PAGE_BG = "bg-[#f2f2f7]";
+export const GROUPED_PAGE_BG = "bg-[#f3f6f4]";
+/** 分段控制的軌道、關著的開關。 */
+export const TRACK_BG = "bg-[#e3ebe6]";
+/** 白色群組本身（`GroupedSection` 以外要自己畫一塊時用）。 */
+export const GROUP_CARD = "overflow-hidden rounded-xl bg-white divide-y divide-[#e4ebe7]";
 
 export const GroupedSection = ({
   title,
   footer,
   action,
   error,
+  bare,
   children,
 }: {
   title?: string;
-  /** 群組下方的灰色小字。 */
+  /** 註解：手機在群組下方，電腦在左欄標題下面。 */
   footer?: React.ReactNode;
-  /** 標題右邊的小連結，例如預覽的「修改」。 */
+  /** 標題旁邊的小連結，例如預覽的「修改」。 */
   action?: React.ReactNode;
   error?: string;
+  /** 不包白色群組（例如直接放一條分段控制）。 */
+  bare?: boolean;
   children: React.ReactNode;
 }) => (
-  <section className="flex flex-col gap-1.5">
-    {(title || action) && (
-      <div className="flex items-end justify-between px-4">
-        {title && <h3 className="text-[13px] font-normal text-neutral-500">{title}</h3>}
-        {action}
-      </div>
-    )}
-    <div
-      className={cn(
-        "overflow-hidden rounded-xl bg-white divide-y divide-neutral-200/80",
-        error && "ring-1 ring-danger-500"
+  <section className="flex flex-col gap-1.5 lg:grid lg:grid-cols-[180px_minmax(0,1fr)] lg:items-start lg:gap-x-8">
+    <div className="flex flex-col gap-1 lg:pt-3">
+      {(title || action) && (
+        <div className="flex items-end justify-between gap-3 px-4 lg:flex-col lg:items-start lg:px-0">
+          {title && (
+            <h3 className="text-[13px] font-normal text-neutral-500 lg:text-[15px] lg:font-semibold lg:text-neutral-900">
+              {title}
+            </h3>
+          )}
+          {action}
+        </div>
       )}
-    >
-      {children}
+      {footer && <p className="hidden text-[13px] leading-relaxed text-neutral-500 lg:block">{footer}</p>}
     </div>
-    {error ? (
-      <p className="px-4 text-[13px] text-danger-700">{error}</p>
-    ) : (
-      footer && <p className="px-4 text-[13px] leading-relaxed text-neutral-500">{footer}</p>
-    )}
+    <div className="flex min-w-0 flex-col gap-1.5">
+      {bare ? (
+        children
+      ) : (
+        <div className={cn(GROUP_CARD, error && "ring-1 ring-danger-500")}>{children}</div>
+      )}
+      {error ? (
+        <p className="px-4 text-[13px] text-danger-700">{error}</p>
+      ) : (
+        footer && <p className="px-4 text-[13px] leading-relaxed text-neutral-500 lg:hidden">{footer}</p>
+      )}
+    </div>
   </section>
 );
 
@@ -130,14 +144,14 @@ export function SegmentedControl<T extends string | number>({
   ariaLabel,
   className,
 }: {
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; leading?: React.ReactNode }[];
   value: T;
   onChange: (value: T) => void;
   ariaLabel: string;
   className?: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={ariaLabel} className={cn("flex rounded-[9px] bg-neutral-200/70 p-0.5", className)}>
+    <div role="radiogroup" aria-label={ariaLabel} className={cn("flex rounded-[9px] p-0.5", TRACK_BG, className)}>
       {options.map((option) => {
         const on = option.value === value;
         return (
@@ -148,13 +162,14 @@ export function SegmentedControl<T extends string | number>({
             aria-checked={on}
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-8 min-w-0 flex-1 cursor-pointer truncate rounded-[7px] px-3 text-sm transition-[background-color,box-shadow]",
+              "flex h-8 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[7px] px-3 text-sm transition-[background-color,box-shadow]",
               on
                 ? "bg-white font-semibold text-neutral-900 shadow-[0_3px_8px_rgba(0,0,0,0.12),0_1px_1px_rgba(0,0,0,0.04)]"
                 : "text-neutral-700 hover:text-neutral-900"
             )}
           >
-            {option.label}
+            {option.leading}
+            <span className="truncate">{option.label}</span>
           </button>
         );
       })}
