@@ -201,7 +201,7 @@ const CardDetailBody = ({
         </Button>
         <Popover open={moreOpen} onOpenChange={setMoreOpen}>
           <PopoverTrigger asChild>
-            <Button variant="secondary" size="icon" aria-label="更多動作" className="border-neutral-300 text-neutral-700">
+            <Button variant="secondary" size="icon" aria-label="更多動作">
               <Ellipsis className="size-5" />
             </Button>
           </PopoverTrigger>

@@ -8,24 +8,24 @@ import { cn } from "@/lib/utils"
 /**
  * The one button. Five uses × three sizes:
  * - `primary` — the one main action on a screen. White text only ever sits on primary-900.
- * - `secondary` — white + primary-300 border (「複製課程」「-1 週」).
+ * - `secondary` — raised white key: 1px hairline + soft shadow (`shadow-control`), green icons (「複製課程」「-1 週」).
  * - `ghost` — text-only (取消、清除篩選).
  * - `danger` — solid red, only inside a confirm dialog; `dangerSecondary` everywhere else.
  * - `link` — inline text link.
  * Sizes: `sm` 36 (dense desktop rows), `md` 44 (default, minimum touch target), `lg` 52 (phone CTAs).
  */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-bold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-[18px] shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-[3px] focus-visible:ring-primary-300 focus-visible:ring-offset-2",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-bold transition-[color,background-color,box-shadow] duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-[18px] shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-[3px] focus-visible:ring-primary-300 focus-visible:ring-offset-2",
   {
     variants: {
       variant: {
         primary: "bg-primary-900 text-white hover:bg-primary-700",
         secondary:
-          "bg-white text-primary-900 border-[1.5px] border-primary-300 hover:bg-primary-50",
+          "bg-white text-neutral-800 shadow-control hover:bg-neutral-50 hover:shadow-control-hover active:bg-neutral-100 active:shadow-control-pressed [&_svg:not([class*='text-'])]:text-primary-700",
         ghost: "text-neutral-700 font-medium hover:bg-neutral-100",
         danger: "bg-danger-600 text-white hover:bg-danger-700",
         dangerSecondary:
-          "bg-white text-danger-700 border-[1.5px] border-danger-200 hover:bg-danger-50",
+          "bg-white text-danger-700 shadow-control-danger hover:bg-danger-50 hover:shadow-control-danger-hover active:bg-danger-100 active:shadow-control-pressed",
         link: "text-primary-700 font-medium underline-offset-4 hover:underline",
       },
       size: {

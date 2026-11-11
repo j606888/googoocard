@@ -45,10 +45,10 @@ const Searchbar = ({
         </div>
         <Button
           type="button"
-          variant="ghost"
+          variant="secondary"
           size="icon"
           aria-label="新增學生"
-          className="size-12 shrink-0 border-[1.5px] border-neutral-300 bg-white text-neutral-700"
+          className="size-12 shrink-0"
           onClick={onCreateClick}
         >
           <UserPlus className="size-5" />

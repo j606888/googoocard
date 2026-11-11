@@ -128,6 +128,14 @@
     --color-neutral-800: #1F2937;
     --color-neutral-900: #111827;
 
+    /* 次要按鈕／同類控制項的「白鍵」：1px 內框＋淺浮起陰影（取代 1.5px 淡綠框）。
+       用 box-shadow 而不是 border，邊緣在 1x 螢幕不糊，也能和 focus ring 疊加。 */
+    --shadow-control: inset 0 0 0 1px rgb(17 24 39 / 0.12), 0 1px 2px rgb(17 24 39 / 0.06);
+    --shadow-control-hover: inset 0 0 0 1px rgb(17 24 39 / 0.2), 0 1px 3px rgb(17 24 39 / 0.08);
+    --shadow-control-pressed: inset 0 0 0 1px rgb(17 24 39 / 0.2);
+    --shadow-control-danger: inset 0 0 0 1px rgb(185 28 28 / 0.22), 0 1px 2px rgb(17 24 39 / 0.06);
+    --shadow-control-danger-hover: inset 0 0 0 1px rgb(185 28 28 / 0.35), 0 1px 3px rgb(17 24 39 / 0.08);
+
 }
 @theme inline {
   --color-background: var(--background);

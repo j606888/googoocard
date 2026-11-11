@@ -137,7 +137,7 @@ const CompactHeader = ({
 );
 
 const moreButton =
-  "inline-flex items-center justify-center size-11 rounded-xl border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-primary-300";
+  "inline-flex items-center justify-center size-11 rounded-xl bg-white text-neutral-700 shadow-control hover:bg-neutral-50 hover:shadow-control-hover active:bg-neutral-100 active:shadow-control-pressed cursor-pointer transition-[background-color,box-shadow] duration-150 outline-none focus-visible:ring-[3px] focus-visible:ring-primary-300";
 
 /**
  * 學生詳情的頁首：大頭貼、姓名（旁邊一支編輯鉛筆）、舞種資格與標籤，右邊是

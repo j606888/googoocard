@@ -515,7 +515,7 @@ const CardDetailDialog = ({
                   <button
                     type="button"
                     aria-label="更多操作"
-                    className="size-11 shrink-0 rounded-xl border border-neutral-300 bg-white text-neutral-700 flex items-center justify-center cursor-pointer hover:bg-neutral-50"
+                    className="size-11 shrink-0 rounded-xl bg-white text-neutral-700 shadow-control flex items-center justify-center cursor-pointer hover:bg-neutral-50 hover:shadow-control-hover active:bg-neutral-100 active:shadow-control-pressed transition-[background-color,box-shadow] duration-150"
                   >
                     <Ellipsis className="size-[18px]" />
                   </button>

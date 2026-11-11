@@ -33,12 +33,12 @@ export default function FilterChip({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border whitespace-nowrap transition-colors cursor-pointer ${
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full whitespace-nowrap transition-[color,background-color,box-shadow] duration-150 cursor-pointer ${
         size === "sm" ? "px-3 py-1 text-xs" : "px-3.5 py-1.5 text-sm"
       } ${
         active
-          ? "bg-primary-900 border-primary-900 text-white font-medium"
-          : "bg-white border-neutral-300 text-neutral-700 hover:border-primary-300"
+          ? "bg-primary-900 text-white font-medium"
+          : "bg-white text-neutral-700 shadow-control hover:bg-neutral-50 hover:shadow-control-hover active:bg-neutral-100 active:shadow-control-pressed"
       } ${className}`}
     >
       {alert && (

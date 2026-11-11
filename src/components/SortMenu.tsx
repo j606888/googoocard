@@ -78,7 +78,7 @@ const SortMenu = <T extends string>({
         type="button"
         ref={anchorRef}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 items-center gap-1.5 px-3 rounded-xl border-[1.5px] border-neutral-300 bg-white text-sm text-neutral-700 hover:border-primary-300 transition-colors cursor-pointer"
+        className="flex h-9 items-center gap-1.5 px-3 rounded-lg bg-white text-sm text-neutral-700 shadow-control hover:bg-neutral-50 hover:shadow-control-hover active:bg-neutral-100 active:shadow-control-pressed transition-[background-color,box-shadow] duration-150 cursor-pointer"
       >
         <ArrowUpDown className="w-4 h-4 text-neutral-500" />
         <span>排序</span>
