@@ -229,7 +229,10 @@ export default function CheckinList({
                 <span className="block text-lg font-semibold">
                   {lesson.cardStatus!.dropInPrice != null ? "這堂怎麼付？" : "這堂要用哪張卡？"}
                 </span>
-                <span className="block text-sm text-neutral-500">{lesson.lessonName}</span>
+                <span className="block text-sm text-neutral-500">
+                  {lesson.lessonName}
+                  {lesson.location && ` · ${lesson.location.name}`}
+                </span>
               </legend>
               {lesson.cardStatus!.buyable.map((card) => {
                 const checked = buyChoice[lesson.lessonId] === card.cardId;

@@ -80,7 +80,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - **寫入**：`POST /api/lessons`、`PUT /api/lessons/[id]` 收選填的 `assistantIds: number[]`，由 `resolveAssistantIds()`（`src/service/lessonAssistants.ts`）驗證：都要是本教室的老師（400 `ASSISTANT_NOT_FOUND`，封存的也算）、不能同時在 `teacherIds` 裡（400 `ASSISTANT_IS_TEACHER`）。PUT 有送就整份取代；**沒送 = 不動**（舊 client 不會把小幫手洗掉），只把這次變成老師的人從小幫手拿掉。
 - **讀取**：課程清單、課程詳情、`GET /api/lessons/agenda`、`GET /api/me/lessons` 的課程都多一個 `assistants: TeacherSummary[]`（跟 `teachers` 同形狀，`teacherSummarySelect`）。
 - **「我的課」＝我教的＋我協助的**：`getLessonAgenda()` 的 `myUpcoming` 與 `getMyUpcomingPeriods()` 都用 `OR: [teachers, assistants]` 比對 `myTeacherId`。
-- **畫面**：課程設定「課卡與老師」分頁與新增課程表單的「小幫手」多選（`newLesson/AssistantSelect.tsx`，已選成老師的人不列出；把人選成老師會自動從小幫手拿掉）；課程頁標題列寫「Sean · 小幫手 丁丁」（`lessonPeopleLabel()`）。「複製開新期」的 `LessonCloneSource.assistantIds` 會帶進新課。
+- **畫面**：課程設定「細節」分頁與新增課程表單的「小幫手」多選（`newLesson/AssistantSelect.tsx`，已選成老師的人不列出；把人選成老師會自動從小幫手拿掉）；課程頁標題列寫「Sean · 小幫手 丁丁」（`lessonPeopleLabel()`）。「複製開新期」的 `LessonCloneSource.assistantIds` 會帶進新課。
 - `GET /api/lessons/agenda` 同時改成回**往後 7 天內開始的每一個時段**（原本只取 10 堂），每堂課多帶 `location`。
 
 ## 複習卡資格系統
@@ -208,6 +208,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
   第 N 期、月份；括號裡的分部代號（`[KH]` → 高雄）當預設分部，沒有就用排序第一個分部。
   有舊課沒整理時課程頁會出提示（`unorganizedLessonCount`）。可以重跑：已是課種的群組原樣帶入。
 - 新增課程時選型態；上次選的型態依教室記在 localStorage 當預設。
+- **新增課程表單**（`newLesson/index.tsx`，2026-11-11）分三區：① 基本設定（課種、舞種／階級、型態、扣幾格、課卡）② 細節（分部、老師、小幫手、單堂付費；開新一期時沿用上一期、預設收起只看一行摘要）③ 排課（按「新增時段」才打開時段表單，加入後收起，下次預設最後一堂的下一週）。**課種必選**（`SeriesPicker`：現有課種或「＋ 新課種」當場建，同名就用現有的）；課名預設＝課種名稱，「這一期另取名稱」才另填。選現有課種時舞種／階級帶入它最新一期的。課程設定抽屜同樣分「基本設定／細節／課程狀態」。
 
 ## 一次扣多格（外師課，2026-10）
 

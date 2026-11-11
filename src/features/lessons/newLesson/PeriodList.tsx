@@ -13,7 +13,7 @@ const PeriodList = ({
 }) => {
   return (
     <div>
-      <div className="flex flex-col gap-3 mt-4 mb-20">
+      <div className="flex flex-col gap-3">
         {periods.map((period, index) => (
           <PeriodCard
             key={index}

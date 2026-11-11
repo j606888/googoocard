@@ -54,7 +54,7 @@ export type SettingTab = "basic" | "cards" | "status";
 
 const TAB_LABELS: Record<SettingTab, string> = {
   basic: "基本設定",
-  cards: "課卡與老師",
+  cards: "細節",
   status: "課程狀態",
 };
 
@@ -62,9 +62,9 @@ const TAB_LABELS: Record<SettingTab, string> = {
 const ERROR_TAB: Record<keyof FormErrors, SettingTab> = {
   lessonName: "basic",
   danceStyle: "basic",
-  dropInPrice: "basic",
+  dropInPrice: "cards",
   teachers: "cards",
-  cards: "cards",
+  cards: "basic",
 };
 
 const sameIds = (a: number[], b: number[]) =>
@@ -314,9 +314,11 @@ const SettingSection = ({
         {/* 抽屜裡三個分頁都保持掛載（只用 hidden 藏起來）：課卡／老師／分部的查詢在開抽屜時就發出，
             切到分頁時不會先空白再跳出來。 */}
         <div className={isDrawer && tab !== "basic" ? "hidden" : "flex flex-col gap-7"}>
+            {!isDrawer && <h3 className="-mb-3 text-base font-bold text-neutral-900">基本設定</h3>}
             <section className="flex flex-col gap-4">
+              <LessonGroupSelect groupId={groupId} onChange={setGroupId} />
               <InputField
-                label="課程名稱"
+                label="這一期的名稱"
                 placeholder="例：Bachata Lv1"
                 value={lessonName}
                 onChange={(e) => {
@@ -338,6 +340,37 @@ const SettingSection = ({
             <section className="flex flex-col gap-4 border-t border-neutral-100 pt-6">
               <LessonKindSelect kind={kind} onChange={setKind} />
               <SessionsPerAttendanceSelect value={sessionsPerAttendance} onChange={setSessionsPerAttendance} />
+              <CardSelect
+                error={errors.cards}
+                onChange={(value) => {
+                  setSelectedCardIds(value);
+                  clearError("cards");
+                }}
+                selectedCardIds={selectedCardIds}
+                danceStyleId={danceStyleId}
+              />
+            </section>
+        </div>
+
+        <div className={isDrawer && tab !== "cards" ? "hidden" : "flex flex-col gap-7"}>
+            {!isDrawer && <h3 className="-mb-3 border-t border-neutral-100 pt-6 text-base font-bold text-neutral-900">細節</h3>}
+            <section className="flex flex-col gap-4">
+              <LocationSelect locationId={locationId} onChange={setLocationId} />
+              <TeacherSelect
+                error={errors.teachers}
+                onChange={(value) => {
+                  setSelectedTeacherIds(value);
+                  // 同一個人不能又是老師又是小幫手——選成老師就從小幫手拿掉。
+                  setSelectedAssistantIds((prev) => prev.filter((id) => !value.includes(id)));
+                  clearError("teachers");
+                }}
+                selectedTeacherIds={selectedTeacherIds}
+              />
+              <AssistantSelect
+                selectedAssistantIds={selectedAssistantIds}
+                teacherIds={selectedTeacherIds}
+                onChange={setSelectedAssistantIds}
+              />
               <DropInPriceField
                 enabled={dropInEnabled}
                 amount={dropInAmount}
@@ -355,39 +388,6 @@ const SettingSection = ({
                   clearError("dropInPrice");
                 }}
                 error={errors.dropInPrice}
-              />
-            </section>
-        </div>
-
-        <div className={isDrawer && tab !== "cards" ? "hidden" : "flex flex-col gap-7"}>
-            <section className="flex flex-col gap-4">
-              <CardSelect
-                error={errors.cards}
-                onChange={(value) => {
-                  setSelectedCardIds(value);
-                  clearError("cards");
-                }}
-                selectedCardIds={selectedCardIds}
-                danceStyleId={danceStyleId}
-              />
-            </section>
-            <section className="flex flex-col gap-4 border-t border-neutral-100 pt-6">
-              <LocationSelect locationId={locationId} onChange={setLocationId} />
-              <LessonGroupSelect groupId={groupId} onChange={setGroupId} />
-              <TeacherSelect
-                error={errors.teachers}
-                onChange={(value) => {
-                  setSelectedTeacherIds(value);
-                  // 同一個人不能又是老師又是小幫手——選成老師就從小幫手拿掉。
-                  setSelectedAssistantIds((prev) => prev.filter((id) => !value.includes(id)));
-                  clearError("teachers");
-                }}
-                selectedTeacherIds={selectedTeacherIds}
-              />
-              <AssistantSelect
-                selectedAssistantIds={selectedAssistantIds}
-                teacherIds={selectedTeacherIds}
-                onChange={setSelectedAssistantIds}
               />
             </section>
         </div>
