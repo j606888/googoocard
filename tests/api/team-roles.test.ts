@@ -218,6 +218,43 @@ describe("PATCH /api/memberships/[id]", () => {
     expect(await linkedUser(jay.id)).toBe(helper.id);
   });
 
+  it("連到老師：加入時自動建的小幫手那筆併進去——協助紀錄搬過去、那筆刪掉", async () => {
+    const { classroom, helper, mei } = await seed();
+    const m = await membershipOf(helper.id, classroom.id);
+    const own = await prisma.teacher.create({
+      data: { classroomId: classroom.id, name: "小安", kind: "ASSISTANT", userId: helper.id },
+    });
+    const { lesson: assisted } = await createLesson(classroom.id, { name: "Salsa" });
+    const { lesson: both } = await createLesson(classroom.id, { name: "Bachata" });
+    await prisma.lessonAssistant.createMany({
+      data: [
+        { lessonId: assisted.id, teacherId: own.id },
+        { lessonId: both.id, teacherId: own.id },
+        { lessonId: both.id, teacherId: mei.id },
+      ],
+    });
+
+    expect((await patchMember(m.id, { teacherId: mei.id })).status).toBe(200);
+
+    expect(await prisma.teacher.findUnique({ where: { id: own.id } })).toBeNull();
+    expect(await linkedUser(mei.id)).toBe(helper.id);
+    const rows = await prisma.lessonAssistant.findMany({ orderBy: { lessonId: "asc" } });
+    expect(rows.map((r) => [r.lessonId, r.teacherId])).toEqual([
+      [assisted.id, mei.id],
+      [both.id, mei.id],
+    ]);
+  });
+
+  it("從一位老師改連到另一位老師：舊的不併，只解除（沒上過課就封存）", async () => {
+    const { classroom, helper, mei, jay } = await seed();
+    const m = await membershipOf(helper.id, classroom.id);
+    await patchMember(m.id, { teacherId: mei.id });
+    expect((await patchMember(m.id, { teacherId: jay.id })).status).toBe(200);
+    const old = await prisma.teacher.findUniqueOrThrow({ where: { id: mei.id } });
+    expect(old.userId).toBeNull();
+    expect(old.archivedAt).not.toBeNull();
+  });
+
   it("小幫手也能連老師資料（課程小幫手就是從老師資料挑的）", async () => {
     const { classroom, helper, mei } = await seed();
     const m = await membershipOf(helper.id, classroom.id);

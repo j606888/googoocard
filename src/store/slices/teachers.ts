@@ -34,6 +34,8 @@ export interface Teacher extends TeacherProfile {
 
 /** One row of GET /teachers/overview. */
 export interface TeacherOverviewRow extends TeacherProfile {
+  /** 連到的帳號（團隊成員），沒帳號是 null。 */
+  userId: number | null;
   lessonCount: number;
   /** In-progress lessons this teacher teaches. */
   activeLessons: { id: number; name: string; danceStyle: DanceStyleSummary }[];
@@ -79,7 +81,7 @@ export interface TeacherLessonRow {
 }
 
 export interface TeacherDetail {
-  teacher: TeacherProfile;
+  teacher: TeacherProfile & { userId: number | null };
   month: string;
   danceStyles: DanceStyleSummary[];
   firstTaughtAt: string | null;
@@ -114,7 +116,8 @@ export interface TeacherFields {
 }
 
 // A teacher's name and colour show up inside lessons too.
-const AFFECTED_TAGS = ['Teacher', 'Lesson'] as const;
+// Membership: the team page shows each member's person (name, colour, 身分).
+const AFFECTED_TAGS = ['Teacher', 'Lesson', 'Membership'] as const;
 
 const teachersApi = api.injectEndpoints({
   endpoints: (builder) => ({

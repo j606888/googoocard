@@ -72,9 +72,9 @@ describe("課程小幫手", () => {
     auth.role = "owner";
     danceStyleId = (await defaultDanceStyle(classroomId)).id;
     sean = await teacher(classroomId, "Sean");
-    ding = await teacher(classroomId, "丁丁", "ASSISTANT");
-    // （本機測試 DB 的 TeacherKind enum 被 finance 分支的 migration 改過、沒有 BOTH，所以這裡不用它。）
-    amy = await teacher(classroomId, "Amy", "ASSISTANT");
+    // 老師頁只放會教課的人（TEACHER／BOTH），兩位都要在老師頁上看「協助」。
+    ding = await teacher(classroomId, "丁丁", "BOTH");
+    amy = await teacher(classroomId, "Amy", "BOTH");
   });
 
   describe("POST / PUT /api/lessons 的 assistantIds", () => {

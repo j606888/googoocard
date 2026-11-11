@@ -2,7 +2,7 @@ import { Prisma, type InviteToken } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ApiError, badRequest } from "@/lib/apiError";
 import { ASSIGNABLE_ROLES, type AssignableRole } from "@/lib/roles";
-import { firstFreeTeacherColor, kindForRole } from "@/lib/teachers";
+import { canTeach, firstFreeTeacherColor, kindForRole } from "@/lib/teachers";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -59,8 +59,58 @@ export async function linkTeacher(
   if (teacherId !== null) {
     await tx.teacher.update({ where: { id: teacherId }, data: { userId } });
   }
-  // 改連到別筆的時候，舊的那筆多半是加入時自動建的——沒上過課就收起來，免得名冊多一個同名的人。
-  for (const { id } of previous) await archiveIfUnused(tx, id);
+  // 改連到別筆的時候，舊的那筆多半是加入時自動建的：併進新的那筆（小幫手紀錄搬過去、那筆刪掉），
+  // 免得名冊多一個同名的人。舊的那筆自己就是教過課的老師時不併，只是不再連到帳號。
+  for (const { id } of previous) {
+    if (teacherId !== null) await mergePersonInto(tx, id, teacherId);
+    else await archiveIfUnused(tx, id);
+  }
+}
+
+/**
+ * 把 `fromId` 這筆人員資料併進 `toId`：協助過的課（和教過的課）改掛到 `toId`，
+ * 然後刪掉 `fromId`。`fromId` 是老師（老師／老師＋小幫手，老師頁上看得到的）時不併、
+ * 只封存沒上過課的——那是另一位老師，不是加入時自動建的小幫手／不上課那筆。
+ */
+export async function mergePersonInto(tx: Prisma.TransactionClient, fromId: number, toId: number) {
+  const from = await tx.teacher.findUniqueOrThrow({ where: { id: fromId }, select: { kind: true } });
+  const [taught, assisted] = await Promise.all([
+    tx.lessonTeacher.findMany({ where: { teacherId: fromId }, select: { id: true, lessonId: true } }),
+    tx.lessonAssistant.findMany({ where: { teacherId: fromId }, select: { id: true, lessonId: true } }),
+  ]);
+  if (canTeach(from.kind)) {
+    await archiveIfUnused(tx, fromId);
+    return;
+  }
+  const lessonIds = [...taught, ...assisted].map((row) => row.lessonId);
+  const [targetTaught, targetAssisted] = await Promise.all([
+    tx.lessonTeacher.findMany({ where: { teacherId: toId, lessonId: { in: lessonIds } }, select: { lessonId: true } }),
+    tx.lessonAssistant.findMany({ where: { teacherId: toId, lessonId: { in: lessonIds } }, select: { lessonId: true } }),
+  ]);
+  const teaches = new Set(targetTaught.map((row) => row.lessonId));
+  const assists = new Set(targetAssisted.map((row) => row.lessonId));
+
+  for (const row of taught) {
+    if (teaches.has(row.lessonId)) {
+      await tx.lessonTeacher.delete({ where: { id: row.id } });
+      continue;
+    }
+    // 一堂課的老師不會同時是它的小幫手。
+    if (assists.has(row.lessonId)) {
+      await tx.lessonAssistant.deleteMany({ where: { lessonId: row.lessonId, teacherId: toId } });
+    }
+    await tx.lessonTeacher.update({ where: { id: row.id }, data: { teacherId: toId } });
+    teaches.add(row.lessonId);
+  }
+  for (const row of assisted) {
+    if (teaches.has(row.lessonId) || assists.has(row.lessonId)) {
+      await tx.lessonAssistant.delete({ where: { id: row.id } });
+    } else {
+      await tx.lessonAssistant.update({ where: { id: row.id }, data: { teacherId: toId } });
+    }
+  }
+  await tx.inviteToken.updateMany({ where: { teacherId: fromId }, data: { teacherId: toId } });
+  await tx.teacher.delete({ where: { id: fromId } });
 }
 
 /**

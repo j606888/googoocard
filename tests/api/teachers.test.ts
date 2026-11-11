@@ -425,8 +425,9 @@ describe("團隊與老師合併：人員資料連著帳號", () => {
     expect((await prisma.teacher.findUniqueOrThrow({ where: { id: person.id } })).archivedAt).toBeNull();
   });
 
-  it("不上課的人不在老師頁", async () => {
+  it("老師頁只放會教課的人：純小幫手、不上課的都不在", async () => {
     await prisma.teacher.create({ data: { classroomId, name: "老闆", kind: "NONE" } });
+    await prisma.teacher.create({ data: { classroomId, name: "Nora", kind: "ASSISTANT" } });
     await createTeacher(classroomId, "Sean");
     const body = await (await OVERVIEW(getRequest(), routeParams({}))).json();
     expect(body.teachers.map((t: { name: string }) => t.name)).toEqual(["Sean"]);

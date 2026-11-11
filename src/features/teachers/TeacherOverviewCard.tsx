@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Check, Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import type { TeacherOverviewRow } from "@/store/slices/teachers";
 import StatusTag from "@/components/StatusTag";
@@ -8,8 +10,20 @@ import { periodLabel } from "./format";
 /** How many lessons a card lists before 「還有 N 堂」. */
 const LESSON_LIMIT = 3;
 
-/** One teacher on the overview: who, which branches, what's next, which lessons. */
-const TeacherOverviewCard = ({ teacher }: { teacher: TeacherOverviewRow }) => {
+/** One teacher on the overview: who, which branches, what's next, which lessons, and their account. */
+const TeacherOverviewCard = ({
+  teacher,
+  accountEmail,
+  isMe,
+  onInvite,
+}: {
+  teacher: TeacherOverviewRow;
+  /** 連到的帳號的 email；沒帳號（或成員名單還沒載入）是 undefined。 */
+  accountEmail?: string;
+  isMe: boolean;
+  /** 管理員才有：邀請沒帳號的老師加入。 */
+  onInvite?: () => void;
+}) => {
   const archived = Boolean(teacher.archivedAt);
   const { nextPeriod, activeLessons, assistedLessons } = teacher;
   const shownAssisted = assistedLessons.slice(0, LESSON_LIMIT);
@@ -114,6 +128,26 @@ const TeacherOverviewCard = ({ teacher }: { teacher: TeacherOverviewRow }) => {
               </ul>
             </div>
           )}
+          <div className="mt-auto flex min-h-9 items-center justify-between gap-3 border-t border-neutral-100 pt-3">
+            {teacher.userId !== null ? (
+              <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-primary-700">
+                <Check className="size-4 shrink-0" />
+                <span className="truncate">
+                  {isMe ? "你的帳號" : accountEmail ? `帳號：${accountEmail}` : "已連結帳號"}
+                </span>
+              </span>
+            ) : (
+              <>
+                <span className="text-[13px] text-neutral-500">沒有帳號</span>
+                {onInvite && (
+                  <Button variant="secondary" size="sm" className="relative gap-1" onClick={onInvite}>
+                    <Send className="size-3.5" />
+                    邀請
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </>
       )}
     </div>

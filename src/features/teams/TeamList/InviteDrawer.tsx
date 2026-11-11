@@ -5,12 +5,14 @@ import Field from "@/components/Field";
 import { type AssignableRole } from "@/lib/roles";
 import { useCreateInviteTokenMutation } from "@/store/slices/memberships";
 import type { Teacher } from "@/store/slices/teachers";
+
+type InvitedPerson = Pick<Teacher, "id" | "name" | "kind">;
 import { inviteUrl } from "./InvitationCard";
 import RolePicker from "./RolePicker";
 import { teamErrorMessage } from "./teamErrors";
 
 /** 名冊上的人要被邀請時，預設給什麼角色：照他的身分。 */
-const roleFor = (person: Teacher): AssignableRole =>
+const roleFor = (person: InvitedPerson): AssignableRole =>
   person.kind === "NONE" ? "admin" : person.kind === "ASSISTANT" ? "assistant" : "teacher";
 
 /**
@@ -25,7 +27,7 @@ export default function InviteDrawer({
   onClose,
 }: {
   open: boolean;
-  person?: Teacher | null;
+  person?: InvitedPerson | null;
   onClose: () => void;
 }) {
   const [role, setRole] = useState<AssignableRole>(person ? roleFor(person) : "assistant");
@@ -70,7 +72,7 @@ export default function InviteDrawer({
         <RolePicker legend="他加入後是什麼角色？" value={role} onChange={setRole} />
         {person ? (
           <p className="text-xs leading-relaxed text-neutral-500">
-            連結只能用一次，傳給 {person.name} 本人。他加入後，名冊上這一筆就會連到他的帳號，
+            連結只能用一次，傳給 {person.name} 本人。他加入後帳號就連到老師 {person.name}，
             他教的、協助的課都會變成「我的課」。
           </p>
         ) : (
@@ -86,8 +88,8 @@ export default function InviteDrawer({
               onChange={(e) => setMaxUses(Number(e.target.value))}
             />
             <p className="text-xs leading-relaxed text-neutral-500">
-              加入的人會自動出現在名冊上。名冊上已經有的人（例如先建好的老師），請從他那一列按「邀請」，
-              才不會變成兩筆。
+              要邀請老師頁上已經有的老師，請從他的卡片按「邀請」，加入後就會自動連到那位老師。
+              用這條連結加入的人，之後也可以在團隊頁「連到老師」。
             </p>
           </>
         )}

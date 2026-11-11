@@ -15,7 +15,7 @@ export const GET = apiRoute(async ({ classroomId }) => {
     }),
     prisma.teacher.findMany({
       where: { classroomId, userId: { not: null } },
-      select: { id: true, name: true, color: true, userId: true },
+      select: { id: true, name: true, color: true, icon: true, kind: true, userId: true },
     }),
   ]);
 

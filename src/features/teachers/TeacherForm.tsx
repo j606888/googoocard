@@ -104,7 +104,7 @@ const TeacherForm = ({
 
   return (
     <Drawer
-      title={teacher ? `編輯 ${teacher.name}` : "新增人員"}
+      title={teacher ? `編輯 ${teacher.name}` : defaultKind === "ASSISTANT" ? "新增小幫手" : "新增老師"}
       open={open}
       onClose={onClose}
       onSubmit={handleSubmit}

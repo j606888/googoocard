@@ -1,5 +1,6 @@
 import { api, TAG_TYPES } from "../api";
 import type { AssignableRole } from "@/lib/roles";
+import type { TeacherKind } from "@/lib/teachers";
 import type { TeacherSummary } from "./teachers";
 
 export interface Membership {
@@ -12,8 +13,8 @@ export interface Membership {
     name: string;
     email: string;
   };
-  /** The Teacher row this member is (Teacher.userId), or null. */
-  teacher: TeacherSummary | null;
+  /** The person (Teacher row) this member is linked to (Teacher.userId), or null. */
+  teacher: (TeacherSummary & { icon: string | null; kind: TeacherKind }) | null;
 }
 
 export interface InviteToken {
