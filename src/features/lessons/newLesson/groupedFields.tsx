@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import Select from "@/components/Select";
+import { format } from "date-fns";
+import { Search } from "lucide-react";
+import { cn } from "@/lib/utils";
 import CardFormDrawer from "@/features/cards/CardForm/CardFormDrawer";
 import TeacherForm from "@/features/teachers/TeacherForm";
 import TeacherAvatar from "@/features/teachers/TeacherAvatar";
@@ -10,7 +12,7 @@ import { assistantsFirst, canTeach } from "@/lib/teachers";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import { useLocations } from "@/hooks/useLocations";
 import { useGetCardsQuery } from "@/store/slices/cards";
-import { useGetLessonGroupsQuery } from "@/store/slices/lessonGroups";
+import { useGetLessonGroupsQuery, type LessonGroup } from "@/store/slices/lessonGroups";
 import { useGetTeachersQuery } from "@/store/slices/teachers";
 import { ActionRow, CheckRow, GROUP_CARD, GroupedRow, GroupedSection, InlineInput, SegmentedControl, TRACK_BG } from "./grouped";
 import type { SeriesChoice } from "./SeriesPicker";
@@ -20,10 +22,38 @@ import type { SeriesChoice } from "./SeriesPicker";
  * 只是畫成整列打勾。課程設定抽屜仍用原本的元件。
  */
 
-const NEW = -1;
+export type SeriesMode = "existing" | "new";
 
-/** 課種＋這一期的名稱。 */
+/** 課種列的說明：「台南 · Sean、Kathy · 開過 5 期 · 上一期 10/3 開始」（最近一期的）。 */
+const describeGroup = (group: LessonGroup) => {
+  const term = group.latestTerm;
+  return [
+    term?.locationName,
+    term?.teacherNames.length ? term.teacherNames.join("、") : null,
+    group.lessonCount > 0 ? `開過 ${group.lessonCount} 期` : "還沒開過",
+    term?.firstStart ? `上一期 ${format(new Date(term.firstStart), "M/d")} 開始` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+};
+
+/** 最近開過的排上面；有期但還沒排時段的算最新，沒開過的放最後。 */
+const recency = (group: LessonGroup) =>
+  group.latestTerm?.firstStart
+    ? new Date(group.latestTerm.firstStart).getTime()
+    : group.latestTerm
+      ? Infinity
+      : -Infinity;
+
+const SEARCH_FROM = 8;
+
+/**
+ * 課種：先選「延續現有課種」或「全新課種」。延續就從清單挑一個（每列帶最近一期的分部、老師、期數），
+ * 挑完收成一列＋「換一個」；全新就打名字。下面接「這一期另取名稱」。
+ */
 export const SeriesGroup = ({
+  mode,
+  onModeChange,
   value,
   onChange,
   customName,
@@ -33,6 +63,8 @@ export const SeriesGroup = ({
   baseName,
   error,
 }: {
+  mode: SeriesMode;
+  onModeChange: (mode: SeriesMode) => void;
   value: SeriesChoice;
   onChange: (choice: SeriesChoice) => void;
   customName: string;
@@ -43,63 +75,109 @@ export const SeriesGroup = ({
   error?: string;
 }) => {
   const { data: groups = [] } = useGetLessonGroupsQuery();
+  const [browsing, setBrowsing] = useState(false);
+  const [query, setQuery] = useState("");
   const picked = value?.type === "existing" ? groups.find((g) => g.id === value.id) : undefined;
+  const listOpen = mode === "existing" && (!picked || browsing);
+  const sorted = [...groups].sort((a, b) => recency(b) - recency(a) || a.name.localeCompare(b.name));
+  const needle = query.trim().toLowerCase();
+  const shown = needle ? sorted.filter((g) => g.name.toLowerCase().includes(needle)) : sorted;
+
+  const footer = picked
+    ? `這是「${picked.name}」的第 ${picked.lessonCount + 1} 期。`
+    : mode === "new"
+      ? "課名預設就是課種名稱；要不一樣再另取。"
+      : "選一個要延續的課種，上一期的設定會整套帶進來。";
+
   return (
-    <GroupedSection
-      title="課程"
-      error={error}
-      footer={
-        picked
-          ? `這是「${picked.name}」的第 ${picked.lessonCount + 1} 期。`
-          : "課名預設就是課種名稱；要不一樣再另取。"
-      }
-    >
-      <GroupedRow label="課種">
-        <Select<number>
-          aria-label="課種"
-          value={value?.type === "existing" ? value.id : value?.type === "new" ? NEW : undefined}
-          placeholder="選一個"
-          onChange={(next) => onChange(next === NEW ? { type: "new", name: "" } : { type: "existing", id: next })}
+    <GroupedSection title="課程" error={error} footer={footer} bare>
+      {groups.length > 0 && (
+        <SegmentedControl<SeriesMode>
+          ariaLabel="延續或全新"
+          className="[&>button]:h-9"
+          value={mode}
+          onChange={(next) => {
+            setBrowsing(false);
+            setQuery("");
+            onModeChange(next);
+          }}
           options={[
-            ...groups.map((g) => ({
-              value: g.id,
-              label: g.name,
-              hint: g.lessonCount > 0 ? `開過 ${g.lessonCount} 期` : undefined,
-            })),
-            { value: NEW, label: "＋ 新課種" },
+            { value: "existing", label: "延續現有課種" },
+            { value: "new", label: "全新課種" },
           ]}
-          className="h-10 w-auto max-w-full justify-end border-0 bg-transparent px-0 text-[15px] text-neutral-500 shadow-none ring-0 focus:ring-0 focus-within:ring-0"
-        />
-      </GroupedRow>
-      {value?.type === "new" && (
-        <InlineInput
-          label="新課種名稱"
-          placeholder="例如 Bachata Lv1"
-          maxLength={60}
-          value={value.name}
-          onChange={(name) => onChange({ type: "new", name })}
         />
       )}
-      {value && (
-        <GroupedRow label="這一期另取名稱">
-          <ToggleSwitch
-            checked={showCustomName}
-            onChange={(on) => {
-              if (on && !customName.trim()) onCustomNameChange(baseName);
-              onShowCustomNameChange(on);
-            }}
-            label="這一期另取名稱"
+      <div className={cn(GROUP_CARD, error && "ring-1 ring-danger-500")}>
+        {mode === "new" && (
+          <InlineInput
+            label="課種名稱"
+            placeholder="例如 Bachata Lv1"
+            maxLength={60}
+            value={value?.type === "new" ? value.name : ""}
+            onChange={(name) => onChange({ type: "new", name })}
           />
-        </GroupedRow>
-      )}
-      {value && showCustomName && (
-        <InlineInput
-          label="名稱"
-          placeholder={baseName}
-          value={customName}
-          onChange={onCustomNameChange}
-        />
-      )}
+        )}
+        {listOpen && groups.length > SEARCH_FROM && (
+          <label className="flex min-h-11 items-center gap-2 px-4">
+            <Search aria-hidden="true" className="size-4 shrink-0 text-neutral-400" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="搜尋課種"
+              aria-label="搜尋課種"
+              className="min-w-0 flex-1 bg-transparent text-[15px] text-neutral-900 outline-none placeholder:text-neutral-400"
+            />
+          </label>
+        )}
+        {listOpen &&
+          shown.map((group) => (
+            <CheckRow
+              key={group.id}
+              checked={group.id === picked?.id}
+              hint={describeGroup(group)}
+              onToggle={() => {
+                setBrowsing(false);
+                setQuery("");
+                onChange({ type: "existing", id: group.id });
+              }}
+            >
+              {group.name}
+            </CheckRow>
+          ))}
+        {listOpen && needle && shown.length === 0 && (
+          <p className="px-4 py-3 text-[15px] text-neutral-500">找不到「{query.trim()}」。</p>
+        )}
+        {mode === "existing" && picked && !browsing && (
+          <div className="flex min-h-14 items-center gap-3 px-4 py-2">
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-[15px] font-semibold text-neutral-900">{picked.name}</span>
+              <span className="text-[13px] text-neutral-500">{describeGroup(picked)}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setBrowsing(true)}
+              className="shrink-0 cursor-pointer text-[15px] font-medium text-primary-700 hover:underline"
+            >
+              換一個
+            </button>
+          </div>
+        )}
+        {value && !listOpen && (
+          <GroupedRow label="這一期另取名稱">
+            <ToggleSwitch
+              checked={showCustomName}
+              onChange={(on) => {
+                if (on && !customName.trim()) onCustomNameChange(baseName);
+                onShowCustomNameChange(on);
+              }}
+              label="這一期另取名稱"
+            />
+          </GroupedRow>
+        )}
+        {value && !listOpen && showCustomName && (
+          <InlineInput label="名稱" placeholder={baseName} value={customName} onChange={onCustomNameChange} />
+        )}
+      </div>
     </GroupedSection>
   );
 };

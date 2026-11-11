@@ -4,6 +4,13 @@ export interface LessonGroup {
   id: number;
   name: string;
   lessonCount: number;
+  /** 最近一期（新增課程「延續現有課種」那一列顯示的分部、老師、開始日）。建立課種的回應沒有。 */
+  latestTerm?: {
+    lessonId: number;
+    locationName: string | null;
+    teacherNames: string[];
+    firstStart: string | null;
+  } | null;
 }
 
 export interface LessonGroupStudents {
@@ -17,7 +24,7 @@ const lessonGroupsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getLessonGroups: builder.query<LessonGroup[], void>({
       query: () => "lesson-groups",
-      providesTags: ["LessonGroup"],
+      providesTags: ["LessonGroup", "Lesson"],
     }),
     createLessonGroup: builder.mutation<LessonGroup, { name: string }>({
       query: ({ name }) => ({

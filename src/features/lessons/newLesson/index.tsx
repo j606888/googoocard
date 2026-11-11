@@ -36,7 +36,15 @@ import Link from "next/link";
 import { ArrowLeft, Check, ChevronLeft, X } from "lucide-react";
 import { DANCE_LEVELS } from "@/lib/danceLevels";
 import { ActionRow, GROUPED_PAGE_BG, GroupedRow, GroupedSection, SegmentedControl } from "./grouped";
-import { AssistantGroup, CardGroup, DanceStyleGroup, LocationGroup, SeriesGroup, TeacherGroup } from "./groupedFields";
+import {
+  AssistantGroup,
+  CardGroup,
+  DanceStyleGroup,
+  LocationGroup,
+  SeriesGroup,
+  TeacherGroup,
+  type SeriesMode,
+} from "./groupedFields";
 import { addDays, format } from "date-fns";
 import { useGetCardsQuery } from "@/store/slices/cards";
 import { useSizeClass } from "@/hooks/useMediaQuery";
@@ -82,7 +90,7 @@ const NewLesson = () => {
   });
 
   // 課種＝課名的來源：選了課種，這一期就叫課種的名字，除非另取名稱。
-  const { data: groups = [] } = useGetLessonGroupsQuery();
+  const { data: groups = [], isSuccess: groupsLoaded } = useGetLessonGroupsQuery();
   const [series, setSeries] = useState<SeriesChoice>(() => {
     const id = initialClone?.groupId ?? (groupIdParam ? Number(groupIdParam) : null);
     if (id) return { type: "existing", id };
@@ -90,6 +98,19 @@ const NewLesson = () => {
     return initialClone ? { type: "new", name: seriesDisplayName(initialClone.lessonName) } : null;
   });
   const baseName = seriesName(series, groups);
+  // 延續現有課種 or 全新課種；沒碰過就看目前的選擇（教室還沒有課種就只能全新）。
+  const [pickedMode, setPickedMode] = useState<SeriesMode | undefined>(undefined);
+  const mode: SeriesMode =
+    pickedMode ?? (series?.type === "new" || (groupsLoaded && groups.length === 0) ? "new" : "existing");
+  // 延續一個開過的課種：上一期的設定整套帶進來，基本設定只顯示摘要，按「改設定」才展開欄位。
+  const pickedGroup = series?.type === "existing" ? groups.find((g) => g.id === series.id) : undefined;
+  const continuing =
+    mode === "existing" &&
+    series?.type === "existing" &&
+    ((pickedGroup?.lessonCount ?? 0) > 0 || initialClone?.groupId === series.id);
+  const [editing, setEditing] = useState(false);
+  // 延續但還沒挑課種：先不顯示欄位（挑了就整套帶入）。
+  const showFields = mode === "new" || (series !== null && (!continuing || editing));
   const [customName, setCustomName] = useState(initialClone?.lessonName ?? "");
   // undefined = 還沒動過：開新一期時，上一期的課名跟課種名稱不一樣（不算括號、期數）才預設打開。
   const [pickedShowCustomName, setShowCustomName] = useState<boolean | undefined>(undefined);
@@ -168,7 +189,8 @@ const NewLesson = () => {
         ? lastLocationId
         : null;
 
-  const cloneInitialPeriod = initialClone?.initialPeriod;
+  // 第一堂的預設：開新一期帶來的，或延續課種時上一期最後一堂的下一週。
+  const [inheritedPeriod, setInheritedPeriod] = useState(initialClone?.initialPeriod);
   const [periods, setPeriods] = useState<
     { startTime: string; endTime: string }[]
   >([]);
@@ -183,7 +205,7 @@ const NewLesson = () => {
   const [createLesson, { isLoading }] = useCreateLessonMutation();
   const router = useRouter();
 
-  // 選了現有課種：舞種、階級跟著它最新一期帶入。
+  // 選了現有課種：最近一期的設定整套帶入（跟課程頁「開新一期」一樣）。
   const [prefillGroupId, setPrefillGroupId] = useState<number | null>(null);
   const { data: groupLessons } = useGetLessonsQuery(
     { tab: "all", sort: "nextSession", groupId: prefillGroupId ?? undefined },
@@ -196,12 +218,37 @@ const NewLesson = () => {
     if (latest) {
       setPickedStyleId(latest.danceStyleId);
       setLevel(latest.level);
+      setPickedKind(latest.kind);
+      setSessionsPerAttendance(latest.sessionsPerAttendance);
+      setSelectedCardIds(latest.cardIds);
+      setSelectedTeacherIds(latest.teachers.map((t) => t.id));
+      setSelectedAssistantIds((latest.assistants ?? []).map((t) => t.id));
+      setPickedLocationId(latest.location?.id ?? null);
+      setDropInEnabled(latest.dropInPrice != null);
+      setDropInAmount(latest.dropInPrice != null ? String(latest.dropInPrice) : "");
+      setDropInPlans(dropInPlansFrom(latest.dropInOptions));
+      setInheritedPeriod(
+        latest.lastPeriodStart && latest.lastPeriodEnd
+          ? {
+              startTime: addDays(new Date(latest.lastPeriodStart), 7).toISOString(),
+              endTime: addDays(new Date(latest.lastPeriodEnd), 7).toISOString(),
+            }
+          : undefined
+      );
     }
     setPrefillGroupId(null);
   }, [prefillGroupId, groupLessons]);
 
+  const handleModeChange = (next: SeriesMode) => {
+    setPickedMode(next);
+    setSeries(next === "new" ? { type: "new", name: "" } : null);
+    setEditing(false);
+    setErrors((prev) => ({ ...prev, lessonName: undefined }));
+  };
+
   const handleSeriesChange = (choice: SeriesChoice) => {
     setSeries(choice);
+    if (choice?.type === "existing" && !(series?.type === "existing" && series.id === choice.id)) setEditing(false);
     if (choice?.type === "existing") setPrefillGroupId(choice.id);
     if (errors.lessonName) {
       setErrors((prev) => ({ ...prev, lessonName: undefined }));
@@ -248,7 +295,7 @@ const NewLesson = () => {
         startTime: addDays(new Date(lastPeriod.startTime), 7).toISOString(),
         endTime: addDays(new Date(lastPeriod.endTime), 7).toISOString(),
       }
-    : cloneInitialPeriod;
+    : inheritedPeriod;
 
   const handleDeletePeriod = (index: number) => {
     const newPeriods = periods.filter((_, i) => i !== index);
@@ -280,13 +327,24 @@ const NewLesson = () => {
   const stepDone = (index: number) =>
     !Object.keys(liveErrors).some((key) => ERROR_STEP[key as keyof typeof ERROR_STEP] === index);
 
+  // 延續時從基本設定直接跳排課（細節沿用），但細節也要先檢查過。
+  const skipDetails = step === 0 && continuing && !editing;
+
   /** 下一步：這一步有缺就留在這裡把錯誤標出來。 */
   const handleNext = () => {
+    const checked: number[] = skipDetails ? [0, 1] : [step];
     const stepErrors = Object.fromEntries(
-      Object.entries(liveErrors).filter(([key]) => ERROR_STEP[key as keyof typeof ERROR_STEP] === step)
+      Object.entries(liveErrors).filter(([key]) => checked.includes(ERROR_STEP[key as keyof typeof ERROR_STEP]))
     );
     setErrors(stepErrors);
-    if (Object.keys(stepErrors).length === 0) goTo(step + 1);
+    const errorSteps = Object.keys(stepErrors).map((key) => ERROR_STEP[key as keyof typeof ERROR_STEP]);
+    if (errorSteps.length === 0) {
+      goTo(skipDetails ? 2 : step + 1);
+    } else if (skipDetails) {
+      // 沿用的設定有缺（例如上一期沒有老師）：展開欄位、帶到有缺的那一步。
+      setEditing(true);
+      goTo(Math.min(...errorSteps));
+    }
   };
 
   const handleSubmit = async () => {
@@ -343,10 +401,28 @@ const NewLesson = () => {
   const nameOf = (id: number) => teachers.find((t) => t.id === id)?.name;
   const styleName = styles.find((st) => st.id === danceStyleId)?.name;
   const cardNames = selectedCardIds.map((id) => cardList.find((c) => c.id === id)?.name).filter(Boolean);
+  // 摘要裡停用的課卡、封存的老師照樣留著，只標出來。
+  const personLabel = (id: number) => {
+    const t = teachers.find((x) => x.id === id);
+    return t ? `${t.name}${t.archivedAt ? "（已封存）" : ""}` : null;
+  };
+  const cardLabel = (id: number) => {
+    const c = cardList.find((x) => x.id === id);
+    return c ? `${c.name}${c.expiredAt ? "（已停用）" : ""}` : null;
+  };
+  const inheritedRows: [string, string][] = [
+    ["舞種", [styleName, hasLevels ? `第 ${level} 階` : null].filter(Boolean).join(" · ") || "—"],
+    ["型態", `${kind === "ongoing" ? "持續開課" : "固定堂數"} · 每次扣 ${sessionsPerAttendance} 格`],
+    ["課卡", selectedCardIds.map(cardLabel).filter(Boolean).join("、") || "—"],
+    ["分部", locations.find((l) => l.id === locationId)?.name ?? "不指定"],
+    ["老師", selectedTeacherIds.map(personLabel).filter(Boolean).join("、") || "—"],
+    ["小幫手", selectedAssistantIds.map(personLabel).filter(Boolean).join("、") || "—"],
+    ["單堂付費", dropInEnabled ? (dropInAmount ? `開放，$${dropInAmount}` : "開放") : "不開放"],
+  ];
   const title = initialClone ? "開新一期" : "新增課程";
   const isPreview = step === STEPS.length - 1;
   const submitLabel = initialClone ? "開這一期" : "建立課程";
-  const nextLabel = `下一步：${STEPS[step + 1]}`;
+  const nextLabel = `下一步：${STEPS[skipDetails ? 2 : step + 1]}`;
   const subtitle = [
     "開一堂課一定要有的，其他下一步再說。",
     initialClone ? "沿用上一期的設定，有變再改。" : "在哪上、誰教、能不能單堂付費。",
@@ -475,6 +551,8 @@ const NewLesson = () => {
         {step === 0 && (
           <>
             <SeriesGroup
+              mode={mode}
+              onModeChange={handleModeChange}
               value={series}
               onChange={handleSeriesChange}
               customName={customName}
@@ -484,6 +562,14 @@ const NewLesson = () => {
               baseName={baseName}
               error={errors.lessonName}
             />
+            {continuing && !editing && (
+              <InheritedSummary
+                rows={inheritedRows}
+                onEdit={() => setEditing(true)}
+              />
+            )}
+            {showFields && (
+            <>
             <DanceStyleGroup
               danceStyleId={danceStyleId}
               onChange={handleDanceStyleChange}
@@ -539,6 +625,8 @@ const NewLesson = () => {
               danceStyleId={danceStyleId}
               error={errors.cards}
             />
+            </>
+            )}
           </>
         )}
 
@@ -737,5 +825,24 @@ const PreviewSection = ({
     }
   >
     {children}
+  </GroupedSection>
+);
+
+/** 延續課種時的「沿用上一期的設定」：一張摘要，旁邊「改設定」展開欄位。 */
+const InheritedSummary = ({ rows, onEdit }: { rows: [string, string][]; onEdit: () => void }) => (
+  <GroupedSection
+    title="沿用上一期的設定"
+    footer="細節也一起沿用，下一步直接排課。"
+    action={
+      <button type="button" onClick={onEdit} className="cursor-pointer text-[13px] font-medium text-primary-700 hover:underline">
+        改設定
+      </button>
+    }
+  >
+    {rows.map(([label, value]) => (
+      <GroupedRow key={label} label={label}>
+        <span className="truncate">{value}</span>
+      </GroupedRow>
+    ))}
   </GroupedSection>
 );
