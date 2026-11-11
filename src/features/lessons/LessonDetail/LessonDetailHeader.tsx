@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { lessonDropInOptions } from "@/lib/dropInOptions";
 import { format, isToday } from "date-fns";
 import { ArrowLeft, Check, PencilLine } from "lucide-react";
 import { Lesson } from "@/store/slices/lessons";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { lessonLevelLabel } from "@/lib/danceLevels";
+import { lessonPeopleLabel } from "@/lib/teachers";
 import { Button } from "@/components/ui/button";
 import StatusTag from "@/components/StatusTag";
 import { weeklyScheduleLabel } from "../lessonSchedule";
@@ -34,11 +36,15 @@ const LessonDetailHeader = ({
 
   const facts = [
     lesson.kind === "ongoing" ? "持續開課" : "固定期數",
-    lesson.teachers.length > 0 ? lesson.teachers.map((t) => t.name).join("、") : null,
+    lessonPeopleLabel(lesson.teachers, lesson.assistants),
     lesson.location?.name ?? null,
     schedule,
     lesson.sessionsPerAttendance > 1 ? `每次扣 ${lesson.sessionsPerAttendance} 格` : null,
-    lesson.dropInPrice !== null ? `單堂 $${lesson.dropInPrice.toLocaleString()}` : null,
+    lesson.dropInPrice !== null
+      ? `單堂 ${lessonDropInOptions(lesson)
+          .map((o) => `$${o.price.toLocaleString()}`)
+          .join("／")}`
+      : null,
   ].filter(Boolean) as string[];
 
   return (
@@ -48,7 +54,7 @@ const LessonDetailHeader = ({
           <ArrowLeft className="size-4" />
           課程
         </Link>
-        {lesson.group && (
+        {lesson.group && lesson.group.name !== lesson.name && (
           <>
             <span aria-hidden="true">/</span>
             <Link href={`/lessons/groups/${lesson.group.id}`} className="hover:text-neutral-800">
@@ -63,7 +69,7 @@ const LessonDetailHeader = ({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-2.5">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-[32px] leading-tight font-bold tracking-tight text-neutral-900">{lesson.name}</h1>
+            <h1 className="text-2xl font-bold text-neutral-900">{lesson.name}</h1>
             <StatusTag tone={isFinished ? "neutral" : "positive"}>{isFinished ? "已結束" : "進行中"}</StatusTag>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-600">

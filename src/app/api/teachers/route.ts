@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { apiRoute, parseBody } from "@/lib/apiRoute";
+import { requireLocationsInClassroom } from "@/lib/authz";
 import { createTeacherSchema } from "@/lib/schemas";
 import { firstFreeTeacherColor, teacherPayloadSelect } from "@/lib/teachers";
 
@@ -33,7 +34,11 @@ export const GET = apiRoute(async ({ classroomId }) => {
 });
 
 export const POST = apiRoute(async ({ request, classroomId }) => {
-  const { name, color, note, kind } = await parseBody(request, createTeacherSchema);
+  const { name, color, icon, locationIds, note, kind } = await parseBody(
+    request,
+    createTeacherSchema
+  );
+  const locations = await requireLocationsInClassroom(locationIds ?? [], classroomId);
 
   const taken = color
     ? []
@@ -47,6 +52,8 @@ export const POST = apiRoute(async ({ request, classroomId }) => {
       classroomId,
       name,
       color: color ?? firstFreeTeacherColor(taken),
+      icon: icon ?? null,
+      locations: { connect: locations.map((id) => ({ id })) },
       note: note ?? null,
       kind: kind ?? "TEACHER",
     },

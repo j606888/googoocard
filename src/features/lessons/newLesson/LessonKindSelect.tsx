@@ -1,19 +1,9 @@
 import { Repeat } from "lucide-react";
 import type { LessonKind } from "@/lib/lessonKind";
 
-const OPTIONS: { value: LessonKind; title: string; body: string; outcome: string }[] = [
-  {
-    value: "fixed",
-    title: "固定期數",
-    body: "一期幾堂、先排好日期，例如 10 月班 5 堂。",
-    outcome: "最後一堂點完名，自動移到「已結束」",
-  },
-  {
-    value: "ongoing",
-    title: "持續開課",
-    body: "每週固定上，一堂一堂往下加，沒有結束日。",
-    outcome: "點完名仍留在「進行中」，列表直接出現「＋下一堂」；不開了再手動結束",
-  },
+const OPTIONS: { value: LessonKind; title: string; body: string }[] = [
+  { value: "fixed", title: "固定期數", body: "先排好幾堂，上完自動結束" },
+  { value: "ongoing", title: "持續開課", body: "一堂一堂往下加，手動結束" },
 ];
 
 /** 課程型態：決定這門課什麼時候算「已結束」（src/lib/lessonKind.ts）。 */
@@ -51,8 +41,7 @@ const LessonKindSelect = ({
                 {option.value === "ongoing" && <Repeat className="w-4 h-4" />}
                 {option.title}
               </span>
-              <span className="text-sm text-neutral-600">{option.body}</span>
-              <span className="text-xs text-primary-700">{option.outcome}</span>
+              <span className="text-[13px] text-neutral-600">{option.body}</span>
             </span>
           </label>
         );

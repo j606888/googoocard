@@ -4,10 +4,10 @@ const ROW_WIDTHS = ["w-40", "w-28", "w-36"];
 
 /** 價目表載入中：標題是真的，其他照載入後的分組表格畫。 */
 const CardListSkeleton = () => (
-  <div className="w-full max-w-[1080px] mx-auto px-5 py-4 lg:px-10 lg:py-10 flex flex-col gap-5 lg:gap-6" aria-busy="true">
+  <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-6 flex flex-col gap-5 lg:gap-6" aria-busy="true">
     <div className="flex items-end justify-between gap-4">
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-2xl lg:text-[28px] font-bold">課卡</h1>
+        <h1 className="text-2xl font-bold text-neutral-900">課卡</h1>
         <Skeleton className="h-3.5 w-60" />
       </div>
       <Skeleton className="h-11 w-28 rounded-xl" />

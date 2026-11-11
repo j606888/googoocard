@@ -50,10 +50,7 @@ const PeriodInfo = ({ period }: { period: Period }) => {
           <TriangleAlert className="w-4 h-4 shrink-0 mt-0.5 text-warning-700" />
           <span>
             {notice === "notToday"
-              ? `這是 ${format(new Date(period.startTime), "M月d日")} 的課，不是今天（${format(
-                  new Date(),
-                  "M月d日"
-                )}）。確定要點這一堂嗎？`
+              ? `這是 ${format(new Date(period.startTime), "M/d")} 的課，不是今天`
               : `這個時段 ${startHour} 才開始，確定要現在點名嗎？`}
           </span>
         </div>

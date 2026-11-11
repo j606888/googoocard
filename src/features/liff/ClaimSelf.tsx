@@ -27,7 +27,7 @@ export default function ClaimSelf({
 }: {
   idToken: string;
   checkinKey: string;
-  onClaimed: () => void;
+  onClaimed: (name: string) => void;
   onFirstTime: () => void;
 }) {
   const [query, setQuery] = useState("");
@@ -80,7 +80,7 @@ export default function ClaimSelf({
         return;
       }
       if (!res.ok) throw new Error(`status ${res.status}`);
-      onClaimed();
+      onClaimed(picked.name);
     } catch (err) {
       console.error("[liff] claim error", err);
       toast.error("綁定失敗，請稍後再試或找小幫手");

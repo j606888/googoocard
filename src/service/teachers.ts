@@ -52,39 +52,62 @@ function trendWindow(month: string) {
   };
 }
 
-/**
- * Every teacher of the classroom with this month's numbers, the trend, the
- * styles they teach (derived from their lessons — there's nothing to keep in
- * sync) and their next period. Sorted by sessions taught this month.
- */
-export async function getTeachersOverview(classroomId: number, month: string, now = new Date()) {
-  const { months, start, end, monthRange } = trendWindow(month);
+/** 「協助」清單的一堂課。 */
+const assistedLessonSelect = {
+  id: true,
+  name: true,
+  status: true,
+  danceStyle: { select: danceStyleSummarySelect },
+} as const;
 
-  const [teachers, periods, upcoming, unassignedLessonCount] = await Promise.all([
+/** 列表展開時顯示「週四 20:30」用：第一堂的開始時間。 */
+const firstPeriodSelect = {
+  periods: { select: { startTime: true }, orderBy: { startTime: "asc" }, take: 1 },
+} as const;
+
+/**
+ * Every teacher of the classroom with the in-progress lessons they teach and
+ * their current / next period. Teachers with a class coming up first, soonest
+ * on top. (Monthly numbers live on the teacher's own page.)
+ */
+export async function getTeachersOverview(classroomId: number, now = new Date()) {
+  const [teachers, upcoming, unassignedLessonCount] = await Promise.all([
     prisma.teacher.findMany({
-      where: { classroomId },
+      // 老師頁只放會教課的人（老師／老師＋小幫手）；純小幫手、不上課的管理員在團隊頁。
+      where: { classroomId, kind: { notIn: ["ASSISTANT", "NONE"] } },
       select: {
         ...teacherPayloadSelect,
+        userId: true,
         lessons: {
           select: {
-            lesson: { select: { status: true, danceStyle: { select: danceStyleSummarySelect } } },
+            lesson: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                danceStyle: { select: danceStyleSummarySelect },
+                ...firstPeriodSelect,
+              },
+            },
           },
+          orderBy: { lessonId: "asc" },
+        },
+        // 當小幫手的進行中課程——另外列在「協助」，不算教課。
+        assistedLessons: {
+          where: { lesson: { status: "inProgress" } },
+          select: { lesson: { select: { ...assistedLessonSelect, ...firstPeriodSelect } } },
+          orderBy: { lessonId: "asc" },
         },
       },
       orderBy: { id: "asc" },
     }),
+    // Not over yet: a period under way right now comes first (`ongoing`).
     prisma.lessonPeriod.findMany({
-      where: { lesson: { classroomId }, startTime: { gte: start, lt: end } },
-      select: {
-        ...statPeriodSelect,
-        lesson: { select: { teachers: { select: { teacherId: true } } } },
-      },
-    }),
-    prisma.lessonPeriod.findMany({
-      where: { startTime: { gte: now }, lesson: { classroomId, status: "inProgress" } },
+      where: { endTime: { gt: now }, lesson: { classroomId, status: "inProgress" } },
       orderBy: { startTime: "asc" },
       select: {
         startTime: true,
+        endTime: true,
         lesson: { select: { id: true, name: true, teachers: { select: { teacherId: true } } } },
       },
     }),
@@ -93,14 +116,7 @@ export async function getTeachersOverview(classroomId: number, month: string, no
     }),
   ]);
 
-  const rows = teachers.map(({ lessons, ...teacher }) => {
-    const own = periods.filter((period) =>
-      period.lesson.teachers.some((link) => link.teacherId === teacher.id)
-    );
-    const ownStats = own.map(toStatPeriod);
-    const inMonth = ownStats.filter(
-      (period) => period.startTime >= monthRange.start && period.startTime < monthRange.end
-    );
+  const rows = teachers.map(({ lessons, assistedLessons, ...teacher }) => {
     const next = upcoming.find((period) =>
       period.lesson.teachers.some((link) => link.teacherId === teacher.id)
     );
@@ -108,33 +124,39 @@ export async function getTeachersOverview(classroomId: number, month: string, no
     return {
       ...teacher,
       lessonCount: lessons.length,
-      activeLessonCount: lessons.filter(({ lesson }) => lesson.status === "inProgress").length,
-      danceStyles: uniqueStyles(lessons.map(({ lesson }) => lesson.danceStyle)),
-      stats: summarizeMonth(inMonth, now),
-      trend: monthlyTrend(ownStats, months).map((bucket) => bucket.sessions),
+      activeLessons: lessons
+        .filter(({ lesson }) => lesson.status === "inProgress")
+        .map(({ lesson }) => ({
+          id: lesson.id,
+          name: lesson.name,
+          danceStyle: lesson.danceStyle,
+          firstStart: lesson.periods[0]?.startTime ?? null,
+        })),
+      assistedLessons: assistedLessons.map(({ lesson: { periods, ...lesson } }) => ({
+        ...lesson,
+        firstStart: periods[0]?.startTime ?? null,
+      })),
       nextPeriod: next
-        ? { startTime: next.startTime, lessonId: next.lesson.id, lessonName: next.lesson.name }
+        ? {
+            startTime: next.startTime,
+            endTime: next.endTime,
+            lessonId: next.lesson.id,
+            lessonName: next.lesson.name,
+            ongoing: next.startTime <= now,
+          }
         : null,
     };
   });
 
-  // Classroom-wide, not a sum of the rows: a co-taught period counts once, and
-  // periods of a lesson with no teacher still count.
-  const totals = summarizeMonth(
-    periods
-      .filter((period) => period.startTime >= monthRange.start && period.startTime < monthRange.end)
-      .map(toStatPeriod),
-    now
-  );
-
   rows.sort(
     (a, b) =>
-      b.stats.sessions - a.stats.sessions ||
-      b.activeLessonCount - a.activeLessonCount ||
+      (a.nextPeriod?.startTime.getTime() ?? Infinity) -
+        (b.nextPeriod?.startTime.getTime() ?? Infinity) ||
+      b.activeLessons.length - a.activeLessons.length ||
       a.id - b.id
   );
 
-  return { month, months, totals, unassignedLessonCount, teachers: rows };
+  return { unassignedLessonCount, teachers: rows };
 }
 
 /** One teacher's page: profile, this month's numbers and periods, lessons, trend, regulars. */
@@ -150,6 +172,7 @@ export async function getTeacherDetail(
     where: { id: teacherId, classroomId },
     select: {
       ...teacherPayloadSelect,
+        userId: true,
       lessons: {
         select: {
           lesson: {
@@ -170,6 +193,11 @@ export async function getTeacherDetail(
             },
           },
         },
+      },
+      // 當小幫手的課（全部狀態）——不進下面任何統計。
+      assistedLessons: {
+        select: { lesson: { select: assistedLessonSelect } },
+        orderBy: { lessonId: "desc" },
       },
     },
   });
@@ -201,7 +229,7 @@ export async function getTeacherDetail(
   });
   const studentById = new Map(regularStudents.map((student) => [student.id, student]));
 
-  const { lessons, ...profile } = teacher;
+  const { lessons, assistedLessons, ...profile } = teacher;
   const allStarts = lessons.flatMap(({ lesson }) => lesson.periods.map((p) => p.startTime));
 
   return {
@@ -235,6 +263,7 @@ export async function getTeacherDetail(
       })
       // Most recent first: by last period, lessons without periods last.
       .sort((a, b) => (b.lastStart?.getTime() ?? 0) - (a.lastStart?.getTime() ?? 0)),
+    assistedLessons: assistedLessons.map(({ lesson }) => lesson),
     periods: inMonth.map((period) => ({
       id: period.id,
       startTime: period.startTime,

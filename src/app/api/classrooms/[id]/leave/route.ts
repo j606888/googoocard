@@ -27,11 +27,11 @@ export const POST = sessionRoute<Params>(async ({ params, userId }) => {
     );
   }
 
-  await prisma.$transaction([
-    prisma.membership.delete({ where: { id: membership.id } }),
-    // The Teacher row stays (old lessons keep it); it just stops being them.
-    unlinkTeacher(prisma, classroomId, userId),
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.membership.delete({ where: { id: membership.id } });
+    // The person record stays (old lessons keep it); it just stops being them.
+    await unlinkTeacher(tx, classroomId, userId);
+  });
 
   const nextClassroomId = await resolveNextClassroom(userId);
 

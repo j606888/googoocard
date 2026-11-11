@@ -1,8 +1,10 @@
+import { parseDropInOptions, resolveDropInInput } from "@/lib/dropInOptions";
 import { decodeAuthToken } from "@/lib/auth";
 import { DraftLesson } from "@/store/slices/lessons";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { refreshLesson, summarizeLessonPeriods } from "@/service/lesson";
+import { resolveAssistantIds } from "@/service/lessonAssistants";
 import { cardMatchesLesson } from "@/domains/qualification";
 import { DEFAULT_DANCE_LEVEL, isValidDanceLevel } from "@/lib/danceLevels";
 import {
@@ -10,7 +12,6 @@ import {
   DEFAULT_SESSIONS_PER_ATTENDANCE,
   isValidLessonKind,
   isValidSessionsPerAttendance,
-  isValidDropInPrice,
 } from "@/lib/lessonKind";
 import {
   allTeachersInClassroom,
@@ -84,6 +85,7 @@ export async function GET(request: Request) {
       location: { select: locationSummarySelect },
       periods: true,
       teachers: { include: { teacher: { select: teacherSummarySelect } } },
+      assistants: { select: { teacher: { select: teacherSummarySelect } }, orderBy: { id: "asc" } },
       cards: { select: { cardId: true } },
       _count: { select: { students: true } },
     },
@@ -118,8 +120,10 @@ export async function GET(request: Request) {
       endedAt: lesson.endedAt,
       sessionsPerAttendance: lesson.sessionsPerAttendance,
       dropInPrice: lesson.dropInPrice,
+      dropInOptions: parseDropInOptions(lesson.dropInOptions),
       studentCount: lesson._count.students,
       teachers: lesson.teachers.map((t) => t.teacher),
+      assistants: lesson.assistants.map((a) => a.teacher),
       cardIds: lesson.cards.map((c) => c.cardId),
       groupId: lesson.groupId,
       location: lesson.location,
@@ -212,7 +216,8 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json({ error: "Invalid sessionsPerAttendance" }, { status: 400 });
   }
-  if (draftLesson.dropInPrice !== undefined && !isValidDropInPrice(draftLesson.dropInPrice)) {
+  const dropIn = resolveDropInInput(draftLesson);
+  if (dropIn === "invalid") {
     return NextResponse.json({ error: "Invalid dropInPrice" }, { status: 400 });
   }
 
@@ -235,6 +240,11 @@ export async function POST(request: Request) {
     !(await allTeachersInClassroom(draftLesson.teacherIds, classroomId))
   ) {
     return NextResponse.json({ error: "TEACHER_NOT_FOUND" }, { status: 400 });
+  }
+  // 小幫手也是本教室的 Teacher，而且不能同時是這門課的老師。
+  const assistantIds = await resolveAssistantIds(draftLesson, classroomId);
+  if ("error" in assistantIds) {
+    return NextResponse.json({ error: assistantIds.error }, { status: 400 });
   }
 
   if (
@@ -289,7 +299,8 @@ export async function POST(request: Request) {
         level: draftLesson.level ?? DEFAULT_DANCE_LEVEL,
         kind: draftLesson.kind ?? DEFAULT_LESSON_KIND,
         sessionsPerAttendance: draftLesson.sessionsPerAttendance ?? DEFAULT_SESSIONS_PER_ATTENDANCE,
-        dropInPrice: draftLesson.dropInPrice ?? null,
+        dropInPrice: dropIn.dropInPrice ?? null,
+        dropInOptions: dropIn.dropInOptions ?? Prisma.DbNull,
         groupId: draftLesson.groupId ?? null,
         locationId: draftLesson.locationId ?? null,
       },
@@ -300,6 +311,10 @@ export async function POST(request: Request) {
         teacherId,
         lessonId: lesson.id,
       })),
+    });
+
+    await tx.lessonAssistant.createMany({
+      data: (assistantIds.ids ?? []).map((teacherId) => ({ teacherId, lessonId: lesson.id })),
     });
 
     await tx.lessonCard.createMany({

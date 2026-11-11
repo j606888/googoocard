@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { badRequest, notFound } from "@/lib/apiError";
 import { findMembership } from "@/lib/authz";
 import { formatMoney } from "@/lib/money";
+import { dropInLabel, findDropInOption, lessonDropInOptions } from "@/lib/dropInOptions";
 import { isFinanceEnabled } from "@/service/finance/access";
 import { assertReceiverIsCustodian, defaultReceiver } from "@/service/finance/receiver";
 
@@ -59,6 +60,7 @@ export async function createDropInChargeInTx(
     lessonName,
     amount,
     listPrice = null,
+    optionName = null,
     payment,
     receiverUserId,
   }: {
@@ -68,18 +70,20 @@ export async function createDropInChargeInTx(
     amount: number;
     /** 課程牌價；跟 amount 不同時動態寫「原價」。 */
     listPrice?: number | null;
+    /** 選的單堂方案名稱（快照）；沒名字的單一價給 null。 */
+    optionName?: string | null;
     payment: DropInPaymentInput;
     receiverUserId: number | null;
   }
 ) {
   const charge = await tx.dropInCharge.create({
-    data: { attendanceRecordId, amount, ...paymentFields(payment, receiverUserId) },
+    data: { attendanceRecordId, amount, optionName: optionName || null, ...paymentFields(payment, receiverUserId) },
   });
   await tx.event.create({
     data: {
       title: "單堂付費",
       description: [
-        `${lessonName} 單堂 ${amountLabel(amount, listPrice)}`,
+        `${lessonName} ${dropInLabel(optionName)} ${amountLabel(amount, listPrice)}`,
         payment.isPaid ? payment.paymentMethod && PAYMENT_METHOD_LABEL[payment.paymentMethod] : "待付款",
       ]
         .filter(Boolean)
@@ -103,6 +107,7 @@ export async function chargeDropIn({
   lessonPeriodId,
   studentId,
   amount,
+  optionName,
   payment,
   receiverUserId: requestedReceiver,
 }: {
@@ -112,6 +117,8 @@ export async function chargeDropIn({
   lessonPeriodId: number;
   studentId: number;
   amount?: number;
+  /** 省略 = 課程的第一個方案。 */
+  optionName?: string;
   payment: DropInPaymentInput;
   /** 財務開啟、當場收款時指定收款人（保管人）；財務沒開時忽略。 */
   receiverUserId?: number;
@@ -124,15 +131,20 @@ export async function chargeDropIn({
     },
     include: {
       dropInCharge: { select: { id: true } },
-      lessonPeriod: { select: { lesson: { select: { name: true, dropInPrice: true, locationId: true } } } },
+      lessonPeriod: {
+        select: { lesson: { select: { name: true, dropInPrice: true, dropInOptions: true, locationId: true } } },
+      },
     },
   });
   if (!record) throw notFound("Attendance record");
   const { lesson } = record.lessonPeriod;
-  const listPrice = lesson.dropInPrice;
-  if (listPrice === null) {
+  const options = lessonDropInOptions(lesson);
+  if (options.length === 0) {
     throw badRequest("DROP_IN_NOT_OFFERED", "This lesson does not take drop-in payments");
   }
+  const option = findDropInOption(options, optionName);
+  if (!option) throw badRequest("DROP_IN_OPTION_NOT_FOUND", "This lesson has no such drop-in option");
+  const listPrice = option.price;
   if (record.studentCardId !== null || record.dropInCharge) {
     throw badRequest("ALREADY_RESOLVED", "Attendance already paid by card or drop-in");
   }
@@ -157,6 +169,7 @@ export async function chargeDropIn({
       lessonName: lesson.name,
       amount: finalAmount,
       listPrice,
+      optionName: option.name,
       payment,
       receiverUserId,
     })
@@ -172,6 +185,7 @@ export async function confirmDropInPayment({
   userId,
   chargeId,
   amount,
+  optionName,
   paymentMethod,
   paymentReference,
   receiverUserId,
@@ -180,6 +194,8 @@ export async function confirmDropInPayment({
   userId: number;
   chargeId: number;
   amount?: number;
+  /** 收款時改方案（學生選錯了）；省略 = 不動。沒帶 amount 就照新方案的價錢。 */
+  optionName?: string;
   paymentMethod?: PaymentMethod;
   paymentReference?: string | null;
   receiverUserId?: number;
@@ -190,7 +206,11 @@ export async function confirmDropInPayment({
       attendanceRecord: {
         select: {
           studentId: true,
-          lessonPeriod: { select: { lesson: { select: { name: true, locationId: true } } } },
+          lessonPeriod: {
+            select: {
+              lesson: { select: { name: true, dropInPrice: true, dropInOptions: true, locationId: true } },
+            },
+          },
         },
       },
     },
@@ -198,8 +218,17 @@ export async function confirmDropInPayment({
   if (!charge) throw notFound("Drop-in charge");
   if (charge.isPaid) throw badRequest("ALREADY_PAID");
 
+  // 換方案：只認課程現在有的方案；名稱沒變就當沒換。
+  let switched: { name: string; price: number } | null = null;
+  if (optionName !== undefined && optionName !== (charge.optionName ?? "")) {
+    const { lesson } = charge.attendanceRecord.lessonPeriod;
+    switched = lessonDropInOptions(lesson).find((o) => o.name === optionName) ?? null;
+    if (!switched) throw badRequest("DROP_IN_OPTION_NOT_FOUND", "This lesson has no such drop-in option");
+  }
+  const finalOptionName = switched ? switched.name || null : charge.optionName;
+
   const finance = await isFinanceEnabled(classroomId);
-  const finalAmount = amount ?? charge.amount;
+  const finalAmount = amount ?? switched?.price ?? charge.amount;
   // 財務開啟、改成 $0（免收）又沒指定收款人：沒有錢，不需要收款人。
   const free = finance && finalAmount === 0 && receiverUserId === undefined;
   const receiver = free
@@ -215,16 +244,17 @@ export async function confirmDropInPayment({
     if (finance) await assertReceiverIsCustodian(receiver, classroomId);
   }
 
+
   return prisma.$transaction(async (tx) => {
     const updated = await tx.dropInCharge.update({
       where: { id: charge.id },
-      data: { amount: finalAmount, ...paymentFields({ isPaid: true, paymentMethod, paymentReference }, receiver) },
+      data: { amount: finalAmount, optionName: finalOptionName, ...paymentFields({ isPaid: true, paymentMethod, paymentReference }, receiver) },
     });
     await tx.event.create({
       data: {
         title: "確認付款",
         description: [
-          `確認付款 ${charge.attendanceRecord.lessonPeriod.lesson.name} 單堂（${amountLabel(finalAmount, charge.amount)}）`,
+          `確認付款 ${charge.attendanceRecord.lessonPeriod.lesson.name} ${dropInLabel(finalOptionName)}（${amountLabel(finalAmount, charge.amount)}）`,
           paymentMethod && PAYMENT_METHOD_LABEL[paymentMethod],
         ]
           .filter(Boolean)

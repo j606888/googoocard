@@ -92,7 +92,7 @@ export async function GET(
             },
           },
           dropInCharge: {
-            select: { id: true, amount: true, isPaid: true, paymentMethod: true },
+            select: { id: true, amount: true, optionName: true, isPaid: true, paymentMethod: true },
           },
         },
       },

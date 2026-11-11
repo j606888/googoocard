@@ -23,6 +23,7 @@ export interface MyPeriod {
     danceStyle: DanceStyleSummary;
     location: { id: number; name: string } | null;
     teachers: TeacherSummary[];
+    assistants: TeacherSummary[];
   };
 }
 

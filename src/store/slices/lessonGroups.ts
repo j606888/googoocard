@@ -4,13 +4,27 @@ export interface LessonGroup {
   id: number;
   name: string;
   lessonCount: number;
+  /** 最近一期（新增課程「延續現有課種」那一列顯示的分部、老師、開始日）。建立課種的回應沒有。 */
+  latestTerm?: {
+    lessonId: number;
+    locationName: string | null;
+    teacherNames: string[];
+    firstStart: string | null;
+  } | null;
+}
+
+export interface LessonGroupStudents {
+  lessons: {
+    lessonId: number;
+    students: { id: number; name: string; avatarUrl: string }[];
+  }[];
 }
 
 const lessonGroupsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getLessonGroups: builder.query<LessonGroup[], void>({
       query: () => "lesson-groups",
-      providesTags: ["LessonGroup"],
+      providesTags: ["LessonGroup", "Lesson"],
     }),
     createLessonGroup: builder.mutation<LessonGroup, { name: string }>({
       query: ({ name }) => ({
@@ -26,7 +40,27 @@ const lessonGroupsApi = api.injectEndpoints({
         method: "PUT",
         body: { name },
       }),
-      invalidatesTags: ["LessonGroup"],
+      invalidatesTags: ["LessonGroup", "Lesson"],
+    }),
+    /**
+     * 翻新精靈：一次把好幾門課歸到各自的課種（照名稱找、沒有就建），
+     * 並設好每一期的分部與小幫手。被搬空的舊群組會刪掉。
+     */
+    organizeLessonGroups: builder.mutation<
+      { updated: number; removedGroups: number },
+      {
+        series: { name: string; lessonIds: number[] }[];
+        ungroupLessonIds?: number[];
+        lessons?: { id: number; locationId: number | null; assistantIds: number[] }[];
+      }
+    >({
+      query: (body) => ({ url: "lesson-groups/organize", method: "POST", body }),
+      invalidatesTags: ["LessonGroup", "Lesson", "Teacher"],
+    }),
+    /** 課種頁：每一期上過課的學生。 */
+    getLessonGroupStudents: builder.query<LessonGroupStudents, number>({
+      query: (id) => `lesson-groups/${id}/students`,
+      providesTags: ["LessonGroup", "Lesson"],
     }),
     deleteLessonGroup: builder.mutation<void, number>({
       query: (id) => ({
@@ -45,4 +79,6 @@ export const {
   useCreateLessonGroupMutation,
   useRenameLessonGroupMutation,
   useDeleteLessonGroupMutation,
+  useOrganizeLessonGroupsMutation,
+  useGetLessonGroupStudentsQuery,
 } = lessonGroupsApi;

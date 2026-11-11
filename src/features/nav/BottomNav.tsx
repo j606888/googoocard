@@ -10,8 +10,8 @@ import { useFinanceEnabled } from "./useFinanceEnabled";
 import { useGetUnpaidStudentCardsQuery } from "@/store/slices/students";
 import MoreSheet from "./MoreSheet";
 
-// 點名（check／check-edit）有自己的貼底動作列，導覽列會蓋住它、也會誤觸，所以不掛。
-const HIDDEN_ON = /^\/lessons\/[^/]+\/periods\/[^/]+\/check(-edit)?\/?$/;
+// 點名（check／check-edit）與翻新精靈有自己的貼底動作列，導覽列會蓋住它、也會誤觸，所以不掛。
+const HIDDEN_ON = /^\/lessons\/([^/]+\/periods\/[^/]+\/check(-edit)?|organize|new)\/?$/;
 
 const BottomNav = () => {
   const pathname = usePathname();

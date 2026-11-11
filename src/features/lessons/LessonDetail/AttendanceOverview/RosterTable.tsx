@@ -41,10 +41,18 @@ const NAME_COL = 200;
 const RosterTable = ({
   rows,
   attentionIds,
+  takenPeriodIds,
+  onViewPeriod,
+  onOpenStudent,
 }: {
   rows: RosterRow[];
   /** Students listed under 需要注意 — the 需要注意 filter. */
   attentionIds: Set<number>;
+  /** Periods with attendance taken — their column headers open the record. */
+  takenPeriodIds?: Set<number>;
+  onViewPeriod?: (periodId: number) => void;
+  /** Open the student in place instead of navigating to their page. */
+  onOpenStudent?: (studentId: number) => void;
 }) => {
   const pathname = usePathname();
   const [sort, setSort] = useState<RosterSort>("attention");
@@ -132,7 +140,19 @@ const RosterTable = ({
                       today ? "text-warning-900" : "text-neutral-500"
                     }`}
                   >
-                    {today ? "今天" : format(new Date(cell.startTime), "M/d")}
+                    {onViewPeriod && takenPeriodIds?.has(cell.periodId) ? (
+                      <button
+                        type="button"
+                        onClick={() => onViewPeriod(cell.periodId)}
+                        className="cursor-pointer rounded px-1 py-0.5 tabular-nums hover:bg-neutral-100 hover:text-primary-700"
+                      >
+                        {today ? "今天" : format(new Date(cell.startTime), "MM/dd")}
+                      </button>
+                    ) : today ? (
+                      "今天"
+                    ) : (
+                      <span className="tabular-nums">{format(new Date(cell.startTime), "MM/dd")}</span>
+                    )}
                   </th>
                 );
               })}
@@ -147,12 +167,22 @@ const RosterTable = ({
                 >
                   <span className="flex items-center gap-2.5">
                     <Image src={row.student.avatarUrl} alt="" width={28} height={28} className="shrink-0 rounded-full" />
-                    <Link
-                      href={studentDetailHref(row.student.id, pathname)}
-                      className="truncate text-sm font-semibold text-neutral-900 hover:text-primary-700"
-                    >
-                      {row.student.name}
-                    </Link>
+                    {onOpenStudent ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenStudent(row.student.id)}
+                        className="cursor-pointer truncate text-left text-sm font-semibold text-neutral-900 hover:text-primary-700"
+                      >
+                        {row.student.name}
+                      </button>
+                    ) : (
+                      <Link
+                        href={studentDetailHref(row.student.id, pathname)}
+                        className="truncate text-sm font-semibold text-neutral-900 hover:text-primary-700"
+                      >
+                        {row.student.name}
+                      </Link>
+                    )}
                   </span>
                 </td>
                 <td

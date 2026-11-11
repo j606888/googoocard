@@ -5,6 +5,7 @@ import {
   createClassroom,
   createDanceStyle,
   createLesson,
+  createLocation,
   createStudent,
   jsonRequest,
   routeParams,
@@ -81,7 +82,19 @@ describe("/api/teachers", () => {
     expect(res.status).toBe(200);
     expect(body.map((t: { name: string }) => t.name)).toEqual(["Sean", "Kathy"]);
     expect(Object.keys(body[0]).sort()).toEqual(
-      ["activeLessonCount", "archivedAt", "color", "id", "kind", "lessonCount", "name", "note", "userId"].sort()
+      [
+        "activeLessonCount",
+        "archivedAt",
+        "color",
+        "icon",
+        "id",
+        "kind",
+        "lessonCount",
+        "locations",
+        "name",
+        "note",
+        "userId",
+      ].sort()
     );
     expect(body[0]).toMatchObject({ lessonCount: 2, activeLessonCount: 1 });
     expect(body[1]).toMatchObject({ lessonCount: 0, activeLessonCount: 0 });
@@ -129,6 +142,64 @@ describe("/api/teachers", () => {
     expect((await res.json()).archivedAt).toBeNull();
   });
 
+  it("POST / PATCH take a line icon, a cool colour and the branches", async () => {
+    const tainan = await createLocation(classroomId, { name: "台南", sortOrder: 0 });
+    const kaohsiung = await createLocation(classroomId, { name: "高雄", sortOrder: 1 });
+
+    let res = await POST(
+      jsonRequest("POST", {
+        name: "Sean",
+        color: "sky",
+        icon: "star",
+        locationIds: [kaohsiung.id, tainan.id],
+      }),
+      routeParams({})
+    );
+    const created = await res.json();
+    expect(res.status).toBe(200);
+    expect(created).toMatchObject({
+      color: "sky",
+      icon: "star",
+      locations: [
+        { id: tainan.id, name: "台南" },
+        { id: kaohsiung.id, name: "高雄" },
+      ],
+    });
+    const id = String(created.id);
+
+    // The list replaces; a null icon goes back to the initial.
+    res = await PATCH(
+      jsonRequest("PATCH", { icon: null, locationIds: [kaohsiung.id] }),
+      routeParams({ id })
+    );
+    expect(await res.json()).toMatchObject({ icon: null, locations: [{ id: kaohsiung.id }] });
+
+    // Fields left out stay as they are.
+    res = await PATCH(jsonRequest("PATCH", { name: "Sean W" }), routeParams({ id }));
+    expect(await res.json()).toMatchObject({ name: "Sean W", locations: [{ id: kaohsiung.id }] });
+  });
+
+  it("rejects an icon outside the list and another classroom's branch", async () => {
+    const other = await createClassroom({ name: "Other", email: "other@test.local" });
+    const theirs = await createLocation(other.id, { name: "台北" });
+    const sean = await createTeacher(classroomId, "Sean");
+    const id = String(sean.id);
+
+    expect((await POST(jsonRequest("POST", { name: "Nini", icon: "x" }), routeParams({}))).status).toBe(400);
+    // 舊的 emoji 已經不在清單上（2026-11 換成線條圖示）。
+    expect((await POST(jsonRequest("POST", { name: "Nini", icon: "⭐" }), routeParams({}))).status).toBe(400);
+    const res = await POST(
+      jsonRequest("POST", { name: "Nini", locationIds: [theirs.id] }),
+      routeParams({})
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("LOCATION_NOT_FOUND");
+    expect(
+      (await PATCH(jsonRequest("PATCH", { locationIds: [theirs.id] }), routeParams({ id }))).status
+    ).toBe(400);
+    expect(await prisma.teacher.count()).toBe(1);
+  });
+
   it("PATCH / DELETE / GET on another classroom's teacher → 404", async () => {
     const other = await createClassroom({ name: "Other", email: "other@test.local" });
     const stranger = await createTeacher(other.id, "Stranger");
@@ -167,65 +238,76 @@ describe("GET /api/teachers/overview", () => {
     auth.classroomId = classroomId;
   });
 
-  it("counts the month's taught periods per teacher and sorts by them", async () => {
+  it("lists each teacher's in-progress lessons and next period, soonest first", async () => {
     const salsa = await createDanceStyle(classroomId, { name: "Salsa", color: "orange" });
+    const tainan = await createLocation(classroomId, { name: "台南" });
     const sean = await createTeacher(classroomId, "Sean");
     const kathy = await createTeacher(classroomId, "Kathy");
-    const [a, b] = [await createStudent(classroomId, { name: "A" }), await createStudent(classroomId, { name: "B" })];
+    const idle = await createTeacher(classroomId, "Idle");
+    await prisma.teacher.update({
+      where: { id: kathy.id },
+      data: { icon: "🦊", locations: { connect: { id: tainan.id } } },
+    });
 
     const { lesson: bachata } = await createLesson(classroomId, { name: "Bachata 初階" });
     const { lesson: salsaNight } = await createLesson(classroomId, {
       name: "Salsa 練習夜",
       danceStyleId: salsa.id,
     });
+    const { lesson: old } = await createLesson(classroomId, { name: "結束的課" });
+    await prisma.lesson.update({ where: { id: old.id }, data: { status: "finished" } });
     await teach(bachata.id, sean.id);
+    await teach(old.id, sean.id);
     await teach(salsaNight.id, kathy.id);
     await teach(salsaNight.id, sean.id);
 
-    // June 2026 (Taipei).
-    await addPeriod(bachata.id, "2026-06-04T12:00:00Z", { studentIds: [a.id, b.id] });
-    await addPeriod(bachata.id, "2026-06-11T12:00:00Z", { taken: false, studentIds: [a.id] });
-    await addPeriod(salsaNight.id, "2026-06-09T12:00:00Z", { studentIds: [a.id] });
-    // May: trend only.
-    await addPeriod(bachata.id, "2026-05-28T12:00:00Z", { studentIds: [b.id] });
-    // Next period, far in the future.
-    await addPeriod(salsaNight.id, "2099-01-01T12:00:00Z", { taken: false });
+    // Past periods and a finished lesson's future period never count as "next".
+    await addPeriod(bachata.id, "2026-06-04T12:00:00Z");
+    await addPeriod(old.id, "2098-01-01T12:00:00Z", { taken: false });
+    await addPeriod(bachata.id, "2099-02-01T12:00:00Z", { taken: false });
+    // Under way right now: started half an hour ago, one hour long.
+    await addPeriod(salsaNight.id, new Date(Date.now() - 30 * 60 * 1000).toISOString(), {
+      taken: false,
+    });
     // An in-progress lesson nobody teaches.
     await createLesson(classroomId, { name: "沒老師" });
 
-    const res = await OVERVIEW(getRequest("?month=2026-06"), routeParams({}));
+    const res = await OVERVIEW(getRequest(), routeParams({}));
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.month).toBe("2026-06");
-    expect(body.months).toEqual(["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"]);
     expect(body.unassignedLessonCount).toBe(1);
-    // The co-taught Salsa period counts once classroom-wide.
-    expect(body.totals).toMatchObject({ sessions: 2, attendance: 3, pendingCount: 1 });
-    expect(body.teachers.map((t: { name: string }) => t.name)).toEqual(["Sean", "Kathy"]);
+    // Sean and Kathy share the period under way (tie → more lessons first); Idle has nothing.
+    expect(body.teachers.map((t: { name: string }) => t.name)).toEqual(["Sean", "Kathy", "Idle"]);
 
-    const [seanRow, kathyRow] = body.teachers;
-    expect(seanRow.stats).toEqual({
-      sessions: 2,
-      pendingCount: 1,
-      attendance: 3,
-      uniqueStudents: 2,
-      avgAttendance: 1.5,
-    });
-    expect(seanRow.trend).toEqual([0, 0, 0, 0, 1, 2]);
-    expect(seanRow.danceStyles.map((s: { name: string }) => s.name).sort()).toEqual(
-      ["Bachata", "Salsa"].sort()
-    );
-    expect(seanRow).toMatchObject({ lessonCount: 2, activeLessonCount: 2 });
-    expect(seanRow.nextPeriod).toMatchObject({ lessonName: "Salsa 練習夜" });
+    const [seanRow, kathyRow, idleRow] = body.teachers;
+    expect(seanRow.lessonCount).toBe(3);
+    expect(seanRow.activeLessons.map((l: { name: string }) => l.name)).toEqual([
+      "Bachata 初階",
+      "Salsa 練習夜",
+    ]);
+    expect(seanRow.activeLessons[1].danceStyle).toMatchObject({ name: "Salsa", color: "orange" });
+    expect(seanRow.nextPeriod).toMatchObject({ lessonName: "Salsa 練習夜", ongoing: true });
 
-    expect(kathyRow.stats).toMatchObject({ sessions: 1, attendance: 1, pendingCount: 0 });
-    expect(kathyRow.danceStyles.map((s: { name: string }) => s.name)).toEqual(["Salsa"]);
+    expect(kathyRow).toMatchObject({ icon: "🦊", locations: [{ id: tainan.id, name: "台南" }] });
+    expect(kathyRow.nextPeriod).toMatchObject({ lessonId: salsaNight.id, ongoing: true });
+
+    expect(idleRow).toMatchObject({ id: idle.id, activeLessons: [], nextPeriod: null });
+    expect(seanRow).not.toHaveProperty("stats");
   });
 
-  it("rejects a malformed month", async () => {
-    const res = await OVERVIEW(getRequest("?month=2026-13"), routeParams({}));
-    expect(res.status).toBe(400);
+  it("the next period is a future one when nothing is under way", async () => {
+    const sean = await createTeacher(classroomId, "Sean");
+    const { lesson } = await createLesson(classroomId, { name: "Bachata 初階" });
+    await teach(lesson.id, sean.id);
+    await addPeriod(lesson.id, "2099-02-01T12:00:00Z", { taken: false });
+    await addPeriod(lesson.id, "2099-01-01T12:00:00Z", { taken: false });
+
+    const body = await (await OVERVIEW(getRequest(), routeParams({}))).json();
+    expect(body.teachers[0].nextPeriod).toMatchObject({
+      startTime: "2099-01-01T12:00:00.000Z",
+      ongoing: false,
+    });
   });
 });
 
@@ -323,5 +405,33 @@ describe("課程的 teacherIds 要是本教室的老師", () => {
       routeParams({ id: String(lesson.id) })
     );
     expect(ok.status).toBe(200);
+  });
+});
+
+describe("團隊與老師合併：人員資料連著帳號", () => {
+  let classroomId: number;
+
+  beforeEach(async () => {
+    await resetDb();
+    classroomId = (await createClassroom()).id;
+    auth.classroomId = classroomId;
+  });
+
+  it("連著帳號的人員資料不能刪、不能封存（要先移出團隊）", async () => {
+    const person = await prisma.teacher.create({ data: { classroomId, name: "丁丁", userId: 1 } });
+    const del = await DELETE(jsonRequest("DELETE"), routeParams({ id: String(person.id) }));
+    expect(del.status).toBe(409);
+    expect((await del.json()).code).toBe("PERSON_HAS_ACCOUNT");
+    const archive = await PATCH(jsonRequest("PATCH", { archived: true }), routeParams({ id: String(person.id) }));
+    expect(archive.status).toBe(409);
+    expect((await prisma.teacher.findUniqueOrThrow({ where: { id: person.id } })).archivedAt).toBeNull();
+  });
+
+  it("老師頁只放會教課的人：純小幫手、不上課的都不在", async () => {
+    await prisma.teacher.create({ data: { classroomId, name: "老闆", kind: "NONE" } });
+    await prisma.teacher.create({ data: { classroomId, name: "Nora", kind: "ASSISTANT" } });
+    await createTeacher(classroomId, "Sean");
+    const body = await (await OVERVIEW(getRequest(), routeParams({}))).json();
+    expect(body.teachers.map((t: { name: string }) => t.name)).toEqual(["Sean"]);
   });
 });

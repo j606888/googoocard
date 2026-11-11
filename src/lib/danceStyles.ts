@@ -21,6 +21,22 @@ export const DANCE_STYLE_COLORS = [
 
 export type DanceStyleColor = (typeof DANCE_STYLE_COLORS)[number];
 
+/** Extra (cool) palette keys only teachers pick from — dance styles keep the ten above. */
+export const EXTRA_PALETTE_COLORS = [
+  "sky",
+  "cyan",
+  "emerald",
+  "periwinkle",
+  "violet",
+  "navy",
+  "plum",
+  "midnight",
+] as const;
+
+/** Every key the palette knows (`danceStyleClasses()` maps them all). */
+export const PALETTE_COLORS = [...DANCE_STYLE_COLORS, ...EXTRA_PALETTE_COLORS] as const;
+export type PaletteColor = (typeof PALETTE_COLORS)[number];
+
 /** What every lesson / card / student payload carries about its style. */
 export type DanceStyleSummary = {
   id: number;

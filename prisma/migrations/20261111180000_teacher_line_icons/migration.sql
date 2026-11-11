@@ -1,0 +1,36 @@
+-- 老師頭像圖示從 emoji 換成單色線條圖示（存 key，見 src/lib/teachers.ts 的 TEACHER_ICONS）。
+-- 舊的 emoji 換成最接近的線條圖示；對不到的（水果）回到名字第一個字。
+UPDATE "Teacher" SET "icon" = CASE "icon"
+  WHEN '⭐' THEN 'star'
+  WHEN '🔥' THEN 'flame'
+  WHEN '⚡' THEN 'zap'
+  WHEN '🌙' THEN 'moon'
+  WHEN '☀️' THEN 'sun'
+  WHEN '☀' THEN 'sun'
+  WHEN '🌈' THEN 'sparkles'
+  WHEN '🌊' THEN 'waves'
+  WHEN '🍀' THEN 'leaf'
+  WHEN '🌸' THEN 'leaf'
+  WHEN '🌹' THEN 'leaf'
+  WHEN '🎵' THEN 'music'
+  WHEN '🎧' THEN 'headphones'
+  WHEN '💃' THEN 'footprints'
+  WHEN '🕺' THEN 'footprints'
+  WHEN '👑' THEN 'crown'
+  WHEN '💎' THEN 'gem'
+  WHEN '🦋' THEN 'feather'
+  WHEN '❤️' THEN 'heart'
+  WHEN '❤' THEN 'heart'
+  WHEN '🐱' THEN 'cat'
+  WHEN '🐯' THEN 'cat'
+  WHEN '🦁' THEN 'cat'
+  WHEN '🐶' THEN 'paw'
+  WHEN '🦊' THEN 'paw'
+  WHEN '🐻' THEN 'paw'
+  WHEN '🐼' THEN 'paw'
+  WHEN '🐰' THEN 'paw'
+  WHEN '🐧' THEN 'bird'
+  WHEN '🦄' THEN 'sparkles'
+  ELSE NULL
+END
+WHERE "icon" IS NOT NULL;

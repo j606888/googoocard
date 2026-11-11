@@ -15,18 +15,7 @@ CREATE TYPE "PayoutStatus" AS ENUM ('PENDING', 'PAID');
 -- CreateEnum
 CREATE TYPE "OwnerTxnKind" AS ENUM ('CONTRIBUTION', 'DRAWING', 'DIVIDEND');
 
--- AlterEnum
-BEGIN;
--- 「兩者皆是」併入老師（feat/finance）
-UPDATE "Teacher" SET "kind" = 'TEACHER' WHERE "kind" = 'BOTH';
-CREATE TYPE "TeacherKind_new" AS ENUM ('TEACHER', 'ASSISTANT');
-ALTER TABLE "Teacher" ALTER COLUMN "kind" DROP DEFAULT;
-ALTER TABLE "Teacher" ALTER COLUMN "kind" TYPE "TeacherKind_new" USING ("kind"::text::"TeacherKind_new");
-ALTER TYPE "TeacherKind" RENAME TO "TeacherKind_old";
-ALTER TYPE "TeacherKind_new" RENAME TO "TeacherKind";
-DROP TYPE "TeacherKind_old";
-ALTER TABLE "Teacher" ALTER COLUMN "kind" SET DEFAULT 'TEACHER';
-COMMIT;
+-- （原本把 TeacherKind 縮回 TEACHER/ASSISTANT：main 已改成 TEACHER/ASSISTANT/BOTH/NONE，合併時拿掉。）
 
 -- AlterTable
 ALTER TABLE "Classroom" ADD COLUMN     "financeConversionDate" DATE,

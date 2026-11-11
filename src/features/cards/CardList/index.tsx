@@ -18,7 +18,6 @@ import type { CardFormTarget } from "../CardForm/useCardForm";
 import { CardKindBadge } from "../CardKindBadge";
 import {
   cardKind,
-  cardsSummary,
   groupByDanceStyle,
   perSessionPrice,
   perSessionSavings,
@@ -72,7 +71,6 @@ const CardList = () => {
 
   const { activeCards, expiredCards } = data;
   const hasAnyCard = activeCards.length > 0 || expiredCards.length > 0;
-  const summary = cardsSummary(activeCards);
   const styleOrder = [...byId.keys()];
 
   const tabCards = tab === "open" ? activeCards : expiredCards;
@@ -109,15 +107,10 @@ const CardList = () => {
   ];
 
   return (
-    <div className="w-full max-w-[1080px] mx-auto px-5 py-4 lg:px-10 lg:py-10 flex flex-col gap-5 lg:gap-6">
+    <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-6 flex flex-col gap-5 lg:gap-6">
       <div className="flex items-end justify-between gap-4">
         <div className="flex flex-col gap-1.5 min-w-0">
-          <h1 className="text-2xl lg:text-[28px] font-bold">課卡</h1>
-          {hasAnyCard && (
-            <p className="text-sm text-neutral-600">
-              開放購買 {activeCards.length} 種方案・學生手上 {summary.activeStudentCards} 張還沒用完
-            </p>
-          )}
+          <h1 className="text-2xl font-bold text-neutral-900">課卡</h1>
         </div>
         <Button onClick={() => newPlan()}>
           <Plus className="size-4" />
@@ -129,9 +122,8 @@ const CardList = () => {
         <EmptyState kind="page" title="還沒有課卡方案" description="建立第一個方案，學生就可以買了。" />
       ) : (
         <>
-          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-neutral-200">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <SegmentedTabs
-              variant="underline"
               ariaLabel="方案狀態"
               value={tab}
               onChange={(next) => {

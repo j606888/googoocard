@@ -19,6 +19,9 @@ import { weeklyScheduleLabel } from "../lessonSchedule";
 import { headcountByPeriod } from "@/domains/attendance/rosterInsights";
 import ResponsiveDialog from "@/components/ResponsiveDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { lessonPeopleLabel } from "@/lib/teachers";
+import PeriodRecordSheet from "./PeriodRecordSheet";
+import StudentSheet from "@/features/students/StudentSheet";
 
 export const TABS = [
   { name: "時段", query: "periods" },
@@ -37,6 +40,13 @@ const LessonDetail = () => {
   const [activeTab, setActiveTab] = useState("periods");
   const [showSettings, setShowSettings] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
+  // 桌面：時段紀錄與學生詳情開在右側抽屜，名單留在原地。一次只開一個。
+  const [recordPeriodId, setRecordPeriodId] = useState<number | null>(null);
+  const [sheetStudentId, setSheetStudentId] = useState<number | null>(null);
+  const openStudent = (studentId: number) => {
+    setRecordPeriodId(null);
+    setSheetStudentId(studentId);
+  };
   /** What to do once the teacher agrees to throw unsaved settings away. */
   const [pendingDiscard, setPendingDiscard] = useState<(() => void) | null>(null);
   const { data: lesson, isLoading: isLessonLoading } = useGetLessonQuery(
@@ -93,7 +103,7 @@ const LessonDetail = () => {
               </div>
             </div>
             <div className="flex max-w-[1240px] items-start gap-6">
-              <div className="w-[300px] shrink-0 rounded-2xl border border-neutral-200 py-4">
+              <div className="w-[328px] shrink-0 rounded-2xl border border-neutral-200 py-4">
                 <PeriodTimelineSkeleton />
               </div>
               <div className="flex-1 flex flex-col gap-4">
@@ -120,10 +130,17 @@ const LessonDetail = () => {
               lesson={lesson}
               periods={lesson.periods || []}
               headcounts={headcounts}
-              className="sticky top-6 h-[calc(100vh-3rem)] max-h-[820px] w-[300px] shrink-0"
+              activePeriodId={recordPeriodId}
+              onViewRecord={setRecordPeriodId}
+              className="sticky top-6 h-[calc(100vh-3rem)] max-h-[820px] w-[328px] shrink-0"
             />
             <div className="min-w-0 flex-1">
-              <AttendanceOverview lesson={lesson} students={students || []} />
+              <AttendanceOverview
+                lesson={lesson}
+                students={students || []}
+                onViewPeriod={setRecordPeriodId}
+                onOpenStudent={openStudent}
+              />
               {financeEnabled && (
                 <div className="mt-8 rounded-2xl border border-neutral-200 bg-white">
                   <LessonSplitPanel lesson={lesson} students={students || []} />
@@ -131,6 +148,19 @@ const LessonDetail = () => {
               )}
             </div>
           </div>
+          <PeriodRecordSheet
+            lesson={lesson}
+            students={students || []}
+            periodId={recordPeriodId}
+            onSelect={setRecordPeriodId}
+            onClose={() => setRecordPeriodId(null)}
+            onOpenStudent={openStudent}
+          />
+          <StudentSheet
+            studentId={sheetStudentId}
+            onClose={() => setSheetStudentId(null)}
+            from={`/lessons/${lesson.id}`}
+          />
           <ResponsiveDialog
             open={showSettings}
             onClose={requestCloseSettings}
@@ -154,7 +184,7 @@ const LessonDetail = () => {
         <div>
           <LessonTabs activeTab={activeTab} onTabChange={requestTabChange} showFinance={financeEnabled} />
           {activeTab === "periods" && (
-            <PeriodSection lesson={lesson} periods={lesson?.periods || []} />
+            <PeriodSection lesson={lesson} periods={lesson?.periods || []} headcounts={headcounts} />
           )}
           {activeTab === "students" && (
             <div className="px-5 pb-4">
@@ -189,7 +219,7 @@ const LessonDetail = () => {
 
 /** 手機頁首的副標：「Sean · 每週五 20:00–21:00」；時段不規則時只寫老師。 */
 const lessonSubtitle = (lesson: Lesson) =>
-  [lesson.teachers.map((t) => t.name).join("、"), weeklyScheduleLabel(lesson.periods ?? [])]
+  [lessonPeopleLabel(lesson.teachers, lesson.assistants) ?? "", weeklyScheduleLabel(lesson.periods ?? [])]
     .filter(Boolean)
     .join(" · ") || undefined;
 

@@ -1,22 +1,14 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import Link from "next/link";
-import { ChevronDown, ChevronUp, SquareArrowOutUpRight, X } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import StudentList from "./StudentList";
-import StudentDetail from "./StudentDetail";
-import StudentDetailHeader from "./StudentDetail/StudentDetailHeader";
-import AttentionBar from "./StudentDetail/AttentionBar";
-import { Student, useGetStudentQuery } from "@/store/slices/students";
-import { studentDetailHref } from "@/lib/studentNav";
-import StudentDetailSkeleton from "./StudentDetail/StudentDetailSkeleton";
-import { Button, buttonVariants } from "@/components/ui/button";
-import SideSheet from "@/components/SideSheet";
+import { Student } from "@/store/slices/students";
+import StudentSheet from "./StudentSheet";
+import { Button } from "@/components/ui/button";
 import { useSelectionMirroredToUrl } from "@/components/SplitView";
 
 const selHref = (studentId: number) => `/students?sel=${studentId}`;
-
-const barIcon = `${buttonVariants({ variant: "ghost", size: "iconSm" })} text-neutral-500`;
 
 /**
  * 桌面版學生頁：全寬名單，點一列從右邊滑出學生詳情。
@@ -33,12 +25,6 @@ const StudentsTableView = () => {
   const { selectedId, select, clear } = useSelectionMirroredToUrl("sel");
   const [visible, setVisible] = useState<Student[]>([]);
 
-  // `currentData`, not `data`: `data` keeps the PREVIOUS student while the next
-  // one loads, so the sheet showed the wrong person and a click looked ignored.
-  const { currentData: student, isLoading } = useGetStudentQuery(
-    { id: selectedId as number },
-    { skip: selectedId == null }
-  );
 
   const handleSelect = useCallback((next: Student) => select(next.id), [select]);
 
@@ -54,14 +40,12 @@ const StudentsTableView = () => {
         onSelect={handleSelect}
         onVisibleChange={setVisible}
       />
-      <SideSheet
-        open={selectedId != null}
+      <StudentSheet
+        studentId={selectedId}
         onClose={clear}
-        label={student ? student.name : "學生詳情"}
-        className="w-[600px]"
-      >
-        <div className="flex-none flex items-center justify-between h-13 pl-3 pr-2.5 bg-white border-b border-neutral-100">
-          <div className="flex items-center gap-0.5">
+        from={selectedId != null ? selHref(selectedId) : undefined}
+        leading={
+          <>
             <Button
               type="button"
               variant="ghost"
@@ -91,44 +75,9 @@ const StudentsTableView = () => {
                 第 {index + 1} / {visible.length} 位
               </span>
             )}
-          </div>
-          <div className="flex items-center gap-0.5">
-            {student && (
-              <Link
-                href={studentDetailHref(student.id, selHref(student.id))}
-                aria-label="開啟完整頁"
-                title="開啟完整頁"
-                className={barIcon}
-              >
-                <SquareArrowOutUpRight className="w-[18px] h-[18px]" />
-              </Link>
-            )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="iconSm"
-              onClick={clear}
-              aria-label="關閉"
-              title="關閉（Esc）"
-              className="text-neutral-500"
-            >
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex-1 min-h-0 flex flex-col">
-          {isLoading || !student ? (
-            <StudentDetailSkeleton variant="pane" />
-          ) : (
-            <>
-              <StudentDetailHeader student={student} variant="pane" />
-              <AttentionBar student={student} className="flex-none px-6 pt-3 bg-white" />
-              <StudentDetail student={student} variant="pane" />
-            </>
-          )}
-        </div>
-      </SideSheet>
+          </>
+        }
+      />
     </>
   );
 };

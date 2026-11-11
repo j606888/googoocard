@@ -56,7 +56,10 @@ export const PendingRecordAction = ({
           onChange={setInlineMode}
           options={[
             { value: "card", label: "買卡並使用" },
-            { value: "dropIn", label: `單堂 $${formatMoney(lesson.dropInPrice)}` },
+            {
+              value: "dropIn",
+              label: lesson.dropInOptions?.length ? "單堂" : `單堂 $${formatMoney(lesson.dropInPrice)}`,
+            },
           ]}
         />
         {inlineMode === "card" ? (

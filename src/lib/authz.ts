@@ -160,3 +160,14 @@ export function assertAdmin(role: string) {
     throw new ApiError(403, "NOT_CLASSROOM_ADMIN", "Only a classroom admin can do this");
   }
 }
+
+/** Every id must be a 分部 of this classroom (archived ones count) — 400 otherwise. */
+export async function requireLocationsInClassroom(locationIds: number[], classroomId: number) {
+  const ids = [...new Set(locationIds)];
+  if (ids.length === 0) return ids;
+  const found = await prisma.location.count({ where: { id: { in: ids }, classroomId } });
+  if (found !== ids.length) {
+    throw new ApiError(400, "LOCATION_NOT_FOUND", "Location not found");
+  }
+  return ids;
+}

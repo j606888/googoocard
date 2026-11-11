@@ -53,18 +53,35 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - 顏色：`color` 存色盤 key（`DANCE_STYLE_COLORS`），對應的 Tailwind class 寫死在 `src/lib/danceStyleColors.ts`（`danceStyleMeta(style)`），因為 Tailwind 只認得靜態 class。
 - 前端：老師端用 `useDanceStyles()`（`styles` = 未封存、`byId` = 全部）；LIFF、QR 看板、公開學生頁讀 API 回應裡附帶的 `danceStyle`（它們沒有老師 session）。
 
-## 老師頁（2026-10）
+## 老師頁（2026-10，2026-11 列表瘦身）
 
-`/teachers` 是總覽（`GET /api/teachers/overview?month=`）、`/teachers/[id]` 是詳情（`GET /api/teachers/[id]?month=`），
+`/teachers` 是總覽（`GET /api/teachers/overview`，不帶月份）、`/teachers/[id]` 是詳情（`GET /api/teachers/[id]?month=`），
 彙總都在 `src/service/teachers.ts`，純計算在 `src/lib/teacherStats.ts`（有單元測試）。`GET /api/teachers` 維持輕量清單給開課的老師選單用。
 
+- **列表是條列式**（2026-11-11，`TeacherRow`）：一列一位老師——老師（分部）、下一堂、進行中幾門、帳號；按一下就地展開看教的／協助的進行中課程（各自「週四 20:30」，取第一堂 `firstStart`），再「看細節」。手機只留名字＋下一堂。
+- **細節頁分四個分頁**（`?tab=`，預設課程）：課程（進行中／已結束／協助）、時段（某個月的時段與點名狀態）、數字（月統計＋近 6 個月＋常來的學生）、資料（名字、頭像、身分、分部、帳號、備註，編輯／封存／刪除在這裡）。頂端只留頭像、名字、一行摘要。
+- **總覽只回答三件事**：這位老師教哪些進行中的課（`activeLessons`）、上課中／下一堂（`nextPeriod`，`ongoing` = 現在正在上）、屬於哪些分部。排序：下一堂越近越前面。統計卡、月份切換、每卡三個數字、近 6 個月長條圖都刻意拿掉了（2026-11-10）——每月數字只留在詳情頁。
+- **分部**（`Teacher.locations`，多對多 `_LocationToTeacher`）是**純標示**：不限制排課、不影響金流，也不從課程推導。寫入用 `locationIds`（整份取代），以 `requireLocationsInClassroom()` 驗證（400 `LOCATION_NOT_FOUND`）。
+- **圖示**（`Teacher.icon`）是 `TEACHER_ICONS`（`src/lib/teachers.ts`）裡的一個 key（`star`、`footprints`…），由 `features/teachers/teacherIcons.tsx` 畫成 lucide 單色線條，放在代表色的淡底上（`danceStyleClasses(color).badge`）；`null` = 實心色底＋名字第一個字。2026-11-11 從 emoji 換過來（migration `20261111180000_teacher_line_icons` 把舊 emoji 對到最接近的圖示，對不到的清成 `null`）。
 - **只算已點名的時段**（`attendanceTakenAt` 有值）——跟收入頁同一條規則。學生自助簽到在老師定案前不算；時段結束了還沒點名的算「待點名」。月份以台北時間切。
-- 一堂課有兩位老師時，**兩位都各算一堂**；總覽最上面的教室合計（`totals`）則是一個時段只算一次。
+- 一堂課有兩位老師時，**兩位都各算一堂**。
 - 老師「教的舞種」**從老師教過的課推導**，不存資料表——不用維護，也不會跟實際排課不一致。
-- 代表色沿用舞種的色盤 key（`DANCE_STYLE_COLORS`），新老師預設取第一個沒被在職老師用掉的顏色（`firstFreeTeacherColor`）。
+- 代表色用 `TEACHER_COLORS` = 舞種的 10 個色盤 key ＋ 8 個只給老師的冷色（`EXTRA_PALETTE_COLORS`，`src/lib/danceStyles.ts`）；舞種仍只能選原本 10 個。新老師預設取第一個沒被在職老師用掉的顏色（`firstFreeTeacherColor`，只從原本 10 個挑）。
 - **刪除只限沒教過課的老師**（409 `TEACHER_HAS_LESSONS`），其他一律封存。封存的老師不出現在開課選單，但已經掛著這位老師的課照常顯示。
 - 開課 / 改課的 `teacherIds` 會驗證都是本教室的老師（400 `TEACHER_NOT_FOUND`），封存的也算數。
 - 數字會被別處的點名改變，而點名的 mutation 不會 invalidate `Teacher` tag，所以兩頁的 query 都用 `refetchOnMountOrArgChange`。
+- **「協助」另外列**：這個人當課程小幫手的課（`assistedLessons`，見下一節）在列表展開處與詳情頁「課程」分頁的「協助」列出（列表只列進行中的），**不進** `activeLessons`／`lessons`／`lessonCount`／`nextPeriod`／每月數字。協助過課的人一樣不能刪（409 `TEACHER_HAS_LESSONS`）。
+
+## 課程小幫手（`LessonAssistant`，2026-11）
+
+一門課除了教課的老師（`LessonTeacher`），還可以掛幾位**小幫手**——整門課一份，不分時段。
+
+- **資料**：`LessonAssistant(lessonId, teacherId)`，`Lesson.assistants`／`Teacher.assistedLessons`。小幫手也是教室的 `Teacher`（任何 `kind` 都能選，選單把 `ASSISTANT`／`BOTH` 排前面——`assistantsFirst()`，`src/lib/teachers.ts`）；同一個人可以教 A 課、協助 B 課。`LessonTeacher` 與所有既有的 `teachers` 查詢都沒動，所以教課統計不受影響。
+- **寫入**：`POST /api/lessons`、`PUT /api/lessons/[id]` 收選填的 `assistantIds: number[]`，由 `resolveAssistantIds()`（`src/service/lessonAssistants.ts`）驗證：都要是本教室的老師（400 `ASSISTANT_NOT_FOUND`，封存的也算）、不能同時在 `teacherIds` 裡（400 `ASSISTANT_IS_TEACHER`）。PUT 有送就整份取代；**沒送 = 不動**（舊 client 不會把小幫手洗掉），只把這次變成老師的人從小幫手拿掉。
+- **讀取**：課程清單、課程詳情、`GET /api/lessons/agenda`、`GET /api/me/lessons` 的課程都多一個 `assistants: TeacherSummary[]`（跟 `teachers` 同形狀，`teacherSummarySelect`）。
+- **「我的課」＝我教的＋我協助的**：`getLessonAgenda()` 的 `myUpcoming` 與 `getMyUpcomingPeriods()` 都用 `OR: [teachers, assistants]` 比對 `myTeacherId`。
+- **畫面**：課程設定「細節」分頁與新增課程表單的「小幫手」多選（`newLesson/AssistantSelect.tsx`，已選成老師的人不列出；把人選成老師會自動從小幫手拿掉）；課程頁標題列寫「Sean · 小幫手 丁丁」（`lessonPeopleLabel()`）。「複製開新期」的 `LessonCloneSource.assistantIds` 會帶進新課。
+- `GET /api/lessons/agenda` 同時改成回**往後 7 天內開始的每一個時段**（原本只取 10 堂），每堂課多帶 `location`。
 
 ## 複習卡資格系統
 
@@ -176,11 +193,22 @@ Classroom（頂層容器，所有實體都屬於一間教室）
   替手動結束的課**排新時段會自動重開**（`POST .../periods` 會清掉 `endedAt`）。
 - **一次排多堂**：`POST /api/lessons/[id]/periods` 接受 `{ startTime, endTime }` 或
   `{ periods: [...] }`（最多 12 筆）。
-- **列表**（`features/lessons/`）：沒篩選的「進行中」依群組**直接展開**（`LessonGroupSection` +
-  `LessonTable`，不再點進群組頁；收合狀態存 localStorage，key 帶 classroomId）。
-  「已結束」與篩選中維持分頁的攤平列表。每列動作由 `lessonRowAction()` 決定：
-  待點名 > 持續開課且沒排下一堂（「＋下一堂」，預設沿用上一堂的星期與時間、推到今天以後）> 無。
+- **列表**（`features/lessons/`，2026-11 改版）：兩區。「接下來」（`AgendaList` + `useLessonAgenda` 的
+  `agendaRows()`）＝還沒點名 → 上課中 → 未來 7 天的時段，一堂一列，補勾遲到是上課中那一列的按鈕。
+  「所有課程」（`SeriesList` + `lessonSeries.ts`）依**課種**排：一個 `LessonGroup` 就是一個課種，
+  底下每門課是一期，「第幾期」照開始日算、不存；沒歸課種的進行中課各自成列，已結束的集中到「未分類」。
+  最上面的「我的課／全部」＋分部同時篩兩區，記在 localStorage（`useLessonScope`，key 帶 classroomId）。
+  「開課中」沒篩分部時依分部分區（`sectionByLocation`），兩個分部都在開的課種兩區都列。
+- **課種頁**（`/lessons/groups/[id]`，`GroupDetail`）：共幾期、各分部各幾期、開課中／已停；每一期點開看
+  上過課的學生（`GET /api/lesson-groups/[id]/students`，`LessonStudent`）。
+- **翻新精靈**（`/lessons/organize`，`OrganizeWizard` + `seriesSuggest.ts`）：把改版前的課整理成課種，
+  四步：課種歸類 → 每期分部 → 每期小幫手 → 確認，送 `POST /api/lesson-groups/organize` 一個 transaction 寫完。
+  改版前的 `LessonGroup` 是時段班（「週日課程」）——名稱對不上底下任何一門課的課名就當舊群組（`isSeriesGroup`），
+  拆開重排，搬空的舊群組刪掉；「週日班」不另外存，星期幾從第一堂算。課名正規化拿掉編號（`1. `）、括號、
+  第 N 期、月份；括號裡的分部代號（`[KH]` → 高雄）當預設分部，沒有就用排序第一個分部。
+  有舊課沒整理時課程頁會出提示（`unorganizedLessonCount`）。可以重跑：已是課種的群組原樣帶入。
 - 新增課程時選型態；上次選的型態依教室記在 localStorage 當預設。
+- **新增課程是步驟式**（`newLesson/index.tsx`，2026-11-11）：① 基本設定（課種、舞種／階級、型態、扣幾格、課卡）② 細節（分部、老師、小幫手、單堂付費）③ 排課（按「新增時段」才打開時段表單，加入後收起，下次預設最後一堂的下一週）④ 預覽（每區一張卡＋「修改」，缺的標出來），預覽才建立。上方步驟列隨時能跳；「下一步」只擋這一步的錯（`ERROR_STEP`），建立時有錯就跳到第一個有錯的步驟。**課種必選**（`SeriesPicker`：現有課種或「＋ 新課種」當場建，同名就用現有的）；課名預設＝課種名稱，「這一期另取名稱」才另填。選現有課種時舞種／階級帶入它最新一期的。外觀是 Apple 設定頁風格的分組清單（`newLesson/grouped.tsx`、`groupedFields.tsx`：淺灰底白色群組、整列打勾、分段控制；2026-11-11 使用者挑的），只用在新增課程；課程設定抽屜仍用一般表單元件，分「基本設定／細節／課程狀態」。
 
 ## 一次扣多格（外師課，2026-10）
 
@@ -198,6 +226,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - **營收**：單堂金額照上課日認列（`periodRevenue`），付了沒都算，同課卡。
 - **老師端**：點名結果頁沒綁卡的人多一個「單堂 $X」（`POST .../attendance/[studentId]/drop-in`，現金／轉帳／下課再付）。開了單堂的課可以不收任何課卡。
 - **特價**：金額可以改（記單堂時帶 `amount`，確認收款時也可以——學生在 LINE 自己選單堂記的是牌價）；省略 = 牌價，$0 = 免收。改過價的動態寫「$500（原價 $900）」。這是給「今天特價」用的，不用再為了特價開一張怪卡。
+- **單堂方案（2026-11-10）**：一堂課可以有最多 4 個有名字的單堂價（「原價 $500／複習價 $250」「單人 $200／雙人合報 $150」），存在 `Lesson.dropInOptions`（JSON `[{ name, price, note? }]`，null = 只有一個沒名字的價錢），`dropInPrice` 永遠 = 第一個方案的價錢。讀一律用 `lessonDropInOptions()`、寫用 `resolveDropInInput()`（`src/lib/dropInOptions.ts`）。**學生在 LIFF 自己選、刻意不做資格鎖**（第一次來的人沒有階級資料，鎖了反而選不了）——每筆都要老師確認收款，那一步就是把關：點名結果頁把非預設方案標成外框標籤，收款時可以換方案（`optionName`）或直接改金額。`DropInCharge.optionName` 是名稱快照，之後改課程方案不動舊帳。雙人合報不綁同伴、不做奇數提醒。
 - **學生端 LIFF**：沒卡時「這堂怎麼付？」多一個「單堂付費」選項（`dropIn: true`），記成未付、下課付，`requireCard` 視為已付款方式。
 - 取消勾選、重設時段刪掉出席紀錄時，DropInCharge 跟著刪（DB cascade）。
 - 舊的「單堂」1 堂卡不自動轉換，歷史紀錄照舊；不想再賣就把那張卡下架。
@@ -233,7 +262,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 `/api/liff/today` 帶學生時，每堂課多回 `cardStatus = { usable, autoPickId, buyable }`（`src/service/checkin.ts` 的 `lessonCardStatus()`，跟引擎同一套規則），LIFF 畫面據此顯示「使用 X（剩 n 堂）」／多張卡讓學生選／「還沒有能用的課卡，下一步選一張」。`POST /api/liff/checkin` 回 `{ results, purchased, amountDue, unpaidCards }`，完成畫面寫「下課請找小幫手付款 $X」並提醒舊的未付卡。**不另外推播給學生**（當場買卡時老師端照常收到「待確認收款」`UNPAID_CARD` 推播）。
 
-**加好友提示**：掃門口 QR 進來的人不一定加了官方帳號（LIFF 的 Add friend option 只在第一次授權時問、可以拒絕；建議設 Aggressive）。沒加好友就收不到續卡提醒、聊天室叫不出選單，所以完成畫面用 `liff.getFriendship()` 再查一次，沒加就顯示「加好友」（`AddFriendPrompt`，連 `line.me/R/ti/p/<NEXT_PUBLIC_LINE_OA_ID>`）。LIFF 沒連到官方帳號（getFriendship 丟錯）或沒設 OA ID 時不顯示。
+**加好友提示**：掃門口 QR 進來的人不一定加了官方帳號（LIFF 的 Add friend option 只在第一次授權時問、可以拒絕；建議設 Aggressive）。沒加好友就收不到續卡提醒、聊天室叫不出選單，所以用 `liff.getFriendship()` 再查一次，沒加就顯示「加好友」（`AddFriendPrompt`，三處：門口登記／認領完成後的「登記完成／綁定完成」畫面（`FirstTimeGate`，按「繼續簽到」才進選課——很多人綁完就離開）、今天沒課（`NoClassToday`）、簽到完成頁；連 `line.me/R/ti/p/<NEXT_PUBLIC_LINE_OA_ID>`）。LIFF 沒連到官方帳號（getFriendship 丟錯）或沒設 OA ID 時不顯示。
 
 ### LINE 模擬器（`/dev/line`，測試環境限定）
 
@@ -592,19 +621,31 @@ App 換教室時重新走一次（`epoch` 當 WebView 的 key）。
 | role | 畫面 | 可做 | 不可做 |
 |---|---|---|---|
 | `owner` | 管理員（皇冠） | 建立教室的人，恰好一位（`Classroom.ownerId`）。管理員能做的全部＋封存教室、把教室交給別人 | 退出教室（要先轉出去）、被移除、被改角色 |
-| `admin` | 管理員 | 邀請（指定角色）、改別人的角色、連結老師資料、移除成員（建立者除外） | 封存／轉移教室、改自己的角色 |
-| `teacher` | 老師 | 日常功能全部；**一定連著一筆 `Teacher`**，課程列表最上面的「下一堂／上課中」大卡優先挑自己教的課 | 邀請、改角色、移除成員 |
-| `assistant` | 小幫手 | 日常功能全部（跟老師一樣，收入頁、課卡價格也看得到改得到——刻意的決定） | 同老師；團隊頁不能連老師資料（財務開帳清單的「是本人嗎」可以連，團隊頁編輯時保留） |
+| `admin` | 管理員 | 邀請（指定角色）、改別人的角色、改連人員資料、移除成員（建立者除外） | 封存／轉移教室、改自己的角色 |
+| `teacher` | 老師 | 日常功能全部 | 邀請、改角色、移除成員 |
+| `assistant` | 小幫手 | 日常功能全部（跟老師一樣，收入頁、課卡價格也看得到改得到——刻意的決定） | 同老師 |
+
+（每種角色都連著一筆人員資料，見下面「團隊＝名冊」。）
 
 **只有「管人」這件事分權限**：邀請連結的建立／刪除（`/api/invite-tokens`）、`PATCH`／`DELETE /api/memberships/[id]` 走 `assertAdmin(role)`（`src/lib/authz.ts`，403 `NOT_CLASSROOM_ADMIN`）；其他所有 route 對三種角色一視同仁。
 
 （2026-10-26～11-01 曾有「權限同捆包＋個人加減」與可開關的功能模組——水庫、技能樹——2026-11-01 整套移除，回到純角色；見 `docs/roadmap.md`。）
 
-**老師 ↔ 老師資料**：`Teacher.userId`（nullable，`@@unique([classroomId, userId])`——一個人在一間教室最多是一位老師）。
-課程本來就有 `LessonTeacher`，所以「我的課」直接從「掛著我這位老師的課」推導，**不做釘選**：課程列表頂端的大卡（`GET /api/lessons/agenda` 回 `myTeacherId`，`pickHero()` 先挑自己教的課，自己沒課才看全教室，`src/features/lessons/lessonSchedule.ts`）。舊的「我接下來的課」區塊已拿掉；`GET /api/me/lessons`（`getMyUpcomingPeriods()`）還在，目前網頁沒在用。
-- `teacher` 一定要連（`TEACHER_REQUIRED`）；`admin`／`owner` 可選（會教課的管理員）；`assistant` 一律不連，改成小幫手會自動解除。
-- 一筆老師資料只能連一個人（409 `TEACHER_ALREADY_LINKED`）；換連另一筆時舊的自動解除（`linkTeacher()`，`src/service/team.ts`）。
-- 退出、被移除、刪帳號都會解除連結，`Teacher` 本身留著（舊課還掛著它）。
+**老師頁＝會教課的人，團隊頁＝有帳號的人（2026-11）**：一個人＝一筆人員資料（`Teacher`：名字、代表色、`kind` 身分、分部）；
+有帳號的另外連一筆 `Membership`（`role`＝權限）。`Teacher.userId` nullable、`@@unique([classroomId, userId])`。
+- **`/teachers`**：只列 `kind` 是 `TEACHER`／`BOTH` 的人（`getTeachersOverview()` 用 `notIn: [ASSISTANT, NONE]`），沒帳號也行（空殼）。
+  「新增老師」、編輯、封存、刪除都在這裡；「帳號」欄顯示連到的帳號，沒帳號的展開後管理員可以按「邀請加入」（帶 `teacherId` 的單次連結，加入後自動連過去）。
+- **`/teams`**（`features/teams/TeamList`，`MemberRow`）：只列成員（帳號）＋邀請連結。「老師身分」一欄：連到老師 X／不教課／還沒連。
+  老師頁上有**同名、沒帳號**的老師（`suggestedTeacher()`，`teacherLink.ts`）或角色是老師卻沒連的，顯示提醒——**不自動連**（名字會撞），管理員按「連到老師」（`LinkTeacherDrawer`）。
+- **每個成員背後都有一筆人員資料**：加入（`redeemInvite()`）、建立教室時由 `ensurePerson()`（`src/service/team.ts`）自動建，
+  名字取帳號名字，身分照角色（`kindForRole()`：小幫手 → `ASSISTANT`、老師 → `TEACHER`、管理員 → `NONE`）。純小幫手不出現在老師頁，但課程小幫手選單靠這筆選得到他。
+  migration `20261111140100_person_for_every_member` 補建既有成員的。`PATCH /api/memberships/[id]` 不能送 `teacherId: null`（400 `PERSON_REQUIRED`）。
+- **`kind`**：`TEACHER`／`ASSISTANT`／`BOTH`／`NONE`（不上課）。排課的老師選單 `canTeach()`＝TEACHER／BOTH；小幫手選單 `assistantsFirst()` 拿掉 `NONE`、小幫手排前面。
+  連到老師對話框的「新增一位老師」＝把他自己那筆改成 `TEACHER`（當過小幫手的 → `BOTH`）；「他不教課」＝改成 `ASSISTANT`。
+- **連到老師（改連）**：`linkTeacher()` 把帳號移到目標那筆。舊的那筆不是老師（加入時自動建的小幫手／不上課那筆）→ `mergePersonInto()`
+  把它協助／教過的課改掛到目標、邀請改指過去、然後**刪掉**；舊的那筆是老師 → 只解除，沒上過課就封存。一筆只能連一個人（409 `TEACHER_ALREADY_LINKED`）。
+- **離開／被移除**：人員資料留著（舊課還掛著它），只解除帳號；沒上過課的封存。連著帳號的人員資料不能封存、不能刪（409 `PERSON_HAS_ACCOUNT`）。
+- 「我的課」＝掛著我這筆人員資料的課——**教的＋協助的**，**不做釘選**：課程列表頂端的大卡（`GET /api/lessons/agenda` 回 `myTeacherId`，`pickHero()`，`src/features/lessons/lessonSchedule.ts`）。
 
 **邀請連結帶角色**：`InviteToken.role`＋`teacherId`。老師的連結一定指定一筆老師資料、只能用一次（`maxUses` 強制 1）。
 兩條加入路徑（`POST /api/invite-tokens/[token]/join`，以及註冊／登入帶 `token` 的 `joinClassroom()`）都走 `redeemInvite()`；

@@ -19,6 +19,9 @@ export interface FirstTimePrefill {
  * (設計稿 B1 → B2). 「第一次來」registers with just a nickname; 「我來上過課」
  * searches the unbound roster and claims itself (ClaimSelf) — anyone could claim
  * anyone, so each claim waits in the teacher's 待處理 to be confirmed or undone.
+ * Either way goes straight on to the lesson list (a toast confirms) — an extra
+ *「完成」screen read like the end of the flow. Adding the OA is asked once the
+ * check-in is done (CheckinDone / NoClassToday), where it can't interrupt.
  */
 export default function FirstTimeGate({
   prefill,
@@ -45,6 +48,7 @@ export default function FirstTimeGate({
         body: JSON.stringify({ key: checkinKey, name: name.trim() }),
       });
       if (!res.ok) throw new Error(`status ${res.status}`);
+      toast.success("登記完成");
       onRegistered();
     } catch (err) {
       console.error("[liff] register error", err);
@@ -129,7 +133,10 @@ export default function FirstTimeGate({
         <ClaimSelf
           idToken={idToken}
           checkinKey={checkinKey}
-          onClaimed={onRegistered}
+          onClaimed={() => {
+            toast.success("綁定完成");
+            onRegistered();
+          }}
           onFirstTime={() => setStep("name")}
         />
       </div>

@@ -3,6 +3,7 @@ import { PaymentMethod, TodoType } from "@prisma/client";
 import { DANCE_STYLE_COLORS } from "@/lib/danceStyles";
 import { isExpoPushToken } from "@/lib/expoPush";
 import { ASSIGNABLE_ROLES } from "@/lib/roles";
+import { TEACHER_COLORS, TEACHER_ICONS, TEACHER_KINDS } from "@/lib/teachers";
 
 /** 真實日曆日期 YYYY-MM-DD（2026-02-31 → 400）。 */
 export const ymdSchema = z
@@ -13,7 +14,6 @@ export const ymdSchema = z
     const dt = new Date(Date.UTC(y, m - 1, d));
     return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
   }, "Invalid date");
-import { TEACHER_KINDS } from "@/lib/teachers";
 
 /**
  * Request schemas for the routes with money or card-balance semantics.
@@ -70,6 +70,8 @@ export const confirmPaymentSchema = paymentFieldsSchema.extend({
 /** 單堂費確認收款：多一個 `amount`，收的時候才打折（學生在 LINE 自己選單堂時記的是牌價）。 */
 export const confirmDropInPaymentSchema = paymentFieldsSchema.extend({
   amount: money.optional(),
+  /** 收款時改方案（學生選錯了）；省略 = 不動。 */
+  optionName: z.string().trim().max(20).optional(),
 });
 
 /**
@@ -79,6 +81,8 @@ export const confirmDropInPaymentSchema = paymentFieldsSchema.extend({
  */
 export const chargeDropInSchema = z.object({
   amount: money.optional(),
+  /** 單堂方案名稱；省略 = 課程的第一個（預設）方案。 */
+  optionName: z.string().trim().max(20).optional(),
   isPaid: z.boolean(),
   paymentMethod: z.enum(PaymentMethod).nullish(),
   paymentReference: z.string().trim().max(20).nullish(),
@@ -253,17 +257,27 @@ const teacherNote = z
   .max(500)
   .transform((note) => note || null);
 
+const teacherColor = z.enum(TEACHER_COLORS);
+/** `null` goes back to the initial. */
+const teacherIcon = z.enum(TEACHER_ICONS).nullable();
+
 export const createTeacherSchema = z.object({
   name: teacherName,
   /** Omitted: the first palette colour no active teacher uses. */
-  color: danceStyleColor.optional(),
+  color: teacherColor.optional(),
+  icon: teacherIcon.optional(),
+  /** 這位老師上課的分部；整份取代。 */
+  locationIds: z.array(positiveInt).max(50).optional(),
   note: teacherNote.nullish(),
   kind: z.enum(TEACHER_KINDS).optional(),
 });
 
 export const updateTeacherSchema = z.object({
   name: teacherName.optional(),
-  color: danceStyleColor.optional(),
+  color: teacherColor.optional(),
+  icon: teacherIcon.optional(),
+  /** 這位老師上課的分部；整份取代。 */
+  locationIds: z.array(positiveInt).max(50).optional(),
   note: teacherNote.nullish(),
   kind: z.enum(TEACHER_KINDS).optional(),
   archived: z.boolean().optional(),

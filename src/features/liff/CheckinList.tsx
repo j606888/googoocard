@@ -26,7 +26,7 @@ import {
 } from "@/features/checkin/types";
 
 // What pays for one lesson: one of the student's cards, or one bought now.
-type Payment = { studentCardId: number } | { buyCardId: number } | { dropIn: true };
+type Payment = { studentCardId: number } | { buyCardId: number } | { dropIn: true; dropInOption?: string };
 
 type Done = {
   lessons: TodayLesson[];
@@ -102,9 +102,10 @@ export default function CheckinList({
   );
   const lessonsToBuy = selectedLessons.filter((l) => (l.cardStatus?.usable.length ?? 0) === 0);
   const amountToPay = lessonsToBuy.reduce((sum, l) => {
-    if (buyChoice[l.lessonId] === DROP_IN) {
+    const option = dropInChoice(l, buyChoice[l.lessonId]);
+    if (option) {
       const periods = l.periods.filter((p) => selected.has(p.periodId)).length;
-      return sum + (l.cardStatus?.dropInPrice ?? 0) * periods;
+      return sum + option.price * periods;
     }
     const card = l.cardStatus?.buyable.find((c) => c.cardId === buyChoice[l.lessonId]);
     return sum + (card?.price ?? 0);
@@ -127,7 +128,8 @@ export default function CheckinList({
       return { studentCardId: id };
     }
     const buy = buyChoice[lesson.lessonId];
-    if (buy === DROP_IN) return { dropIn: true };
+    const option = dropInChoice(lesson, buy);
+    if (option) return { dropIn: true, dropInOption: option.name || undefined };
     return buy ? { buyCardId: buy } : null;
   };
 
@@ -227,7 +229,10 @@ export default function CheckinList({
                 <span className="block text-lg font-semibold">
                   {lesson.cardStatus!.dropInPrice != null ? "這堂怎麼付？" : "這堂要用哪張卡？"}
                 </span>
-                <span className="block text-sm text-neutral-500">{lesson.lessonName}</span>
+                <span className="block text-sm text-neutral-500">
+                  {lesson.lessonName}
+                  {lesson.location && ` · ${lesson.location.name}`}
+                </span>
               </legend>
               {lesson.cardStatus!.buyable.map((card) => {
                 const checked = buyChoice[lesson.lessonId] === card.cardId;
@@ -259,26 +264,36 @@ export default function CheckinList({
                   </label>
                 );
               })}
-              {lesson.cardStatus!.dropInPrice != null && (
-                <label
-                  className={`flex items-center gap-3 rounded-2xl border bg-white p-4 ${
-                    buyChoice[lesson.lessonId] === DROP_IN ? "border-2 border-primary-800" : "border-neutral-200"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name={`buy-${lesson.lessonId}`}
-                    checked={buyChoice[lesson.lessonId] === DROP_IN}
-                    onChange={() => setBuyChoice((prev) => ({ ...prev, [lesson.lessonId]: DROP_IN }))}
-                    className="h-5 w-5 accent-primary-800"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold">單堂付費</span>
-                    <span className="block text-sm text-neutral-500">不買卡，只付這一堂</span>
-                  </span>
-                  <span className="text-lg font-bold">${formatMoney(lesson.cardStatus!.dropInPrice)}</span>
-                </label>
-              )}
+              {(lesson.cardStatus!.dropInOptions ?? []).map((option, index) => {
+                // 一個方案一個選項：「單人 $200」「雙人合報 $150」。只有一個沒名字的就是「單堂付費」。
+                const value = DROP_IN - index;
+                const checked = buyChoice[lesson.lessonId] === value;
+                return (
+                  <label
+                    key={value}
+                    className={`flex items-center gap-3 rounded-2xl border bg-white p-4 ${
+                      checked ? "border-2 border-primary-800" : "border-neutral-200"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name={`buy-${lesson.lessonId}`}
+                      checked={checked}
+                      onChange={() => setBuyChoice((prev) => ({ ...prev, [lesson.lessonId]: value }))}
+                      className="h-5 w-5 accent-primary-800"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold">{option.name || "單堂付費"}</span>
+                      <span className="block text-sm text-neutral-500">
+                        {option.note ?? (option.name ? "單堂，不扣課卡" : "不買卡，只付這一堂")}
+                      </span>
+                    </span>
+                    <span className="text-lg font-bold">
+                      {option.price === 0 ? "免費" : `$${formatMoney(option.price)}`}
+                    </span>
+                  </label>
+                );
+              })}
             </fieldset>
           ))}
           <p className="flex gap-2 text-sm leading-relaxed text-neutral-600">
@@ -346,8 +361,17 @@ export default function CheckinList({
   );
 }
 
-/** buyChoice 裡代表「單堂付費」的值（真正的卡 id 都是正數）。 */
+/**
+ * buyChoice 裡代表「單堂付費」的值（真正的卡 id 都是正數）：第 i 個單堂方案 = DROP_IN - i，
+ * 所以 -1 是第一個（預設）方案、-2 是第二個…
+ */
 const DROP_IN = -1;
+
+/** buyChoice 的值 → 選到的單堂方案；不是單堂（買卡、還沒選）回 null。 */
+function dropInChoice(lesson: TodayLesson, choice: number | undefined) {
+  if (choice === undefined || choice > DROP_IN) return null;
+  return lesson.cardStatus?.dropInOptions?.[DROP_IN - choice] ?? null;
+}
 
 // A lesson the student can pay for — with a card they hold, or one they can buy.
 function canPay(lesson: TodayLesson) {
@@ -536,7 +560,7 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
                     : r.status === "checked"
                       ? `${r.cardName}${typeof r.remainingSessions === "number" ? ` · 剩 ${r.remainingSessions} 堂` : ""}`
                       : r.status === "drop_in"
-                        ? `單堂 $${formatMoney(r.dropInAmount ?? 0)} · 下課付`
+                        ? `${r.dropInOptionName ?? "單堂"} $${formatMoney(r.dropInAmount ?? 0)} · 下課付`
                         : "沒有綁到課卡，請找小幫手"}
                 </p>
               </div>

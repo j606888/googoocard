@@ -7,25 +7,30 @@ import SegmentedTabs from "@/components/SegmentedTabs";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGetTeachersOverviewQuery } from "@/store/slices/teachers";
-import MonthSwitcher from "./MonthSwitcher";
-import StatTile from "./StatTile";
+import { useGetTeachersOverviewQuery, type TeacherOverviewRow } from "@/store/slices/teachers";
+import { useGetMembershipsQuery } from "@/store/slices/memberships";
+import { useGetMeQuery } from "@/store/slices/me";
+import { isAdminRole } from "@/lib/roles";
+import InviteDrawer from "@/features/teams/TeamList/InviteDrawer";
 import TeacherForm from "./TeacherForm";
-import TeacherOverviewCard from "./TeacherOverviewCard";
-import { currentMonthKey } from "./format";
+import TeacherRow, { TEACHER_ROW_COLUMNS } from "./TeacherRow";
 
 type Tab = "active" | "archived";
 
 const TeacherList = () => {
-  const [month, setMonth] = useState(currentMonthKey);
   const [tab, setTab] = useState<Tab>("active");
   const [formKey, setFormKey] = useState<number | null>(null);
-  // Attendance taken elsewhere changes every number here, and nothing on this
-  // page would invalidate it — refetch whenever the page or month is opened.
-  const { data, isLoading, isError, refetch } = useGetTeachersOverviewQuery(
-    { month },
-    { refetchOnMountOrArgChange: true }
-  );
+  const [inviting, setInviting] = useState<TeacherOverviewRow | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);
+  const { data: memberships } = useGetMembershipsQuery();
+  const { data: me } = useGetMeQuery();
+  const isAdmin = isAdminRole(memberships?.find((m) => m.userId === me?.id)?.role);
+  const memberByUser = new Map((memberships ?? []).map((m) => [m.userId, m]));
+  // 上課中／下一堂 depend on the clock, and lesson edits elsewhere don't
+  // invalidate this — refetch whenever the page is opened.
+  const { data, isLoading, isError, refetch } = useGetTeachersOverviewQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  });
 
   if (isError && !data) {
     return (
@@ -41,30 +46,23 @@ const TeacherList = () => {
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-bold text-neutral-900">老師</h2>
-        <p className="text-sm text-neutral-500">
-          誰在教哪些課、這個月上了幾堂、來了多少學生。
-        </p>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <MonthSwitcher month={month} onChange={setMonth} />
-        <Button onClick={() => setFormKey(Date.now())}>
-          <Plus className="size-4" />
-          新增老師
-        </Button>
-      </div>
+      {/* 老師＝會教課的人，沒帳號也能先建（空殼）；有帳號的成員在團隊頁連過來。 */}
+      <Button onClick={() => setFormKey(Date.now())}>
+        <Plus className="size-4" />
+        新增老師
+      </Button>
     </div>
   );
 
   if (isLoading || !data) {
     return (
       <>
-        <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-8 flex flex-col gap-5" aria-busy="true">
+        <div className="w-full max-w-[1040px] px-5 py-4 lg:px-8 lg:py-6 flex flex-col gap-5" aria-busy="true">
           {header}
           <TeacherListSkeleton />
         </div>
-        {formKey !== null && (
-          <TeacherForm key={formKey} open onClose={() => setFormKey(null)} />
-        )}
+        {formKey !== null && <TeacherForm key={formKey} open onClose={() => setFormKey(null)} />}
       </>
     );
   }
@@ -72,11 +70,10 @@ const TeacherList = () => {
   const active = data.teachers.filter((t) => !t.archivedAt);
   const archived = data.teachers.filter((t) => t.archivedAt);
   const shown = tab === "active" || archived.length === 0 ? active : archived;
-  const { totals } = data;
 
   return (
     <>
-      <div className="w-full max-w-[1120px] px-5 py-4 lg:px-8 lg:py-8 flex flex-col gap-5">
+      <div className="w-full max-w-[1040px] px-5 py-4 lg:px-8 lg:py-6 flex flex-col gap-5">
         {header}
 
         {data.unassignedLessonCount > 0 && (
@@ -84,30 +81,13 @@ const TeacherList = () => {
             <AlertTriangle className="w-5 h-5 text-warning-950 shrink-0" />
             <p className="flex-1 min-w-[14rem] text-sm text-warning-950">
               <strong>{data.unassignedLessonCount} 堂進行中的課還沒指定老師</strong>
-              ——指定後才會算進老師的堂數與出席人次。
+              ——指定後才會出現在老師的卡片上。
             </p>
             <Link href="/lessons" className="text-sm font-semibold text-warning-950 underline-offset-4 hover:underline">
               去課程頁 →
             </Link>
           </div>
         )}
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatTile
-            label="授課老師"
-            value={active.length}
-            unit="位"
-            hint={archived.length > 0 ? `另有 ${archived.length} 位已封存` : undefined}
-          />
-          <StatTile label="本月已上" value={totals.sessions} unit="堂" />
-          <StatTile label="本月出席" value={totals.attendance} unit="人次" />
-          <StatTile
-            label="時段過了還沒點名"
-            value={totals.pendingCount}
-            unit="堂"
-            tone={totals.pendingCount > 0 ? "warning" : "default"}
-          />
-        </div>
 
         {archived.length > 0 && (
           <SegmentedTabs<Tab>
@@ -129,66 +109,60 @@ const TeacherList = () => {
             description="先新增老師，開課時才能指定誰來教。"
           />
         ) : (
-          <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
-            {shown.map((teacher) => (
-              <TeacherOverviewCard
-                key={teacher.id}
-                teacher={teacher}
-                month={month}
-                months={data.months}
-              />
-            ))}
-          </div>
+          <section className="flex flex-col">
+            <div
+              className={`hidden rounded-t-2xl border border-b-0 border-neutral-200 bg-neutral-50 px-5 py-2.5 text-xs text-neutral-500 ${TEACHER_ROW_COLUMNS}`}
+            >
+              <span>老師</span>
+              <span>下一堂</span>
+              <span>進行中</span>
+              <span>帳號</span>
+              <span />
+            </div>
+            <ul className="divide-y divide-neutral-100 rounded-2xl border border-neutral-200 bg-white lg:rounded-t-none">
+              {shown.map((teacher) => {
+                const member = teacher.userId !== null ? memberByUser.get(teacher.userId) : undefined;
+                const accountLabel =
+                  teacher.userId === null
+                    ? null
+                    : teacher.userId === me?.id
+                      ? "你"
+                      : (member?.user.email ?? "已連結帳號");
+                return (
+                  <TeacherRow
+                    key={teacher.id}
+                    teacher={teacher}
+                    open={openId === teacher.id}
+                    onToggle={() => setOpenId(openId === teacher.id ? null : teacher.id)}
+                    accountLabel={accountLabel}
+                    onInvite={isAdmin ? () => setInviting(teacher) : undefined}
+                  />
+                );
+              })}
+            </ul>
+          </section>
         )}
-
-        <p className="text-xs text-neutral-500 leading-relaxed">
-          堂數與出席人次只算已點名的時段；學生自助簽到要等老師點名定案後才會算進來。一堂課有兩位老師時，兩位都會算到。
-        </p>
       </div>
 
-      {formKey !== null && (
-        <TeacherForm key={formKey} open onClose={() => setFormKey(null)} />
-      )}
+      {formKey !== null && <TeacherForm key={formKey} open onClose={() => setFormKey(null)} />}
+      {inviting && <InviteDrawer key={inviting.id} open person={inviting} onClose={() => setInviting(null)} />}
     </>
   );
 };
 
-/** Stat tiles + overview cards while loading; the page header above is real. */
+/** List rows while loading; the page header above is real. */
 const TeacherListSkeleton = () => (
-  <>
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="rounded-2xl border border-neutral-200 bg-white px-4 py-3.5 flex flex-col gap-2">
-          <Skeleton className="h-3 w-16" />
-          <Skeleton className="h-7 w-14" />
+  <ul className="divide-y divide-neutral-100 rounded-2xl border border-neutral-200 bg-white">
+    {["w-24", "w-20", "w-28", "w-16"].map((width, i) => (
+      <li key={i} className={`flex items-center gap-3 px-5 py-3.5 ${i === 3 ? "opacity-50" : ""}`}>
+        <Skeleton className="size-9 shrink-0 rounded-full" />
+        <div className="flex flex-col gap-2 flex-1">
+          <Skeleton className={`h-4 ${width}`} />
+          <Skeleton className="h-3 w-32" />
         </div>
-      ))}
-    </div>
-    <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
-      {["", "", "opacity-50"].map((fade, i) => (
-        <div key={i} className={`rounded-2xl border border-neutral-200 bg-white p-5 flex flex-col gap-4 ${fade}`}>
-          <div className="flex items-center gap-3">
-            <Skeleton className="size-12 shrink-0" />
-            <div className="flex flex-col gap-2 flex-1">
-              <Skeleton className={`h-4 ${i === 1 ? "w-20" : "w-28"}`} />
-              <Skeleton className="h-5 w-16" />
-            </div>
-            <Skeleton className="h-6 w-24 shrink-0" />
-          </div>
-          <Skeleton className="h-14 w-full rounded-xl" />
-          <div className="grid grid-cols-3 gap-2">
-            {[0, 1, 2].map((j) => (
-              <div key={j} className="flex flex-col gap-1.5">
-                <Skeleton className="h-6 w-8" />
-                <Skeleton className="h-3 w-14" />
-              </div>
-            ))}
-          </div>
-          <Skeleton className="h-10 w-full rounded-sm" />
-        </div>
-      ))}
-    </div>
-  </>
+      </li>
+    ))}
+  </ul>
 );
 
 export default TeacherList;

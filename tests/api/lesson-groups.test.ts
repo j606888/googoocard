@@ -5,6 +5,7 @@ import {
   createClassroom,
   createLesson,
   createLessonGroup,
+  createLocation,
   defaultDanceStyle,
   jsonRequest,
   routeParams,
@@ -39,7 +40,35 @@ describe("/api/lesson-groups", () => {
     const res = await listGroups();
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body).toEqual([{ id: group.id, name: "週日課", lessonCount: 2 }]);
+    expect(body).toEqual([
+      { id: group.id, name: "週日課", lessonCount: 2, latestTerm: expect.objectContaining({ firstStart: null }) },
+    ]);
+  });
+
+  it("describes each group's latest term (by first period) for the new-lesson picker", async () => {
+    const group = await createLessonGroup(classroomId, "Kizomba");
+    const location = await createLocation(classroomId, { name: "高雄" });
+    const { lesson: newer } = await createLesson(classroomId, { name: "Kizomba", groupId: group.id, locationId: location.id });
+    const { lesson: older } = await createLesson(classroomId, { name: "Kizomba", groupId: group.id });
+    const sean = await prisma.teacher.create({ data: { classroomId, name: "Sean" } });
+    await prisma.lessonTeacher.create({ data: { lessonId: newer.id, teacherId: sean.id } });
+    // 舊的那期 id 比較大也沒關係：看的是第一堂的日期。
+    await prisma.lessonPeriod.createMany({
+      data: [
+        { lessonId: newer.id, startTime: new Date("2026-10-04T06:00:00Z"), endTime: new Date("2026-10-04T07:00:00Z") },
+        { lessonId: older.id, startTime: new Date("2026-08-02T06:00:00Z"), endTime: new Date("2026-08-02T07:00:00Z") },
+      ],
+    });
+    await createLessonGroup(classroomId, "空的課種");
+
+    const body = await (await listGroups()).json();
+    expect(body.find((g: { id: number }) => g.id === group.id).latestTerm).toEqual({
+      lessonId: newer.id,
+      locationName: "高雄",
+      teacherNames: ["Sean"],
+      firstStart: "2026-10-04T06:00:00.000Z",
+    });
+    expect(body.find((g: { name: string }) => g.name === "空的課種").latestTerm).toBeNull();
   });
 
   it("creates a group", async () => {

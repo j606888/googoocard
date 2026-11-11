@@ -107,7 +107,8 @@ const DayCell = ({
           return (
             <span
               key={p.periodId}
-              className={`flex items-center gap-1.5 min-w-0 rounded-sm px-1.5 py-0.5 text-[11.5px] leading-snug ${
+              title={p.lessonName}
+              className={`flex items-center gap-1.5 min-w-0 rounded-sm px-1.5 py-0.5 text-xs leading-snug ${
                 state === "due"
                   ? "bg-white text-warning-950 ring-[1.5px] ring-inset ring-warning-400"
                   : `${style.badge} ${state === "taken" ? "opacity-60" : ""}`
@@ -117,7 +118,8 @@ const DayCell = ({
               <span className="shrink-0 tabular-nums opacity-80">
                 {format(new Date(p.startTime), "HH:mm")}
               </span>
-              <span className="truncate font-medium">{p.lessonName}</span>
+              {/* 格子太窄，課名只會被截成一個字——寬螢幕才顯示，其餘看右邊當日清單。 */}
+              <span className="hidden truncate font-medium 2xl:inline">{p.lessonName}</span>
             </span>
           );
         })}

@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+import { resolveDropInInput } from "@/lib/dropInOptions";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
@@ -15,8 +17,9 @@ import { DraftLesson } from "@/store/slices/lessons";
 import { toStudentPayload } from "@/service/studentDetail";
 import { cardMatchesLesson } from "@/domains/qualification";
 import { isValidDanceLevel } from "@/lib/danceLevels";
-import { isValidDropInPrice, isValidLessonKind, isValidSessionsPerAttendance } from "@/lib/lessonKind";
+import { isValidLessonKind, isValidSessionsPerAttendance } from "@/lib/lessonKind";
 import { refreshLesson } from "@/service/lesson";
+import { resolveAssistantIds } from "@/service/lessonAssistants";
 import { isFinanceEnabled } from "@/service/finance/access";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -49,6 +52,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           teacher: { select: teacherSummarySelect },
         },
       },
+      assistants: { select: { teacher: { select: teacherSummarySelect } }, orderBy: { id: "asc" } },
       cards: {
         include: {
           card: { include: { danceStyle: { select: danceStyleSummarySelect } } },
@@ -70,6 +74,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     // Whitelist — the raw Student row carries `lineBindKey`. See toStudentPayload.
     students: lesson.students.map((student) => toStudentPayload(student.student)),
     teachers: lesson.teachers.map((teacher) => teacher.teacher),
+    assistants: lesson.assistants.map((assistant) => assistant.teacher),
     cards: lesson.cards.map((card) => card.card),
   };
 
@@ -96,7 +101,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   ) {
     return NextResponse.json({ error: "Invalid sessionsPerAttendance" }, { status: 400 });
   }
-  if (draftLesson.dropInPrice !== undefined && !isValidDropInPrice(draftLesson.dropInPrice)) {
+  const dropIn = resolveDropInInput(draftLesson);
+  if (dropIn === "invalid") {
     return NextResponse.json({ error: "Invalid dropInPrice" }, { status: 400 });
   }
 
@@ -113,6 +119,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     !(await allTeachersInClassroom(draftLesson.teacherIds, classroomId))
   ) {
     return NextResponse.json({ error: "TEACHER_NOT_FOUND" }, { status: 400 });
+  }
+  // 小幫手也是本教室的 Teacher，而且不能同時是這門課的老師。
+  const assistantIds = await resolveAssistantIds(draftLesson, classroomId);
+  if ("error" in assistantIds) {
+    return NextResponse.json({ error: assistantIds.error }, { status: 400 });
   }
 
   if (
@@ -163,7 +174,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       level: draftLesson.level,
       kind: draftLesson.kind,
       sessionsPerAttendance: draftLesson.sessionsPerAttendance,
-      dropInPrice: draftLesson.dropInPrice,
+      dropInPrice: dropIn.dropInPrice,
+      dropInOptions:
+        dropIn.dropInOptions === undefined ? undefined : (dropIn.dropInOptions ?? Prisma.DbNull),
       groupId: draftLesson.groupId ?? null,
       locationId: draftLesson.locationId ?? null,
     },
@@ -175,6 +188,19 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   await prisma.lessonTeacher.createMany({
     data: draftLesson.teacherIds.map((teacherId) => ({ teacherId, lessonId: parseInt(id) })),
   });
+
+  // 沒送 assistantIds = 不動小幫手；只把剛變成老師的人從小幫手拿掉（老師優先）。
+  await prisma.lessonAssistant.deleteMany({
+    where: {
+      lessonId: parseInt(id),
+      ...(assistantIds.ids === undefined ? { teacherId: { in: draftLesson.teacherIds } } : {}),
+    },
+  });
+  if (assistantIds.ids) {
+    await prisma.lessonAssistant.createMany({
+      data: assistantIds.ids.map((teacherId) => ({ teacherId, lessonId: parseInt(id) })),
+    });
+  }
 
   await prisma.lessonCard.deleteMany({
     where: { lessonId: parseInt(id) },
@@ -199,6 +225,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   // 分帳規則跟著刪（外鍵是 RESTRICT）；有時段的課照舊刪不掉，整筆 rollback。
   await prisma.$transaction([
     prisma.lessonTeacher.deleteMany({ where: { lessonId } }),
+    prisma.lessonAssistant.deleteMany({ where: { lessonId } }),
     prisma.lessonCard.deleteMany({ where: { lessonId } }),
     prisma.lessonStudent.deleteMany({ where: { lessonId } }),
     prisma.lessonSplitRule.deleteMany({ where: { lessonId } }),

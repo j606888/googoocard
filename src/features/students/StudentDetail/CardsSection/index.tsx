@@ -90,7 +90,7 @@ const CardsSection = ({
             ))}
           </div>
         ) : (
-          <EmptyState kind="inline" title={`課卡都用完了${isPublic ? "" : "，可以幫學生續卡"}`} />
+          <EmptyState kind="inline" title="沒有有效課卡" />
         )}
       </section>
 

@@ -3,6 +3,7 @@ import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 import ExpandableAction from "@/components/ExpandableAction";
 import { FieldLabel, fieldControlClass } from "@/components/Field";
+import { type DropInOption, lessonDropInOptions } from "@/lib/dropInOptions";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import {
@@ -98,6 +99,44 @@ const AmountPanel = ({
   </label>
 );
 
+/** 單堂方案（2 個以上才出現）：選了就把金額帶成那個方案的價錢，之後還是可以手改。 */
+const OptionSegment = ({
+  options,
+  value,
+  onChange,
+}: {
+  options: DropInOption[];
+  value: string;
+  onChange: (option: DropInOption) => void;
+}) => (
+  <div className="flex flex-col gap-1.5">
+    <FieldLabel>方案</FieldLabel>
+    <div role="radiogroup" aria-label="單堂方案" className="grid grid-cols-2 gap-2">
+      {options.map((option) => {
+        const selected = value === option.name;
+        return (
+          <button
+            key={option.name}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(option)}
+            className={cn(
+              "flex min-h-11 cursor-pointer flex-col items-center justify-center rounded-xl border-[1.5px] px-2 py-1.5 text-sm transition-colors",
+              selected
+                ? "border-primary-800 bg-primary-100 font-semibold text-primary-900"
+                : "border-neutral-300 bg-white text-neutral-700 hover:border-primary-300"
+            )}
+          >
+            <span className="max-w-full truncate">{option.name}</span>
+            <span className="text-xs tabular-nums opacity-80">${formatMoney(option.price)}</span>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
 /** 沒綁卡的出席改付單堂（點名結果頁、待處理）。 */
 export const DropInForm = ({
   record,
@@ -112,7 +151,10 @@ export const DropInForm = ({
   inline?: boolean;
   onDone?: () => void;
 }) => {
-  const listPrice = lesson.dropInPrice ?? 0;
+  const options = lessonDropInOptions(lesson);
+  const hasPlans = options.length > 1;
+  const [optionName, setOptionName] = useState(options[0]?.name ?? "");
+  const listPrice = (options.find((o) => o.name === optionName) ?? options[0])?.price ?? 0;
   const [open, setOpen] = useState(false);
   const [price, setPrice] = useState(String(listPrice));
   const [pay, setPay] = useState<PayChoice>("CASH");
@@ -127,7 +169,8 @@ export const DropInForm = ({
 
   const close = () => {
     setOpen(false);
-    setPrice(String(listPrice));
+    setOptionName(options[0]?.name ?? "");
+    setPrice(String(options[0]?.price ?? 0));
     setPay("CASH");
     setReference("");
     receiver.reset();
@@ -141,6 +184,7 @@ export const DropInForm = ({
       periodId,
       studentId: record.studentId,
       amount,
+      optionName: optionName || undefined,
       isPaid: !later,
       paymentMethod: free || pay === "LATER" ? null : pay,
       paymentReference: !free && pay === "TRANSFER" ? reference : null,
@@ -156,7 +200,7 @@ export const DropInForm = ({
 
   return (
     <ExpandableAction
-      triggerLabel={`單堂 $${formatMoney(listPrice)}`}
+      triggerLabel={hasPlans ? "單堂" : `單堂 $${formatMoney(options[0]?.price ?? 0)}`}
       title={`${record.studentName} 付單堂`}
       open={open}
       onOpenChange={(next) => (next ? setOpen(true) : close())}
@@ -167,6 +211,16 @@ export const DropInForm = ({
       isLoading={isLoading}
     >
       <div className="mb-4 flex flex-col gap-4">
+        {hasPlans && (
+          <OptionSegment
+            options={options}
+            value={optionName}
+            onChange={(option) => {
+              setOptionName(option.name);
+              setPrice(String(option.price));
+            }}
+          />
+        )}
         <AmountPanel value={price} listPrice={listPrice} onChange={setPrice} />
         {!free && (
           <div className="flex flex-col gap-1.5">
@@ -192,6 +246,8 @@ export const DropInForm = ({
 export const ConfirmDropInForm = ({
   chargeId,
   amount,
+  optionName: savedOptionName = null,
+  options = [],
   studentName,
   lessonLocationId,
   inline = false,
@@ -199,6 +255,10 @@ export const ConfirmDropInForm = ({
 }: {
   chargeId: number;
   amount: number;
+  /** 記帳時選的方案；學生選錯了可以在這裡換。 */
+  optionName?: string | null;
+  /** 這堂課現在的單堂方案（2 個以上才顯示選擇）。 */
+  options?: DropInOption[];
   studentName: string;
   /** 這堂課的分部：財務開啟時預設收款人用（分部負責人）。 */
   lessonLocationId?: number | null;
@@ -207,9 +267,14 @@ export const ConfirmDropInForm = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [price, setPrice] = useState(String(amount));
+  const [optionName, setOptionName] = useState(savedOptionName ?? "");
   const [pay, setPay] = useState<PayChoice>("CASH");
   const [reference, setReference] = useState("");
   const [confirmPayment, { isLoading }] = useConfirmDropInPaymentMutation();
+  const hasPlans = options.length > 1;
+  const switched = optionName !== (savedOptionName ?? "");
+  // 換了方案就以新方案的價錢當「原價」，沒換就是記帳時的金額。
+  const listPrice = switched ? (options.find((o) => o.name === optionName)?.price ?? amount) : amount;
   const finalAmount = Number(price);
   const free = price !== "" && finalAmount === 0;
   const receiver = useFinanceReceiver({ active: open || inline, lessonLocationId });
@@ -218,6 +283,7 @@ export const ConfirmDropInForm = ({
   const close = () => {
     setOpen(false);
     setPrice(String(amount));
+    setOptionName(savedOptionName ?? "");
     setPay("CASH");
     setReference("");
     receiver.reset();
@@ -228,6 +294,7 @@ export const ConfirmDropInForm = ({
     const result = await confirmPayment({
       chargeId,
       amount: finalAmount,
+      optionName: switched ? optionName : undefined,
       paymentMethod: free ? undefined : pay === "TRANSFER" ? "TRANSFER" : "CASH",
       paymentReference: !free && pay === "TRANSFER" ? reference : null,
       ...(needsReceiver && receiver.receiverUserId !== null ? { receiverUserId: receiver.receiverUserId } : {}),
@@ -253,7 +320,17 @@ export const ConfirmDropInForm = ({
       isLoading={isLoading}
     >
       <div className="mb-4 flex flex-col gap-4">
-        <AmountPanel value={price} listPrice={amount} onChange={setPrice} />
+        {hasPlans && (
+          <OptionSegment
+            options={options}
+            value={optionName}
+            onChange={(option) => {
+              setOptionName(option.name);
+              setPrice(String(option.price));
+            }}
+          />
+        )}
+        <AmountPanel value={price} listPrice={listPrice} onChange={setPrice} />
         {!free && (
           <div className="flex flex-col gap-1.5">
             <FieldLabel>收款方式</FieldLabel>

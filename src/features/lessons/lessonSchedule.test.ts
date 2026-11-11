@@ -1,12 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   agoLabel,
-  inClassPeriod,
   nextDateLabel,
-  nextPeriod,
-  overduePeriods,
   periodOrdinalLabel,
-  pickHero,
   relativeDayLabel,
   timeLeftLabel,
   weeklyScheduleLabel,
@@ -30,67 +26,6 @@ const period = (
 });
 
 const NOW = at(29, 15, 20);
-
-describe("pickHero", () => {
-  it("上課中優先於下一堂", () => {
-    const periods = [
-      period(1, at(29, 20), at(29, 21)),
-      period(2, at(29, 15), at(29, 16), true),
-    ];
-    expect(pickHero(periods, NOW)).toEqual({ kind: "inClass", period: periods[1] });
-  });
-
-  it("沒有上課中 → 最近的下一堂", () => {
-    const periods = [
-      period(1, at(31, 20), at(31, 21)),
-      period(2, at(30, 20), at(30, 21)),
-    ];
-    expect(pickHero(periods, NOW)).toEqual({ kind: "next", period: periods[1] });
-  });
-
-  it("下一堂永遠不會是過去的時段", () => {
-    const periods = [period(1, at(22, 20), at(22, 21)), period(2, at(30, 20), at(30, 21))];
-    expect(nextPeriod(periods, NOW)?.id).toBe(2);
-    expect(pickHero([periods[0]], NOW)).toBeNull();
-  });
-
-  it("連著老師時先挑自己教的課，自己沒課才看全教室", () => {
-    const periods = [
-      period(1, at(29, 15), at(29, 16)),
-      period(2, at(30, 20), at(30, 21)),
-    ];
-    const mine = (p: { id: number }) => p.id === 2;
-    expect(pickHero(periods, NOW, mine)).toEqual({ kind: "next", period: periods[1] });
-    expect(pickHero(periods, NOW, () => false)).toEqual({ kind: "inClass", period: periods[0] });
-  });
-
-  it("剛好下課的那一刻不算上課中", () => {
-    expect(inClassPeriod([period(1, at(29, 14, 20), at(29, 15, 20))], NOW)).toBeNull();
-  });
-
-  it("兩堂同時在上，取先開始的", () => {
-    const periods = [period(1, at(29, 15), at(29, 17)), period(2, at(29, 14), at(29, 16))];
-    expect(inClassPeriod(periods, NOW)?.id).toBe(2);
-  });
-});
-
-describe("overduePeriods", () => {
-  it("已開始、還沒點名的，舊的在前；主角那一堂與今天稍後的不算", () => {
-    const periods = [
-      period(1, at(26, 15), at(26, 16)),
-      period(2, at(22, 20), at(22, 21)),
-      period(3, at(23, 20), at(23, 21), true),
-      period(4, at(29, 15), at(29, 16)),
-      period(5, at(29, 20), at(29, 21)),
-    ];
-    expect(overduePeriods(periods, NOW, 4).map((p) => p.id)).toEqual([2, 1]);
-  });
-
-  it("另一堂同時在上、還沒點名 → 也列進還沒點名", () => {
-    const periods = [period(1, at(29, 15), at(29, 16)), period(2, at(29, 14), at(29, 16))];
-    expect(overduePeriods(periods, NOW, 2).map((p) => p.id)).toEqual([1]);
-  });
-});
 
 describe("labels", () => {
   it("relativeDayLabel", () => {

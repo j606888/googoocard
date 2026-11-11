@@ -12,6 +12,12 @@ import { createDropInChargeInTx } from "@/service/dropIn";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
 import {
+  type DropInOption,
+  dropInLabel,
+  findDropInOption,
+  lessonDropInOptions,
+} from "@/lib/dropInOptions";
+import {
   fetchStudentsWithValidCards,
   type StudentWithLessonCards,
 } from "@/service/lessonCards";
@@ -558,6 +564,8 @@ export type SelfCheckInResult = {
   /** drop_in = 不扣卡、記一筆單堂費（下課付） */
   status: "checked" | "already_checked" | "no_card" | "drop_in";
   dropInAmount?: number;
+  /** 選的單堂方案名稱；沒名字的單一價是 null。 */
+  dropInOptionName?: string | null;
   cardName?: string;
   remainingSessions?: number;
   exhausted?: boolean;
@@ -567,7 +575,7 @@ export type SelfCheckInResult = {
 export type SelfCheckInCardChoice =
   | { studentCardId: number }
   | { buyCardId: number }
-  | { dropIn: true };
+  | { dropIn: true; optionName?: string };
 
 /**
  * A self check-in the engine refuses before writing anything. `status` is the
@@ -719,8 +727,11 @@ export async function selfCheckIn({
   let buying: (typeof lesson.cards)[number]["card"] | null = null;
   const dropIn = Boolean(choice && "dropIn" in choice);
 
-  if (dropIn) {
-    if (lesson.dropInPrice === null) throw new SelfCheckInError("drop_in_not_offered", 400);
+  let dropInOption: DropInOption | null = null;
+  if (choice && "dropIn" in choice) {
+    // 方案由學生自己選（不做資格鎖，收款時老師核對）；名稱對不上就整筆拒絕。
+    dropInOption = findDropInOption(lessonDropInOptions(lesson), choice.optionName);
+    if (!dropInOption) throw new SelfCheckInError("drop_in_not_offered", 400);
   } else if (choice && "studentCardId" in choice) {
     const { usable } = cardOptionsFor(student, lesson);
     if (!usable.some((c) => c.id === choice.studentCardId)) {
@@ -831,7 +842,8 @@ export async function selfCheckIn({
             attendanceRecordId: attendanceRecord.id,
             studentId: student.id,
             lessonName: lesson.name,
-            amount: lesson.dropInPrice!,
+            amount: dropInOption!.price,
+            optionName: dropInOption!.name,
             payment: { isPaid: false },
             receiverUserId: null,
           });
@@ -851,7 +863,12 @@ export async function selfCheckIn({
     if (!studentCard) {
       results.push(
         dropIn
-          ? { periodId: period.id, status: "drop_in", dropInAmount: lesson.dropInPrice! }
+          ? {
+              periodId: period.id,
+              status: "drop_in",
+              dropInAmount: dropInOption!.price,
+              dropInOptionName: dropInOption!.name || null,
+            }
           : { periodId: period.id, status: "no_card" }
       );
       continue;
@@ -887,7 +904,7 @@ export async function selfCheckIn({
     await notifyClassroom(lesson.classroomId, {
       type: "UNPAID_CARD",
       title: "待確認收款",
-      body: `${student.name} 自助簽到「${lesson.name}」選了單堂，NT$${formatMoney(dropInDue)} 下課付`,
+      body: `${student.name} 自助簽到「${lesson.name}」選了${dropInLabel(dropInOption?.name)}，NT$${formatMoney(dropInDue)} 下課付`,
       path: `/lessons/${lesson.id}/periods/${newPeriods[0].id}/check-success`,
     });
   }

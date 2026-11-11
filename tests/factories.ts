@@ -7,7 +7,7 @@ import { toTaipeiDateKey } from "@/lib/taipei-date";
 // Wipe all tables between tests (FK-safe via CASCADE).
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "AttendanceRecord", "LessonStudent", "LessonPeriod", "LessonTeacher",
+    `TRUNCATE "AttendanceRecord", "LessonStudent", "LessonPeriod", "LessonTeacher", "LessonAssistant",
       "LessonCard", "StudentDanceQualification", "StudentTag", "Tag", "Event",
       "StudentCard", "Lesson", "LessonGroup", "Location", "Card", "DanceStyle", "Student", "Teacher", "InviteToken",
       "Membership", "Classroom", "User", "LineAccount", "RenewalReminder", "PushToken", "WebPushSubscription",

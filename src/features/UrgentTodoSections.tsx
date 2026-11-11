@@ -134,6 +134,7 @@ export function UrgentTodoSections({
             subtitle={
               <span className="block truncate">
                 {formatDate(item.lessonPeriodStartTime)} {item.lessonName}
+                {item.optionName && ` · ${item.optionName}`}
               </span>
             }
             action={

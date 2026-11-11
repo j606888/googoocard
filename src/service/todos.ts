@@ -55,6 +55,7 @@ export async function getTodos(classroomId: number, now = new Date()) {
       select: {
         id: true,
         amount: true,
+        optionName: true,
         createdAt: true,
         attendanceRecord: {
           select: {
@@ -107,6 +108,7 @@ export async function getTodos(classroomId: number, now = new Date()) {
     unpaidDropIns: unpaidDropIns.map((charge) => ({
       id: charge.id,
       amount: charge.amount,
+      optionName: charge.optionName,
       createdAt: charge.createdAt,
       student: charge.attendanceRecord.student,
       lessonId: charge.attendanceRecord.lessonPeriod.lesson.id,

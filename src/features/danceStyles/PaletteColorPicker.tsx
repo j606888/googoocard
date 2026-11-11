@@ -1,10 +1,10 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { DANCE_STYLE_COLORS, type DanceStyleColor } from "@/lib/danceStyles";
+import { DANCE_STYLE_COLORS, type DanceStyleColor, type PaletteColor } from "@/lib/danceStyles";
 import { DANCE_STYLE_PALETTE } from "@/lib/danceStyleColors";
 
-const COLOR_NAMES: Record<DanceStyleColor, string> = {
+const COLOR_NAMES: Record<PaletteColor, string> = {
   green: "綠",
   orange: "橘",
   slate: "灰藍",
@@ -15,19 +15,32 @@ const COLOR_NAMES: Record<DanceStyleColor, string> = {
   teal: "青綠",
   red: "紅",
   indigo: "靛藍",
+  sky: "天藍",
+  cyan: "青",
+  emerald: "翡翠綠",
+  periwinkle: "長春花藍",
+  violet: "紫羅蘭",
+  navy: "深藍",
+  plum: "深紫",
+  midnight: "午夜藍",
 };
 
-/** The palette swatches — dance styles and teachers pick their colour from the same keys. */
-const PaletteColorPicker = ({
+/**
+ * The palette swatches. Dance styles pick from the default ten; teachers pass
+ * `colors={TEACHER_COLORS}` to get the extra cool ones too.
+ */
+const PaletteColorPicker = <C extends PaletteColor = DanceStyleColor>({
   value,
   onChange,
   label = "顏色",
   hint,
+  colors = DANCE_STYLE_COLORS as unknown as readonly C[],
 }: {
-  value: DanceStyleColor;
-  onChange: (color: DanceStyleColor) => void;
+  value: C;
+  onChange: (color: C) => void;
   label?: string;
   hint?: string;
+  colors?: readonly C[];
 }) => (
   <fieldset className="flex flex-col gap-2">
     <legend className="mb-2 text-sm font-medium text-neutral-900">
@@ -35,8 +48,8 @@ const PaletteColorPicker = ({
       {hint && <span className="ml-1 text-sm font-normal text-neutral-500">{hint}</span>}
     </legend>
     {/* p-1：選取外框（ring-2 + offset-2）會超出格子 4px，抽屜的捲動容器會把它切掉 */}
-    <div className="grid grid-cols-5 gap-2 p-1">
-      {DANCE_STYLE_COLORS.map((key) => {
+    <div className={`grid gap-2 p-1 ${colors.length > 10 ? "grid-cols-6" : "grid-cols-5"}`}>
+      {colors.map((key) => {
         const selected = key === value;
         return (
           <button

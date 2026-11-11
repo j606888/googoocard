@@ -5,7 +5,6 @@ import TimePicker, {
   generateTimeOptions,
 } from "@/components/TimePicker";
 import { format, addDays } from "date-fns";
-import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldLabel } from "@/components/Field";
 
@@ -44,13 +43,14 @@ const validateForm = (data: {
 const AddPeriodForm = ({
   periods,
   onAddPeriod,
-  error,
   initialPeriod,
+  onCancel,
 }: {
   periods: { startTime: string; endTime: string }[];
   onAddPeriod: (period: { startTime: string; endTime: string }) => void;
-  error?: string;
   initialPeriod?: { startTime: string; endTime: string };
+  /** 收起表單（不加）。 */
+  onCancel: () => void;
 }) => {
   const [date, setDate] = useState<Date | undefined>(
     initialPeriod ? new Date(initialPeriod.startTime) : new Date()
@@ -97,7 +97,6 @@ const AddPeriodForm = ({
   const handleToTimeChange = (time: Option | null) => {
     if (errors.toTime) {
       setErrors({ ...errors, toTime: undefined });
-      return;
     }
     setToTime(time);
   };
@@ -158,15 +157,23 @@ const AddPeriodForm = ({
   };
 
   return (
-    <div className="border-b border-neutral-200 py-1 flex flex-col gap-3">
-      <span className="text-base font-bold text-neutral-900 -mb-1">時段</span>
-      <div className="flex gap-2 items-center justify-between">
-        <div className="flex flex-col gap-1.5">
-          <FieldLabel>日期</FieldLabel>
+    <div className="flex flex-col gap-3 bg-neutral-50 p-4">
+      {/* 日期一列、時間一列：三個擠同一列時，時間會被壓到看不完整。 */}
+      <div className="flex flex-col gap-1.5">
+        <FieldLabel>日期</FieldLabel>
+        <div className="flex flex-wrap items-center gap-2">
           <DatePicker date={date} setDate={handleDateChange} />
-          <FieldError>{errors.date}</FieldError>
+          <Button type="button" variant="secondary" size="sm" onClick={minusOneWeek}>
+            -1 週
+          </Button>
+          <Button type="button" variant="secondary" size="sm" onClick={addOneWeek}>
+            +1 週
+          </Button>
         </div>
-        <div className="flex flex-col gap-1.5">
+        <FieldError>{errors.date}</FieldError>
+      </div>
+      <div className="flex items-start gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <FieldLabel>開始</FieldLabel>
           <TimePicker
             selectedTime={fromTime}
@@ -174,8 +181,8 @@ const AddPeriodForm = ({
           />
           <FieldError>{errors.fromTime}</FieldError>
         </div>
-        <span className="text-sm text-neutral-500 mt-7">-</span>
-        <div className="flex flex-col gap-1.5">
+        <span className="mt-10 text-sm text-neutral-500">-</span>
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <FieldLabel>結束</FieldLabel>
           <TimePicker
             selectedTime={toTime}
@@ -184,22 +191,14 @@ const AddPeriodForm = ({
           <FieldError>{errors.toTime}</FieldError>
         </div>
       </div>
-      <div className="flex gap-2 items-center">
-        <div className="flex gap-2">
-          <Button type="button" variant="secondary" size="sm" onClick={minusOneWeek}>
-            -1 週
-          </Button>
-          <Button type="button" variant="secondary" size="sm" onClick={addOneWeek}>
-            +1 週
-          </Button>
-        </div>
-        <Button variant="secondary" size="sm" className="ml-auto" onClick={handleSubmit}>
-          <Plus className="size-4" />
-          新增時段
+      <div className="flex items-center justify-end gap-2">
+        <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
+          取消
+        </Button>
+        <Button type="button" size="sm" onClick={handleSubmit}>
+          加入
         </Button>
       </div>
-      <FieldError>{error}</FieldError>
-      <div></div>
     </div>
   );
 };

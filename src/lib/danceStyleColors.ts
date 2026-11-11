@@ -1,4 +1,4 @@
-import type { DanceStyleColor, DanceStyleSummary } from "@/lib/danceStyles";
+import type { DanceStyleSummary, PaletteColor } from "@/lib/danceStyles";
 
 // Tailwind classes behind each dance style palette key. Tailwind only ships
 // classes it finds as literal strings in the source, so every class is spelled
@@ -16,7 +16,7 @@ export type DanceStyleClasses = {
   dot: string;
 };
 
-export const DANCE_STYLE_PALETTE: Record<DanceStyleColor, DanceStyleClasses> = {
+export const DANCE_STYLE_PALETTE: Record<PaletteColor, DanceStyleClasses> = {
   green: {
     bg: "bg-primary-500",
     light: "bg-primary-50",
@@ -98,6 +98,71 @@ export const DANCE_STYLE_PALETTE: Record<DanceStyleColor, DanceStyleClasses> = {
     badge: "bg-indigo-100 text-indigo-700",
     dot: "bg-indigo-500",
   },
+  // Teacher-only cool colours (EXTRA_PALETTE_COLORS).
+  sky: {
+    bg: "bg-sky-500",
+    light: "bg-sky-50",
+    text: "text-sky-700",
+    border: "border-sky-400",
+    badge: "bg-sky-100 text-sky-700",
+    dot: "bg-sky-500",
+  },
+  cyan: {
+    bg: "bg-cyan-600",
+    light: "bg-cyan-50",
+    text: "text-cyan-700",
+    border: "border-cyan-400",
+    badge: "bg-cyan-100 text-cyan-700",
+    dot: "bg-cyan-600",
+  },
+  emerald: {
+    bg: "bg-emerald-600",
+    light: "bg-emerald-50",
+    text: "text-emerald-700",
+    border: "border-emerald-400",
+    badge: "bg-emerald-100 text-emerald-700",
+    dot: "bg-emerald-600",
+  },
+  periwinkle: {
+    bg: "bg-indigo-400",
+    light: "bg-indigo-50",
+    text: "text-indigo-700",
+    border: "border-indigo-400",
+    badge: "bg-indigo-100 text-indigo-700",
+    dot: "bg-indigo-400",
+  },
+  violet: {
+    bg: "bg-violet-500",
+    light: "bg-violet-50",
+    text: "text-violet-700",
+    border: "border-violet-400",
+    badge: "bg-violet-100 text-violet-700",
+    dot: "bg-violet-500",
+  },
+  navy: {
+    bg: "bg-blue-800",
+    light: "bg-blue-50",
+    text: "text-blue-700",
+    border: "border-blue-400",
+    badge: "bg-blue-100 text-blue-700",
+    dot: "bg-blue-800",
+  },
+  plum: {
+    bg: "bg-purple-800",
+    light: "bg-purple-50",
+    text: "text-purple-700",
+    border: "border-purple-400",
+    badge: "bg-purple-100 text-purple-700",
+    dot: "bg-purple-800",
+  },
+  midnight: {
+    bg: "bg-slate-800",
+    light: "bg-slate-50",
+    text: "text-slate-700",
+    border: "border-slate-400",
+    badge: "bg-slate-100 text-slate-700",
+    dot: "bg-slate-800",
+  },
 };
 
 /** For a lesson with no style yet (legacy rows until the contract migration)
@@ -114,7 +179,7 @@ const NEUTRAL: DanceStyleClasses = {
 export const UNSET_DANCE_STYLE_LABEL = "未設定舞種";
 
 export function danceStyleClasses(color: string | null | undefined): DanceStyleClasses {
-  return (color && DANCE_STYLE_PALETTE[color as DanceStyleColor]) || NEUTRAL;
+  return (color && DANCE_STYLE_PALETTE[color as PaletteColor]) || NEUTRAL;
 }
 
 /** Label + classes for a style, or a neutral placeholder when there is none. */

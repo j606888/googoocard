@@ -26,6 +26,7 @@ import { POST as resetAttendance } from "@/app/api/lessons/[id]/periods/[periodI
 import { selfCheckIn, updateAttendance, takeAttendance } from "@/domains/attendance/attendance.service";
 import { getTodos } from "@/service/todos";
 import { periodRevenue } from "@/lib/income";
+import { lessonDropInOptions, resolveDropInInput } from "@/lib/dropInOptions";
 
 describe("單堂付費", () => {
   let classroomId: number;
@@ -188,6 +189,144 @@ describe("單堂付費", () => {
     await expect(
       selfCheckIn({ studentId: student.id, lessonId: lesson.id, lessonPeriodIds: [period.id], card: { dropIn: true }, requireCard: true })
     ).rejects.toMatchObject({ code: "drop_in_not_offered" });
+  });
+
+  describe("單堂方案（多個價格）", () => {
+    const PLANS = [
+      { name: "原價", price: 500 },
+      { name: "複習價", price: 250, note: "限上過 1-3 期的同學" },
+    ];
+
+    async function setupPlans() {
+      const ctx = await setup(500);
+      await prisma.lesson.update({ where: { id: ctx.lesson.id }, data: { dropInOptions: PLANS } });
+      return ctx;
+    }
+
+    it("lessonDropInOptions：沒開放 = []、單一價 = 一個沒名字的、有方案照回", () => {
+      expect(lessonDropInOptions({ dropInPrice: null, dropInOptions: PLANS })).toEqual([]);
+      expect(lessonDropInOptions({ dropInPrice: 900, dropInOptions: null })).toEqual([{ name: "", price: 900 }]);
+      expect(lessonDropInOptions({ dropInPrice: 500, dropInOptions: PLANS })).toEqual(PLANS);
+    });
+
+    it("resolveDropInInput：方案決定 dropInPrice；只給價錢會清掉方案；不合法擋掉", () => {
+      expect(resolveDropInInput({ dropInPrice: 999, dropInOptions: PLANS })).toEqual({
+        dropInPrice: 500,
+        dropInOptions: PLANS,
+      });
+      expect(resolveDropInInput({ dropInPrice: 300 })).toEqual({ dropInPrice: 300, dropInOptions: null });
+      expect(resolveDropInInput({ dropInPrice: null, dropInOptions: PLANS })).toEqual({
+        dropInPrice: null,
+        dropInOptions: null,
+      });
+      expect(resolveDropInInput({})).toEqual({});
+      const dup = [{ name: "A", price: 1 }, { name: "A", price: 2 }];
+      expect(resolveDropInInput({ dropInPrice: 1, dropInOptions: dup })).toBe("invalid");
+      expect(resolveDropInInput({ dropInPrice: 1, dropInOptions: [{ name: " ", price: 1 }] })).toBe("invalid");
+      const five = [1, 2, 3, 4, 5].map((n) => ({ name: `方案${n}`, price: n }));
+      expect(resolveDropInInput({ dropInPrice: 1, dropInOptions: five })).toBe("invalid");
+    });
+
+    it("自助簽到選方案：記那個方案的價錢和名稱；沒指定 = 第一個", async () => {
+      const { lesson, period, student } = await setupPlans();
+      const { results, dropInDue } = await selfCheckIn({
+        studentId: student.id,
+        lessonId: lesson.id,
+        lessonPeriodIds: [period.id],
+        card: { dropIn: true, optionName: "複習價" },
+        requireCard: true,
+      });
+      expect(results[0]).toMatchObject({ status: "drop_in", dropInAmount: 250, dropInOptionName: "複習價" });
+      expect(dropInDue).toBe(250);
+      const charge = await prisma.dropInCharge.findFirstOrThrow();
+      expect(charge).toMatchObject({ amount: 250, optionName: "複習價", isPaid: false });
+
+      const other = await createStudent(classroomId);
+      await selfCheckIn({
+        studentId: other.id,
+        lessonId: lesson.id,
+        lessonPeriodIds: [period.id],
+        card: { dropIn: true },
+        requireCard: true,
+      });
+      const second = await prisma.dropInCharge.findFirstOrThrow({
+        where: { attendanceRecord: { studentId: other.id } },
+      });
+      expect(second).toMatchObject({ amount: 500, optionName: "原價" });
+
+      const todos = await getTodos(classroomId);
+      expect(todos.unpaidDropIns.map((t) => t.optionName).sort()).toEqual(["原價", "複習價"]);
+    });
+
+    it("自助簽到選不存在的方案：整筆拒絕、什麼都不寫", async () => {
+      const { lesson, period, student } = await setupPlans();
+      await expect(
+        selfCheckIn({
+          studentId: student.id,
+          lessonId: lesson.id,
+          lessonPeriodIds: [period.id],
+          card: { dropIn: true, optionName: "員工價" },
+          requireCard: true,
+        })
+      ).rejects.toMatchObject({ code: "drop_in_not_offered" });
+      expect(await prisma.attendanceRecord.count()).toBe(0);
+    });
+
+    it("老師記單堂可以選方案；不存在的方案 400", async () => {
+      const { lesson, period, student } = await setupPlans();
+      await createPendingAttendance(period.id, student.id);
+      const bad = await charge(lesson.id, period.id, student.id, { isPaid: false, optionName: "員工價" });
+      expect(bad.status).toBe(400);
+      const res = await charge(lesson.id, period.id, student.id, { isPaid: false, optionName: "複習價" });
+      expect(res.status).toBe(200);
+      expect(await prisma.dropInCharge.findFirstOrThrow()).toMatchObject({ amount: 250, optionName: "複習價" });
+    });
+
+    it("收款時換方案：金額跟著新方案；另外帶 amount 以 amount 為準", async () => {
+      const { lesson, period, student } = await setupPlans();
+      await selfCheckIn({
+        studentId: student.id,
+        lessonId: lesson.id,
+        lessonPeriodIds: [period.id],
+        card: { dropIn: true, optionName: "複習價" },
+        requireCard: true,
+      });
+      const created = await prisma.dropInCharge.findFirstOrThrow();
+      const res = await confirmRoute(
+        jsonRequest("POST", { paymentMethod: "CASH", optionName: "原價" }),
+        routeParams({ id: String(created.id) })
+      );
+      expect(res.status).toBe(200);
+      expect(await prisma.dropInCharge.findFirstOrThrow()).toMatchObject({
+        amount: 500,
+        optionName: "原價",
+        isPaid: true,
+      });
+    });
+
+    it("改課程的方案不動已經記的帳", async () => {
+      const { lesson, period, student } = await setupPlans();
+      await selfCheckIn({
+        studentId: student.id,
+        lessonId: lesson.id,
+        lessonPeriodIds: [period.id],
+        card: { dropIn: true, optionName: "複習價" },
+        requireCard: true,
+      });
+      await prisma.lesson.update({
+        where: { id: lesson.id },
+        data: { dropInPrice: 600, dropInOptions: [{ name: "新價", price: 600 }] },
+      });
+      const created = await prisma.dropInCharge.findFirstOrThrow();
+      expect(created).toMatchObject({ amount: 250, optionName: "複習價" });
+      // 沒換方案的收款照舊能過（舊方案名稱已經不在課程上）。
+      const res = await confirmRoute(
+        jsonRequest("POST", { paymentMethod: "CASH" }),
+        routeParams({ id: String(created.id) })
+      );
+      expect(res.status).toBe(200);
+      expect(await prisma.dropInCharge.findFirstOrThrow()).toMatchObject({ amount: 250, optionName: "複習價" });
+    });
   });
 
   it("營收算進單堂金額", () => {

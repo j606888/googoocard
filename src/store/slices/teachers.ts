@@ -1,8 +1,9 @@
 import { api } from '../api';
-import type { DanceStyleColor, DanceStyleSummary } from '@/lib/danceStyles';
+import type { DanceStyleSummary } from '@/lib/danceStyles';
+import type { LocationSummary } from '@/lib/locations';
 import type { MonthSummary, PeriodState } from '@/lib/teacherStats';
 import type { LessonKind } from '@/lib/lessonKind';
-import type { TeacherKind } from '@/lib/teachers';
+import type { TeacherColor, TeacherIcon, TeacherKind } from '@/lib/teachers';
 
 /** What lessons embed about their teachers. */
 export interface TeacherSummary {
@@ -11,10 +12,19 @@ export interface TeacherSummary {
   color: string;
 }
 
-export interface Teacher extends TeacherSummary {
+/** The teacher's own fields, as every teacher endpoint returns them. */
+export interface TeacherProfile extends TeacherSummary {
+  /** Emoji shown on the avatar instead of the initial. */
+  icon: string | null;
+  /** 這位老師上課的分部（純標示）。 */
+  locations: LocationSummary[];
   note: string | null;
   /** 老師／助教：只當助教的排課時不列出。 */
   kind: TeacherKind;
+  archivedAt: string | null;
+}
+
+export interface Teacher extends TeacherProfile {
   /** The member this teacher is linked to (團隊), or null. */
   userId: number | null;
   archivedAt: string | null;
@@ -23,24 +33,34 @@ export interface Teacher extends TeacherSummary {
 }
 
 /** One row of GET /teachers/overview. */
-export interface TeacherOverviewRow extends TeacherSummary {
-  note: string | null;
-  archivedAt: string | null;
+export interface TeacherOverviewRow extends TeacherProfile {
+  /** 連到的帳號（團隊成員），沒帳號是 null。 */
+  userId: number | null;
   lessonCount: number;
-  activeLessonCount: number;
-  danceStyles: DanceStyleSummary[];
-  stats: MonthSummary;
-  /** Sessions taught per month, oldest first — lines up with `months`. */
-  trend: number[];
-  nextPeriod: { startTime: string; lessonId: number; lessonName: string } | null;
+  /** In-progress lessons this teacher teaches; `firstStart` = the first period (for「週四 20:30」). */
+  activeLessons: { id: number; name: string; danceStyle: DanceStyleSummary; firstStart: string | null }[];
+  /** In-progress lessons this person assists (課程小幫手) — never counted as teaching. */
+  assistedLessons: (AssistedLesson & { firstStart: string | null })[];
+  /** The period under way (`ongoing`) or the next one; null when nothing is scheduled. */
+  nextPeriod: {
+    startTime: string;
+    endTime: string;
+    lessonId: number;
+    lessonName: string;
+    ongoing: boolean;
+  } | null;
+}
+
+/** A lesson someone is 小幫手 of — listed under「協助」, outside every stat. */
+export interface AssistedLesson {
+  id: number;
+  name: string;
+  status: string;
+  danceStyle: DanceStyleSummary;
 }
 
 export interface TeachersOverview {
-  month: string;
-  months: string[];
-  /** Classroom-wide for the month — a co-taught period counts once. */
-  totals: MonthSummary;
-  /** In-progress lessons with no teacher — they count for nobody. */
+  /** In-progress lessons with no teacher. */
   unassignedLessonCount: number;
   teachers: TeacherOverviewRow[];
 }
@@ -61,7 +81,7 @@ export interface TeacherLessonRow {
 }
 
 export interface TeacherDetail {
-  teacher: TeacherSummary & { note: string | null; kind: TeacherKind; archivedAt: string | null };
+  teacher: TeacherProfile & { userId: number | null };
   month: string;
   danceStyles: DanceStyleSummary[];
   firstTaughtAt: string | null;
@@ -69,6 +89,8 @@ export interface TeacherDetail {
   previousMonthAttendance: number;
   trend: { month: string; sessions: number; attendance: number }[];
   lessons: TeacherLessonRow[];
+  /** Every lesson this person assists, any status — not part of `stats`／`trend`／`lessons`. */
+  assistedLessons: AssistedLesson[];
   periods: {
     id: number;
     startTime: string;
@@ -83,14 +105,19 @@ export interface TeacherDetail {
 
 export interface TeacherFields {
   name?: string;
-  color?: DanceStyleColor;
+  color?: TeacherColor;
+  /** null = back to the initial. */
+  icon?: TeacherIcon | null;
+  /** Replaces the whole list. */
+  locationIds?: number[];
   /** Blank clears it. */
   note?: string;
   kind?: TeacherKind;
 }
 
 // A teacher's name and colour show up inside lessons too.
-const AFFECTED_TAGS = ['Teacher', 'Lesson'] as const;
+// Membership: the team page shows each member's person (name, colour, 身分).
+const AFFECTED_TAGS = ['Teacher', 'Lesson', 'Membership'] as const;
 
 const teachersApi = api.injectEndpoints({
   endpoints: (builder) => ({
@@ -98,8 +125,8 @@ const teachersApi = api.injectEndpoints({
       query: () => 'teachers',
       providesTags: ['Teacher'],
     }),
-    getTeachersOverview: builder.query<TeachersOverview, { month: string }>({
-      query: ({ month }) => `teachers/overview?month=${month}`,
+    getTeachersOverview: builder.query<TeachersOverview, void>({
+      query: () => 'teachers/overview',
       providesTags: ['Teacher'],
     }),
     getTeacher: builder.query<TeacherDetail, { id: number; month: string }>({
