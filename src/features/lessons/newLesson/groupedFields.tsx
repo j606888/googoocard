@@ -104,7 +104,15 @@ export const SeriesGroup = ({
   const listOpen = mode === "existing" && (!picked || browsing);
 
   const locationKey = (g: LessonGroup) => g.latestTerm?.locationName ?? NO_LOCATION;
-  const locationNames = [...new Set(groups.map((g) => g.latestTerm?.locationName).filter((n): n is string => !!n))];
+  // 照教室設定的分部順序排，按鈕位置才不會每次跳。
+  const { all: allLocations } = useLocations();
+  const locationRank = (name: string) => {
+    const index = allLocations.findIndex((l) => l.name === name);
+    return index === -1 ? Infinity : index;
+  };
+  const locationNames = [
+    ...new Set(groups.map((g) => g.latestTerm?.locationName).filter((n): n is string => !!n)),
+  ].sort((a, b) => locationRank(a) - locationRank(b) || a.localeCompare(b));
   const hasUnlocated = groups.some((g) => !g.latestTerm?.locationName);
   const showLocationFilter = locationNames.length >= 2 || (locationNames.length === 1 && hasUnlocated);
 

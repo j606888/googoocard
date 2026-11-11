@@ -207,7 +207,8 @@ const NewLesson = () => {
 
   // 選了現有課種：最近一期的設定整套帶入（跟課程頁「開新一期」一樣）。
   const [prefillGroupId, setPrefillGroupId] = useState<number | null>(null);
-  const { data: groupLessons } = useGetLessonsQuery(
+  // currentData：只拿這個課種的結果；`data` 在換課種、還在抓的時候會先給上一個課種的。
+  const { currentData: groupLessons } = useGetLessonsQuery(
     { tab: "all", sort: "nextSession", groupId: prefillGroupId ?? undefined },
     { skip: prefillGroupId === null }
   );
@@ -229,10 +230,7 @@ const NewLesson = () => {
       setDropInPlans(dropInPlansFrom(latest.dropInOptions));
       setInheritedPeriod(
         latest.lastPeriodStart && latest.lastPeriodEnd
-          ? {
-              startTime: addDays(new Date(latest.lastPeriodStart), 7).toISOString(),
-              endTime: addDays(new Date(latest.lastPeriodEnd), 7).toISOString(),
-            }
+          ? nextWeeklySlot(latest.lastPeriodStart, latest.lastPeriodEnd)
           : undefined
       );
     }
@@ -760,6 +758,18 @@ const NewLesson = () => {
       </div>
     </div>
   );
+};
+
+/** 上一期最後一堂的下一週；隔太久（已經過了）就再往後推，推到今天以後的同一個星期幾、同一個時間。 */
+const nextWeeklySlot = (lastStart: string, lastEnd: string) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let weeks = 1;
+  while (addDays(new Date(lastStart), 7 * weeks) < today) weeks += 1;
+  return {
+    startTime: addDays(new Date(lastStart), 7 * weeks).toISOString(),
+    endTime: addDays(new Date(lastEnd), 7 * weeks).toISOString(),
+  };
 };
 
 const validateForm = (data: {
