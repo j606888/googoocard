@@ -24,14 +24,29 @@ import type { SeriesChoice } from "./SeriesPicker";
 
 export type SeriesMode = "existing" | "new";
 
-/** 課種列的說明：「台南 · Sean、Kathy · 開過 5 期 · 上一期 10/3 開始」（最近一期的）。 */
-const describeGroup = (group: LessonGroup) => {
+const WEEKDAY_LABELS = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
+/** 星期一排第一、週日最後；沒排時段的放最後面。 */
+const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const NO_SLOT = 7;
+const ALL = "__all__";
+const NO_LOCATION = "__none__";
+
+const startOf = (group: LessonGroup) =>
+  group.latestTerm?.firstStart ? new Date(group.latestTerm.firstStart) : null;
+
+/**
+ * 課種列的說明（最近一期的）：「台南 · 週日 14:00 · Sean · 開過 5 期 · 上一期 10/3 開始」。
+ * 清單已經照星期分段、或只看某個分部時，就省掉重複的那一段。
+ */
+const describeGroup = (group: LessonGroup, { weekday = true, location = true } = {}) => {
   const term = group.latestTerm;
+  const start = startOf(group);
   return [
-    term?.locationName,
+    location ? term?.locationName : null,
+    start ? `${weekday ? `${WEEKDAY_LABELS[start.getDay()]} ` : ""}${format(start, "HH:mm")}` : null,
     term?.teacherNames.length ? term.teacherNames.join("、") : null,
     group.lessonCount > 0 ? `開過 ${group.lessonCount} 期` : "還沒開過",
-    term?.firstStart ? `上一期 ${format(new Date(term.firstStart), "M/d")} 開始` : null,
+    start ? `上一期 ${format(start, "M/d")} 開始` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -45,11 +60,18 @@ const recency = (group: LessonGroup) =>
       ? Infinity
       : -Infinity;
 
+/** 同一天裡照上課時間，再照最近開過的。 */
+const minuteOfDay = (group: LessonGroup) => {
+  const start = startOf(group);
+  return start ? start.getHours() * 60 + start.getMinutes() : Infinity;
+};
+
 const SEARCH_FROM = 8;
 
 /**
- * 課種：先選「延續現有課種」或「全新課種」。延續就從清單挑一個（每列帶最近一期的分部、老師、期數），
- * 挑完收成一列＋「換一個」；全新就打名字。下面接「這一期另取名稱」。
+ * 課種：先選「延續現有課種」或「全新課種」。
+ * 延續：第一層分部（分段控制）、第二層照最近一期是星期幾分段，一眼找到「週日台南的 Bachata Lv2」；
+ * 挑完收成一列＋「換一個」。全新就打名字。下面接「這一期另取名稱」。
  */
 export const SeriesGroup = ({
   mode,
@@ -77,17 +99,41 @@ export const SeriesGroup = ({
   const { data: groups = [] } = useGetLessonGroupsQuery();
   const [browsing, setBrowsing] = useState(false);
   const [query, setQuery] = useState("");
+  const [locationFilter, setLocationFilter] = useState<string>(ALL);
   const picked = value?.type === "existing" ? groups.find((g) => g.id === value.id) : undefined;
   const listOpen = mode === "existing" && (!picked || browsing);
-  const sorted = [...groups].sort((a, b) => recency(b) - recency(a) || a.name.localeCompare(b.name));
+
+  const locationKey = (g: LessonGroup) => g.latestTerm?.locationName ?? NO_LOCATION;
+  const locationNames = [...new Set(groups.map((g) => g.latestTerm?.locationName).filter((n): n is string => !!n))];
+  const hasUnlocated = groups.some((g) => !g.latestTerm?.locationName);
+  const showLocationFilter = locationNames.length >= 2 || (locationNames.length === 1 && hasUnlocated);
+
   const needle = query.trim().toLowerCase();
-  const shown = needle ? sorted.filter((g) => g.name.toLowerCase().includes(needle)) : sorted;
+  const shown = groups.filter(
+    (g) =>
+      (locationFilter === ALL || locationKey(g) === locationFilter) &&
+      (!needle || g.name.toLowerCase().includes(needle))
+  );
+  const sections = [...WEEKDAY_ORDER, NO_SLOT]
+    .map((day) => ({
+      day,
+      groups: shown
+        .filter((g) => (startOf(g)?.getDay() ?? NO_SLOT) === day)
+        .sort((a, b) => minuteOfDay(a) - minuteOfDay(b) || recency(b) - recency(a) || a.name.localeCompare(b.name)),
+    }))
+    .filter((section) => section.groups.length > 0);
+
+  const pick = (id: number) => {
+    setBrowsing(false);
+    setQuery("");
+    onChange({ type: "existing", id });
+  };
 
   const footer = picked
     ? `這是「${picked.name}」的第 ${picked.lessonCount + 1} 期。`
     : mode === "new"
       ? "課名預設就是課種名稱；要不一樣再另取。"
-      : "選一個要延續的課種，上一期的設定會整套帶進來。";
+      : "先選分部，再照星期找；上一期的設定會整套帶進來。";
 
   return (
     <GroupedSection title="課程" error={error} footer={footer} bare>
@@ -107,77 +153,106 @@ export const SeriesGroup = ({
           ]}
         />
       )}
-      <div className={cn(GROUP_CARD, error && "ring-1 ring-danger-500")}>
-        {mode === "new" && (
-          <InlineInput
-            label="課種名稱"
-            placeholder="例如 Bachata Lv1"
-            maxLength={60}
-            value={value?.type === "new" ? value.name : ""}
-            onChange={(name) => onChange({ type: "new", name })}
-          />
-        )}
-        {listOpen && groups.length > SEARCH_FROM && (
-          <label className="flex min-h-11 items-center gap-2 px-4">
-            <Search aria-hidden="true" className="size-4 shrink-0 text-neutral-400" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜尋課種"
-              aria-label="搜尋課種"
-              className="min-w-0 flex-1 bg-transparent text-[15px] text-neutral-900 outline-none placeholder:text-neutral-400"
-            />
-          </label>
-        )}
-        {listOpen &&
-          shown.map((group) => (
-            <CheckRow
-              key={group.id}
-              checked={group.id === picked?.id}
-              hint={describeGroup(group)}
-              onToggle={() => {
-                setBrowsing(false);
-                setQuery("");
-                onChange({ type: "existing", id: group.id });
-              }}
-            >
-              {group.name}
-            </CheckRow>
+
+      {listOpen ? (
+        <div className="mt-1 flex flex-col gap-4">
+          {(showLocationFilter || groups.length > SEARCH_FROM) && (
+            <div className="flex flex-col gap-2">
+              {showLocationFilter && (
+                <SegmentedControl<string>
+                  ariaLabel="分部"
+                  className="[&>button]:h-9"
+                  value={locationFilter}
+                  onChange={setLocationFilter}
+                  options={[
+                    { value: ALL, label: "全部" },
+                    ...locationNames.map((name) => ({ value: name, label: name })),
+                    ...(hasUnlocated ? [{ value: NO_LOCATION, label: "沒設分部" }] : []),
+                  ]}
+                />
+              )}
+              {groups.length > SEARCH_FROM && (
+                <label className="flex h-10 items-center gap-2 rounded-[9px] bg-white px-3">
+                  <Search aria-hidden="true" className="size-4 shrink-0 text-neutral-400" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="搜尋課種"
+                    aria-label="搜尋課種"
+                    className="min-w-0 flex-1 bg-transparent text-[15px] text-neutral-900 outline-none placeholder:text-neutral-400"
+                  />
+                </label>
+              )}
+            </div>
+          )}
+          {sections.map(({ day, groups: dayGroups }) => (
+            <div key={day} className="flex flex-col gap-1.5">
+              <h4 className="px-4 text-[13px] font-semibold text-neutral-500">
+                {day === NO_SLOT ? "還沒排時段" : WEEKDAY_LABELS[day]}
+              </h4>
+              <div className={cn(GROUP_CARD, error && "ring-1 ring-danger-500")}>
+                {dayGroups.map((group) => (
+                  <CheckRow
+                    key={group.id}
+                    checked={group.id === picked?.id}
+                    hint={describeGroup(group, { weekday: false, location: locationFilter === ALL })}
+                    onToggle={() => pick(group.id)}
+                  >
+                    {group.name}
+                  </CheckRow>
+                ))}
+              </div>
+            </div>
           ))}
-        {listOpen && needle && shown.length === 0 && (
-          <p className="px-4 py-3 text-[15px] text-neutral-500">找不到「{query.trim()}」。</p>
-        )}
-        {mode === "existing" && picked && !browsing && (
-          <div className="flex min-h-14 items-center gap-3 px-4 py-2">
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-[15px] font-semibold text-neutral-900">{picked.name}</span>
-              <span className="text-[13px] text-neutral-500">{describeGroup(picked)}</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => setBrowsing(true)}
-              className="shrink-0 cursor-pointer text-[15px] font-medium text-primary-700 hover:underline"
-            >
-              換一個
-            </button>
-          </div>
-        )}
-        {value && !listOpen && (
-          <GroupedRow label="這一期另取名稱">
-            <ToggleSwitch
-              checked={showCustomName}
-              onChange={(on) => {
-                if (on && !customName.trim()) onCustomNameChange(baseName);
-                onShowCustomNameChange(on);
-              }}
-              label="這一期另取名稱"
+          {groups.length > 0 && sections.length === 0 && (
+            <p className="px-4 text-[15px] text-neutral-500">
+              {needle ? `找不到「${query.trim()}」。` : "這個分部還沒有課種。"}
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className={cn(GROUP_CARD, error && "ring-1 ring-danger-500")}>
+          {mode === "new" && (
+            <InlineInput
+              label="課種名稱"
+              placeholder="例如 Bachata Lv1"
+              maxLength={60}
+              value={value?.type === "new" ? value.name : ""}
+              onChange={(name) => onChange({ type: "new", name })}
             />
-          </GroupedRow>
-        )}
-        {value && !listOpen && showCustomName && (
-          <InlineInput label="名稱" placeholder={baseName} value={customName} onChange={onCustomNameChange} />
-        )}
-      </div>
+          )}
+          {mode === "existing" && picked && (
+            <div className="flex min-h-14 items-center gap-3 px-4 py-2">
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-[15px] font-semibold text-neutral-900">{picked.name}</span>
+                <span className="text-[13px] text-neutral-500">{describeGroup(picked)}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setBrowsing(true)}
+                className="shrink-0 cursor-pointer text-[15px] font-medium text-primary-700 hover:underline"
+              >
+                換一個
+              </button>
+            </div>
+          )}
+          {value && (
+            <GroupedRow label="這一期另取名稱">
+              <ToggleSwitch
+                checked={showCustomName}
+                onChange={(on) => {
+                  if (on && !customName.trim()) onCustomNameChange(baseName);
+                  onShowCustomNameChange(on);
+                }}
+                label="這一期另取名稱"
+              />
+            </GroupedRow>
+          )}
+          {value && showCustomName && (
+            <InlineInput label="名稱" placeholder={baseName} value={customName} onChange={onCustomNameChange} />
+          )}
+        </div>
+      )}
     </GroupedSection>
   );
 };
