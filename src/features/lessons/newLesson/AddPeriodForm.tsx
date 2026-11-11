@@ -157,7 +157,7 @@ const AddPeriodForm = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-primary-300 bg-primary-50 p-4">
+    <div className="flex flex-col gap-3 bg-neutral-50 p-4">
       {/* 日期一列、時間一列：三個擠同一列時，時間會被壓到看不完整。 */}
       <div className="flex flex-col gap-1.5">
         <FieldLabel>日期</FieldLabel>

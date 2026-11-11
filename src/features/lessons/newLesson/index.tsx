@@ -1,26 +1,16 @@
-import InputField from "@/components/InputField";
 import { useEffect, useState } from "react";
-import CardSelect from "./CardSelect";
 import { Button } from "@/components/ui/button";
-import TeacherSelect from "./TeacherSelect";
-import AssistantSelect from "./AssistantSelect";
-import SeriesPicker, { seriesName, type SeriesChoice } from "./SeriesPicker";
+import { seriesName, type SeriesChoice } from "./SeriesPicker";
 import { useCreateLessonGroupMutation, useGetLessonGroupsQuery } from "@/store/slices/lessonGroups";
 import { useGetTeachersQuery } from "@/store/slices/teachers";
 import { useGetLessonsQuery } from "@/store/slices/lessons";
 import { seriesNameKey, seriesDisplayName } from "../seriesSuggest";
 import { termNumbers } from "../termLabels";
-import LocationSelect from "./LocationSelect";
 import { useLocations } from "@/hooks/useLocations";
 import SubNavbar from "@/features/SubNavbar";
-import PeriodList from "./PeriodList";
 import AddPeriodForm from "./AddPeriodForm";
 import { useCreateLessonMutation } from "@/store/slices/lessons";
 import { useRouter, useSearchParams } from "next/navigation";
-import DanceStyleSelect from "./DanceStyleSelect";
-import LevelSelect from "./LevelSelect";
-import LessonKindSelect from "./LessonKindSelect";
-import SessionsPerAttendanceSelect from "./SessionsPerAttendanceSelect";
 import DropInPriceField, {
   type DropInPlans,
   buildDropInOptions,
@@ -44,7 +34,10 @@ import {
   setLastLessonKind,
 } from "@/lib/lessonDraftStorage";
 import Link from "next/link";
-import { ArrowLeft, Check, Plus } from "lucide-react";
+import { ArrowLeft, Check, X } from "lucide-react";
+import { DANCE_LEVELS } from "@/lib/danceLevels";
+import { ActionRow, GROUPED_PAGE_BG, GroupedRow, GroupedSection, SegmentedControl } from "./grouped";
+import { AssistantGroup, CardGroup, DanceStyleGroup, LocationGroup, SeriesGroup, TeacherGroup } from "./groupedFields";
 import { addDays, format } from "date-fns";
 import { useGetCardsQuery } from "@/store/slices/cards";
 import { useSizeClass } from "@/hooks/useMediaQuery";
@@ -358,129 +351,183 @@ const NewLesson = () => {
     <>
       {!isExpanded && <SubNavbar title={title} backUrl="/lessons" />}
 
-      <div className="flex w-full max-w-[760px] flex-col gap-5 px-5 pt-4 pb-28 lg:px-8 lg:pt-6">
+      <div className={`min-h-dvh w-full ${GROUPED_PAGE_BG}`}>
+      <div className="mx-auto flex w-full max-w-[640px] flex-col gap-6 px-4 pt-4 pb-32 lg:px-6 lg:pt-8">
         {isExpanded && (
           <div className="flex items-center gap-3">
             <Link href="/lessons" aria-label="回課程" className="text-neutral-400 hover:text-neutral-600 transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <h1 className="text-xl font-bold text-neutral-900">{title}</h1>
+            <span className="text-[15px] text-neutral-500">{title}</span>
           </div>
         )}
 
-        <ol aria-label="步驟" className="-mx-5 flex items-center gap-1.5 overflow-x-auto px-5 text-sm lg:mx-0 lg:px-0">
-          {STEPS.map((label, index) => {
-            const active = index === step;
-            const done = index < STEPS.length - 1 && stepDone(index);
-            return (
-              <li key={label} className="flex shrink-0 items-center gap-1.5">
-                {index > 0 && <span aria-hidden="true" className="h-px w-3 bg-neutral-300 lg:w-8" />}
-                <button
-                  type="button"
-                  onClick={() => goTo(index)}
-                  aria-current={active ? "step" : undefined}
-                  className={`flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-3 font-medium transition-colors ${
-                    active
-                      ? "bg-primary-900 text-white"
-                      : "text-neutral-600 hover:bg-neutral-100"
-                  }`}
-                >
-                  {done && !active ? (
-                    <Check aria-label="已完成" className="size-4 text-primary-700" />
-                  ) : (
-                    <span className="tabular-nums">{index + 1}</span>
-                  )}
-                  {label}
-                </button>
-              </li>
-            );
-          })}
-        </ol>
+        <nav aria-label="步驟" className="flex flex-col gap-2">
+          <ol className="grid grid-cols-4 gap-1.5">
+            {STEPS.map((label, index) => {
+              const active = index === step;
+              const done = index < STEPS.length - 1 && stepDone(index);
+              return (
+                <li key={label}>
+                  <button
+                    type="button"
+                    onClick={() => goTo(index)}
+                    aria-current={active ? "step" : undefined}
+                    className="group flex w-full cursor-pointer flex-col gap-1.5 pt-1 text-left"
+                  >
+                    <span
+                      className={`h-1 rounded-full transition-colors ${
+                        active ? "bg-primary-700" : done ? "bg-primary-300" : "bg-neutral-300"
+                      }`}
+                    />
+                    <span
+                      className={`flex items-center gap-1 text-[13px] ${
+                        active ? "font-semibold text-neutral-900" : "text-neutral-500 group-hover:text-neutral-800"
+                      }`}
+                    >
+                      {done && !active && <Check aria-label="已完成" className="size-3.5 text-primary-700" />}
+                      {label}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+
+        <h1 className="text-[28px] font-bold tracking-tight text-neutral-900 lg:text-[32px]">
+          {STEPS[step]}
+        </h1>
 
         {step === 0 && (
-          <FormSection title="基本設定" hint="開一堂課一定要有的">
-            <div className="flex flex-col gap-1.5">
-              <SeriesPicker value={series} onChange={handleSeriesChange} error={errors.lessonName} />
-              {showCustomName && (
-                <InputField
-                  label="這一期的名稱（學生在課表上看到的）"
-                  placeholder={baseName || "例：Bachata Lv1 冬季班"}
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
+          <>
+            <SeriesGroup
+              value={series}
+              onChange={handleSeriesChange}
+              customName={customName}
+              onCustomNameChange={setCustomName}
+              showCustomName={showCustomName}
+              onShowCustomNameChange={setShowCustomName}
+              baseName={baseName}
+              error={errors.lessonName}
+            />
+            <DanceStyleGroup danceStyleId={danceStyleId} onChange={handleDanceStyleChange} error={errors.danceStyle}>
+              {hasLevels && (
+                <GroupedRow label="階級">
+                  <SegmentedControl
+                    ariaLabel="階級"
+                    className="w-56"
+                    value={level}
+                    onChange={setLevel}
+                    options={DANCE_LEVELS.map((l) => ({ value: l.value, label: l.label }))}
+                  />
+                </GroupedRow>
+              )}
+            </DanceStyleGroup>
+            <GroupedSection
+              title="上課方式"
+              footer={
+                kind === "ongoing"
+                  ? "持續開課：一堂一堂往下加，你按結束才結束。"
+                  : "固定堂數：先排好幾堂，上完自動結束。"
+              }
+            >
+              <div className="flex flex-col gap-2 px-4 py-3">
+                <span className="text-[15px] text-neutral-900">型態</span>
+                <SegmentedControl
+                  ariaLabel="課程型態"
+                  value={kind}
+                  onChange={setPickedKind}
+                  options={[
+                    { value: "fixed", label: "固定堂數" },
+                    { value: "ongoing", label: "持續開課" },
+                  ]}
                 />
-              )}
-              {series && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!showCustomName && !customName.trim()) setCustomName(baseName);
-                    setShowCustomName(!showCustomName);
-                  }}
-                  className="self-start py-1 text-[13px] font-medium text-primary-700 hover:underline cursor-pointer"
-                >
-                  {showCustomName ? "用課種名稱就好" : "這一期另取名稱（選填）"}
-                </button>
-              )}
-            </div>
-            <DanceStyleSelect
-              danceStyleId={danceStyleId}
-              onChange={handleDanceStyleChange}
-              error={errors.danceStyle}
-            />
-            {hasLevels && <LevelSelect level={level} onChange={setLevel} />}
-            <LessonKindSelect kind={kind} onChange={setPickedKind} />
-            <SessionsPerAttendanceSelect
-              value={sessionsPerAttendance}
-              onChange={setSessionsPerAttendance}
-            />
-            <CardSelect
-              error={errors.cards}
-              onChange={handleCardChange}
+              </div>
+              <GroupedRow label="每次扣幾格">
+                <SegmentedControl
+                  ariaLabel="每次扣幾格"
+                  className="w-40"
+                  value={sessionsPerAttendance}
+                  onChange={setSessionsPerAttendance}
+                  options={[1, 2, 3].map((n) => ({ value: n, label: String(n) }))}
+                />
+              </GroupedRow>
+            </GroupedSection>
+            <CardGroup
               selectedCardIds={selectedCardIds}
+              onChange={handleCardChange}
               danceStyleId={danceStyleId}
+              error={errors.cards}
             />
-          </FormSection>
+          </>
         )}
 
         {step === 1 && (
-          <FormSection title="細節" hint={initialClone ? "沿用上一期，有變再改" : "誰教、在哪裡上"}>
-            <LocationSelect locationId={locationId} onChange={setPickedLocationId} />
-            <TeacherSelect
-              error={errors.teachers}
-              onChange={handleTeacherChange}
+          <>
+            {initialClone && (
+              <p className="-mt-3 px-4 text-[15px] text-neutral-500">沿用上一期的設定，有變再改。</p>
+            )}
+            <LocationGroup locationId={locationId} onChange={setPickedLocationId} />
+            <TeacherGroup
               selectedTeacherIds={selectedTeacherIds}
+              onChange={handleTeacherChange}
+              error={errors.teachers}
             />
-            <AssistantSelect
+            <AssistantGroup
               selectedAssistantIds={selectedAssistantIds}
               teacherIds={selectedTeacherIds}
               onChange={setSelectedAssistantIds}
             />
-            <DropInPriceField
-              enabled={dropInEnabled}
-              amount={dropInAmount}
-              onEnabledChange={(enabled) => {
-                setDropInEnabled(enabled);
-                setErrors((prev) => ({ ...prev, dropInPrice: undefined, cards: undefined }));
-              }}
-              onAmountChange={(amount) => {
-                setDropInAmount(amount);
-                setErrors((prev) => ({ ...prev, dropInPrice: undefined }));
-              }}
-              plans={dropInPlans}
-              onPlansChange={(plans) => {
-                setDropInPlans(plans);
-                setErrors((prev) => ({ ...prev, dropInPrice: undefined }));
-              }}
-              error={errors.dropInPrice}
-            />
-          </FormSection>
+            <GroupedSection title="單堂付費" error={errors.dropInPrice}>
+              <div className="px-4 py-3">
+                <DropInPriceField
+                  enabled={dropInEnabled}
+                  amount={dropInAmount}
+                  onEnabledChange={(enabled) => {
+                    setDropInEnabled(enabled);
+                    setErrors((prev) => ({ ...prev, dropInPrice: undefined, cards: undefined }));
+                  }}
+                  onAmountChange={(amount) => {
+                    setDropInAmount(amount);
+                    setErrors((prev) => ({ ...prev, dropInPrice: undefined }));
+                  }}
+                  plans={dropInPlans}
+                  onPlansChange={(plans) => {
+                    setDropInPlans(plans);
+                    setErrors((prev) => ({ ...prev, dropInPrice: undefined }));
+                  }}
+                />
+              </div>
+            </GroupedSection>
+          </>
         )}
 
         {step === 2 && (
-          <FormSection title="排課" aside={`${periods.length} 個時段`}>
-            {!(addingPeriod && periods.length === 0) && (
-              <PeriodList periods={periods} onDelete={handleDeletePeriod} />
-            )}
+          <GroupedSection
+            title={`時段 · ${periods.length} 個`}
+            error={errors.periods}
+            footer={periods.length === 0 && !addingPeriod ? "至少加一個時段才能開課。" : undefined}
+          >
+            {periods.map((p, index) => (
+              <div key={p.startTime} className="flex min-h-12 items-center gap-3 px-4">
+                <span className="w-5 text-[13px] tabular-nums text-neutral-400">{index + 1}</span>
+                <span className="flex-1 text-[15px] tabular-nums text-neutral-900">
+                  {format(new Date(p.startTime), "M/d")}（{WEEKDAYS[new Date(p.startTime).getDay()]}）
+                </span>
+                <span className="text-[15px] tabular-nums text-neutral-500">
+                  {format(new Date(p.startTime), "HH:mm")}–{format(new Date(p.endTime), "HH:mm")}
+                </span>
+                <button
+                  type="button"
+                  aria-label="刪除這個時段"
+                  onClick={() => handleDeletePeriod(index)}
+                  className="-mr-2 flex size-10 cursor-pointer items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-danger-600"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            ))}
             {addingPeriod ? (
               <AddPeriodForm
                 periods={periods}
@@ -489,62 +536,56 @@ const NewLesson = () => {
                 initialPeriod={nextPeriodDefault}
               />
             ) : (
-              <Button
-                type="button"
-                variant="secondary"
-                className="border-dashed"
-                onClick={() => setAddingPeriod(true)}
-              >
-                <Plus className="size-4" />
-                新增時段
-              </Button>
+              <ActionRow onClick={() => setAddingPeriod(true)}>＋ 新增時段</ActionRow>
             )}
-            {errors.periods && <p className="text-sm text-danger-700">{errors.periods}</p>}
-          </FormSection>
+          </GroupedSection>
         )}
 
         {isPreview && (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-neutral-600">確認一下，沒問題就建立。</p>
-            <PreviewCard title="基本設定" missing={!stepDone(0)} onEdit={() => goTo(0)}>
-              <PreviewRow label="課種">{baseName || "—"}</PreviewRow>
-              {lessonName && lessonName !== baseName && <PreviewRow label="這一期叫">{lessonName}</PreviewRow>}
-              <PreviewRow label="舞種">
+          <>
+            <p className="-mt-3 px-4 text-[15px] text-neutral-500">確認一下，沒問題就建立。</p>
+            <PreviewSection title="基本設定" missing={!stepDone(0)} onEdit={() => goTo(0)}>
+              <GroupedRow label="課種">{baseName || "—"}</GroupedRow>
+              {lessonName && lessonName !== baseName && <GroupedRow label="這一期叫">{lessonName}</GroupedRow>}
+              <GroupedRow label="舞種">
                 {[styleName, hasLevels ? `第 ${level} 階` : null].filter(Boolean).join(" · ") || "—"}
-              </PreviewRow>
-              <PreviewRow label="型態">
+              </GroupedRow>
+              <GroupedRow label="型態">
                 {kind === "ongoing" ? "持續開課" : "固定堂數"} · 每次扣 {sessionsPerAttendance} 格
-              </PreviewRow>
-              <PreviewRow label="課卡">{cardNames.length ? cardNames.join("、") : "—"}</PreviewRow>
-            </PreviewCard>
-            <PreviewCard title="細節" missing={!stepDone(1)} onEdit={() => goTo(1)}>
-              <PreviewRow label="分部">{locations.find((l) => l.id === locationId)?.name ?? "不指定"}</PreviewRow>
-              <PreviewRow label="老師">{selectedTeacherIds.map(nameOf).filter(Boolean).join("、") || "—"}</PreviewRow>
-              <PreviewRow label="小幫手">{selectedAssistantIds.map(nameOf).filter(Boolean).join("、") || "—"}</PreviewRow>
-              <PreviewRow label="單堂付費">
+              </GroupedRow>
+              <GroupedRow label="課卡">
+                <span className="truncate">{cardNames.length ? cardNames.join("、") : "—"}</span>
+              </GroupedRow>
+            </PreviewSection>
+            <PreviewSection title="細節" missing={!stepDone(1)} onEdit={() => goTo(1)}>
+              <GroupedRow label="分部">{locations.find((l) => l.id === locationId)?.name ?? "不指定"}</GroupedRow>
+              <GroupedRow label="老師">{selectedTeacherIds.map(nameOf).filter(Boolean).join("、") || "—"}</GroupedRow>
+              <GroupedRow label="小幫手">{selectedAssistantIds.map(nameOf).filter(Boolean).join("、") || "—"}</GroupedRow>
+              <GroupedRow label="單堂付費">
                 {dropInEnabled ? (dropInAmount ? `開放，$${dropInAmount}` : "開放") : "不開放"}
-              </PreviewRow>
-            </PreviewCard>
-            <PreviewCard title="排課" missing={!stepDone(2)} onEdit={() => goTo(2)}>
+              </GroupedRow>
+            </PreviewSection>
+            <PreviewSection title="排課" missing={!stepDone(2)} onEdit={() => goTo(2)}>
               {periods.length === 0 ? (
-                <p className="text-sm text-neutral-500">還沒有時段</p>
+                <GroupedRow label="時段">還沒有時段</GroupedRow>
               ) : (
-                <ul className="flex flex-col gap-1 text-sm">
-                  {periods.map((p) => (
-                    <li key={p.startTime} className="tabular-nums">
+                periods.map((p, index) => (
+                  <GroupedRow key={p.startTime} label={`第 ${index + 1} 堂`}>
+                    <span className="tabular-nums">
                       {format(new Date(p.startTime), "M/d")}（{WEEKDAYS[new Date(p.startTime).getDay()]}）
                       {format(new Date(p.startTime), "HH:mm")}–{format(new Date(p.endTime), "HH:mm")}
-                    </li>
-                  ))}
-                </ul>
+                    </span>
+                  </GroupedRow>
+                ))
               )}
-            </PreviewCard>
-          </div>
+            </PreviewSection>
+          </>
         )}
+      </div>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-200 bg-white/95 backdrop-blur lg:left-64">
-        <div className="flex w-full max-w-[760px] items-center gap-3 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:px-8">
+        <div className="mx-auto flex w-full max-w-[640px] items-center gap-3 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:px-6">
           {step > 0 && (
             <Button variant="secondary" onClick={() => goTo(step - 1)}>
               上一步
@@ -605,30 +646,8 @@ const validateForm = (data: {
 
 export default NewLesson;
 
-/** 一個步驟的內容卡。 */
-const FormSection = ({
-  title,
-  hint,
-  aside,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  aside?: string;
-  children: React.ReactNode;
-}) => (
-  <section className="flex min-w-0 flex-col gap-5 rounded-2xl border border-neutral-200 bg-white p-5 lg:p-6">
-    <div className="flex items-baseline gap-2.5">
-      <h2 className="text-lg font-bold text-neutral-900">{title}</h2>
-      {hint && <span className="text-sm text-neutral-500">{hint}</span>}
-      {aside && <span className="ml-auto text-sm text-neutral-500">{aside}</span>}
-    </div>
-    {children}
-  </section>
-);
-
-/** 預覽的一區：標題、「修改」跳回那一步；還有缺就標出來。 */
-const PreviewCard = ({
+/** 預覽的一區：標題右邊「修改」跳回那一步；還有缺的標出來。 */
+const PreviewSection = ({
   title,
   missing,
   onEdit,
@@ -639,25 +658,15 @@ const PreviewCard = ({
   onEdit: () => void;
   children: React.ReactNode;
 }) => (
-  <section
-    className={`flex flex-col gap-3 rounded-2xl border bg-white p-5 ${
-      missing ? "border-warning-300" : "border-neutral-200"
-    }`}
-  >
-    <div className="flex items-center gap-2">
-      <h2 className="text-base font-bold text-neutral-900">{title}</h2>
-      {missing && <span className="text-xs font-semibold text-warning-900">還有沒填的</span>}
-      <Button variant="ghost" size="sm" className="ml-auto" onClick={onEdit}>
+  <GroupedSection
+    title={title}
+    footer={missing ? "這一區還有沒填的。" : undefined}
+    action={
+      <button type="button" onClick={onEdit} className="cursor-pointer text-[13px] font-medium text-primary-700 hover:underline">
         修改
-      </Button>
-    </div>
+      </button>
+    }
+  >
     {children}
-  </section>
-);
-
-const PreviewRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 text-sm">
-    <span className="text-neutral-500">{label}</span>
-    <span className="text-neutral-900">{children}</span>
-  </div>
+  </GroupedSection>
 );
