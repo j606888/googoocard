@@ -125,7 +125,9 @@ const BuyAndUseForm = ({
   };
 
   const handleSubmit = async () => {
-    if (selectedCardId) {
+    if (!selectedCardId) return;
+    let studentCardId: number;
+    try {
       const studentCard = await createStudentCard({
         id: record.studentId,
         cardId: selectedCardId,
@@ -134,18 +136,27 @@ const BuyAndUseForm = ({
         lessonId: lesson.id,
         isPaid: isPaid === true,
         ...(needsReceiver && receiver.receiverUserId !== null ? { receiverUserId: receiver.receiverUserId } : {}),
-      });
-      if (studentCard?.data) {
-        await consumeStudentCard({
-          id: lesson.id,
-          periodId,
-          studentId: studentId,
-          studentCardId: studentCard.data.id,
-        });
-      }
-      toast.success("成功買卡並使用");
-      handleClose();
+      }).unwrap();
+      studentCardId = studentCard.id;
+    } catch {
+      toast.error("買卡失敗，請再試一次");
+      return;
     }
+    try {
+      await consumeStudentCard({
+        id: lesson.id,
+        periodId,
+        studentId: studentId,
+        studentCardId,
+      }).unwrap();
+    } catch {
+      // 卡已經買好了，只是這堂沒扣成；別讓老師以為整個沒成功又買一張。
+      toast.error("卡已買好，但這堂沒扣成功，請改用「選擇一張使用」");
+      handleClose();
+      return;
+    }
+    toast.success("成功買卡並使用");
+    handleClose();
   };
 
   useEffect(() => {

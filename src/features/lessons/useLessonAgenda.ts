@@ -46,8 +46,16 @@ export const agendaRows = (periods: AgendaPeriod[], now: Date): AgendaRow[] => {
 /**
  * 課程列表的「接下來」。學生會自己用 LINE 簽到，所以掛載與回到分頁時都重抓。
  * `scope` 篩成「我的課」（我教的＋我當小幫手的）與單一分部。
+ *
+ * `fallbackToAll`：7 天內完全沒有自己的課（例如只負責收款、沒被排進任何課的
+ * 小幫手）時，「我的課」改看全部，免得一打開就是空畫面。回傳的 `mine` 是實際
+ * 套用的範圍，課程清單和分段控制都跟著它。
  */
-export const useLessonAgenda = (scope: { mine: boolean; locationId: number | null }) => {
+export const useLessonAgenda = (scope: {
+  mine: boolean;
+  locationId: number | null;
+  fallbackToAll?: boolean;
+}) => {
   const now = useNow();
   const { data, isLoading } = useGetLessonAgendaQuery(undefined, {
     refetchOnMountOrArgChange: true,
@@ -57,11 +65,14 @@ export const useLessonAgenda = (scope: { mine: boolean; locationId: number | nul
 
   return useMemo(() => {
     const all = agendaRows(data?.periods ?? [], now);
+    const hasOwn =
+      myTeacherId !== null && all.some(({ period }) => isMyLesson(period.lesson, myTeacherId));
+    const mine = scope.mine && !(scope.fallbackToAll && data && !hasOwn);
     const rows = all.filter(
       ({ period }) =>
         (scope.locationId === null || period.lesson.location?.id === scope.locationId) &&
-        (!scope.mine || myTeacherId === null || isMyLesson(period.lesson, myTeacherId))
+        (!mine || myTeacherId === null || isMyLesson(period.lesson, myTeacherId))
     );
-    return { now, isLoading, myTeacherId, rows, hiddenCount: all.length - rows.length };
-  }, [data, isLoading, now, myTeacherId, scope.mine, scope.locationId]);
+    return { now, isLoading, myTeacherId, mine, rows, hiddenCount: all.length - rows.length };
+  }, [data, isLoading, now, myTeacherId, scope.mine, scope.locationId, scope.fallbackToAll]);
 };

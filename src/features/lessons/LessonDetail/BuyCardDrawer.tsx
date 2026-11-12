@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import Drawer from "@/components/Drawer";
 import RoundCheckbox from "@/components/RoundCheckbox";
@@ -92,15 +93,20 @@ const BuyCardDrawer = ({
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    await createStudentCard({
-      id: student.id,
-      cardId: selectedCardId!,
-      sessions: parseInt(cardSessions),
-      price: parseInt(cardPrice || "0"),
-      lessonId: Number(lessonId),
-      isPaid: isPaid === true,
-      ...(needsReceiver && receiver.receiverUserId !== null ? { receiverUserId: receiver.receiverUserId } : {}),
-    });
+    try {
+      await createStudentCard({
+        id: student.id,
+        cardId: selectedCardId!,
+        sessions: parseInt(cardSessions),
+        price: parseInt(cardPrice || "0"),
+        lessonId: Number(lessonId),
+        isPaid: isPaid === true,
+        ...(needsReceiver && receiver.receiverUserId !== null ? { receiverUserId: receiver.receiverUserId } : {}),
+      }).unwrap();
+    } catch {
+      toast.error("買卡失敗，請再試一次");
+      return;
+    }
     setIsDrawerOpen(false);
   };
 

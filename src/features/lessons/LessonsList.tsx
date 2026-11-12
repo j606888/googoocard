@@ -40,8 +40,14 @@ const LessonsList = () => {
   const isExpanded = useSizeClass() === "expanded";
   const { data: classrooms } = useGetClassroomsQuery();
   const [scope, setScope] = useLessonScope(classrooms?.currentClassroomId ?? undefined);
-  const agenda = useLessonAgenda(scope);
-  const list = useLessonsList(scope, agenda.myTeacherId);
+  // 這次打開後親手點過「我的課」就照做；否則 7 天內沒有自己的課時先看全部。
+  const [mineChosen, setMineChosen] = useState(false);
+  const agenda = useLessonAgenda({ ...scope, fallbackToAll: !mineChosen });
+  const effectiveScope = useMemo(
+    () => ({ ...scope, mine: agenda.mine }),
+    [scope, agenda.mine]
+  );
+  const list = useLessonsList(effectiveScope, agenda.myTeacherId);
   const [searchOpen, setSearchOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
 
@@ -86,8 +92,11 @@ const LessonsList = () => {
       {agenda.myTeacherId !== null && (
         <SegmentedTabs
           ariaLabel="課程範圍"
-          value={scope.mine ? "mine" : "all"}
-          onChange={(value) => setScope({ mine: value === "mine" })}
+          value={agenda.mine ? "mine" : "all"}
+          onChange={(value) => {
+            setMineChosen(value === "mine");
+            setScope({ mine: value === "mine" });
+          }}
           options={[
             { value: "mine", label: "我的課" },
             { value: "all", label: "全部" },

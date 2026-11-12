@@ -1,7 +1,9 @@
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   useGetAttendanceQuery,
+  useLazyGetAttendanceQuery,
   useGetLessonTrialsQuery,
   useTakeAttendanceMutation,
 } from "@/store/slices/lessons";
@@ -10,6 +12,7 @@ import PeriodAttendanceForm from "../PeriodAttendanceForm";
 const CheckPeriod = () => {
   const { id, periodId } = useParams();
   const [takeAttendance, { isLoading }] = useTakeAttendanceMutation();
+  const [fetchAttendance, { isFetching: isRefetching }] = useLazyGetAttendanceQuery();
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -50,14 +53,25 @@ const CheckPeriod = () => {
       return;
     }
 
-    await takeAttendance({
-      id: Number(id),
-      periodId: Number(periodId),
-      studentIds,
-    });
-    // justSubmitted flags the celebratory "just checked in" framing — browsing
-    // back to this same screen later (from the period timeline, unpaid bell,
-    // income calendar) omits it and gets the plain record view instead.
+    const target = { id: Number(id), periodId: Number(periodId) };
+    try {
+      // 點名頁常開很久（開課後才送出）；這段時間有人用 LINE 自助簽到的話，
+      // 他不在進頁時抓到的名單裡，老師也沒機會取消勾選他。送出前重抓一次，
+      // 把進頁之後才出現的紀錄一起留著——否則 reconcileAndFinalize 會把它
+      // 當成「被取消勾選」刪掉並退卡（當場買的卡卻還在）。
+      const loadedIds = new Set((existingRecords ?? []).map((r) => r.studentId));
+      const current = await fetchAttendance(target, false).unwrap();
+      const arrivedSince = current
+        .map((r) => r.studentId)
+        .filter((studentId) => !loadedIds.has(studentId));
+      await takeAttendance({
+        ...target,
+        studentIds: [...new Set([...studentIds, ...arrivedSince])],
+      }).unwrap();
+    } catch {
+      toast.error("點名送出失敗，請再試一次");
+      return;
+    }
     router.push(`/lessons/${id}/periods/${periodId}/check-success?justSubmitted=1`);
   };
 
@@ -70,7 +84,7 @@ const CheckPeriod = () => {
         onSubmit={handleSubmit}
         submitLabel="完成點名"
         error={error}
-        isLoading={isLoading}
+        isLoading={isLoading || isRefetching}
         isRecordsLoading={isRecordsLoading || isTrialsLoading}
       />
     </>

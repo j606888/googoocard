@@ -80,12 +80,17 @@ const ChooseCardForm = ({
   const handleSubmit = async () => {
     if (!selectedCardId) return;
 
-    await consumeStudentCard({
-      id: lesson.id,
-      periodId,
-      studentId,
-      studentCardId: selectedCardId,
-    });
+    try {
+      await consumeStudentCard({
+        id: lesson.id,
+        periodId,
+        studentId,
+        studentCardId: selectedCardId,
+      }).unwrap();
+    } catch {
+      toast.error("扣卡失敗，請再試一次");
+      return;
+    }
     toast.success("成功使用課卡");
     handleClose();
   };

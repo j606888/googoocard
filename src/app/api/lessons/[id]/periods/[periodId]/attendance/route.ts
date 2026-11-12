@@ -5,6 +5,7 @@ import { decodeAuthToken } from "@/lib/auth";
 import { findLessonInClassroom } from "@/lib/authz";
 import {
   takeAttendance,
+  CardExhaustedError,
   updateAttendance,
 } from "@/domains/attendance/attendance.service";
 import {
@@ -318,6 +319,9 @@ export async function POST(
       if (error.message === "Lesson period not found") {
         return NextResponse.json({ error: error.message }, { status: 404 });
       }
+      if (error instanceof CardExhaustedError) {
+        return NextResponse.json({ error: "card_exhausted" }, { status: 409 });
+      }
       if (error.message === "Attendance already taken") {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
@@ -355,6 +359,9 @@ export async function PUT(
       }
       if (error.message === "Lesson period not found") {
         return NextResponse.json({ error: error.message }, { status: 404 });
+      }
+      if (error instanceof CardExhaustedError) {
+        return NextResponse.json({ error: "card_exhausted" }, { status: 409 });
       }
     }
     return NextResponse.json(

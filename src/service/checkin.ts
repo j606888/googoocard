@@ -149,9 +149,11 @@ export async function getTodayLessons(
   const todayKey = toTaipeiDateKey(now);
   const { start, end } = parseTaipeiDateRange(todayKey);
 
+  // 手動結束的課不再收簽到（selfCheckIn 也會擋），這裡就別列出來。
   const lessons = await prisma.lesson.findMany({
     where: {
       classroomId,
+      endedAt: null,
       periods: { some: { startTime: { gte: start, lt: end } } },
     },
     include: {

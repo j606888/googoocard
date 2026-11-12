@@ -11,6 +11,7 @@ import { refundSessionsInTx } from "@/service/finance/sessionRefund";
 import { createDropInChargeInTx } from "@/service/dropIn";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
+import { toTaipeiDateKey } from "@/lib/taipei-date";
 import {
   type DropInOption,
   dropInLabel,
@@ -281,6 +282,14 @@ async function createAttendanceEvent(
   });
 }
 
+/** A card ran out between being picked and being deducted (concurrent use). */
+export class CardExhaustedError extends Error {
+  constructor() {
+    super("Card exhausted");
+    this.name = "CardExhaustedError";
+  }
+}
+
 async function processStudentCardUsage(
   tx: Prisma.TransactionClient,
   studentCard: StudentCard,
@@ -297,9 +306,12 @@ async function processStudentCardUsage(
     },
   });
 
-  // The card was already exhausted by a concurrent op — nothing deducted.
+  // The card was already exhausted by a concurrent op — nothing deducted. Abort
+  // the whole transaction: otherwise the attendance record would stay bound to
+  // this card as if it had paid for the session. A retry re-reads the cards and
+  // lands on another card (or no_card) instead.
   if (count === 0) {
-    return;
+    throw new CardExhaustedError();
   }
 
   const updatedStudentCard = await tx.studentCard.findUnique({
@@ -588,8 +600,10 @@ export class SelfCheckInError extends Error {
       | "card_not_usable" // studentCardId isn't one of this lesson's usable cards
       | "card_not_offered" // buyCardId isn't attached to this lesson
       | "not_qualified" // buyCardId is a practice card the student can't buy
-      | "drop_in_not_offered", // dropIn, but the lesson takes no drop-in payments
-    public status: 400 | 403
+      | "drop_in_not_offered" // dropIn, but the lesson takes no drop-in payments
+      | "card_exhausted" // the card ran out mid-request (concurrent use) — retry
+      | "period_closed", // not today, lesson ended, or the teacher already finalized it
+    public status: 400 | 403 | 409
   ) {
     super(code);
   }
@@ -650,18 +664,48 @@ const BUYING = -1;
  *   - with `requireCard`, refuses (SelfCheckInError, nothing written) rather than
  *     leave any period unbound.
  */
-export async function selfCheckIn({
+/** A concurrent write beat this attempt (duplicate record / card ran out). */
+class SelfCheckInConflict extends Error {
+  constructor(public conflict: unknown) {
+    super("self check-in conflict");
+  }
+}
+
+export async function selfCheckIn(
+  args: Parameters<typeof selfCheckInOnce>[0]
+): Promise<SelfCheckInOutcome> {
+  // 並發衝突時重來：重讀現況後，已被寫入的時段回 already_checked、卡況照實際。
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await selfCheckInOnce(args);
+    } catch (e) {
+      if (!(e instanceof SelfCheckInConflict)) throw e;
+      if (attempt < 2) continue;
+      if (e.conflict instanceof CardExhaustedError) throw new SelfCheckInError("card_exhausted", 409);
+      throw e.conflict;
+    }
+  }
+}
+
+async function selfCheckInOnce({
   studentId,
   lessonId,
   lessonPeriodIds,
   card: choice,
   requireCard = false,
+  openOn,
 }: {
   studentId: number;
   lessonId: number;
   lessonPeriodIds: number[];
   card?: SelfCheckInCardChoice;
   requireCard?: boolean;
+  /**
+   * Only periods starting on this instant's Taipei date may be checked into
+   * (the LIFF route passes `new Date()`) — otherwise a crafted request could
+   * check into (and pay for) a future period, or backfill an old one.
+   */
+  openOn?: Date;
 }): Promise<SelfCheckInOutcome> {
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
@@ -698,6 +742,16 @@ export async function selfCheckIn({
   });
   const alreadyCheckedIds = new Set(existing.map((r) => r.lessonPeriodId));
   const newPeriods = periods.filter((p) => !alreadyCheckedIds.has(p.id));
+
+  // 自助簽到只開放「今天、課還沒結束」的時段，擋掉偽造請求先簽未來、或補簽
+  // 過去的時段。老師已定案的時段照收：點名時被缺席扣格、後來才到的人要能自己
+  // 簽到，缺席那格會退回（refundPresentAbsencesInTx），不重複扣。
+  const todayKey = openOn ? toTaipeiDateKey(openOn) : null;
+  const isClosed = (p: (typeof periods)[number]) =>
+    lesson.endedAt !== null || (todayKey !== null && toTaipeiDateKey(p.startTime) !== todayKey);
+  if (newPeriods.some(isClosed)) {
+    throw new SelfCheckInError("period_closed", 400);
+  }
 
   // 老師點名時已被缺席扣格、後來才到的人：那幾格在寫入時會退回來
   // （refundPresentAbsencesInTx），先在記憶體裡把卡補回，選卡才看得到它。
@@ -766,59 +820,48 @@ export async function selfCheckIn({
     throw new SelfCheckInError("card_required", 400);
   }
 
-  // ----- Buy the card (only if some period actually uses it) -----
-  let purchased: SelfCheckInOutcome["purchased"] = null;
-  if (buying && plan.includes(BUYING)) {
-    const card = buying;
-    // 自助點名當場買的卡一律照牌價、下課付款。
-    const finalPrice = card.price;
-    const isPaid = false;
-    const created = await prisma.$transaction((tx) =>
-      createStudentCardInTx(tx, {
-        studentId: student.id,
-        card,
-        finalPrice,
-        sessions: card.sessions,
-        purchaseSource: "STUDENT",
-        isPaid,
-        eventDescription: `自助點名時購買 ${card.name}（待付款）`,
-      })
-    );
-    purchased = {
-      id: created.id,
-      serialNumber: created.serialNumber,
-      name: card.name,
-      finalPrice,
-      isPaid,
-    };
-    const placeholder = student.studentCards.find((c) => c.id === BUYING);
-    if (placeholder) Object.assign(placeholder, created, { card });
-    for (let i = 0; i < plan.length; i++) if (plan[i] === BUYING) plan[i] = created.id;
-
-    await notifyClassroom(lesson.classroomId, {
-      type: "UNPAID_CARD",
-      title: "待確認收款",
-      body: `${student.name} 自助點名時買了「${card.name}」${formatCardSerial(created.serialNumber)}，NT$${formatMoney(finalPrice)}`,
-      path: `/students/${student.id}`,
-    });
-  }
-  student.studentCards = student.studentCards.filter((c) => c.id !== BUYING);
-
-  // ----- Write: one transaction per period -----
+  // ----- Write: buy the card (if used) + every period, as ONE transaction -----
+  // 當場買卡和寫出席必須一起成功或一起失敗：分開的話，兩個並發請求（連點）會
+  // 各買一張卡，或買了卡卻沒寫進出席。撞到並發（同一時段已被寫入、或卡被別的
+  // 操作扣光）時整筆 rollback，由 selfCheckIn 重來一次——第二次就會看到對方
+  // 寫好的紀錄（already_checked）和真正剩下的卡。
   const results: SelfCheckInResult[] = periods
     .filter((p) => alreadyCheckedIds.has(p.id))
     .map((p) => ({ periodId: p.id, status: "already_checked" as const }));
 
-  // One transaction per period so they're independent: a duplicate-rejection on
-  // one period (unique constraint) doesn't abort the others, and each record +
-  // its card deduction commit atomically together.
-  for (const [index, period] of newPeriods.entries()) {
-    const planned = plan[index];
-    const studentCard =
-      planned !== null ? student.studentCards.find((c) => c.id === planned) ?? null : null;
+  let purchased: SelfCheckInOutcome["purchased"] = null;
+  const written: SelfCheckInResult[] = [];
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (buying && plan.includes(BUYING)) {
+        const card = buying;
+        // 自助點名當場買的卡一律照牌價、下課付款。
+        const created = await createStudentCardInTx(tx, {
+          studentId: student.id,
+          card,
+          finalPrice: card.price,
+          sessions: card.sessions,
+          purchaseSource: "STUDENT",
+          isPaid: false,
+          eventDescription: `自助點名時購買 ${card.name}（待付款）`,
+        });
+        purchased = {
+          id: created.id,
+          serialNumber: created.serialNumber,
+          name: card.name,
+          finalPrice: card.price,
+          isPaid: false,
+        };
+        const placeholder = student.studentCards.find((c) => c.id === BUYING);
+        if (placeholder) Object.assign(placeholder, created, { card });
+        for (let i = 0; i < plan.length; i++) if (plan[i] === BUYING) plan[i] = created.id;
+      }
 
-    try {
-      await prisma.$transaction(async (tx) => {
+      for (const [index, period] of newPeriods.entries()) {
+        const planned = plan[index];
+        const studentCard =
+          planned !== null ? student.studentCards.find((c) => c.id === planned) ?? null : null;
+
         // 這個時段之前被缺席扣過：刪缺席、退格，再照常出席扣卡（不重複扣）。
         await refundPresentAbsencesInTx(tx, {
           lessonPeriodId: period.id,
@@ -837,6 +880,15 @@ export async function selfCheckIn({
 
         if (studentCard) {
           await processStudentCardUsage(tx, studentCard, student.id, lesson.sessionsPerAttendance);
+          // Keep the in-memory card in sync for the next period's result.
+          studentCard.remainingSessions -= lesson.sessionsPerAttendance;
+          written.push({
+            periodId: period.id,
+            status: "checked",
+            cardName: studentCard.card.name,
+            remainingSessions: studentCard.remainingSessions,
+            exhausted: studentCard.remainingSessions === 0,
+          });
         } else if (dropIn) {
           await createDropInChargeInTx(tx, {
             attendanceRecordId: attendanceRecord.id,
@@ -847,41 +899,30 @@ export async function selfCheckIn({
             payment: { isPaid: false },
             receiverUserId: null,
           });
+          written.push({
+            periodId: period.id,
+            status: "drop_in",
+            dropInAmount: dropInOption!.price,
+            dropInOptionName: dropInOption!.name || null,
+          });
+        } else {
+          written.push({ periodId: period.id, status: "no_card" });
         }
-      });
-    } catch (e) {
-      // A concurrent check-in beat us to this (student, period): the unique
-      // constraint rejected our insert and rolled back our deduction. Report it
-      // idempotently rather than double-charging.
-      if (isDuplicateAttendance(e)) {
-        results.push({ periodId: period.id, status: "already_checked" });
-        continue;
       }
-      throw e;
-    }
+    });
+  } catch (e) {
+    if (isDuplicateAttendance(e) || e instanceof CardExhaustedError) throw new SelfCheckInConflict(e);
+    throw e;
+  }
+  results.push(...written);
 
-    if (!studentCard) {
-      results.push(
-        dropIn
-          ? {
-              periodId: period.id,
-              status: "drop_in",
-              dropInAmount: dropInOption!.price,
-              dropInOptionName: dropInOption!.name || null,
-            }
-          : { periodId: period.id, status: "no_card" }
-      );
-      continue;
-    }
-
-    // Keep the in-memory card in sync for the next period's result.
-    studentCard.remainingSessions -= lesson.sessionsPerAttendance;
-    results.push({
-      periodId: period.id,
-      status: "checked",
-      cardName: studentCard.card.name,
-      remainingSessions: studentCard.remainingSessions,
-      exhausted: studentCard.remainingSessions === 0,
+  if (purchased) {
+    const bought: NonNullable<SelfCheckInOutcome["purchased"]> = purchased;
+    await notifyClassroom(lesson.classroomId, {
+      type: "UNPAID_CARD",
+      title: "待確認收款",
+      body: `${student.name} 自助點名時買了「${bought.name}」${formatCardSerial(bought.serialNumber)}，NT$${formatMoney(bought.finalPrice)}`,
+      path: `/students/${student.id}`,
     });
   }
 
