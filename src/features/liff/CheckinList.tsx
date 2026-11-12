@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { AlertCircle, Banknote, Check, ChevronLeft, CreditCard, Info } from "lucide-react";
@@ -41,6 +41,8 @@ const ERROR_MESSAGE: Record<string, string> = {
   card_not_usable: "這張卡不能用在這堂課，請重新選擇",
   card_not_offered: "這張卡不能用在這堂課，請重新選擇",
   not_qualified: "還沒有這張複習卡的資格，請找小幫手",
+  card_exhausted: "課卡剛好被用掉了，請重新整理再試一次",
+  period_closed: "這堂已經點完名或不在今天，請找小幫手",
 };
 
 /**
@@ -65,6 +67,8 @@ export default function CheckinList({
   const [buyChoice, setBuyChoice] = useState<Record<number, number>>({});
   const [step, setStep] = useState<"periods" | "buy">("periods");
   const [submitting, setSubmitting] = useState(false);
+  // 同步的防連點：setSubmitting 要等下一次 render 才生效，連點兩下會送兩次。
+  const submittingRef = useRef(false);
   const [done, setDone] = useState<Done | null>(null);
 
   useEffect(() => {
@@ -101,15 +105,24 @@ export default function CheckinList({
     [data, selected]
   );
   const lessonsToBuy = selectedLessons.filter((l) => (l.cardStatus?.usable.length ?? 0) === 0);
-  const amountToPay = lessonsToBuy.reduce((sum, l) => {
-    const option = dropInChoice(l, buyChoice[l.lessonId]);
-    if (option) {
+  // 好幾堂選同一種卡、而且剛買的那張還夠扣時只買一張（跟 submit 的做法一致）。
+  const amountToPay = (() => {
+    const remainingOf = new Map<number, number>();
+    return lessonsToBuy.reduce((sum, l) => {
       const periods = l.periods.filter((p) => selected.has(p.periodId)).length;
-      return sum + option.price * periods;
-    }
-    const card = l.cardStatus?.buyable.find((c) => c.cardId === buyChoice[l.lessonId]);
-    return sum + (card?.price ?? 0);
-  }, 0);
+      const option = dropInChoice(l, buyChoice[l.lessonId]);
+      if (option) return sum + option.price * periods;
+      const card = l.cardStatus?.buyable.find((c) => c.cardId === buyChoice[l.lessonId]);
+      if (!card) return sum;
+      const left = remainingOf.get(card.cardId) ?? 0;
+      if (left >= periods) {
+        remainingOf.set(card.cardId, left - periods);
+        return sum;
+      }
+      remainingOf.set(card.cardId, card.sessions - periods);
+      return sum + card.price;
+    }, 0);
+  })();
 
   const toggle = (periodId: number) => {
     setSelected((prev) => {
@@ -152,14 +165,23 @@ export default function CheckinList({
   };
 
   const submit = async () => {
-    if (!data || selected.size === 0) return;
+    if (!data || selected.size === 0 || submittingRef.current) return;
     const byLesson = groupSelectedByLesson(data.today, selected);
 
+    submittingRef.current = true;
     setSubmitting(true);
     const responses: Done["responses"] = [];
+    // 這次報到已經買下的卡（cardId → 學生課卡 id＋剩幾堂）：後面的課選同一種卡、
+    // 而且還夠扣，就直接用它，不再買第二張（單堂卡用完了才再買）。
+    const boughtNow = new Map<number, { studentCardId: number; remaining: number }>();
     try {
       for (const [lessonId, periodIds] of byLesson) {
         const lesson = data.today.find((l) => l.lessonId === lessonId)!;
+        let payment = paymentFor(lesson);
+        const bought = payment && "buyCardId" in payment ? boughtNow.get(payment.buyCardId) : undefined;
+        if (bought && bought.remaining >= periodIds.length) {
+          payment = { studentCardId: bought.studentCardId };
+        }
         const res = await fetch("/api/liff/checkin", {
           method: "POST",
           headers: {
@@ -170,14 +192,24 @@ export default function CheckinList({
             studentId: auth.studentId,
             lessonId,
             periodIds,
-            ...paymentFor(lesson),
+            ...payment,
           }),
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error ?? `status ${res.status}`);
         }
-        responses.push({ lessonId, response: await res.json() });
+        const response: CheckinResponse = await res.json();
+        if (payment && "buyCardId" in payment && response.purchased) {
+          const left = response.results
+            .filter((r) => r.status === "checked")
+            .map((r) => r.remainingSessions ?? 0);
+          boughtNow.set(payment.buyCardId, {
+            studentCardId: response.purchased.id,
+            remaining: left.length ? Math.min(...left) : 0,
+          });
+        }
+        responses.push({ lessonId, response });
       }
       setDone({ lessons: data.today, responses });
     } catch (err) {
@@ -187,6 +219,7 @@ export default function CheckinList({
       // Some lessons may already be recorded — show them rather than lose them.
       if (responses.length > 0) setDone({ lessons: data.today, responses });
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

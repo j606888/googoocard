@@ -1,4 +1,5 @@
 import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { useMemo, useState } from "react";
 import {
   useGetAttendanceQuery,
@@ -26,11 +27,16 @@ const EditPeriod = () => {
       return;
     }
 
-    await updateAttendance({
-      id: Number(id),
-      periodId: Number(periodId),
-      studentIds,
-    });
+    try {
+      await updateAttendance({
+        id: Number(id),
+        periodId: Number(periodId),
+        studentIds,
+      }).unwrap();
+    } catch {
+      toast.error("儲存失敗，請再試一次");
+      return;
+    }
     router.push(`/lessons/${id}/periods/${periodId}/check-success?justSubmitted=1`);
   };
 

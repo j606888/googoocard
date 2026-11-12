@@ -26,7 +26,8 @@ export async function POST(request: Request) {
   const card = await prisma.card.findUnique({ where: { id: cardId } });
   // Trial cards are never sold here — the teacher registers them on the lesson's
   // 體驗名單 (src/service/trialRoster.ts), priced by src/lib/trialPrice.ts.
-  if (!card || card.classroomId !== student.classroomId || card.isTrial) {
+  // 停售（expiredAt）的卡也不賣——課卡方案頁本來就不列出來。
+  if (!card || card.classroomId !== student.classroomId || card.isTrial || card.expiredAt) {
     return NextResponse.json({ error: "Card not found" }, { status: 404 });
   }
 

@@ -219,7 +219,7 @@ describe("POST /api/liff/checkin (self check-in)", () => {
 
   it("兩個時段共用一張只剩 1 堂的卡、又沒別的卡 → card_required，什麼都不寫", async () => {
     await createStudentCard(studentId, cardId, { remainingSessions: 1, totalSessions: 10 });
-    const later = new Date(Date.now() + 2 * 3600_000);
+    const later = new Date(Date.now() + 60_000); // 同一天（自助簽到只收今天的時段）
     const p2 = await createPeriod(lessonId, later, new Date(later.getTime() + 3600_000));
     const res = await checkin(
       checkinRequest("lineAmy", { studentId, lessonId, periodIds: [periodId, p2.id] })
@@ -236,6 +236,46 @@ describe("POST /api/liff/checkin (self check-in)", () => {
     );
     expect((await res.json()).results[0].status).toBe("already_checked");
     expect(await prisma.studentCard.count({ where: { studentId } })).toBe(1);
+  });
+
+  it("不是今天的時段 → 400 period_closed，不扣卡也不建紀錄", async () => {
+    await createStudentCard(studentId, cardId, { remainingSessions: 5, totalSessions: 5 });
+    const nextWeek = new Date(Date.now() + 7 * 24 * 3600_000);
+    const future = await createPeriod(lessonId, nextWeek, new Date(nextWeek.getTime() + 3600_000));
+    const res = await checkin(
+      checkinRequest("lineAmy", { studentId, lessonId, periodIds: [future.id] })
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("period_closed");
+    expect(await prisma.attendanceRecord.count({ where: { studentId } })).toBe(0);
+    expect((await prisma.studentCard.findFirstOrThrow({ where: { studentId } })).remainingSessions).toBe(5);
+  });
+
+  it("老師已定案的時段、或手動結束的課 → 400 period_closed", async () => {
+    await createStudentCard(studentId, cardId, { remainingSessions: 5, totalSessions: 5 });
+    await prisma.lessonPeriod.update({ where: { id: periodId }, data: { attendanceTakenAt: new Date() } });
+    const res = await checkin(checkinRequest("lineAmy", { studentId, lessonId, periodIds: [periodId] }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("period_closed");
+
+    await prisma.lessonPeriod.update({ where: { id: periodId }, data: { attendanceTakenAt: null } });
+    await prisma.lesson.update({ where: { id: lessonId }, data: { endedAt: new Date() } });
+    const res2 = await checkin(checkinRequest("lineAmy", { studentId, lessonId, periodIds: [periodId] }));
+    expect(res2.status).toBe(400);
+    expect(await prisma.attendanceRecord.count({ where: { studentId } })).toBe(0);
+  });
+
+  it("連點兩下「當場買卡」→ 只買一張卡、一筆出席", async () => {
+    const body = { studentId, lessonId, periodIds: [periodId], buyCardId: cardId };
+    const [a, b] = await Promise.all([
+      checkin(checkinRequest("lineAmy", body)),
+      checkin(checkinRequest("lineAmy", body)),
+    ]);
+    expect([a.status, b.status]).toEqual([200, 200]);
+    expect(await prisma.studentCard.count({ where: { studentId } })).toBe(1);
+    expect(await prisma.attendanceRecord.count({ where: { studentId } })).toBe(1);
+    const sc = await prisma.studentCard.findFirstOrThrow({ where: { studentId } });
+    expect(sc.remainingSessions).toBe(9);
   });
 
   it("重複簽到同一時段 → already_checked，不重建也不重複扣堂", async () => {

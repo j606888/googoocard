@@ -42,7 +42,7 @@ export const PendingRecordAction = ({
   ) : record.uncheckedType === "multiple_cards" ? (
     <ChooseCardForm {...props} />
   ) : (
-    <UseNowButton lesson={lesson} studentId={record.studentId} periodId={periodId} onDone={onDone} />
+    <UseNowButton {...props} />
   );
   // inline（已在對話框裡）一次只攤開一張表單：沒卡的人多一個「買卡／單堂」切換。
   if (lesson.dropInPrice === null || (inline && record.uncheckedType !== "no_card")) return cardAction;

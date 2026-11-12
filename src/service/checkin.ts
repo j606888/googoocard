@@ -149,9 +149,11 @@ export async function getTodayLessons(
   const todayKey = toTaipeiDateKey(now);
   const { start, end } = parseTaipeiDateRange(todayKey);
 
+  // 手動結束的課不再收簽到（selfCheckIn 也會擋），這裡就別列出來。
   const lessons = await prisma.lesson.findMany({
     where: {
       classroomId,
+      endedAt: null,
       periods: { some: { startTime: { gte: start, lt: end } } },
     },
     include: {
@@ -176,13 +178,16 @@ export async function getTodayLessons(
       : [];
   const checkedIds = new Set(checkedRecords.map((r) => r.lessonPeriodId));
 
+  const openPeriods = (lesson: (typeof lessons)[number]) =>
+    // 老師已定案的時段不收自助簽到；自己簽過的留著顯示「已簽到」。
+    lesson.periods.filter((period) => !period.attendanceTakenAt || checkedIds.has(period.id));
   const today: TodayLesson[] = await Promise.all(
-    lessons.map(async (lesson) => ({
+    lessons.filter((lesson) => openPeriods(lesson).length > 0).map(async (lesson) => ({
       lessonId: lesson.id,
       lessonName: lesson.name,
       danceStyle: pickSummary(lesson.danceStyle),
       location: lesson.location,
-      periods: lesson.periods.map((period) => ({
+      periods: openPeriods(lesson).map((period) => ({
         periodId: period.id,
         startTime: period.startTime,
         endTime: period.endTime,

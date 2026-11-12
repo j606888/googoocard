@@ -52,6 +52,7 @@ export async function POST(request: Request) {
       lessonPeriodIds: periodIds.map(Number),
       card,
       requireCard: true,
+      openOn: new Date(),
     });
   } catch (e) {
     if (e instanceof SelfCheckInError) {
