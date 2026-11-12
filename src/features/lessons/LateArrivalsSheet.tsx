@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
+import { describeAttendanceSubmitError } from "./LessonDetail/attendanceSubmitError";
 import Drawer from "@/components/Drawer";
 import StatusTag from "@/components/StatusTag";
 import { fieldControlClass } from "@/components/Field";
@@ -111,8 +112,8 @@ const LateArrivalsSheet = ({
       }
       toast.success(`已加入 ${ticked.length} 人`);
       close();
-    } catch {
-      toast.error("加入失敗，請再試一次");
+    } catch (err) {
+      toast.error(`加入失敗：${describeAttendanceSubmitError(err).message}`);
     } finally {
       setIsSubmitting(false);
     }

@@ -323,9 +323,11 @@ export async function POST(
         return NextResponse.json({ error: "card_exhausted" }, { status: 409 });
       }
       if (error.message === "Attendance already taken") {
-        return NextResponse.json({ error: error.message }, { status: 400 });
+        // 另一位老師／小幫手先點完了——前端據此說明原因並帶去結果頁。
+        return NextResponse.json({ error: "attendance_already_taken" }, { status: 409 });
       }
     }
+    console.error("[attendance] POST failed", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -364,6 +366,7 @@ export async function PUT(
         return NextResponse.json({ error: "card_exhausted" }, { status: 409 });
       }
     }
+    console.error("[attendance] PUT failed", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

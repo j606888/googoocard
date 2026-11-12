@@ -8,6 +8,7 @@ import {
   useTakeAttendanceMutation,
 } from "@/store/slices/lessons";
 import PeriodAttendanceForm from "../PeriodAttendanceForm";
+import { describeAttendanceSubmitError } from "../attendanceSubmitError";
 
 const CheckPeriod = () => {
   const { id, periodId } = useParams();
@@ -68,8 +69,14 @@ const CheckPeriod = () => {
         ...target,
         studentIds: [...new Set([...studentIds, ...arrivedSince])],
       }).unwrap();
-    } catch {
-      toast.error("點名送出失敗，請再試一次");
+    } catch (err) {
+      const { alreadyTaken, message } = describeAttendanceSubmitError(err);
+      if (alreadyTaken) {
+        toast.info(message);
+        router.push(`/lessons/${id}/periods/${periodId}/check-success`);
+        return;
+      }
+      toast.error(`點名送出失敗：${message}`);
       return;
     }
     router.push(`/lessons/${id}/periods/${periodId}/check-success?justSubmitted=1`);

@@ -1,5 +1,6 @@
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { describeAttendanceSubmitError } from "../attendanceSubmitError";
 import { useMemo, useState } from "react";
 import {
   useGetAttendanceQuery,
@@ -33,8 +34,8 @@ const EditPeriod = () => {
         periodId: Number(periodId),
         studentIds,
       }).unwrap();
-    } catch {
-      toast.error("儲存失敗，請再試一次");
+    } catch (err) {
+      toast.error(`儲存失敗：${describeAttendanceSubmitError(err).message}`);
       return;
     }
     router.push(`/lessons/${id}/periods/${periodId}/check-success?justSubmitted=1`);
