@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, UserPlus } from "lucide-react";
 import { isMockLiff, loadLiff } from "@/lib/liffClient";
-
-const OA_ID = process.env.NEXT_PUBLIC_LINE_OA_ID ?? "";
+import { lineOaAddFriendUrl, lineOaId } from "@/lib/lineOa";
 
 /**
  * 「加入官方帳號」：掃門口 QR 進來的人不一定加了好友，沒加就收不到續卡提醒、聊天室
@@ -14,7 +13,7 @@ const OA_ID = process.env.NEXT_PUBLIC_LINE_OA_ID ?? "";
 const AddFriendPrompt = () => {
   const [show, setShow] = useState(false);
   const mock = isMockLiff();
-  const oaId = OA_ID || (mock ? "@googoocard-mock" : "");
+  const oaId = lineOaId();
 
   useEffect(() => {
     if (!oaId) return;
@@ -55,7 +54,7 @@ const AddFriendPrompt = () => {
         ))}
       </ul>
       <a
-        href={`https://line.me/R/ti/p/${encodeURIComponent(oaId)}`}
+        href={lineOaAddFriendUrl() ?? undefined}
         // The simulator's phone is an iframe and line.me refuses to be framed.
         target={mock ? "_blank" : undefined}
         rel="noreferrer"

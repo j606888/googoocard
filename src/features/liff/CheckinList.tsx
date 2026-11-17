@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { AlertCircle, Banknote, Check, ChevronLeft, CreditCard, Info } from "lucide-react";
+import { AlertCircle, Banknote, Check, ChevronLeft, CreditCard, Info, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StatusTag from "@/components/StatusTag";
 import LiffSkeleton from "@/features/liff/LiffSkeleton";
@@ -12,7 +12,8 @@ import { LiffAuthContext } from "@/app/liff/LiffStudentGate";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
-import { loadLiff } from "@/lib/liffClient";
+import { isMockLiff, loadLiff } from "@/lib/liffClient";
+import { lineOaChatUrl } from "@/lib/lineOa";
 import LocationBadge from "@/components/LocationBadge";
 import AddFriendPrompt from "@/features/liff/AddFriendPrompt";
 import NoClassToday from "@/features/liff/NoClassToday";
@@ -552,6 +553,8 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
     (r) => r.status === "checked" && typeof r.remainingSessions === "number" && r.remainingSessions <= 1
   );
 
+  const chatUrl = lineOaChatUrl();
+
   const handleClose = async () => {
     try {
       const liff = await loadLiff();
@@ -644,9 +647,22 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
 
       <AddFriendPrompt />
 
-      <Button type="button" variant="secondary" size="lg" onClick={handleClose} className="mt-auto w-full">
-        關閉
-      </Button>
+      {chatUrl ? (
+        // 「關閉」從相機掃 QR 進來時沒有地方可回；改成直接開聊天室（看課卡、選單都在那）。
+        <a
+          href={chatUrl}
+          target={isMockLiff() ? "_blank" : undefined}
+          rel="noreferrer"
+          className="mt-auto flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#06C755] text-base font-bold text-white active:brightness-95"
+        >
+          <MessageCircle className="size-5" aria-hidden />
+          回到 LINE 聊天室
+        </a>
+      ) : (
+        <Button type="button" variant="secondary" size="lg" onClick={handleClose} className="mt-auto w-full">
+          關閉
+        </Button>
+      )}
     </div>
   );
 }

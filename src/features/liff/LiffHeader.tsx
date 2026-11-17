@@ -1,17 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown, X } from "lucide-react";
+import { Check, ChevronDown, MessageCircle, X } from "lucide-react";
 import ResponsiveDialog, { ResponsiveDialogTitle } from "@/components/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { isMockLiff } from "@/lib/liffClient";
+import { lineOaChatUrl } from "@/lib/lineOa";
 
 type Option = { id: number; title: string; subtitle?: string; avatarUrl?: string };
 
 /**
  * LIFF 頁首：深綠底＋頁名，下面一顆膠囊寫「教室 · 學生」。能切換時膠囊帶 ▾，
  * 點開是底部面板：綁定的學生（通常一間教室一位）或沒綁定時可選的公開教室。
- * 只有一個選項時就是純文字，不能點。
+ * 只有一個選項時就是純文字，不能點。右上角固定一顆「LINE」直接開官方帳號聊天室——
+ * 掃門口 QR 進來的人常常找不到聊天室（或還沒加好友），不管是不是好友都給一個回去的入口。
  */
 export default function LiffHeader({
   title,
@@ -33,10 +36,25 @@ export default function LiffHeader({
 }) {
   const [open, setOpen] = useState(false);
   const switchable = options.length > 1 && !!onPick;
+  const chatUrl = lineOaChatUrl();
 
   return (
     <div className="flex flex-col gap-2.5 bg-primary-900 px-4 pb-4 pt-3.5">
-      <h2 className="text-lg font-semibold text-white">{title}</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-white">{title}</h2>
+        {chatUrl && (
+          <a
+            href={chatUrl}
+            // The simulator's phone is an iframe and line.me refuses to be framed.
+            target={isMockLiff() ? "_blank" : undefined}
+            rel="noreferrer"
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-[#06C755] px-3 text-[13px] font-bold text-white active:brightness-95"
+          >
+            <MessageCircle className="size-4" aria-hidden />
+            LINE 聊天室
+          </a>
+        )}
+      </div>
       {label &&
         (switchable ? (
           <button
