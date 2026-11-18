@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -11,6 +13,7 @@ import {
   MapPin,
   Pencil,
   Plus,
+  ChevronRight,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -125,6 +128,21 @@ const LocationList = () => {
             </span>
           </span>
         </label>
+
+        {active.length > 0 && (
+          <Link
+            href="/finance/settings"
+            className="mb-5 flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-4 hover:bg-neutral-50"
+          >
+            <span className="flex flex-1 flex-col gap-0.5">
+              <span className="font-medium text-neutral-900">財務</span>
+              <span className="text-[13px] leading-relaxed text-neutral-500">
+                設定每個分部的負責人和轉換日，就會開始算每堂的分帳和分部之間的往來。
+              </span>
+            </span>
+            <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-neutral-400" />
+          </Link>
+        )}
 
         {isLoading && <RowsSkeleton />}
 

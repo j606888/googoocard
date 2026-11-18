@@ -41,7 +41,8 @@ export default function LessonFinancePanel({ lesson }: { lesson: Lesson }) {
   const periods = useMemo(
     () =>
       (data?.periods ?? [])
-        .filter((p) => !p.warnings.includes("NOT_TAKEN") || p.settlement)
+        // 只列算錢的（點了名、過了轉換日）；轉換日前的堂不列，畫面才乾淨
+        .filter((p) => p.counted || p.settlement)
         .sort((a, b) => b.startTime.localeCompare(a.startTime)),
     [data?.periods]
   );
