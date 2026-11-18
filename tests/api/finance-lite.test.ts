@@ -69,7 +69,7 @@ describe("finance-lite", () => {
       data: { lessonId: lesson.id, startTime, endTime: new Date(startTime.getTime() + 3600_000), attendanceTakenAt: new Date() },
     });
     await setLessonRule(classroomId, lesson.id, specRule(), dingding);
-    const cards = [];
+    const cards: Awaited<ReturnType<typeof createStudentCard>>[] = [];
     for (const [i, loc] of [T, T, T, K, K, K].entries()) {
       const student = await createStudent(classroomId, { name: "ABCDEF"[i] });
       const sc = await createStudentCard(student.id, card.id, { finalPrice: 1800, totalSessions: 6, remainingSessions: 5 });

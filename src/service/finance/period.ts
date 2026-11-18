@@ -108,7 +108,7 @@ type VenueInfo = {
 };
 
 /** 每個次數包已經被結清的課用掉幾次。 */
-async function packUsage(classroomId: number, excludePeriodId?: number) {
+export async function packUsage(classroomId: number, excludePeriodId?: number) {
   const settled = await prisma.periodSettlement.findMany({
     where: { lessonPeriod: { lesson: { classroomId } }, ...(excludePeriodId ? { NOT: { lessonPeriodId: excludePeriodId } } : {}) },
     select: { snapshot: true },
@@ -259,26 +259,39 @@ async function loadPeriod(classroomId: number, periodId: number) {
   return p;
 }
 
-/** 付款人代表哪個分部：他負責開課分部就是開課分部，否則他負責的第一個分部。 */
-async function payerLocationOf(classroomId: number, userId: number, lessonLocationId: number | null) {
-  const kept = await prisma.location.findMany({
-    where: { classroomId, keeperUserId: userId },
+type KeptLocation = { id: number; keeperUserId: number | null; sortOrder: number };
+
+const loadKept = (classroomId: number): Promise<KeptLocation[]> =>
+  prisma.location.findMany({
+    where: { classroomId, keeperUserId: { not: null } },
     orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-    select: { id: true },
+    select: { id: true, keeperUserId: true, sortOrder: true },
   });
-  if (kept.length === 0) return null;
-  return kept.find((l) => l.id === lessonLocationId)?.id ?? kept[0].id;
+
+/** 付款人代表哪個分部：他負責開課分部就是開課分部，否則他負責的第一個分部。 */
+function payerLocationOf(kept: KeptLocation[], userId: number, lessonLocationId: number | null) {
+  const mine = kept.filter((l) => l.keeperUserId === userId);
+  if (mine.length === 0) return null;
+  return mine.find((l) => l.id === lessonLocationId)?.id ?? mine[0].id;
 }
 
-export async function getPeriodFinance(classroomId: number, periodId: number): Promise<PeriodFinance> {
-  const p = await loadPeriod(classroomId, periodId);
-  const [venues, used] = await Promise.all([loadVenues(classroomId), packUsage(classroomId, periodId)]);
-  const keeper = p.lesson.location?.keeperUserId ?? null;
+type Context = { venues: VenueInfo[]; used: Map<number, number>; kept: KeptLocation[] };
 
+async function loadContext(classroomId: number, excludePeriodId?: number): Promise<Context> {
+  const [venues, used, kept] = await Promise.all([
+    loadVenues(classroomId),
+    packUsage(classroomId, excludePeriodId),
+    loadKept(classroomId),
+  ]);
+  return { venues, used, kept };
+}
+
+function toFinance(p: LoadedPeriod, ctx: Context): PeriodFinance {
+  const keeper = p.lesson.location?.keeperUserId ?? null;
   const payerLocationId = p.settlement
     ? p.settlement.payerLocationId
-    : (keeper && (await payerLocationOf(classroomId, keeper, p.lesson.locationId))) ?? p.lesson.locationId ?? 0;
-  const live = buildSnapshot(p, venues, used, payerLocationId);
+    : (keeper && payerLocationOf(ctx.kept, keeper, p.lesson.locationId)) || p.lesson.locationId || 0;
+  const live = buildSnapshot(p, ctx.venues, ctx.used, payerLocationId);
 
   const meta = {
     periodId: p.id,
@@ -306,6 +319,22 @@ export async function getPeriodFinance(classroomId: number, periodId: number): P
   };
 }
 
+export async function getPeriodFinance(classroomId: number, periodId: number): Promise<PeriodFinance> {
+  const p = await loadPeriod(classroomId, periodId);
+  return toFinance(p, await loadContext(classroomId, periodId));
+}
+
+/** 一門課所有時段的財務（課程頁用），一次載入。 */
+export async function getLessonPeriodsFinance(classroomId: number, lessonId: number): Promise<PeriodFinance[]> {
+  const periods = await prisma.lessonPeriod.findMany({
+    where: { lessonId, lesson: { classroomId } },
+    include: periodInclude,
+    orderBy: { startTime: "asc" },
+  });
+  const ctx = await loadContext(classroomId);
+  return periods.map((p) => toFinance(p, ctx));
+}
+
 /** 勾「已結清」：存下當下算好的快照。 */
 export async function settlePeriod(
   classroomId: number,
@@ -320,11 +349,11 @@ export async function settlePeriod(
 
   const payer = paidByUserId ?? p.lesson.location?.keeperUserId ?? null;
   if (!payer) throw badRequest("NO_PAYER", "No payer and the branch has no keeper");
-  const payerLocationId = await payerLocationOf(classroomId, payer, p.lesson.locationId);
+  const ctx = await loadContext(classroomId, periodId);
+  const payerLocationId = payerLocationOf(ctx.kept, payer, p.lesson.locationId);
   if (!payerLocationId) throw badRequest("PAYER_NOT_KEEPER", "Payer must keep a branch");
 
-  const [venues, used] = await Promise.all([loadVenues(classroomId), packUsage(classroomId, periodId)]);
-  const snapshot = buildSnapshot(p, venues, used, payerLocationId);
+  const snapshot = buildSnapshot(p, ctx.venues, ctx.used, payerLocationId);
 
   try {
     await prisma.periodSettlement.create({
