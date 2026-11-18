@@ -77,6 +77,7 @@ export const POST = apiRoute<Params>(async ({ request, params, userId, classroom
       paymentMethod: paymentMethod ?? null,
       paymentReference: paymentMethod === "TRANSFER" ? paymentReference || null : null,
       note: note?.trim() || null,
+      lessonId: lessonId ?? null,
       eventDescription: `購買新課卡 ${card.name}`,
     })
   );

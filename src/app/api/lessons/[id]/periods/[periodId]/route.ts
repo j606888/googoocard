@@ -20,6 +20,11 @@ export const DELETE = apiRoute<Params>(async ({ params, classroomId }) => {
   const lessonId = await requireLesson(params.id, classroomId);
   const periodId = parseId(params.periodId, "period id");
 
+  // 已結清的時段記著分部之間的往來（finance-lite），刪掉會讓往來悄悄變少。
+  if (await prisma.periodSettlement.findUnique({ where: { lessonPeriodId: periodId }, select: { id: true } })) {
+    throw new ApiError(409, "PERIOD_SETTLED", "Unsettle this period before deleting it");
+  }
+
   await prisma.lessonPeriod.delete({
     where: { id: periodId, lessonId },
   });

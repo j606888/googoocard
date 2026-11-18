@@ -768,6 +768,7 @@ async function selfCheckInOnce({
           sessions: card.sessions,
           purchaseSource: "STUDENT",
           isPaid: false,
+          lessonId: lesson.id,
           eventDescription: `自助點名時購買 ${card.name}（待付款）`,
         });
         purchased = {

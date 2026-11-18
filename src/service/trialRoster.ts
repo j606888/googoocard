@@ -142,6 +142,7 @@ export async function registerTrial({
       paidByUserId: isPaid && finalPrice > 0 ? userId : null,
       paymentMethod,
       paymentReference,
+      lessonId,
       eventDescription: [
         `登記體驗 ${card.name}（$${formatMoney(finalPrice)}）`,
         finalPrice === 0 ? "免費" : isPaid ? "已收款" : "待付款",

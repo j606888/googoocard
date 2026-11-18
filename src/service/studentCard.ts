@@ -1,5 +1,6 @@
 import { CardPurchaseSource, PaymentMethod, Prisma } from "@prisma/client";
 import { nextCardSerial } from "@/service/studentCardSerial";
+import { defaultCardLocationIdInTx } from "@/service/finance/cardLocation";
 
 type CardForPurchase = { id: number; name: string; price: number; classroomId: number };
 
@@ -26,6 +27,7 @@ export async function createStudentCardInTx(
     paymentMethod = null,
     paymentReference = null,
     note = null,
+    lessonId = null,
     eventDescription,
   }: {
     studentId: number;
@@ -40,9 +42,18 @@ export async function createStudentCardInTx(
     paymentMethod?: PaymentMethod | null;
     paymentReference?: string | null;
     note?: string | null;
+    /** 在某堂課的情境裡買的（點名、體驗名單）：卡的分部預設跟那堂課（finance-lite）。 */
+    lessonId?: number | null;
     eventDescription: string;
   }
 ) {
+  const lesson = lessonId
+    ? await tx.lesson.findFirst({ where: { id: lessonId, classroomId: card.classroomId }, select: { locationId: true } })
+    : null;
+  const locationId = await defaultCardLocationIdInTx(tx, card.classroomId, {
+    lessonLocationId: lesson?.locationId ?? null,
+    userId: (isPaid ? paidByUserId : null) ?? purchasedByUserId,
+  });
   const created = await tx.studentCard.create({
     data: {
       serialNumber: await nextCardSerial(tx, card.classroomId),
@@ -61,6 +72,8 @@ export async function createStudentCardInTx(
       paymentMethod: isPaid ? paymentMethod : null,
       paymentReference: isPaid ? paymentReference : null,
       note,
+      moneyLocationId: locationId,
+      homeLocationId: locationId,
     },
   });
 
