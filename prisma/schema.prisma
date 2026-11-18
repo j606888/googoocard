@@ -106,6 +106,9 @@ model Classroom {
   teachers                Teacher[]
   User                    User[]
   notificationPreferences NotificationPreference[]
+  venues                  Venue[]
+  venuePacks              VenuePack[]
+  branchTransfers         BranchTransfer[]
 }
 
 model Membership {
@@ -282,6 +285,12 @@ model StudentCard {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   expiredAt         DateTime?
+  // 財務輕量版：這張卡的錢屬於哪個分部（錢在那個分部負責人手上），
+  // 以及卡屬於哪個分部（到期沒用完的剩餘價值歸它）。null = 還沒指定。
+  moneyLocationId   Int?
+  moneyLocation     Location?          @relation("CardMoneyLocation", fields: [moneyLocationId], references: [id], onDelete: SetNull)
+  homeLocationId    Int?
+  homeLocation      Location?          @relation("CardHomeLocation", fields: [homeLocationId], references: [id], onDelete: SetNull)
 
   @@index([convertedToId])
   @@index([serialNumber])
@@ -290,6 +299,8 @@ model StudentCard {
   // leading column still serves plain studentId lookups.
   @@index([studentId, expiredAt])
   @@index([cardId])
+  @@index([moneyLocationId])
+  @@index([homeLocationId])
 }
 
 model Lesson {
@@ -326,6 +337,7 @@ model Lesson {
   cards                 LessonCard[]
   periods               LessonPeriod[]
   students              LessonStudent[]
+  splitRule             LessonSplitRule?
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
 
@@ -362,17 +374,26 @@ model DanceStyle {
 // 分部：同一間教室的不同上課地點（台南、高雄…）。Classroom data managed on
 // /locations; archived, never deleted. Cards are NOT location-bound.
 model Location {
-  id          Int       @id @default(autoincrement())
-  classroomId Int
-  classroom   Classroom @relation(fields: [classroomId], references: [id])
-  name        String
-  address     String?
-  sortOrder   Int       @default(0)
-  archivedAt  DateTime?
-  lessons     Lesson[]
-  teachers    Teacher[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             Int              @id @default(autoincrement())
+  classroomId    Int
+  classroom      Classroom        @relation(fields: [classroomId], references: [id])
+  name           String
+  address        String?
+  sortOrder      Int              @default(0)
+  archivedAt     DateTime?
+  lessons        Lesson[]
+  teachers       Teacher[]
+  // 財務輕量版（docs/finance-lite.md）：分部負責人＝這個分部的錢在他手上；
+  // 轉換日＝從這天起這個分部的課與到期才算錢。keeperUserId 是純 Int，由 service 驗證。
+  keeperUserId   Int?
+  financeStartAt DateTime?
+  moneyCards     StudentCard[]    @relation("CardMoneyLocation")
+  homeCards      StudentCard[]    @relation("CardHomeLocation")
+  venues         Venue[]
+  transfersOut   BranchTransfer[] @relation("TransferFrom")
+  transfersIn    BranchTransfer[] @relation("TransferTo")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   // Leads with classroomId, so it also serves classroom lookups.
   @@unique([classroomId, name])
@@ -435,15 +456,17 @@ model LessonCard {
 }
 
 model LessonPeriod {
-  id                Int                @id @default(autoincrement())
+  id                Int                  @id @default(autoincrement())
   lessonId          Int
-  lesson            Lesson             @relation(fields: [lessonId], references: [id])
+  lesson            Lesson               @relation(fields: [lessonId], references: [id])
   attendanceRecords AttendanceRecord[]
   startTime         DateTime
   endTime           DateTime
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
   attendanceTakenAt DateTime?
+  splitOverride     PeriodSplitOverride?
+  settlement        PeriodSettlement?
 
   // Daily revenue and the calendar both filter a lesson's periods by date.
   @@index([lessonId, startTime])
@@ -641,4 +664,103 @@ model DropInCharge {
   paidByUserId       Int?
   paidBy             User?            @relation("ConfirmedDropIns", fields: [paidByUserId], references: [id])
   createdAt          DateTime         @default(now())
+}
+
+// ── 財務輕量版（docs/finance-lite.md）────────────────────────────────
+// 人的欄位是純 Int（沒有 FK），存在性與教室歸屬由 service 驗證。
+
+/// 場地：屬於一個分部，場地費從那個分部的錢付。
+model Venue {
+  id              Int         @id @default(autoincrement())
+  classroomId     Int
+  classroom       Classroom   @relation(fields: [classroomId], references: [id])
+  name            String
+  /// 房東是成員的話記他（場地費付給他）。
+  landlordUserId  Int?
+  locationId      Int?
+  location        Location?   @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  /// 收費方式：有值＝每次付這麼多；null＝買次數包（VenuePack）。
+  perSessionPrice Int?
+  archivedAt      DateTime?
+  packs           VenuePack[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([classroomId, name])
+}
+
+/// 場地次數包：預付一包堂數，之後每堂扣一次；錢由場地分部付。
+model VenuePack {
+  id               Int       @id @default(autoincrement())
+  classroomId      Int
+  classroom        Classroom @relation(fields: [classroomId], references: [id])
+  venueId          Int
+  venue            Venue     @relation(fields: [venueId], references: [id])
+  sessions         Int
+  price            Int
+  /// 轉換日前買、轉換日當下還剩幾次；null = 轉換日後買的整包。
+  remainingAtStart Int?
+  paidByUserId     Int
+  purchasedAt      DateTime
+  createdById      Int
+  voidedAt         DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([classroomId])
+  @@index([venueId])
+}
+
+/// 整門課的分帳規則（JSON，見 src/domains/finance/types.ts）。
+model LessonSplitRule {
+  id          Int      @id @default(autoincrement())
+  lessonId    Int      @unique
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  rule        Json
+  updatedById Int
+  updatedAt   DateTime @updatedAt
+}
+
+/// 單一堂的分帳規則，蓋過整門課的規則。
+model PeriodSplitOverride {
+  id             Int          @id @default(autoincrement())
+  lessonPeriodId Int          @unique
+  lessonPeriod   LessonPeriod @relation(fields: [lessonPeriodId], references: [id], onDelete: Cascade)
+  rule           Json
+  updatedById    Int
+  updatedAt      DateTime     @updatedAt
+}
+
+/// 一堂課已結清：老師、場地已經付了。snapshot 存當下算好的分帳與往來，
+/// 之後改點名或規則不會改掉它；要改就取消結清（刪掉這列）再重勾。
+model PeriodSettlement {
+  id              Int          @id @default(autoincrement())
+  lessonPeriodId  Int          @unique
+  lessonPeriod    LessonPeriod @relation(fields: [lessonPeriodId], references: [id], onDelete: Cascade)
+  /// 當天誰付的（代表他負責的分部）。
+  paidByUserId    Int
+  payerLocationId Int
+  snapshot        Json
+  settledAt       DateTime     @default(now())
+  createdById     Int
+
+  @@index([payerLocationId])
+}
+
+/// 分部之間的轉帳（把往來轉平）。
+model BranchTransfer {
+  id             Int       @id @default(autoincrement())
+  classroomId    Int
+  classroom      Classroom @relation(fields: [classroomId], references: [id])
+  fromLocationId Int
+  fromLocation   Location  @relation("TransferFrom", fields: [fromLocationId], references: [id])
+  toLocationId   Int
+  toLocation     Location  @relation("TransferTo", fields: [toLocationId], references: [id])
+  amount         Int
+  at             DateTime
+  note           String?
+  createdById    Int
+  voidedAt       DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([classroomId])
 }
