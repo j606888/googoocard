@@ -16,6 +16,7 @@ export const TAG_TYPES = [
   "LessonGroup",
   "DanceStyle",
   "Location",
+  "Finance",
 ]
 
 const rawBaseQuery = fetchBaseQuery({ baseUrl: "/api" });

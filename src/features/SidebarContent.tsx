@@ -8,6 +8,7 @@ import {
   useGetClassroomsQuery,
   useSwitchClassroomMutation,
 } from "@/store/slices/classrooms";
+import { useFinanceEnabled } from "@/features/finance/useFinanceEnabled";
 import { useGetMeQuery, useLogoutMutation } from "@/store/slices/me";
 import { disableWebPushOnLogout } from "@/hooks/useWebPush";
 import Menu from "@/components/Menu";
@@ -17,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import {
   ACCOUNT_LINK,
   PRIMARY_LINKS,
-  SECONDARY_LINKS,
+  secondaryLinksFor,
   SETTINGS_ENTRY,
   isSettingsPath,
   type NavLink,
@@ -34,6 +35,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountAnchorRef = useRef<HTMLButtonElement>(null);
   const { data: me } = useGetMeQuery();
+  const financeEnabled = useFinanceEnabled() === true;
   const [switchClassroom] = useSwitchClassroomMutation();
   const pathname = usePathname();
   const router = useRouter();
@@ -156,7 +158,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
         </Link>
       </Menu>
       <nav className="mt-5 flex flex-col gap-0.5">
-        {[...PRIMARY_LINKS, ...SECONDARY_LINKS].map((link) => renderLink(link))}
+        {[...PRIMARY_LINKS, ...secondaryLinksFor(financeEnabled)].map((link) => renderLink(link))}
       </nav>
       {/* 教室設定 and the account row sit at the bottom: set up once, rarely visited. */}
       <div className="mt-auto flex flex-col gap-2 pt-4">

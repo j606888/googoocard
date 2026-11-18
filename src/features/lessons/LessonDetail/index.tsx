@@ -20,6 +20,8 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { lessonPeopleLabel } from "@/lib/teachers";
 import PeriodRecordSheet from "./PeriodRecordSheet";
 import StudentSheet from "@/features/students/StudentSheet";
+import LessonFinancePanel from "@/features/finance/LessonFinancePanel";
+import { useFinanceEnabled } from "@/features/finance/useFinanceEnabled";
 
 export const TABS = [
   { name: "時段", query: "periods" },
@@ -27,12 +29,16 @@ export const TABS = [
   { name: "設定", query: "settings" },
 ];
 
+/** 教室開了財務才有：每堂分帳與結清（finance-lite）。 */
+export const FINANCE_TAB = { name: "分帳", query: "split" };
+
 const LessonDetail = () => {
   const { id } = useParams();
   // 只掛載其中一棵樹。兩棵都掛的話 PeriodSection / AttendanceOverview /
   // SettingSection 會各跑兩次（見 docs/ui-responsive.md 的「代價一」）。
   const isExpanded = useSizeClass() === "expanded";
   const [activeTab, setActiveTab] = useState("periods");
+  const financeEnabled = useFinanceEnabled() === true;
   const [showSettings, setShowSettings] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
   // 桌面：時段紀錄與學生詳情開在右側抽屜，名單留在原地。一次只開一個。
@@ -136,6 +142,11 @@ const LessonDetail = () => {
                 onViewPeriod={setRecordPeriodId}
                 onOpenStudent={openStudent}
               />
+              {financeEnabled && (
+                <div className="mt-8 -mx-5">
+                  <LessonFinancePanel lesson={lesson} />
+                </div>
+              )}
             </div>
           </div>
           <PeriodRecordSheet
@@ -172,7 +183,7 @@ const LessonDetail = () => {
       ) : (
         /* 手機：分頁 */
         <div>
-          <LessonTabs activeTab={activeTab} onTabChange={requestTabChange} />
+          <LessonTabs activeTab={activeTab} onTabChange={requestTabChange} showFinance={financeEnabled} />
           {activeTab === "periods" && (
             <PeriodSection lesson={lesson} periods={lesson?.periods || []} headcounts={headcounts} />
           )}
@@ -184,6 +195,7 @@ const LessonDetail = () => {
           {activeTab === "settings" && (
             <SettingSection lesson={lesson} onDirtyChange={setSettingsDirty} />
           )}
+          {financeEnabled && activeTab === "split" && <LessonFinancePanel lesson={lesson} />}
         </div>
       )}
       <ConfirmDialog
