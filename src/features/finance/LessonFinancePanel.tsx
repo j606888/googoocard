@@ -23,6 +23,7 @@ import {
   type PeriodFinance,
 } from "@/store/slices/finance";
 import { RuleEditorDrawer } from "./RuleEditor";
+import CardBranchDrawer from "./CardBranchDrawer";
 import { describeRow, emptyRows, rowsToRule, ruleToRows, type RuleRow } from "./ruleEditorModel";
 import { useSplitNames, type SplitNames } from "./useSplitNames";
 import { MONEY_WARNINGS, REASON_TEXT, WARNING_TEXT, financeErrorText, periodLabel } from "./financeUi";
@@ -180,6 +181,7 @@ function PeriodRow({
   onClearOverride: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [editCard, setEditCard] = useState<PeriodFinance["records"][number] | null>(null);
   const lessonLoc = p.lessonLocationId;
   const status = !p.counted ? (
     <StatusTag tone="neutral">不算錢</StatusTag>
@@ -231,6 +233,11 @@ function PeriodRow({
                 {r.kind === "card" && lessonLoc && r.locationId !== lessonLoc && (
                   <StatusTag tone="neutral">錢在{names.location(r.locationId)}</StatusTag>
                 )}
+                {r.kind === "card" && names.canEdit && !p.settlement && (
+                  <Button variant="link" size="sm" className="text-[13px]" onClick={() => setEditCard(r)}>
+                    分部
+                  </Button>
+                )}
               </Line>
             ))}
           </Block>
@@ -263,6 +270,20 @@ function PeriodRow({
                 </li>
               ))}
             </Block>
+          )}
+
+          {editCard && editCard.studentCardId && (
+            <CardBranchDrawer
+              card={{
+                id: editCard.studentCardId,
+                serialNumber: editCard.serialNumber,
+                studentName: editCard.studentName,
+                moneyLocationId: p.warnings.includes("CARD_NO_BRANCH") && editCard.locationId === lessonLoc ? null : editCard.locationId,
+                homeLocationId: editCard.homeLocationId,
+              }}
+              names={names}
+              onClose={() => setEditCard(null)}
+            />
           )}
 
           {names.canEdit && p.counted && (

@@ -32,6 +32,8 @@ export type PeriodRecord = {
   serialNumber: number | null;
   amount: number;
   locationId: number;
+  /** 卡屬於的分部（卡到期歸它）；單堂／沒卡是 null。 */
+  homeLocationId: number | null;
   unpaid: boolean;
 };
 
@@ -90,6 +92,7 @@ const periodInclude = {
           totalSessions: true,
           isPaid: true,
           moneyLocationId: true,
+          homeLocationId: true,
         },
       },
       dropInCharge: { select: { amount: true, isPaid: true } },
@@ -195,6 +198,7 @@ function buildSnapshot(
         serialNumber: null,
         amount: r.dropInCharge.amount,
         locationId: fallbackLoc,
+        homeLocationId: null,
         unpaid: !r.dropInCharge.isPaid,
       };
     }
@@ -209,11 +213,12 @@ function buildSnapshot(
         serialNumber: c.serialNumber,
         amount: roundCents(c.totalSessions > 0 ? (c.finalPrice / c.totalSessions) * r.sessionsUsed : 0),
         locationId: c.moneyLocationId ?? fallbackLoc,
+        homeLocationId: c.homeLocationId,
         unpaid: !c.isPaid,
       };
     }
     warnings.add("NO_CARD");
-    return { ...base, kind: "none", studentCardId: null, serialNumber: null, amount: 0, locationId: fallbackLoc, unpaid: false };
+    return { ...base, kind: "none", studentCardId: null, serialNumber: null, amount: 0, locationId: fallbackLoc, homeLocationId: null, unpaid: false };
   });
 
   const pileMap = new Map<number, number>();

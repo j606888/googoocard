@@ -43,6 +43,7 @@ export interface PeriodRecord {
   serialNumber: number | null;
   amount: number;
   locationId: number;
+  homeLocationId: number | null;
   unpaid: boolean;
 }
 
