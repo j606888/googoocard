@@ -42,7 +42,7 @@ function RedirectContent() {
       return;
     }
 
-    router.push("/lessons");
+    router.push("/today");
   }, [data, isLoading, router, token, redirect]);
 
   return (

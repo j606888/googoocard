@@ -7,7 +7,7 @@ import { isMyLesson } from "./lessonSeries";
 /** 每 30 秒換一次 now：「還有 40 分鐘」會走、下課後那一列自己換狀態。 */
 const TICK_MS = 30_000;
 
-const useNow = () => {
+export const useNow = () => {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), TICK_MS);

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import prisma from "@/lib/prisma";
-import { resetDb, createClassroom, createLesson, createStudent } from "../factories";
+import { resetDb, createClassroom, createLesson, createLessonGroup, createStudent } from "../factories";
 import { getLessonAgenda } from "@/service/lessonAgenda";
 
 const NOW = new Date("2026-10-29T07:20:00Z");
@@ -78,5 +78,45 @@ describe("getLessonAgenda", () => {
 
     const { periods } = await getLessonAgenda(classroomId, NOW);
     expect(periods[0].attendeeIds).toEqual([student.id]);
+  });
+
+  it("counts self check-ins apart from the teacher's own records", async () => {
+    const { lesson } = await createLesson(classroomId);
+    const period = await addPeriod(lesson.id, "2026-10-29T09:00:00Z", "2026-10-29T10:00:00Z");
+    const self = await createStudent(classroomId, { name: "自己簽" });
+    const byTeacher = await createStudent(classroomId, { name: "老師勾" });
+    await prisma.attendanceRecord.create({
+      data: { lessonPeriodId: period.id, studentId: self.id, source: "STUDENT" },
+    });
+    await prisma.attendanceRecord.create({
+      data: { lessonPeriodId: period.id, studentId: byTeacher.id },
+    });
+
+    const { periods } = await getLessonAgenda(classroomId, NOW);
+    expect(periods[0].attendeeIds).toHaveLength(2);
+    expect(periods[0].selfCheckInCount).toBe(1);
+  });
+
+  it("numbers a lesson's term within its group by first period, and leaves ungrouped lessons null", async () => {
+    const group = await createLessonGroup(classroomId, "Bachata Lv1");
+    const { lesson: first } = await createLesson(classroomId, { name: "一期", groupId: group.id });
+    await addPeriod(first.id, "2026-06-01T07:00:00Z", "2026-06-01T08:00:00Z", true);
+    await prisma.lesson.update({ where: { id: first.id }, data: { status: "finished" } });
+    // 還沒排時段的期排最後，不會擠掉進行中那一期的號碼。
+    await createLesson(classroomId, { name: "還沒排", groupId: group.id });
+    const { lesson: second } = await createLesson(classroomId, { name: "二期", groupId: group.id });
+    const current = await addPeriod(second.id, "2026-10-30T07:00:00Z", "2026-10-30T08:00:00Z");
+    const { lesson: loose } = await createLesson(classroomId, { name: "散課" });
+    const loosePeriod = await addPeriod(loose.id, "2026-10-30T09:00:00Z", "2026-10-30T10:00:00Z");
+
+    const { periods } = await getLessonAgenda(classroomId, NOW);
+    expect(periods.find((p) => p.id === current.id)!.lesson).toMatchObject({
+      groupId: group.id,
+      termNumber: 2,
+    });
+    expect(periods.find((p) => p.id === loosePeriod.id)!.lesson).toMatchObject({
+      groupId: null,
+      termNumber: null,
+    });
   });
 });

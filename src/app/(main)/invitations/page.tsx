@@ -151,7 +151,7 @@ function InvitationsContent() {
         </div>
         <div className="fixed bottom-0 left-0 right-0 flex flex-col items-center justify-center gap-3 p-4">
           <Button asChild size="lg" className="w-full">
-            <Link href="/lessons">回到課程</Link>
+            <Link href="/today">回到首頁</Link>
           </Button>
         </div>
       </Container>
@@ -172,7 +172,7 @@ function InvitationsContent() {
         </div>
         <div className="fixed bottom-0 left-0 right-0 flex flex-col items-center justify-center gap-3 p-4">
           <Button asChild size="lg" className="w-full">
-            <Link href="/lessons">回到課程</Link>
+            <Link href="/today">回到首頁</Link>
           </Button>
         </div>
       </Container>
@@ -194,7 +194,7 @@ function InvitationsContent() {
         </div>
         <div className="fixed bottom-0 left-0 right-0 flex flex-col items-center justify-center gap-3 p-4">
           <Button asChild size="lg" className="w-full">
-            <Link href="/lessons">回到課程</Link>
+            <Link href="/today">回到首頁</Link>
           </Button>
         </div>
       </Container>

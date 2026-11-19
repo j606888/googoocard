@@ -70,6 +70,7 @@ src/
 ├── app/
 │   ├── (auth)/           # login/, signup/, onboarding/ (route group)
 │   ├── (main)/           # Teacher app (route group with sidebar/BottomNav layout):
+│   │   ├── today/        # 今天 — the landing page after login (next lesson, to-dos, recent periods)
 │   │   ├── lessons/      # Lesson management UI
 │   │   ├── cards/        # Student card (payment package) UI
 │   │   ├── students/     # Student management UI

@@ -98,10 +98,16 @@ export interface AgendaPeriod {
   number: number;
   /** Students with a record for this period — self check-ins included. */
   attendeeIds: number[];
+  /** How many of those checked themselves in (LINE). */
+  selfCheckInCount: number;
   lesson: {
     id: number;
     name: string;
     kind: LessonKind;
+    /** 課種 — null when the lesson isn't in one. */
+    groupId: number | null;
+    /** 第 N 期 within its 課種 (same order as `termNumbers()`); null without a 課種. */
+    termNumber: number | null;
     danceStyle: DanceStyleSummary;
     /** 分部 — null when not set. */
     location: LocationSummary | null;
@@ -109,6 +115,22 @@ export interface AgendaPeriod {
     assistants: TeacherSummary[];
     studentCount: number;
     totalPeriods: number;
+  };
+}
+
+/** One row of GET /lessons/recent — a period whose attendance was taken. */
+export interface RecentPeriod {
+  id: number;
+  startTime: string;
+  endTime: string;
+  attendeeCount: number;
+  /** Same figure as the period summary and the income page (`periodRevenue`). */
+  revenue: number;
+  lesson: {
+    id: number;
+    name: string;
+    danceStyle: DanceStyleSummary;
+    location: LocationSummary | null;
   };
 }
 
@@ -298,6 +320,10 @@ const lessonsApi = api.injectEndpoints({
     getLessonAgenda: builder.query<{ periods: AgendaPeriod[]; myTeacherId: number | null }, void>({
       query: () => "lessons/agenda",
       providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
+    }),
+    getRecentPeriods: builder.query<RecentPeriod[], { limit?: number } | void>({
+      query: (args) => `lessons/recent${args?.limit ? `?limit=${args.limit}` : ""}`,
+      providesTags: ["Lesson", "Attendance", "AttendanceRecord", "StudentCard"],
     }),
     getCalendarPeriods: builder.query<
       CalendarPeriod[],
@@ -522,6 +548,7 @@ export const {
   useGetLessonQuery,
   useGetCalendarPeriodsQuery,
   useGetLessonAgendaQuery,
+  useGetRecentPeriodsQuery,
   useLazyGetAttendanceQuery,
   useLazyCheckStudentCardsQuery,
   useTakeAttendanceMutation,

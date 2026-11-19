@@ -1,6 +1,4 @@
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useGetClassroomsQuery } from "@/store/slices/classrooms";
+import { useClassroomGuard } from "@/hooks/useClassroomGuard";
 import { Skeleton } from "@/components/ui/skeleton";
 import ClassroomSwitcher from "./nav/ClassroomSwitcher";
 import TodoBell from "./TodoBell";
@@ -10,20 +8,7 @@ import TodoBell from "./TodoBell";
  * list puts its search there).
  */
 const Navbar = ({ actions }: { actions?: React.ReactNode } = {}) => {
-  const { data, isLoading, error } = useGetClassroomsQuery();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (isLoading) return;
-    
-    if (error) {
-      router.push("/login");
-      return
-    }
-    if (!data?.currentClassroomId) {
-      router.push("/onboarding");
-    }
-  }, [isLoading, data?.currentClassroomId, error]);
+  const { isLoading } = useClassroomGuard();
 
   // Mobile only. On desktop the sidebar carries the classroom switcher and the
   // bell, so the bar would be an empty strip — but the component stays mounted

@@ -72,7 +72,7 @@ const DangerZone = ({ role }: { role: string }) => {
       close();
       // The server already re-issued the auth cookie for whichever classroom is
       // next; with none left the user has to create one before anything works.
-      router.push(nextClassroomId ? "/lessons" : "/onboarding");
+      router.push(nextClassroomId ? "/today" : "/onboarding");
     } catch {
       setError("發生錯誤，請再試一次");
     }

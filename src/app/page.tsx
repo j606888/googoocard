@@ -43,7 +43,7 @@ export default async function Home() {
   const { userId, classroomId } = await readAuthSession();
 
   if (userId) {
-    redirect(classroomId ? '/lessons' : '/onboarding');
+    redirect(classroomId ? '/today' : '/onboarding');
   }
 
   return (

@@ -11,7 +11,13 @@ import {
 } from "@/store/slices/classrooms";
 import { isInApp } from "@/lib/inApp";
 
-const ClassroomSwitcher = () => {
+const ClassroomSwitcher = ({
+  tone = "default",
+}: {
+  /** `onPrimary`: sits on the green header of the 今天 page. */
+  tone?: "default" | "onPrimary";
+} = {}) => {
+  const ink = tone === "onPrimary" ? "text-white" : "text-neutral-900";
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const [switchClassroom] = useSwitchClassroomMutation();
@@ -31,21 +37,21 @@ const ClassroomSwitcher = () => {
 
   const handleSwitch = async (id: number) => {
     await switchClassroom({ id: id.toString() });
-    router.push("/lessons");
+    router.push("/today");
     setOpen(false);
   };
 
   if (!currentClassroom) return null;
 
   if (inApp) {
-    return <span className="text-xl font-bold text-neutral-900 truncate">{currentClassroom.name}</span>;
+    return <span className={`text-xl font-bold truncate ${ink}`}>{currentClassroom.name}</span>;
   }
 
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex min-h-11 cursor-pointer items-center gap-1.5 text-neutral-900"
+        className={`flex min-h-11 cursor-pointer items-center gap-1.5 ${ink}`}
       >
         <span className="text-xl font-bold">{currentClassroom.name}</span>
         {/* Hidden in the App even before the effect above runs, so the name doesn't jump. */}

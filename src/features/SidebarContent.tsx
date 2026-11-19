@@ -54,7 +54,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
 
   const handleSwitchClassroom = async (classroomId: number) => {
     await switchClassroom({ id: classroomId.toString() });
-    router.push("/lessons");
+    router.push("/today");
     onClose?.();
     setSwitchClassroomOpen(false);
   };

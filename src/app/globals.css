@@ -92,6 +92,17 @@
     /* Text on warning-50/100 tints (需續約 tags). 900 only reaches 4.0:1 there. */
     --color-warning-950: #8A4510;
 
+    /* Accent — the kiwi's coral (from the preset student avatars). Means
+       「現在／今天／要注意」: the next-lesson pill, today's period, the mascot.
+       500 is a fill only (white text fails on it); text goes 900/950 on 50/100. */
+    --color-accent-50:  #FFF1EB;
+    --color-accent-100: #FFE4DA;
+    --color-accent-200: #FFD9CC;
+    --color-accent-500: #FF8A65;
+    --color-accent-600: #E86A4B;
+    --color-accent-900: #8F2D14;
+    --color-accent-950: #7A2410;
+
     /* Success Colors — values mirror Tailwind green-* so migrating existing
        `*-green-*` utilities to `*-success-*` is a visual no-op. */
     --color-success-50:  #F0FDF4;

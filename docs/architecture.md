@@ -175,6 +175,19 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 `LessonPeriod`，所以改期不動紀錄也不動課卡，已點名的時段一樣能改。停課改期因此不必
 刪掉時段重建（那會連同出席一起丟掉）。
 
+## 今天頁（`/today`，2026-11 重設計第一階段）
+
+登入後的落地頁（`HOME_PATH`，`src/features/nav/navConfig.ts`；首頁 redirect、onboarding、切換教室、離開教室都帶到這裡），導覽第一格「今天」。目的是一打開就回答「我是誰、我在哪、現在要做什麼」，而不是先看到整份課程目錄。
+
+- **畫面**：`src/features/today/TodayScreen.tsx`，唯一的 hook 是 `useToday.ts`，純推導在 `today.ts`（有單元測試）。手機與桌面同一棵樹（`docs/ui-responsive.md` L1）：手機是綠色頁首（教室切換＋鈴鐺）壓著主角卡，桌面把同一份內容排成兩欄，教室切換與鈴鐺在側欄所以頁首那一排 `lg:hidden`。
+- **頁首**：問候語（依瀏覽器時刻）＋名字、角色（`roleLabel`）、「今天教 N 堂」（`GET /api/me/lessons`，上完的也算；沒連老師資料的成員不顯示）、下一堂課的分部（資料裡沒有「這個人屬於哪個分部」，所以用主角那堂的；沒課就不顯示）。日期與問候語**掛上之後才算**——伺服器在 UTC，SSR 算出來會跟台北差一天。
+- **主角卡**（`buildToday()`）：有自己的課（教的＋協助的）就只看自己的，沒有才看全教室。上課中還沒點名的 → 不然下一堂。**只有今天的課才給「開始點名」**，別天的只帶去課程頁（點錯日期在 production 出過兩次，見「老師會被帶到哪一個時段」）。資料同課程列表的 `GET /api/lessons/agenda`，這支為此多回 `selfCheckInCount`、`lesson.groupId`、`lesson.termNumber`（第幾期，伺服器照 `termNumbers()` 同一套排法算——今天頁不該為了期數去撈全教室的課）。
+- **還沒點名**：已下課沒點名的列在主角卡下面（最多 3 堂，再多帶去課程頁）。
+- **待處理那一列**（`todoSummary()`）：數字跟鈴鐺同一個；點下去 `openTodoBell()`（`src/features/TodoBell.tsx`）發一個 window 事件，畫面上看得到的那顆鈴鐺打開（側欄與手機頁首各掛一顆，用 `offsetParent` 分辨）。App 裡鈴鐺是隱藏的，沒人接就 `postMessage('app:todos')` 交給原生待處理頁。
+- **最近上過**：`GET /api/lessons/recent?limit=`（`src/service/recentPeriods.ts`）——最近點過名的時段，帶出席人數與這堂收入（`periodRevenue()`，跟收入頁、點名完成頁同一支），一點就到 `check-success`。
+- **導向守門**：以前寫在 `Navbar` 裡的「沒登入 → `/login`、沒教室 → `/onboarding`」抽成 `src/hooks/useClassroomGuard.ts`，今天頁不掛 `Navbar` 也一樣有。
+- **品牌層**：`globals.css` 多一組 `accent-*`（奇異鳥的珊瑚橘）＝「現在／今天／要注意」；`accent-500` 只當底色，文字用 900/950 配 50/100。課的色塊是 `src/components/DanceStyleTile.tsx`（舞種色＋`seriesInitials()` 的兩個字母）。
+
 ## 課程型態與「進行中 / 已結束」（2026-10）
 
 `Lesson.status` 只由 `deriveLessonStatus()`（`src/lib/lessonKind.ts`）決定，`refreshLesson()`
