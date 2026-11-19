@@ -177,10 +177,9 @@ const LessonsList = () => {
               />
             )}
 
-            <section aria-labelledby="series-heading" className="flex flex-col gap-3">
-              <h2 id="series-heading" className="text-[15px] font-bold text-neutral-900">
-                所有課程
-              </h2>
+            <section aria-label="所有課程" className="flex flex-col gap-3">
+              {/* 手機沒有上面那張「接下來」，這個標題只剩跟「我的課」打架，所以只在桌面出現。 */}
+              {isExpanded && <h2 className="text-[15px] font-bold text-neutral-900">所有課程</h2>}
               {unorganized > 0 && (
                 <button
                   type="button"

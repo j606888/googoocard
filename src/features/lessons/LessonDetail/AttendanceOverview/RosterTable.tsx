@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
+import StudentAvatar from "@/components/StudentAvatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { endOfDay, format, isToday } from "date-fns";
@@ -166,7 +166,7 @@ const RosterTable = ({
                   style={{ width: NAME_COL, minWidth: NAME_COL, maxWidth: NAME_COL }}
                 >
                   <span className="flex items-center gap-2.5">
-                    <Image src={row.student.avatarUrl} alt="" width={28} height={28} className="shrink-0 rounded-full" />
+                    <StudentAvatar src={row.student.avatarUrl} alt="" width={28} height={28} className="shrink-0 rounded-full" />
                     {onOpenStudent ? (
                       <button
                         type="button"

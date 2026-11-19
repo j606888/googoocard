@@ -52,7 +52,7 @@ const PeriodSection = ({
 }) => {
   const [showEarlier, setShowEarlier] = useState(false);
   const [showLater, setShowLater] = useState(false);
-  const timeline = buildTimeline(periods, { showEarlier, showLater });
+  const timeline = buildTimeline(periods, { showEarlier, showLater, now: new Date() });
   const lastId = lesson.kind === "fixed" && periods.length > 1 ? periods.at(-1)?.id : undefined;
 
   return (
@@ -370,7 +370,7 @@ const DensePeriodRow = ({
               : "border-[1.5px] border-neutral-300"
         }`}
       />
-      <span className="w-[82px] shrink-0 text-sm font-semibold tabular-nums text-neutral-900">
+      <span className="w-[88px] shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-neutral-900">
         {format(startTime, "MM/dd")}（{WEEKDAYS[startTime.getDay()]}）
       </span>
       <span className="min-w-0 flex-1 whitespace-nowrap text-xs tabular-nums text-neutral-500">
@@ -390,7 +390,7 @@ const DensePeriodRow = ({
           點名
         </Button>
       ) : overdue ? (
-        <span className="text-[13px] font-semibold text-warning-900">未點名</span>
+        <span className="text-[13px] font-semibold text-warning-900">還沒點名</span>
       ) : canCheck ? (
         <span className="text-[13px] text-neutral-600">下一堂</span>
       ) : (
@@ -479,10 +479,11 @@ const PeriodRow = ({
   attended: number | undefined;
   revenue: number | undefined;
 }) => {
-  const { handleViewAttendance, menuButton, overlays } = usePeriodActions(period);
+  const { handleCheck, handleViewAttendance, menuButton, overlays } = usePeriodActions(period);
   const startTime = new Date(period.startTime);
   const attended = Boolean(period.attendanceTakenAt);
   const overdue = !attended && startTime.getTime() <= endOfDay(new Date()).getTime();
+  const today = isToday(startTime);
   const days = differenceInCalendarDays(startTime, new Date());
 
   return (
@@ -522,7 +523,10 @@ const PeriodRow = ({
           )}
         </span>
       ) : overdue ? (
-        <span className="shrink-0 text-[13px] font-semibold text-warning-950">未點名</span>
+        // 醒目的那張卡只有一張；其他已經到了卻沒點名的時段也要有入口，不然只能從今天頁繞。
+        <Button variant={today ? "primary" : "secondary"} size="sm" onClick={handleCheck}>
+          {today ? "點名" : "補點名"}
+        </Button>
       ) : (
         <span className="shrink-0 text-[13px] text-neutral-600">
           {days <= 0 ? "今天" : days === 1 ? "明天" : `${days} 天後`}

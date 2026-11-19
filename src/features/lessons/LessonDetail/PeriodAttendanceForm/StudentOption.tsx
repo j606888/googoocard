@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Student } from "@/store/slices/students";
 import RoundCheckbox from "@/components/RoundCheckbox";
-import Image from "next/image";
+import StudentAvatar from "@/components/StudentAvatar";
 import { Info } from "lucide-react";
 import StatusTag from "@/components/StatusTag";
 import type { RowTag } from "@/hooks/attendanceFlow";
@@ -56,7 +56,7 @@ const StudentOption = ({
         onClick={() => onClick(student)}
       >
         <div className="flex w-full items-center gap-3">
-          <Image
+          <StudentAvatar
             className="size-9 shrink-0 rounded-full object-cover"
             width={36}
             height={36}

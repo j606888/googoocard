@@ -43,6 +43,21 @@ describe("buildTimeline", () => {
     expect(buildTimeline(periods(20, 30), { showEarlier: true }).rows.at(-1)!.number).toBe(25);
   });
 
+  it("prefers today's period over an older one that was never checked", () => {
+    const now = new Date(2026, 10, 20, 9);
+    const day = (d: number) => new Date(2026, 10, d, 19, 30).toISOString();
+    const list = [
+      { id: 1, attendanceTakenAt: "x", startTime: day(10) },
+      { id: 2, attendanceTakenAt: null, startTime: day(17) },
+      { id: 3, attendanceTakenAt: null, startTime: day(20) },
+    ];
+    expect(buildTimeline(list, { now }).focusId).toBe(3);
+    expect(buildTimeline(list).focusId).toBe(2);
+    // 今天那一堂點完了，就回到最舊的還沒點名。
+    list[2].attendanceTakenAt = "x";
+    expect(buildTimeline(list, { now }).focusId).toBe(2);
+  });
+
   it("ends on the last period when everything is taken", () => {
     const timeline = buildTimeline(periods(10, 10));
     expect(timeline.focusId).toBeNull();

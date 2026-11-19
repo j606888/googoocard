@@ -78,7 +78,10 @@ const PeriodAttendanceForm = ({
       >
         <ArrowLeft className="w-5 h-5" />
       </Link>
-      <h1 className="text-xl font-bold text-neutral-900">點名</h1>
+      <h1 className="text-xl font-bold text-neutral-900">
+        點名
+        {lesson?.name && <span className="ml-2 font-semibold text-neutral-600">{lesson.name}</span>}
+      </h1>
     </div>
   );
 

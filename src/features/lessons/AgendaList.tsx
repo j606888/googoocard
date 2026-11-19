@@ -148,7 +148,10 @@ const AgendaList = ({
 }) => (
   <section aria-labelledby="agenda-heading" className="flex flex-col gap-2.5">
     <h2 id="agenda-heading" className="text-[15px] font-bold text-neutral-900">
-      接下來 <span className="text-[13px] font-normal text-neutral-600">7 天內</span>
+      接下來{" "}
+      <span className="text-[13px] font-normal text-neutral-600">
+        {rows.some((row) => row.state === "overdue") ? "還沒點名的排最前面 · 之後 7 天" : "7 天內"}
+      </span>
     </h2>
     {isLoading ? (
       <div aria-busy="true" className="flex flex-col gap-2">

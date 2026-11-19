@@ -85,24 +85,24 @@ const CheckPeriodSuccess = () => {
       <Button
         type="button"
         variant="ghost"
-        size="icon"
-        className="text-neutral-600"
-        aria-label="上一堂"
+        size="sm"
+        className="px-2 text-neutral-700"
         disabled={!olderTaken}
         onClick={() => olderTaken && goToPeriod(olderTaken)}
       >
-        <ChevronLeft className="size-5" />
+        <ChevronLeft className="size-4" />
+        上一堂
       </Button>
       <Button
         type="button"
         variant="ghost"
-        size="icon"
-        className="text-neutral-600"
-        aria-label="下一堂"
+        size="sm"
+        className="px-2 text-neutral-700"
         disabled={!newerTaken}
         onClick={() => newerTaken && goToPeriod(newerTaken)}
       >
-        <ChevronRight className="size-5" />
+        下一堂
+        <ChevronRight className="size-4" />
       </Button>
     </div>
   );
@@ -306,7 +306,7 @@ const CheckPeriodSuccess = () => {
             <dd className="text-xl font-bold text-neutral-900 tabular-nums">${formatMoney(income)}</dd>
           </div>
         </dl>
-        {!isExpanded && showPager && <div className="-my-2 flex justify-end">{periodPager}</div>}
+        {!isExpanded && showPager && <div className="-my-2 flex justify-center">{periodPager}</div>}
 
         {pendingRecords.length > 0 && (
           <PendingStudents records={pendingRecords} lesson={lesson} periodId={Number(periodId)} />

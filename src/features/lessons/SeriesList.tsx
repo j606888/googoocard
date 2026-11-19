@@ -213,7 +213,8 @@ const SeriesRow = ({
               </span>
             )}
             {running && lead
-              ? [lead.location?.name, peopleLabel(lead), !nextToday && next && `下一堂 ${next}`]
+              ? // 下一堂排最前面：這一行會截字，被截掉的應該是老師名字而不是時間。
+                [!nextToday && next && `下一堂 ${next}`, lead.location?.name, peopleLabel(lead)]
                   .filter(Boolean)
                   .join(" · ")
               : [termSummary(series), next].filter(Boolean).join(" · ")}
@@ -227,7 +228,7 @@ const SeriesRow = ({
                   <span className="truncate">
                     {lead.kind === "ongoing"
                       ? `已上 ${lead.attendedCount} 堂`
-                      : `${lead.attendedCount} / ${lead.totalPeriods} 堂`}
+                      : `已上 ${lead.attendedCount} / ${lead.totalPeriods} 堂`}
                   </span>
                 </>
               ) : (
