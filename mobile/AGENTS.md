@@ -1,6 +1,6 @@
 # Googoocard 老師端 iOS App
 
-Expo 混合式 App：原生畫面是登入、待處理（`src/app/(tabs)/index.tsx`）、更多（`more.tsx`）；課程／學生／收入和其他頁用 WebView 開網站（`src/components/WebScreen.tsx`）。
+Expo 混合式 App：原生畫面是登入、待處理（`src/app/todos.tsx`，從今天頁或更多推進來）、更多（`more.tsx`）；今天（`src/app/(tabs)/index.tsx` → 網站的 `/today`）／課程／學生／收入和其他頁用 WebView 開網站（`src/components/WebScreen.tsx`）。
 伺服器就是本 repo 的 Next.js；App 怎麼登入、WebView 怎麼拿到 cookie、網頁在 App 裡藏哪些東西，見 `../docs/architecture.md` 的「老師端 iOS App」。
 
 ## 這個 App 的規則

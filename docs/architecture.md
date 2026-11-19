@@ -642,8 +642,12 @@ build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
 ### 老師端 iOS App（`mobile/`）
 
 Expo（SDK 57、Expo Router、EAS），架構照 `../dance-note/mobile`，開發規則見 `mobile/AGENTS.md`。
-分頁：**待處理**（原生，`GET /api/todos`）、課程／學生／收入（WebView 開網站）、**更多**（原生：切換教室、
-網站其他頁、通知開關、登出、刪除帳號）。登入畫面也是原生的：email／密碼，加上 Sign in with Apple 與 Google（ID token 交給 `POST /api/auth/oauth`）。
+分頁：**今天**／課程／學生／收入（WebView 開網站；今天＝網站的 `/today`，2026-11 起取代原本第一格的待處理）、
+**更多**（原生：切換教室、待處理、網站其他頁、通知開關、登出、刪除帳號）。
+**待處理**（原生，`GET /api/todos`）改成推進來的頁面 `app/todos.tsx`：今天頁的待處理那一列在 App 裡
+`postMessage('app:todos')`（網頁的鈴鐺在 App 裡是藏的），`WebScreen` 接到就 `router.push('/todos')`；「更多」也有入口。
+圖示上的數字改在每次回到今天分頁時更新（`refreshBadge()`）。今天分頁的安全區底色是深綠、狀態列是淺色字，
+離開分頁換回來。網頁的 `/today` 對到 App 的第一個分頁（`tabRouteOf()`）。登入畫面也是原生的：email／密碼，加上 Sign in with Apple 與 Google（ID token 交給 `POST /api/auth/oauth`）。
 
 **登入**：App 不用 cookie，用 bearer token。
 - `POST /api/login` 帶 `X-Googoocard-Client: app` → body 回 `token`（`generateAppToken`，JWT 有 `app: true`、**沒有 classroomId**），不設 cookie。
