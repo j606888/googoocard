@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DanceStyleTile from "@/components/DanceStyleTile";
-import KiwiLogo from "@/components/KiwiLogo";
+import KiwiMascot from "@/components/KiwiMascot";
 import type { AgendaRow } from "../lessons/useLessonAgenda";
 import { heroBadge, termProgressLabel } from "./today";
 
@@ -23,9 +23,7 @@ const NextLessonHero = ({
   if (!row) {
     return (
       <section className={`${CARD} flex items-center gap-4`}>
-        <span className="grid size-14 shrink-0 place-items-center rounded-full bg-accent-100">
-          <KiwiLogo className="w-8 text-accent-600" />
-        </span>
+        <KiwiMascot pose="sleep" className="w-20 shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="text-[17px] font-bold text-neutral-900">接下來沒有排課</p>
           <p className="text-[13px] text-neutral-600">7 天內沒有要上的課。</p>

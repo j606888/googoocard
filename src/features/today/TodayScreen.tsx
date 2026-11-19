@@ -6,7 +6,7 @@ import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import DanceStyleTile from "@/components/DanceStyleTile";
-import KiwiLogo from "@/components/KiwiLogo";
+import KiwiMascot from "@/components/KiwiMascot";
 import ClassroomSwitcher from "../nav/ClassroomSwitcher";
 import TodoBell, { openTodoBell } from "../TodoBell";
 import { timeLeftLabel } from "../lessons/lessonSchedule";
@@ -97,7 +97,16 @@ const TodayScreen = () => {
             <Chip>{today.todayCount > 0 ? `今天教 ${today.todayCount} 堂` : "今天沒有課"}</Chip>
           )}
         </div>
-        <KiwiLogo className="pointer-events-none absolute bottom-9 right-6 w-[88px] text-accent-500 lg:bottom-6 lg:right-10 lg:w-[104px]" />
+        {/* 珊瑚橘圓底＋全彩奇異鳥：今天有課就揮手，沒課就坐著。面向左邊的問候語。 */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-4 right-3 size-32 rounded-full bg-accent-500 lg:-bottom-10 lg:right-8 lg:size-40"
+        />
+        <KiwiMascot
+          pose={view.hero && view.heroIsToday ? "wave" : "sit"}
+          flip
+          className="pointer-events-none absolute bottom-9 right-7 w-[92px] lg:bottom-5 lg:right-14 lg:w-[112px]"
+        />
       </header>
 
       <div className="relative z-10 -mt-9 grid gap-4 px-4 pb-8 lg:mt-6 lg:max-w-[1100px] lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-6 lg:px-8">

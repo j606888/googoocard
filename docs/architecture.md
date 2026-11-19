@@ -207,6 +207,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - **最近上過**：`GET /api/lessons/recent?limit=`（`src/service/recentPeriods.ts`）——最近點過名的時段，帶出席人數與這堂收入（`periodRevenue()`，跟收入頁、點名完成頁同一支），一點就到 `check-success`。
 - **導向守門**：以前寫在 `Navbar` 裡的「沒登入 → `/login`、沒教室 → `/onboarding`」抽成 `src/hooks/useClassroomGuard.ts`，今天頁不掛 `Navbar` 也一樣有。
 - **品牌層**：`globals.css` 多一組 `accent-*`（奇異鳥的珊瑚橘）＝「現在／今天／要注意」；`accent-500` 只當底色，文字用 900/950 配 50/100。課的色塊是 `src/components/DanceStyleTile.tsx`（舞種色＋`seriesInitials()` 的兩個字母）。
+- **奇異鳥插圖**（`KiwiMascot`，全彩、18 個姿勢）：姿勢跟著狀態走，不是裝飾——今天頁頁首今天有課 `wave`／沒課 `sit`（站在珊瑚橘圓底上）、沒排課的卡 `sleep`；這一期頁醒目的那張卡今天 `dance`／忘記點 `surprised`／還沒到 `stand`；點名完成頁全員到齊 `jump`／有人缺席 `happy`／回頭看紀錄 `proud`。單色的 `KiwiLogo` 只留給 logo。
 
 ## 課程型態與「進行中 / 已結束」（2026-10）
 

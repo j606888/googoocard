@@ -20,7 +20,7 @@ import { useRef, useState } from "react";
 import { useDeletePeriodMutation } from "@/store/slices/lessons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import KiwiLogo from "@/components/KiwiLogo";
+import KiwiMascot from "@/components/KiwiMascot";
 import { formatMoney } from "@/lib/money";
 import { buildTimeline } from "../termPage";
 
@@ -64,7 +64,10 @@ const PeriodSection = ({
         <AddPeriodForm lessonId={lesson.id} periods={periods} />
       </div>
       {periods.length === 0 ? (
-        <p className="py-6 text-sm text-neutral-600">還沒有排任何時段</p>
+        <div className="flex flex-col items-center gap-2 py-8">
+          <KiwiMascot pose="stand-34" className="w-20" />
+          <p className="text-sm text-neutral-600">還沒有排任何時段</p>
+        </div>
       ) : (
         <>
           {timeline.earlierHidden > 0 && (
@@ -442,7 +445,8 @@ const FocusPeriodCard = ({ period, number }: { period: Period; number: number })
             : "border-primary-300 bg-primary-50"
       }`}
     >
-      <KiwiLogo className={`w-8 shrink-0 ${isDue && !today ? "text-warning-600" : "text-accent-500"}`} />
+      {/* 今天要上的在跳舞、忘記點的嚇一跳、還沒到的站著等。 */}
+      <KiwiMascot pose={today ? "dance" : isDue ? "surprised" : "stand"} className="w-11 shrink-0" />
       <div className="min-w-0 flex-1">
         <p
           className={`text-xs font-bold ${

@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import StatusTag from "@/components/StatusTag";
 import { formatMoney } from "@/lib/money";
 import { ConfirmDropInForm } from "./DropInForm";
-import KiwiLogo from "@/components/KiwiLogo";
+import KiwiMascot from "@/components/KiwiMascot";
 import { headcountByPeriod } from "@/domains/attendance/rosterInsights";
 import { useGetLessonAgendaQuery } from "@/store/slices/lessons";
 import { buildToday } from "@/features/today/today";
@@ -234,7 +234,11 @@ const CheckPeriodSuccess = () => {
           </div>
           <div className="mt-3 flex items-end gap-3.5">
             <span className="relative grid size-20 shrink-0 place-items-center rounded-full bg-accent-500">
-              <KiwiLogo className="w-12 text-white" />
+              {/* 剛送出：全員到齊跳起來、不然開心；回頭看紀錄是得意的那一隻。 */}
+              <KiwiMascot
+                pose={!justSubmitted ? "proud" : absentStudents.length === 0 ? "jump" : "happy"}
+                className="w-[60px]"
+              />
               {justSubmitted && (
                 <span className="absolute -right-0.5 -bottom-0.5 grid size-7 place-items-center rounded-full bg-white text-primary-900">
                   <Check className="size-4" strokeWidth={3.2} />
