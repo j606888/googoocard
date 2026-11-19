@@ -16,9 +16,6 @@ import RecentPeriods from "./RecentPeriods";
 import { dayLabel } from "./today";
 import { useToday } from "./useToday";
 
-/** 逾期最多列幾堂；再多就帶去課程頁。 */
-const OVERDUE_SHOWN = 3;
-
 const Chip = ({ children }: { children: React.ReactNode }) => (
   <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-medium text-white">
     {children}
@@ -120,7 +117,7 @@ const TodayScreen = () => {
                     {view.overdue.length} 堂還沒點名
                   </h2>
                   <ul className="mt-1.5 flex flex-col gap-1.5">
-                    {view.overdue.slice(0, OVERDUE_SHOWN).map((row) => (
+                    {view.overdue.map((row) => (
                       <li
                         key={row.period.id}
                         className="flex min-h-12 items-center gap-3 rounded-xl bg-white px-3 py-1.5"
@@ -137,14 +134,6 @@ const TodayScreen = () => {
                       </li>
                     ))}
                   </ul>
-                  {view.overdue.length > OVERDUE_SHOWN && (
-                    <Link
-                      href="/lessons"
-                      className="mt-2 block px-1 text-[13px] font-semibold text-warning-950 underline-offset-4 hover:underline"
-                    >
-                      還有 {view.overdue.length - OVERDUE_SHOWN} 堂，到課程頁看全部
-                    </Link>
-                  )}
                 </section>
               )}
 
