@@ -1,25 +1,23 @@
-import { Search } from "lucide-react";
 import type { ReactNode } from "react";
-import KiwiLogo from "./KiwiLogo";
+import KiwiMascot, { type KiwiPose } from "./KiwiMascot";
 import { cn } from "@/lib/utils";
 
-/** 奇異鳥＋一張還沒蓋章的課卡：「第一次使用」空狀態的插圖。 */
-const KiwiCardIllustration = () => (
+/** 淺色圓底上的奇異鳥：「第一次使用」空狀態的插圖，姿勢由呼叫端依內容挑。 */
+const KiwiIllustration = ({ pose }: { pose: KiwiPose }) => (
   <div aria-hidden="true" className="relative w-[200px] h-[168px]">
     <div className="absolute left-5 top-2 size-40 rounded-full bg-primary-50" />
-    <div className="absolute left-[92px] top-10 w-[92px] h-16 rotate-[8deg] rounded-xl border-[1.5px] border-primary-300 bg-[#FFFDF7] p-2.5 grid grid-cols-4 gap-1.5 content-center">
-      {Array.from({ length: 8 }, (_, i) => (
-        <span key={i} className="aspect-square rounded-full border-[1.5px] border-dashed border-primary-300" />
-      ))}
-    </div>
-    <KiwiLogo className="absolute left-7 top-20 w-[104px] text-primary-500" />
+    <KiwiMascot
+      pose={pose}
+      className="absolute left-1/2 top-1/2 h-[140px] w-[164px] -translate-x-1/2 -translate-y-1/2 object-contain"
+    />
   </div>
 );
 
 /**
  * The one empty state, three kinds:
  * - `page` — nothing exists yet (還沒有課程): kiwi illustration, one-line why, the primary action.
- * - `filtered` — a search/filter matched nothing: search icon, how to recover, usually 「清除篩選」.
+ *   Pick a `pose` that fits what is missing (dance for 舞種, card for 課卡…); default `card`.
+ * - `filtered` — a search/filter matched nothing: a small puzzled kiwi, how to recover, usually 「清除篩選」.
  * - `inline` — an empty section inside a card or tab (還沒有出席紀錄): dashed box, one row.
  * No tinted background box. Put the action in `action` (a `Button`); `page` wants `size="md"` on
  * desktop and full-width `size="lg"` on phones — the caller decides.
@@ -30,6 +28,7 @@ export default function EmptyState({
   description,
   action,
   icon,
+  pose,
   className,
 }: {
   kind?: "page" | "filtered" | "inline";
@@ -38,6 +37,8 @@ export default function EmptyState({
   action?: ReactNode;
   /** `inline` only: a lucide icon element; defaults to none. */
   icon?: ReactNode;
+  /** `page` / `filtered` only: which kiwi to draw. */
+  pose?: KiwiPose;
   className?: string;
 }) {
   if (kind === "inline") {
@@ -68,12 +69,7 @@ export default function EmptyState({
   if (kind === "filtered") {
     return (
       <div className={cn("flex flex-col items-center gap-3 px-4 py-10 text-center", className)}>
-        <span
-          aria-hidden="true"
-          className="size-12 rounded-full bg-neutral-100 text-neutral-500 grid place-items-center"
-        >
-          <Search className="size-[22px]" />
-        </span>
+<KiwiMascot pose={pose ?? "confused"} className="h-[76px] w-auto" />
         <p className="text-base font-bold text-neutral-900">{title}</p>
         {description && <p className="text-sm text-neutral-600">{description}</p>}
         {action}
@@ -83,7 +79,7 @@ export default function EmptyState({
 
   return (
     <div className={cn("flex flex-col items-center gap-5 px-6 py-12 text-center", className)}>
-      <KiwiCardIllustration />
+      <KiwiIllustration pose={pose ?? "card"} />
       <div className="flex flex-col items-center gap-2">
         <p className="text-xl font-bold text-neutral-900">{title}</p>
         {description && (

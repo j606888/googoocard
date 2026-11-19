@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AlertCircle, CalendarDays, ChevronRight, Clock, CreditCard, Info, Ticket } from "lucide-react";
 import type { ReactNode } from "react";
 import EmptyState from "@/components/EmptyState";
-import KiwiLogo from "@/components/KiwiLogo";
+import KiwiMascot from "@/components/KiwiMascot";
 import LocationBadge from "@/components/LocationBadge";
 import StatusTag from "@/components/StatusTag";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ export default function NoClassToday({ data }: { data: TodayResponse }) {
     <div className="flex min-h-[calc(100vh-4rem)] flex-col gap-6 bg-neutral-50 px-4 pb-8 pt-5">
       <div className="flex items-center gap-3">
         <span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-primary-100">
-          <KiwiLogo className="w-[30px] text-primary-500" />
+          <KiwiMascot pose="sleepy" className="w-9" />
         </span>
         <div className="flex flex-col gap-0.5">
           <h2 className="text-[17px] font-bold text-neutral-900">今天沒有課</h2>

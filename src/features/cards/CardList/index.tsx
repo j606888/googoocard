@@ -119,7 +119,7 @@ const CardList = () => {
       </div>
 
       {!hasAnyCard ? (
-        <EmptyState kind="page" title="還沒有課卡方案" description="建立第一個方案，學生就可以買了。" />
+        <EmptyState kind="page" pose="card" title="還沒有課卡方案" description="建立第一個方案，學生就可以買了。" />
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">

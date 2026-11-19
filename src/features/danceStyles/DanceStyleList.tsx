@@ -91,7 +91,7 @@ const DanceStyleList = () => {
         {isLoading && <RowsSkeleton />}
 
         {!isLoading && active.length === 0 && (
-          <EmptyState title="還沒有舞種" description="先新增教室教的舞種，才能開課和建立複習卡。" />
+          <EmptyState pose="dance" title="還沒有舞種" description="先新增教室教的舞種，才能開課和建立複習卡。" />
         )}
 
         <ul className="flex flex-col">

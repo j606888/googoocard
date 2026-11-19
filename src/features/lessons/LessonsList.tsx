@@ -155,6 +155,7 @@ const LessonsList = () => {
 
         {list.hasNoLessons ? (
           <EmptyState
+            pose="sit"
             title="還沒有課程"
             description="建立課程就可以開始上課了！"
             action={
