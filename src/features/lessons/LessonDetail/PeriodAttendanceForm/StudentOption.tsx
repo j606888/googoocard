@@ -77,8 +77,11 @@ const StudentOption = ({
               )}
             </div>
             {cardLine && <p className="truncate text-xs text-neutral-600">{cardLine}</p>}
+            {/* 沒卡不擋點名：送出後這個人會進完成頁的「待處理」。先講清楚，老師才敢按完成。 */}
+            {needsCard && <p className="truncate text-xs font-medium text-accent-900">沒卡 · 可以先點名再補</p>}
           </div>
-          {tag && <StatusTag tone={tag.tone}>{tag.label}</StatusTag>}
+          {/* 勾了卻沒卡的列，「沒卡」已經寫在第二行，這裡不再重複一顆標籤擠掉名字。 */}
+          {tag && !needsCard && <StatusTag tone={tag.tone}>{tag.label}</StatusTag>}
           {!action && <RoundCheckbox isChecked={isChecked} className="size-7 shrink-0" />}
         </div>
         {isFirstTime && (

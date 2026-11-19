@@ -56,7 +56,11 @@ const AttendanceHeader = ({
           aria-valuenow={arrived}
           className="h-2 flex-1 overflow-hidden rounded-full bg-white/25"
         >
-          <div className="h-2 rounded-full bg-accent-500 transition-[width]" style={{ width: `${percent}%` }} />
+          {/* 珊瑚橘是「還在進行」；到齊了換成綠的，不要讓滿格看起來像警示。 */}
+          <div
+            className={`h-2 rounded-full transition-[width] ${percent >= 100 ? "bg-primary-400" : "bg-accent-500"}`}
+            style={{ width: `${percent}%` }}
+          />
         </div>
       </div>
     </header>

@@ -91,7 +91,7 @@ const CheckPeriodSuccess = () => {
         onClick={() => olderTaken && goToPeriod(olderTaken)}
       >
         <ChevronLeft className="size-4" />
-        上一堂
+        前一堂紀錄
       </Button>
       <Button
         type="button"
@@ -101,12 +101,13 @@ const CheckPeriodSuccess = () => {
         disabled={!newerTaken}
         onClick={() => newerTaken && goToPeriod(newerTaken)}
       >
-        下一堂
+        後一堂紀錄
         <ChevronRight className="size-4" />
       </Button>
     </div>
   );
-  const showPager = !justSubmitted && takenIndex >= 0;
+  // 只點過這一堂就沒有別的紀錄可翻——兩顆都是灰的比不出現更像壞掉。
+  const showPager = !justSubmitted && Boolean(olderTaken || newerTaken);
 
   // 已解決 = 扣了卡或付了單堂（$0 的體驗卡 income 是 0，不能拿 income 判斷）。
   const isResolved = (record: AttendanceRecord) => Boolean(record.cardName || record.dropIn);
@@ -354,7 +355,7 @@ const CheckPeriodSuccess = () => {
         {absentStudents.length > 0 && (
           <div className="flex flex-col gap-2 w-full">
             {absentStudents.map((student) => (
-              <div className="flex gap-2 items-center opacity-60" key={student.id}>
+              <div className="flex gap-2 items-center" key={student.id}>
                 <StudentInfo
                   studentId={student.id}
                   avatarUrl={student.avatarUrl}
@@ -387,7 +388,7 @@ const CheckPeriodSuccess = () => {
           {nextToday && (
             <Button asChild variant="secondary" size="lg" className="w-full">
               <Link href={`/lessons/${nextToday.lesson.id}/periods/${nextToday.id}/check`}>
-                下一堂 {format(new Date(nextToday.startTime), "HH:mm")} {nextToday.lesson.name} · 點名
+                接著點名 · {format(new Date(nextToday.startTime), "HH:mm")} {nextToday.lesson.name}
               </Link>
             </Button>
           )}

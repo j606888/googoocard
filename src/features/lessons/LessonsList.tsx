@@ -258,6 +258,15 @@ const LessonsList = () => {
                       >
                         清除篩選
                       </Button>
+                    ) : list.tab === "active" && list.counts.inactive > 0 ? (
+                      <Button variant="secondary" size="sm" onClick={() => list.setTab("inactive")}>
+                        看沒在開的 {list.counts.inactive} 門
+                      </Button>
+                    ) : list.tab === "active" ? (
+                      <Button variant="secondary" size="sm" onClick={() => router.push("/lessons/new")}>
+                        <Plus />
+                        新增課程
+                      </Button>
                     ) : undefined
                   }
                 />

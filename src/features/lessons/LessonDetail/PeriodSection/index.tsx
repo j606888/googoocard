@@ -378,7 +378,7 @@ const DensePeriodRow = ({
       </span>
       {attended ? (
         <span className="text-[13px] tabular-nums text-neutral-600">{attendedCount ?? 0} 人</span>
-      ) : canCheck && isDue ? (
+      ) : (canCheck || today) && isDue ? (
         <Button
           size="sm"
           className="h-8 px-3"
@@ -488,7 +488,7 @@ const PeriodRow = ({
 
   return (
     <li
-      className={`flex min-h-13 items-center gap-2.5 rounded-xl pl-3 ${
+      className={`flex min-h-13 items-center gap-2.5 rounded-xl pr-2 pl-3 ${
         attended ? "cursor-pointer bg-neutral-50" : ""
       }`}
       onClick={attended ? handleViewAttendance : undefined}

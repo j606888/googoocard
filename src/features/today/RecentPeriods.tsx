@@ -11,7 +11,7 @@ const RecentPeriods = ({ periods, isLoading }: { periods: RecentPeriod[]; isLoad
   <section aria-labelledby="recent-heading" className="flex flex-col gap-2">
     <div className="flex items-baseline justify-between">
       <h2 id="recent-heading" className="text-[15px] font-bold text-neutral-900">
-        最近上過
+        最近上過 <span className="text-[13px] font-normal text-neutral-600">出席與這堂收入</span>
       </h2>
       <Link href="/income" className="text-[13px] font-semibold text-primary-900">
         看收入

@@ -69,7 +69,7 @@ const AgendaItem = ({ row, now, showLocation }: { row: AgendaRow; now: Date; sho
       <span className="text-[13px] text-neutral-600">已點名</span>
     ) : (
       <Button asChild size="sm" variant={state !== "upcoming" || isToday ? "primary" : "secondary"}>
-        <Link href={checkHref}>點名</Link>
+        <Link href={checkHref}>{state === "overdue" && !isToday ? "補點名" : "點名"}</Link>
       </Button>
     );
 
