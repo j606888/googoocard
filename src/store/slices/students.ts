@@ -238,6 +238,9 @@ export interface DayCollections {
     total: number;
     count: number;
   }[];
+  /** 這一天實際收到的錢：確認付款的課卡＋收的單堂費。 */
+  collectedTotal: number;
+  collectedCount: number;
   unpaid: {
     studentCardId: number;
     serialNumber: number;
@@ -417,7 +420,8 @@ const studentsApi = api.injectEndpoints({
     }),
     getDayCollections: builder.query<DayCollections, { date: string }>({
       query: ({ date }) => `student-cards/collections?date=${date}`,
-      providesTags: ["StudentCard"],
+      // 單堂費收款（DropInCharge）也算在裡面。
+      providesTags: ["StudentCard", "AttendanceRecord"],
     }),
     getUnpaidStudentCards: builder.query<UnpaidStudentCard[], void>({
       query: () => "student-cards/unpaid",

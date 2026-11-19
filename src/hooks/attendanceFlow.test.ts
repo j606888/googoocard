@@ -9,6 +9,8 @@ import {
   splitByRoster,
   lessonCardStatus,
   attendanceRowTag,
+  rowCardLine,
+  attendanceProgress,
 } from "./attendanceFlow";
 import type { CardStatus } from "@/domains/attendance/rosterInsights";
 
@@ -195,5 +197,31 @@ describe("attendanceRowTag", () => {
 
   it("不知道卡況時只看未付", () => {
     expect(attendanceRowTag({})).toBeNull();
+  });
+});
+
+describe("rowCardLine", () => {
+  it("says which card finishing attendance will use, in one line", () => {
+    expect(rowCardLine({ kind: "auto", cardName: "進階6堂", remainingAfter: 3 })).toBe(
+      "進階6堂 · 扣完剩 3 堂"
+    );
+    expect(rowCardLine({ kind: "covered", cardName: "進階6堂", remaining: 2 })).toBe(
+      "進階6堂 · 已扣，剩 2 堂"
+    );
+    expect(rowCardLine({ kind: "covered", cardName: null, remaining: null })).toBe("已付單堂");
+    expect(rowCardLine({ kind: "choose", count: 2 })).toBe("2 張卡可用 · 點完再選");
+  });
+
+  it("stays quiet when there is no card (the row tag already says so) or no preview yet", () => {
+    expect(rowCardLine({ kind: "none" })).toBeNull();
+    expect(rowCardLine(undefined)).toBeNull();
+  });
+});
+
+describe("attendanceProgress", () => {
+  it("counts walk-ins into the expected total instead of overflowing it", () => {
+    expect(attendanceProgress([1, 2], [1, 2, 3])).toEqual({ arrived: 2, expected: 3 });
+    expect(attendanceProgress([1, 2, 3, 9], [1, 2, 3])).toEqual({ arrived: 4, expected: 4 });
+    expect(attendanceProgress([], [])).toEqual({ arrived: 0, expected: 0 });
   });
 });

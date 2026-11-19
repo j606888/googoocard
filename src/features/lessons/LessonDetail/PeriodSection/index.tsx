@@ -8,8 +8,8 @@ import EditPeriodTimeForm from "./EditPeriodTimeForm";
 import { differenceInCalendarDays, endOfDay, format, isToday } from "date-fns";
 import Menu from "@/components/Menu";
 import {
+  Check,
   EllipsisVertical,
-  ChevronRight,
   Trash,
   Eraser,
   PencilLine,
@@ -20,6 +20,9 @@ import { useRef, useState } from "react";
 import { useDeletePeriodMutation } from "@/store/slices/lessons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import KiwiLogo from "@/components/KiwiLogo";
+import { formatMoney } from "@/lib/money";
+import { buildTimeline } from "../termPage";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -29,44 +32,79 @@ const periodMarkers = (periods: Period[]) => ({
 });
 
 /**
- * Phone: the period that needs 點名 (or the next one) sits in a card on top;
- * below it every other period, newest first — the same order as the desktop
- * column — with the headcount on the ones already taken.
+ * Phone: the term as a timeline, oldest first. Taken periods carry the headcount
+ * and what the class earned; the first one that still needs 點名 is the loud card
+ * in its place; later ones are dimmed. Long lessons fold around that card
+ * (`buildTimeline`) so an ongoing class with thirty periods doesn't push it away.
  */
 const PeriodSection = ({
   lesson,
   periods,
   headcounts,
+  revenues,
 }: {
   lesson: Lesson;
   periods: Period[];
   /** Attended count per period id (taken periods only). */
   headcounts: Map<number, number>;
+  /** Revenue per period id (taken periods only) — empty while it loads. */
+  revenues: Map<number, number>;
 }) => {
-  const { firstPendingPeriodId } = periodMarkers(periods);
-  const focus = periods.find((period) => period.id === firstPendingPeriodId);
-  const rest = periods.filter((period) => period.id !== firstPendingPeriodId).reverse();
+  const [showEarlier, setShowEarlier] = useState(false);
+  const [showLater, setShowLater] = useState(false);
+  const timeline = buildTimeline(periods, { showEarlier, showLater });
+  const lastId = lesson.kind === "fixed" && periods.length > 1 ? periods.at(-1)?.id : undefined;
 
   return (
-    <div className="flex flex-col gap-4 px-5 pt-4">
-      {focus && <FocusPeriodCard period={focus} />}
-      <div className="flex flex-col">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[15px] font-bold text-neutral-900">
-            時段 <span className="font-medium text-neutral-600">{periods.length} 堂</span>
-          </h3>
-          <AddPeriodForm lessonId={lesson.id} periods={periods} />
-        </div>
-        {periods.length === 0 ? (
-          <p className="py-6 text-sm text-neutral-600">還沒有排任何時段</p>
-        ) : (
-          <ul className="mt-1 divide-y divide-neutral-100">
-            {rest.map((period) => (
-              <PeriodRow key={period.id} period={period} attended={headcounts.get(period.id)} />
-            ))}
-          </ul>
-        )}
+    <div className="flex flex-col px-5 pt-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-[15px] font-bold text-neutral-900">
+          時段 <span className="font-medium text-neutral-600">{periods.length} 堂</span>
+        </h3>
+        <AddPeriodForm lessonId={lesson.id} periods={periods} />
       </div>
+      {periods.length === 0 ? (
+        <p className="py-6 text-sm text-neutral-600">還沒有排任何時段</p>
+      ) : (
+        <>
+          {timeline.earlierHidden > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-1 self-start px-2 text-primary-900"
+              onClick={() => setShowEarlier(true)}
+            >
+              看更早的 {timeline.earlierHidden} 堂
+            </Button>
+          )}
+          <ol className="mt-1.5 flex flex-col gap-1.5">
+            {timeline.rows.map(({ period, number }) =>
+              period.id === timeline.focusId ? (
+                <FocusPeriodCard key={period.id} period={period} number={number} />
+              ) : (
+                <PeriodRow
+                  key={period.id}
+                  period={period}
+                  number={number}
+                  isLast={period.id === lastId}
+                  attended={headcounts.get(period.id)}
+                  revenue={revenues.get(period.id)}
+                />
+              )
+            )}
+          </ol>
+          {timeline.laterHidden > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-1 self-start px-2 text-primary-900"
+              onClick={() => setShowLater(true)}
+            >
+              之後還有 {timeline.laterHidden} 堂
+            </Button>
+          )}
+        </>
+      )}
     </div>
   );
 };
@@ -378,31 +416,41 @@ const timeLabel = (period: Period) =>
  * Phone: the one period that can be checked right now. Overdue or today → the
  * loud 點名; a future one is just "下一堂", still checkable early.
  */
-const FocusPeriodCard = ({ period }: { period: Period }) => {
+const FocusPeriodCard = ({ period, number }: { period: Period; number: number }) => {
   const { handleCheck, menuButton, overlays } = usePeriodActions(period);
   const startTime = new Date(period.startTime);
+  const today = isToday(startTime);
   const isDue = startTime.getTime() <= endOfDay(new Date()).getTime();
   const days = differenceInCalendarDays(startTime, new Date());
-  const label = isToday(startTime)
+  const label = today
     ? "今天"
     : isDue
       ? `還沒點名 · ${-days} 天前`
       : `下一堂 · ${days === 1 ? "明天" : `${days} 天後`}`;
 
   return (
-    <section
+    <li
       aria-label={isDue ? "還沒點名" : "下一堂"}
-      className={`flex items-center gap-2 rounded-2xl border py-3 pr-2 pl-4 ${
-        isDue ? "border-warning-300 bg-warning-50" : "border-primary-200 bg-primary-50"
+      className={`my-1 flex items-center gap-2.5 rounded-2xl border-2 py-3 pr-1.5 pl-3 ${
+        today
+          ? "border-primary-900 bg-white"
+          : isDue
+            ? "border-warning-300 bg-warning-50"
+            : "border-primary-300 bg-primary-50"
       }`}
     >
+      <KiwiLogo className={`w-8 shrink-0 ${isDue && !today ? "text-warning-600" : "text-accent-500"}`} />
       <div className="min-w-0 flex-1">
-        <p className={`text-xs font-semibold ${isDue ? "text-warning-900" : "text-primary-800"}`}>
-          {label}
+        <p
+          className={`text-xs font-bold ${
+            today ? "text-accent-900" : isDue ? "text-warning-950" : "text-primary-900"
+          }`}
+        >
+          {label} · 第 {number} 堂
         </p>
-        <p className="mt-0.5 text-[17px] font-bold tabular-nums text-neutral-900">
+        <p className="mt-0.5 truncate text-[17px] font-bold tabular-nums text-neutral-900">
           {dateLabel(startTime)}
-          <span className="ml-1.5 text-sm font-medium text-neutral-700">{timeLabel(period)}</span>
+          <span className="ml-1.5 text-sm font-medium text-neutral-700">{format(startTime, "HH:mm")}</span>
         </p>
       </div>
       <Button variant={isDue ? "primary" : "secondary"} onClick={handleCheck}>
@@ -410,40 +458,75 @@ const FocusPeriodCard = ({ period }: { period: Period }) => {
       </Button>
       {menuButton()}
       {overlays}
-    </section>
+    </li>
   );
 };
 
 /**
- * Phone: one line per period. Taken ones show the headcount and open the
- * record; the rest say whether they are overdue or still to come.
+ * Phone: one line per period. Taken ones show the headcount and revenue and open
+ * the record; the rest say whether they are overdue or how far away they are.
  */
-const PeriodRow = ({ period, attended: attendedCount }: { period: Period; attended: number | undefined }) => {
+const PeriodRow = ({
+  period,
+  number,
+  isLast,
+  attended: attendedCount,
+  revenue,
+}: {
+  period: Period;
+  number: number;
+  isLast: boolean;
+  attended: number | undefined;
+  revenue: number | undefined;
+}) => {
   const { handleViewAttendance, menuButton, overlays } = usePeriodActions(period);
   const startTime = new Date(period.startTime);
   const attended = Boolean(period.attendanceTakenAt);
   const overdue = !attended && startTime.getTime() <= endOfDay(new Date()).getTime();
+  const days = differenceInCalendarDays(startTime, new Date());
 
   return (
     <li
-      className={`flex min-h-14 items-center gap-2 ${attended ? "cursor-pointer" : ""}`}
+      className={`flex min-h-13 items-center gap-2.5 rounded-xl pl-3 ${
+        attended ? "cursor-pointer bg-neutral-50" : ""
+      }`}
       onClick={attended ? handleViewAttendance : undefined}
     >
+      <span
+        aria-hidden="true"
+        className={`grid size-7 shrink-0 place-items-center rounded-full ${
+          attended
+            ? "bg-primary-100 text-primary-900"
+            : overdue
+              ? "border-2 border-warning-500"
+              : "border-2 border-dashed border-neutral-300"
+        }`}
+      >
+        {attended && <Check className="size-4" strokeWidth={3} />}
+      </span>
       <div className="min-w-0 flex-1 tabular-nums">
-        <p className={`text-[15px] font-semibold ${attended ? "text-neutral-900" : "text-neutral-700"}`}>
+        <p className={`truncate text-[15px] font-semibold ${attended ? "text-neutral-900" : "text-neutral-600"}`}>
           {dateLabel(startTime)}
+          <span className="ml-1.5 text-xs font-normal text-neutral-600">
+            第 {number} 堂{isLast && " · 最後一堂"}
+          </span>
         </p>
-        <p className="text-xs text-neutral-600">{timeLabel(period)}</p>
+        {/* 時間只在跟別堂不一樣時才有用；每堂都印會把一整欄變成重複的噪音，所以收進一行小字。 */}
+        <p className="truncate text-xs text-neutral-600">{timeLabel(period)}</p>
       </div>
       {attended ? (
-        <span className="flex items-center gap-1 text-sm tabular-nums text-neutral-700">
-          {attendedCount ?? 0} 人
-          <ChevronRight aria-hidden="true" className="size-4 text-neutral-500" />
+        <span className="flex shrink-0 items-center gap-2.5 text-sm tabular-nums">
+          <span className="text-neutral-700">{attendedCount ?? 0} 人</span>
+          {revenue !== undefined && (
+            <span className="min-w-14 text-right font-bold text-neutral-900">${formatMoney(revenue)}</span>
+          )}
         </span>
       ) : overdue ? (
-        <span className="text-[13px] font-semibold text-warning-900">未點名</span>
+        <span className="shrink-0 text-[13px] font-semibold text-warning-950">未點名</span>
       ) : (
-        <span className="text-[13px] text-neutral-600">未來</span>
+        <span className="shrink-0 text-[13px] text-neutral-600">
+          {days <= 0 ? "今天" : days === 1 ? "明天" : `${days} 天後`}
+        </span>
       )}
       {/* Every row keeps its menu: any period can be mis-dated, including ones
           already checked — that is the Bailamore case. */}

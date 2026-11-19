@@ -244,7 +244,7 @@ const SeriesRow = ({
       <span className="hidden text-sm tabular-nums lg:block">{running ? students : ""}</span>
       <span className="hidden truncate text-[13px] tabular-nums text-neutral-700 lg:block">{next}</span>
       {/* 列尾動作疊在這一格上面（見下方）；手機只留展開鈕的位置。 */}
-      <span aria-hidden="true" className={`shrink-0 lg:w-[128px] ${isSingle ? "max-lg:hidden" : "max-lg:w-8"}`} />
+      <span aria-hidden="true" className={`shrink-0 lg:w-[128px] max-lg:w-8`} />
     </>
   );
 
@@ -287,7 +287,7 @@ const SeriesRow = ({
             <Button
               variant="ghost"
               size="iconSm"
-              className="text-neutral-600 max-lg:hidden"
+              className="text-neutral-600"
               aria-label={`複製「${lead.name}」開新一期`}
               title="開新一期"
               onClick={openNewTerm}

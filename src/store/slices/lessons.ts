@@ -8,6 +8,7 @@ import type { LocationSummary } from "@/lib/locations";
 import type { CardStatus } from "@/domains/attendance/rosterInsights";
 import type { DanceLevels } from "@/domains/qualification";
 import type { LessonKind } from "@/lib/lessonKind";
+import type { CardPreview } from "@/service/attendancePreview";
 
 export interface Lesson {
   id: number;
@@ -132,6 +133,13 @@ export interface RecentPeriod {
     danceStyle: DanceStyleSummary;
     location: LocationSummary | null;
   };
+}
+
+/** GET /lessons/:id/period-stats — taken periods only. */
+export interface LessonPeriodStats {
+  periods: { periodId: number; attendeeCount: number; revenue: number }[];
+  /** Summed before rounding, so it can differ by a dollar or two from adding up `periods`. */
+  totalRevenue: number;
 }
 
 /** One session (LessonPeriod) as returned by GET /lessons/calendar. */
@@ -324,6 +332,21 @@ const lessonsApi = api.injectEndpoints({
     getRecentPeriods: builder.query<RecentPeriod[], { limit?: number } | void>({
       query: (args) => `lessons/recent${args?.limit ? `?limit=${args.limit}` : ""}`,
       providesTags: ["Lesson", "Attendance", "AttendanceRecord", "StudentCard"],
+    }),
+    getLessonPeriodStats: builder.query<LessonPeriodStats, number>({
+      query: (id) => `lessons/${id}/period-stats`,
+      providesTags: ["Lesson", "Attendance", "AttendanceRecord", "StudentCard"],
+    }),
+    // 點名頁每列的「會扣哪張卡」。`extraStudentIds` = 名冊外、這次勾的人（排序過，快取才穩）。
+    getAttendanceCardPreview: builder.query<
+      Record<number, CardPreview>,
+      { id: number; periodId: number; extraStudentIds: number[] }
+    >({
+      query: ({ id, periodId, extraStudentIds }) =>
+        `lessons/${id}/periods/${periodId}/card-preview${
+          extraStudentIds.length > 0 ? `?studentIds=${extraStudentIds.join(",")}` : ""
+        }`,
+      providesTags: ["Lesson", "Student", "StudentCard", "Attendance", "AttendanceRecord"],
     }),
     getCalendarPeriods: builder.query<
       CalendarPeriod[],
@@ -549,6 +572,8 @@ export const {
   useGetCalendarPeriodsQuery,
   useGetLessonAgendaQuery,
   useGetRecentPeriodsQuery,
+  useGetLessonPeriodStatsQuery,
+  useGetAttendanceCardPreviewQuery,
   useLazyGetAttendanceQuery,
   useLazyCheckStudentCardsQuery,
   useTakeAttendanceMutation,

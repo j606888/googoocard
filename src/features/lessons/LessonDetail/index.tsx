@@ -3,9 +3,7 @@ import LessonTabs from "./LessonTabs";
 import {
   useGetLessonQuery,
   useGetLessonStudentsQuery,
-  type Lesson,
 } from "@/store/slices/lessons";
-import SubNavbar from "@/features/SubNavbar";
 import { useMemo, useState } from "react";
 import PeriodSection, { PeriodColumn } from "./PeriodSection";
 import SettingSection from "./SettingSection";
@@ -13,18 +11,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import LessonDetailHeader from "./LessonDetailHeader";
 import AttendanceOverview from "./AttendanceOverview";
 import { useSizeClass } from "@/hooks/useMediaQuery";
-import { weeklyScheduleLabel } from "../lessonSchedule";
 import { headcountByPeriod } from "@/domains/attendance/rosterInsights";
 import ResponsiveDialog from "@/components/ResponsiveDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { lessonPeopleLabel } from "@/lib/teachers";
 import PeriodRecordSheet from "./PeriodRecordSheet";
 import StudentSheet from "@/features/students/StudentSheet";
+import { Button } from "@/components/ui/button";
+import StatTile from "@/components/StatTile";
+import { formatMoney } from "@/lib/money";
+import TermHeader from "./TermHeader";
+import PastTerms from "./PastTerms";
+import { useTermPage } from "./useTermPage";
 
+/** 手機的兩個分頁。課程設定不是分頁——從頁首的 ⋯ 進去（`activeTab === "settings"`）。 */
 export const TABS = [
   { name: "時段", query: "periods" },
   { name: "學生", query: "students" },
-  { name: "設定", query: "settings" },
 ];
 
 const LessonDetail = () => {
@@ -60,6 +62,8 @@ const LessonDetail = () => {
     [students, lesson?.periods]
   );
 
+  const term = useTermPage(lesson, headcounts);
+
   // Leaving the settings (closing the drawer, or switching tabs on a phone)
   // throws unsaved edits away — ask first.
   const discardSettingsThen = (action: () => void) => {
@@ -77,14 +81,6 @@ const LessonDetail = () => {
 
   return (
     <>
-      {!isExpanded && (
-        <SubNavbar
-          title={lesson?.name || ""}
-          subtitle={lesson ? lessonSubtitle(lesson) : undefined}
-          backUrl="/lessons"
-          withTodoBell
-        />
-      )}
       {isLessonLoading || isStudentsLoading || !lesson ? (
         isExpanded ? (
           <div className="flex flex-col gap-7 px-10 pt-7">
@@ -109,7 +105,8 @@ const LessonDetail = () => {
             </div>
           </div>
         ) : (
-          <div>
+          <div aria-busy="true">
+            <div className="h-[236px] rounded-b-[28px] bg-primary-900" />
             <LessonTabs activeTab={activeTab} onTabChange={setActiveTab} />
             <PeriodTimelineSkeleton />
           </div>
@@ -119,6 +116,16 @@ const LessonDetail = () => {
         <div className="flex flex-col gap-7 px-10 pt-7 pb-14">
           <div className="max-w-[1240px]">
             <LessonDetailHeader lesson={lesson} onEdit={() => setShowSettings(true)} />
+            {term.overview && (
+              <dl className="mt-5 grid max-w-[560px] grid-cols-3 gap-3">
+                <StatTile value={term.overview.sessions} label="已上堂數" />
+                <StatTile value={term.overview.average} label="平均出席" />
+                <StatTile
+                  value={term.totalRevenue === undefined ? "…" : `$${formatMoney(term.totalRevenue)}`}
+                  label={term.termNumber !== null ? `第 ${term.termNumber} 期收入` : "累計收入"}
+                />
+              </dl>
+            )}
           </div>
           <div className="flex max-w-[1240px] items-start gap-6">
             <PeriodColumn
@@ -170,19 +177,39 @@ const LessonDetail = () => {
           </ResponsiveDialog>
         </div>
       ) : (
-        /* 手機：分頁 */
-        <div>
-          <LessonTabs activeTab={activeTab} onTabChange={requestTabChange} />
-          {activeTab === "periods" && (
-            <PeriodSection lesson={lesson} periods={lesson?.periods || []} headcounts={headcounts} />
-          )}
-          {activeTab === "students" && (
-            <div className="px-5 pb-4">
-              <AttendanceOverview lesson={lesson} students={students || []} variant="compact" />
-            </div>
-          )}
-          {activeTab === "settings" && (
-            <SettingSection lesson={lesson} onDirtyChange={setSettingsDirty} />
+        /* 手機：這一期的頁首（期切換＋三格統計），下面時段／學生兩個分頁；設定從 ⋯ 進。 */
+        <div className="pb-4">
+          <TermHeader lesson={lesson} term={term} onOpenSettings={() => setActiveTab("settings")} />
+          {activeTab === "settings" ? (
+            <>
+              <div className="flex items-center justify-between px-5 pt-3">
+                <h2 className="text-[15px] font-bold text-neutral-900">課程設定</h2>
+                <Button variant="ghost" size="sm" onClick={() => requestTabChange("periods")}>
+                  回時段
+                </Button>
+              </div>
+              <SettingSection lesson={lesson} onDirtyChange={setSettingsDirty} />
+            </>
+          ) : (
+            <>
+              <LessonTabs activeTab={activeTab} onTabChange={requestTabChange} />
+              {activeTab === "periods" && (
+                <>
+                  <PeriodSection
+                    lesson={lesson}
+                    periods={lesson?.periods || []}
+                    headcounts={headcounts}
+                    revenues={term.revenues}
+                  />
+                  <PastTerms terms={term.terms} currentLessonId={lesson.id} />
+                </>
+              )}
+              {activeTab === "students" && (
+                <div className="px-5 pb-4">
+                  <AttendanceOverview lesson={lesson} students={students || []} variant="compact" />
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -203,12 +230,6 @@ const LessonDetail = () => {
     </>
   );
 };
-
-/** 手機頁首的副標：「Sean · 每週五 20:00–21:00」；時段不規則時只寫老師。 */
-const lessonSubtitle = (lesson: Lesson) =>
-  [lessonPeopleLabel(lesson.teachers, lesson.assistants) ?? "", weeklyScheduleLabel(lesson.periods ?? [])]
-    .filter(Boolean)
-    .join(" · ") || undefined;
 
 const TIMELINE_FADE = ["", "", "opacity-75", "opacity-50", "opacity-25"];
 
