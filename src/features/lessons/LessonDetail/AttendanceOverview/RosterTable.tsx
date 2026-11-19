@@ -146,12 +146,12 @@ const RosterTable = ({
                         onClick={() => onViewPeriod(cell.periodId)}
                         className="cursor-pointer rounded px-1 py-0.5 tabular-nums hover:bg-neutral-100 hover:text-primary-700"
                       >
-                        {today ? "今天" : format(new Date(cell.startTime), "MM/dd")}
+                        {today ? "今天" : format(new Date(cell.startTime), "M/d")}
                       </button>
                     ) : today ? (
                       "今天"
                     ) : (
-                      <span className="tabular-nums">{format(new Date(cell.startTime), "MM/dd")}</span>
+                      <span className="tabular-nums">{format(new Date(cell.startTime), "M/d")}</span>
                     )}
                   </th>
                 );

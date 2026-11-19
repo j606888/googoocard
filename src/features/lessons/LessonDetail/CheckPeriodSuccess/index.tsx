@@ -51,7 +51,7 @@ const CheckPeriodSuccess = () => {
   );
   // 「11/05（四）20:30–21:30」：手機放在頁首副標，桌面放在標題下面。
   const when = period
-    ? `${format(new Date(period.startTime), "MM/dd")}（${WEEKDAYS[new Date(period.startTime).getDay()]}）${format(
+    ? `${format(new Date(period.startTime), "M/d")}（${WEEKDAYS[new Date(period.startTime).getDay()]}）${format(
         new Date(period.startTime),
         "HH:mm"
       )}–${format(new Date(period.endTime), "HH:mm")}`

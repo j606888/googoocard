@@ -14,7 +14,7 @@ import type { AgendaRow } from "./useLessonAgenda";
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 /** 補零、等寬：「11/05（四）」。一整欄的日期和星期才會對齊。 */
-const dateLabel = (date: Date) => `${format(date, "MM/dd")}（${WEEKDAYS[date.getDay()]}）`;
+const dateLabel = (date: Date) => `${format(date, "M/d")}（${WEEKDAYS[date.getDay()]}）`;
 
 const statusFor = ({ period, state }: AgendaRow, now: Date) => {
   if (state === "overdue") return { text: "還沒點名", className: "text-warning-900" };

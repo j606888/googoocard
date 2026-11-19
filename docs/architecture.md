@@ -156,7 +156,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
   另寫一份遲早跟引擎分岔，顯示錯的剩餘堂數比不顯示更糟。`tests/api/attendance-card-preview.test.ts`
   的核心斷言就是「預覽說扣哪張，`takeAttendance` 就真的扣到那張」。名冊與已有紀錄的人一律會算，
   名冊外這次勾的人由前端帶 `?studentIds=`。
-- **送出前只能買卡，不能選卡**：勾了卻沒卡的列換成珊瑚橘、多一顆「買卡」（`BuyCardDrawer`，買完引擎自然挑到那張）。
+- **送出前只能買卡，不能選卡**：勾了卻沒卡的列換成珊瑚橘、第二行寫「沒卡 · 可以先點名再補」、多一顆「買卡」（`BuyCardDrawer`，買完引擎自然挑到那張）。
   送出前選卡要改 `takeAttendance` 的契約（現在只收 `studentIds`），等於動 reconcile，刻意不做；多張卡的照舊在完成頁
   `PendingStudents` 選。`reconcileAndFinalize`、`CheckPeriod` 的送出前重抓合併這一輪一行都沒改。
 - **手機頁首** `AttendanceHeader`：課名、日期、「5 / 8 人到了」＋進度條（`attendanceProgress()`，分母是名冊 ∪ 已勾，
@@ -239,7 +239,8 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - **這一期頁**（`/lessons/[id]` 的手機外殼，2026-11 重設計）：`TermHeader`（回課程、**期切換**——同課種各期的
   選單，看舊的期從這裡、三格統計、⋯ 裡是課程設定／開新一期／課種頁）＋「時段｜學生」兩個分頁；課程設定不再是分頁。
   時段是**由舊到新的時間軸**（`buildTimeline()`，`LessonDetail/termPage.ts`）：已點名的列出人數與這堂收入，
-  第一個還沒點名的是醒目的那張卡（今天的課是綠框＋奇異鳥），課一長就以它為中心收合（往前 3 堂、往後 4 堂）。
+  醒目的那張卡是**今天還沒點名的那一堂**，沒有才是第一個還沒點名的（同 `dueForAttendancePeriodId` 的規則；今天的課是綠框＋奇異鳥），
+  其他已經到了卻沒點名的列有「補點名」；課一長就以那張卡為中心收合（往前 3 堂、往後 4 堂）。
   底下「其他期」橫向一排（`PastTerms`）。兩個外殼共用 `useTermPage()`：三格統計（`termOverview()`）、
   每堂收入、同課種各期。收入來自 `GET /api/lessons/[id]/period-stats`（`src/service/lessonStats.ts`，
   只算已點名的時段、走 `periodRevenue()`；整期收入先加總再取整）。桌面外殼只多了頁首下那一排統計，

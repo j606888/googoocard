@@ -370,8 +370,8 @@ const DensePeriodRow = ({
               : "border-[1.5px] border-neutral-300"
         }`}
       />
-      <span className="w-[88px] shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-neutral-900">
-        {format(startTime, "MM/dd")}（{WEEKDAYS[startTime.getDay()]}）
+      <span className="w-20 shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-neutral-900">
+        {format(startTime, "M/d")}（{WEEKDAYS[startTime.getDay()]}）
       </span>
       <span className="min-w-0 flex-1 whitespace-nowrap text-xs tabular-nums text-neutral-500">
         {format(startTime, "HH:mm")}–{format(new Date(period.endTime), "HH:mm")}
@@ -379,15 +379,17 @@ const DensePeriodRow = ({
       {attended ? (
         <span className="text-[13px] tabular-nums text-neutral-600">{attendedCount ?? 0} 人</span>
       ) : (canCheck || today) && isDue ? (
+        // 今天的是「點名」、過期的是「補點名」——兩顆長得一樣就容易點到錯的日期。
         <Button
           size="sm"
-          className="h-8 px-3"
+          variant={today ? "primary" : "secondary"}
+          className="h-8 px-2.5"
           onClick={(e) => {
             e.stopPropagation();
             handleCheck();
           }}
         >
-          點名
+          {today ? "點名" : "補點名"}
         </Button>
       ) : overdue ? (
         <span className="text-[13px] font-semibold text-warning-900">還沒點名</span>
@@ -408,7 +410,8 @@ const DensePeriodRow = ({
   );
 };
 
-const dateLabel = (date: Date) => `${format(date, "MM/dd")}（${WEEKDAYS[date.getDay()]}）`;
+// 月日不補零，跟今天頁、點名頁、收款卡片同一種寫法。
+const dateLabel = (date: Date) => `${format(date, "M/d")}（${WEEKDAYS[date.getDay()]}）`;
 const timeLabel = (period: Period) =>
   `${format(new Date(period.startTime), "HH:mm")}–${format(new Date(period.endTime), "HH:mm")}`;
 

@@ -34,7 +34,7 @@ const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 /** 桌面的欄位：課種｜舞種·分部｜這一期｜學生｜下一堂｜動作。手機是一張卡：色塊＋名稱＋兩行摘要。 */
 const COLS =
-  "lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_56px_minmax(0,1.3fr)_128px] lg:gap-3";
+  "lg:grid lg:grid-cols-[minmax(0,2.6fr)_minmax(0,1fr)_minmax(0,1.2fr)_56px_minmax(0,1.2fr)_128px] lg:gap-3";
 
 /** 進度條最多畫幾格；堂數更多的課只寫數字。 */
 const MAX_SEGMENTS = 12;
@@ -68,7 +68,7 @@ const day = (iso: string, now: Date) => {
 const nextLabel = (lesson: LessonSummary, now: Date) => {
   if (lesson.nextSessionDate) {
     const next = new Date(lesson.nextSessionDate);
-    return `${format(next, "MM/dd")}（${WEEKDAYS[next.getDay()]}）${format(next, "HH:mm")}`;
+    return `${format(next, "M/d")}（${WEEKDAYS[next.getDay()]}）${format(next, "HH:mm")}`;
   }
   if (lesson.status === "finished") {
     return lesson.lastPeriodEnd ? `${day(lesson.lastPeriodEnd, now)} 結束` : "已結束";

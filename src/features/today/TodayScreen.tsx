@@ -153,7 +153,7 @@ const TodayScreen = () => {
             <button
               type="button"
               onClick={handleTodos}
-              className={`flex min-h-13 w-full cursor-pointer items-center gap-3 rounded-2xl px-3 py-2 text-left ${
+              className={`flex min-h-13 w-full cursor-pointer items-center gap-3 rounded-2xl border border-transparent px-3 py-2 text-left lg:border-neutral-200 ${
                 today.todo.urgent ? "bg-accent-50 text-accent-950" : "bg-white text-neutral-800"
               }`}
             >
