@@ -129,7 +129,7 @@ const LocationList = () => {
         {isLoading && <RowsSkeleton />}
 
         {!isLoading && active.length === 0 && (
-          <EmptyState title="還沒有分部" description="只有一個上課地點的話可以不用設定。" />
+          <EmptyState pose="lost" title="還沒有分部" description="只有一個上課地點的話可以不用設定。" />
         )}
 
         <ul className="flex flex-col">

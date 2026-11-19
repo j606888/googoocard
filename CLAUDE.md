@@ -170,6 +170,8 @@ Unresolved attendance cases surface as `uncheckedType` on the `AttendanceRecord`
 
 Being redesigned (2026-10-29) — the old written spec was removed; colour tokens in `src/app/globals.css` remain until the new palette replaces them. Still reuse the shared components (`Button`, `Field`, `EmptyState`, `Skeleton`, `StatusTag`…) rather than hand-rolling one.
 
+**Kiwi mascot**: `KiwiMascot` (`src/components/KiwiMascot.tsx`, `pose="wave" | "dance" | …`) draws the full-colour kiwi from `public/images/kiwi/` (sources in `design/kiwi/svg/`, open its `index.html` to see all 18 poses). It is an illustration only — the logo stays the one-colour `KiwiLogo`. `EmptyState` takes a `pose` (`page` and `filtered` kinds); pick one that fits what is missing.
+
 ### Mobile-First, but not 480px-only
 
 Mobile-first, but the **teacher-facing app goes full-width with a sidebar on desktop** — both the nav shell (sidebar / BottomNav in `app/(main)/layout.tsx`) and the content switch at `lg:`. `max-w-[480px]` now only applies to the student-facing entry points (LIFF, on-site QR check-in) and to `Drawer`.
