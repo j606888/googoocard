@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BookOpenText, ChevronDown, Ellipsis, Plus, Settings } from "lucide-react";
-import DanceStyleTile from "@/components/DanceStyleTile";
+import DanceStyleBar from "@/components/DanceStyleBar";
 import Menu from "@/components/Menu";
 import StatTile from "@/components/StatTile";
 import TodoBell from "@/features/TodoBell";
@@ -95,7 +95,7 @@ const TermHeader = ({
       </div>
 
       <div className="mt-3.5 flex items-center gap-3">
-        <DanceStyleTile style={lesson.danceStyle} name={lesson.group?.name ?? lesson.name} size="sm" />
+        <DanceStyleBar style={lesson.danceStyle} size="lg" />
         <div className="min-w-0">
           <h1 className="truncate text-2xl font-bold leading-8">{lesson.name}</h1>
           {subtitle && <p className="truncate text-[13px] font-medium text-primary-100">{subtitle}</p>}

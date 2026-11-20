@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Clock, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import DanceStyleTile from "@/components/DanceStyleTile";
+import DanceStyleBar from "@/components/DanceStyleBar";
 import KiwiMascot from "@/components/KiwiMascot";
 import ClassroomSwitcher from "../nav/ClassroomSwitcher";
 import TodoBell, { openTodoBell } from "../TodoBell";
@@ -36,7 +36,7 @@ const LaterRow = ({ row, now }: { row: AgendaRow; now: Date }) => {
   return (
     <li className="flex min-h-15 items-center gap-3 rounded-2xl border border-transparent bg-white px-3 py-2 lg:border-neutral-200">
       <Link href={`/lessons/${period.lesson.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-        <DanceStyleTile style={period.lesson.danceStyle} name={period.lesson.name} size="sm" />
+        <DanceStyleBar style={period.lesson.danceStyle} size="sm" />
         <span className="min-w-0">
           <span className="block truncate text-[15px] font-semibold text-neutral-900">
             {period.lesson.name}
@@ -97,10 +97,14 @@ const TodayScreen = () => {
             <Chip>{today.todayCount > 0 ? `今天教 ${today.todayCount} 堂` : "今天沒有課"}</Chip>
           )}
         </div>
-        {/* 珊瑚橘圓底＋全彩奇異鳥：今天有課就揮手，沒課就坐著。面向左邊的問候語。 */}
+        {/* 兩座淡綠山丘＋全彩奇異鳥：今天有課就揮手，沒課就坐著。面向左邊的問候語。 */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -bottom-4 right-3 size-32 rounded-full bg-accent-500 lg:-bottom-10 lg:right-8 lg:size-40"
+          className="pointer-events-none absolute -bottom-24 -right-16 h-44 w-80 rounded-[50%] bg-white/[0.07] lg:-bottom-36 lg:h-56 lg:w-[420px]"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-24 right-28 h-36 w-60 rounded-[50%] bg-white/[0.05] lg:-bottom-32 lg:right-44 lg:h-44 lg:w-[300px]"
         />
         <KiwiMascot
           pose={view.hero && view.heroIsToday ? "wave" : "sit"}
@@ -122,7 +126,11 @@ const TodayScreen = () => {
                   aria-labelledby="overdue-heading"
                   className="rounded-2xl bg-warning-100 px-3 py-2.5"
                 >
-                  <h2 id="overdue-heading" className="px-1 text-sm font-bold text-warning-950">
+                  <h2
+                    id="overdue-heading"
+                    className="flex items-center gap-1.5 px-1 text-sm font-bold text-warning-950"
+                  >
+                    <Clock aria-hidden="true" className="size-4" strokeWidth={2.4} />
                     {view.overdue.length} 堂還沒點名
                   </h2>
                   <ul className="mt-1.5 flex flex-col gap-1.5">
@@ -163,12 +171,15 @@ const TodayScreen = () => {
               type="button"
               onClick={handleTodos}
               className={`flex min-h-13 w-full cursor-pointer items-center gap-3 rounded-2xl border border-transparent px-3 py-2 text-left lg:border-neutral-200 ${
-                today.todo.urgent ? "bg-accent-50 text-accent-950" : "bg-white text-neutral-800"
+                today.todo.urgent ? "bg-warning-100 text-warning-950" : "bg-white text-neutral-800"
               }`}
             >
+              {today.todo.urgent && (
+                <TriangleAlert aria-hidden="true" className="size-5 shrink-0" strokeWidth={2.2} />
+              )}
               <span
                 className={`grid size-7 shrink-0 place-items-center rounded-full text-sm font-bold ${
-                  today.todo.urgent ? "bg-accent-200" : "bg-neutral-100"
+                  today.todo.urgent ? "bg-warning-200" : "bg-neutral-100"
                 }`}
               >
                 {today.todo.count}

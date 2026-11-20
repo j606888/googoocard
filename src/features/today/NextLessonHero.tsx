@@ -2,7 +2,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import DanceStyleTile from "@/components/DanceStyleTile";
+import DanceStyleBar from "@/components/DanceStyleBar";
 import KiwiMascot from "@/components/KiwiMascot";
 import type { AgendaRow } from "../lessons/useLessonAgenda";
 import { heroBadge, termProgressLabel } from "./today";
@@ -51,14 +51,14 @@ const NextLessonHero = ({
   return (
     <section aria-label="下一堂課" className={CARD}>
       <div className="flex items-center justify-between gap-2">
-        <span className="rounded-full bg-accent-100 px-2.5 py-1 text-xs font-bold text-accent-900">
+        <span className="rounded-full bg-primary-100 px-2.5 py-1 text-xs font-bold text-primary-900">
           {heroBadge(row, now)}
         </span>
         <span className="truncate text-xs text-neutral-600">{termProgressLabel(period)}</span>
       </div>
 
       <Link href={lessonHref} className="mt-3 flex items-center gap-3">
-        <DanceStyleTile style={lesson.danceStyle} name={lesson.name} size="lg" />
+        <DanceStyleBar style={lesson.danceStyle} size="lg" />
         <span className="min-w-0">
           <span className="block truncate text-xl font-bold text-neutral-900">{lesson.name}</span>
           <span className="block truncate text-sm font-medium tabular-nums text-neutral-700">

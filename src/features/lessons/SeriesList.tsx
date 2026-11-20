@@ -15,7 +15,7 @@ import {
   useRenameLessonGroupMutation,
 } from "@/store/slices/lessonGroups";
 import { Button } from "@/components/ui/button";
-import DanceStyleTile from "@/components/DanceStyleTile";
+import DanceStyleBar from "@/components/DanceStyleBar";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import type { LessonSummary } from "@/store/slices/lessons";
 import { needsNextPeriod } from "./lessonGrouping";
@@ -189,11 +189,7 @@ const SeriesRow = ({
   const cells = (
     <>
       <span className="flex min-w-0 flex-1 items-center gap-3">
-        <DanceStyleTile
-          style={lead?.danceStyle}
-          name={series.name}
-          className={`lg:size-9 lg:rounded-lg lg:text-xs ${lead ? "" : "bg-neutral-200"}`}
-        />
+        <DanceStyleBar style={lead?.danceStyle} className="lg:h-9" />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             <span className="truncate text-[17px] font-bold text-neutral-900 lg:text-[15px] lg:font-semibold">

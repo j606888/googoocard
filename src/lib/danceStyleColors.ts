@@ -4,8 +4,8 @@ import type { DanceStyleSummary, PaletteColor } from "@/lib/danceStyles";
 // classes it finds as literal strings in the source, so every class is spelled
 // out here rather than built from the key.
 //
-// green / orange are the app's own primary / warning scales — what Bachata and
-// Salsa have always looked like.
+// green is the app's primary scale; orange has its own dance-orange-* tokens,
+// deliberately apart from warning-* (amber = 要處理).
 
 export type DanceStyleClasses = {
   bg: string;
@@ -26,12 +26,12 @@ export const DANCE_STYLE_PALETTE: Record<PaletteColor, DanceStyleClasses> = {
     dot: "bg-primary-500",
   },
   orange: {
-    bg: "bg-warning-500",
-    light: "bg-warning-100",
-    text: "text-warning-900",
-    border: "border-warning-600",
-    badge: "bg-warning-100 text-warning-900",
-    dot: "bg-warning-500",
+    bg: "bg-dance-orange-500",
+    light: "bg-dance-orange-100",
+    text: "text-dance-orange-900",
+    border: "border-dance-orange-600",
+    badge: "bg-dance-orange-100 text-dance-orange-900",
+    dot: "bg-dance-orange-500",
   },
   slate: {
     bg: "bg-slate-500",
