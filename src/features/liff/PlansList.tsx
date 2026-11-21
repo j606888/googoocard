@@ -155,7 +155,7 @@ export default function PlansList({
                   {group.locked ? (
                     <Lock className="size-4" aria-hidden />
                   ) : (
-                    group.style && <span className={cn("size-2 rounded-full", danceStyleMeta(group.style).dot)} />
+                    group.style && <span className="size-2 rounded-full" style={danceStyleMeta(group.style).fill} />
                   )}
                   {group.title}
                 </h3>
@@ -322,7 +322,7 @@ function CardSummary({ card }: { card: PlanCard }) {
       <div className="flex items-center gap-2">
         <span className="text-lg font-semibold">{card.name}</span>
         {card.isPracticeCard && card.danceStyle && (
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${danceStyleMeta(card.danceStyle).badge}`}>
+          <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={danceStyleMeta(card.danceStyle).chip}>
             {card.danceStyle.name}
           </span>
         )}

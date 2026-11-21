@@ -15,7 +15,7 @@ export const GET = apiRoute(async ({ classroomId }) => {
 });
 
 export const POST = apiRoute(async ({ request, classroomId }) => {
-  const { name, color, hasLevels } = await parseBody(request, createDanceStyleSchema);
+  const { name, color, abbreviation, hasLevels } = await parseBody(request, createDanceStyleSchema);
 
   // New styles go to the end of the list. A duplicate name hits
   // @@unique([classroomId, name]) → 409 via apiRoute.
@@ -29,6 +29,7 @@ export const POST = apiRoute(async ({ request, classroomId }) => {
       classroomId,
       name,
       color,
+      abbreviation,
       hasLevels,
       sortOrder: (last._max.sortOrder ?? -1) + 1,
     },

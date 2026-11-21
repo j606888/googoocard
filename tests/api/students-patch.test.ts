@@ -174,7 +174,7 @@ describe("PATCH /api/students/[id] (資格同步)", () => {
     expect(body.danceLevels).toEqual({ [S.HUSTLE]: 2 });
     // Embedded so LIFF / the public share page can label it without a teacher session.
     expect(body.qualifiedDanceStyles).toEqual([
-      { id: S.HUSTLE, name: "Hustle", color: "stone", hasLevels: true },
+      { id: S.HUSTLE, name: "Hustle", color: "stone", abbreviation: null, hasLevels: true },
     ]);
   });
 

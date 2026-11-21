@@ -183,7 +183,7 @@ const GroupDetail = () => {
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <p className="flex items-center gap-2 text-[15px] font-semibold text-neutral-900">
                   {style && (
-                    <span aria-hidden="true" className={cn("size-2.5 rounded-full", danceStyleMeta(style).bg)} />
+                    <span aria-hidden="true" className="size-2.5 rounded-full" style={danceStyleMeta(style).fill} />
                   )}
                   共 {lessons.length} 期
                   <span className={running.length > 0 ? "text-primary-700" : "text-neutral-600"}>

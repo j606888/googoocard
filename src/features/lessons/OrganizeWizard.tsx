@@ -253,7 +253,8 @@ const OrganizeWizard = () => {
         <div className="flex flex-wrap items-center gap-3 border-b border-neutral-100 px-4 py-3">
           <span
             aria-hidden="true"
-            className={cn("size-2.5 shrink-0 rounded-full", style ? danceStyleMeta(style).bg : "bg-neutral-300")}
+            className={cn("size-2.5 shrink-0 rounded-full", !style && "bg-neutral-300")}
+            style={style ? danceStyleMeta(style).fill : undefined}
           />
           <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-neutral-900">
             {draft.enabled && draft.name.trim() ? draft.name : "不歸類"}

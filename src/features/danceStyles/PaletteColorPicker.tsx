@@ -4,7 +4,7 @@ import { Check } from "lucide-react";
 import { DANCE_STYLE_COLORS, type DanceStyleColor, type PaletteColor } from "@/lib/danceStyles";
 import { DANCE_STYLE_PALETTE } from "@/lib/danceStyleColors";
 
-const COLOR_NAMES: Record<PaletteColor, string> = {
+export const COLOR_NAMES: Record<PaletteColor, string> = {
   green: "綠",
   orange: "橘",
   slate: "灰藍",

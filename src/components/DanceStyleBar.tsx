@@ -23,7 +23,8 @@ const DanceStyleBar = ({
 }) => (
   <span
     aria-hidden="true"
-    className={cn("w-1.5 shrink-0 rounded-full", style ? danceStyleMeta(style).bg : "bg-neutral-200", SIZES[size], className)}
+    className={cn("w-1.5 shrink-0 rounded-full", !style && "bg-neutral-200", SIZES[size], className)}
+    style={style ? danceStyleMeta(style).fill : undefined}
   />
 );
 

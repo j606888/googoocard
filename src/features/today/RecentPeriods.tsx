@@ -34,7 +34,8 @@ const RecentPeriods = ({ periods, isLoading }: { periods: RecentPeriod[]; isLoad
             >
               <span
                 aria-hidden="true"
-                className={`h-8 w-2 shrink-0 rounded-full ${danceStyleMeta(period.lesson.danceStyle).bg}`}
+                className="h-8 w-2 shrink-0 rounded-full"
+                style={danceStyleMeta(period.lesson.danceStyle).fill}
               />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold text-neutral-900">

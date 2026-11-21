@@ -497,7 +497,8 @@ export default function IncomeCalendar({
                   key: String(s.danceStyle.id),
                   label: s.danceStyle.name,
                   value: s.revenue,
-                  barClass: danceStyleMeta(s.danceStyle).bg,
+                  barClass: "",
+                  barStyle: danceStyleMeta(s.danceStyle).fill,
                 }))}
               />
             )
@@ -788,7 +789,7 @@ const Breakdown = ({
   items,
 }: {
   title: string;
-  items: { key: string; label: string; value: number; barClass: string }[];
+  items: { key: string; label: string; value: number; barClass: string; barStyle?: React.CSSProperties }[];
 }) => {
   const max = Math.max(...items.map((i) => i.value), 1);
   return (
@@ -804,7 +805,7 @@ const Breakdown = ({
             <div className="h-2 rounded-full bg-neutral-100 mt-1 overflow-hidden">
               <div
                 className={cn("h-2 rounded-full", item.barClass)}
-                style={{ width: `${Math.max(2, (item.value / max) * 100)}%` }}
+                style={{ ...item.barStyle, width: `${Math.max(2, (item.value / max) * 100)}%` }}
               />
             </div>
           </div>

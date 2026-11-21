@@ -102,7 +102,12 @@ const DanceStyleList = () => {
                 key={style.id}
                 className="flex items-center gap-2 py-2.5 border-b border-neutral-200"
               >
-                <span className={`w-3 h-3 rounded-full shrink-0 ${meta.dot}`} />
+                <span
+                  className="min-w-8 shrink-0 rounded-md px-1.5 text-center text-xs font-semibold leading-6"
+                  style={{ ...meta.fill, ...meta.onFill }}
+                >
+                  {meta.abbr}
+                </span>
                 <span className="font-medium text-neutral-900 truncate">{style.name}</span>
                 {style.hasLevels && (
                   <StatusTag tone="neutral">分階</StatusTag>
@@ -177,7 +182,12 @@ const DanceStyleList = () => {
                       key={style.id}
                       className="flex items-center gap-2 py-2.5 border-b border-neutral-200 text-neutral-500"
                     >
-                      <span className={`w-3 h-3 rounded-full shrink-0 opacity-50 ${meta.dot}`} />
+                      <span
+                        className="min-w-8 shrink-0 rounded-md px-1.5 text-center text-xs font-semibold leading-6 opacity-50"
+                        style={{ ...meta.fill, ...meta.onFill }}
+                      >
+                        {meta.abbr}
+                      </span>
                       <span className="truncate">{style.name}</span>
                       <Button
                         type="button"

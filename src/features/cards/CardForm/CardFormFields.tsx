@@ -194,7 +194,7 @@ const DanceStyleField = ({
               onClick={() => onChange(style.id)}
               className={chip(value === style.id)}
             >
-              <span className={`w-2.5 h-2.5 rounded-full ${meta.dot}`} />
+              <span className="w-2.5 h-2.5 rounded-full" style={meta.fill} />
               {meta.label}
             </button>
           );

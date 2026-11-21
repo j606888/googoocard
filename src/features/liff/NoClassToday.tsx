@@ -128,7 +128,7 @@ function NextLessonCard({ lesson }: { lesson: NextLesson | null }) {
               <p className="truncate text-lg font-bold text-neutral-900">{lesson.lessonName}</p>
               <p className="text-[15px] font-semibold tabular-nums text-neutral-700">{timeRange(lesson)}</p>
               <div className="flex flex-wrap gap-1.5">
-                <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", style.badge)}>{style.label}</span>
+                <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={style.chip}>{style.label}</span>
                 <LocationBadge location={lesson.location} />
               </div>
             </div>
@@ -238,7 +238,7 @@ function Upcoming({ periods }: { periods: UpcomingPeriod[] }) {
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="flex items-center gap-1.5 font-semibold text-neutral-900">
-                  <span aria-hidden className={cn("size-2 shrink-0 rounded-full", danceStyleMeta(p.danceStyle).dot)} />
+                  <span aria-hidden className="size-2 shrink-0 rounded-full" style={danceStyleMeta(p.danceStyle).fill} />
                   <span className="truncate">{p.lessonName}</span>
                 </span>
                 <span className="text-[13px] tabular-nums text-neutral-500">

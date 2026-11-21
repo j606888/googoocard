@@ -63,12 +63,10 @@ const DanceStyleSelect = ({
                 type="button"
                 onClick={() => onChange(style.id)}
                 className={`flex items-center gap-2.5 h-11 px-3 rounded-xl border-[1.5px] text-sm font-medium transition-colors cursor-pointer
-                  ${selected
-                    ? `${meta.light} ${meta.border} ${meta.text}`
-                    : "bg-white border-neutral-300 text-neutral-700 hover:border-primary-300"
-                  }`}
+                  ${selected ? "" : "bg-white border-neutral-300 text-neutral-700 hover:border-primary-300"}`}
+                style={selected ? { ...meta.tint, ...meta.edge, ...meta.ink } : undefined}
               >
-                <span className={`w-3 h-3 rounded-full shrink-0 ${meta.bg}`} />
+                <span className="w-3 h-3 rounded-full shrink-0" style={meta.fill} />
                 {meta.label}
               </button>
             );

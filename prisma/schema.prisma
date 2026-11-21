@@ -343,8 +343,10 @@ model DanceStyle {
   classroomId    Int
   classroom      Classroom                   @relation(fields: [classroomId], references: [id])
   name           String
-  // Palette key: green/orange/slate/stone/purple/blue/pink/teal/red/indigo.
+  // A palette key (src/lib/danceStyles.ts PALETTE_COLORS) or a custom "#rrggbb".
   color          String
+  // 1–3 characters shown where the name doesn't fit (calendar chips). Null = derived from the name.
+  abbreviation   String?
   // On: 初階/中階/進階 (src/lib/danceLevels.ts). Off: qualified or not — level is always 1.
   hasLevels      Boolean                     @default(false)
   sortOrder      Int                         @default(0)

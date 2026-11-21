@@ -91,8 +91,8 @@ describe("attendanceInsights", () => {
   });
 
   it("依舞種計數，多的在前，沒有舞種歸一類", () => {
-    const ba = { id: 1, name: "Bachata", color: "orange", hasLevels: true };
-    const zo = { id: 2, name: "Zouk", color: "purple", hasLevels: false };
+    const ba = { id: 1, name: "Bachata", color: "orange", abbreviation: null, hasLevels: true };
+    const zo = { id: 2, name: "Zouk", color: "purple", abbreviation: null, hasLevels: false };
     const counts = countByStyle([
       at("2026-10-01T19:30:00+08:00", { danceStyle: zo }),
       at("2026-10-02T19:30:00+08:00", { danceStyle: ba }),

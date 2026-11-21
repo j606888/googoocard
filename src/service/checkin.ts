@@ -334,7 +334,13 @@ export async function monthAttendanceCount(studentId: number, now = new Date()):
 // The lesson query loads the full style (the card rules need it); the wire
 // shape stays the summary, whitelisted.
 const pickSummary = (style: DanceStyleSummary | null): DanceStyleSummary | null =>
-  style ? { id: style.id, name: style.name, color: style.color, hasLevels: style.hasLevels } : null;
+  style ? {
+        id: style.id,
+        name: style.name,
+        color: style.color,
+        abbreviation: style.abbreviation,
+        hasLevels: style.hasLevels,
+      } : null;
 
 type LessonForCardStatus = Parameters<typeof cardOptionsFor>[1];
 

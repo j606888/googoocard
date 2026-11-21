@@ -1,5 +1,5 @@
 import { api } from "../api";
-import type { DanceStyleColor, DanceStyleSummary } from "@/lib/danceStyles";
+import type { DanceStyleSummary } from "@/lib/danceStyles";
 
 /** A classroom dance style as GET /api/dance-styles returns it. */
 export interface DanceStyle extends DanceStyleSummary {
@@ -10,7 +10,10 @@ export interface DanceStyle extends DanceStyleSummary {
 export interface UpdateDanceStyleArgs {
   id: number;
   name?: string;
-  color?: DanceStyleColor;
+  /** Palette key or custom `#rrggbb`. */
+  color?: string;
+  /** Blank/null = derived from the name. */
+  abbreviation?: string | null;
   hasLevels?: boolean;
   sortOrder?: number;
   archived?: boolean;
@@ -28,7 +31,7 @@ const danceStylesApi = api.injectEndpoints({
     }),
     createDanceStyle: builder.mutation<
       DanceStyle,
-      { name: string; color: DanceStyleColor; hasLevels: boolean }
+      { name: string; color: string; abbreviation?: string | null; hasLevels: boolean }
     >({
       query: (body) => ({ url: "dance-styles", method: "POST", body }),
       invalidatesTags: ["DanceStyle"],

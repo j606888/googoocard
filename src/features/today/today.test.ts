@@ -43,7 +43,7 @@ const period = (
     kind: "fixed",
     groupId: 1,
     termNumber: 6,
-    danceStyle: { id: 1, name: "Bachata", color: "green", hasLevels: true },
+    danceStyle: { id: 1, name: "Bachata", color: "green", abbreviation: null, hasLevels: true },
     location: null,
     teachers: teacherIds.map((id) => ({ id, name: `T${id}` })) as AgendaPeriod["lesson"]["teachers"],
     assistants: assistantIds.map((id) => ({ id, name: `T${id}` })) as AgendaPeriod["lesson"]["assistants"],
