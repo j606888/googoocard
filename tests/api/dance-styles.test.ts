@@ -43,7 +43,7 @@ describe("/api/dance-styles", () => {
     expect(res.status).toBe(200);
     expect(body.map((s: { name: string }) => s.name)).toEqual(["Zouk", "Salsa"]);
     expect(Object.keys(body[0]).sort()).toEqual(
-      ["archivedAt", "color", "hasLevels", "id", "name", "sortOrder"].sort()
+      ["abbreviation", "archivedAt", "color", "hasLevels", "id", "name", "sortOrder"].sort()
     );
     expect(body[0].archivedAt).not.toBeNull();
   });
@@ -66,12 +66,30 @@ describe("/api/dance-styles", () => {
   it("POST rejects an unknown palette key and an empty name", async () => {
     for (const body of [
       { name: "Locking", color: "chartreuse" },
+      { name: "Locking", color: "#12345" },
+      { name: "Locking", color: "#12345g" },
+      { name: "Locking", color: "blue", abbreviation: "Lock" },
       { name: "   ", color: "blue" },
     ]) {
       const res = await POST(jsonRequest("POST", body), routeParams({}));
       expect(res.status).toBe(400);
     }
     expect(await prisma.danceStyle.count()).toBe(0);
+  });
+
+  it("POST accepts a custom hex (stored lowercase) and an abbreviation; blank abbreviation → null", async () => {
+    const res = await POST(
+      jsonRequest("POST", { name: "Salsa", color: "#A1B2C3", abbreviation: " SA " }),
+      routeParams({})
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ color: "#a1b2c3", abbreviation: "SA" });
+
+    const blank = await POST(
+      jsonRequest("POST", { name: "Zouk", color: "navy", abbreviation: "  " }),
+      routeParams({})
+    );
+    expect(await blank.json()).toMatchObject({ color: "navy", abbreviation: null });
   });
 
   it("POST with a name already used in this classroom → 409; another classroom's name is fine", async () => {
@@ -89,7 +107,13 @@ describe("/api/dance-styles", () => {
     const style = await createDanceStyle(classroomId, { name: "Hustle" });
 
     const res = await PATCH(
-      jsonRequest("PATCH", { name: "Hustle 社交", color: "teal", hasLevels: true, sortOrder: 3 }),
+      jsonRequest("PATCH", {
+        name: "Hustle 社交",
+        color: "teal",
+        abbreviation: "Hu",
+        hasLevels: true,
+        sortOrder: 3,
+      }),
       routeParams({ id: String(style.id) })
     );
 
@@ -97,6 +121,7 @@ describe("/api/dance-styles", () => {
     expect(await res.json()).toMatchObject({
       name: "Hustle 社交",
       color: "teal",
+      abbreviation: "Hu",
       hasLevels: true,
       sortOrder: 3,
     });

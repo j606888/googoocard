@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import Drawer from "@/components/Drawer";
+import Field from "@/components/Field";
 import InputField from "@/components/InputField";
 import { Switch } from "@/components/ui/switch";
-import { DANCE_STYLE_COLORS, type DanceStyleColor } from "@/lib/danceStyles";
+import { ABBREVIATION_MAX, DANCE_STYLE_PRESETS, defaultAbbreviation } from "@/lib/danceStyles";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { DANCE_LEVELS } from "@/lib/danceLevels";
-import PaletteColorPicker from "./PaletteColorPicker";
+import DanceStyleColorPicker from "./DanceStyleColorPicker";
 import {
   useCreateDanceStyleMutation,
   useUpdateDanceStyleMutation,
@@ -16,10 +18,10 @@ import {
 
 const LEVEL_NAMES = DANCE_LEVELS.map((level) => level.label).join("／");
 
-/** First palette key no style uses yet, so a new style starts distinguishable. */
-function firstFreeColor(taken: DanceStyle[]): DanceStyleColor {
+/** First preset no style uses yet, so a new style starts distinguishable. */
+function firstFreeColor(taken: DanceStyle[]): string {
   const used = new Set(taken.map((style) => style.color));
-  return DANCE_STYLE_COLORS.find((color) => !used.has(color)) ?? DANCE_STYLE_COLORS[0];
+  return DANCE_STYLE_PRESETS.find((color) => !used.has(color)) ?? DANCE_STYLE_PRESETS[0];
 }
 
 /**
@@ -39,9 +41,8 @@ const DanceStyleForm = ({
   allStyles: DanceStyle[];
 }) => {
   const [name, setName] = useState(style?.name ?? "");
-  const [color, setColor] = useState<DanceStyleColor>(
-    (style?.color as DanceStyleColor | undefined) ?? firstFreeColor(allStyles)
-  );
+  const [color, setColor] = useState<string>(style?.color ?? firstFreeColor(allStyles));
+  const [abbreviation, setAbbreviation] = useState(style?.abbreviation ?? "");
   const [hasLevels, setHasLevels] = useState(style?.hasLevels ?? false);
   const [error, setError] = useState<string>();
   const [createDanceStyle, { isLoading: creating }] = useCreateDanceStyleMutation();
@@ -60,9 +61,9 @@ const DanceStyleForm = ({
     }
     try {
       if (style) {
-        await updateDanceStyle({ id: style.id, name: trimmed, color, hasLevels }).unwrap();
+        await updateDanceStyle({ id: style.id, name: trimmed, color, abbreviation, hasLevels }).unwrap();
       } else {
-        await createDanceStyle({ name: trimmed, color, hasLevels }).unwrap();
+        await createDanceStyle({ name: trimmed, color, abbreviation, hasLevels }).unwrap();
       }
       onClose();
     } catch (err) {
@@ -100,7 +101,18 @@ const DanceStyleForm = ({
           }}
         />
 
-        <PaletteColorPicker value={color} onChange={setColor} />
+        <DanceStyleColorPicker value={color} onChange={setColor} />
+
+        <div className="flex flex-col gap-2">
+          <Field
+            label="縮寫"
+            hint={`（最多 ${ABBREVIATION_MAX} 個字，行事曆等放不下名稱的地方用）`}
+            value={abbreviation}
+            placeholder={defaultAbbreviation(name) || "Sa"}
+            onChange={(e) => setAbbreviation(Array.from(e.target.value).slice(0, ABBREVIATION_MAX).join(""))}
+          />
+          <Preview name={name.trim() || "舞種"} color={color} abbreviation={abbreviation} />
+        </div>
 
         <div className="flex flex-col gap-1.5">
           <label className="flex items-center gap-2 cursor-pointer">
@@ -118,6 +130,25 @@ const DanceStyleForm = ({
         </div>
       </form>
     </Drawer>
+  );
+};
+
+/** How the style will look: the calendar chip (縮寫) and the badge (名稱). */
+const Preview = ({ name, color, abbreviation }: { name: string; color: string; abbreviation: string }) => {
+  const meta = danceStyleMeta({ name, color, abbreviation });
+  return (
+    <div className="flex items-center gap-2 text-xs text-neutral-500" aria-hidden="true">
+      預覽
+      <span className="flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 leading-snug" style={meta.chip}>
+        <span className="rounded-[3px] px-1 text-[10px] font-semibold leading-4" style={{ ...meta.fill, ...meta.onFill }}>
+          {meta.abbr}
+        </span>
+        <span className="tabular-nums opacity-80">19:30</span>
+      </span>
+      <span className="rounded-full px-2 py-0.5 font-medium" style={meta.chip}>
+        {meta.label}
+      </span>
+    </div>
   );
 };
 

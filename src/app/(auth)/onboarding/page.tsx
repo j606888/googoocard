@@ -26,7 +26,7 @@ export default function OnboardingPage() {
 
     try {
       await createClassroom({ name: classroomName }).unwrap();
-      router.push("/lessons");
+      router.push("/today");
     } catch (error) {
       console.error("Onboarding error:", error);
     } finally {

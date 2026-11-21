@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import KiwiLogo from "@/components/KiwiLogo";
+import KiwiMascot from "@/components/KiwiMascot";
 
 const AUTH_PITCH = "學生用 LINE 簽到、堂數自動扣，誰該續卡、誰還沒付錢，一打開就知道。";
 const AUTH_POINTS = ["LINE 自助簽到", "自動扣堂", "收款對帳"];
@@ -42,8 +43,8 @@ export default function AuthScaffold({
           <h1 className="text-[28px] font-black">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-primary-100">{subtitle}</p>}
         </div>
-        <div aria-hidden="true" className="absolute -right-10 -top-8 w-48 h-48 rounded-full bg-primary-700" />
-        <KiwiLogo className="absolute right-6 top-11 w-24 text-primary-300 -scale-x-100" />
+        <div aria-hidden="true" className="absolute -right-10 -top-8 w-48 h-48 rounded-full bg-primary-100" />
+        <KiwiMascot pose="wave" flip className="absolute right-3 top-9 w-[112px]" />
       </header>
 
       {/* Desktop brand panel */}
@@ -63,11 +64,11 @@ export default function AuthScaffold({
           </p>
           <p className="mt-5 max-w-[420px] text-[17px] leading-relaxed text-primary-100">{AUTH_PITCH}</p>
         </div>
-        <div aria-hidden="true" className="absolute -right-32 -bottom-40 w-[520px] h-[520px] rounded-full bg-primary-700" />
-        <KiwiLogo className="absolute right-16 bottom-24 w-64 text-primary-300 -scale-x-100" />
+        <div aria-hidden="true" className="absolute -right-32 -bottom-40 w-[520px] h-[520px] rounded-full bg-primary-100" />
+        <KiwiMascot pose="wave" flip className="absolute right-10 bottom-24 w-[280px]" />
         <ul className="absolute left-14 bottom-14 z-10 flex gap-2.5 text-[13px] text-primary-100">
           {AUTH_POINTS.map((point) => (
-            <li key={point} className="rounded-full border border-primary-600 px-3 py-1.5">
+            <li key={point} className="rounded-full border border-primary-600 bg-primary-900 px-3 py-1.5">
               {point}
             </li>
           ))}

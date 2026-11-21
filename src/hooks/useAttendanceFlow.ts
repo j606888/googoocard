@@ -2,13 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useGetStudentsQuery } from "@/store/slices/students";
-import { useGetAttendanceQuery, useGetLessonQuery } from "@/store/slices/lessons";
 import {
+  useGetAttendanceCardPreviewQuery,
+  useGetAttendanceQuery,
+  useGetLessonQuery,
+} from "@/store/slices/lessons";
+import {
+  attendanceProgress,
   attendanceRowTag,
   filterByKeyword,
   findPeriod,
   lessonCardStatus,
   lessonStudentIds,
+  rowCardLine,
   selectStudents,
   splitByRoster,
   type RowTag,
@@ -83,6 +89,30 @@ export const useAttendanceFlow = ({
     return tags;
   }, [students, lesson, records]);
 
+  // 每列第二行「會扣哪張卡」：伺服器照引擎的規則算好，這裡只多一支查詢，選取狀態不受影響。
+  // 名冊與已有紀錄的人伺服器一律會算；名冊外、這次勾的人要把 id 帶過去。
+  const extraStudentIds = useMemo(() => {
+    const roster = new Set(attendStudentIds);
+    return selectedIds.filter((id) => !roster.has(id)).sort((a, b) => a - b);
+  }, [selectedIds, attendStudentIds]);
+  const { data: cardPreviews } = useGetAttendanceCardPreviewQuery({
+    id: Number(lessonId),
+    periodId,
+    extraStudentIds,
+  });
+  const cardLines = useMemo(() => {
+    const lines = new Map<number, string>();
+    for (const [studentId, preview] of Object.entries(cardPreviews ?? {})) {
+      const line = rowCardLine(preview);
+      if (line) lines.set(Number(studentId), line);
+    }
+    return lines;
+  }, [cardPreviews]);
+  const progress = useMemo(
+    () => attendanceProgress(selectedIds, attendStudentIds),
+    [selectedIds, attendStudentIds]
+  );
+
   const addStudent = (studentId: number) =>
     setSelectedIds((prev) =>
       prev.includes(studentId) ? prev : [...prev, studentId]
@@ -123,6 +153,10 @@ export const useAttendanceFlow = ({
     allRosterStudents,
     /** 學生 id → 列尾狀態標籤；沒問題的學生不在裡面。 */
     rowTags,
+    /** 學生 id → 「進階6堂 · 扣完剩 3 堂」；沒有可講的不在裡面。 */
+    cardLines,
+    /** 頁首的「幾個人到了／應到幾個」。 */
+    progress,
     lesson,
     keyword,
     search: setKeyword,

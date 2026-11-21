@@ -96,13 +96,13 @@ const CardList = () => {
     else setMobileForm(target);
   };
 
-  const styleChips: { value: StyleFilter; label: string; dot: string }[] = [
+  const styleChips: { value: StyleFilter; label: string; dot: string; dotStyle?: React.CSSProperties }[] = [
     { value: "all", label: "全部舞種", dot: "" },
     ...allGroups.map((group) => {
       const style = group.danceStyleId !== null ? byId.get(group.danceStyleId) : undefined;
       return group.danceStyleId === null
         ? { value: "none" as const, label: "不限舞種", dot: "bg-neutral-400" }
-        : { value: group.danceStyleId, label: style?.name ?? "舞種", dot: danceStyleMeta(style).dot };
+        : { value: group.danceStyleId, label: style?.name ?? "舞種", dot: "", dotStyle: danceStyleMeta(style).fill };
     }),
   ];
 
@@ -119,7 +119,7 @@ const CardList = () => {
       </div>
 
       {!hasAnyCard ? (
-        <EmptyState kind="page" title="還沒有課卡方案" description="建立第一個方案，學生就可以買了。" />
+        <EmptyState kind="page" pose="card" title="還沒有課卡方案" description="建立第一個方案，學生就可以買了。" />
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -143,7 +143,9 @@ const CardList = () => {
                     active={styleFilter === chip.value}
                     onClick={() => setStyleFilter(chip.value)}
                   >
-                    {chip.dot && <span aria-hidden="true" className={`w-2 h-2 rounded-full ${chip.dot}`} />}
+                    {(chip.dot || chip.dotStyle) && (
+                      <span aria-hidden="true" className={`w-2 h-2 rounded-full ${chip.dot}`} style={chip.dotStyle} />
+                    )}
                     {chip.label}
                   </FilterChip>
                 ))}
@@ -171,7 +173,7 @@ const CardList = () => {
               <section key={group.danceStyleId ?? "none"} className="flex flex-col gap-2.5">
                 <div className="flex items-center justify-between gap-2 px-1">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${style ? meta.dot : "bg-neutral-400"}`} />
+                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${style ? "" : "bg-neutral-400"}`} style={style ? meta.fill : undefined} />
                     <h2 className="text-base font-bold truncate">{style?.name ?? "不限舞種"}</h2>
                     <span className="text-[13px] text-neutral-500 shrink-0">
                       {!style ? "任何舞種的課都能用" : style.hasLevels ? "分初階・中階・進階" : "不分級"}

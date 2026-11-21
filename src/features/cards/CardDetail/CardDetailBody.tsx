@@ -112,7 +112,8 @@ const CardDetailBody = ({
             <span className="inline-flex items-center gap-1.5">
               <span
                 aria-hidden
-                className={`size-2 rounded-full ${card.danceStyle ? danceStyleMeta(card.danceStyle).dot : "bg-neutral-400"}`}
+                className={`size-2 rounded-full ${card.danceStyle ? "" : "bg-neutral-400"}`}
+                style={card.danceStyle ? danceStyleMeta(card.danceStyle).fill : undefined}
               />
               {card.danceStyle?.name ?? "不限舞種"}
             </span>

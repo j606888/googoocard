@@ -3,6 +3,7 @@ import {
   CalendarDays,
   CreditCard,
   GraduationCap,
+  Home,
   Users,
   Boxes,
   DollarSign,
@@ -22,8 +23,12 @@ export interface NavLink {
   href: string;
 }
 
+/** Where a signed-in member with a classroom lands: the 今天 page. */
+export const HOME_PATH = "/today";
+
 /** Always-visible priority destinations (mobile bottom bar). */
 export const PRIMARY_LINKS: NavLink[] = [
+  { name: "今天", icon: Home, href: HOME_PATH },
   { name: "課程", icon: BookOpenText, href: "/lessons" },
   { name: "學生", icon: Users, href: "/students" },
   { name: "收入", icon: DollarSign, href: "/income" },

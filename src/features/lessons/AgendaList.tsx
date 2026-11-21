@@ -14,7 +14,7 @@ import type { AgendaRow } from "./useLessonAgenda";
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 /** 補零、等寬：「11/05（四）」。一整欄的日期和星期才會對齊。 */
-const dateLabel = (date: Date) => `${format(date, "MM/dd")}（${WEEKDAYS[date.getDay()]}）`;
+const dateLabel = (date: Date) => `${format(date, "M/d")}（${WEEKDAYS[date.getDay()]}）`;
 
 const statusFor = ({ period, state }: AgendaRow, now: Date) => {
   if (state === "overdue") return { text: "還沒點名", className: "text-warning-900" };
@@ -69,7 +69,7 @@ const AgendaItem = ({ row, now, showLocation }: { row: AgendaRow; now: Date; sho
       <span className="text-[13px] text-neutral-600">已點名</span>
     ) : (
       <Button asChild size="sm" variant={state !== "upcoming" || isToday ? "primary" : "secondary"}>
-        <Link href={checkHref}>點名</Link>
+        <Link href={checkHref}>{state === "overdue" && !isToday ? "補點名" : "點名"}</Link>
       </Button>
     );
 
@@ -148,7 +148,10 @@ const AgendaList = ({
 }) => (
   <section aria-labelledby="agenda-heading" className="flex flex-col gap-2.5">
     <h2 id="agenda-heading" className="text-[15px] font-bold text-neutral-900">
-      接下來 <span className="text-[13px] font-normal text-neutral-600">7 天內</span>
+      接下來{" "}
+      <span className="text-[13px] font-normal text-neutral-600">
+        {rows.some((row) => row.state === "overdue") ? "還沒點名的排最前面 · 之後 7 天" : "7 天內"}
+      </span>
     </h2>
     {isLoading ? (
       <div aria-busy="true" className="flex flex-col gap-2">

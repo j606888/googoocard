@@ -105,6 +105,7 @@ const TeacherList = () => {
         {active.length === 0 && tab === "active" ? (
           <EmptyState
             kind="page"
+            pose="proud"
             title="還沒有老師"
             description="先新增老師，開課時才能指定誰來教。"
           />

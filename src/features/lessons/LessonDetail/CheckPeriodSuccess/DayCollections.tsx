@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Banknote } from "lucide-react";
 import { formatMoney } from "@/lib/money";
 import { formatCardSerial } from "@/lib/cardSerial";
+import { toTaipeiDateKey } from "@/lib/taipei-date";
 import { useGetDayCollectionsQuery } from "@/store/slices/students";
 import { useGetMeQuery } from "@/store/slices/me";
 import ConfirmPaymentDrawer, {
@@ -24,20 +25,33 @@ const DayCollections = ({ date }: { date: string }) => {
 
   if (!data || (data.collected.length === 0 && data.unpaid.length === 0)) return null;
 
+  const isToday = date === toTaipeiDateKey(new Date());
   const myCash = data.collected.find(
     (c) => c.receiverUserId === me?.id && c.paymentMethod === "CASH"
   );
 
   return (
     <section className="flex w-full flex-col gap-3 rounded-2xl border border-neutral-200 p-4">
-      <h3 className="flex items-center gap-2 font-semibold">
-        <Banknote className="h-5 w-5 text-primary-700" />
-        今日收款
-      </h3>
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="flex items-center gap-2 font-semibold">
+          <Banknote className="h-5 w-5 shrink-0 self-center text-primary-700" />
+          {isToday ? "今天實際收到的錢" : `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))} 收到的錢`}
+        </h3>
+        {data.collected.length > 0 && (
+          <span className="text-xl font-bold tabular-nums text-primary-900">
+            ${formatMoney(data.collectedTotal)}
+          </span>
+        )}
+      </div>
+      {/* 兩個數字並排卻不一樣，沒講清楚的話每次都會被問。 */}
+      <p className="rounded-xl bg-neutral-50 px-3 py-2 text-xs leading-[17px] text-neutral-700">
+        「這堂收入」是出席的人各扣一堂的價值；這裡是整間教室{isToday ? "今天" : "這一天"}
+        買卡、付單堂實際收到的錢{data.collectedCount > 0 ? `（共 ${data.collectedCount} 筆）` : ""}。
+      </p>
 
       {myCash && (
         <div className="rounded-xl bg-neutral-50 px-4 py-3">
-          <p className="text-xs text-neutral-500">你今天收到現金</p>
+          <p className="text-xs text-neutral-600">你{isToday ? "今天" : "這一天"}收到現金</p>
           <p className="text-2xl font-bold">${formatMoney(myCash.total)}</p>
           <p className="text-xs text-neutral-500">共 {myCash.count} 筆 · 跟手上的錢對一下</p>
         </div>

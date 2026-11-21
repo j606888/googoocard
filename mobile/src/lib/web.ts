@@ -28,7 +28,10 @@ export const INJECT_BEFORE_LOAD = `(function () {
 })(); true;`;
 
 // 分頁的首頁。從「待處理」、「更多」推進來的網頁一走到這些頁面（多半是網頁的返回鍵），就關掉回分頁
-export const TAB_ROOTS = ['/', '/lessons', '/students', '/income'] as const;
+export const TAB_ROOTS = ['/', '/today', '/lessons', '/students', '/income'] as const;
+
+// 網頁的路徑 → App 的分頁。今天頁在網站是 /today，在 App 是第一個分頁（/）
+export const tabRouteOf = (tabRoot: string) => (tabRoot === '/today' ? '/' : tabRoot);
 
 export const isSameSite = (url: string) => url.startsWith(API_URL);
 

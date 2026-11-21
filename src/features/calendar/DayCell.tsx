@@ -75,9 +75,8 @@ const DayCell = ({
         {dots.map((p) => (
           <span
             key={p.periodId}
-            className={`w-1.5 h-1.5 rounded-full ${
-              selected ? "bg-white/90" : danceStyleMeta(p.danceStyle).dot
-            }`}
+            className={`w-1.5 h-1.5 rounded-full ${selected ? "bg-white/90" : ""}`}
+            style={selected ? undefined : danceStyleMeta(p.danceStyle).fill}
           />
         ))}
         {extraDots > 0 && (
@@ -111,10 +110,17 @@ const DayCell = ({
               className={`flex items-center gap-1.5 min-w-0 rounded-sm px-1.5 py-0.5 text-xs leading-snug ${
                 state === "due"
                   ? "bg-white text-warning-950 ring-[1.5px] ring-inset ring-warning-400"
-                  : `${style.badge} ${state === "taken" ? "opacity-60" : ""}`
+                  : state === "taken" ? "opacity-60" : ""
               }`}
+              style={state === "due" ? undefined : style.chip}
             >
-              <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${style.dot}`} />
+              {/* 舞種縮寫：格子窄、課名放不下，靠顏色＋縮寫分辨舞種 */}
+              <span
+                className="shrink-0 rounded-[3px] px-1 text-[10px] font-semibold leading-4"
+                style={{ ...style.fill, ...style.onFill }}
+              >
+                {style.abbr}
+              </span>
               <span className="shrink-0 tabular-nums opacity-80">
                 {format(new Date(p.startTime), "HH:mm")}
               </span>

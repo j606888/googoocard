@@ -65,8 +65,11 @@ export const StyleBars = ({ attendances }: { attendances: StudentAttendance[] })
           </span>
           <span className="block h-2 rounded-full bg-neutral-100 overflow-hidden">
             <span
-              className={`block h-full rounded-full ${style ? danceStyleMeta(style).dot : "bg-neutral-400"}`}
-              style={{ width: `${Math.max(4, Math.round((count / max) * 100))}%` }}
+              className={`block h-full rounded-full ${style ? "" : "bg-neutral-400"}`}
+              style={{
+                ...(style ? danceStyleMeta(style).fill : {}),
+                width: `${Math.max(4, Math.round((count / max) * 100))}%`,
+              }}
             />
           </span>
           <span className="text-right tabular-nums text-neutral-700">{count}</span>

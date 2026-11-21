@@ -15,12 +15,13 @@ const periodSelect = {
   startTime: true,
   endTime: true,
   attendanceTakenAt: true,
-  attendanceRecords: { select: { studentId: true } },
+  attendanceRecords: { select: { studentId: true, source: true } },
   lesson: {
     select: {
       id: true,
       name: true,
       kind: true,
+      groupId: true,
       danceStyle: { select: danceStyleSummarySelect },
       location: { select: locationSummarySelect },
       teachers: { select: { teacher: { select: teacherSummarySelect } }, orderBy: { id: "asc" } },
@@ -29,6 +30,33 @@ const periodSelect = {
     },
   },
 } as const;
+
+/**
+ * 「第幾期」：同一個課種的各期照第一堂的開始日由舊到新排，沒排時段的排最後——
+ * 跟前端的 `termNumbers()`（`src/features/lessons/termLabels.ts`）同一套排法。
+ * 沒歸課種的課不在回傳的 Map 裡。
+ */
+async function termNumbersFor(classroomId: number, groupIds: (number | null)[]) {
+  const ids = [...new Set(groupIds.filter((id): id is number => id !== null))];
+  const numbers = new Map<number, number>();
+  if (ids.length === 0) return numbers;
+  const terms = await prisma.lesson.findMany({
+    where: { classroomId, groupId: { in: ids } },
+    select: {
+      id: true,
+      groupId: true,
+      periods: { select: { startTime: true }, orderBy: { startTime: "asc" }, take: 1 },
+    },
+  });
+  const startOf = (term: (typeof terms)[number]) => term.periods[0]?.startTime.getTime() ?? Infinity;
+  const count = new Map<number, number>();
+  for (const term of [...terms].sort((a, b) => startOf(a) - startOf(b) || a.id - b.id)) {
+    const n = (count.get(term.groupId!) ?? 0) + 1;
+    count.set(term.groupId!, n);
+    numbers.set(term.id, n);
+  }
+  return numbers;
+}
 
 /**
  * 課程列表頂端用的時段（進行中的課）：
@@ -105,6 +133,11 @@ export async function getLessonAgenda(classroomId: number, now = new Date(), use
     else orderByLesson.set(p.lessonId, [p.id]);
   }
 
+  const termByLesson = await termNumbersFor(
+    classroomId,
+    periods.map((p) => p.lesson.groupId)
+  );
+
   return {
     myTeacherId: myTeacher?.id ?? null,
     periods: periods.map(({ lesson, attendanceRecords, lessonId, ...period }) => {
@@ -113,10 +146,13 @@ export async function getLessonAgenda(classroomId: number, now = new Date(), use
         ...period,
         number: order.indexOf(period.id) + 1,
         attendeeIds: attendanceRecords.map((r) => r.studentId),
+        selfCheckInCount: attendanceRecords.filter((r) => r.source === "STUDENT").length,
         lesson: {
           id: lesson.id,
           name: lesson.name,
           kind: lesson.kind,
+          groupId: lesson.groupId,
+          termNumber: termByLesson.get(lesson.id) ?? null,
           danceStyle: lesson.danceStyle,
           location: lesson.location,
           teachers: lesson.teachers.map(({ teacher }) => teacher),

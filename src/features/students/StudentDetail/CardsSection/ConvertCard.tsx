@@ -227,7 +227,8 @@ const ConvertCard = ({
                         <span className="font-semibold text-neutral-900">{card.name}</span>
                         {card.isPracticeCard && card.danceStyle && (
                           <span
-                            className={`text-[11px] font-medium px-2 py-px rounded-full ${danceStyleMeta(card.danceStyle).badge}`}
+                            className="text-[11px] font-medium px-2 py-px rounded-full"
+                            style={danceStyleMeta(card.danceStyle).chip}
                           >
                             {card.danceStyle.name} 複習
                           </span>

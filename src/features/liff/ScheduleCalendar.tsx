@@ -203,7 +203,8 @@ export default function ScheduleCalendar({
                       {dotStyles.map((id) => (
                         <span
                           key={id}
-                          className={cn("size-1.5 rounded-full", danceStyleMeta(styles.get(id)).dot, past && "opacity-40")}
+                          className={cn("size-1.5 rounded-full", past && "opacity-40")}
+                          style={danceStyleMeta(styles.get(id)).fill}
                         />
                       ))}
                     </span>
@@ -233,7 +234,7 @@ export default function ScheduleCalendar({
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={cn("size-2 shrink-0 rounded-full", meta.dot)} />
+                      <span className="size-2 shrink-0 rounded-full" style={meta.fill} />
                       <span className="font-semibold text-neutral-900">{p.lessonName}</span>
                       {p.levelLabel && (
                         <span className="rounded-sm bg-neutral-100 px-1.5 py-0.5 text-[11px] font-medium text-neutral-700">

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/EmptyState";
 import { cn } from "@/lib/utils";
 import StudentOption from "./StudentOption";
+import BuyCardDrawer from "../BuyCardDrawer";
 
 /**
  * 點名名單：先「這門課的學生」，再收合的「其他學生」。
@@ -17,6 +18,7 @@ const StudentSelectList = ({
   selectedIds,
   keyword,
   rowTags,
+  cardLines,
   selfCheckInStudentIds = [],
   trialStudentIds = [],
   onToggle,
@@ -28,6 +30,8 @@ const StudentSelectList = ({
   selectedIds: number[];
   keyword: string;
   rowTags: Map<number, RowTag>;
+  /** 學生 id → 「進階6堂 · 扣完剩 3 堂」（伺服器預覽）。 */
+  cardLines: Map<number, string>;
   selfCheckInStudentIds?: number[];
   trialStudentIds?: number[];
   onToggle: (studentId: number) => void;
@@ -55,6 +59,11 @@ const StudentSelectList = ({
 
   const renderRow = (student: Student, inRoster: boolean) => {
     const isChecked = selected.has(student.id);
+    // 名冊外的人多半沒有這堂課能用的卡，整串「沒卡」只是雜訊——勾了才標。
+    const tag = inRoster || isChecked ? rowTags.get(student.id) : undefined;
+    const cardLine = inRoster || isChecked ? cardLines.get(student.id) : undefined;
+    // 勾了卻沒卡：當場就能買（買完引擎會自己挑到那張）。選卡留在點名完成頁。
+    const canBuyNow = isChecked && tag?.tone === "warning" && !cardLine;
     return (
       <StudentOption
         key={student.id}
@@ -64,8 +73,20 @@ const StudentSelectList = ({
         isFirstTime={!inRoster && isChecked}
         isSelfCheckIn={selfCheckInStudentIds.includes(student.id)}
         isTrial={trialStudentIds.includes(student.id)}
-        // 名冊外的人多半沒有這堂課能用的卡，整串「沒卡」只是雜訊——勾了才標。
-        tag={inRoster || isChecked ? rowTags.get(student.id) : undefined}
+        tag={tag}
+        cardLine={cardLine}
+        action={
+          canBuyNow ? (
+            <BuyCardDrawer
+              student={student}
+              trigger={(open) => (
+                <Button variant="secondary" size="sm" onClick={open}>
+                  買卡
+                </Button>
+              )}
+            />
+          ) : undefined
+        }
       />
     );
   };

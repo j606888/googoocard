@@ -1,10 +1,26 @@
-import { periodInfo } from "@/lib/utils";
 import { Period } from "@/store/slices/lessons";
 import { CalendarDays, Clock, TriangleAlert } from "lucide-react";
 import { format, isToday } from "date-fns";
 
+const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+
+/**
+ * 「這是 11/13 的課，不是今天」。手機的新頁首只寫日期，這一行要另外放——
+ * 點名寫到錯的日期已經在 production 發生兩次（docs/roadmap.md P2-2）。今天的課不出現。
+ */
+export const NotTodayWarning = ({ period, className = "" }: { period: Period; className?: string }) =>
+  isToday(new Date(period.startTime)) ? null : (
+    <div className={`flex items-start gap-2 px-1 text-sm font-semibold text-warning-950 ${className}`}>
+      <TriangleAlert className="w-4 h-4 shrink-0 mt-0.5 text-warning-700" />
+      <span>{`這是 ${format(new Date(period.startTime), "M/d")} 的課，不是今天`}</span>
+    </div>
+  );
+
 const PeriodInfo = ({ period }: { period: Period }) => {
-  const { date, startHour, endHour } = periodInfo(period);
+  // 跟手機頁首、今天頁同一種寫法（11/20（五）19:30–21:00），不要這裡突然變成 12 小時制。
+  const start = new Date(period.startTime);
+  const date = `${isToday(start) ? "今天 " : ""}${format(start, "M/d")}（${WEEKDAYS[start.getDay()]}）`;
+  const hours = `${format(start, "HH:mm")}–${format(new Date(period.endTime), "HH:mm")}`;
 
   // 點名寫到錯的日期已經在 production 發生兩次（見 docs/roadmap.md P2-2）：
   // 只要有舊時段沒點名，老師就可能被帶到那一天而不自知。這裡把「不是今天」
@@ -36,20 +52,11 @@ const PeriodInfo = ({ period }: { period: Period }) => {
           }`}
         >
           <Clock className={`w-4 h-4 ${isTodayPeriod ? "text-neutral-400" : "text-warning-700"}`} />
-          <span>{startHour}</span>
-          <span>~</span>
-          <span>{endHour}</span>
+          <span className="tabular-nums">{hours}</span>
         </div>
       </div>
 
-      {!isTodayPeriod && (
-        <div className="flex items-start gap-2 px-1 text-sm font-semibold text-warning-950">
-          <TriangleAlert className="w-4 h-4 shrink-0 mt-0.5 text-warning-700" />
-          <span>
-            {`這是 ${format(new Date(period.startTime), "M/d")} 的課，不是今天`}
-          </span>
-        </div>
-      )}
+      <NotTodayWarning period={period} />
     </div>
   );
 };

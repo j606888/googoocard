@@ -56,7 +56,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
 
   const handleSwitchClassroom = async (classroomId: number) => {
     await switchClassroom({ id: classroomId.toString() });
-    router.push("/lessons");
+    router.push("/today");
     onClose?.();
     setSwitchClassroomOpen(false);
   };
@@ -97,7 +97,6 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           onClick={() => setSwitchClassroomOpen(!switchClassroomOpen)}
           className="relative flex w-full cursor-pointer items-center gap-3 overflow-hidden rounded-2xl bg-primary-900 p-3 text-left text-white shadow-[0_10px_28px_-14px_rgba(27,94,74,0.8)] transition-colors hover:bg-[#17523F]"
         >
-          <KiwiLogo className="pointer-events-none absolute right-[22px] -bottom-3.5 h-[50px] w-16 text-white/[0.08]" />
           <div className="relative flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-lg bg-white/15 font-bold">
             {data ? (
               currentClassroom?.name.slice(0, 1)

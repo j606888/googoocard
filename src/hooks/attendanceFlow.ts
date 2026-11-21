@@ -2,6 +2,7 @@ import type { Student } from "@/store/slices/students";
 import type { Lesson, Period } from "@/store/slices/lessons";
 import { cardStatusFor, type CardStatus } from "@/domains/attendance/rosterInsights";
 import { formatMoney } from "@/lib/money";
+import type { CardPreview } from "@/service/attendancePreview";
 
 /**
  * 點名流程的純推導。全部是純函式，和 React 無關——
@@ -113,3 +114,36 @@ export const attendanceRowTag = ({
   }
   return null;
 };
+
+/**
+ * 點名列第二行：完成點名時會扣哪張卡。答案來自伺服器的預覽
+ * （`GET …/card-preview`，跟引擎同一支選卡），這裡只負責講成一句話。
+ * 沒卡的不講——列尾的「沒卡／資格不符」標籤已經說了。
+ */
+export const rowCardLine = (preview: CardPreview | undefined): string | null => {
+  if (!preview) return null;
+  switch (preview.kind) {
+    case "auto":
+      return `${preview.cardName} · 扣完剩 ${preview.remainingAfter} 堂`;
+    case "covered":
+      return preview.cardName === null
+        ? "已付單堂"
+        : `${preview.cardName} · 已扣，剩 ${preview.remaining} 堂`;
+    case "choose":
+      return `${preview.count} 張卡可用 · 點完再選`;
+    default:
+      return null;
+  }
+};
+
+/**
+ * 頁首的「5 / 8 人到了」。分母是名冊加上勾了的名冊外學生——
+ * 只拿名冊當分母，臨時來的人一勾就會變成 9 / 8。
+ */
+export const attendanceProgress = (
+  selectedIds: number[],
+  rosterIds: number[]
+): { arrived: number; expected: number } => ({
+  arrived: selectedIds.length,
+  expected: new Set([...rosterIds, ...selectedIds]).size,
+});

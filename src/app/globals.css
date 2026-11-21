@@ -75,22 +75,39 @@
     --color-primary-100: #E3F7F0;
     --color-primary-50:  #F1FAF6;
 
-    /* Warning Colors — brand orange ramp. 100/500/600/900 are the original
-       brand anchors; the rest are interpolated to fill the scale so amber-*
-       usages can migrate to warning-* (note: brand orange, not Tailwind amber
-       yellow — a small intentional hue shift). */
-    --color-warning-50:  #FFF9F3;
-    --color-warning-100: #FFF3E9;
-    --color-warning-200: #FCE0C8;
-    --color-warning-300: #F9C9A0;
-    --color-warning-400: #F6B377;
-    --color-warning-500: #F4A15E;
-    --color-warning-600: #EF9349;
-    --color-warning-700: #D87A2C;
-    --color-warning-800: #C96C1E;
-    --color-warning-900: #BC5F15;
-    /* Text on warning-50/100 tints (需續約 tags). 900 only reaches 4.0:1 there. */
-    --color-warning-950: #8A4510;
+    /* Warning Colors — amber ramp (2026-11-21). Means「要處理」: 待處理、還沒點名、
+       未付款、需續約. Deliberately yellow, not orange, so it never reads as a
+       dance style (the orange dance-style key has its own dance-orange-* below). */
+    --color-warning-50:  #FFFBEB;
+    --color-warning-100: #FFF6D9;
+    --color-warning-200: #FDEAB0;
+    --color-warning-300: #F9D978;
+    --color-warning-400: #F5C542;
+    --color-warning-500: #F0B323;
+    --color-warning-600: #DE9E0E;
+    --color-warning-700: #B88004;
+    --color-warning-800: #946500;
+    --color-warning-900: #7A5300;
+    /* Text on warning-50/100 tints. */
+    --color-warning-950: #5E3F00;
+
+    /* The orange dance-style palette key — the old brand orange, kept apart
+       from warning-* so a style coloured orange never looks like a to-do. */
+    --color-dance-orange-100: #FFF3E9;
+    --color-dance-orange-500: #F4A15E;
+    --color-dance-orange-600: #EF9349;
+    --color-dance-orange-900: #BC5F15;
+
+    /* Accent — the kiwi's coral (from the preset student avatars). Means
+       「現在／今天／要注意」: the next-lesson pill, today's period, the mascot.
+       500 is a fill only (white text fails on it); text goes 900/950 on 50/100. */
+    --color-accent-50:  #FFF1EB;
+    --color-accent-100: #FFE4DA;
+    --color-accent-200: #FFD9CC;
+    --color-accent-500: #FF8A65;
+    --color-accent-600: #E86A4B;
+    --color-accent-900: #8F2D14;
+    --color-accent-950: #7A2410;
 
     /* Success Colors — values mirror Tailwind green-* so migrating existing
        `*-green-*` utilities to `*-success-*` is a visual no-op. */

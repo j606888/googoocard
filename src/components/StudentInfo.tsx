@@ -1,4 +1,4 @@
-import Image from "next/image";
+import StudentAvatar from "@/components/StudentAvatar";
 import { useRouter, usePathname } from "next/navigation";
 import { studentDetailHref } from "@/lib/studentNav";
 
@@ -23,7 +23,7 @@ const StudentInfo = ({
       className={`flex items-center gap-2 cursor-pointer ${className}`}
       onClick={() => studentId && router.push(studentDetailHref(studentId, pathname))}
     >
-      <Image
+      <StudentAvatar
         className={`rounded-full`}
         width={imageSize}
         height={imageSize}
