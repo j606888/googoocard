@@ -1,12 +1,15 @@
-import { TABS } from ".";
+import { TABS, FINANCE_TAB } from ".";
 import SegmentedTabs from "@/components/SegmentedTabs";
 
 const LessonTabs = ({
   activeTab,
   onTabChange,
+  showFinance = false,
 }: {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  /** 財務開啟時多一個「分帳」分頁。 */
+  showFinance?: boolean;
 }) => {
   return (
     <div className="px-5 py-3">
@@ -17,7 +20,7 @@ const LessonTabs = ({
         className="border-b border-neutral-200"
         value={activeTab}
         onChange={onTabChange}
-        options={TABS.map((tab) => ({ value: tab.query, label: tab.name }))}
+        options={[...TABS, ...(showFinance ? [FINANCE_TAB] : [])].map((tab) => ({ value: tab.query, label: tab.name }))}
       />
     </div>
   );

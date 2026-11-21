@@ -13,6 +13,7 @@ import {
   type LucideIcon,
   MapPin,
   Settings,
+  Landmark,
 } from "lucide-react";
 
 export interface NavLink {
@@ -39,6 +40,13 @@ export const SECONDARY_LINKS: NavLink[] = [
   { name: "課卡", icon: CreditCard, href: "/cards" },
   { name: "老師", icon: GraduationCap, href: "/teachers" },
 ];
+
+/** 財務：教室開了財務（有分部設了轉換日）才出現（finance-lite）。 */
+export const FINANCE_LINK: NavLink = { name: "財務", icon: Landmark, href: "/finance" };
+
+/** The secondary destinations for this classroom — 財務 joins them once finance is enabled. */
+export const secondaryLinksFor = (financeEnabled: boolean): NavLink[] =>
+  financeEnabled ? [...SECONDARY_LINKS, FINANCE_LINK] : SECONDARY_LINKS;
 
 /**
  * 教室設定: set up once, rarely touched. One entry in the nav; the pages keep

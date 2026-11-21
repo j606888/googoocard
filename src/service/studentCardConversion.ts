@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { inheritCardLocationsInTx } from "@/service/finance/cardLocation";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { nextCardSerial } from "@/service/studentCardSerial";
 import { residualValueOf } from "@/domains/cardConversion";
@@ -76,6 +77,8 @@ export async function performConversion({
         purchaseSource: "STAFF",
         purchasedByUserId: actorUserId ?? null,
         origin: "CONVERSION",
+        // finance-lite：錢還是原本那筆錢，分部跟著舊卡。
+        ...(await inheritCardLocationsInTx(tx, sourceCard.id)),
         note: targetNote,
         // 轉換沒有金流，直接視為已付清，否則會跑進未付款催收清單。
         isPaid: true,

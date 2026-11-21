@@ -879,3 +879,14 @@ npm run db:status            # 確認全部 applied、無 pending
 > `migrate resolve --applied` 只寫 `_prisma_migrations` 紀錄、**不執行** SQL，因此對既有
 > 資料零影響；這是 Prisma 官方把「db push 過的庫」接回 migration 流程的標準做法。
 > 之後的部署就回到單純 `npm run db:deploy` 即可，不需再 baseline。
+
+## 財務（輕量版，finance-lite）
+
+規格與決策：[`docs/finance-lite.md`](finance-lite.md)。取代沒合併的 `feat/finance-v2`（會計帳本）。只回答「每堂課的錢怎麼分」和「分部之間誰欠誰」。
+
+- **開關**：某個分部設了 `Location.financeStartAt`（轉換日）＝教室開了財務（導覽列「財務」、課程頁「分帳」）。分部負責人 `Location.keeperUserId`＝那個分部的錢在他手上。兩者只有管理員能改（`/finance/settings`，入口也在教室設定 → 分部）。
+- **卡的分部**：`StudentCard.moneyLocationId`（錢在哪）／`homeLocationId`（到期歸誰）。建卡時 `createStudentCardInTx` 用 `defaultCardLocationIdInTx()` 帶預設（課堂 → 收款人是負責人 → 名冊分部 → 唯一分部）；轉換／轉讓沿用舊卡（`inheritCardLocationsInTx`）。舊資料用 `scripts/finance-lite-backfill.mjs` 補。
+- **每堂**（`src/service/finance/period.ts`）：收入＝扣的格數 × 每格價值＋單堂；依錢的分部分堆；規則（`LessonSplitRule`／`PeriodSplitOverride`，引擎 `src/domains/finance/split.ts`）分出老師、場地、公積金，剩下的預設 `holder`＝留給卡錢的分部；`src/domains/finance/flows.ts` 算分部之間的往來。只有點了名、過了開課分部轉換日的堂才算。
+- **結清**：`PeriodSettlement` 存快照（之後改點名或規則不變，畫面標「結清後有改動」）；已結清的時段不能刪（409 `PERIOD_SETTLED`）。付款人要是某個分部的負責人。
+- **往來**（`src/service/finance/balance.ts`）：不存餘額，每次從結清快照＋卡到期（錢的分部 ≠ 卡的分部）＋`BranchTransfer` 加總。
+- **權限**：看＝所有成員；改規則、結清、場地、轉帳、卡的分部＝管理員＋分部負責人（`assertCanManageFinance`）。

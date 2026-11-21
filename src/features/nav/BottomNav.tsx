@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { MoreHorizontal } from "lucide-react";
-import { ACCOUNT_LINK, PRIMARY_LINKS, SECONDARY_LINKS, isSettingsPath } from "./navConfig";
+import { ACCOUNT_LINK, PRIMARY_LINKS, isSettingsPath, secondaryLinksFor } from "./navConfig";
+import { useFinanceEnabled } from "@/features/finance/useFinanceEnabled";
 import { useGetUnpaidStudentCardsQuery } from "@/store/slices/students";
 import MoreSheet from "./MoreSheet";
 
@@ -14,6 +15,7 @@ const HIDDEN_ON = /^\/lessons\/([^/]+\/periods\/[^/]+\/check(-edit)?|organize|ne
 
 const BottomNav = () => {
   const pathname = usePathname();
+  const financeEnabled = useFinanceEnabled() === true;
   const [moreOpen, setMoreOpen] = useState(false);
 
   const { data: unpaidCards } = useGetUnpaidStudentCardsQuery();
@@ -23,7 +25,7 @@ const BottomNav = () => {
 
   // "More" counts as active on any page it leads to.
   const moreActive =
-    [...SECONDARY_LINKS, ACCOUNT_LINK].some((l) => pathname.startsWith(l.href)) ||
+    [...secondaryLinksFor(financeEnabled), ACCOUNT_LINK].some((l) => pathname.startsWith(l.href)) ||
     isSettingsPath(pathname);
 
   return (

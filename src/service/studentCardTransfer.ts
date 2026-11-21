@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { inheritCardLocationsInTx } from "@/service/finance/cardLocation";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
 import { nextCardSerial } from "@/service/studentCardSerial";
 import { appendNote } from "@/service/studentCardConversion";
@@ -69,6 +70,8 @@ export async function performTransfer({
         purchaseSource: "STAFF",
         purchasedByUserId: actorUserId ?? null,
         origin: "TRANSFER",
+        // finance-lite：錢還是原本那筆錢，分部跟著舊卡。
+        ...(await inheritCardLocationsInTx(tx, sourceCard.id)),
         note: reason,
         // 錢在原卡收過了：視為已付清（不進未付款清單），但沒有收款人。
         isPaid: true,
