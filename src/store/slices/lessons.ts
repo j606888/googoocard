@@ -8,6 +8,7 @@ import type { LocationSummary } from "@/lib/locations";
 import type { CardStatus } from "@/domains/attendance/rosterInsights";
 import type { DanceLevels } from "@/domains/qualification";
 import type { LessonKind } from "@/lib/lessonKind";
+import type { CardPreview } from "@/service/attendancePreview";
 
 export interface Lesson {
   id: number;
@@ -98,10 +99,16 @@ export interface AgendaPeriod {
   number: number;
   /** Students with a record for this period — self check-ins included. */
   attendeeIds: number[];
+  /** How many of those checked themselves in (LINE). */
+  selfCheckInCount: number;
   lesson: {
     id: number;
     name: string;
     kind: LessonKind;
+    /** 課種 — null when the lesson isn't in one. */
+    groupId: number | null;
+    /** 第 N 期 within its 課種 (same order as `termNumbers()`); null without a 課種. */
+    termNumber: number | null;
     danceStyle: DanceStyleSummary;
     /** 分部 — null when not set. */
     location: LocationSummary | null;
@@ -110,6 +117,29 @@ export interface AgendaPeriod {
     studentCount: number;
     totalPeriods: number;
   };
+}
+
+/** One row of GET /lessons/recent — a period whose attendance was taken. */
+export interface RecentPeriod {
+  id: number;
+  startTime: string;
+  endTime: string;
+  attendeeCount: number;
+  /** Same figure as the period summary and the income page (`periodRevenue`). */
+  revenue: number;
+  lesson: {
+    id: number;
+    name: string;
+    danceStyle: DanceStyleSummary;
+    location: LocationSummary | null;
+  };
+}
+
+/** GET /lessons/:id/period-stats — taken periods only. */
+export interface LessonPeriodStats {
+  periods: { periodId: number; attendeeCount: number; revenue: number }[];
+  /** Summed before rounding, so it can differ by a dollar or two from adding up `periods`. */
+  totalRevenue: number;
 }
 
 /** One session (LessonPeriod) as returned by GET /lessons/calendar. */
@@ -298,6 +328,25 @@ const lessonsApi = api.injectEndpoints({
     getLessonAgenda: builder.query<{ periods: AgendaPeriod[]; myTeacherId: number | null }, void>({
       query: () => "lessons/agenda",
       providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
+    }),
+    getRecentPeriods: builder.query<RecentPeriod[], { limit?: number } | void>({
+      query: (args) => `lessons/recent${args?.limit ? `?limit=${args.limit}` : ""}`,
+      providesTags: ["Lesson", "Attendance", "AttendanceRecord", "StudentCard"],
+    }),
+    getLessonPeriodStats: builder.query<LessonPeriodStats, number>({
+      query: (id) => `lessons/${id}/period-stats`,
+      providesTags: ["Lesson", "Attendance", "AttendanceRecord", "StudentCard"],
+    }),
+    // 點名頁每列的「會扣哪張卡」。`extraStudentIds` = 名冊外、這次勾的人（排序過，快取才穩）。
+    getAttendanceCardPreview: builder.query<
+      Record<number, CardPreview>,
+      { id: number; periodId: number; extraStudentIds: number[] }
+    >({
+      query: ({ id, periodId, extraStudentIds }) =>
+        `lessons/${id}/periods/${periodId}/card-preview${
+          extraStudentIds.length > 0 ? `?studentIds=${extraStudentIds.join(",")}` : ""
+        }`,
+      providesTags: ["Lesson", "Student", "StudentCard", "Attendance", "AttendanceRecord"],
     }),
     getCalendarPeriods: builder.query<
       CalendarPeriod[],
@@ -522,6 +571,9 @@ export const {
   useGetLessonQuery,
   useGetCalendarPeriodsQuery,
   useGetLessonAgendaQuery,
+  useGetRecentPeriodsQuery,
+  useGetLessonPeriodStatsQuery,
+  useGetAttendanceCardPreviewQuery,
   useLazyGetAttendanceQuery,
   useLazyCheckStudentCardsQuery,
   useTakeAttendanceMutation,

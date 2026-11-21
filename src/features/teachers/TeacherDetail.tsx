@@ -322,7 +322,7 @@ const LessonsTab = ({
                   href={`/lessons/${lesson.id}`}
                   className="flex items-center gap-3 px-4 py-3.5 hover:bg-neutral-50 lg:px-5"
                 >
-                  <span className={`size-2 shrink-0 rounded-full ${danceStyleMeta(lesson.danceStyle).dot}`} />
+                  <span className="size-2 shrink-0 rounded-full" style={danceStyleMeta(lesson.danceStyle).fill} />
                   <span className="flex-1 truncate font-medium">{lesson.name}</span>
                   <span className="text-sm text-neutral-500">
                     {lesson.status === "inProgress" ? "進行中" : "已結束"}
@@ -347,7 +347,7 @@ const LessonsTab = ({
                 className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3.5 hover:bg-neutral-50 lg:grid lg:grid-cols-[minmax(0,1fr)_110px_120px_100px_16px] lg:px-5"
               >
                 <span className="flex min-w-0 basis-full items-center gap-2.5 lg:basis-auto">
-                  <span className={`size-2 shrink-0 rounded-full ${danceStyleMeta(lesson.danceStyle).dot}`} />
+                  <span className="size-2 shrink-0 rounded-full" style={danceStyleMeta(lesson.danceStyle).fill} />
                   <span className="truncate font-medium">{lesson.name}</span>
                 </span>
                 <span className="text-sm text-neutral-600">{slotOf(lesson) ?? "還沒排時段"}</span>

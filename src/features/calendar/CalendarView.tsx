@@ -174,7 +174,7 @@ const CalendarView = () => {
                   active={activeFilter === key}
                   onClick={() => setStyleFilter(key)}
                 >
-                  <span aria-hidden="true" className={`h-2 w-2 rounded-full ${meta.dot}`} />
+                  <span aria-hidden="true" className="h-2 w-2 rounded-full" style={meta.fill} />
                   {meta.label}
                 </FilterChip>
               ))}

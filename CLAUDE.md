@@ -70,6 +70,7 @@ src/
 ├── app/
 │   ├── (auth)/           # login/, signup/, onboarding/ (route group)
 │   ├── (main)/           # Teacher app (route group with sidebar/BottomNav layout):
+│   │   ├── today/        # 今天 — the landing page after login (next lesson, to-dos, recent periods)
 │   │   ├── lessons/      # Lesson management UI
 │   │   ├── cards/        # Student card (payment package) UI
 │   │   ├── students/     # Student management UI
@@ -113,7 +114,7 @@ mobile/                   # Teacher iOS App (Expo) — own package.json/tsconfig
 - `Classroom` — top-level container; all other entities belong to one. Users track a `currentClassroomId` for multi-classroom context switching. Deletion is a **soft delete** (`deletedAt`) — see "教室生命週期與角色" in `docs/architecture.md`.
 - `Membership` — (user, classroom, role) join. `role` (`src/lib/roles.ts`): `"owner"` (creator, one per classroom) and `"admin"` are 管理員 — they invite (with a role), change roles and remove members (`assertAdmin()`); `"teacher"` (老師) and `"assistant"` (小幫手) can do everything else, income and card prices included. Every member, whatever the role, is linked to exactly one `Teacher` (person) row — see `Teacher` below. "My lessons" = lessons the linked `Teacher` teaches **or assists** — the lessons list's 下一堂／上課中 hero prefers them. Only the owner deletes or transfers a classroom; everyone else can leave. `decodeAuthToken()` re-reads this row on **every** request, so removals take effect immediately — don't bypass it.
 - `Student` — enrolled in a classroom
-- `DanceStyle` — a classroom's own dance style (`name`, palette-key `color`, `hasLevels`, `sortOrder`, `archivedAt`), managed on `/dance-styles`. Replaced the old `DanceType` enum (2026-10). Archived, never deleted. Validate any incoming `danceStyleId` with `findDanceStyleInClassroom()` (`src/lib/authz.ts`).
+- `DanceStyle` — a classroom's own dance style (`name`, `color` = palette key or custom `#rrggbb`, optional `abbreviation` (1–3 chars, else the name's first two), `hasLevels`, `sortOrder`, `archivedAt`), managed on `/dance-styles`. Replaced the old `DanceType` enum (2026-10). Archived, never deleted. Validate any incoming `danceStyleId` with `findDanceStyleInClassroom()` (`src/lib/authz.ts`).
 - `StudentDanceQualification` — (studentId, danceStyleId, level) rows: the highest level (1 初階 / 2 中階 / 3 進階, `src/lib/danceLevels.ts`) a student has completed in a dance style. Level ≥ 1 = may buy practice cards; a practice card is usable only in lessons with `Lesson.level` ≤ that level — **only when the style `hasLevels`**; otherwise every level counts as 1. APIs expose both `danceQualifications: number[]` (style ids) and `danceLevels: { [danceStyleId]: level }`.
 - `Card` — configurable card type (session limit, price). `isTrial` = 體驗課卡: registered by the teacher on the lesson page's 體驗名單 (`src/service/trialRoster.ts`), never sold at self check-in; default price $0 for 舊生 = anyone who bought a non-trial card (`src/lib/trialPrice.ts`). `isPracticeCard` + `danceStyleId` define a practice (複習) card; `danceStyleId` is required for practice cards, `null` on general cards (and on legacy practice cards, which fall back to the lesson's style).
 - `StudentCard` — a student's instance of a Card (tracks `remainingSessions`, `expiredAt`). Create one only via `createStudentCardInTx()` (`src/service/studentCard.ts`). Confirming payment records `paymentMethod` / `paymentReference` and the receiver (`paidByUserId` = who holds the money) — see "收款" in `docs/architecture.md`. `serialNumber` is a per-classroom sequence shown as `#A0001`…`#A9999` → `#B0001` (`src/lib/cardSerial.ts`); issue it only via `nextCardSerial(tx, classroomId)` (`src/service/studentCardSerial.ts`) inside the creating transaction — there is no DB unique constraint. Conversion rules (value-based default sessions, unpaid cards blocked) live in `src/domains/cardConversion`; a card's remaining sessions can also be transferred whole to another student (`origin = TRANSFER`, `transferredToId` on the old card) — see "課卡轉換" / "課卡轉讓" / "卡片編號" in `docs/architecture.md`. Revenue/collection stats count only `origin = PURCHASE`.
@@ -138,7 +139,7 @@ Enforcement (full matrix in `docs/architecture.md`):
 - Attaching a practice card of another dance type to a lesson → API 400 + filtered out of the lesson card select.
 - Manual card consumption (consume route) is intentionally never blocked.
 
-**Dance styles are classroom data, not code**: a classroom adds/renames/archives its styles on `/dance-styles` (new classrooms start with none). Never hardcode a style name or id; everything (qualification toggles, badges, filters, validation) is data-driven. Embed styles in responses via `danceStyleSummarySelect` (`src/lib/danceStyles.ts`), and map colours only through `danceStyleMeta()` (`src/lib/danceStyleColors.ts`).
+**Dance styles are classroom data, not code**: a classroom adds/renames/archives its styles on `/dance-styles` (new classrooms start with none). Never hardcode a style name or id; everything (qualification toggles, badges, filters, validation) is data-driven. Embed styles in responses via `danceStyleSummarySelect` (`src/lib/danceStyles.ts`), and map colours only through `danceStyleMeta()` (`src/lib/danceStyleColors.ts`) — it returns inline-style tones (`fill`/`onFill`/`tint`/`ink`/`edge`/`chip`, used as `style={meta.fill}`) plus `abbr`, because a custom hex can't be a static Tailwind class. The picker offers `DANCE_STYLE_PRESETS` (no orange/red — they read as 警告／錯誤) plus 自訂.
 
 ### Attendance Card Selection Logic
 
@@ -169,6 +170,8 @@ Unresolved attendance cases surface as `uncheckedType` on the `AttendanceRecord`
 ### Design system
 
 Being redesigned (2026-10-29) — the old written spec was removed; colour tokens in `src/app/globals.css` remain until the new palette replaces them. Still reuse the shared components (`Button`, `Field`, `EmptyState`, `Skeleton`, `StatusTag`…) rather than hand-rolling one.
+
+**Kiwi mascot**: `KiwiMascot` (`src/components/KiwiMascot.tsx`, `pose="wave" | "dance" | …`) draws the full-colour kiwi from `public/images/kiwi/` (sources in `design/kiwi/svg/`, open its `index.html` to see all 18 poses). It is an illustration only — the logo stays the one-colour `KiwiLogo`. `EmptyState` takes a `pose` (`page` and `filtered` kinds); pick one that fits what is missing.
 
 ### Mobile-First, but not 480px-only
 

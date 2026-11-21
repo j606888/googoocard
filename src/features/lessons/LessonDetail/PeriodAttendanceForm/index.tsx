@@ -10,7 +10,8 @@ import StudentSelectList from "./StudentSelectList";
 import Searchbar from "./Searchbar";
 import CreateStudent from "./CreateStudent";
 import AttendanceReview from "./AttendanceReview";
-import PeriodInfo from "./PeriodInfo";
+import PeriodInfo, { NotTodayWarning } from "./PeriodInfo";
+import AttendanceHeader from "./AttendanceHeader";
 import PeriodAttendanceSkeleton from "./PeriodAttendanceSkeleton";
 import { useAttendanceFlow } from "@/hooks/useAttendanceFlow";
 import { useSizeClass } from "@/hooks/useMediaQuery";
@@ -55,6 +56,8 @@ const PeriodAttendanceForm = ({
     otherStudents,
     allRosterStudents,
     rowTags,
+    cardLines,
+    progress,
     keyword,
     search,
     addStudent,
@@ -75,7 +78,10 @@ const PeriodAttendanceForm = ({
       >
         <ArrowLeft className="w-5 h-5" />
       </Link>
-      <h1 className="text-xl font-bold text-neutral-900">點名</h1>
+      <h1 className="text-xl font-bold text-neutral-900">
+        點名
+        {lesson?.name && <span className="ml-2 font-semibold text-neutral-600">{lesson.name}</span>}
+      </h1>
     </div>
   );
 
@@ -121,6 +127,7 @@ const PeriodAttendanceForm = ({
       selectedIds={selectedIds}
       keyword={keyword}
       rowTags={rowTags}
+      cardLines={cardLines}
       selfCheckInStudentIds={selfCheckInStudentIds}
       trialStudentIds={trialStudentIds}
       onToggle={toggleStudent}
@@ -184,9 +191,18 @@ const PeriodAttendanceForm = ({
 
   return (
     <>
-      <SubNavbar title={"點名"} backUrl={`/lessons/${id}`} />
+      <AttendanceHeader
+        backUrl={`/lessons/${id}`}
+        lessonName={lesson?.name ?? ""}
+        period={period}
+        arrived={progress.arrived}
+        expected={progress.expected}
+      />
       <div className="px-5 pt-4 pb-32 flex flex-col gap-3">
-        <PeriodInfo period={period} />
+        <NotTodayWarning
+          period={period}
+          className="rounded-2xl border border-warning-300 bg-warning-50 px-4 py-3"
+        />
         {searchbar}
         {list}
       </div>

@@ -92,7 +92,7 @@ const QualificationLevels = ({
         return (
           <div key={danceStyle.id} className="flex items-center gap-3">
             <div className={`${dense ? "w-20" : "w-24"} flex items-center gap-2 shrink-0 min-w-0`}>
-              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${meta.dot}`} />
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={meta.fill} />
               <span className="text-sm font-medium truncate" title={meta.label}>
                 {meta.label}
               </span>

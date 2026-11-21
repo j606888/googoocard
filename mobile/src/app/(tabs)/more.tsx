@@ -142,6 +142,7 @@ export default function MoreScreen() {
         )}
 
         <Section title={current ? `「${current.name}」` : '網站'}>
+          <Row title="待處理" icon="checklist" onPress={() => router.push('/todos')} chevron />
           {PAGES.map((p) => (
             <Row key={p.path} title={p.title} icon={p.icon} onPress={() => openWeb(p.path)} chevron />
           ))}

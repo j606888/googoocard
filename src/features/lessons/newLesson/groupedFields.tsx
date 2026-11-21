@@ -309,7 +309,7 @@ export const DanceStyleGroup = ({
 }) => {
   const { styles } = useDanceStyles();
   const dot = (style: (typeof styles)[number]) => (
-    <span className={`size-2 shrink-0 rounded-full ${danceStyleMeta(style).dot}`} />
+    <span className="size-2 shrink-0 rounded-full" style={danceStyleMeta(style).fill} />
   );
   if (styles.length > 0 && styles.length <= 4 && danceStyleId !== null) {
     return (

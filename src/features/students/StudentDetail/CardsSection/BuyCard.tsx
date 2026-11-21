@@ -255,7 +255,8 @@ export const BuyCardDialog = ({
                       )}
                       {card.isPracticeCard && card.danceStyle && (
                         <span
-                          className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${danceStyleMeta(card.danceStyle).badge}`}
+                          className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+                          style={danceStyleMeta(card.danceStyle).chip}
                         >
                           {card.danceStyle.name}
                         </span>

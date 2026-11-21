@@ -147,6 +147,26 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 3. 推薦排序：剩餘堂數最少 → 到期日最早 → id 最小（引擎的 `sortRecommended`；GET 分類用 route 裡同規則的 `getRecommendedStudentCard`）
 4. 選中的卡 `remainingSessions -1`；移除點名時 `+1` 退回
 
+### 點名頁與完成頁的畫面（2026-11 重設計）
+
+- **點名頁每列第二行「進階6堂 · 扣完剩 3 堂」來自伺服器**：`GET /api/lessons/[id]/periods/[periodId]/card-preview`
+  （`src/service/attendancePreview.ts`，唯讀）直接用引擎的 `fetchStudentsWithValidCards` ＋ `cardOptionsFor`，
+  回 `auto`（會扣這張、扣完剩幾堂）／`choose`（多張待選，畫面寫「點完再選」不寫數字）／`covered`
+  （這個時段已經扣過，例如自助簽到）／`none`。**前端不要自己算**——扣哪張卡是送出當下伺服器決定的，
+  另寫一份遲早跟引擎分岔，顯示錯的剩餘堂數比不顯示更糟。`tests/api/attendance-card-preview.test.ts`
+  的核心斷言就是「預覽說扣哪張，`takeAttendance` 就真的扣到那張」。名冊與已有紀錄的人一律會算，
+  名冊外這次勾的人由前端帶 `?studentIds=`。
+- **送出前只能買卡，不能選卡**：勾了卻沒卡的列換成珊瑚橘、第二行寫「沒卡 · 可以先點名再補」、多一顆「買卡」（`BuyCardDrawer`，買完引擎自然挑到那張）。
+  送出前選卡要改 `takeAttendance` 的契約（現在只收 `studentIds`），等於動 reconcile，刻意不做；多張卡的照舊在完成頁
+  `PendingStudents` 選。`reconcileAndFinalize`、`CheckPeriod` 的送出前重抓合併這一輪一行都沒改。
+- **手機頁首** `AttendanceHeader`：課名、日期、「5 / 8 人到了」＋進度條（`attendanceProgress()`，分母是名冊 ∪ 已勾，
+  勾名冊外的人不會變成 9 / 8）。「這不是今天的課」警示抽成 `NotTodayWarning`，新頁首下面照樣出現。桌面外殼不變。
+- **完成頁**（`CheckPeriodSuccess`）：手機是綠色頁首＋奇異鳥，剛送出且沒人缺席寫「全員到齊！」
+  （`summaryHeadline()`），並寫「比上一堂多 N 人」（`headcountDeltaLabel()`——上一堂不一定是上週，所以不寫上週）。
+  這堂把卡扣到 0 的人列在「下課前可以提醒續卡」（`renewalCandidates()`，只在最近點名的那一堂出現，
+  因為剩餘堂數是卡現在的數字），當場可買卡。頁尾多「下一堂 HH:mm 點名」（今天還有課時）與「回今天」。
+  待處理格與 `PendingStudents` 照舊——兩個推播的落點就是這一頁。
+
 ### 未解決案例分類（GET，`findUncheckedType`）
 
 點名後 `studentCardId` 為 null 的紀錄會被分類成 `uncheckedType`，由
@@ -175,6 +195,20 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 `LessonPeriod`，所以改期不動紀錄也不動課卡，已點名的時段一樣能改。停課改期因此不必
 刪掉時段重建（那會連同出席一起丟掉）。
 
+## 今天頁（`/today`，2026-11 重設計第一階段）
+
+登入後的落地頁（`HOME_PATH`，`src/features/nav/navConfig.ts`；首頁 redirect、onboarding、切換教室、離開教室都帶到這裡），導覽第一格「今天」。目的是一打開就回答「我是誰、我在哪、現在要做什麼」，而不是先看到整份課程目錄。
+
+- **畫面**：`src/features/today/TodayScreen.tsx`，唯一的 hook 是 `useToday.ts`，純推導在 `today.ts`（有單元測試）。手機與桌面同一棵樹（`docs/ui-responsive.md` L1）：手機是綠色頁首（教室切換＋鈴鐺）壓著主角卡，桌面把同一份內容排成兩欄，教室切換與鈴鐺在側欄所以頁首那一排 `lg:hidden`。
+- **頁首**：問候語（依瀏覽器時刻）＋名字、角色（`roleLabel`）、「今天教 N 堂」（`GET /api/me/lessons`，上完的也算；沒連老師資料的成員不顯示）、下一堂課的分部（資料裡沒有「這個人屬於哪個分部」，所以用主角那堂的；沒課就不顯示）。日期與問候語**掛上之後才算**——伺服器在 UTC，SSR 算出來會跟台北差一天。
+- **主角卡**（`buildToday()`）：有自己的課（教的＋協助的）就只看自己的，沒有才看全教室。上課中還沒點名的 → 不然下一堂。**只有今天的課才給「開始點名」**，別天的只帶去課程頁（點錯日期在 production 出過兩次，見「老師會被帶到哪一個時段」）。資料同課程列表的 `GET /api/lessons/agenda`，這支為此多回 `selfCheckInCount`、`lesson.groupId`、`lesson.termNumber`（第幾期，伺服器照 `termNumbers()` 同一套排法算——今天頁不該為了期數去撈全教室的課）。
+- **還沒點名**：已下課沒點名的全部列在主角卡下面（手機的課程頁已經沒有「接下來」那張表，這裡是唯一看得到的地方）。
+- **待處理那一列**（`todoSummary()`）：數字跟鈴鐺同一個；點下去 `openTodoBell()`（`src/features/TodoBell.tsx`）發一個 window 事件，畫面上看得到的那顆鈴鐺打開（側欄與手機頁首各掛一顆，用 `offsetParent` 分辨）。App 裡鈴鐺是隱藏的，沒人接就 `postMessage('app:todos')` 交給原生待處理頁。
+- **最近上過**：`GET /api/lessons/recent?limit=`（`src/service/recentPeriods.ts`）——最近點過名的時段，帶出席人數與這堂收入（`periodRevenue()`，跟收入頁、點名完成頁同一支），一點就到 `check-success`。
+- **導向守門**：以前寫在 `Navbar` 裡的「沒登入 → `/login`、沒教室 → `/onboarding`」抽成 `src/hooks/useClassroomGuard.ts`，今天頁不掛 `Navbar` 也一樣有。
+- **品牌層**：`globals.css` 多一組 `accent-*`（奇異鳥的珊瑚橘）＝「現在／今天／要注意」；`accent-500` 只當底色，文字用 900/950 配 50/100。課的色塊是 `src/components/DanceStyleTile.tsx`（舞種色＋`seriesInitials()` 的兩個字母）。
+- **奇異鳥插圖**（`KiwiMascot`，全彩、18 個姿勢）：姿勢跟著狀態走，不是裝飾——今天頁頁首今天有課 `wave`／沒課 `sit`（站在珊瑚橘圓底上）、沒排課的卡 `sleep`；這一期頁醒目的那張卡今天 `dance`／忘記點 `surprised`／還沒到 `stand`；點名完成頁全員到齊 `jump`／有人缺席 `happy`／回頭看紀錄 `proud`。單色的 `KiwiLogo` 只留給 logo。
+
 ## 課程型態與「進行中 / 已結束」（2026-10）
 
 `Lesson.status` 只由 `deriveLessonStatus()`（`src/lib/lessonKind.ts`）決定，`refreshLesson()`
@@ -199,6 +233,19 @@ Classroom（頂層容器，所有實體都屬於一間教室）
   底下每門課是一期，「第幾期」照開始日算、不存；沒歸課種的進行中課各自成列，已結束的集中到「未分類」。
   最上面的「我的課／全部」＋分部同時篩兩區，記在 localStorage（`useLessonScope`，key 帶 classroomId）。
   「開課中」沒篩分部時依分部分區（`sectionByLocation`），兩個分部都在開的課種兩區都列。
+  **2026-11 重設計**：手機不再有「接下來」（搬到今天頁，桌面那張表留著，`useSizeClass` 只掛一棵）；
+  課種一列在手機是一張卡（`DanceStyleTile` 色塊、今天有課的標籤、第幾期＋進度條 `ProgressSegments`）。
+  **只有一期在開的課種，整列直接連到那一期**（`direct`），不用先展開再選期；其他期與課種動作
+  （課種頁／開新一期／改名／刪除，手機多一個「排下一堂」）收在列尾的展開鈕。
+- **這一期頁**（`/lessons/[id]` 的手機外殼，2026-11 重設計）：`TermHeader`（回課程、**期切換**——同課種各期的
+  選單，看舊的期從這裡、三格統計、⋯ 裡是課程設定／開新一期／課種頁）＋「時段｜學生」兩個分頁；課程設定不再是分頁。
+  時段是**由舊到新的時間軸**（`buildTimeline()`，`LessonDetail/termPage.ts`）：已點名的列出人數與這堂收入，
+  醒目的那張卡是**今天還沒點名的那一堂**，沒有才是第一個還沒點名的（同 `dueForAttendancePeriodId` 的規則；今天的課是綠框＋奇異鳥），
+  其他已經到了卻沒點名的列有「補點名」；課一長就以那張卡為中心收合（往前 3 堂、往後 4 堂）。
+  底下「其他期」橫向一排（`PastTerms`）。兩個外殼共用 `useTermPage()`：三格統計（`termOverview()`）、
+  每堂收入、同課種各期。收入來自 `GET /api/lessons/[id]/period-stats`（`src/service/lessonStats.ts`，
+  只算已點名的時段、走 `periodRevenue()`；整期收入先加總再取整）。桌面外殼只多了頁首下那一排統計，
+  時段欄維持新到舊＋月份分組。**停課沒有紀錄**（就是改期或刪掉時段），畫面上不顯示。
 - **課種頁**（`/lessons/groups/[id]`，`GroupDetail`）：共幾期、各分部各幾期、開課中／已停；每一期點開看
   上過課的學生（`GET /api/lesson-groups/[id]/students`，`LessonStudent`）。
 - **翻新精靈**（`/lessons/organize`，`OrganizeWizard` + `seriesSuggest.ts`）：把改版前的課整理成課種，
@@ -345,6 +392,11 @@ webhook（`src/app/api/line/webhook/route.ts`）只驗簽章，每個事件交�
 - 未付款**照算營收**（`periodRevenue` 本來就不看 `isPaid`），未付只是應收。
 
 **下課對帳**：`GET /api/student-cards/collections?date=YYYY-MM-DD`（台北）回當天 `paidAt` 的卡依「收款人 × 方式」加總，以及當天有出席、還有未付卡的學生；顯示在點名完成頁（`CheckPeriodSuccess/DayCollections.tsx`）。點名名單（`StudentOption`）另標「未付 $X」「新學員」（`GET /api/students` 的 `unpaidAmount` / `isNewStudent`）。
+
+- **下課對帳的「收到的錢」**（`GET /api/student-cards/collections?date=`）＝當天確認付款的課卡 **＋當天收的單堂費**
+  （`DropInCharge.paidAt`），併成「收款人 × 方式」一列一筆，另回 `collectedTotal`／`collectedCount`。
+  2026-11 以前只算課卡，收單堂現金的人跟畫面對不起來。這個數字是**整間教室那一天**的實收，不是這堂課的；
+  跟旁邊的「這堂收入」（出席的人各扣一堂的價值）是兩回事，完成頁有一行說明。
 
 ## 合併學員
 
@@ -592,8 +644,12 @@ build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
 ### 老師端 iOS App（`mobile/`）
 
 Expo（SDK 57、Expo Router、EAS），架構照 `../dance-note/mobile`，開發規則見 `mobile/AGENTS.md`。
-分頁：**待處理**（原生，`GET /api/todos`）、課程／學生／收入（WebView 開網站）、**更多**（原生：切換教室、
-網站其他頁、通知開關、登出、刪除帳號）。登入畫面也是原生的：email／密碼，加上 Sign in with Apple 與 Google（ID token 交給 `POST /api/auth/oauth`）。
+分頁：**今天**／課程／學生／收入（WebView 開網站；今天＝網站的 `/today`，2026-11 起取代原本第一格的待處理）、
+**更多**（原生：切換教室、待處理、網站其他頁、通知開關、登出、刪除帳號）。
+**待處理**（原生，`GET /api/todos`）改成推進來的頁面 `app/todos.tsx`：今天頁的待處理那一列在 App 裡
+`postMessage('app:todos')`（網頁的鈴鐺在 App 裡是藏的），`WebScreen` 接到就 `router.push('/todos')`；「更多」也有入口。
+圖示上的數字改在每次回到今天分頁時更新（`refreshBadge()`）。今天分頁的安全區底色是深綠、狀態列是淺色字，
+離開分頁換回來。網頁的 `/today` 對到 App 的第一個分頁（`tabRouteOf()`）。登入畫面也是原生的：email／密碼，加上 Sign in with Apple 與 Google（ID token 交給 `POST /api/auth/oauth`）。
 
 **登入**：App 不用 cookie，用 bearer token。
 - `POST /api/login` 帶 `X-Googoocard-Client: app` → body 回 `token`（`generateAppToken`，JWT 有 `app: true`、**沒有 classroomId**），不設 cookie。

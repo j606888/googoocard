@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import StudentAvatar from "@/components/StudentAvatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { format } from "date-fns";
@@ -118,7 +118,7 @@ const AttentionRow = ({
 
   return (
     <li className="flex min-h-15 items-center gap-2.5 py-2 pr-3 pl-3.5">
-      <Image
+      <StudentAvatar
         src={student.avatarUrl}
         alt=""
         width={34}

@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { WebScreen } from '../components/WebScreen';
+import { tabRouteOf } from '../lib/web';
 
 export default function WebPage() {
   const { path } = useLocalSearchParams<{ path?: string }>();
@@ -11,7 +12,7 @@ export default function WebPage() {
   const leave = (tabRoot: string | null) => {
     if (router.canGoBack()) router.back();
     // 網頁要回的是某個分頁的首頁，就切到那個分頁
-    if (tabRoot) router.navigate(tabRoot as '/');
+    if (tabRoot) router.navigate(tabRouteOf(tabRoot) as '/');
   };
 
   return (

@@ -37,7 +37,7 @@ export const CardOrigin = ({ studentCard }: { studentCard: StudentCardWithCard }
   const style = studentCard.card.isPracticeCard ? studentCard.card.danceStyle : null;
   return (
     <span className="flex items-center gap-1.5 text-[13px] text-neutral-500 min-w-0">
-      {style && <span className={cn("size-2 rounded-full shrink-0", danceStyleMeta(style).dot)} aria-hidden />}
+      {style && <span className="size-2 rounded-full shrink-0" style={danceStyleMeta(style).fill} aria-hidden />}
       <span className="truncate">
         {style ? `${style.name} · ` : ""}
         {date} 購買

@@ -443,7 +443,8 @@ function LessonBlock({
       <div className="flex items-center gap-2">
         <span className="font-semibold">{lesson.lessonName}</span>
         <span
-          className={`rounded-full px-2 py-0.5 text-xs font-medium ${danceStyleMeta(lesson.danceStyle).badge}`}
+          className="rounded-full px-2 py-0.5 text-xs font-medium"
+          style={danceStyleMeta(lesson.danceStyle).chip}
         >
           {danceStyleMeta(lesson.danceStyle).label}
         </span>

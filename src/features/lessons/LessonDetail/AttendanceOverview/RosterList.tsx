@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import StudentAvatar from "@/components/StudentAvatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { format } from "date-fns";
@@ -78,7 +78,7 @@ const RosterList = ({ rows }: { rows: RosterRow[] }) => {
             className="flex h-13 items-center gap-2.5 border-t border-neutral-100 px-3.5"
           >
             <span className="flex min-w-0 flex-1 items-center gap-2.5">
-              <Image
+              <StudentAvatar
                 src={row.student.avatarUrl}
                 alt=""
                 width={30}

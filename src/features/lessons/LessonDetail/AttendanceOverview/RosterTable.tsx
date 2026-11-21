@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
+import StudentAvatar from "@/components/StudentAvatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { endOfDay, format, isToday } from "date-fns";
@@ -146,12 +146,12 @@ const RosterTable = ({
                         onClick={() => onViewPeriod(cell.periodId)}
                         className="cursor-pointer rounded px-1 py-0.5 tabular-nums hover:bg-neutral-100 hover:text-primary-700"
                       >
-                        {today ? "今天" : format(new Date(cell.startTime), "MM/dd")}
+                        {today ? "今天" : format(new Date(cell.startTime), "M/d")}
                       </button>
                     ) : today ? (
                       "今天"
                     ) : (
-                      <span className="tabular-nums">{format(new Date(cell.startTime), "MM/dd")}</span>
+                      <span className="tabular-nums">{format(new Date(cell.startTime), "M/d")}</span>
                     )}
                   </th>
                 );
@@ -166,7 +166,7 @@ const RosterTable = ({
                   style={{ width: NAME_COL, minWidth: NAME_COL, maxWidth: NAME_COL }}
                 >
                   <span className="flex items-center gap-2.5">
-                    <Image src={row.student.avatarUrl} alt="" width={28} height={28} className="shrink-0 rounded-full" />
+                    <StudentAvatar src={row.student.avatarUrl} alt="" width={28} height={28} className="shrink-0 rounded-full" />
                     {onOpenStudent ? (
                       <button
                         type="button"

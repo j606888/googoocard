@@ -28,9 +28,9 @@ import { cn } from "@/lib/utils";
 const ALL = 0;
 
 /**
- * 課程列表。兩區、各有標題：
- * - 「接下來」：還沒點名＋上課中＋未來 7 天的時段，要做事的都在這裡。
- * - 「所有課程」：依課種排，展開才看第幾期。
+ * 課程列表。
+ * - 「接下來」（只有桌面）：還沒點名＋上課中＋未來 7 天的時段。手機的這一塊在今天頁。
+ * - 「所有課程」：依課種排，一個課種一張卡，點了直接進正在開的那一期。
  *
  * 最上面的「我的課／全部」與分部同時篩兩區，記在裝置上（`useLessonScope`）。
  * 只掛一棵樹（docs/ui-responsive.md）：手機與桌面差在搜尋的位置與欄位多寡。
@@ -155,6 +155,7 @@ const LessonsList = () => {
 
         {list.hasNoLessons ? (
           <EmptyState
+            pose="sit"
             title="還沒有課程"
             description="建立課程就可以開始上課了！"
             action={
@@ -166,7 +167,8 @@ const LessonsList = () => {
           />
         ) : (
           <>
-            {!(searchOpen && !isExpanded) && (
+            {/* 手機的「接下來」搬到今天頁（/today）了；桌面是排課與巡視用，這張表留著。 */}
+            {isExpanded && (
               <AgendaList
                 rows={agenda.rows}
                 now={agenda.now}
@@ -176,10 +178,9 @@ const LessonsList = () => {
               />
             )}
 
-            <section aria-labelledby="series-heading" className="flex flex-col gap-3">
-              <h2 id="series-heading" className="text-[15px] font-bold text-neutral-900">
-                所有課程
-              </h2>
+            <section aria-label="所有課程" className="flex flex-col gap-3">
+              {/* 手機沒有上面那張「接下來」，這個標題只剩跟「我的課」打架，所以只在桌面出現。 */}
+              {isExpanded && <h2 className="text-[15px] font-bold text-neutral-900">所有課程</h2>}
               {unorganized > 0 && (
                 <button
                   type="button"
@@ -257,6 +258,15 @@ const LessonsList = () => {
                         }}
                       >
                         清除篩選
+                      </Button>
+                    ) : list.tab === "active" && list.counts.inactive > 0 ? (
+                      <Button variant="secondary" size="sm" onClick={() => list.setTab("inactive")}>
+                        看沒在開的 {list.counts.inactive} 門
+                      </Button>
+                    ) : list.tab === "active" ? (
+                      <Button variant="secondary" size="sm" onClick={() => router.push("/lessons/new")}>
+                        <Plus />
+                        新增課程
                       </Button>
                     ) : undefined
                   }

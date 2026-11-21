@@ -150,7 +150,7 @@ const LessonGroup = ({
               href={`/lessons/${lesson.id}`}
               className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm hover:bg-white"
             >
-              <span className={`size-2 shrink-0 rounded-full ${danceStyleMeta(lesson.danceStyle).dot}`} />
+              <span className="size-2 shrink-0 rounded-full" style={danceStyleMeta(lesson.danceStyle).fill} />
               <span className="flex-1 truncate">{lesson.name}</span>
               <span className="shrink-0 text-xs text-neutral-500">{slotLabel(lesson.firstStart) ?? ""}</span>
             </Link>

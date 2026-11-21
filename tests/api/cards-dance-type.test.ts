@@ -45,7 +45,7 @@ describe("Card danceStyleId as a category label for general cards", () => {
 
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.danceStyle).toEqual({ id: zouk, name: "Zouk", color: "slate", hasLevels: false });
+    expect(body.danceStyle).toEqual({ id: zouk, name: "Zouk", color: "slate", abbreviation: null, hasLevels: false });
     const card = await prisma.card.findFirst({ where: { name: "Zouk 8堂" } });
     expect(card?.isPracticeCard).toBe(false);
     expect(card?.danceStyleId).toBe(zouk);

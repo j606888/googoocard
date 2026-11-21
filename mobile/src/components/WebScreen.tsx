@@ -1,5 +1,6 @@
 // 用 WebView 顯示網站的某一頁。登入狀態由 /api/app/web-session 交給 WebView（見 lib/web.ts）
 import * as Linking from 'expo-linking';
+import { router } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 
@@ -37,6 +38,8 @@ export function WebScreen({ path, onLeave }: { path: string; onLeave?: (tabRoot:
       }}
       onMessage={(e) => {
         if (e.nativeEvent.data === 'app:back') onLeave?.(null);
+        // 今天頁的「待處理」那一列：網頁的鈴鐺在 App 裡是藏起來的，改開原生的待處理頁
+        if (e.nativeEvent.data === 'app:todos') router.push('/todos');
       }}
       pullToRefreshEnabled
       // 推進來的頁面用 App 的左緣滑動返回，兩個手勢不要打架

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Bell, ChevronRight } from "lucide-react";
 import {
@@ -27,6 +27,20 @@ import BindAttendanceCardDialog, { type BindCardTarget } from "@/features/BindAt
 const UNPAID_OVERDUE_DAYS = 7;
 
 type Tab = "urgent" | "reminders";
+
+const OPEN_EVENT = "googoocard:open-todos";
+
+/**
+ * Open the 待處理 popover from elsewhere on the page (the 今天 page's summary
+ * row). Several bells can be mounted at once (sidebar + mobile header); only the
+ * one that is actually on screen answers. Returns false when none did — inside
+ * the iOS App the bell is hidden, and the caller hands over to the native list.
+ */
+export const openTodoBell = (): boolean => {
+  const event = new Event(OPEN_EVENT, { cancelable: true });
+  window.dispatchEvent(event);
+  return event.defaultPrevented;
+};
 
 /**
  * 「待處理」（src/service/todos.ts），跟 App 的待處理分頁與推播 badge 同一份資料。
@@ -57,6 +71,21 @@ const TodoBell = ({
     if (urgentCount === undefined || !("setAppBadge" in navigator)) return;
     navigator.setAppBadge(urgentCount).catch(() => {});
   }, [urgentCount]);
+
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const hasUrgent = (urgentCount ?? 0) > 0;
+  const hasReminders = (todos?.reminderCount ?? 0) > 0;
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      // offsetParent is null while the bell is display:none (the other breakpoint's copy).
+      if (!triggerRef.current?.offsetParent) return;
+      event.preventDefault();
+      setTab(hasUrgent || !hasReminders ? "urgent" : "reminders");
+      setOpen(true);
+    };
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_EVENT, onOpen);
+  }, [hasUrgent, hasReminders]);
 
   // 載入中先佔位，免得鈴鐺晚一拍才跳出來。
   if (isLoading) {
@@ -90,6 +119,7 @@ const TodoBell = ({
     <>
       <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger
+          ref={triggerRef}
           data-in-app="hide"
           className={`${className} size-11 rounded-xl flex items-center justify-center cursor-pointer ${
             tone === "onPrimary" ? "hover:bg-white/15" : "hover:bg-neutral-100"

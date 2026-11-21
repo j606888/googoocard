@@ -40,6 +40,16 @@ export type Todos = {
   total: number;
 };
 
+/** 只更新 App 圖示上的數字（要處理的件數），不動畫面。 */
+export async function refreshBadge() {
+  try {
+    const data = await api<Pick<Todos, 'total'>>('/api/todos');
+    await Notifications.setBadgeCountAsync(data.total).catch(() => false);
+  } catch {
+    // 沒網路、沒教室：數字留著上一次的
+  }
+}
+
 export function useTodos() {
   const { epoch } = useSession();
   const [todos, setTodos] = useState<Todos | null>(null);

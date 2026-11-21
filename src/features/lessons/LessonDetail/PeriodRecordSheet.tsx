@@ -131,7 +131,7 @@ const PeriodRecordSheet = ({
         <SideSheetTitle className="text-xl font-bold text-neutral-900 tabular-nums">
           {start && period ? (
             <>
-              {format(start, "MM/dd")}（{WEEKDAYS[start.getDay()]}）
+              {format(start, "M/d")}（{WEEKDAYS[start.getDay()]}）
               <span className="ml-2 text-sm font-normal text-neutral-600">
                 {format(start, "HH:mm")}–{format(new Date(period.endTime), "HH:mm")}
               </span>

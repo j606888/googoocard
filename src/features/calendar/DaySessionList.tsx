@@ -94,7 +94,7 @@ const DaySessionList = ({ day, periods, loading }: DaySessionListProps) => {
                     : "border-neutral-200 hover:border-neutral-300"
                 }`}
               >
-                <div className={`w-1.5 shrink-0 ${style.bg}`} />
+                <div className="w-1.5 shrink-0" style={style.fill} />
                 <div className="flex flex-col gap-1.5 p-3 flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-neutral-600 tabular-nums">
@@ -105,7 +105,8 @@ const DaySessionList = ({ day, periods, loading }: DaySessionListProps) => {
                     )}
                     <LocationBadge location={p.location} className="ml-auto" />
                     <span
-                      className={`${p.location ? "" : "ml-auto "}text-xs font-medium px-2 py-0.5 rounded-full ${style.badge}`}
+                      className={`${p.location ? "" : "ml-auto "}text-xs font-medium px-2 py-0.5 rounded-full`}
+                      style={style.chip}
                     >
                       {style.label}
                     </span>

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PaymentMethod, TodoType } from "@prisma/client";
-import { DANCE_STYLE_COLORS } from "@/lib/danceStyles";
+import { ABBREVIATION_MAX, isDanceStyleColor } from "@/lib/danceStyles";
 import { isExpoPushToken } from "@/lib/expoPush";
 import { ASSIGNABLE_ROLES } from "@/lib/roles";
 import { TEACHER_COLORS, TEACHER_ICONS, TEACHER_KINDS } from "@/lib/teachers";
@@ -163,11 +163,22 @@ export const createClassroomSchema = z.object({
 });
 
 const danceStyleName = z.string().trim().min(1, "請輸入舞種名稱").max(30);
-const danceStyleColor = z.enum(DANCE_STYLE_COLORS);
+const danceStyleColor = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .refine(isDanceStyleColor, "顏色格式不對");
+/** Blank clears it (the name's first two characters are shown instead). */
+const danceStyleAbbreviation = z
+  .string()
+  .trim()
+  .refine((v) => Array.from(v).length <= ABBREVIATION_MAX, `縮寫最多 ${ABBREVIATION_MAX} 個字`)
+  .transform((v) => v || null);
 
 export const createDanceStyleSchema = z.object({
   name: danceStyleName,
   color: danceStyleColor,
+  abbreviation: danceStyleAbbreviation.optional(),
   hasLevels: z.boolean().optional().default(false),
 });
 
@@ -181,6 +192,7 @@ export const reorderDanceStylesSchema = z.object({
 export const updateDanceStyleSchema = z.object({
   name: danceStyleName.optional(),
   color: danceStyleColor.optional(),
+  abbreviation: danceStyleAbbreviation.optional(),
   hasLevels: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
   archived: z.boolean().optional(),

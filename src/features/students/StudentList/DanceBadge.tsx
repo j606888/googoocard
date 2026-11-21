@@ -26,15 +26,16 @@ const DanceBadge = ({
 }) => {
   const meta = danceStyleMeta(style);
   const levelLabel = style.hasLevels ? danceLevelLabel(level) : null;
-  const name = variant === "short" ? Array.from(style.name).slice(0, 2).join("") : style.name;
+  const name = variant === "short" ? meta.abbr : style.name;
   const levelText = levelLabel && (variant === "short" ? levelLabel.charAt(0) : levelLabel);
   const fullLabel = levelLabel ? `${style.name} ${levelLabel}` : style.name;
   return (
     <span
       title={fullLabel}
-      className={`inline-flex shrink-0 items-baseline gap-0.5 rounded-sm font-semibold whitespace-nowrap ${meta.badge} ${
+      className={`inline-flex shrink-0 items-baseline gap-0.5 rounded-sm font-semibold whitespace-nowrap ${
         variant === "short" ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-0.5 text-xs"
       }`}
+      style={meta.chip}
     >
       {name}
       {levelText && <span className="font-medium opacity-90 ml-0.5">{levelText}</span>}

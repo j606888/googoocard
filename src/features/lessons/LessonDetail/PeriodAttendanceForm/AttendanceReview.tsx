@@ -1,4 +1,4 @@
-import Image from "next/image";
+import StudentAvatar from "@/components/StudentAvatar";
 import { X } from "lucide-react";
 import { Student } from "@/store/slices/students";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,7 @@ const AttendanceReview = ({
           </h3>
           {missingRosterStudents.map((student) => (
             <div key={student.id} className="flex items-center gap-2.5">
-              <Image
+              <StudentAvatar
                 className="rounded-full object-cover shrink-0"
                 width={30}
                 height={30}
@@ -75,7 +75,7 @@ const AttendanceReview = ({
                 key={student.id}
                 className="flex h-11 min-w-0 items-center gap-2 rounded-xl bg-primary-50 pl-2.5 pr-1"
               >
-                <Image
+                <StudentAvatar
                   className="rounded-full object-cover shrink-0"
                   width={24}
                   height={24}

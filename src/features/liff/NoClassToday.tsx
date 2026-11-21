@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AlertCircle, CalendarDays, ChevronRight, Clock, CreditCard, Info, Ticket } from "lucide-react";
 import type { ReactNode } from "react";
 import EmptyState from "@/components/EmptyState";
-import KiwiLogo from "@/components/KiwiLogo";
+import KiwiMascot from "@/components/KiwiMascot";
 import LocationBadge from "@/components/LocationBadge";
 import StatusTag from "@/components/StatusTag";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ export default function NoClassToday({ data }: { data: TodayResponse }) {
     <div className="flex min-h-[calc(100vh-4rem)] flex-col gap-6 bg-neutral-50 px-4 pb-8 pt-5">
       <div className="flex items-center gap-3">
         <span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-full bg-primary-100">
-          <KiwiLogo className="w-[30px] text-primary-500" />
+          <KiwiMascot pose="sleepy" className="w-9" />
         </span>
         <div className="flex flex-col gap-0.5">
           <h2 className="text-[17px] font-bold text-neutral-900">今天沒有課</h2>
@@ -128,7 +128,7 @@ function NextLessonCard({ lesson }: { lesson: NextLesson | null }) {
               <p className="truncate text-lg font-bold text-neutral-900">{lesson.lessonName}</p>
               <p className="text-[15px] font-semibold tabular-nums text-neutral-700">{timeRange(lesson)}</p>
               <div className="flex flex-wrap gap-1.5">
-                <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", style.badge)}>{style.label}</span>
+                <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={style.chip}>{style.label}</span>
                 <LocationBadge location={lesson.location} />
               </div>
             </div>
@@ -238,7 +238,7 @@ function Upcoming({ periods }: { periods: UpcomingPeriod[] }) {
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="flex items-center gap-1.5 font-semibold text-neutral-900">
-                  <span aria-hidden className={cn("size-2 shrink-0 rounded-full", danceStyleMeta(p.danceStyle).dot)} />
+                  <span aria-hidden className="size-2 shrink-0 rounded-full" style={danceStyleMeta(p.danceStyle).fill} />
                   <span className="truncate">{p.lessonName}</span>
                 </span>
                 <span className="text-[13px] tabular-nums text-neutral-500">

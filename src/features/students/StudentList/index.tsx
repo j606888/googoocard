@@ -344,7 +344,7 @@ const StudentList = ({ variant = "page", selectedId = null, onSelect, onVisibleC
       }
     />
   ) : (
-    <EmptyState kind="page" title="還沒有學生" description="建立學生後就可以開始上課" />
+    <EmptyState kind="page" pose="wave" title="還沒有學生" description="建立學生後就可以開始上課" />
   );
 
   // 載入中：分區卡和快篩的數字還不知道，畫同樣大小的骨架，資料進來不會跳。
