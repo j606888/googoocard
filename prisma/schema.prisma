@@ -76,6 +76,8 @@ model User {
   teacherProfiles         Teacher[]
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
+  enrolledLessonEnrollments  LessonEnrollment[] @relation("EnrolledLessonEnrollments")
+  confirmedLessonEnrollments LessonEnrollment[] @relation("ConfirmedLessonEnrollments")
 }
 
 model Classroom {
@@ -213,6 +215,7 @@ model Student {
   events              Event[]
   danceQualifications StudentDanceQualification[]
   renewalReminders    RenewalReminder[]
+  lessonEnrollments   LessonEnrollment[]
   // 封存（不是刪除）：名單、自助簽到、LIFF、續卡提醒都看不到；課卡、出席、收入照留，可還原。
   archivedAt          DateTime?
   // 合併學員時，被併掉（封存）的那筆指向保留的學員。純 Int、沒有 FK，只供追查。
@@ -315,6 +318,11 @@ model Lesson {
   // 單堂方案（src/lib/dropInOptions.ts）：[{ name, price, note? }]，最多 4 個。
   // null = 只有 dropInPrice 一個沒名字的價錢。有值時 dropInPrice 永遠 = 第一個方案的價錢。
   dropInOptions         Json?
+  // 報名整期（src/lib/termEnrollment.ts）：開課時講好的整期價與堂數，兩個一起有或一起 null
+  // （null = 不開放整期）。每堂價 = termPrice / termSessions。時段數不能超過 termSessions。
+  termPrice             Int?
+  termSessions          Int?
+  enrollments           LessonEnrollment[]
   // 分部（台南／高雄…）。選填；課卡不分部限定。
   locationId            Int?
   location              Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
@@ -446,6 +454,7 @@ model LessonPeriod {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   attendanceTakenAt DateTime?
+  leaves            PeriodLeave[]
 
   // Daily revenue and the calendar both filter a lesson's periods by date.
   @@index([lessonId, startTime])
@@ -478,6 +487,9 @@ model AttendanceRecord {
   sessionsUsed   Int              @default(1)
   // 這次付單堂（不扣卡）。有它就不算「出席沒綁課卡」。
   dropInCharge   DropInCharge?
+  // 報了整期的人來上這門課：不扣卡、不收錢（收入照 LessonEnrollment 每堂攤）。
+  enrollmentId   Int?
+  enrollment     LessonEnrollment? @relation(fields: [enrollmentId], references: [id])
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -486,6 +498,7 @@ model AttendanceRecord {
   @@unique([lessonPeriodId, studentId])
   @@index([studentId])
   @@index([studentCardId])
+  @@index([enrollmentId])
 }
 
 model InviteToken {
@@ -643,4 +656,46 @@ model DropInCharge {
   paidByUserId       Int?
   paidBy             User?            @relation("ConfirmedDropIns", fields: [paidByUserId], references: [id])
   createdAt          DateTime         @default(now())
+}
+
+// 報名整期：一位學生報這門課（這一期）。錢綁在這一期、不綁在出席——請假、曠課照算收入，
+// 不退費。每堂認列 price / sessions，只認列這門課前 `sessions` 個點過名的時段（照時間排）。
+// 預設抄 Lesson.termPrice / termSessions，老師可以個別改（舊生半價）。見 src/service/termEnrollment.ts。
+model LessonEnrollment {
+  id                Int                @id @default(autoincrement())
+  lessonId          Int
+  lesson            Lesson             @relation(fields: [lessonId], references: [id])
+  studentId         Int
+  student           Student            @relation(fields: [studentId], references: [id])
+  price             Int
+  sessions          Int
+  note              String?
+  enrolledByUserId  Int?
+  enrolledBy        User?              @relation("EnrolledLessonEnrollments", fields: [enrolledByUserId], references: [id])
+  isPaid            Boolean            @default(false)
+  paidAt            DateTime?
+  paidByUserId      Int?
+  paidBy            User?              @relation("ConfirmedLessonEnrollments", fields: [paidByUserId], references: [id])
+  paymentMethod     PaymentMethod?
+  paymentReference  String?
+  attendanceRecords AttendanceRecord[]
+  leaves            PeriodLeave[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([lessonId, studentId])
+  @@index([studentId])
+}
+
+// 整期學生某一堂請假。只存請假；曠課不存（報了整期、點完名、沒出席也沒請假 = 曠課）。
+model PeriodLeave {
+  id             Int              @id @default(autoincrement())
+  enrollmentId   Int
+  enrollment     LessonEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lessonPeriodId Int
+  lessonPeriod   LessonPeriod     @relation(fields: [lessonPeriodId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+
+  @@unique([enrollmentId, lessonPeriodId])
+  @@index([lessonPeriodId])
 }

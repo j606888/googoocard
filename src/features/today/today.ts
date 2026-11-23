@@ -99,11 +99,18 @@ export interface TodoSummary {
 export const todoSummary = (
   todos: Pick<
     Todos,
-    "unpaidCards" | "unpaidDropIns" | "unboundAttendance" | "needsRenewal" | "urgentCount" | "reminderCount"
+    | "unpaidCards"
+    | "unpaidDropIns"
+    | "unpaidEnrollments"
+    | "unboundAttendance"
+    | "needsRenewal"
+    | "urgentCount"
+    | "reminderCount"
   >
 ): TodoSummary | null => {
   if (todos.urgentCount === 0 && todos.reminderCount === 0) return null;
-  const unpaid = todos.unpaidCards.length + (todos.unpaidDropIns?.length ?? 0);
+  const unpaid =
+    todos.unpaidCards.length + (todos.unpaidDropIns?.length ?? 0) + (todos.unpaidEnrollments?.length ?? 0);
   const parts = [
     unpaid > 0 && `${unpaid} 筆未付款`,
     todos.unboundAttendance.length > 0 && `${todos.unboundAttendance.length} 筆點名沒課卡`,

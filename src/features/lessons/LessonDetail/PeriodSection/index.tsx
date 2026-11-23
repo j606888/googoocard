@@ -42,6 +42,7 @@ const PeriodSection = ({
   periods,
   headcounts,
   revenues,
+  termRevenues,
 }: {
   lesson: Lesson;
   periods: Period[];
@@ -49,6 +50,8 @@ const PeriodSection = ({
   headcounts: Map<number, number>;
   /** Revenue per period id (taken periods only) — empty while it loads. */
   revenues: Map<number, number>;
+  /** 整期攤進這堂的收入（含在 revenues 裡）：「整期 5 人 $1,600」。 */
+  termRevenues?: Map<number, { amount: number; count: number }>;
 }) => {
   const [showEarlier, setShowEarlier] = useState(false);
   const [showLater, setShowLater] = useState(false);
@@ -92,6 +95,7 @@ const PeriodSection = ({
                   isLast={period.id === lastId}
                   attended={headcounts.get(period.id)}
                   revenue={revenues.get(period.id)}
+                  termRevenue={termRevenues?.get(period.id)}
                 />
               )
             )}
@@ -479,12 +483,14 @@ const PeriodRow = ({
   isLast,
   attended: attendedCount,
   revenue,
+  termRevenue,
 }: {
   period: Period;
   number: number;
   isLast: boolean;
   attended: number | undefined;
   revenue: number | undefined;
+  termRevenue?: { amount: number; count: number };
 }) => {
   const { handleCheck, handleViewAttendance, menuButton, overlays } = usePeriodActions(period);
   const startTime = new Date(period.startTime);
@@ -520,7 +526,10 @@ const PeriodRow = ({
           </span>
         </p>
         {/* 時間只在跟別堂不一樣時才有用；每堂都印會把一整欄變成重複的噪音，所以收進一行小字。 */}
-        <p className="truncate text-xs text-neutral-600">{timeLabel(period)}</p>
+        <p className="truncate text-xs text-neutral-600">
+          {timeLabel(period)}
+          {attended && termRevenue && ` · 整期 $${formatMoney(termRevenue.amount)}`}
+        </p>
       </div>
       {attended ? (
         <span className="flex shrink-0 items-center gap-2.5 text-sm tabular-nums">

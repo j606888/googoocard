@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { periodRevenue } from "@/lib/income";
+import { termRevenueByPeriod } from "@/service/termEnrollment";
 
 /**
  * 「這一期」頁的數字：這門課每個已點名時段的出席人數與收入，加上整期的收入。
@@ -22,14 +23,24 @@ export async function getLessonPeriodStats(lessonId: number) {
     },
   });
 
-  const exact = periods.map((period) => ({
-    periodId: period.id,
-    attendeeCount: period.attendanceRecords.length,
-    revenue: periodRevenue(period.attendanceRecords),
-  }));
+  const term = await termRevenueByPeriod(periods.map((p) => p.id));
+  const exact = periods.map((period) => {
+    const termShare = term.get(period.id) ?? { amount: 0, count: 0 };
+    return {
+      periodId: period.id,
+      attendeeCount: period.attendanceRecords.length,
+      revenue: periodRevenue(period.attendanceRecords) + termShare.amount,
+      termRevenue: termShare.amount,
+      termEnrolledCount: termShare.count,
+    };
+  });
 
   return {
-    periods: exact.map((period) => ({ ...period, revenue: Math.round(period.revenue) })),
+    periods: exact.map((period) => ({
+      ...period,
+      revenue: Math.round(period.revenue),
+      termRevenue: Math.round(period.termRevenue),
+    })),
     // 先加總再取整：每堂各自四捨五入再加，六堂下來會差到幾塊錢。
     totalRevenue: Math.round(exact.reduce((sum, period) => sum + period.revenue, 0)),
   };

@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { decodeAuthToken } from "@/lib/auth";
 import { findLessonInClassroom } from "@/lib/authz";
+import { takeAttendanceSchema } from "@/lib/schemas";
 import {
   takeAttendance,
   CardExhaustedError,
@@ -95,6 +96,7 @@ export async function GET(
           dropInCharge: {
             select: { id: true, amount: true, optionName: true, isPaid: true, paymentMethod: true },
           },
+          enrollment: { select: { id: true, price: true, sessions: true } },
         },
       },
     },
@@ -127,7 +129,13 @@ export async function GET(
     const studentCard = record.studentCard;
     let studentCardData = {};
 
-    if (record.dropInCharge) {
+    if (record.enrollment) {
+      // 整期：不扣卡，收入照整期每堂攤（這堂有沒有來都算，見 termEnrollment）。
+      studentCardData = {
+        enrollment: { id: record.enrollment.id },
+        income: record.enrollment.price / record.enrollment.sessions,
+      };
+    } else if (record.dropInCharge) {
       studentCardData = {
         dropIn: record.dropInCharge,
         income: record.dropInCharge.amount,
@@ -302,12 +310,15 @@ export async function POST(
     if (!(await findLessonInClassroom(parseInt(id), classroomId))) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
     }
-    const { studentIds } = await request.json();
+    const parsed = takeAttendanceSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+    }
 
     await takeAttendance({
       lessonId: parseInt(id),
       lessonPeriodId: parseInt(periodId),
-      studentIds,
+      ...parsed.data,
     });
 
     return NextResponse.json({ success: true });
@@ -345,12 +356,15 @@ export async function PUT(
     if (!(await findLessonInClassroom(parseInt(id), classroomId))) {
       return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
     }
-    const { studentIds } = await request.json();
+    const parsed = takeAttendanceSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+    }
 
     await updateAttendance({
       lessonId: parseInt(id),
       lessonPeriodId: parseInt(periodId),
-      studentIds,
+      ...parsed.data,
     });
 
     return NextResponse.json({ success: true });

@@ -15,6 +15,7 @@ import {
   findDropInOption,
   lessonDropInOptions,
 } from "@/lib/dropInOptions";
+import { enrollmentsCoveringPeriod, syncPeriodLeavesInTx } from "@/service/termEnrollment";
 import {
   fetchStudentsWithValidCards,
   type StudentWithLessonCards,
@@ -205,7 +206,8 @@ async function createAttendanceRecord(
   studentId: number,
   studentCardId: number | null,
   sessionsUsed: number,
-  source: AttendanceSource = AttendanceSource.TEACHER
+  source: AttendanceSource = AttendanceSource.TEACHER,
+  enrollmentId: number | null = null
 ) {
   // Ensure lesson-student relationship exists
   await tx.lessonStudent.upsert({
@@ -230,6 +232,7 @@ async function createAttendanceRecord(
       studentCardId,
       sessionsUsed,
       source,
+      enrollmentId,
     },
   });
 
@@ -308,8 +311,25 @@ async function processStudentAttendance(
   tx: Prisma.TransactionClient,
   lesson: LessonWithCards,
   lessonPeriodId: number,
-  student: StudentWithCards
+  student: StudentWithCards,
+  enrollmentId: number | null
 ) {
+  // 報了整期、這堂在他報的堂數內：不扣卡（手上有課卡也一樣，整期優先）。
+  if (enrollmentId !== null) {
+    const record = await createAttendanceRecord(
+      tx,
+      lesson.id,
+      lessonPeriodId,
+      student.id,
+      null,
+      lesson.sessionsPerAttendance,
+      AttendanceSource.TEACHER,
+      enrollmentId
+    );
+    await createAttendanceEvent(tx, lesson.name, student.id, record.id);
+    return;
+  }
+
   const studentCard = selectStudentCard(student, lesson);
 
   const attendanceRecord = await createAttendanceRecord(
@@ -412,7 +432,8 @@ async function removeAttendanceRecord(
 async function reconcileAndFinalize(
   lesson: LessonWithCards,
   lessonPeriodId: number,
-  studentIds: number[]
+  studentIds: number[],
+  leaveStudentIds?: number[]
 ) {
   // Get valid card IDs for this lesson
   const validCardIds = lesson.cards.map((card) => card.cardId);
@@ -441,11 +462,14 @@ async function reconcileAndFinalize(
     throw new Error("Student not found in this classroom");
   }
 
+  // 報整期、涵蓋這堂的人 → 出席掛整期、不扣卡。
+  const covering = await enrollmentsCoveringPeriod(prisma, lesson.id, lessonPeriodId);
+
   // Process updates in a transaction
   await prisma.$transaction(async (tx) => {
     // Add new attendance records
     for (const student of newStudents) {
-      await processStudentAttendance(tx, lesson, lessonPeriodId, student);
+      await processStudentAttendance(tx, lesson, lessonPeriodId, student, covering.get(student.id)?.id ?? null);
     }
 
     // Remove attendance records and refund cards
@@ -461,6 +485,14 @@ async function reconcileAndFinalize(
         await removeAttendanceRecord(tx, attendanceRecord);
       }
     }
+
+    // 整期學生的請假：有來的清掉，沒來的照老師標的。
+    await syncPeriodLeavesInTx(tx, {
+      lessonId: lesson.id,
+      periodId: lessonPeriodId,
+      presentStudentIds: studentIds,
+      leaveStudentIds,
+    });
 
     // Mark attendance as taken
     await markAttendanceTaken(tx, lessonPeriodId);
@@ -480,10 +512,13 @@ export async function takeAttendance({
   lessonId,
   lessonPeriodId,
   studentIds,
+  leaveStudentIds,
 }: {
   lessonId: number;
   lessonPeriodId: number;
   studentIds: number[];
+  /** 整期學生裡這堂請假的人；省略 = 不動既有的請假。 */
+  leaveStudentIds?: number[];
 }) {
   // Validate request (blocks re-finalizing an already-taken period)
   const { lesson, lessonPeriod } = await validateAttendanceRequest(
@@ -491,17 +526,20 @@ export async function takeAttendance({
     lessonPeriodId
   );
 
-  await reconcileAndFinalize(lesson, lessonPeriod.id, studentIds);
+  await reconcileAndFinalize(lesson, lessonPeriod.id, studentIds, leaveStudentIds);
 }
 
 export async function updateAttendance({
   lessonId,
   lessonPeriodId,
   studentIds,
+  leaveStudentIds,
 }: {
   lessonId: number;
   lessonPeriodId: number;
   studentIds: number[];
+  /** 整期學生裡這堂請假的人；省略 = 不動既有的請假。 */
+  leaveStudentIds?: number[];
 }) {
   // Validate request
   const { lesson, lessonPeriod } = await validateUpdateAttendanceRequest(
@@ -509,7 +547,7 @@ export async function updateAttendance({
     lessonPeriodId
   );
 
-  await reconcileAndFinalize(lesson, lessonPeriod.id, studentIds);
+  await reconcileAndFinalize(lesson, lessonPeriod.id, studentIds, leaveStudentIds);
 }
 
 // A P2002 from the @@unique([lessonPeriodId, studentId]) constraint means a
@@ -522,8 +560,11 @@ function isDuplicateAttendance(e: unknown): boolean {
 
 export type SelfCheckInResult = {
   periodId: number;
-  /** drop_in = 不扣卡、記一筆單堂費（下課付） */
-  status: "checked" | "already_checked" | "no_card" | "drop_in";
+  /** drop_in = 不扣卡、記一筆單堂費（下課付）；enrolled = 報了整期，不扣卡 */
+  status: "checked" | "already_checked" | "no_card" | "drop_in" | "enrolled";
+  /** enrolled：這是整期的第幾堂（1 起算）／共幾堂。 */
+  termIndex?: number;
+  termSessions?: number;
   dropInAmount?: number;
   /** 選的單堂方案名稱；沒名字的單一價是 null。 */
   dropInOptionName?: string | null;
@@ -640,7 +681,7 @@ async function selfCheckInOnce({
   studentId,
   lessonId,
   lessonPeriodIds,
-  card: choice,
+  card: requestedChoice,
   requireCard = false,
   openOn,
 }: {
@@ -702,6 +743,15 @@ async function selfCheckInOnce({
     throw new SelfCheckInError("period_closed", 400);
   }
 
+  // 報了整期、涵蓋的那幾堂不用付（手上有課卡也不扣）；只有其他時段才看付款方式。
+  const enrollmentFor = new Map<number, { id: number; periodIndex: number; sessions: number }>();
+  for (const period of newPeriods) {
+    const covering = (await enrollmentsCoveringPeriod(prisma, lesson.id, period.id)).get(student.id);
+    if (covering) enrollmentFor.set(period.id, covering);
+  }
+  const paidPeriods = newPeriods.filter((p) => !enrollmentFor.has(p.id));
+  const choice = paidPeriods.length > 0 ? requestedChoice : undefined;
+
   // ----- Validate the card choice and plan every period before writing -----
   let chosenId: number | null = null;
   let buying: (typeof lesson.cards)[number]["card"] | null = null;
@@ -739,8 +789,8 @@ async function selfCheckInOnce({
 
   // 單堂付費：每個時段都不扣卡，各記一筆單堂費。
   const plan = dropIn
-    ? newPeriods.map(() => null)
-    : planPeriodCards(student, lesson, newPeriods.length, chosenId);
+    ? paidPeriods.map(() => null)
+    : planPeriodCards(student, lesson, paidPeriods.length, chosenId);
   if (requireCard && !dropIn && plan.some((id) => id === null)) {
     throw new SelfCheckInError("card_required", 400);
   }
@@ -782,8 +832,30 @@ async function selfCheckInOnce({
         for (let i = 0; i < plan.length; i++) if (plan[i] === BUYING) plan[i] = created.id;
       }
 
-      for (const [index, period] of newPeriods.entries()) {
-        const planned = plan[index];
+      let paidIndex = 0;
+      for (const period of newPeriods) {
+        const enrollment = enrollmentFor.get(period.id);
+        if (enrollment) {
+          const record = await createAttendanceRecord(
+            tx,
+            lesson.id,
+            period.id,
+            student.id,
+            null,
+            lesson.sessionsPerAttendance,
+            AttendanceSource.STUDENT,
+            enrollment.id
+          );
+          await createAttendanceEvent(tx, lesson.name, student.id, record.id);
+          written.push({
+            periodId: period.id,
+            status: "enrolled",
+            termIndex: enrollment.periodIndex + 1,
+            termSessions: enrollment.sessions,
+          });
+          continue;
+        }
+        const planned = plan[paidIndex++];
         const studentCard =
           planned !== null ? student.studentCards.find((c) => c.id === planned) ?? null : null;
 
@@ -866,7 +938,7 @@ async function selfCheckInOnce({
       type: "UNPAID_CARD",
       title: "待確認收款",
       body: `${student.name} 自助簽到「${lesson.name}」選了${dropInLabel(dropInOption?.name)}，NT$${formatMoney(dropInDue)} 下課付`,
-      path: `/lessons/${lesson.id}/periods/${newPeriods[0].id}/check-success`,
+      path: `/lessons/${lesson.id}/periods/${paidPeriods[0].id}/check-success`,
     });
   }
 

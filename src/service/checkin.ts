@@ -2,6 +2,8 @@ import { locationSummarySelect, type LocationSummary } from "@/lib/locations";
 import { Classroom, Prisma } from "@prisma/client";
 import { danceStyleSummarySelect, type DanceStyleSummary } from "@/lib/danceStyles";
 import prisma from "@/lib/prisma";
+import type { TermAttendanceStatus } from "@/lib/termEnrollment";
+import { studentTermProgress } from "@/service/termEnrollment";
 import {
   toTaipeiDateKey,
   parseTaipeiDateRange,
@@ -18,6 +20,14 @@ export interface TodayPeriod {
   startTime: Date;
   endTime: Date;
   alreadyChecked: boolean;
+  /** 報了整期、這堂在他報的堂數內：第幾堂（1 起算）。有它就不用付卡。 */
+  termIndex?: number;
+}
+
+/** 學生自己的整期（LIFF 簽到頁的「已報名整期」）。 */
+export interface TermProgress {
+  sessions: number;
+  statuses: TermAttendanceStatus[];
 }
 
 /** One of the student's own cards that can pay for a lesson. */
@@ -61,6 +71,8 @@ export interface TodayLesson {
   periods: TodayPeriod[];
   /** Only when the caller is a student (LIFF): what they can pay with. */
   cardStatus?: LessonCardStatus;
+  /** Only when the caller is a student who enrolled in this lesson's term. */
+  term?: TermProgress | null;
 }
 
 /** A future period, for the「下一堂課」/「接下來」of a day with no class. */
@@ -182,21 +194,32 @@ export async function getTodayLessons(
     // 老師已定案的時段不收自助簽到；自己簽過的留著顯示「已簽到」。
     lesson.periods.filter((period) => !period.attendanceTakenAt || checkedIds.has(period.id));
   const today: TodayLesson[] = await Promise.all(
-    lessons.filter((lesson) => openPeriods(lesson).length > 0).map(async (lesson) => ({
-      lessonId: lesson.id,
-      lessonName: lesson.name,
-      danceStyle: pickSummary(lesson.danceStyle),
-      location: lesson.location,
-      periods: openPeriods(lesson).map((period) => ({
-        periodId: period.id,
-        startTime: period.startTime,
-        endTime: period.endTime,
-        alreadyChecked: checkedIds.has(period.id),
-      })),
-      ...(studentId
-        ? { cardStatus: await lessonCardStatus(lesson, studentId, classroomId) }
-        : {}),
-    }))
+    lessons.filter((lesson) => openPeriods(lesson).length > 0).map(async (lesson) => {
+      const progress =
+        studentId && lesson.termSessions !== null ? await studentTermProgress(lesson.id, studentId) : null;
+      return {
+        lessonId: lesson.id,
+        lessonName: lesson.name,
+        danceStyle: pickSummary(lesson.danceStyle),
+        location: lesson.location,
+        periods: openPeriods(lesson).map((period) => {
+          const termIndex = progress?.periodIndexById.get(period.id);
+          return {
+            periodId: period.id,
+            startTime: period.startTime,
+            endTime: period.endTime,
+            alreadyChecked: checkedIds.has(period.id),
+            ...(termIndex !== undefined ? { termIndex: termIndex + 1 } : {}),
+          };
+        }),
+        ...(studentId
+          ? {
+              cardStatus: await lessonCardStatus(lesson, studentId, classroomId),
+              term: progress ? { sessions: progress.sessions, statuses: progress.statuses } : null,
+            }
+          : {}),
+      };
+    })
   );
 
   if (today.length > 0) return { date: todayKey, today, nextLesson: null, upcoming: [] };

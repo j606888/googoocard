@@ -11,9 +11,10 @@ import { dropInLabel, findDropInOption, lessonDropInOptions } from "@/lib/dropIn
  * 牌價只是預設，`amount` 記的是實收。
  */
 
-/** 還沒解決的出席：沒綁課卡、也沒付單堂。待處理、未扣卡名單都用這個。 */
+/** 還沒解決的出席：沒綁課卡、沒付單堂、也不是整期。待處理、未扣卡名單都用這個。 */
 export const UNRESOLVED_ATTENDANCE = {
   studentCardId: null,
+  enrollmentId: null,
   dropInCharge: { is: null },
 } satisfies Prisma.AttendanceRecordWhereInput;
 

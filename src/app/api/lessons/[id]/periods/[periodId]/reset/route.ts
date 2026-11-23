@@ -31,6 +31,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .filter((cardId): cardId is number => cardId !== null);
 
   await prisma.$transaction(async (tx) => {
+    // 重設 = 這堂回到沒點名：整期學生的請假一起清掉。
+    await tx.periodLeave.deleteMany({ where: { lessonPeriodId: parseInt(periodId) } });
     for (const attendanceRecord of attendanceRecords) {
       if (attendanceRecord.studentCardId) {
         await tx.studentCard.update({

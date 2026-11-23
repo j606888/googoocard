@@ -221,9 +221,11 @@ const UrgentTab = ({
 }) => {
   // 舊版 API（App 還沒更新時）沒有 unpaidDropIns。
   const unpaidDropIns = todos.unpaidDropIns ?? [];
+  const unpaidEnrollments = todos.unpaidEnrollments ?? [];
   const unpaidTotal =
     todos.unpaidCards.reduce((sum, item) => sum + item.finalPrice, 0) +
-    unpaidDropIns.reduce((sum, item) => sum + item.amount, 0);
+    unpaidDropIns.reduce((sum, item) => sum + item.amount, 0) +
+    unpaidEnrollments.reduce((sum, item) => sum + item.price, 0);
   const otherReminders =
     todos.trialFollowUps.length + todos.possibleDuplicates.length + (todos.lineSelfClaims?.length ?? 0);
 
@@ -243,7 +245,7 @@ const UrgentTab = ({
           <SummaryTile
             tone="warning"
             title="未付款"
-            value={todos.unpaidCards.length + unpaidDropIns.length}
+            value={todos.unpaidCards.length + unpaidDropIns.length + unpaidEnrollments.length}
             unit="筆"
             hint={`共 NT$${formatMoney(unpaidTotal)} 待收`}
           />
@@ -352,6 +354,40 @@ const UrgentTab = ({
             }
             action={
               <span className="text-sm font-semibold text-neutral-900">${formatMoney(item.amount)}</span>
+            }
+          />
+        ))}
+      </TodoSection>
+
+      <TodoSection title="整期未付" count={unpaidEnrollments.length} dot="bg-warning-600">
+        {unpaidEnrollments.map((item) => (
+          <TodoRow
+            key={`enrollment-${item.id}`}
+            href={`/lessons/${item.lessonId}`}
+            student={item.student}
+            onNavigate={onNavigate}
+            subtitle={
+              <span className="block truncate">
+                {item.lessonName} · 整期 {item.sessions} 堂
+              </span>
+            }
+            action={
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() =>
+                  onPay({
+                    studentId: item.student.id,
+                    studentCardId: 0,
+                    enrollmentId: item.id,
+                    studentName: item.student.name,
+                    cardName: `${item.lessonName} 整期`,
+                    finalPrice: item.price,
+                  })
+                }
+              >
+                收 ${formatMoney(item.price)}
+              </Button>
             }
           />
         ))}

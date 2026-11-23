@@ -112,6 +112,13 @@ export async function GET(
     );
   }
 
+  // 報了整期的人：這門課不用卡，不該被列成「沒有可用的卡」。
+  const enrolledIds = new Set(
+    (
+      await prisma.lessonEnrollment.findMany({ where: { lessonId: lesson.id }, select: { studentId: true } })
+    ).map((e) => e.studentId)
+  );
+
   const students = lesson.students.map((lessonStudent) => {
     const student = lessonStudent.student;
     const attendances = lesson.periods.map((period) => {
@@ -139,10 +146,17 @@ export async function GET(
     return {
       ...toStudentPayload(student),
       attendances,
-      cardStatus: cardStatusByStudent.get(student.id) ?? {
-        ...EMPTY_CARD_STATUS,
-        otherSessions: otherSessionsByStudent.get(student.id) ?? 0,
-      },
+      cardStatus: enrolledIds.has(student.id)
+        ? {
+            ...(cardStatusByStudent.get(student.id) ?? EMPTY_CARD_STATUS),
+            otherSessions: otherSessionsByStudent.get(student.id) ?? 0,
+            level: "ok" as const,
+            term: true,
+          }
+        : cardStatusByStudent.get(student.id) ?? {
+            ...EMPTY_CARD_STATUS,
+            otherSessions: otherSessionsByStudent.get(student.id) ?? 0,
+          },
       danceQualifications: qualificationsByStudent.get(student.id) ?? [],
       danceLevels: levelsByStudent.get(student.id) ?? {},
     };

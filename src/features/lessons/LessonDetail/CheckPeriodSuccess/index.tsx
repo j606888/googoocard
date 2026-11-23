@@ -10,6 +10,7 @@ import {
   useGetAttendanceQuery,
   useGetLessonQuery,
   useGetLessonStudentsQuery,
+  useGetPeriodTermQuery,
 } from "@/store/slices/lessons";
 import StudentInfo from "@/components/StudentInfo";
 import PendingStudents from "./PendingStudents";
@@ -44,6 +45,8 @@ const CheckPeriodSuccess = () => {
     periodId: Number(periodId),
   });
   const { data: lesson } = useGetLessonQuery(id as string);
+  // 整期：這堂涵蓋的整期學生與每人每堂價——有來沒來都算進這堂收入。
+  const { data: term } = useGetPeriodTermQuery({ id: Number(id), periodId: Number(periodId) });
   const { data: rosterStudents, isLoading: isRosterLoading } =
     useGetLessonStudentsQuery({ id: Number(id) });
   const period = lesson?.periods.find(
@@ -109,22 +112,31 @@ const CheckPeriodSuccess = () => {
   // 只點過這一堂就沒有別的紀錄可翻——兩顆都是灰的比不出現更像壞掉。
   const showPager = !justSubmitted && Boolean(olderTaken || newerTaken);
 
-  // 已解決 = 扣了卡或付了單堂（$0 的體驗卡 income 是 0，不能拿 income 判斷）。
-  const isResolved = (record: AttendanceRecord) => Boolean(record.cardName || record.dropIn);
+  // 已解決 = 扣了卡、付了單堂或報了整期（$0 的體驗卡 income 是 0，不能拿 income 判斷）。
+  const isResolved = (record: AttendanceRecord) => Boolean(record.cardName || record.dropIn || record.enrollment);
   const pendingRecords = attendanceRecords?.filter((record) => !isResolved(record)) || [];
   const paidRecords = attendanceRecords?.filter(isResolved) || [];
 
   // Enrolled students the roster marks absent for this exact period — visible
   // here for the first time (the old success screen only ever listed who
   // attended).
+  const enrolled = useMemo(() => (term?.offered ? term.enrolled : []), [term]);
+  const enrolledIds = useMemo(() => new Set(enrolled.map((e) => e.student.id)), [enrolled]);
   const absentStudents = useMemo(() => {
     if (!period || !rosterStudents) return [];
-    return rosterStudents.filter((student) =>
-      student.attendances.some(
-        (a) => a.startTime === period.startTime && a.attendanceStatus === "absent"
-      )
+    return rosterStudents.filter(
+      (student) =>
+        !enrolledIds.has(student.id) &&
+        student.attendances.some(
+          (a) => a.startTime === period.startTime && a.attendanceStatus === "absent"
+        )
     );
-  }, [period, rosterStudents]);
+  }, [period, rosterStudents, enrolledIds]);
+  // 整期學生裡沒來的：請假或曠課（曠課 = 沒請假）。
+  const enrolledMissing = useMemo(() => {
+    const attended = new Set((attendanceRecords ?? []).map((r) => r.studentId));
+    return enrolled.filter((e) => !attended.has(e.student.id));
+  }, [enrolled, attendanceRecords]);
 
   // 「比上一堂多 3 人」：跟課程頁同一份名冊推導（已點名的時段，由舊到新）。
   const deltaLabel = useMemo(
@@ -199,11 +211,22 @@ const CheckPeriodSuccess = () => {
     );
   }
 
-  const income = Math.round(paidRecords.reduce((sum, record) => sum + record.income, 0));
+  // 這堂收入 = 課卡／單堂（有來才算）＋ 整期（報名的人每人一份，來不來都算）。跟收入頁同一套。
+  const sumIncome = (records: AttendanceRecord[]) => records.reduce((sum, record) => sum + record.income, 0);
+  const cardRecords = paidRecords.filter((record) => record.cardName);
+  const dropInRecords = paidRecords.filter((record) => record.dropIn);
+  const termIncome = enrolled.reduce((sum, e) => sum + e.perSession, 0);
+  const income = Math.round(sumIncome(cardRecords) + sumIncome(dropInRecords) + termIncome);
+  const termPerSessionLabel = (() => {
+    const prices = [...new Set(enrolled.map((e) => Math.round(e.perSession)))];
+    return prices.length === 1 ? `$${formatMoney(prices[0])}` : null;
+  })();
+  const leaveCount = enrolledMissing.filter((e) => e.onLeave).length;
+  const absentCount = absentStudents.length + (period?.attendanceTakenAt ? enrolledMissing.length : 0);
   const headline = summaryHeadline({
     justSubmitted,
     attended: attendanceRecords.length,
-    absent: absentStudents.length,
+    absent: absentCount,
   });
   const renewals = renewalCandidates(attendanceRecords, isLatest);
   const editHref = `/lessons/${id}/periods/${periodId}/check-edit`;
@@ -236,7 +259,7 @@ const CheckPeriodSuccess = () => {
             <span className="relative grid size-20 shrink-0 place-items-center rounded-full bg-accent-500">
               {/* 剛送出：全員到齊跳起來、不然開心；回頭看紀錄是得意的那一隻。 */}
               <KiwiMascot
-                pose={!justSubmitted ? "proud" : absentStudents.length === 0 ? "jump" : "happy"}
+                pose={!justSubmitted ? "proud" : absentCount === 0 ? "jump" : "happy"}
                 className="w-[60px]"
               />
               {justSubmitted && (
@@ -294,10 +317,10 @@ const CheckPeriodSuccess = () => {
             <dt className="text-xs text-neutral-600">缺席</dt>
             <dd
               className={`text-xl font-bold tabular-nums ${
-                absentStudents.length > 0 ? "text-danger-700" : "text-neutral-900"
+                absentCount > 0 ? "text-danger-700" : "text-neutral-900"
               }`}
             >
-              {absentStudents.length}
+              {absentCount}
             </dd>
           </div>
           {pendingRecords.length > 0 && (
@@ -311,6 +334,36 @@ const CheckPeriodSuccess = () => {
             <dd className="text-xl font-bold text-neutral-900 tabular-nums">${formatMoney(income)}</dd>
           </div>
         </dl>
+        {enrolled.length > 0 && (
+          <div className="flex flex-col divide-y divide-neutral-100 rounded-2xl border border-neutral-200 bg-white text-sm">
+            <div className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+              <span className="flex min-w-0 flex-col">
+                <span className="font-semibold text-neutral-900">
+                  整期 {enrolled.length} 人{termPerSessionLabel && ` × ${termPerSessionLabel}`}
+                </span>
+                <span className="text-xs text-neutral-500">
+                  來 {enrolled.length - enrolledMissing.length}
+                  {leaveCount > 0 && ` · 請假 ${leaveCount}`}
+                  {enrolledMissing.length - leaveCount > 0 && ` · 曠課 ${enrolledMissing.length - leaveCount}`}
+                  ・請假曠課照算
+                </span>
+              </span>
+              <span className="font-semibold tabular-nums">${formatMoney(Math.round(termIncome))}</span>
+            </div>
+            {cardRecords.length > 0 && (
+              <div className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+                <span className="text-neutral-700">課卡 {cardRecords.length} 人</span>
+                <span className="tabular-nums">${formatMoney(Math.round(sumIncome(cardRecords)))}</span>
+              </div>
+            )}
+            {dropInRecords.length > 0 && (
+              <div className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+                <span className="text-neutral-700">單堂 {dropInRecords.length} 人</span>
+                <span className="tabular-nums">${formatMoney(Math.round(sumIncome(dropInRecords)))}</span>
+              </div>
+            )}
+          </div>
+        )}
         {!isExpanded && showPager && <div className="-my-2 flex justify-center">{periodPager}</div>}
 
         {pendingRecords.length > 0 && (
@@ -335,6 +388,8 @@ const CheckPeriodSuccess = () => {
                   options={lessonDropInOptions(lesson)}
                   studentName={attendanceRecord.studentName}
                 />
+              ) : attendanceRecord.enrollment ? (
+                <StatusTag tone="outline">整期</StatusTag>
               ) : (
                 <StatusTag tone="positive">
                   {attendanceRecord?.cardName}
@@ -347,7 +402,7 @@ const CheckPeriodSuccess = () => {
                       {attendanceRecord.dropIn.paymentMethod === "TRANSFER" ? "轉帳" : "現金"}
                     </span>
                   )
-                : isLatest && (
+                : isLatest && !attendanceRecord.enrollment && (
                     <span className="w-16 text-right text-sm tabular-nums text-neutral-600">
                       剩 {attendanceRecord?.remainingSessions} 堂
                     </span>
@@ -355,6 +410,23 @@ const CheckPeriodSuccess = () => {
             </div>
           ))}
         </div>
+
+        {period?.attendanceTakenAt && enrolledMissing.length > 0 && (
+          <div className="flex flex-col gap-2 w-full">
+            {enrolledMissing.map(({ student, onLeave }) => (
+              <div className="flex gap-2 items-center" key={student.id}>
+                <StudentInfo
+                  studentId={student.id}
+                  avatarUrl={student.avatarUrl}
+                  name={student.name}
+                  size="small"
+                  className="mr-auto"
+                />
+                <StatusTag tone={onLeave ? "warning" : "danger"}>整期 · {onLeave ? "請假" : "曠課"}</StatusTag>
+              </div>
+            ))}
+          </div>
+        )}
 
         {absentStudents.length > 0 && (
           <div className="flex flex-col gap-2 w-full">

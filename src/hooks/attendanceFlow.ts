@@ -131,6 +131,8 @@ export const rowCardLine = (preview: CardPreview | undefined): string | null => 
         : `${preview.cardName} · 已扣，剩 ${preview.remaining} 堂`;
     case "choose":
       return `${preview.count} 張卡可用 · 點完再選`;
+    case "enrolled":
+      return `整期 · 第 ${preview.index} / ${preview.sessions} 堂，不扣卡`;
     default:
       return null;
   }

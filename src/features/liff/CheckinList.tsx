@@ -17,6 +17,7 @@ import { lineOaChatUrl } from "@/lib/lineOa";
 import LocationBadge from "@/components/LocationBadge";
 import AddFriendPrompt from "@/features/liff/AddFriendPrompt";
 import NoClassToday from "@/features/liff/NoClassToday";
+import TermProgress from "@/features/lessons/LessonDetail/TermRoster/TermProgress";
 import {
   CheckinResponse,
   TodayLesson,
@@ -105,7 +106,10 @@ export default function CheckinList({
       (data?.today ?? []).filter((l) => l.periods.some((p) => selected.has(p.periodId))),
     [data, selected]
   );
-  const lessonsToBuy = selectedLessons.filter((l) => (l.cardStatus?.usable.length ?? 0) === 0);
+  // 選的時段全都在整期裡的課不用付；其他沒卡的課才要選怎麼付。
+  const lessonsToBuy = selectedLessons.filter(
+    (l) => !coveredByTerm(l, selected) && (l.cardStatus?.usable.length ?? 0) === 0
+  );
   // 好幾堂選同一種卡、而且剛買的那張還夠扣時只買一張（跟 submit 的做法一致）。
   const amountToPay = (() => {
     const remainingOf = new Map<number, number>();
@@ -136,7 +140,7 @@ export default function CheckinList({
 
   const paymentFor = (lesson: TodayLesson): Payment | null => {
     const status = lesson.cardStatus;
-    if (!status) return null;
+    if (!status || coveredByTerm(lesson, selected)) return null;
     if (status.usable.length > 0) {
       const id = cardChoice[lesson.lessonId] ?? status.autoPickId ?? status.usable[0].studentCardId;
       return { studentCardId: id };
@@ -407,12 +411,20 @@ function dropInChoice(lesson: TodayLesson, choice: number | undefined) {
   return lesson.cardStatus?.dropInOptions?.[DROP_IN - choice] ?? null;
 }
 
-// A lesson the student can pay for — with a card they hold, or one they can buy.
+// A lesson the student can pay for — with a card they hold, or one they can buy,
+// or it's in their 整期 (nothing to pay).
 function canPay(lesson: TodayLesson) {
   const status = lesson.cardStatus;
   return Boolean(
-    status && (status.usable.length > 0 || status.buyable.length > 0 || status.dropInPrice != null)
+    lesson.periods.some((p) => p.termIndex !== undefined) ||
+      (status && (status.usable.length > 0 || status.buyable.length > 0 || status.dropInPrice != null))
   );
+}
+
+/** 這門課選的時段全都在學生報的整期裡（不用付卡）。 */
+function coveredByTerm(lesson: TodayLesson, selected: Set<number>) {
+  const picked = lesson.periods.filter((p) => selected.has(p.periodId));
+  return picked.length > 0 && picked.every((p) => p.termIndex !== undefined);
 }
 
 function LessonBlock({
@@ -433,6 +445,10 @@ function LessonBlock({
   const isSelected = lesson.periods.some((p) => selected.has(p.periodId));
   const usable = status?.usable ?? [];
   const currentCard = chosenCardId ?? status?.autoPickId ?? usable[0]?.studentCardId;
+  const openPeriods = lesson.periods.filter((p) => !p.alreadyChecked);
+  // 今天能簽的時段全都在整期裡：不提課卡，只寫「已報名整期」。
+  const allInTerm = openPeriods.length > 0 && openPeriods.every((p) => p.termIndex !== undefined);
+  const termIndex = lesson.periods.find((p) => p.termIndex !== undefined)?.termIndex;
 
   return (
     <div
@@ -481,6 +497,18 @@ function LessonBlock({
         })}
       </div>
 
+      {lesson.term && termIndex !== undefined && (
+        <div className="flex flex-col gap-2 rounded-xl bg-primary-50 px-3 py-2.5 text-sm text-primary-900">
+          <p className="flex items-center gap-2">
+            <Check className="h-4 w-4 shrink-0" strokeWidth={3} />
+            <span>
+              <span className="font-semibold">已報名整期</span> · 今天第 {termIndex} / {lesson.term.sessions} 堂，不用扣卡
+            </span>
+          </p>
+          <TermProgress statuses={lesson.term.statuses} total={lesson.term.sessions} />
+        </div>
+      )}
+
       {!payable && (
         <p className="flex items-center gap-2 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
           <Info className="h-4 w-4 shrink-0" />
@@ -488,21 +516,21 @@ function LessonBlock({
         </p>
       )}
 
-      {payable && usable.length === 0 && (
+      {payable && !allInTerm && usable.length === 0 && (
         <p className="flex items-center gap-2 rounded-xl bg-warning-50 px-3 py-2 text-sm text-warning-950">
           <AlertCircle className="h-4 w-4 shrink-0" />
           還沒有能用的課卡，下一步選一張
         </p>
       )}
 
-      {usable.length === 1 && (
+      {!allInTerm && usable.length === 1 && (
         <p className="flex items-center gap-2 rounded-xl bg-primary-50 px-3 py-2 text-sm text-primary-900">
           <CreditCard className="h-4 w-4 shrink-0" />
           使用 {usable[0].name}（剩 {usable[0].remainingSessions} 堂）
         </p>
       )}
 
-      {usable.length > 1 && (
+      {!allInTerm && usable.length > 1 && (
         <fieldset className="flex flex-col gap-2 border-t border-neutral-100 pt-3">
           <legend className="mb-2 text-sm font-medium text-neutral-600">
             你有 {usable.length} 張卡能用，選一張：
@@ -544,7 +572,9 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
     l.periods.forEach((p) => periodInfo.set(p.periodId, { lessonName: l.lessonName, start: p.startTime }))
   );
   const results = done.responses.flatMap((r) => r.response.results);
-  const checkedCount = results.filter((r) => r.status === "checked" || r.status === "drop_in").length;
+  const checkedCount = results.filter(
+    (r) => r.status === "checked" || r.status === "drop_in" || r.status === "enrolled"
+  ).length;
   const amountDue = done.responses.reduce((sum, r) => sum + r.response.amountDue, 0);
   const justBought = new Set(done.responses.map((r) => r.response.purchased?.id).filter(Boolean));
   // The latest response has the most up-to-date unpaid list.
@@ -598,7 +628,9 @@ function CheckinDone({ student, done }: { student: StudentWithDetail; done: Done
                       ? `${r.cardName}${typeof r.remainingSessions === "number" ? ` · 剩 ${r.remainingSessions} 堂` : ""}`
                       : r.status === "drop_in"
                         ? `${r.dropInOptionName ?? "單堂"} $${formatMoney(r.dropInAmount ?? 0)} · 下課付`
-                        : "沒有綁到課卡，請找小幫手"}
+                        : r.status === "enrolled"
+                          ? `整期 · 第 ${r.termIndex} / ${r.termSessions} 堂`
+                          : "沒有綁到課卡，請找小幫手"}
                 </p>
               </div>
               <span className="text-sm text-neutral-500">

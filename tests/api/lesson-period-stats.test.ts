@@ -75,8 +75,8 @@ describe("GET /api/lessons/:id/period-stats", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       periods: [
-        { periodId: first.id, attendeeCount: 2, revenue: 333 },
-        { periodId: second.id, attendeeCount: 3, revenue: 1067 },
+        { periodId: first.id, attendeeCount: 2, revenue: 333, termRevenue: 0, termEnrolledCount: 0 },
+        { periodId: second.id, attendeeCount: 3, revenue: 1067, termRevenue: 0, termEnrolledCount: 0 },
       ],
       // 333.33 + 1066.67 = 1400，不是 333 + 1067。
       totalRevenue: 1400,

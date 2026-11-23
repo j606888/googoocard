@@ -5,6 +5,7 @@ import {
   useGetAttendanceQuery,
   useLazyGetAttendanceQuery,
   useGetLessonTrialsQuery,
+  useGetPeriodTermQuery,
   useTakeAttendanceMutation,
 } from "@/store/slices/lessons";
 import PeriodAttendanceForm from "../PeriodAttendanceForm";
@@ -36,9 +37,24 @@ const CheckPeriod = () => {
         .map((entry) => entry.student.id),
     [trials]
   );
+  // 報了整期的人也預設勾好（已經請假的除外）——沒來的老師取消勾選、標請假或曠課。
+  const { data: term, isLoading: isTermLoading } = useGetPeriodTermQuery({
+    id: Number(id),
+    periodId: Number(periodId),
+  });
+  const enrolledStudentIds = useMemo(
+    () => (term?.offered ? term.enrolled.filter((e) => !e.onLeave).map((e) => e.student.id) : []),
+    [term]
+  );
   const defaultSelectedIds = useMemo(
-    () => [...new Set([...(existingRecords ?? []).map((r) => r.studentId), ...trialStudentIds])],
-    [existingRecords, trialStudentIds]
+    () => [
+      ...new Set([
+        ...(existingRecords ?? []).map((r) => r.studentId),
+        ...trialStudentIds,
+        ...enrolledStudentIds,
+      ]),
+    ],
+    [existingRecords, trialStudentIds, enrolledStudentIds]
   );
   const selfCheckInStudentIds = useMemo(
     () =>
@@ -48,8 +64,9 @@ const CheckPeriod = () => {
     [existingRecords]
   );
 
-  const handleSubmit = async (studentIds: number[]) => {
-    if (studentIds.length === 0) {
+  const hasEnrolled = Boolean(term?.offered && term.enrolled.length > 0);
+  const handleSubmit = async (studentIds: number[], leaveStudentIds?: number[]) => {
+    if (studentIds.length === 0 && !hasEnrolled) {
       setError("請至少選一位學生");
       return;
     }
@@ -68,6 +85,7 @@ const CheckPeriod = () => {
       await takeAttendance({
         ...target,
         studentIds: [...new Set([...studentIds, ...arrivedSince])],
+        leaveStudentIds,
       }).unwrap();
     } catch (err) {
       const { alreadyTaken, message } = describeAttendanceSubmitError(err);
@@ -92,7 +110,7 @@ const CheckPeriod = () => {
         submitLabel="完成點名"
         error={error}
         isLoading={isLoading || isRefetching}
-        isRecordsLoading={isRecordsLoading || isTrialsLoading}
+        isRecordsLoading={isRecordsLoading || isTrialsLoading || isTermLoading}
       />
     </>
   );

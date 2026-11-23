@@ -159,6 +159,7 @@ describe("todoSummary", () => {
   const base = {
     unpaidCards: [],
     unpaidDropIns: [],
+    unpaidEnrollments: [],
     unboundAttendance: [],
     needsRenewal: [],
     urgentCount: 0,

@@ -200,6 +200,7 @@ const LessonDetail = () => {
                     periods={lesson?.periods || []}
                     headcounts={headcounts}
                     revenues={term.revenues}
+                    termRevenues={term.termRevenues}
                   />
                   <PastTerms terms={term.terms} currentLessonId={lesson.id} />
                 </>

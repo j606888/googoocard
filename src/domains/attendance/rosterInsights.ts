@@ -52,6 +52,8 @@ export type CardStatus = {
    */
   otherSessions: number;
   level: "ok" | "low" | "none";
+  /** 報了這門課的整期：這門課不用卡（level 一律 ok），名冊上寫「整期」。 */
+  term?: boolean;
 };
 
 export type RosterStudent = {

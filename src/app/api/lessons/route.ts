@@ -1,4 +1,5 @@
 import { parseDropInOptions, resolveDropInInput } from "@/lib/dropInOptions";
+import { exceedsTermSessions, resolveTermInput } from "@/lib/termEnrollment";
 import { decodeAuthToken } from "@/lib/auth";
 import { DraftLesson } from "@/store/slices/lessons";
 import { NextResponse } from "next/server";
@@ -120,6 +121,8 @@ export async function GET(request: Request) {
       sessionsPerAttendance: lesson.sessionsPerAttendance,
       dropInPrice: lesson.dropInPrice,
       dropInOptions: parseDropInOptions(lesson.dropInOptions),
+      termPrice: lesson.termPrice,
+      termSessions: lesson.termSessions,
       studentCount: lesson._count.students,
       teachers: lesson.teachers.map((t) => t.teacher),
       assistants: lesson.assistants.map((a) => a.teacher),
@@ -219,6 +222,17 @@ export async function POST(request: Request) {
   if (dropIn === "invalid") {
     return NextResponse.json({ error: "Invalid dropInPrice" }, { status: 400 });
   }
+  const term = resolveTermInput(draftLesson);
+  if (term === "invalid") {
+    return NextResponse.json({ error: "INVALID_TERM" }, { status: 400 });
+  }
+  // 整期要有固定堂數：持續開課的課不能開。
+  if (term?.termSessions != null && (draftLesson.kind ?? DEFAULT_LESSON_KIND) !== "fixed") {
+    return NextResponse.json({ error: "TERM_REQUIRES_FIXED" }, { status: 400 });
+  }
+  if (exceedsTermSessions(draftLesson.periods?.length ?? 0, term?.termSessions)) {
+    return NextResponse.json({ error: "TERM_SESSIONS_EXCEEDED" }, { status: 400 });
+  }
 
   // A groupId is caller-controlled input — verify it names a group in this
   // classroom before attaching it (same IDOR guard as findLessonInClassroom),
@@ -288,6 +302,8 @@ export async function POST(request: Request) {
         sessionsPerAttendance: draftLesson.sessionsPerAttendance ?? DEFAULT_SESSIONS_PER_ATTENDANCE,
         dropInPrice: dropIn.dropInPrice ?? null,
         dropInOptions: dropIn.dropInOptions ?? Prisma.DbNull,
+        termPrice: term?.termPrice ?? null,
+        termSessions: term?.termSessions ?? null,
         groupId: draftLesson.groupId ?? null,
         locationId: draftLesson.locationId ?? null,
       },

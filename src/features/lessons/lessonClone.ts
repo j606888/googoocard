@@ -25,6 +25,8 @@ export const stashLessonClone = (lesson: LessonSummary) => {
     sessionsPerAttendance: lesson.sessionsPerAttendance,
     dropInPrice: lesson.dropInPrice,
     dropInOptions: lesson.dropInOptions ?? null,
+    termPrice: lesson.termPrice ?? null,
+    termSessions: lesson.termSessions ?? null,
     groupId: lesson.groupId,
     locationId: lesson.location?.id ?? null,
     initialPeriod,
