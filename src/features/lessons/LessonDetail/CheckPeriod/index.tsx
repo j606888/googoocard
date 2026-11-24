@@ -37,24 +37,15 @@ const CheckPeriod = () => {
         .map((entry) => entry.student.id),
     [trials]
   );
-  // 報了整期的人也預設勾好（已經請假的除外）——沒來的老師取消勾選、標請假或曠課。
+  // 報了整期的人「預計會到」，但**不預設勾選**（2026-11-24 使用者決定：會不會來跟點到是兩回事，
+  // 預設勾好容易誤送）。整期區自己標「整期 · 預計會到」，來了老師親手勾。
   const { data: term, isLoading: isTermLoading } = useGetPeriodTermQuery({
     id: Number(id),
     periodId: Number(periodId),
   });
-  const enrolledStudentIds = useMemo(
-    () => (term?.offered ? term.enrolled.filter((e) => !e.onLeave).map((e) => e.student.id) : []),
-    [term]
-  );
   const defaultSelectedIds = useMemo(
-    () => [
-      ...new Set([
-        ...(existingRecords ?? []).map((r) => r.studentId),
-        ...trialStudentIds,
-        ...enrolledStudentIds,
-      ]),
-    ],
-    [existingRecords, trialStudentIds, enrolledStudentIds]
+    () => [...new Set([...(existingRecords ?? []).map((r) => r.studentId), ...trialStudentIds])],
+    [existingRecords, trialStudentIds]
   );
   const selfCheckInStudentIds = useMemo(
     () =>

@@ -3,6 +3,7 @@ import RoundCheckbox from "@/components/RoundCheckbox";
 import StatusTag from "@/components/StatusTag";
 import type { PeriodTermInfo } from "@/store/slices/lessons";
 import { formatDate } from "@/lib/utils";
+import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 /** 上一堂誰請假——沒有補課機制，老師請他們提早來補進度。 */
@@ -18,8 +19,9 @@ export const PreviousLeavesBanner = ({ previous }: { previous: PeriodTermInfo["p
   ) : null;
 
 /**
- * 點名頁的「整期」區：報了整期的人預設勾好、不扣卡；沒勾的人選「請假」或「曠課」
- * （預設曠課）。收入不管來不來都照算，這裡只是讓老師知道誰要補進度。
+ * 點名頁的「整期」區：報了整期的人標「預計會到」但**不預設勾選**（來了老師親手勾，不扣卡）；
+ * 沒勾的人選「請假」或「曠課」（預設曠課，事先請假的帶入「請假」）。每列標整期付了沒，
+ * 點名時就知道誰還欠整期的錢。收入不管來不來都照算，這裡只是讓老師知道誰要補進度。
  */
 const TermAttendanceSection = ({
   term,
@@ -58,9 +60,16 @@ const TermAttendanceSection = ({
           </span>
         </h2>
       </div>
-      {rows.map(({ student }) => {
+      {rows.map(({ student, isPaid, price, paidOtherwise }) => {
         const isChecked = selected.has(student.id);
         const onLeave = leaveIds.has(student.id);
+        const subtitle = isChecked
+          ? paidOtherwise
+            ? "這堂改用課卡／單堂付"
+            : "整期 · 不扣卡"
+          : onLeave
+            ? "已請假"
+            : "預計今天會到 · 沒來選請假或曠課";
         return (
           <div
             key={student.id}
@@ -88,10 +97,13 @@ const TermAttendanceSection = ({
                 <span className="flex items-center gap-1.5">
                   <span className="truncate text-[15px] font-semibold text-neutral-900">{student.name}</span>
                   {selfCheckInStudentIds.includes(student.id) && <StatusTag tone="outline">自助簽到</StatusTag>}
+                  {isPaid ? (
+                    <StatusTag tone="positive">整期已付</StatusTag>
+                  ) : (
+                    <StatusTag tone="warning">整期未付 ${formatMoney(price)}</StatusTag>
+                  )}
                 </span>
-                <span className="block truncate text-xs text-neutral-600">
-                  {isChecked ? "整期 · 不扣卡" : "沒來 · 選請假或曠課"}
-                </span>
+                <span className="block truncate text-xs text-neutral-600">{subtitle}</span>
               </span>
               {isChecked && <RoundCheckbox isChecked className="size-7 shrink-0" />}
             </button>
