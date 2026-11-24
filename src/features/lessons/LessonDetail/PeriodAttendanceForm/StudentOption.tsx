@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Student } from "@/store/slices/students";
 import RoundCheckbox from "@/components/RoundCheckbox";
 import StudentAvatar from "@/components/StudentAvatar";
-import { Info } from "lucide-react";
+import { Info, MessageSquareText } from "lucide-react";
 import StatusTag from "@/components/StatusTag";
 import type { RowTag } from "@/hooks/attendanceFlow";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ const StudentOption = ({
   onClick,
   isFirstTime = false,
   isSelfCheckIn = false,
+  studentNote,
   isTrial = false,
   tag,
   cardLine,
@@ -27,6 +28,8 @@ const StudentOption = ({
   isChecked: boolean;
   isFirstTime?: boolean;
   isSelfCheckIn?: boolean;
+  /** 學生自助簽到時留的話。 */
+  studentNote?: string;
   isTrial?: boolean;
   tag?: RowTag;
   /** 「進階6堂 · 扣完剩 3 堂」 */
@@ -84,6 +87,7 @@ const StudentOption = ({
           {tag && !needsCard && <StatusTag tone={tag.tone}>{tag.label}</StatusTag>}
           {!action && <RoundCheckbox isChecked={isChecked} className="size-7 shrink-0" />}
         </div>
+        {studentNote && <StudentNoteLine note={studentNote} />}
         {isFirstTime && (
           <div className="flex items-center gap-1 pl-12">
             <Info className="size-3.5 text-primary-700" aria-hidden="true" />
@@ -110,3 +114,13 @@ const StudentOption = ({
 };
 
 export default StudentOption;
+
+/** 學生自助簽到時留給老師的話（點名列、整期列共用）。 */
+export function StudentNoteLine({ note }: { note: string }) {
+  return (
+    <div className="flex items-start gap-1 pl-12">
+      <MessageSquareText className="mt-0.5 size-3.5 shrink-0 text-primary-700" aria-hidden="true" />
+      <span className="text-xs leading-snug text-neutral-700">「{note}」</span>
+    </div>
+  );
+}

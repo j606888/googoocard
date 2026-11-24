@@ -238,6 +238,8 @@ export interface AttendanceRecord {
   recommendedStudentCardId?: number | null;
   reason?: "PRACTICE_PRIORITY" | null;
   source?: "TEACHER" | "STUDENT";
+  /** 學生自助簽到時留給老師的話（「想報整期，下課付現」）。 */
+  studentNote?: string | null;
   /** 這筆出席扣了（或綁卡時要扣）幾格。 */
   sessionsUsed: number;
   /** 報了整期（不扣卡）。有它就沒有 cardName / uncheckedType。 */

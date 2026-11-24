@@ -490,6 +490,8 @@ model AttendanceRecord {
   // 報了整期的人來上這門課：不扣卡、不收錢（收入照 LessonEnrollment 每堂攤）。
   enrollmentId   Int?
   enrollment     LessonEnrollment? @relation(fields: [enrollmentId], references: [id])
+  // 學生自助簽到時留給老師的話（「想報整期，下課付現」）。只有 source = STUDENT 會有。
+  studentNote    String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 

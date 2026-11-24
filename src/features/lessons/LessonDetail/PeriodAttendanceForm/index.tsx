@@ -23,6 +23,8 @@ const WEEKDAY = ["日", "一", "二", "三", "四", "五", "六"];
 type PeriodAttendanceFormProps = {
   defaultSelectedIds?: number[];
   selfCheckInStudentIds?: number[];
+  /** 學生 id → 自助簽到時留給老師的話。 */
+  studentNotes?: Map<number, string>;
   /** 在課程頁體驗名單上登記、還沒上過的人——預設勾好並標「體驗報名」。 */
   trialStudentIds?: number[];
   /** `leaveStudentIds` 只在這門課開了整期時才有：沒來的整期學生裡標「請假」的人。 */
@@ -37,6 +39,7 @@ type PeriodAttendanceFormProps = {
 const PeriodAttendanceForm = ({
   defaultSelectedIds = [],
   selfCheckInStudentIds = [],
+  studentNotes,
   trialStudentIds = [],
   onSubmit,
   submitLabel = "完成點名",
@@ -155,6 +158,7 @@ const PeriodAttendanceForm = ({
       rowTags={rowTags}
       cardLines={cardLines}
       selfCheckInStudentIds={selfCheckInStudentIds}
+      studentNotes={studentNotes}
       trialStudentIds={trialStudentIds}
       onToggle={toggleStudent}
       onSetMany={setMany}
@@ -169,6 +173,7 @@ const PeriodAttendanceForm = ({
         selectedIds={selectedIds}
         leaveIds={leaveIds}
         selfCheckInStudentIds={selfCheckInStudentIds}
+        studentNotes={studentNotes}
         keyword={keyword}
         onToggle={toggleStudent}
         onLeaveChange={setLeave}

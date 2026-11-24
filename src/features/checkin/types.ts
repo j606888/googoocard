@@ -81,12 +81,22 @@ export interface MyCardSummary {
   lastUsedAt: string | null;
 }
 
+export interface MyTermSummary {
+  lessonId: number;
+  lessonName: string;
+  danceStyle: DanceStyleSummary;
+  sessions: number;
+  statuses: TermAttendanceStatus[];
+}
+
 export interface TodayResponse {
   date: string;
   today: TodayLesson[];
-  /** The rest only when there's no class today (src/service/checkin.ts). */
+  /** nextLesson / upcoming / monthAttendance only when there's no class today (src/service/checkin.ts). */
   nextLesson: NextLesson | null;
   upcoming: UpcomingPeriod[];
+  /** With a student, every day: 「我的課」. */
+  myTerms?: MyTermSummary[];
   myCards?: MyCardSummary[];
   monthAttendance?: number;
 }

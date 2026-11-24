@@ -4,6 +4,7 @@ import { bearerToken } from "@/lib/liffAuth";
 import { verifyIdToken } from "@/lib/line";
 import { resolveCheckinClassroom } from "@/service/checkin";
 import { claimStudentLine, ClaimError } from "@/service/lineBinding";
+import { todayClaimSuggestions } from "@/service/claimSuggestions";
 
 // 「我來上過課」at the on-site QR: a LINE account with no student in this
 // classroom finds itself in the roster and binds itself (see claimStudentLine).
@@ -11,6 +12,9 @@ import { claimStudentLine, ClaimError } from "@/service/lineBinding";
 // GET ?key=&q=  → up to 8 unbound, in-class students whose name contains q.
 //                  Needs a search term — the roster is never listed whole, so a
 //                  stranger scanning the poster can't read everyone's name.
+// GET ?key=&suggest=1 → 「這是你嗎？」: today's lessons with their unbound 整期／體驗
+//                  registrants, plus the best match for the LINE display name
+//                  (todayClaimSuggestions).
 // POST { key, studentId } → bind; 409 already_bound if someone got there first.
 
 const MAX_RESULTS = 8;
@@ -35,6 +39,14 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const auth = await authorize(request, url.searchParams.get("key") ?? "");
   if (!auth.ok) return auth.response;
+
+  if (url.searchParams.get("suggest") === "1") {
+    const { groups, bestMatchId } = await todayClaimSuggestions(
+      auth.classroom.id,
+      auth.verified.name ?? ""
+    );
+    return NextResponse.json({ groups, bestMatchId });
+  }
 
   const q = (url.searchParams.get("q") ?? "").trim().slice(0, 30);
   if (!q) return NextResponse.json({ students: [] });

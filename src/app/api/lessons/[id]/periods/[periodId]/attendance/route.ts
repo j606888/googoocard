@@ -162,6 +162,7 @@ export async function GET(
       studentAvatarUrl: record.student.avatarUrl,
       studentName: record.student.name,
       source: record.source,
+      studentNote: record.studentNote,
       sessionsUsed: record.sessionsUsed,
       ...studentCardData,
     };

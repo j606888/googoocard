@@ -28,6 +28,7 @@ const TermAttendanceSection = ({
   selectedIds,
   leaveIds,
   selfCheckInStudentIds,
+  studentNotes,
   keyword,
   onToggle,
   onLeaveChange,
@@ -36,6 +37,7 @@ const TermAttendanceSection = ({
   selectedIds: number[];
   leaveIds: Set<number>;
   selfCheckInStudentIds: number[];
+  studentNotes?: Map<number, string>;
   keyword: string;
   onToggle: (studentId: number) => void;
   onLeaveChange: (studentId: number, onLeave: boolean) => void;
@@ -104,6 +106,9 @@ const TermAttendanceSection = ({
                   )}
                 </span>
                 <span className="block truncate text-xs text-neutral-600">{subtitle}</span>
+                {studentNotes?.get(student.id) && (
+                  <span className="block text-xs leading-snug text-neutral-700">「{studentNotes.get(student.id)}」</span>
+                )}
               </span>
               {isChecked && <RoundCheckbox isChecked className="size-7 shrink-0" />}
             </button>
