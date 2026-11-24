@@ -120,6 +120,12 @@ const PendingStudents = ({
               </p>
             </div>
             <PendingRecordAction record={record} lesson={lesson} periodId={periodId} />
+            {/* 學生在 LINE 簽到時選了「下課問老師」多半會留話（想報整期、付現…）。 */}
+            {record.studentNote && (
+              <p className="basis-full pl-9 text-xs leading-snug text-neutral-700">
+                學生留言：「{record.studentNote}」
+              </p>
+            )}
           </div>
         ))}
       </div>

@@ -14,6 +14,80 @@ interface Candidate {
   remainingSessions: number;
 }
 
+/** Who is about to be claimed — from the search here, or from「這是你嗎？」. */
+export interface ClaimCandidate {
+  id: number;
+  name: string;
+  avatarUrl: string;
+}
+
+/**
+ *「你是 X 嗎？」→ binds this LINE to X (`POST /api/liff/claim`). Shared by the search
+ * below and by the suggestion list in FirstTimeGate.
+ */
+export function ClaimConfirm({
+  candidate,
+  idToken,
+  checkinKey,
+  onClaimed,
+  onCancel,
+}: {
+  candidate: ClaimCandidate;
+  idToken: string;
+  checkinKey: string;
+  onClaimed: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleClaim = async () => {
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/liff/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ key: checkinKey, studentId: candidate.id }),
+      });
+      if (res.status === 409) {
+        toast.error("這位已經綁定別的 LINE 了，請找小幫手");
+        setSubmitting(false);
+        onCancel();
+        return;
+      }
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      onClaimed(candidate.name);
+    } catch (err) {
+      console.error("[liff] claim error", err);
+      toast.error("綁定失敗，請稍後再試或找小幫手");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={candidate.avatarUrl} alt="" className="h-20 w-20 rounded-full object-cover" />
+        <h2 className="text-2xl font-bold">你是 {candidate.name} 嗎？</h2>
+        <p className="leading-relaxed text-neutral-600">
+          確認後，這個 LINE 就會綁定到 {candidate.name}，
+          <br />
+          以後打開 LINE 選單就能直接簽到、看剩幾堂。
+        </p>
+      </div>
+      <div className="flex flex-col gap-2 px-5 pb-6">
+        <Button size="lg" className="w-full" isLoading={submitting} onClick={handleClaim}>
+          <Link2 className="h-5 w-5" />
+          {submitting ? "綁定中…" : "是我，綁定並簽到"}
+        </Button>
+        <Button variant="ghost" size="lg" className="w-full" disabled={submitting} onClick={onCancel}>
+          不是，重新找
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * 「我來上過課」（FirstTimeGate）：找到自己、確認、綁定這個 LINE，接著就進簽到。
  * 名單要打字才查得到（不整份攤開），只會出現還沒綁 LINE 的人；老師會在
@@ -33,7 +107,6 @@ export default function ClaimSelf({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Candidate[] | null>(null);
   const [picked, setPicked] = useState<Candidate | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const q = query.trim();
@@ -62,55 +135,19 @@ export default function ClaimSelf({
     };
   }, [query, idToken, checkinKey]);
 
-  const handleClaim = async () => {
-    if (!picked) return;
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/liff/claim", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ key: checkinKey, studentId: picked.id }),
-      });
-      if (res.status === 409) {
-        toast.error("這位已經綁定別的 LINE 了，請找小幫手");
-        setPicked(null);
-        setResults(null);
-        setQuery("");
-        setSubmitting(false);
-        return;
-      }
-      if (!res.ok) throw new Error(`status ${res.status}`);
-      onClaimed(picked.name);
-    } catch (err) {
-      console.error("[liff] claim error", err);
-      toast.error("綁定失敗，請稍後再試或找小幫手");
-      setSubmitting(false);
-    }
-  };
-
   if (picked) {
     return (
-      <div className="flex flex-1 flex-col">
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={picked.avatarUrl} alt="" className="h-20 w-20 rounded-full object-cover" />
-          <h2 className="text-2xl font-bold">你是 {picked.name} 嗎？</h2>
-          <p className="leading-relaxed text-neutral-600">
-            確認後，這個 LINE 就會綁定到 {picked.name}，
-            <br />
-            以後打開 LINE 選單就能直接簽到、看剩幾堂。
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 px-5 pb-6">
-          <Button size="lg" className="w-full" isLoading={submitting} onClick={handleClaim}>
-            <Link2 className="h-5 w-5" />
-            {submitting ? "綁定中…" : "是我，綁定並簽到"}
-          </Button>
-          <Button variant="ghost" size="lg" className="w-full" disabled={submitting} onClick={() => setPicked(null)}>
-            不是，重新找
-          </Button>
-        </div>
-      </div>
+      <ClaimConfirm
+        candidate={picked}
+        idToken={idToken}
+        checkinKey={checkinKey}
+        onClaimed={onClaimed}
+        onCancel={() => {
+          setPicked(null);
+          setResults(null);
+          setQuery("");
+        }}
+      />
     );
   }
 
@@ -134,13 +171,13 @@ export default function ClaimSelf({
       </div>
 
       {results && results.length > 0 && (
-        <ul className="flex flex-col gap-2">
+        <ul className="-mx-5 flex flex-col divide-y divide-neutral-100">
           {results.map((s) => (
             <li key={s.id}>
               <button
                 type="button"
                 onClick={() => setPicked(s)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-3 text-left active:bg-neutral-50"
+                className="flex min-h-16 w-full items-center gap-3 px-5 py-2.5 text-left active:bg-primary-50"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={s.avatarUrl} alt="" className="h-11 w-11 rounded-full object-cover" />
@@ -155,7 +192,7 @@ export default function ClaimSelf({
       )}
 
       {results && results.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-neutral-300 p-4 text-sm leading-relaxed text-neutral-600">
+        <div className="text-sm leading-relaxed text-neutral-600">
           找不到「{query.trim()}」。換個寫法試試（中文名、英文名、暱稱）；
           如果還是找不到，可能已經綁過別的 LINE，請找小幫手。
         </div>

@@ -55,6 +55,17 @@ const CheckPeriod = () => {
     [existingRecords]
   );
 
+  // 學生簽到時留的話：點名列上直接看得到（例：「想報整期，下課付現」）。
+  const studentNotes = useMemo(
+    () =>
+      new Map(
+        (existingRecords ?? [])
+          .filter((r) => r.studentNote)
+          .map((r) => [r.studentId, r.studentNote as string])
+      ),
+    [existingRecords]
+  );
+
   const hasEnrolled = Boolean(term?.offered && term.enrolled.length > 0);
   const handleSubmit = async (studentIds: number[], leaveStudentIds?: number[]) => {
     if (studentIds.length === 0 && !hasEnrolled) {
@@ -96,6 +107,7 @@ const CheckPeriod = () => {
       <PeriodAttendanceForm
         defaultSelectedIds={defaultSelectedIds}
         selfCheckInStudentIds={selfCheckInStudentIds}
+        studentNotes={studentNotes}
         trialStudentIds={trialStudentIds}
         onSubmit={handleSubmit}
         submitLabel="完成點名"

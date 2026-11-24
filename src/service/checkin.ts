@@ -105,6 +105,15 @@ export interface MyCardSummary {
   lastUsedAt: Date | null;
 }
 
+/** 學生報了整期、還沒上完的一門課（簽到頁上方的「我的課」）。 */
+export interface MyTermSummary {
+  lessonId: number;
+  lessonName: string;
+  danceStyle: DanceStyleSummary;
+  sessions: number;
+  statuses: TermAttendanceStatus[];
+}
+
 export interface TodayLessons {
   date: string;
   today: TodayLesson[];
@@ -112,8 +121,10 @@ export interface TodayLessons {
   nextLesson: NextLesson | null;
   /** Only when there's no class today: the classroom's next few periods besides `nextLesson`. */
   upcoming: UpcomingPeriod[];
-  /** Only when there's no class today and a student is given. */
+  /** With a student (every day): their unfinished term enrollments and their cards — 「我的課」. */
+  myTerms?: MyTermSummary[];
   myCards?: MyCardSummary[];
+  /** Only when there's no class today and a student is given. */
   monthAttendance?: number;
 }
 
@@ -222,7 +233,12 @@ export async function getTodayLessons(
     })
   );
 
-  if (today.length > 0) return { date: todayKey, today, nextLesson: null, upcoming: [] };
+  const mine = studentId
+    ? await Promise.all([myTermSummaries(studentId), myCardSummaries(studentId)])
+    : null;
+  const myLessons = mine ? { myTerms: mine[0], myCards: mine[1] } : {};
+
+  if (today.length > 0) return { date: todayKey, today, nextLesson: null, upcoming: [], ...myLessons };
 
   // No class today — say when the next one is, so the page isn't a dead end.
   const nextLesson = await findNextLesson(classroomId, studentId, now);
@@ -233,11 +249,38 @@ export async function getTodayLessons(
   );
   if (!studentId) return { date: todayKey, today, nextLesson, upcoming };
 
-  const [myCards, monthAttendance] = await Promise.all([
-    myCardSummaries(studentId),
-    monthAttendanceCount(studentId, now),
-  ]);
-  return { date: todayKey, today, nextLesson, upcoming, myCards, monthAttendance };
+  const monthAttendance = await monthAttendanceCount(studentId, now);
+  return { date: todayKey, today, nextLesson, upcoming, ...myLessons, monthAttendance };
+}
+
+/**
+ * The student's term enrollments that still have a class to come: the lesson wasn't
+ * ended by hand and a covered period hasn't had attendance taken (or isn't scheduled yet).
+ */
+async function myTermSummaries(studentId: number): Promise<MyTermSummary[]> {
+  const enrollments = await prisma.lessonEnrollment.findMany({
+    where: { studentId, lesson: { endedAt: null } },
+    select: {
+      lesson: { select: { id: true, name: true, danceStyle: { select: danceStyleSummarySelect } } },
+    },
+    orderBy: { id: "asc" },
+  });
+  const summaries = await Promise.all(
+    enrollments.map(async ({ lesson }) => {
+      const progress = await studentTermProgress(lesson.id, studentId);
+      // 還有沒點名的堂，或還有堂數沒排出時段（statuses 只到已排的時段）。
+      const remaining = progress && (progress.statuses.includes("upcoming") || progress.statuses.length < progress.sessions);
+      if (!progress || !remaining) return null;
+      return {
+        lessonId: lesson.id,
+        lessonName: lesson.name,
+        danceStyle: lesson.danceStyle,
+        sessions: progress.sessions,
+        statuses: progress.statuses,
+      };
+    })
+  );
+  return summaries.filter((s): s is MyTermSummary => s !== null);
 }
 
 const UPCOMING_COUNT = 2;

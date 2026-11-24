@@ -310,6 +310,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 - 帶 `?key=` 時 gate 在 `liff.init()` 之後才讀網址（LIFF 會先把 `liff.state` 還原成真網址），呼叫 `/api/liff/me?key=`：只看該教室的學生。
 - 該教室沒有學生 → 403 `not_bound`，附 `classroomName`、`lineName`、`linePicture`（`verifyIdToken` 從 LINE verify 回應取 `name` / `picture`，要 LIFF 有 `profile` scope）→ `FirstTimeGate`：
+  - **「老師已經幫你登記了嗎？」（2026-11-24）**：老師常在第一堂課前就先建好學生（整期名單、體驗名單），所以先列**今天的課**已報名、還沒綁 LINE 的在籍學生（`GET /api/liff/claim?key=&suggest=1` → `todayClaimSuggestions()`，`src/service/claimSuggestions.ts`）：整期 = 有 `LessonEnrollment`；體驗 = 手上有這堂課收的體驗卡且還沒用掉。依課分組，跟 LINE 顯示名稱最像的一位（`bestNameMatch()`，`src/lib/nameMatch.ts`：至少連續 2 字相同、並列就不猜）拉到最上面標「最像你的」。點一下 → `ClaimConfirm` →「是我，綁定並簽到」（同下方的認領，一樣進待處理）。**刻意取捨**：掃海報的人看得到今天的報名名單（使用者同意）；整份名冊仍然要打字搜尋。今天沒人可推薦時才顯示下面的「第一次來嗎？」。
   - 「是，第一次來」→ 填暱稱（預填 LINE 名稱）→ `POST /api/liff/register { key, name }` → `registerLineStudent()`（`src/service/student.ts`）。先 `SELECT … FOR UPDATE` 鎖教室列，所以重複送出／並發只會建一位、學號不會跳號；頭像用 LINE 頭像（`next.config.ts` 已允許 `profile.line-scdn.net`），寫 Event「自助登記」、`LineAccount` 切到 STUDENT。
   - **同名不擋**（跟老師端建立學生不同），交給待處理「可能重複」＋合併學員。
   - 「我來上過課」→ 從名單認領自己（`/api/liff/claim`、`claimStudentLine()`，2026-11-08 起）：要打字搜尋才列人，只列**未綁 LINE、在籍**的學生，選了就直接綁定並進簽到。可能被冒用，所以記 `Student.lineSelfClaimedAt`，列在老師「待處理 › 提醒 › LINE 自助認領」，老師按「沒問題」（`DELETE /api/students/[id]/line-claim`）或「解除」（解除綁定，一併清掉；認錯人已扣的那堂要到點名取消勾選才退卡）。點名名單上標「自助認領」。不另外推播。
@@ -321,9 +322,11 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - `card: { studentCardId }` —— 必須在 `cardOptionsFor(student, lesson).usable` 內（否則 `card_not_usable` 400）。
 - `card: { buyCardId }` —— 卡必須掛在這堂課（`lesson.cards`，否則 `card_not_offered` 400）且 `canBuyCard(card, levels, lesson)`（否則 `not_qualified` 403）。只有真的會用到時才建卡：`createStudentCardInTx()`（`src/service/studentCard.ts`，老師開卡、LIFF 購卡共用）、`purchaseSource STUDENT`、照牌價、未付款（體驗卡不在這裡賣，見下方「體驗課」）。
 - 沒指定 → 引擎自己挑（`cardOptionsFor().autoPick`：practice 優先時挑推薦的那張；否則只有唯一一張才自動挑）。
-- **`requireCard`（LIFF 一律開）**：寫入前先用 `planPeriodCards()` 在卡片副本上模擬每個時段扣哪張（選定的卡用完就換引擎自動挑），任何一個時段會沒卡 → `card_required` 400，**什麼都不寫**（也不買卡）。所以自助點名不再產生「沒綁卡」的出席；`UNBOUND_ATTENDANCE` 只剩老師端點名。
+- `card: { later: true }` ——「還不確定，下課問老師」（2026-11-24）：不扣卡（手上有卡也不扣）、不收單堂，寫一筆沒綁卡的出席（結果 `no_card`），交給老師在點名完成頁／待處理「出席沒綁課卡」決定買卡、單堂或整期；推播「出席沒有課卡」會寫「選了下課問老師」和備註。
+- **`requireCard`（LIFF 一律開）**：寫入前先用 `planPeriodCards()` 在卡片副本上模擬每個時段扣哪張（選定的卡用完就換引擎自動挑），任何一個時段會沒卡 → `card_required` 400，**什麼都不寫**（也不買卡）。只有學生明確選了 `later` 才會產生自助的「沒綁卡」出席。
+- **備註 `note`**（選填，最多 200 字，`STUDENT_NOTE_MAX`）：存到這次寫入的每一筆 `AttendanceRecord.studentNote`。LIFF 只在「怎麼付」那一步問（跟著那幾堂送）；老師端點名列（`StudentOption` / 整期區）與點名完成頁的未綁卡列都顯示「學生留言」。
 
-`/api/liff/today` 帶學生時，每堂課多回 `cardStatus = { usable, autoPickId, buyable }`（`src/service/checkin.ts` 的 `lessonCardStatus()`，跟引擎同一套規則），LIFF 畫面據此顯示「使用 X（剩 n 堂）」／多張卡讓學生選／「還沒有能用的課卡，下一步選一張」。`POST /api/liff/checkin` 回 `{ results, purchased, amountDue, unpaidCards }`，完成畫面寫「下課請找小幫手付款 $X」並提醒舊的未付卡。**不另外推播給學生**（當場買卡時老師端照常收到「待確認收款」`UNPAID_CARD` 推播）。
+`/api/liff/today` 帶學生時，每堂課多回 `cardStatus = { usable, autoPickId, buyable }`（`src/service/checkin.ts` 的 `lessonCardStatus()`，跟引擎同一套規則），而且**每天**都回「我的課」：`myTerms`（還沒上完的整期，含每堂狀態）＋ `myCards`（能用或未付的卡）。簽到頁（2026-11-24 改版，設計稿 artifact「LIFF 簽到流程改版」）上方先列「我的課」（`MyLessons`），下面「今天要上哪幾堂？」每個時段一列整列可勾，第三行直接寫會怎麼扣：「扣 X 1 堂，剩 n 堂」／「整期第 n / N 堂，不扣課卡」／「沒有能用的課卡，勾選後選怎麼付」。沒卡的課在下一步「怎麼付？」選買卡、單堂或「下課問老師」，可留備註。視覺規則：白底分組清單＋細分隔線、不包框；多選用圓角方形勾、單選用圓圈，選中整列淡綠底；奇異鳥只放在標題旁（揮手／拿卡）與完成頁（跳舞）。`POST /api/liff/checkin` 回 `{ results, purchased, amountDue, unpaidCards }`，完成畫面寫「下課請找小幫手付款 $X」並提醒舊的未付卡。**不另外推播給學生**（當場買卡時老師端照常收到「待確認收款」`UNPAID_CARD` 推播）。
 
 **加好友提示**：掃門口 QR 進來的人不一定加了官方帳號（LIFF 的 Add friend option 只在第一次授權時問、可以拒絕；建議設 Aggressive）。沒加好友就收不到續卡提醒、聊天室叫不出選單，所以用 `liff.getFriendship()` 再查一次，沒加就顯示「加好友」（`AddFriendPrompt`，三處：門口登記／認領完成後的「登記完成／綁定完成」畫面（`FirstTimeGate`，按「繼續簽到」才進選課——很多人綁完就離開）、今天沒課（`NoClassToday`）、簽到完成頁；連 `line.me/R/ti/p/<NEXT_PUBLIC_LINE_OA_ID>`）。LIFF 沒連到官方帳號（getFriendship 丟錯）或沒設 OA ID 時不顯示。另外不管是不是好友，每個 LIFF 頁首右上角都有「LINE 聊天室」（`line.me/R/oaMessage/<OA ID>/`，`src/lib/lineOa.ts`），簽到完成頁底部的「關閉」也換成「回到 LINE 聊天室」——掃 QR 進來的人常找不到聊天室；沒設 OA ID 時才退回「關閉」。
 

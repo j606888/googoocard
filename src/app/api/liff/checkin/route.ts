@@ -15,10 +15,13 @@ import {
 // Every self check-in is paid for: the student either has a card the engine
 // picks, chooses one of theirs (`studentCardId`), buys one of the lesson's cards
 // on the spot (`buyCardId`, unpaid — paid after class), or pays the lesson's
-// drop-in price (`dropIn: true`, no card, paid after class). Anything that would
-// leave a period unpaid for is refused with `card_required`.
+// drop-in price (`dropIn: true`, no card, paid after class), or says「下課問老師」
+// (`later: true`: no card yet — the teacher settles it, it shows up in 待處理).
+// Anything else that would leave a period unpaid for is refused with `card_required`.
+// `note` (optional) is what the student wants the teacher to know; it's stored on
+// every attendance record this request writes.
 export async function POST(request: Request) {
-  const { studentId, lessonId, periodIds, studentCardId, buyCardId, dropIn, dropInOption } =
+  const { studentId, lessonId, periodIds, studentCardId, buyCardId, dropIn, dropInOption, later, note } =
     await request.json();
 
   const resolved = await resolveOwnedStudent(bearerToken(request), studentId);
@@ -42,6 +45,8 @@ export async function POST(request: Request) {
   else if (buyCardId) card = { buyCardId: Number(buyCardId) };
   else if (dropIn === true) {
     card = { dropIn: true, optionName: typeof dropInOption === "string" ? dropInOption : undefined };
+  } else if (later === true) {
+    card = { later: true };
   }
 
   let outcome;
@@ -53,6 +58,7 @@ export async function POST(request: Request) {
       card,
       requireCard: true,
       openOn: new Date(),
+      note: typeof note === "string" ? note : undefined,
     });
   } catch (e) {
     if (e instanceof SelfCheckInError) {

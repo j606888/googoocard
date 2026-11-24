@@ -207,7 +207,8 @@ async function createAttendanceRecord(
   studentCardId: number | null,
   sessionsUsed: number,
   source: AttendanceSource = AttendanceSource.TEACHER,
-  enrollmentId: number | null = null
+  enrollmentId: number | null = null,
+  studentNote: string | null = null
 ) {
   // Ensure lesson-student relationship exists
   await tx.lessonStudent.upsert({
@@ -233,6 +234,7 @@ async function createAttendanceRecord(
       sessionsUsed,
       source,
       enrollmentId,
+      studentNote,
     },
   });
 
@@ -573,11 +575,19 @@ export type SelfCheckInResult = {
   exhausted?: boolean;
 };
 
-/** How the student pays for this check-in: a card they hold, one bought now, or the lesson's drop-in price. */
+/**
+ * How the student pays for this check-in: a card they hold, one bought now, the lesson's
+ * drop-in price, or「下課問老師」(`later`) — no card yet; the teacher decides after class
+ * (the attendance lands in 待處理 as「出席沒綁課卡」, so `requireCard` lets it through).
+ */
 export type SelfCheckInCardChoice =
   | { studentCardId: number }
   | { buyCardId: number }
-  | { dropIn: true; optionName?: string };
+  | { dropIn: true; optionName?: string }
+  | { later: true };
+
+/** Longest note a student may leave for the teacher at self check-in. */
+export const STUDENT_NOTE_MAX = 200;
 
 /**
  * A self check-in the engine refuses before writing anything. `status` is the
@@ -684,12 +694,15 @@ async function selfCheckInOnce({
   card: requestedChoice,
   requireCard = false,
   openOn,
+  note,
 }: {
   studentId: number;
   lessonId: number;
   lessonPeriodIds: number[];
   card?: SelfCheckInCardChoice;
   requireCard?: boolean;
+  /** 學生留給老師的話，存在這次寫入的每一筆出席（`studentNote`）。 */
+  note?: string;
   /**
    * Only periods starting on this instant's Taipei date may be checked into
    * (the LIFF route passes `new Date()`) — otherwise a crafted request could
@@ -756,6 +769,9 @@ async function selfCheckInOnce({
   let chosenId: number | null = null;
   let buying: (typeof lesson.cards)[number]["card"] | null = null;
   const dropIn = Boolean(choice && "dropIn" in choice);
+  // 下課問老師：刻意不扣卡、不收單堂，留給老師決定。
+  const later = Boolean(choice && "later" in choice);
+  const studentNote = note?.trim().slice(0, STUDENT_NOTE_MAX) || null;
 
   let dropInOption: DropInOption | null = null;
   if (choice && "dropIn" in choice) {
@@ -788,10 +804,11 @@ async function selfCheckInOnce({
   }
 
   // 單堂付費：每個時段都不扣卡，各記一筆單堂費。
-  const plan = dropIn
-    ? paidPeriods.map(() => null)
-    : planPeriodCards(student, lesson, paidPeriods.length, chosenId);
-  if (requireCard && !dropIn && plan.some((id) => id === null)) {
+  const plan =
+    dropIn || later
+      ? paidPeriods.map(() => null)
+      : planPeriodCards(student, lesson, paidPeriods.length, chosenId);
+  if (requireCard && !dropIn && !later && plan.some((id) => id === null)) {
     throw new SelfCheckInError("card_required", 400);
   }
 
@@ -844,7 +861,8 @@ async function selfCheckInOnce({
             null,
             lesson.sessionsPerAttendance,
             AttendanceSource.STUDENT,
-            enrollment.id
+            enrollment.id,
+            studentNote
           );
           await createAttendanceEvent(tx, lesson.name, student.id, record.id);
           written.push({
@@ -866,7 +884,9 @@ async function selfCheckInOnce({
           student.id,
           studentCard?.id ?? null,
           lesson.sessionsPerAttendance,
-          AttendanceSource.STUDENT
+          AttendanceSource.STUDENT,
+          null,
+          studentNote
         );
         await createAttendanceEvent(tx, lesson.name, student.id, attendanceRecord.id);
 
@@ -927,7 +947,9 @@ async function selfCheckInOnce({
     await notifyClassroom(lesson.classroomId, {
       type: "UNBOUND_ATTENDANCE",
       title: "出席沒有課卡",
-      body: `${student.name} 自助簽到了「${lesson.name}」，但沒有可用的課卡`,
+      body: later
+        ? `${student.name} 自助簽到了「${lesson.name}」，選了下課問老師${studentNote ? `：「${studentNote}」` : ""}`
+        : `${student.name} 自助簽到了「${lesson.name}」，但沒有可用的課卡`,
       path: `/lessons/${lesson.id}/periods/${unbound.periodId}/check-success`,
     });
   }
