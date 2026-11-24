@@ -255,13 +255,13 @@ Classroom（頂層容器，所有實體都屬於一間教室）
   第 N 期、月份；括號裡的分部代號（`[KH]` → 高雄）當預設分部，沒有就用排序第一個分部。
   有舊課沒整理時課程頁會出提示（`unorganizedLessonCount`）。可以重跑：已是課種的群組原樣帶入。
 - 新增課程時選型態；上次選的型態依教室記在 localStorage 當預設。
-- **新增課程是步驟式**（`newLesson/index.tsx`，2026-11-11）：① 基本設定（課種、舞種／階級、型態、扣幾格、課卡）② 細節（分部、老師、小幫手、單堂付費）③ 排課（按「新增時段」才打開時段表單，加入後收起，下次預設最後一堂的下一週）④ 預覽（每區一張卡＋「修改」，缺的標出來），預覽才建立。上方步驟列隨時能跳；「下一步」只擋這一步的錯（`ERROR_STEP`），建立時有錯就跳到第一個有錯的步驟。**課種必選**（`SeriesPicker`：現有課種或「＋ 新課種」當場建，同名就用現有的）；課名預設＝課種名稱，「這一期另取名稱」才另填。選現有課種時舞種／階級帶入它最新一期的。外觀是 Apple 設定頁風格的分組清單（`newLesson/grouped.tsx`、`groupedFields.tsx`：淺灰底白色群組、整列打勾、分段控制；2026-11-11 使用者挑的），只用在新增課程；課程設定抽屜仍用一般表單元件，分「基本設定／細節／課程狀態」。
+- **新增課程是步驟式**（`newLesson/index.tsx`，2026-11-11）：① 基本設定（課種、舞種／階級、型態、扣幾格，以及付費方式：課卡、單堂付費、報名整期——2026-11-24 搬到一起）② 細節（分部、老師、小幫手）③ 排課（按「新增時段」才打開時段表單，加入後收起，下次預設最後一堂的下一週）④ 預覽（每區一張卡＋「修改」，缺的標出來），預覽才建立。上方步驟列隨時能跳；「下一步」只擋這一步的錯（`ERROR_STEP`），建立時有錯就跳到第一個有錯的步驟。**課種必選**（`SeriesPicker`：現有課種或「＋ 新課種」當場建，同名就用現有的）；課名預設＝課種名稱，「這一期另取名稱」才另填。選現有課種時舞種／階級帶入它最新一期的。外觀是 Apple 設定頁風格的分組清單（`newLesson/grouped.tsx`、`groupedFields.tsx`：淺灰底白色群組、整列打勾、分段控制；2026-11-11 使用者挑的），只用在新增課程；課程設定抽屜仍用一般表單元件，分「基本設定／細節／課程狀態」。
 
 ## 報名整期（`LessonEnrollment`，2026-11）
 
 課卡、單堂之外的第三種付費方式：**錢綁在這一期，不綁在出席**。邏輯在 `src/service/termEnrollment.ts`，純規則在 `src/lib/termEnrollment.ts`（前後端共用）。
 
-- **開課時講好**：`Lesson.termPrice` ＋ `termSessions`（兩個一起有或一起 null，null = 不開放；`resolveTermInput()`）。每堂價 = price / sessions，例 $1,600 / 5 堂 = $320。只有 `kind = "fixed"` 的課能開（`TERM_REQUIRES_FIXED`）。開課步驟②「細節」、課程設定抽屜都有（`TermPriceField`）。
+- **開課時講好**：`Lesson.termPrice` ＋ `termSessions`（兩個一起有或一起 null，null = 不開放；`resolveTermInput()`）。每堂價 = price / sessions，例 $1,600 / 5 堂 = $320。只有 `kind = "fixed"` 的課能開（`TERM_REQUIRES_FIXED`）。開課步驟①「基本設定」（跟課卡、單堂放一起）、課程設定抽屜都有（`TermPriceField`）。
 - **時段數不能超過堂數**（使用者決定，先禁止）：開課、`POST .../periods`、改設定都擋（`TERM_SESSIONS_EXCEEDED`）。停課就刪掉那堂、另外補排一堂——**不重新平均**，每堂價永遠一樣。**已有人報名就鎖住**整期價與堂數（含關掉整期，`TERM_LOCKED`；課程設定抽屜顯示「已有 N 人報名」不給改）——報名的堂數永遠 = 課程的，改了會回頭改每堂價。
 - **一筆報名** = `LessonEnrollment(lessonId, studentId)`（unique）：`price` 預設抄課程的，可以個別改（舊生半價）；**`sessions` 一律 = 課程的堂數**（報了就是整期，不能個別改——2026-11-24 使用者決定；欄位留著給以後的插班）。改價（`PATCH`）在學生動態記一筆「整期改價 $A → $B」（已收款的加註「實收不變」，畫面也提醒）——改價會回頭改已點名那幾堂的收入。收款欄位同課卡（`isPaid`／`paymentMethod`／`paymentReference`／`paidByUserId`），沒付進待處理「整期未付」（`todos.unpaidEnrollments`，算進紅色數字），確認收款 `POST /api/lesson-enrollments/[id]/confirm-payment`（`ConfirmPaymentDrawer` 帶 `enrollmentId`）。
 - **只有老師登記**（這一期頁「學生」分頁的整期名單，`TermRoster`）：`GET/POST /api/lessons/[id]/enrollments`、`PATCH/DELETE /api/lesson-enrollments/[id]`。LINE 不賣整期。**沒有插班**：第一堂上過才登記也一樣收整期、每一堂都照算（畫面黃字提醒；過去那幾堂的收入會在登記當下變多，使用者接受）。**晚登記會接手之前的出席**（`adoptEarlierAttendanceInTx()`，同一個 transaction）：涵蓋範圍內、報名前就有的出席改掛這筆報名——扣了卡的**退卡**（退 `sessionsUsed` 格、清掉過時的「課卡使用完畢」）、沒收款的單堂費**刪掉**、什麼都沒付的直接掛上；**已收款的單堂不動**（錢收了；要折抵就老師手動改價）。登記後 `refreshNeedsRenewalTag()`。取消報名只給「登記錯了」用——已有出席掛在這筆報名上就 409（`ENROLLMENT_IN_USE`）；中途不來就讓他一直是曠課，**不退費**。

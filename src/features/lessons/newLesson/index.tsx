@@ -74,8 +74,8 @@ const ERROR_STEP = {
   danceStyle: 0,
   cards: 0,
   teachers: 1,
-  dropInPrice: 1,
-  term: 1,
+  dropInPrice: 0,
+  term: 0,
   periods: 2,
 } as const;
 
@@ -443,7 +443,7 @@ const NewLesson = () => {
   const nextLabel = `下一步：${STEPS[skipDetails ? 2 : step + 1]}`;
   const subtitle = [
     "開一堂課一定要有的，其他下一步再說。",
-    initialClone ? "沿用上一期的設定，有變再改。" : "在哪上、誰教、能不能單堂付費。",
+    initialClone ? "沿用上一期的設定，有變再改。" : "在哪上、誰教、誰來幫忙。",
     "一堂一堂加進來，下一堂預設隔一週。",
     "確認一下，沒問題就建立。",
   ][step];
@@ -643,24 +643,7 @@ const NewLesson = () => {
               danceStyleId={danceStyleId}
               error={errors.cards}
             />
-            </>
-            )}
-          </>
-        )}
-
-        {step === 1 && (
-          <>
-            <LocationGroup locationId={locationId} onChange={setPickedLocationId} />
-            <TeacherGroup
-              selectedTeacherIds={selectedTeacherIds}
-              onChange={handleTeacherChange}
-              error={errors.teachers}
-            />
-            <AssistantGroup
-              selectedAssistantIds={selectedAssistantIds}
-              teacherIds={selectedTeacherIds}
-              onChange={setSelectedAssistantIds}
-            />
+            {/* 付費方式放在一起：課卡、單堂、整期（2026-11-24，使用者在選課卡的地方找整期）。 */}
             <GroupedSection title="單堂付費" error={errors.dropInPrice}>
               <div className="px-4 py-3">
                 <DropInPriceField
@@ -696,6 +679,24 @@ const NewLesson = () => {
                 )}
               />
             </GroupedSection>
+            </>
+            )}
+          </>
+        )}
+
+        {step === 1 && (
+          <>
+            <LocationGroup locationId={locationId} onChange={setPickedLocationId} />
+            <TeacherGroup
+              selectedTeacherIds={selectedTeacherIds}
+              onChange={handleTeacherChange}
+              error={errors.teachers}
+            />
+            <AssistantGroup
+              selectedAssistantIds={selectedAssistantIds}
+              teacherIds={selectedTeacherIds}
+              onChange={setSelectedAssistantIds}
+            />
           </>
         )}
 
@@ -757,15 +758,15 @@ const NewLesson = () => {
               <GroupedRow label="課卡">
                 <span className="truncate">{cardNames.length ? cardNames.join("、") : "—"}</span>
               </GroupedRow>
+              <GroupedRow label="單堂付費">
+                {dropInEnabled ? (dropInAmount ? `開放，$${dropInAmount}` : "開放") : "不開放"}
+              </GroupedRow>
+              <GroupedRow label="報名整期">{kind === "ongoing" ? "不開放" : termSummary(termDraft)}</GroupedRow>
             </PreviewSection>
             <PreviewSection title="細節" missing={!stepDone(1)} onEdit={() => goTo(1)}>
               <GroupedRow label="分部">{locations.find((l) => l.id === locationId)?.name ?? "不指定"}</GroupedRow>
               <GroupedRow label="老師">{selectedTeacherIds.map(nameOf).filter(Boolean).join("、") || "—"}</GroupedRow>
               <GroupedRow label="小幫手">{selectedAssistantIds.map(nameOf).filter(Boolean).join("、") || "—"}</GroupedRow>
-              <GroupedRow label="單堂付費">
-                {dropInEnabled ? (dropInAmount ? `開放，$${dropInAmount}` : "開放") : "不開放"}
-              </GroupedRow>
-              <GroupedRow label="報名整期">{kind === "ongoing" ? "不開放" : termSummary(termDraft)}</GroupedRow>
             </PreviewSection>
             <PreviewSection title="排課" missing={!stepDone(2)} onEdit={() => goTo(2)}>
               {periods.length === 0 ? (
