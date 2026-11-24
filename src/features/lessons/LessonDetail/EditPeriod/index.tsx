@@ -22,8 +22,9 @@ const EditPeriod = () => {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleSubmit = async (studentIds: number[]) => {
-    if (studentIds.length === 0) {
+  const handleSubmit = async (studentIds: number[], leaveStudentIds?: number[]) => {
+    // 整期課可以全員請假（leaveStudentIds 有值 = 這門課有整期學生）。
+    if (studentIds.length === 0 && leaveStudentIds === undefined) {
       setError("請至少選一位學生");
       return;
     }
@@ -33,6 +34,7 @@ const EditPeriod = () => {
         id: Number(id),
         periodId: Number(periodId),
         studentIds,
+        leaveStudentIds,
       }).unwrap();
     } catch (err) {
       toast.error(`儲存失敗：${describeAttendanceSubmitError(err).message}`);

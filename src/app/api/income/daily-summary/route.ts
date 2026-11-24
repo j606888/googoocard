@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
 import { toTaipeiDateKey, parseTaipeiDateRange } from "@/lib/taipei-date";
 import { periodRevenue } from "@/lib/income";
+import { termRevenueByPeriod } from "@/service/termEnrollment";
 
 export async function GET(request: Request) {
   const { classroomId } = await decodeAuthToken();
@@ -49,13 +50,15 @@ export async function GET(request: Request) {
     orderBy: { startTime: "asc" },
   });
 
+  const term = await termRevenueByPeriod(lessonPeriods.map((p) => p.id));
   const periods = lessonPeriods.map((period) => {
-    const revenue = periodRevenue(period.attendanceRecords);
+    const termShare = term.get(period.id) ?? { amount: 0, count: 0 };
+    const revenue = periodRevenue(period.attendanceRecords) + termShare.amount;
 
     const pendingStudents = [
       ...new Set(
         period.attendanceRecords
-          .filter((record) => record.studentCardId === null && !record.dropInCharge)
+          .filter((record) => record.studentCardId === null && !record.dropInCharge && record.enrollmentId === null)
           .map((record) => record.student.name)
       ),
     ];
@@ -67,6 +70,9 @@ export async function GET(request: Request) {
       sessionsPerAttendance: period.lesson.sessionsPerAttendance,
       attendanceCount: period.attendanceRecords.length,
       revenue,
+      // 整期攤進這堂的部分（已含在 revenue 裡）：幾個人報整期、共多少。
+      termRevenue: termShare.amount,
+      termEnrolledCount: termShare.count,
       pendingStudents,
     };
   });

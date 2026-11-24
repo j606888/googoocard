@@ -49,6 +49,8 @@ export interface LessonCloneSource {
   sessionsPerAttendance?: number;
   dropInPrice?: number | null;
   dropInOptions?: DropInOption[] | null;
+  termPrice?: number | null;
+  termSessions?: number | null;
   groupId?: number | null;
   locationId?: number | null;
   initialPeriod?: { startTime: string; endTime: string };

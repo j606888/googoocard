@@ -8,7 +8,11 @@ export interface TodayPeriod {
   startTime: string;
   endTime: string;
   alreadyChecked: boolean;
+  /** 報了整期、這堂在他報的堂數內：第幾堂（1 起算）。有它就不用付。 */
+  termIndex?: number;
 }
+
+export type TermAttendanceStatus = "present" | "leave" | "absent" | "upcoming" | "outside";
 
 export interface UsableCardOption {
   studentCardId: number;
@@ -46,6 +50,8 @@ export interface TodayLesson {
   location: LocationSummary | null;
   periods: TodayPeriod[];
   cardStatus?: LessonCardStatus;
+  /** 自己報了這門課的整期：共幾堂、每堂的出缺勤。 */
+  term?: { sessions: number; statuses: TermAttendanceStatus[] } | null;
 }
 
 export interface UpcomingPeriod {
@@ -75,19 +81,32 @@ export interface MyCardSummary {
   lastUsedAt: string | null;
 }
 
+export interface MyTermSummary {
+  lessonId: number;
+  lessonName: string;
+  danceStyle: DanceStyleSummary;
+  sessions: number;
+  statuses: TermAttendanceStatus[];
+}
+
 export interface TodayResponse {
   date: string;
   today: TodayLesson[];
-  /** The rest only when there's no class today (src/service/checkin.ts). */
+  /** nextLesson / upcoming / monthAttendance only when there's no class today (src/service/checkin.ts). */
   nextLesson: NextLesson | null;
   upcoming: UpcomingPeriod[];
+  /** With a student, every day: 「我的課」. */
+  myTerms?: MyTermSummary[];
   myCards?: MyCardSummary[];
   monthAttendance?: number;
 }
 
 export interface CheckinResult {
   periodId: number;
-  status: "checked" | "already_checked" | "no_card" | "drop_in";
+  status: "checked" | "already_checked" | "no_card" | "drop_in" | "enrolled";
+  /** status = enrolled：整期的第幾堂／共幾堂 */
+  termIndex?: number;
+  termSessions?: number;
   /** status = drop_in：這個時段的單堂費（下課付） */
   dropInAmount?: number;
   dropInOptionName?: string | null;

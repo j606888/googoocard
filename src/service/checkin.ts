@@ -2,6 +2,8 @@ import { locationSummarySelect, type LocationSummary } from "@/lib/locations";
 import { Classroom, Prisma } from "@prisma/client";
 import { danceStyleSummarySelect, type DanceStyleSummary } from "@/lib/danceStyles";
 import prisma from "@/lib/prisma";
+import type { TermAttendanceStatus } from "@/lib/termEnrollment";
+import { studentTermProgress } from "@/service/termEnrollment";
 import {
   toTaipeiDateKey,
   parseTaipeiDateRange,
@@ -18,6 +20,14 @@ export interface TodayPeriod {
   startTime: Date;
   endTime: Date;
   alreadyChecked: boolean;
+  /** 報了整期、這堂在他報的堂數內：第幾堂（1 起算）。有它就不用付卡。 */
+  termIndex?: number;
+}
+
+/** 學生自己的整期（LIFF 簽到頁的「已報名整期」）。 */
+export interface TermProgress {
+  sessions: number;
+  statuses: TermAttendanceStatus[];
 }
 
 /** One of the student's own cards that can pay for a lesson. */
@@ -61,6 +71,8 @@ export interface TodayLesson {
   periods: TodayPeriod[];
   /** Only when the caller is a student (LIFF): what they can pay with. */
   cardStatus?: LessonCardStatus;
+  /** Only when the caller is a student who enrolled in this lesson's term. */
+  term?: TermProgress | null;
 }
 
 /** A future period, for the「下一堂課」/「接下來」of a day with no class. */
@@ -93,6 +105,15 @@ export interface MyCardSummary {
   lastUsedAt: Date | null;
 }
 
+/** 學生報了整期、還沒上完的一門課（簽到頁上方的「我的課」）。 */
+export interface MyTermSummary {
+  lessonId: number;
+  lessonName: string;
+  danceStyle: DanceStyleSummary;
+  sessions: number;
+  statuses: TermAttendanceStatus[];
+}
+
 export interface TodayLessons {
   date: string;
   today: TodayLesson[];
@@ -100,8 +121,10 @@ export interface TodayLessons {
   nextLesson: NextLesson | null;
   /** Only when there's no class today: the classroom's next few periods besides `nextLesson`. */
   upcoming: UpcomingPeriod[];
-  /** Only when there's no class today and a student is given. */
+  /** With a student (every day): their unfinished term enrollments and their cards — 「我的課」. */
+  myTerms?: MyTermSummary[];
   myCards?: MyCardSummary[];
+  /** Only when there's no class today and a student is given. */
   monthAttendance?: number;
 }
 
@@ -182,24 +205,40 @@ export async function getTodayLessons(
     // 老師已定案的時段不收自助簽到；自己簽過的留著顯示「已簽到」。
     lesson.periods.filter((period) => !period.attendanceTakenAt || checkedIds.has(period.id));
   const today: TodayLesson[] = await Promise.all(
-    lessons.filter((lesson) => openPeriods(lesson).length > 0).map(async (lesson) => ({
-      lessonId: lesson.id,
-      lessonName: lesson.name,
-      danceStyle: pickSummary(lesson.danceStyle),
-      location: lesson.location,
-      periods: openPeriods(lesson).map((period) => ({
-        periodId: period.id,
-        startTime: period.startTime,
-        endTime: period.endTime,
-        alreadyChecked: checkedIds.has(period.id),
-      })),
-      ...(studentId
-        ? { cardStatus: await lessonCardStatus(lesson, studentId, classroomId) }
-        : {}),
-    }))
+    lessons.filter((lesson) => openPeriods(lesson).length > 0).map(async (lesson) => {
+      const progress =
+        studentId && lesson.termSessions !== null ? await studentTermProgress(lesson.id, studentId) : null;
+      return {
+        lessonId: lesson.id,
+        lessonName: lesson.name,
+        danceStyle: pickSummary(lesson.danceStyle),
+        location: lesson.location,
+        periods: openPeriods(lesson).map((period) => {
+          const termIndex = progress?.periodIndexById.get(period.id);
+          return {
+            periodId: period.id,
+            startTime: period.startTime,
+            endTime: period.endTime,
+            alreadyChecked: checkedIds.has(period.id),
+            ...(termIndex !== undefined ? { termIndex: termIndex + 1 } : {}),
+          };
+        }),
+        ...(studentId
+          ? {
+              cardStatus: await lessonCardStatus(lesson, studentId, classroomId),
+              term: progress ? { sessions: progress.sessions, statuses: progress.statuses } : null,
+            }
+          : {}),
+      };
+    })
   );
 
-  if (today.length > 0) return { date: todayKey, today, nextLesson: null, upcoming: [] };
+  const mine = studentId
+    ? await Promise.all([myTermSummaries(studentId), myCardSummaries(studentId)])
+    : null;
+  const myLessons = mine ? { myTerms: mine[0], myCards: mine[1] } : {};
+
+  if (today.length > 0) return { date: todayKey, today, nextLesson: null, upcoming: [], ...myLessons };
 
   // No class today — say when the next one is, so the page isn't a dead end.
   const nextLesson = await findNextLesson(classroomId, studentId, now);
@@ -210,11 +249,38 @@ export async function getTodayLessons(
   );
   if (!studentId) return { date: todayKey, today, nextLesson, upcoming };
 
-  const [myCards, monthAttendance] = await Promise.all([
-    myCardSummaries(studentId),
-    monthAttendanceCount(studentId, now),
-  ]);
-  return { date: todayKey, today, nextLesson, upcoming, myCards, monthAttendance };
+  const monthAttendance = await monthAttendanceCount(studentId, now);
+  return { date: todayKey, today, nextLesson, upcoming, ...myLessons, monthAttendance };
+}
+
+/**
+ * The student's term enrollments that still have a class to come: the lesson wasn't
+ * ended by hand and a covered period hasn't had attendance taken (or isn't scheduled yet).
+ */
+async function myTermSummaries(studentId: number): Promise<MyTermSummary[]> {
+  const enrollments = await prisma.lessonEnrollment.findMany({
+    where: { studentId, lesson: { endedAt: null } },
+    select: {
+      lesson: { select: { id: true, name: true, danceStyle: { select: danceStyleSummarySelect } } },
+    },
+    orderBy: { id: "asc" },
+  });
+  const summaries = await Promise.all(
+    enrollments.map(async ({ lesson }) => {
+      const progress = await studentTermProgress(lesson.id, studentId);
+      // 還有沒點名的堂，或還有堂數沒排出時段（statuses 只到已排的時段）。
+      const remaining = progress && (progress.statuses.includes("upcoming") || progress.statuses.length < progress.sessions);
+      if (!progress || !remaining) return null;
+      return {
+        lessonId: lesson.id,
+        lessonName: lesson.name,
+        danceStyle: lesson.danceStyle,
+        sessions: progress.sessions,
+        statuses: progress.statuses,
+      };
+    })
+  );
+  return summaries.filter((s): s is MyTermSummary => s !== null);
 }
 
 const UPCOMING_COUNT = 2;

@@ -20,6 +20,7 @@ const StudentSelectList = ({
   rowTags,
   cardLines,
   selfCheckInStudentIds = [],
+  studentNotes,
   trialStudentIds = [],
   onToggle,
   onSetMany,
@@ -33,6 +34,7 @@ const StudentSelectList = ({
   /** 學生 id → 「進階6堂 · 扣完剩 3 堂」（伺服器預覽）。 */
   cardLines: Map<number, string>;
   selfCheckInStudentIds?: number[];
+  studentNotes?: Map<number, string>;
   trialStudentIds?: number[];
   onToggle: (studentId: number) => void;
   onSetMany: (studentIds: number[], checked: boolean) => void;
@@ -72,6 +74,7 @@ const StudentSelectList = ({
         onClick={() => onToggle(student.id)}
         isFirstTime={!inRoster && isChecked}
         isSelfCheckIn={selfCheckInStudentIds.includes(student.id)}
+        studentNote={studentNotes?.get(student.id)}
         isTrial={trialStudentIds.includes(student.id)}
         tag={tag}
         cardLine={cardLine}

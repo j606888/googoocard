@@ -43,9 +43,12 @@ import {
   LocationGroup,
   SeriesGroup,
   TeacherGroup,
+  ToggleSwitch,
   type SeriesMode,
 } from "./groupedFields";
 import { addDays, format } from "date-fns";
+import TermPriceField, { type TermDraft, parseTermDraft, termDraftFrom, termSummary } from "./TermPriceField";
+import { exceedsTermSessions } from "@/lib/termEnrollment";
 import { useGetCardsQuery } from "@/store/slices/cards";
 import { useSizeClass } from "@/hooks/useMediaQuery";
 
@@ -58,6 +61,8 @@ const validationErrors = {
   danceStyle: "請選擇舞種",
   dropInPrice: "請輸入單堂價",
   dropInOptions: "每個方案都要有名稱和金額，名稱不能重複",
+  term: "整期價要填金額，堂數 1–52 堂",
+  termPeriods: "時段比整期堂數多，刪掉多的時段或改堂數",
 };
 
 const STEPS = ["基本設定", "細節", "排課", "預覽"] as const;
@@ -69,7 +74,8 @@ const ERROR_STEP = {
   danceStyle: 0,
   cards: 0,
   teachers: 1,
-  dropInPrice: 1,
+  dropInPrice: 0,
+  term: 0,
   periods: 2,
 } as const;
 
@@ -166,6 +172,7 @@ const NewLesson = () => {
   const [dropInPlans, setDropInPlans] = useState<DropInPlans>(() =>
     dropInPlansFrom(initialClone?.dropInOptions)
   );
+  const [termDraft, setTermDraft] = useState<TermDraft>(() => termDraftFrom(initialClone));
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>(
     initialClone?.teacherIds ?? []
   );
@@ -201,6 +208,7 @@ const NewLesson = () => {
     periods?: string;
     danceStyle?: string;
     dropInPrice?: string;
+    term?: string;
   }>({});
   const [createLesson, { isLoading }] = useCreateLessonMutation();
   const router = useRouter();
@@ -228,6 +236,7 @@ const NewLesson = () => {
       setDropInEnabled(latest.dropInPrice != null);
       setDropInAmount(latest.dropInPrice != null ? String(latest.dropInPrice) : "");
       setDropInPlans(dropInPlansFrom(latest.dropInOptions));
+      setTermDraft(termDraftFrom(latest));
       setInheritedPeriod(
         latest.lastPeriodStart && latest.lastPeriodEnd
           ? nextWeeklySlot(latest.lastPeriodStart, latest.lastPeriodEnd)
@@ -310,6 +319,7 @@ const NewLesson = () => {
       danceStyleId,
       dropInEnabled,
       dropInPrice: parseDropInPrice(dropInEnabled, dropInAmount),
+      termEnabled: termDraft.enabled && kind !== "ongoing",
     });
     const dropInPrice = parseDropInPrice(dropInEnabled, dropInAmount);
     const dropInOptions = buildDropInOptions(dropInEnabled, dropInAmount, dropInPlans);
@@ -319,7 +329,14 @@ const NewLesson = () => {
     if (series?.type === "new" && !series.name.trim()) {
       errors.lessonName = validationErrors.newSeriesName;
     }
-    return { errors, dropInPrice, dropInOptions };
+    // 持續開課沒有固定堂數：整期一律不送。
+    const term = kind === "ongoing" ? { termPrice: null, termSessions: null } : parseTermDraft(termDraft);
+    if (term === undefined) {
+      errors.term = validationErrors.term;
+    } else if (!errors.periods && exceedsTermSessions(periods.length, term.termSessions)) {
+      errors.periods = validationErrors.termPeriods;
+    }
+    return { errors, dropInPrice, dropInOptions, term };
   };
   const liveErrors = currentErrors().errors;
   const stepDone = (index: number) =>
@@ -346,7 +363,7 @@ const NewLesson = () => {
   };
 
   const handleSubmit = async () => {
-    const { errors, dropInPrice, dropInOptions } = currentErrors();
+    const { errors, dropInPrice, dropInOptions, term } = currentErrors();
     setErrors(errors);
     const firstStep = Math.min(
       ...Object.keys(errors).map((key) => ERROR_STEP[key as keyof typeof ERROR_STEP])
@@ -360,7 +377,8 @@ const NewLesson = () => {
       series !== null &&
       danceStyleId !== null &&
       dropInPrice !== undefined &&
-      dropInOptions !== undefined
+      dropInOptions !== undefined &&
+      term !== undefined
     ) {
       let groupId: number;
       if (series.type === "existing") {
@@ -383,6 +401,7 @@ const NewLesson = () => {
         sessionsPerAttendance,
         dropInPrice,
         dropInOptions,
+        ...term,
         groupId,
         locationId,
         periods,
@@ -416,6 +435,7 @@ const NewLesson = () => {
     ["老師", selectedTeacherIds.map(personLabel).filter(Boolean).join("、") || "—"],
     ["小幫手", selectedAssistantIds.map(personLabel).filter(Boolean).join("、") || "—"],
     ["單堂付費", dropInEnabled ? (dropInAmount ? `開放，$${dropInAmount}` : "開放") : "不開放"],
+    ["報名整期", kind === "ongoing" ? "不開放" : termSummary(termDraft)],
   ];
   const title = initialClone ? "開新一期" : "新增課程";
   const isPreview = step === STEPS.length - 1;
@@ -423,7 +443,7 @@ const NewLesson = () => {
   const nextLabel = `下一步：${STEPS[skipDetails ? 2 : step + 1]}`;
   const subtitle = [
     "開一堂課一定要有的，其他下一步再說。",
-    initialClone ? "沿用上一期的設定，有變再改。" : "在哪上、誰教、能不能單堂付費。",
+    initialClone ? "沿用上一期的設定，有變再改。" : "在哪上、誰教、誰來幫忙。",
     "一堂一堂加進來，下一堂預設隔一週。",
     "確認一下，沒問題就建立。",
   ][step];
@@ -623,24 +643,7 @@ const NewLesson = () => {
               danceStyleId={danceStyleId}
               error={errors.cards}
             />
-            </>
-            )}
-          </>
-        )}
-
-        {step === 1 && (
-          <>
-            <LocationGroup locationId={locationId} onChange={setPickedLocationId} />
-            <TeacherGroup
-              selectedTeacherIds={selectedTeacherIds}
-              onChange={handleTeacherChange}
-              error={errors.teachers}
-            />
-            <AssistantGroup
-              selectedAssistantIds={selectedAssistantIds}
-              teacherIds={selectedTeacherIds}
-              onChange={setSelectedAssistantIds}
-            />
+            {/* 付費方式放在一起：課卡、單堂、整期（2026-11-24，使用者在選課卡的地方找整期）。 */}
             <GroupedSection title="單堂付費" error={errors.dropInPrice}>
               <div className="px-4 py-3">
                 <DropInPriceField
@@ -662,6 +665,38 @@ const NewLesson = () => {
                 />
               </div>
             </GroupedSection>
+            <GroupedSection title="報名整期" error={errors.term}>
+              <TermPriceField
+                draft={termDraft}
+                kind={kind}
+                periodCount={periods.length > 0 ? periods.length : undefined}
+                onChange={(draft) => {
+                  setTermDraft(draft);
+                  setErrors((prev) => ({ ...prev, term: undefined, cards: undefined }));
+                }}
+                toggle={(checked, onToggle) => (
+                  <ToggleSwitch checked={checked} onChange={onToggle} label="報名整期" />
+                )}
+              />
+            </GroupedSection>
+            </>
+            )}
+          </>
+        )}
+
+        {step === 1 && (
+          <>
+            <LocationGroup locationId={locationId} onChange={setPickedLocationId} />
+            <TeacherGroup
+              selectedTeacherIds={selectedTeacherIds}
+              onChange={handleTeacherChange}
+              error={errors.teachers}
+            />
+            <AssistantGroup
+              selectedAssistantIds={selectedAssistantIds}
+              teacherIds={selectedTeacherIds}
+              onChange={setSelectedAssistantIds}
+            />
           </>
         )}
 
@@ -669,7 +704,13 @@ const NewLesson = () => {
           <GroupedSection
             title="時段"
             error={errors.periods}
-            footer={periods.length === 0 ? "至少加一個時段才能開課。" : `共 ${periods.length} 堂。`}
+            footer={
+              periods.length === 0
+                ? "至少加一個時段才能開課。"
+                : termDraft.enabled && kind !== "ongoing" && termDraft.sessions
+                  ? `共 ${periods.length} 堂（整期 ${termDraft.sessions} 堂）。`
+                  : `共 ${periods.length} 堂。`
+            }
           >
             {periods.map((p, index) => (
               <div key={p.startTime} className="flex min-h-12 items-center gap-3 px-4">
@@ -717,14 +758,15 @@ const NewLesson = () => {
               <GroupedRow label="課卡">
                 <span className="truncate">{cardNames.length ? cardNames.join("、") : "—"}</span>
               </GroupedRow>
+              <GroupedRow label="單堂付費">
+                {dropInEnabled ? (dropInAmount ? `開放，$${dropInAmount}` : "開放") : "不開放"}
+              </GroupedRow>
+              <GroupedRow label="報名整期">{kind === "ongoing" ? "不開放" : termSummary(termDraft)}</GroupedRow>
             </PreviewSection>
             <PreviewSection title="細節" missing={!stepDone(1)} onEdit={() => goTo(1)}>
               <GroupedRow label="分部">{locations.find((l) => l.id === locationId)?.name ?? "不指定"}</GroupedRow>
               <GroupedRow label="老師">{selectedTeacherIds.map(nameOf).filter(Boolean).join("、") || "—"}</GroupedRow>
               <GroupedRow label="小幫手">{selectedAssistantIds.map(nameOf).filter(Boolean).join("、") || "—"}</GroupedRow>
-              <GroupedRow label="單堂付費">
-                {dropInEnabled ? (dropInAmount ? `開放，$${dropInAmount}` : "開放") : "不開放"}
-              </GroupedRow>
             </PreviewSection>
             <PreviewSection title="排課" missing={!stepDone(2)} onEdit={() => goTo(2)}>
               {periods.length === 0 ? (
@@ -780,6 +822,7 @@ const validateForm = (data: {
   danceStyleId: number | null;
   dropInEnabled: boolean;
   dropInPrice: number | null | undefined;
+  termEnabled: boolean;
 }) => {
   const errors: {
     lessonName?: string;
@@ -788,6 +831,7 @@ const validateForm = (data: {
     periods?: string;
     danceStyle?: string;
     dropInPrice?: string;
+    term?: string;
   } = {};
   if (data.danceStyleId === null) {
     errors.danceStyle = validationErrors.danceStyle;
@@ -798,8 +842,8 @@ const validateForm = (data: {
   if (data.teachers.length === 0) {
     errors.teachers = validationErrors.teachers;
   }
-  // 開了單堂付費的課可以不收課卡（全場付現）。
-  if (data.cards.length === 0 && !data.dropInEnabled) {
+  // 開了單堂付費或整期的課可以不收課卡。
+  if (data.cards.length === 0 && !data.dropInEnabled && !data.termEnabled) {
     errors.cards = validationErrors.cards;
   }
   if (data.dropInPrice === undefined) {

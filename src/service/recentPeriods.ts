@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
 import { periodRevenue } from "@/lib/income";
+import { termRevenueByPeriod } from "@/service/termEnrollment";
 import { locationSummarySelect } from "@/lib/locations";
 
 export const RECENT_PERIODS_DEFAULT = 5;
@@ -38,9 +39,10 @@ export async function getRecentPeriods(classroomId: number, limit = RECENT_PERIO
     },
   });
 
+  const term = await termRevenueByPeriod(periods.map((p) => p.id));
   return periods.map(({ attendanceRecords, ...period }) => ({
     ...period,
     attendeeCount: attendanceRecords.length,
-    revenue: Math.round(periodRevenue(attendanceRecords)),
+    revenue: Math.round(periodRevenue(attendanceRecords) + (term.get(period.id)?.amount ?? 0)),
   }));
 }

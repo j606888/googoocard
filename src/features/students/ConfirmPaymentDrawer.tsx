@@ -14,10 +14,14 @@ import {
 } from "@/store/slices/students";
 import { useGetMembershipsQuery } from "@/store/slices/memberships";
 import { useGetMeQuery } from "@/store/slices/me";
+import { useConfirmEnrollmentPaymentMutation } from "@/store/slices/lessons";
 
 export interface ConfirmPaymentTarget {
   studentId: number;
+  /** 課卡；整期報名給 0、改給 enrollmentId。 */
   studentCardId: number;
+  /** 整期報名（LessonEnrollment）的確認收款。 */
+  enrollmentId?: number;
   studentName: string;
   cardName: string;
   serialNumber?: number;
@@ -44,7 +48,9 @@ export default function ConfirmPaymentDrawer({
 }) {
   const { data: me } = useGetMeQuery();
   const { data: memberships } = useGetMembershipsQuery(undefined, { skip: !target });
-  const [confirmPayment, { isLoading }] = useConfirmStudentCardPaymentMutation();
+  const [confirmCardPayment, { isLoading: isConfirmingCard }] = useConfirmStudentCardPaymentMutation();
+  const [confirmEnrollmentPayment, { isLoading: isConfirmingEnrollment }] = useConfirmEnrollmentPaymentMutation();
+  const isLoading = isConfirmingCard || isConfirmingEnrollment;
   const [method, setMethod] = useState<PaymentMethod>("CASH");
   const [reference, setReference] = useState("");
   const [receiverUserId, setReceiverUserId] = useState<number | null>(null);
@@ -63,13 +69,16 @@ export default function ConfirmPaymentDrawer({
 
   const handleSubmit = async () => {
     try {
-      await confirmPayment({
-        id: target.studentId,
-        studentCardId: target.studentCardId,
+      const payment = {
         paymentMethod: method,
         paymentReference: method === "TRANSFER" ? reference.trim() || null : null,
         receiverUserId: receiver ?? undefined,
-      }).unwrap();
+      };
+      if (target.enrollmentId !== undefined) {
+        await confirmEnrollmentPayment({ enrollmentId: target.enrollmentId, ...payment }).unwrap();
+      } else {
+        await confirmCardPayment({ id: target.studentId, studentCardId: target.studentCardId, ...payment }).unwrap();
+      }
       toast.success("已確認收款");
       onConfirmed?.();
       onClose();

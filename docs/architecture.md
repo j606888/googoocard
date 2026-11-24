@@ -255,7 +255,23 @@ Classroom（頂層容器，所有實體都屬於一間教室）
   第 N 期、月份；括號裡的分部代號（`[KH]` → 高雄）當預設分部，沒有就用排序第一個分部。
   有舊課沒整理時課程頁會出提示（`unorganizedLessonCount`）。可以重跑：已是課種的群組原樣帶入。
 - 新增課程時選型態；上次選的型態依教室記在 localStorage 當預設。
-- **新增課程是步驟式**（`newLesson/index.tsx`，2026-11-11）：① 基本設定（課種、舞種／階級、型態、扣幾格、課卡）② 細節（分部、老師、小幫手、單堂付費）③ 排課（按「新增時段」才打開時段表單，加入後收起，下次預設最後一堂的下一週）④ 預覽（每區一張卡＋「修改」，缺的標出來），預覽才建立。上方步驟列隨時能跳；「下一步」只擋這一步的錯（`ERROR_STEP`），建立時有錯就跳到第一個有錯的步驟。**課種必選**（`SeriesPicker`：現有課種或「＋ 新課種」當場建，同名就用現有的）；課名預設＝課種名稱，「這一期另取名稱」才另填。選現有課種時舞種／階級帶入它最新一期的。外觀是 Apple 設定頁風格的分組清單（`newLesson/grouped.tsx`、`groupedFields.tsx`：淺灰底白色群組、整列打勾、分段控制；2026-11-11 使用者挑的），只用在新增課程；課程設定抽屜仍用一般表單元件，分「基本設定／細節／課程狀態」。
+- **新增課程是步驟式**（`newLesson/index.tsx`，2026-11-11）：① 基本設定（課種、舞種／階級、型態、扣幾格，以及付費方式：課卡、單堂付費、報名整期——2026-11-24 搬到一起）② 細節（分部、老師、小幫手）③ 排課（按「新增時段」才打開時段表單，加入後收起，下次預設最後一堂的下一週）④ 預覽（每區一張卡＋「修改」，缺的標出來），預覽才建立。上方步驟列隨時能跳；「下一步」只擋這一步的錯（`ERROR_STEP`），建立時有錯就跳到第一個有錯的步驟。**課種必選**（`SeriesPicker`：現有課種或「＋ 新課種」當場建，同名就用現有的）；課名預設＝課種名稱，「這一期另取名稱」才另填。選現有課種時舞種／階級帶入它最新一期的。外觀是 Apple 設定頁風格的分組清單（`newLesson/grouped.tsx`、`groupedFields.tsx`：淺灰底白色群組、整列打勾、分段控制；2026-11-11 使用者挑的），只用在新增課程；課程設定抽屜仍用一般表單元件，分「基本設定／細節／課程狀態」。
+
+## 報名整期（`LessonEnrollment`，2026-11）
+
+課卡、單堂之外的第三種付費方式：**錢綁在這一期，不綁在出席**。邏輯在 `src/service/termEnrollment.ts`，純規則在 `src/lib/termEnrollment.ts`（前後端共用）。
+
+- **開課時講好**：`Lesson.termPrice` ＋ `termSessions`（兩個一起有或一起 null，null = 不開放；`resolveTermInput()`）。每堂價 = price / sessions，例 $1,600 / 5 堂 = $320。只有 `kind = "fixed"` 的課能開（`TERM_REQUIRES_FIXED`）。開課步驟①「基本設定」（跟課卡、單堂放一起）、課程設定抽屜都有（`TermPriceField`）。
+- **時段數不能超過堂數**（使用者決定，先禁止）：開課、`POST .../periods`、改設定都擋（`TERM_SESSIONS_EXCEEDED`）。停課就刪掉那堂、另外補排一堂——**不重新平均**，每堂價永遠一樣。**已有人報名就鎖住**整期價與堂數（含關掉整期，`TERM_LOCKED`；課程設定抽屜顯示「已有 N 人報名」不給改）——報名的堂數永遠 = 課程的，改了會回頭改每堂價。
+- **一筆報名** = `LessonEnrollment(lessonId, studentId)`（unique）：`price` 預設抄課程的，可以個別改（舊生半價）；**`sessions` 一律 = 課程的堂數**（報了就是整期，不能個別改——2026-11-24 使用者決定；欄位留著給以後的插班）。改價（`PATCH`）在學生動態記一筆「整期改價 $A → $B」（已收款的加註「實收不變」，畫面也提醒）——改價會回頭改已點名那幾堂的收入。收款欄位同課卡（`isPaid`／`paymentMethod`／`paymentReference`／`paidByUserId`），沒付進待處理「整期未付」（`todos.unpaidEnrollments`，算進紅色數字），確認收款 `POST /api/lesson-enrollments/[id]/confirm-payment`（`ConfirmPaymentDrawer` 帶 `enrollmentId`）。
+- **只有老師登記**（這一期頁「學生」分頁的整期名單，`TermRoster`）：`GET/POST /api/lessons/[id]/enrollments`、`PATCH/DELETE /api/lesson-enrollments/[id]`。LINE 不賣整期。**沒有插班**：第一堂上過才登記也一樣收整期、每一堂都照算（畫面黃字提醒；過去那幾堂的收入會在登記當下變多，使用者接受）。**晚登記會接手之前的出席**（`adoptEarlierAttendanceInTx()`，同一個 transaction）：涵蓋範圍內、報名前就有的出席改掛這筆報名——扣了卡的**退卡**（退 `sessionsUsed` 格、清掉過時的「課卡使用完畢」）、沒收款的單堂費**刪掉**、什麼都沒付的直接掛上；**已收款的單堂不動**（錢收了；要折抵就老師手動改價）。登記後 `refreshNeedsRenewalTag()`。取消報名只給「登記錯了」用——已有出席掛在這筆報名上就 409（`ENROLLMENT_IN_USE`）；中途不來就讓他一直是曠課，**不退費**。
+- **涵蓋哪幾堂**：這門課照時間排的前 `sessions` 個時段（`enrollmentsCoveringPeriod()`）。點名引擎（`processStudentAttendance`）、自助簽到（`selfCheckIn`，結果 `status: "enrolled"`）、點名頁預覽（`CardPreview.kind = "enrolled"`）都先看這個：涵蓋的那堂一律掛 `AttendanceRecord.enrollmentId`、**不扣卡**（手上有課卡也一樣，整期優先），`requireCard` 也不擋。`UNRESOLVED_ATTENDANCE` 多了 `enrollmentId: null`，所以整期的出席不算「點名沒課卡」。整期的出席**不能改付單堂**（`chargeDropIn` → `ALREADY_RESOLVED`）；**手動綁卡（consume）照樣能綁**（永不阻擋），綁了就清掉 `enrollmentId`，這堂改成用卡付。
+- **收入**：每個點過名的時段，涵蓋它的每筆報名各認列 price / sessions，**不管有沒有來**（`termShareForPeriod()` / `termRevenueByPeriod()`）。**例外：這位學生這堂已經用課卡或單堂付了**（老師手動 consume 綁卡、或報名前已收款的單堂）→ 那堂算課卡／單堂，整期讓出那一份（不移到別堂），所以不會重複算；`GET .../periods/[periodId]/term` 的 `enrolled[].paidOtherwise` 標出這些人，點名完成頁照同一條規則。加在 `periodRevenue()` 之外——收入頁（每日、每日列表、月營收依舞種）、這一期統計（`period-stats` 多回 `termRevenue`／`termEnrolledCount`）、今天頁「最近上過」、點名完成頁全部一致；完成頁另外列「整期 N 人 × $X」「課卡」「單堂」三行。`GET .../attendance` 對整期紀錄回 `enrollment` 與每堂價當 `income`（前端算完成頁收入時不用它，改用 term 資訊算全員，因為沒來的人也算）。
+- **請假／曠課**（只給整期學生）：只存請假（`PeriodLeave(enrollmentId, lessonPeriodId)`）；**曠課不存**＝報了整期、那堂點完名、沒出席也沒請假。點名送出多帶 `leaveStudentIds`（`takeAttendanceSchema`），`syncPeriodLeavesInTx()` 在同一個 transaction 重寫這堂的請假（有來的一律清掉；省略 = 只清有來的）。重設時段會清掉請假。點名頁整期學生獨立一區，標「預計今天會到」與「整期已付／整期未付 $X」，**不預設勾選**（2026-11-24 使用者決定：會不會來跟點到是兩回事，預設勾好容易誤送）；沒勾的出現「請假／曠課」（預設曠課，事先請假的帶入請假）；頁首提醒「上一堂誰請假」（`GET .../periods/[periodId]/term` 的 `previousLeaves`）。**沒有補課機制**——老師請他們提早來補進度就好。
+- **名冊**：`/api/lessons/[id]/students` 對報整期的人回 `cardStatus.term = true`、`level: "ok"`（不會被列成「沒有可用的卡」），名冊標「整期」。
+- 合併學員：同一門課兩邊都報了就留 target 的，source 那筆的出席改掛 target 的報名。
+- LIFF 簽到：`/api/liff/today` 的時段多 `termIndex`、課多 `term`（進度），整期涵蓋的課不用選卡，顯示「已報名整期 · 今天第 n / N 堂」。
+- 測試：`tests/api/term-enrollment.test.ts`、`src/lib/termEnrollment.test.ts`。
 
 ## 一次扣多格（外師課，2026-10）
 
@@ -294,6 +310,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 
 - 帶 `?key=` 時 gate 在 `liff.init()` 之後才讀網址（LIFF 會先把 `liff.state` 還原成真網址），呼叫 `/api/liff/me?key=`：只看該教室的學生。
 - 該教室沒有學生 → 403 `not_bound`，附 `classroomName`、`lineName`、`linePicture`（`verifyIdToken` 從 LINE verify 回應取 `name` / `picture`，要 LIFF 有 `profile` scope）→ `FirstTimeGate`：
+  - **「老師已經幫你登記了嗎？」（2026-11-24）**：老師常在第一堂課前就先建好學生（整期名單、體驗名單），所以先列**今天的課**已報名、還沒綁 LINE 的在籍學生（`GET /api/liff/claim?key=&suggest=1` → `todayClaimSuggestions()`，`src/service/claimSuggestions.ts`）：整期 = 有 `LessonEnrollment`；體驗 = 手上有這堂課收的體驗卡且還沒用掉。依課分組，跟 LINE 顯示名稱最像的一位（`bestNameMatch()`，`src/lib/nameMatch.ts`：至少連續 2 字相同、並列就不猜）拉到最上面標「最像你的」。點一下 → `ClaimConfirm` →「是我，綁定並簽到」（同下方的認領，一樣進待處理）。**刻意取捨**：掃海報的人看得到今天的報名名單（使用者同意）；整份名冊仍然要打字搜尋。今天沒人可推薦時才顯示下面的「第一次來嗎？」。
   - 「是，第一次來」→ 填暱稱（預填 LINE 名稱）→ `POST /api/liff/register { key, name }` → `registerLineStudent()`（`src/service/student.ts`）。先 `SELECT … FOR UPDATE` 鎖教室列，所以重複送出／並發只會建一位、學號不會跳號；頭像用 LINE 頭像（`next.config.ts` 已允許 `profile.line-scdn.net`），寫 Event「自助登記」、`LineAccount` 切到 STUDENT。
   - **同名不擋**（跟老師端建立學生不同），交給待處理「可能重複」＋合併學員。
   - 「我來上過課」→ 從名單認領自己（`/api/liff/claim`、`claimStudentLine()`，2026-11-08 起）：要打字搜尋才列人，只列**未綁 LINE、在籍**的學生，選了就直接綁定並進簽到。可能被冒用，所以記 `Student.lineSelfClaimedAt`，列在老師「待處理 › 提醒 › LINE 自助認領」，老師按「沒問題」（`DELETE /api/students/[id]/line-claim`）或「解除」（解除綁定，一併清掉；認錯人已扣的那堂要到點名取消勾選才退卡）。點名名單上標「自助認領」。不另外推播。
@@ -305,9 +322,11 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - `card: { studentCardId }` —— 必須在 `cardOptionsFor(student, lesson).usable` 內（否則 `card_not_usable` 400）。
 - `card: { buyCardId }` —— 卡必須掛在這堂課（`lesson.cards`，否則 `card_not_offered` 400）且 `canBuyCard(card, levels, lesson)`（否則 `not_qualified` 403）。只有真的會用到時才建卡：`createStudentCardInTx()`（`src/service/studentCard.ts`，老師開卡、LIFF 購卡共用）、`purchaseSource STUDENT`、照牌價、未付款（體驗卡不在這裡賣，見下方「體驗課」）。
 - 沒指定 → 引擎自己挑（`cardOptionsFor().autoPick`：practice 優先時挑推薦的那張；否則只有唯一一張才自動挑）。
-- **`requireCard`（LIFF 一律開）**：寫入前先用 `planPeriodCards()` 在卡片副本上模擬每個時段扣哪張（選定的卡用完就換引擎自動挑），任何一個時段會沒卡 → `card_required` 400，**什麼都不寫**（也不買卡）。所以自助點名不再產生「沒綁卡」的出席；`UNBOUND_ATTENDANCE` 只剩老師端點名。
+- `card: { later: true }` ——「還不確定，下課問老師」（2026-11-24）：不扣卡（手上有卡也不扣）、不收單堂，寫一筆沒綁卡的出席（結果 `no_card`），交給老師在點名完成頁／待處理「出席沒綁課卡」決定買卡、單堂或整期；推播「出席沒有課卡」會寫「選了下課問老師」和備註。
+- **`requireCard`（LIFF 一律開）**：寫入前先用 `planPeriodCards()` 在卡片副本上模擬每個時段扣哪張（選定的卡用完就換引擎自動挑），任何一個時段會沒卡 → `card_required` 400，**什麼都不寫**（也不買卡）。只有學生明確選了 `later` 才會產生自助的「沒綁卡」出席。
+- **備註 `note`**（選填，最多 200 字，`STUDENT_NOTE_MAX`）：存到這次寫入的每一筆 `AttendanceRecord.studentNote`。LIFF 只在「怎麼付」那一步問（跟著那幾堂送）；老師端點名列（`StudentOption` / 整期區）與點名完成頁的未綁卡列都顯示「學生留言」。
 
-`/api/liff/today` 帶學生時，每堂課多回 `cardStatus = { usable, autoPickId, buyable }`（`src/service/checkin.ts` 的 `lessonCardStatus()`，跟引擎同一套規則），LIFF 畫面據此顯示「使用 X（剩 n 堂）」／多張卡讓學生選／「還沒有能用的課卡，下一步選一張」。`POST /api/liff/checkin` 回 `{ results, purchased, amountDue, unpaidCards }`，完成畫面寫「下課請找小幫手付款 $X」並提醒舊的未付卡。**不另外推播給學生**（當場買卡時老師端照常收到「待確認收款」`UNPAID_CARD` 推播）。
+`/api/liff/today` 帶學生時，每堂課多回 `cardStatus = { usable, autoPickId, buyable }`（`src/service/checkin.ts` 的 `lessonCardStatus()`，跟引擎同一套規則），而且**每天**都回「我的課」：`myTerms`（還沒上完的整期，含每堂狀態）＋ `myCards`（能用或未付的卡）。簽到頁（2026-11-24 改版，設計稿 artifact「LIFF 簽到流程改版」）上方先列「我的課」（`MyLessons`），下面「今天要上哪幾堂？」每個時段一列整列可勾，第三行直接寫會怎麼扣：「扣 X 1 堂，剩 n 堂」／「整期第 n / N 堂，不扣課卡」／「沒有能用的課卡，勾選後選怎麼付」。沒卡的課在下一步「怎麼付？」選買卡、單堂或「下課問老師」，可留備註。視覺規則：白底分組清單＋細分隔線、不包框；多選用圓角方形勾、單選用圓圈，選中整列淡綠底；奇異鳥只放在標題旁（揮手／拿卡）與完成頁（跳舞）。`POST /api/liff/checkin` 回 `{ results, purchased, amountDue, unpaidCards }`，完成畫面寫「下課請找小幫手付款 $X」並提醒舊的未付卡。**不另外推播給學生**（當場買卡時老師端照常收到「待確認收款」`UNPAID_CARD` 推播）。
 
 **加好友提示**：掃門口 QR 進來的人不一定加了官方帳號（LIFF 的 Add friend option 只在第一次授權時問、可以拒絕；建議設 Aggressive）。沒加好友就收不到續卡提醒、聊天室叫不出選單，所以用 `liff.getFriendship()` 再查一次，沒加就顯示「加好友」（`AddFriendPrompt`，三處：門口登記／認領完成後的「登記完成／綁定完成」畫面（`FirstTimeGate`，按「繼續簽到」才進選課——很多人綁完就離開）、今天沒課（`NoClassToday`）、簽到完成頁；連 `line.me/R/ti/p/<NEXT_PUBLIC_LINE_OA_ID>`）。LIFF 沒連到官方帳號（getFriendship 丟錯）或沒設 OA ID 時不顯示。另外不管是不是好友，每個 LIFF 頁首右上角都有「LINE 聊天室」（`line.me/R/oaMessage/<OA ID>/`，`src/lib/lineOa.ts`），簽到完成頁底部的「關閉」也換成「回到 LINE 聊天室」——掃 QR 進來的人常找不到聊天室；沒設 OA ID 時才退回「關閉」。
 

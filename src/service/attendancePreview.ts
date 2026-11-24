@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { cardOptionsFor } from "@/domains/attendance/attendance.service";
 import { fetchStudentsWithValidCards } from "@/service/lessonCards";
+import { enrollmentsCoveringPeriod } from "@/service/termEnrollment";
 
 /** 一次最多預覽幾位名冊外的學生（老師臨時加勾的）。 */
 const MAX_EXTRA_STUDENTS = 200;
@@ -12,6 +13,8 @@ export type CardPreview =
   | { kind: "auto"; cardName: string; remainingAfter: number }
   /** 有好幾張能用，引擎不替老師決定——點完名到完成頁選。 */
   | { kind: "choose"; count: number }
+  /** 報了整期、這堂在他報的堂數內：不扣卡。`index` = 第幾堂（1 起算）。 */
+  | { kind: "enrolled"; index: number; sessions: number }
   /** 沒有能用的卡（或這個時段已有一筆沒綁卡的紀錄，引擎不會動它）。 */
   | { kind: "none" };
 
@@ -46,6 +49,7 @@ export async function previewPeriodCards({
         attendanceRecords: {
           select: {
             studentId: true,
+            enrollmentId: true,
             dropInCharge: { select: { id: true } },
             studentCard: { select: { remainingSessions: true, card: { select: { name: true } } } },
           },
@@ -54,12 +58,18 @@ export async function previewPeriodCards({
     }),
   ]);
   if (!lesson || !period) return null;
+  const covering = await enrollmentsCoveringPeriod(prisma, lessonId, periodId);
+  const enrolledPreview = (studentId: number): CardPreview | null => {
+    const e = covering.get(studentId);
+    return e ? { kind: "enrolled", index: e.periodIndex + 1, sessions: e.sessions } : null;
+  };
 
   const recordByStudent = new Map(period.attendanceRecords.map((record) => [record.studentId, record]));
   const ids = [
     ...new Set([
       ...lesson.students.map((s) => s.studentId),
       ...recordByStudent.keys(),
+      ...covering.keys(),
       ...extraStudentIds.slice(0, MAX_EXTRA_STUDENTS),
     ]),
   ];
@@ -72,7 +82,9 @@ export async function previewPeriodCards({
 
   const previews: Record<number, CardPreview> = {};
   for (const [studentId, record] of recordByStudent) {
-    previews[studentId] = record.studentCard
+    previews[studentId] = record.enrollmentId !== null
+      ? enrolledPreview(studentId) ?? { kind: "covered", cardName: null, remaining: null }
+      : record.studentCard
       ? {
           kind: "covered",
           cardName: record.studentCard.card.name,
@@ -83,6 +95,11 @@ export async function previewPeriodCards({
         : { kind: "none" };
   }
   for (const student of students) {
+    const enrolled = enrolledPreview(student.id);
+    if (enrolled) {
+      previews[student.id] = enrolled;
+      continue;
+    }
     const { usable, autoPick } = cardOptionsFor(student, lesson);
     previews[student.id] = autoPick
       ? {

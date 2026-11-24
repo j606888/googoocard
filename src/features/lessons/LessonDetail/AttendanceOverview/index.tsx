@@ -10,6 +10,7 @@ import AttentionList from "./AttentionList";
 import RosterList from "./RosterList";
 import RosterTable from "./RosterTable";
 import TrialRoster from "../TrialRoster";
+import TermRoster from "../TermRoster";
 
 /**
  * The lesson's attendance at a glance: how is each student tracking (roster)
@@ -53,6 +54,7 @@ const AttendanceOverview = ({
   if (variant === "compact") {
     return (
       <div className="flex flex-col gap-5">
+        <TermRoster lesson={lesson} />
         <TrialRoster lesson={lesson} />
         <AttentionList items={items} acceptedCardNames={acceptedCardNames} />
         <RosterList rows={rows} />
@@ -63,6 +65,7 @@ const AttendanceOverview = ({
   // Desktop: the roster comes first; 需要注意 moves to the bottom and lists everyone.
   return (
     <div className="flex flex-col gap-7">
+      <TermRoster lesson={lesson} />
       <TrialRoster lesson={lesson} />
       <RosterTable
         rows={rows}

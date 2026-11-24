@@ -90,6 +90,37 @@ export const registerTrialSchema = z
     path: ["studentId"],
   });
 
+/**
+ * 登記整期（POST /api/lessons/[id]/enrollments）：選既有學生或直接打名字（二擇一）。
+ * `price` 省略 = 課程的整期價；可以個別改（舊生半價）。堂數一律 = 課程的（報了就是整期）。
+ */
+export const registerEnrollmentSchema = z
+  .object({
+    studentId: positiveInt.optional(),
+    newStudentName: z.string().trim().min(1).max(50).optional(),
+    price: money.optional(),
+    isPaid: z.boolean(),
+    paymentMethod: z.enum(PaymentMethod).nullish(),
+    paymentReference: z.string().trim().max(20).nullish(),
+    note: z.string().trim().max(200).nullish(),
+  })
+  .refine((data) => (data.studentId === undefined) !== (data.newStudentName === undefined), {
+    message: "Pass exactly one of studentId / newStudentName",
+    path: ["studentId"],
+  });
+
+/** 改一筆整期報名的價錢／備註（PATCH /api/lesson-enrollments/[id]）。改價會記一筆動態。 */
+export const updateEnrollmentSchema = z.object({
+  price: money.optional(),
+  note: z.string().trim().max(200).nullish(),
+});
+
+/** 點名送出：出席的人，加上（選填）整期學生裡請假的人。省略 leaveStudentIds = 請假不動。 */
+export const takeAttendanceSchema = z.object({
+  studentIds: z.array(positiveInt),
+  leaveStudentIds: z.array(positiveInt).optional(),
+});
+
 export const convertStudentCardSchema = z.object({
   targetCardId: positiveInt,
   // Omitted means "the residual value converted at the target card's price,
@@ -152,10 +183,6 @@ export const cardSchema = z
       });
     }
   });
-
-export const takeAttendanceSchema = z.object({
-  studentIds: z.array(positiveInt),
-});
 
 /** Classroom name. Trimmed so a whitespace-only name can't slip through. */
 export const createClassroomSchema = z.object({

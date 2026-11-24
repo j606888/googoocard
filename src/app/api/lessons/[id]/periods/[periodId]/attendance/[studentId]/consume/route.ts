@@ -67,6 +67,9 @@ export async function POST(
         where: { id: attendanceRecord.id },
         data: {
           studentCardId: Number(studentCardId),
+          // 整期的出席也能手動綁卡（consume 永不阻擋）：綁了就改成這堂用卡付，
+          // 不再算整期——收入算這張卡，整期讓出這一份（termShareForPeriod）。
+          enrollmentId: null,
         },
       });
     });

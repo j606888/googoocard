@@ -31,6 +31,16 @@ export interface Todos {
     lessonPeriodId: number;
     lessonPeriodStartTime: string;
   }[];
+  /** 報了整期但還沒收到錢 */
+  unpaidEnrollments: {
+    id: number;
+    price: number;
+    sessions: number;
+    createdAt: string;
+    student: TodoStudent;
+    lessonId: number;
+    lessonName: string;
+  }[];
   /** 需續約、且近 30 天有來上課的人（更久沒來的只在 inactiveRenewalCount） */
   needsRenewal: {
     student: TodoStudent;

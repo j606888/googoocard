@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
 import { parseTaipeiMonthRange } from "@/lib/taipei-date";
 import { periodRevenue } from "@/lib/income";
+import { termRevenueByPeriod } from "@/service/termEnrollment";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
 
 const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -33,6 +34,7 @@ export async function GET(
       startTime: { gte: start, lt: end },
     },
     select: {
+      id: true,
       lesson: { select: { danceStyle: { select: danceStyleSummarySelect } } },
       attendanceRecords: {
         select: {
@@ -48,10 +50,11 @@ export async function GET(
     number,
     { danceStyle: (typeof periods)[number]["lesson"]["danceStyle"]; revenue: number }
   >();
+  const term = await termRevenueByPeriod(periods.map((p) => p.id));
   for (const period of periods) {
     const style = period.lesson.danceStyle;
     const entry = byStyle.get(style.id) ?? { danceStyle: style, revenue: 0 };
-    entry.revenue += periodRevenue(period.attendanceRecords);
+    entry.revenue += periodRevenue(period.attendanceRecords) + (term.get(period.id)?.amount ?? 0);
     byStyle.set(style.id, entry);
   }
 

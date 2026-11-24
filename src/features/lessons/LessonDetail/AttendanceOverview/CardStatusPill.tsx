@@ -20,8 +20,9 @@ const CardStatusPill = ({
   const { level, usableSessions, blockedCardCount } = status;
   const compact = variant === "compact";
 
-  const label =
-    level === "none"
+  const label = status.term
+    ? "整期"
+    : level === "none"
       ? blockedCardCount > 0
         ? "資格不符"
         : compact

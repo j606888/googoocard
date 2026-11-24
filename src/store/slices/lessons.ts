@@ -35,6 +35,9 @@ export interface Lesson {
   dropInPrice: number | null;
   /** 單堂方案；null = 只有 dropInPrice 一個價錢。讀的時候用 lessonDropInOptions()。 */
   dropInOptions?: DropInOption[] | null;
+  /** 報名整期：整期價與堂數；null = 不開放（src/lib/termEnrollment.ts）。 */
+  termPrice: number | null;
+  termSessions: number | null;
   cards: Card[];
   groupId: number | null;
   group: { id: number; name: string } | null;
@@ -64,6 +67,8 @@ export interface LessonSummary {
   sessionsPerAttendance: number;
   dropInPrice: number | null;
   dropInOptions?: DropInOption[] | null;
+  termPrice: number | null;
+  termSessions: number | null;
   studentCount: number;
   teachers: TeacherSummary[];
   assistants: TeacherSummary[];
@@ -137,7 +142,15 @@ export interface RecentPeriod {
 
 /** GET /lessons/:id/period-stats — taken periods only. */
 export interface LessonPeriodStats {
-  periods: { periodId: number; attendeeCount: number; revenue: number }[];
+  periods: {
+    periodId: number;
+    attendeeCount: number;
+    /** 含整期攤進來的部分。 */
+    revenue: number;
+    /** 整期攤進這堂的收入（報整期的人 × 每堂價，來不來都算）。 */
+    termRevenue: number;
+    termEnrolledCount: number;
+  }[];
   /** Summed before rounding, so it can differ by a dollar or two from adding up `periods`. */
   totalRevenue: number;
 }
@@ -195,6 +208,9 @@ export interface DraftLesson {
   dropInPrice?: number | null;
   /** 單堂方案（2 個以上才送）；null = 回到單一價。有送時 dropInPrice 以第一個方案為準。 */
   dropInOptions?: DropInOption[] | null;
+  /** 報名整期：整期價與堂數，兩個一起送；null = 不開放整期。Omitted on update = unchanged. */
+  termPrice?: number | null;
+  termSessions?: number | null;
   /** LessonGroup to file this lesson under — null means 未分類 (ungrouped). */
   groupId?: number | null;
   /** 分部 — null/omitted = not set (PUT clears it when omitted). */
@@ -222,8 +238,12 @@ export interface AttendanceRecord {
   recommendedStudentCardId?: number | null;
   reason?: "PRACTICE_PRIORITY" | null;
   source?: "TEACHER" | "STUDENT";
+  /** 學生自助簽到時留給老師的話（「想報整期，下課付現」）。 */
+  studentNote?: string | null;
   /** 這筆出席扣了（或綁卡時要扣）幾格。 */
   sessionsUsed: number;
+  /** 報了整期（不扣卡）。有它就沒有 cardName / uncheckedType。 */
+  enrollment?: { id: number };
   /** 改付單堂（不扣卡）。有它就沒有 cardName / uncheckedType。 */
   dropIn?: {
     id: number;
@@ -294,6 +314,59 @@ export interface RegisterTrialBody {
   isPaid: boolean;
   paymentMethod?: "CASH" | "TRANSFER" | null;
   paymentReference?: string | null;
+}
+
+export type TermAttendanceStatus = "present" | "leave" | "absent" | "upcoming" | "outside";
+
+/** GET /api/lessons/[id]/enrollments——這一期頁的整期名單。 */
+export interface EnrollmentRoster {
+  termPrice: number | null;
+  termSessions: number | null;
+  periods: { id: number; index: number; startTime: string; attendanceTaken: boolean }[];
+  enrollments: {
+    id: number;
+    student: { id: number; name: string; avatarUrl: string };
+    price: number;
+    sessions: number;
+    perSession: number;
+    note: string | null;
+    isPaid: boolean;
+    paymentMethod: "CASH" | "TRANSFER" | null;
+    createdAt: string;
+    /** 每個時段（照 periods 的順序）的狀態。 */
+    statuses: TermAttendanceStatus[];
+    counts: { present: number; leave: number; absent: number };
+  }[];
+}
+
+export interface RegisterEnrollmentBody {
+  studentId?: number;
+  newStudentName?: string;
+  price?: number;
+  isPaid: boolean;
+  paymentMethod?: "CASH" | "TRANSFER" | null;
+  paymentReference?: string | null;
+  note?: string | null;
+}
+
+/** GET /api/lessons/[id]/periods/[periodId]/term——點名頁、點名完成頁用。 */
+export interface PeriodTermInfo {
+  offered: boolean;
+  /** 這堂是第幾堂（0 起算）。 */
+  periodIndex: number;
+  termSessions: number | null;
+  enrolled: {
+    enrollmentId: number;
+    student: { id: number; name: string; avatarUrl: string };
+    perSession: number;
+    onLeave: boolean;
+    /** 這堂已經用課卡／單堂付了：這堂收入算那邊，不算整期這一份。 */
+    paidOtherwise: boolean;
+    /** 整期付了沒、整期價（點名時看狀態用）。 */
+    isPaid: boolean;
+    price: number;
+  }[];
+  previousLeaves: { periodId: number; startTime: string; students: { id: number; name: string }[] } | null;
 }
 
 const lessonsApi = api.injectEndpoints({
@@ -384,23 +457,23 @@ const lessonsApi = api.injectEndpoints({
     }),
     takeAttendance: builder.mutation<
       void,
-      { id: number; periodId: number; studentIds: number[] }
+      { id: number; periodId: number; studentIds: number[]; leaveStudentIds?: number[] }
     >({
-      query: ({ id, periodId, studentIds }) => ({
+      query: ({ id, periodId, studentIds, leaveStudentIds }) => ({
         url: `lessons/${id}/periods/${periodId}/attendance`,
         method: "POST",
-        body: { studentIds },
+        body: { studentIds, leaveStudentIds },
       }),
       invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "AttendanceRecord"],
     }),
     updateAttendance: builder.mutation<
       void,
-      { id: number; periodId: number; studentIds: number[] }
+      { id: number; periodId: number; studentIds: number[]; leaveStudentIds?: number[] }
     >({
-      query: ({ id, periodId, studentIds }) => ({
+      query: ({ id, periodId, studentIds, leaveStudentIds }) => ({
         url: `lessons/${id}/periods/${periodId}/attendance`,
         method: "PUT",
-        body: { studentIds },
+        body: { studentIds, leaveStudentIds },
       }),
       invalidatesTags: ["Lesson", "Student", "StudentCard", "Card", "AttendanceRecord"],
     }),
@@ -482,6 +555,44 @@ const lessonsApi = api.injectEndpoints({
     >({
       query: ({ id, ...body }) => ({ url: `lessons/${id}/trials`, method: "POST", body }),
       invalidatesTags: ["Lesson", "Student", "StudentCard", "Card"],
+    }),
+    getLessonEnrollments: builder.query<EnrollmentRoster, { id: number }>({
+      query: ({ id }) => `lessons/${id}/enrollments`,
+      providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
+    }),
+    getPeriodTerm: builder.query<PeriodTermInfo, { id: number; periodId: number }>({
+      query: ({ id, periodId }) => `lessons/${id}/periods/${periodId}/term`,
+      providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
+    }),
+    registerEnrollment: builder.mutation<
+      { enrollmentId: number; studentId: number },
+      { id: number } & RegisterEnrollmentBody
+    >({
+      query: ({ id, ...body }) => ({ url: `lessons/${id}/enrollments`, method: "POST", body }),
+      // 晚登記會把之前扣的卡退回去、單堂費刪掉（adoptEarlierAttendanceInTx）。
+      invalidatesTags: ["Lesson", "Student", "StudentCard", "Attendance", "AttendanceRecord"],
+    }),
+    updateEnrollment: builder.mutation<
+      void,
+      { enrollmentId: number; price?: number; note?: string | null }
+    >({
+      query: ({ enrollmentId, ...body }) => ({ url: `lesson-enrollments/${enrollmentId}`, method: "PATCH", body }),
+      invalidatesTags: ["Lesson", "Student", "Attendance"],
+    }),
+    deleteEnrollment: builder.mutation<void, { enrollmentId: number }>({
+      query: ({ enrollmentId }) => ({ url: `lesson-enrollments/${enrollmentId}`, method: "DELETE" }),
+      invalidatesTags: ["Lesson", "Student", "Attendance"],
+    }),
+    confirmEnrollmentPayment: builder.mutation<
+      void,
+      { enrollmentId: number; paymentMethod?: "CASH" | "TRANSFER"; paymentReference?: string | null; receiverUserId?: number }
+    >({
+      query: ({ enrollmentId, ...body }) => ({
+        url: `lesson-enrollments/${enrollmentId}/confirm-payment`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Lesson", "Student", "Attendance"],
     }),
     getLessonStudents: builder.query<LessonStudent[], { id: number }>({
       query: ({ id }) => ({
@@ -583,6 +694,12 @@ export const {
   useConsumeStudentCardMutation,
   useGetLessonStudentsQuery,
   useGetLessonTrialsQuery,
+  useGetLessonEnrollmentsQuery,
+  useGetPeriodTermQuery,
+  useRegisterEnrollmentMutation,
+  useUpdateEnrollmentMutation,
+  useDeleteEnrollmentMutation,
+  useConfirmEnrollmentPaymentMutation,
   useRegisterTrialMutation,
   useCreatePeriodMutation,
   useCreatePeriodsMutation,

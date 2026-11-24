@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
 import { toTaipeiDateKey } from "@/lib/taipei-date";
 import { periodRevenue } from "@/lib/income";
+import { termRevenueByPeriod } from "@/service/termEnrollment";
 
 export async function GET() {
   const { classroomId } = await decodeAuthToken();
@@ -13,6 +14,7 @@ export async function GET() {
       attendanceTakenAt: { not: null },
     },
     select: {
+      id: true,
       startTime: true,
       attendanceRecords: {
         select: {
@@ -25,10 +27,11 @@ export async function GET() {
   });
 
   // 依台北日期分組,加總每日營收
+  const term = await termRevenueByPeriod(periods.map((p) => p.id));
   const totals = new Map<string, number>();
   for (const period of periods) {
     const date = toTaipeiDateKey(period.startTime);
-    totals.set(date, (totals.get(date) ?? 0) + periodRevenue(period.attendanceRecords));
+    totals.set(date, (totals.get(date) ?? 0) + periodRevenue(period.attendanceRecords) + (term.get(period.id)?.amount ?? 0));
   }
 
   const days = [...totals.entries()]

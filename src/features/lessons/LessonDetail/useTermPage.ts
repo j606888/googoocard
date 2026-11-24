@@ -49,6 +49,12 @@ export const useTermPage = (lesson: Lesson | undefined, headcounts: Map<number, 
       /** undefined = 還在抓。 */
       totalRevenue: stats?.totalRevenue,
       revenues: new Map(stats?.periods.map((period) => [period.periodId, period.revenue])),
+      /** 整期攤進每堂的部分（已含在 revenues 裡）；沒人報整期的堂不在裡面。 */
+      termRevenues: new Map(
+        (stats?.periods ?? [])
+          .filter((period) => period.termEnrolledCount > 0)
+          .map((period) => [period.periodId, { amount: period.termRevenue, count: period.termEnrolledCount }])
+      ),
       /** 同課種的各期，新的在前；沒歸課種是空的。 */
       terms,
       termNumber: lesson ? (numbers.get(lesson.id) ?? null) : null,

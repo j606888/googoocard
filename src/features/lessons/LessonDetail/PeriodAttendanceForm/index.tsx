@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useGetPeriodTermQuery } from "@/store/slices/lessons";
+import TermAttendanceSection, { PreviousLeavesBanner } from "./TermAttendanceSection";
 import { Button } from "@/components/ui/button";
 import SubNavbar from "@/features/SubNavbar";
 import Drawer from "@/components/Drawer";
@@ -21,9 +23,12 @@ const WEEKDAY = ["日", "一", "二", "三", "四", "五", "六"];
 type PeriodAttendanceFormProps = {
   defaultSelectedIds?: number[];
   selfCheckInStudentIds?: number[];
+  /** 學生 id → 自助簽到時留給老師的話。 */
+  studentNotes?: Map<number, string>;
   /** 在課程頁體驗名單上登記、還沒上過的人——預設勾好並標「體驗報名」。 */
   trialStudentIds?: number[];
-  onSubmit: (studentIds: number[]) => Promise<void>;
+  /** `leaveStudentIds` 只在這門課開了整期時才有：沒來的整期學生裡標「請假」的人。 */
+  onSubmit: (studentIds: number[], leaveStudentIds?: number[]) => Promise<void>;
   submitLabel?: string;
   error?: string | null;
   isLoading?: boolean;
@@ -34,6 +39,7 @@ type PeriodAttendanceFormProps = {
 const PeriodAttendanceForm = ({
   defaultSelectedIds = [],
   selfCheckInStudentIds = [],
+  studentNotes,
   trialStudentIds = [],
   onSubmit,
   submitLabel = "完成點名",
@@ -69,6 +75,23 @@ const PeriodAttendanceForm = ({
     periodId: Number(periodId),
     defaultSelectedIds,
   });
+
+  // 整期：這堂涵蓋的整期學生（另成一區）、誰請假、上一堂誰請假。
+  const { data: term } = useGetPeriodTermQuery({ id: Number(id), periodId: Number(periodId) });
+  const enrolled = useMemo(() => (term?.offered ? term.enrolled : []), [term]);
+  const enrolledIds = useMemo(() => new Set(enrolled.map((e) => e.student.id)), [enrolled]);
+  const [leaveOverride, setLeaveOverride] = useState<Map<number, boolean>>(new Map());
+  const leaveIds = useMemo(
+    () =>
+      new Set(
+        enrolled
+          .filter((e) => leaveOverride.get(e.student.id) ?? e.onLeave)
+          .map((e) => e.student.id)
+      ),
+    [enrolled, leaveOverride]
+  );
+  const setLeave = (studentId: number, onLeave: boolean) =>
+    setLeaveOverride((prev) => new Map(prev).set(studentId, onLeave));
 
   const desktopHeader = (
     <div className="flex items-center gap-3 px-8 pt-6 pb-4">
@@ -109,7 +132,13 @@ const PeriodAttendanceForm = ({
     .filter(Boolean)
     .join(" · ");
 
-  const submit = () => onSubmit(selectedIds);
+  const submit = () =>
+    onSubmit(
+      selectedIds,
+      term?.offered ? [...leaveIds].filter((studentId) => !selected.has(studentId)) : undefined
+    );
+  // 整期的人全請假、沒人來也能送出（那堂一樣要點名定案，收入照算）。
+  const canSubmit = count > 0 || enrolled.length > 0;
 
   const searchbar = (
     <Searchbar
@@ -122,19 +151,34 @@ const PeriodAttendanceForm = ({
 
   const list = (
     <StudentSelectList
-      rosterStudents={rosterStudents}
-      otherStudents={otherStudents}
+      rosterStudents={rosterStudents.filter((student) => !enrolledIds.has(student.id))}
+      otherStudents={otherStudents.filter((student) => !enrolledIds.has(student.id))}
       selectedIds={selectedIds}
       keyword={keyword}
       rowTags={rowTags}
       cardLines={cardLines}
       selfCheckInStudentIds={selfCheckInStudentIds}
+      studentNotes={studentNotes}
       trialStudentIds={trialStudentIds}
       onToggle={toggleStudent}
       onSetMany={setMany}
       onCreateClick={() => setIsCreateOpen(true)}
     />
   );
+
+  const termSection =
+    term?.offered && enrolled.length > 0 ? (
+      <TermAttendanceSection
+        term={term}
+        selectedIds={selectedIds}
+        leaveIds={leaveIds}
+        selfCheckInStudentIds={selfCheckInStudentIds}
+        studentNotes={studentNotes}
+        keyword={keyword}
+        onToggle={toggleStudent}
+        onLeaveChange={setLeave}
+      />
+    ) : null;
 
   const review = (
     <AttendanceReview
@@ -167,14 +211,16 @@ const PeriodAttendanceForm = ({
         <div className="px-8 pb-8 grid grid-cols-[minmax(0,1fr)_360px] gap-8 items-start">
           <div className="flex flex-col gap-4 min-w-0">
             <PeriodInfo period={period} />
+            <PreviousLeavesBanner previous={term?.previousLeaves ?? null} />
             {searchbar}
+            {termSection}
             {list}
           </div>
           <div className="flex flex-col gap-4 sticky top-6">
             {review}
             <Button
               onClick={submit}
-              disabled={count === 0}
+              disabled={!canSubmit}
               isLoading={isLoading}
               size="lg"
               className="w-full"
@@ -203,7 +249,9 @@ const PeriodAttendanceForm = ({
           period={period}
           className="rounded-2xl border border-warning-300 bg-warning-50 px-4 py-3"
         />
+        <PreviousLeavesBanner previous={term?.previousLeaves ?? null} />
         {searchbar}
+        {termSection}
         {list}
       </div>
       {/* 點名頁不掛 BottomNav（見 BottomNav.tsx），動作列直接貼底、留安全區。 */}
@@ -220,7 +268,7 @@ const PeriodAttendanceForm = ({
         </Button>
         <Button
           onClick={submit}
-          disabled={count === 0}
+          disabled={!canSubmit}
           isLoading={isLoading}
           size="lg"
           className="flex-1"
@@ -235,7 +283,7 @@ const PeriodAttendanceForm = ({
         subtitle={reviewSubtitle}
         secondaryText="繼續勾"
         submitText={`${submitLabel}（${count} 人）`}
-        disabled={count === 0}
+        disabled={!canSubmit}
         isLoading={isLoading}
         onSubmit={submit}
       >

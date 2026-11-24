@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { resolveDropInInput } from "@/lib/dropInOptions";
+import { exceedsTermSessions, resolveTermInput } from "@/lib/termEnrollment";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { decodeAuthToken } from "@/lib/auth";
@@ -104,6 +105,38 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (dropIn === "invalid") {
     return NextResponse.json({ error: "Invalid dropInPrice" }, { status: 400 });
   }
+  const term = resolveTermInput(draftLesson);
+  if (term === "invalid") {
+    return NextResponse.json({ error: "INVALID_TERM" }, { status: 400 });
+  }
+  {
+    const current = await prisma.lesson.findUnique({
+      where: { id: parseInt(id) },
+      select: {
+        kind: true,
+        termPrice: true,
+        termSessions: true,
+        _count: { select: { periods: true, enrollments: true } },
+      },
+    });
+    const nextSessions = term === undefined ? current?.termSessions ?? null : term.termSessions;
+    const nextKind = draftLesson.kind ?? current?.kind;
+    if (nextSessions !== null && nextKind !== "fixed") {
+      return NextResponse.json({ error: "TERM_REQUIRES_FIXED" }, { status: 400 });
+    }
+    if (exceedsTermSessions(current?._count.periods ?? 0, nextSessions)) {
+      return NextResponse.json({ error: "TERM_SESSIONS_EXCEEDED" }, { status: 400 });
+    }
+    // 已經有人報整期：整期價與堂數都鎖住（報名的堂數 = 課程的；改了會回頭改每堂價）。
+    if (
+      current &&
+      current._count.enrollments > 0 &&
+      term !== undefined &&
+      (term.termPrice !== current.termPrice || term.termSessions !== current.termSessions)
+    ) {
+      return NextResponse.json({ error: "TERM_LOCKED" }, { status: 400 });
+    }
+  }
 
   if (typeof draftLesson.danceStyleId !== "number") {
     return NextResponse.json({ error: "DANCE_STYLE_REQUIRED" }, { status: 400 });
@@ -165,6 +198,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       dropInPrice: dropIn.dropInPrice,
       dropInOptions:
         dropIn.dropInOptions === undefined ? undefined : (dropIn.dropInOptions ?? Prisma.DbNull),
+      termPrice: term?.termPrice,
+      termSessions: term?.termSessions,
       groupId: draftLesson.groupId ?? null,
       locationId: draftLesson.locationId ?? null,
     },
@@ -214,6 +249,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   await prisma.lessonAssistant.deleteMany({ where: { lessonId } });
   await prisma.lessonCard.deleteMany({ where: { lessonId } });
   await prisma.lessonStudent.deleteMany({ where: { lessonId } });
+  // 只有沒有時段的課刪得掉（LessonPeriod 擋著），所以這裡的報名不會有出席或請假。
+  await prisma.lessonEnrollment.deleteMany({ where: { lessonId } });
   await prisma.lesson.delete({ where: { id: lessonId } });
 
   return NextResponse.json({});

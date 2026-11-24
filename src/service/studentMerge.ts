@@ -165,6 +165,22 @@ export async function mergeStudents(
       data: { studentId: target.id },
     });
 
+    // ----- 整期報名：同一門課兩邊都報了就留 target 的，source 那筆的出席改掛 target 的 -----
+    const targetEnrollments = new Map(
+      (await tx.lessonEnrollment.findMany({ where: { studentId: target.id }, select: { id: true, lessonId: true } })).map(
+        (e) => [e.lessonId, e.id]
+      )
+    );
+    for (const e of await tx.lessonEnrollment.findMany({ where: { studentId: source.id }, select: { id: true, lessonId: true } })) {
+      const keepId = targetEnrollments.get(e.lessonId);
+      if (keepId === undefined) {
+        await tx.lessonEnrollment.update({ where: { id: e.id }, data: { studentId: target.id } });
+      } else {
+        await tx.attendanceRecord.updateMany({ where: { enrollmentId: e.id }, data: { enrollmentId: keepId } });
+        await tx.lessonEnrollment.delete({ where: { id: e.id } });
+      }
+    }
+
     // ----- Plain moves -----
     await tx.studentCard.updateMany({ where: { studentId: source.id }, data: { studentId: target.id } });
     await tx.event.updateMany({ where: { studentId: source.id }, data: { studentId: target.id } });

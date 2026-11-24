@@ -5,6 +5,7 @@ import {
   useGetAttendanceQuery,
   useLazyGetAttendanceQuery,
   useGetLessonTrialsQuery,
+  useGetPeriodTermQuery,
   useTakeAttendanceMutation,
 } from "@/store/slices/lessons";
 import PeriodAttendanceForm from "../PeriodAttendanceForm";
@@ -36,6 +37,12 @@ const CheckPeriod = () => {
         .map((entry) => entry.student.id),
     [trials]
   );
+  // 報了整期的人「預計會到」，但**不預設勾選**（2026-11-24 使用者決定：會不會來跟點到是兩回事，
+  // 預設勾好容易誤送）。整期區自己標「整期 · 預計會到」，來了老師親手勾。
+  const { data: term, isLoading: isTermLoading } = useGetPeriodTermQuery({
+    id: Number(id),
+    periodId: Number(periodId),
+  });
   const defaultSelectedIds = useMemo(
     () => [...new Set([...(existingRecords ?? []).map((r) => r.studentId), ...trialStudentIds])],
     [existingRecords, trialStudentIds]
@@ -48,8 +55,20 @@ const CheckPeriod = () => {
     [existingRecords]
   );
 
-  const handleSubmit = async (studentIds: number[]) => {
-    if (studentIds.length === 0) {
+  // 學生簽到時留的話：點名列上直接看得到（例：「想報整期，下課付現」）。
+  const studentNotes = useMemo(
+    () =>
+      new Map(
+        (existingRecords ?? [])
+          .filter((r) => r.studentNote)
+          .map((r) => [r.studentId, r.studentNote as string])
+      ),
+    [existingRecords]
+  );
+
+  const hasEnrolled = Boolean(term?.offered && term.enrolled.length > 0);
+  const handleSubmit = async (studentIds: number[], leaveStudentIds?: number[]) => {
+    if (studentIds.length === 0 && !hasEnrolled) {
       setError("請至少選一位學生");
       return;
     }
@@ -68,6 +87,7 @@ const CheckPeriod = () => {
       await takeAttendance({
         ...target,
         studentIds: [...new Set([...studentIds, ...arrivedSince])],
+        leaveStudentIds,
       }).unwrap();
     } catch (err) {
       const { alreadyTaken, message } = describeAttendanceSubmitError(err);
@@ -87,12 +107,13 @@ const CheckPeriod = () => {
       <PeriodAttendanceForm
         defaultSelectedIds={defaultSelectedIds}
         selfCheckInStudentIds={selfCheckInStudentIds}
+        studentNotes={studentNotes}
         trialStudentIds={trialStudentIds}
         onSubmit={handleSubmit}
         submitLabel="完成點名"
         error={error}
         isLoading={isLoading || isRefetching}
-        isRecordsLoading={isRecordsLoading || isTrialsLoading}
+        isRecordsLoading={isRecordsLoading || isTrialsLoading || isTermLoading}
       />
     </>
   );

@@ -17,6 +17,8 @@ import DropInPriceField, {
   parseDropInPrice,
 } from "@/features/lessons/newLesson/DropInPriceField";
 import type { LessonKind } from "@/lib/lessonKind";
+import TermPriceField, { type TermDraft, parseTermDraft, termDraftFrom } from "@/features/lessons/newLesson/TermPriceField";
+import { Switch } from "@/components/ui/switch";
 import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
 import AssistantSelect from "@/features/lessons/newLesson/AssistantSelect";
 import CardSelect from "@/features/lessons/newLesson/CardSelect";
@@ -31,6 +33,7 @@ import {
   useDeleteLessonMutation,
   useEndLessonMutation,
   useReopenLessonMutation,
+  useGetLessonEnrollmentsQuery,
 } from "@/store/slices/lessons";
 import { useRouter } from "next/navigation";
 
@@ -40,6 +43,7 @@ const validationErrors = {
   cards: "請至少選擇一張課卡",
   danceStyle: "請選擇舞種",
   dropInPrice: "請輸入單堂價",
+  term: "整期價要填金額，堂數 1–52 堂",
 };
 
 type FormErrors = Partial<Record<keyof typeof validationErrors, string>>;
@@ -63,6 +67,7 @@ const ERROR_TAB: Record<keyof FormErrors, SettingTab> = {
   lessonName: "basic",
   danceStyle: "basic",
   dropInPrice: "cards",
+  term: "cards",
   teachers: "cards",
   cards: "basic",
 };
@@ -114,6 +119,13 @@ const SettingSection = ({
     lesson.dropInPrice !== null ? String(lesson.dropInPrice) : ""
   );
   const [dropInPlans, setDropInPlans] = useState<DropInPlans>(() => dropInPlansFrom(lesson.dropInOptions));
+  const [termDraft, setTermDraft] = useState<TermDraft>(() => termDraftFrom(lesson));
+  // 已有人報整期 → 整期價與堂數鎖住（伺服器 TERM_LOCKED）。
+  const { data: enrollmentRoster } = useGetLessonEnrollmentsQuery(
+    { id: lesson.id },
+    { skip: lesson.termPrice == null || lesson.termSessions == null }
+  );
+  const enrolledCount = enrollmentRoster?.enrollments.length ?? 0;
   const [errors, setErrors] = useState<FormErrors>({});
 
   const [updateLesson, { isLoading }] = useUpdateLessonMutation();
@@ -145,13 +157,14 @@ const SettingSection = ({
         !sameIds(selectedAssistantIds, lesson.assistants.map((a) => a.id)) ||
         !sameIds(selectedCardIds, lesson.cards.map((c) => c.id)) ||
         groupId !== lesson.groupId ||
-        locationId !== (lesson.location?.id ?? null),
+        locationId !== (lesson.location?.id ?? null) ||
+        JSON.stringify(termDraft) !== JSON.stringify(termDraftFrom(lesson)),
       status: false,
     };
   }, [
     lesson, lessonName, danceStyleId, level, kind, sessionsPerAttendance, dropInEnabled,
     dropInAmount, dropInPlans, selectedTeacherIds, selectedAssistantIds, selectedCardIds, groupId,
-    locationId,
+    locationId, termDraft,
   ]);
   const dirtyTabCount = Object.values(dirtyByTab).filter(Boolean).length;
   const isDirty = dirtyTabCount > 0;
@@ -178,7 +191,10 @@ const SettingSection = ({
       danceStyleId,
       dropInEnabled,
       dropInPrice,
+      termEnabled: termDraft.enabled && kind !== "ongoing",
     });
+    const term = kind === "ongoing" ? { termPrice: null, termSessions: null } : parseTermDraft(termDraft);
+    if (term === undefined) next.term = validationErrors.term;
     const dropInOptions = buildDropInOptions(dropInEnabled, dropInAmount, dropInPlans);
     if (!next.dropInPrice && dropInOptions === undefined) {
       next.dropInPrice = "每個方案都要有名稱和金額，名稱不能重複";
@@ -189,7 +205,7 @@ const SettingSection = ({
       setTab(ERROR_TAB[firstError]);
       return;
     }
-    if (danceStyleId === null || dropInPrice === undefined || dropInOptions === undefined) return;
+    if (danceStyleId === null || dropInPrice === undefined || dropInOptions === undefined || term === undefined) return;
     try {
       await updateLesson({
         id: lesson.id,
@@ -197,10 +213,20 @@ const SettingSection = ({
           lessonName, teacherIds: selectedTeacherIds, assistantIds: selectedAssistantIds,
           cardIds: selectedCardIds, danceStyleId,
           level, kind, sessionsPerAttendance, dropInPrice, dropInOptions, groupId, locationId,
+          ...term,
         },
       }).unwrap();
-    } catch {
-      toast.error("儲存失敗，請再試一次");
+    } catch (error) {
+      const code = (error as { data?: { error?: string } })?.data?.error;
+      toast.error(
+        code === "TERM_SESSIONS_EXCEEDED"
+          ? "已經排的時段比整期堂數多，先刪掉多的時段"
+          : code === "TERM_LOCKED"
+            ? "已經有人報整期，整期價和堂數不能改"
+            : code === "TERM_REQUIRES_FIXED"
+              ? "報整期的課要是「固定期數」"
+              : "儲存失敗，請再試一次"
+      );
       return;
     }
     toast.success("已儲存");
@@ -221,6 +247,7 @@ const SettingSection = ({
     setDropInEnabled(lesson.dropInPrice !== null);
     setDropInAmount(lesson.dropInPrice !== null ? String(lesson.dropInPrice) : "");
     setDropInPlans(dropInPlansFrom(lesson.dropInOptions));
+    setTermDraft(termDraftFrom(lesson));
     setSelectedTeacherIds(lesson.teachers.map((t) => t.id));
     setSelectedAssistantIds(lesson.assistants.map((a) => a.id));
     setSelectedCardIds(lesson.cards.map((c) => c.id));
@@ -389,6 +416,24 @@ const SettingSection = ({
                 }}
                 error={errors.dropInPrice}
               />
+              <div className="flex flex-col divide-y divide-neutral-100 overflow-hidden rounded-xl border border-neutral-200">
+                <TermPriceField
+                  draft={termDraft}
+                  kind={kind}
+                  periodCount={lesson.periods.length}
+                  lockedReason={
+                    enrolledCount > 0 ? `已有 ${enrolledCount} 人報名，整期價和堂數不能改。` : undefined
+                  }
+                  onChange={(draft) => {
+                    setTermDraft(draft);
+                    setErrors((prev) => ({ ...prev, term: undefined, cards: undefined }));
+                  }}
+                  toggle={(checked, onToggle) => (
+                    <Switch checked={checked} onCheckedChange={onToggle} aria-label="報名整期" />
+                  )}
+                />
+              </div>
+              {errors.term && <p className="-mt-2 text-sm text-danger-700">{errors.term}</p>}
             </section>
         </div>
 
@@ -477,6 +522,7 @@ const validateForm = (data: {
   danceStyleId: number | null;
   dropInEnabled: boolean;
   dropInPrice: number | null | undefined;
+  termEnabled: boolean;
 }) => {
   const errors: FormErrors = {};
   if (!data.lessonName) {
@@ -491,8 +537,8 @@ const validateForm = (data: {
   if (data.teachers.length === 0) {
     errors.teachers = validationErrors.teachers;
   }
-  // 開了單堂付費的課可以不收課卡（全場付現）。
-  if (data.cards.length === 0 && !data.dropInEnabled) {
+  // 開了單堂付費或整期的課可以不收課卡。
+  if (data.cards.length === 0 && !data.dropInEnabled && !data.termEnabled) {
     errors.cards = validationErrors.cards;
   }
   return errors;
