@@ -68,7 +68,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
         className={`flex h-11 items-center gap-3.5 rounded-xl px-3 transition-colors ${
           active
             ? "bg-primary-100 font-semibold text-primary-900"
-            : "text-neutral-600 hover:bg-primary-50 hover:text-primary-900"
+            : "text-ink-2 hover:bg-primary-50 hover:text-primary-900"
         }`}
       >
         <link.icon className={`h-5 w-5 ${active ? "text-primary-700" : ""}`} />
@@ -93,25 +93,25 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
           aria-busy={!data}
           disabled={!data}
           onClick={() => setSwitchClassroomOpen(!switchClassroomOpen)}
-          className="relative flex w-full cursor-pointer items-center gap-3 overflow-hidden rounded-2xl bg-primary-900 p-3 text-left text-white shadow-[0_10px_28px_-14px_rgba(27,94,74,0.8)] transition-colors hover:bg-[#17523F]"
+          className="relative flex w-full cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-left text-ink transition-colors hover:bg-primary-50"
         >
-          <div className="relative flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-lg bg-white/15 font-bold">
+          <div className="relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-100 text-sm font-bold text-primary-900">
             {data ? (
               currentClassroom?.name.slice(0, 1)
             ) : (
-              <Skeleton className="h-full w-full rounded-lg bg-white/15" />
+              <Skeleton className="h-full w-full rounded-lg" />
             )}
           </div>
           {data ? (
-            <span className="relative line-clamp-2 min-w-0 flex-1 text-base font-semibold leading-snug">
+            <span className="relative line-clamp-2 min-w-0 flex-1 text-[15px] font-semibold leading-snug">
               {currentClassroom?.name}
             </span>
           ) : (
             <span className="relative flex h-[22px] min-w-0 flex-1 items-center">
-              <Skeleton className="h-4 w-28 bg-white/15" />
+              <Skeleton className="h-4 w-28" />
             </span>
           )}
-          <ChevronsUpDown className="relative h-4 w-4 shrink-0 text-primary-300" />
+          <ChevronsUpDown className="relative h-4 w-4 shrink-0 text-ink-3" />
         </button>
       </div>
       <Menu
@@ -160,7 +160,7 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
       {/* 教室設定 and the account row sit at the bottom: set up once, rarely visited. */}
       <div className="mt-auto flex flex-col gap-2 pt-4">
         {renderLink(SETTINGS_ENTRY, isSettingsPath(pathname))}
-        <div className="flex items-center gap-2.5 border-t border-neutral-200 px-1 pt-3">
+        <div className="flex items-center gap-2.5 px-1 pt-2">
           <div
             aria-hidden="true"
             className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-100 font-bold text-primary-900"

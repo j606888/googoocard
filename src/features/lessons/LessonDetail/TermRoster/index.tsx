@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import { type EnrollmentRoster, Lesson, useGetLessonEnrollmentsQuery } from "@/store/slices/lessons";
 import { formatMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
-import EmptyState from "@/components/EmptyState";
+import InfoTip from "@/components/InfoTip";
 import StatusTag from "@/components/StatusTag";
 import ConfirmPaymentDrawer, { type ConfirmPaymentTarget } from "@/features/students/ConfirmPaymentDrawer";
 import EnrollmentDrawer from "./EnrollmentDrawer";
@@ -33,33 +33,32 @@ const TermRoster = ({ lesson }: { lesson: Lesson }) => {
   const firstPeriodTaken = data.periods[0]?.attendanceTaken ?? false;
 
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
+    <section className="flex flex-col gap-2 border-b border-line pb-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="text-base font-bold text-neutral-900">整期名單</h3>
-          <p className="text-[13px] text-neutral-600">
+          <h3 className="flex items-center gap-1 text-[17px] font-semibold text-ink lg:text-base">
+            整期名單
+            <InfoTip label="整期名單說明">登記之後，點名時會標「預計今天會到」、不扣課卡；沒來的可以標請假。</InfoTip>
+          </h3>
+          <p className="text-[13px] text-ink-3">
             整期 ${formatMoney(data.termPrice)} / {data.termSessions} 堂・{enrollments.length} 人報名
             {enrollments.length > 0 && <span className="tabular-nums">・共 ${formatMoney(total)}</span>}
             {unpaid.length > 0 && <span className="text-warning-900">・{unpaid.length} 人還沒收錢</span>}
           </p>
         </div>
-        <Button type="button" size="sm" onClick={() => setRegistering(true)}>
+        <Button type="button" variant="text" size="sm" onClick={() => setRegistering(true)}>
           <Plus className="size-4" />
           登記整期
         </Button>
       </div>
 
       {enrollments.length === 0 ? (
-        <EmptyState
-          kind="inline"
-          title="還沒有人報整期"
-          description="登記之後，點名時會標「預計今天會到」、不扣課卡；沒來的可以標請假。"
-        />
+        <p className="text-[13px] text-ink-3">還沒有人報整期</p>
       ) : (
         <>
           <ul className="flex flex-col">
             {enrollments.map((e) => (
-              <li key={e.id} className="-mx-2 flex items-center gap-3 rounded-lg border-b border-neutral-100 px-2 py-2.5 last:border-b-0">
+              <li key={e.id} className="-mx-2 flex items-center gap-3 rounded-lg border-b border-line px-2 py-2.5 last:border-b-0">
                 <button
                   type="button"
                   onClick={() => setEditing(e)}

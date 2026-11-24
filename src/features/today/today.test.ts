@@ -6,7 +6,7 @@ import {
   greeting,
   heroBadge,
   termProgressLabel,
-  todoSummary,
+  todoRows,
 } from "./today";
 
 // 本地時間，跟畫面一樣用瀏覽器時區算「今天」。
@@ -155,46 +155,36 @@ describe("labels", () => {
   });
 });
 
-describe("todoSummary", () => {
+describe("todoRows", () => {
   const base = {
     unpaidCards: [],
     unpaidDropIns: [],
     unpaidEnrollments: [],
     unboundAttendance: [],
     needsRenewal: [],
-    urgentCount: 0,
     reminderCount: 0,
   };
   const items = (n: number) => Array.from({ length: n }) as never[];
 
-  it("is absent when there is nothing to do", () => {
-    expect(todoSummary(base)).toBeNull();
+  it("is empty when there is nothing to do", () => {
+    expect(todoRows(base)).toEqual([]);
   });
 
-  it("names what is waiting and uses the bell's urgent count", () => {
+  it("gives each kind its own row, unpaid first, and lumps the remaining reminders", () => {
     expect(
-      todoSummary({
+      todoRows({
         ...base,
         unpaidCards: items(1),
-        unpaidDropIns: items(1),
-        unboundAttendance: items(1),
-        needsRenewal: items(2),
-        urgentCount: 3,
-        reminderCount: 2,
+        unpaidEnrollments: items(1),
+        unboundAttendance: items(2),
+        needsRenewal: items(9),
+        reminderCount: 11,
       })
-    ).toEqual({ count: 3, text: "待處理：2 筆未付款、1 筆點名沒課卡、2 位該續卡", urgent: true });
-  });
-
-  it("falls back to the reminder count when only reminders remain", () => {
-    expect(todoSummary({ ...base, needsRenewal: items(1), reminderCount: 1 })).toEqual({
-      count: 1,
-      text: "待處理：1 位該續卡",
-      urgent: false,
-    });
-    expect(todoSummary({ ...base, reminderCount: 2 })).toEqual({
-      count: 2,
-      text: "2 件提醒",
-      urgent: false,
-    });
+    ).toEqual([
+      { key: "unpaid", count: 2, text: "筆未付款" },
+      { key: "unbound", count: 2, text: "筆點名沒有課卡" },
+      { key: "renewal", count: 9, text: "位學生該續卡" },
+      { key: "reminders", count: 2, text: "件其他提醒" },
+    ]);
   });
 });

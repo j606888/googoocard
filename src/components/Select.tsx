@@ -36,7 +36,8 @@ export interface SelectOption<T extends string | number> {
  * 觸發框和輸入框同一個外觀（`fieldControlClass`），寬度跟原生一樣撐到最長的選項；
  * 選單用 floating-ui（跟 `Menu` 同一套），鍵盤上下、Enter、Esc、打字跳選項都有。
  * 在 Radix 對話框／抽屜裡會 portal 進那個對話框，理由見 `Menu`。
- * `size`：`md` 48 高，表單用；`sm` 44 高，篩選列與表格內用。
+ * `size`：`md` 48 高，表單用；`sm` 44 高，表格內用；`plain` 44 高、沒有框——頁首篩選
+ * （「所有分部 ▾」），去框線改版起篩選列一律用它。
  */
 export default function Select<T extends string | number>({
   value,
@@ -62,7 +63,7 @@ export default function Select<T extends string | number>({
   id?: string;
   error?: boolean;
   disabled?: boolean;
-  size?: "md" | "sm";
+  size?: "md" | "sm" | "plain";
   /** 加在觸發框上，例如 `w-auto`、`flex-1`。 */
   className?: string;
   "aria-label"?: string;
@@ -154,10 +155,13 @@ export default function Select<T extends string | number>({
         aria-invalid={error ? true : undefined}
         {...getReferenceProps()}
         className={cn(
-          fieldControlClass(error),
+          size === "plain"
+            ? "h-11 rounded-lg px-2 text-sm font-medium text-ink-2 outline-none hover:bg-primary-50 focus-visible:ring-[3px] focus-visible:ring-primary-300"
+            : fieldControlClass(error),
           "flex cursor-pointer items-center gap-2 text-left disabled:cursor-not-allowed",
-          size === "md" ? "h-12" : "h-11 px-3 text-[15px]",
-          open && "border-primary-700 ring-[3px] ring-primary-100",
+          size === "md" ? "h-12" : size === "sm" ? "h-11 px-3 text-[15px]" : "gap-1",
+          open && size !== "plain" && "border-primary-700 ring-[3px] ring-primary-100",
+          open && size === "plain" && "bg-primary-50",
           className
         )}
       >

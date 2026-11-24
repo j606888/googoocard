@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { differenceInCalendarDays, format } from "date-fns";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import EmptyState from "@/components/EmptyState";
+import DanceStyleDot from "@/components/DanceStyleDot";
 import { useGetLessonStudentsQuery } from "@/store/slices/lessons";
 import { timeLeftLabel } from "./lessonSchedule";
 import LateArrivalsSheet from "./LateArrivalsSheet";
@@ -13,124 +14,172 @@ import type { AgendaRow } from "./useLessonAgenda";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
-/** 補零、等寬：「11/05（四）」。一整欄的日期和星期才會對齊。 */
+/** 「11/05（四）」。 */
 const dateLabel = (date: Date) => `${format(date, "M/d")}（${WEEKDAYS[date.getDay()]}）`;
 
-const statusFor = ({ period, state }: AgendaRow, now: Date) => {
-  if (state === "overdue") return { text: "還沒點名", className: "text-warning-900" };
-  if (state === "inClass")
-    return {
-      text: `上課中 · ${timeLeftLabel(new Date(period.endTime), now)}`,
-      className: "text-primary-700",
-    };
-  const days = differenceInCalendarDays(new Date(period.startTime), now);
-  return {
-    text: days === 0 ? "今天" : days === 1 ? "明天" : "",
-    className: "text-neutral-600",
-  };
-};
+const checkHref = ({ period }: AgendaRow) => `/lessons/${period.lesson.id}/periods/${period.id}/check`;
 
-const peopleFor = ({ period }: AgendaRow) => {
+const teachersOf = ({ period }: AgendaRow) => {
   const teachers = period.lesson.teachers.map((t) => t.name).join("、");
   const assistants = (period.lesson.assistants ?? []).map((t) => t.name).join("、");
-  return [teachers, assistants && `小幫手 ${assistants}`].filter(Boolean).join(" · ");
+  return [teachers && `老師 ${teachers}`, assistants && `小幫手 ${assistants}`].filter(Boolean).join(" · ");
 };
 
+/** 數字寫成一句話（可用性測試：「5 人」看不出在算什麼）。 */
 const countFor = ({ period }: AgendaRow) => {
   const arrived = period.attendeeIds.length;
-  if (period.attendanceTakenAt) return `到 ${arrived} / ${period.lesson.studentCount} 人`;
-  return arrived > 0 ? `已簽到 ${arrived} 人` : `${period.lesson.studentCount} 人`;
+  if (period.attendanceTakenAt) return `到 ${arrived} / ${period.lesson.studentCount} 位`;
+  return arrived > 0 ? `已簽到 ${arrived} 位` : `${period.lesson.studentCount} 位學生`;
 };
 
-const AgendaItem = ({ row, now, showLocation }: { row: AgendaRow; now: Date; showLocation: boolean }) => {
+const overdueLine = ({ period }: AgendaRow) =>
+  [
+    `${dateLabel(new Date(period.startTime))} ${format(new Date(period.startTime), "HH:mm")}`,
+    period.lesson.name,
+    period.lesson.location?.name,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+/**
+ * 還沒點名的課：從「接下來」拆出來，放在頁首下面一條琥珀提醒，不限天數。
+ * 只有一堂就直接「補點名」；多堂可以展開逐堂補。
+ */
+export const OverdueNotice = ({ rows }: { rows: AgendaRow[] }) => {
+  const [open, setOpen] = useState(false);
+  if (rows.length === 0) return null;
+  const [oldest] = rows;
+  const single = rows.length === 1;
+  const summary = (
+    <>
+      <span className="min-w-0 flex-1 lg:flex lg:items-baseline lg:gap-3">
+        <b className="block font-semibold lg:inline">{rows.length} 堂還沒點名</b>
+        <span className="block truncate text-[13px] lg:inline lg:text-sm">
+          {single ? overdueLine(oldest) : `最早一堂 ${overdueLine(oldest)}`}
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-1 text-sm font-semibold">
+        {single ? "補點名" : open ? "收起" : "逐堂補點名"}
+        {single ? (
+          <ChevronRight aria-hidden="true" className="size-4" />
+        ) : (
+          <ChevronDown aria-hidden="true" className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        )}
+      </span>
+    </>
+  );
+  const box = "flex min-h-13 w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-warning-950";
+  return (
+    <section aria-label="還沒點名的課" className="rounded-xl bg-warning-100">
+      {single ? (
+        <Link href={checkHref(oldest)} className={`${box} hover:bg-warning-200/60`}>
+          {summary}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          className={`${box} cursor-pointer hover:bg-warning-200/60`}
+        >
+          {summary}
+        </button>
+      )}
+      {!single && open && (
+        <ul className="divide-y divide-warning-200 px-4 pb-1.5">
+          {rows.map((row) => (
+            <li key={row.period.id} className="flex min-h-12 items-center gap-3 text-sm text-warning-950">
+              <span className="min-w-0 flex-1 truncate">{overdueLine(row)}</span>
+              <Link href={checkHref(row)} className="shrink-0 font-semibold hover:underline">
+                補點名
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+};
+
+const AgendaItem = ({ row, now }: { row: AgendaRow; now: Date }) => {
   const { period, state } = row;
   const [lateOpen, setLateOpen] = useState(false);
   const start = new Date(period.startTime);
   const taken = Boolean(period.attendanceTakenAt);
-  const isToday = differenceInCalendarDays(start, now) === 0;
-  const checkHref = `/lessons/${period.lesson.id}/periods/${period.id}/check`;
-  const status = statusFor(row, now);
-  const people = peopleFor(row);
-  const count = countFor(row);
+  const days = differenceInCalendarDays(start, now);
+  const isToday = days === 0;
+  const people = teachersOf(row);
   const locationName = period.lesson.location?.name;
+  const status =
+    state === "inClass" ? `上課中 · ${timeLeftLabel(new Date(period.endTime), now)}` : countFor(row);
 
   // 名冊只有打開「補勾遲到」時才需要。
-  const { data: roster } = useGetLessonStudentsQuery(
-    { id: period.lesson.id },
-    { skip: !lateOpen }
-  );
+  const { data: roster } = useGetLessonStudentsQuery({ id: period.lesson.id }, { skip: !lateOpen });
 
   const action =
     state === "inClass" && taken ? (
-      <Button variant="secondary" size="sm" onClick={() => setLateOpen(true)}>
+      <Button variant="text" size="sm" onClick={() => setLateOpen(true)}>
         補勾遲到
       </Button>
     ) : taken ? (
-      <span className="text-[13px] text-neutral-600">已點名</span>
-    ) : (
-      <Button asChild size="sm" variant={state !== "upcoming" || isToday ? "primary" : "secondary"}>
-        <Link href={checkHref}>{state === "overdue" && !isToday ? "補點名" : "點名"}</Link>
+      <span className="text-[13px] text-ink-3">已點名</span>
+    ) : state === "inClass" || isToday ? (
+      <Button asChild size="sm">
+        <Link href={checkHref(row)}>點名</Link>
       </Button>
-    );
+    ) : null;
 
   return (
     <li
-      className={`flex min-h-[72px] items-center gap-3 px-4 py-2.5 lg:min-h-14 lg:py-2 ${
-        state === "overdue" ? "bg-warning-50" : ""
+      className={`relative flex min-h-16 items-center gap-3.5 py-2.5 lg:min-h-13 lg:gap-4 ${
+        isToday ? "-mx-3 rounded-xl bg-primary-50 px-3 lg:-mx-4 lg:px-4" : "border-b border-line last:border-b-0"
       }`}
     >
-      {/* 手機太窄，日期欄會把課名擠到只剩幾個字——日期時間改放課名下面那一行。 */}
-      <div className="hidden w-[168px] shrink-0 items-baseline gap-3 text-sm font-semibold tabular-nums text-neutral-900 lg:flex">
-        <p>{dateLabel(start)}</p>
-        <p>{format(start, "HH:mm")}</p>
-      </div>
-      {/* 分部：教室有分部才多這一欄，沒設的留空讓欄位對齊。 */}
-      {showLocation && (
-        <span className="hidden w-14 shrink-0 truncate text-[13px] font-medium text-neutral-700 lg:block">
-          {locationName}
-        </span>
-      )}
-      <Link href={`/lessons/${period.lesson.id}`} className="min-w-0 flex-1">
-        <p className="truncate text-[15px] font-semibold text-neutral-900">
-          {period.lesson.name}
-          {people && (
-            <span className="ml-2 hidden text-[13px] font-normal text-neutral-600 lg:inline">
-              {people}
-            </span>
-          )}
-        </p>
-        <p className="truncate text-[13px] tabular-nums text-neutral-700 lg:hidden">
-          <span className="font-semibold text-neutral-900">
-            {dateLabel(start)} {format(start, "HH:mm")}
+      {/* 手機：日期方塊（大字日＋今天／週幾）。桌面：日期、時間各一欄。 */}
+      <span className="w-11 shrink-0 text-center leading-tight lg:hidden">
+        <b className={`block text-lg font-semibold tabular-nums ${isToday ? "text-primary-900" : "text-ink"}`}>
+          {format(start, "d")}
+        </b>
+        <span className="text-xs text-ink-3">{isToday ? "今天" : days === 1 ? "明天" : `週${WEEKDAYS[start.getDay()]}`}</span>
+      </span>
+      <span className="hidden w-[104px] shrink-0 font-medium tabular-nums text-ink lg:block">
+        {isToday ? "今天" : format(start, "M/d")}
+        <span className="ml-1 text-[13px] font-normal text-ink-3">（{WEEKDAYS[start.getDay()]}）</span>
+      </span>
+      <span className="hidden w-14 shrink-0 tabular-nums text-ink-2 lg:block">{format(start, "HH:mm")}</span>
+
+      <Link href={`/lessons/${period.lesson.id}`} className="min-w-0 flex-1 after:absolute after:inset-0">
+        <span className="flex items-center gap-2.5 font-medium text-ink">
+          <DanceStyleDot style={period.lesson.danceStyle} />
+          <span className="truncate">{period.lesson.name}</span>
+          <span className="hidden truncate text-[13px] font-normal text-ink-3 lg:inline">
+            {[locationName, people].filter(Boolean).join(" · ")}
           </span>
-          {status.text && <span className={`font-semibold ${status.className}`}> · {status.text}</span>}
-        </p>
-        <p className="truncate text-xs text-neutral-600 lg:hidden">
-          {[showLocation ? locationName : null, people, count].filter(Boolean).join(" · ")}
-        </p>
+        </span>
+        <span className="block truncate text-[13px] tabular-nums text-ink-3 lg:hidden">
+          {[format(start, "HH:mm"), locationName, status].filter(Boolean).join(" · ")}
+        </span>
       </Link>
-      <span className={`hidden w-[150px] shrink-0 text-[13px] font-semibold lg:block ${status.className}`}>
-        {status.text}
+
+      <span
+        className={`hidden w-[150px] shrink-0 text-right text-[13px] tabular-nums lg:block ${
+          state === "inClass" ? "font-semibold text-primary-800" : "text-ink-2"
+        }`}
+      >
+        {status}
       </span>
-      <span className="hidden w-[92px] shrink-0 text-right text-[13px] tabular-nums text-neutral-600 lg:block">
-        {count}
-      </span>
-      <div className="flex w-[84px] shrink-0 justify-end">{action}</div>
+      {/* 疊在整列連結上面（z-10），才點得到。 */}
+      <div className="relative z-10 flex shrink-0 justify-end lg:w-[84px]">{action}</div>
       {state === "inClass" && taken && (
-        <LateArrivalsSheet
-          open={lateOpen}
-          onClose={() => setLateOpen(false)}
-          period={period}
-          roster={roster}
-        />
+        <LateArrivalsSheet open={lateOpen} onClose={() => setLateOpen(false)} period={period} roster={roster} />
       )}
     </li>
   );
 };
 
 /**
- * 「接下來」：還沒點名的（舊的在前）→ 上課中 → 未來 7 天，一堂一列。
- * 取代舊的主角卡＋「還沒點名」兩塊；上課中的補勾遲到收進那一列的按鈕。
+ * 「接下來 7 天」：上課中＋今天以後的課，一堂一列。還沒點名的不在這裡（見 `OverdueNotice`）。
+ * 只有今天那列是淡綠底、實心「點名」；其他列整列點進課程頁。
  */
 const AgendaList = ({
   rows,
@@ -146,39 +195,28 @@ const AgendaList = ({
   hiddenCount: number;
   onShowAll: () => void;
 }) => (
-  <section aria-labelledby="agenda-heading" className="flex flex-col gap-2.5">
-    <h2 id="agenda-heading" className="text-[15px] font-bold text-neutral-900">
-      接下來{" "}
-      <span className="text-[13px] font-normal text-neutral-600">
-        {rows.some((row) => row.state === "overdue") ? "還沒點名的排最前面 · 之後 7 天" : "7 天內"}
-      </span>
+  <section aria-labelledby="agenda-heading">
+    <h2 id="agenda-heading" className="mb-2 text-[17px] font-semibold text-ink">
+      接下來 7 天
     </h2>
     {isLoading ? (
       <div aria-busy="true" className="flex flex-col gap-2">
-        <Skeleton className="h-14 w-full rounded-2xl" />
-        <Skeleton className="h-14 w-full rounded-2xl opacity-60" />
+        <Skeleton className="h-13 w-full rounded-xl" />
+        <Skeleton className="h-13 w-full rounded-xl opacity-60" />
       </div>
     ) : rows.length === 0 ? (
-      <EmptyState
-        kind="inline"
-        title="7 天內沒有要上的課"
-        action={
-          hiddenCount > 0 ? (
-            <Button variant="secondary" size="sm" onClick={onShowAll}>
-              看全部 {hiddenCount} 堂
-            </Button>
-          ) : undefined
-        }
-      />
+      <div className="flex items-center gap-3 py-3 text-sm text-ink-3">
+        7 天內沒有要上的課
+        {hiddenCount > 0 && (
+          <Button variant="text" size="sm" onClick={onShowAll}>
+            看全部 {hiddenCount} 堂
+          </Button>
+        )}
+      </div>
     ) : (
-      <ul className="divide-y divide-neutral-100 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+      <ul>
         {rows.map((row) => (
-          <AgendaItem
-            key={row.period.id}
-            row={row}
-            now={now}
-            showLocation={rows.some((r) => r.period.lesson.location)}
-          />
+          <AgendaItem key={row.period.id} row={row} now={now} />
         ))}
       </ul>
     )}

@@ -167,9 +167,9 @@ const AddPeriodForm = ({
 
   return (
     <>
-      <Button variant="secondary" size="sm" onClick={() => setNewPeriodModalOpen(true)}>
+      <Button variant="text" size="sm" onClick={() => setNewPeriodModalOpen(true)}>
         <Plus className="size-4" />
-        新增時段
+        加一堂
       </Button>
       {newPeriodModalOpen && (
         <Drawer

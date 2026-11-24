@@ -2,14 +2,15 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import DanceStyleBar from "@/components/DanceStyleBar";
+import DanceStyleDot from "@/components/DanceStyleDot";
 import KiwiMascot from "@/components/KiwiMascot";
 import type { AgendaRow } from "../lessons/useLessonAgenda";
 import { heroBadge, termProgressLabel } from "./today";
 
-const CARD = "rounded-3xl bg-white p-4 shadow-[0_10px_28px_rgba(20,35,29,0.12)]";
-
-/** 今天頁的主角：下一堂（或上課中還沒點名的那一堂），一顆大的「開始點名」。 */
+/**
+ * 今天頁的主角：下一堂（或上課中還沒點名的那一堂）。不包卡片——時間放大當主角，
+ * 整頁唯一的實心按鈕是「開始點名」（去框線改版，~/.claude/plans/quiet-redesign.md §3.1）。
+ */
 const NextLessonHero = ({
   row,
   now,
@@ -22,13 +23,13 @@ const NextLessonHero = ({
 }) => {
   if (!row) {
     return (
-      <section className={`${CARD} flex items-center gap-4`}>
-        <KiwiMascot pose="sleep" className="w-20 shrink-0" />
+      <section className="flex items-center gap-4 border-b border-line pb-8 pt-2">
+        <KiwiMascot pose="sleep" className="w-16 shrink-0" />
         <div className="min-w-0 flex-1">
-          <p className="text-[17px] font-bold text-neutral-900">接下來沒有排課</p>
-          <p className="text-[13px] text-neutral-600">7 天內沒有要上的課。</p>
+          <p className="text-[17px] font-semibold text-ink">接下來沒有排課</p>
+          <p className="text-[13px] text-ink-3">7 天內沒有要上的課。</p>
         </div>
-        <Button asChild variant="secondary" size="sm">
+        <Button asChild variant="text" size="sm">
           <Link href="/lessons">看課程</Link>
         </Button>
       </section>
@@ -42,52 +43,69 @@ const NextLessonHero = ({
   const people = lesson.teachers.map((t) => t.name).join("、");
   const arrived = period.attendeeIds.length;
   const headcount =
-    period.selfCheckInCount > 0
-      ? `已有 ${period.selfCheckInCount} 人自助簽到`
-      : arrived > 0
-        ? `已簽到 ${arrived} 人`
-        : `名冊 ${lesson.studentCount} 人`;
+    period.selfCheckInCount > 0 ? (
+      <>
+        已有 <b className="font-semibold text-ink">{period.selfCheckInCount}</b> 人自助簽到
+      </>
+    ) : arrived > 0 ? (
+      <>
+        已簽到 <b className="font-semibold text-ink">{arrived}</b> 位
+      </>
+    ) : (
+      `名單 ${lesson.studentCount} 位學生`
+    );
 
   return (
-    <section aria-label="下一堂課" className={CARD}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="rounded-full bg-primary-100 px-2.5 py-1 text-xs font-bold text-primary-900">
-          {heroBadge(row, now)}
-        </span>
-        <span className="truncate text-xs text-neutral-600">{termProgressLabel(period)}</span>
+    <section
+      aria-label="下一堂課"
+      className="grid gap-5 border-b border-line pb-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-6 lg:pb-9"
+    >
+      <div className="min-w-0">
+        <p className="text-[13px] font-semibold text-primary-800">{heroBadge(row, now)}</p>
+        <p className="mt-2.5 text-[52px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-ink lg:text-[56px]">
+          {format(new Date(period.startTime), "HH:mm")}
+          <span className="ml-1.5 text-[22px] font-medium tracking-normal text-ink-3 lg:text-2xl">
+            – {format(new Date(period.endTime), "HH:mm")}
+          </span>
+        </p>
+        <Link
+          href={lessonHref}
+          className="mt-3.5 flex items-center gap-2.5 text-[21px] font-semibold text-ink hover:text-primary-900 lg:text-[22px]"
+        >
+          <DanceStyleDot style={lesson.danceStyle} />
+          <span className="truncate">{lesson.name}</span>
+        </Link>
+        <p className="mt-1 text-sm text-ink-2">
+          {[termProgressLabel(period), lesson.location?.name].filter(Boolean).join(" · ")}
+          {people && (
+            <>
+              <br className="lg:hidden" />
+              <span className="hidden lg:inline"> · </span>
+              老師 {people}
+            </>
+          )}
+        </p>
       </div>
 
-      <Link href={lessonHref} className="mt-3 flex items-center gap-3">
-        <DanceStyleBar style={lesson.danceStyle} size="lg" />
-        <span className="min-w-0">
-          <span className="block truncate text-xl font-bold text-neutral-900">{lesson.name}</span>
-          <span className="block truncate text-sm font-medium tabular-nums text-neutral-700">
-            {format(new Date(period.startTime), "HH:mm")}–{format(new Date(period.endTime), "HH:mm")}
-            {people && ` · ${people}`}
-          </span>
-        </span>
-      </Link>
-
-      <p className="mt-3 text-[13px] text-neutral-600">
-        {[lesson.location?.name, headcount].filter(Boolean).join(" · ")}
-      </p>
-
-      {taken ? (
-        <Button asChild variant="secondary" size="lg" className="mt-3.5 w-full">
-          <Link href={`${lessonHref}/periods/${period.id}/check-success`}>已點名 · 看結果</Link>
-        </Button>
-      ) : isToday ? (
-        <Button asChild size="lg" className="mt-3.5 w-full text-[17px]">
-          <Link href={`${lessonHref}/periods/${period.id}/check`}>
-            <Check className="size-5" strokeWidth={2.6} />
-            開始點名
-          </Link>
-        </Button>
-      ) : (
-        <Button asChild variant="secondary" size="lg" className="mt-3.5 w-full">
-          <Link href={lessonHref}>看這門課</Link>
-        </Button>
-      )}
+      <div className="flex flex-col gap-2.5 lg:items-end">
+        <p className="text-[13px] text-ink-2">{headcount}</p>
+        {taken ? (
+          <Button asChild variant="text" size="md" className="-ml-2 self-start lg:ml-0 lg:self-end">
+            <Link href={`${lessonHref}/periods/${period.id}/check-success`}>已點名 · 看結果</Link>
+          </Button>
+        ) : isToday ? (
+          <Button asChild size="lg" className="w-full text-base lg:w-auto lg:px-7">
+            <Link href={`${lessonHref}/periods/${period.id}/check`}>
+              <Check className="size-5" strokeWidth={2.6} />
+              開始點名
+            </Link>
+          </Button>
+        ) : (
+          <Button asChild variant="text" size="md" className="-ml-2 self-start lg:ml-0 lg:self-end">
+            <Link href={lessonHref}>看這門課</Link>
+          </Button>
+        )}
+      </div>
     </section>
   );
 };

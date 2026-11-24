@@ -7,7 +7,7 @@ import { useGetTodosQuery } from "@/store/slices/todos";
 import { useClassroomGuard } from "@/hooks/useClassroomGuard";
 import { roleLabel } from "@/lib/roles";
 import { useNow } from "../lessons/useLessonAgenda";
-import { buildToday, countToday, dayLabel, greeting, todoSummary } from "./today";
+import { buildToday, countToday, dayLabel, greeting, todoRows } from "./today";
 
 // 學生會自己用 LINE 簽到、別的老師會點名：掛載與回到分頁時都重抓。
 const LIVE = { refetchOnMountOrArgChange: true, refetchOnFocus: true } as const;
@@ -41,7 +41,7 @@ export const useToday = () => {
     /** 連著老師資料的人才有「今天教幾堂」；沒教課的成員是 null。 */
     todayCount: myLessons.data?.teacher ? countToday(myLessons.data.periods, now) : null,
     view,
-    todo: todos.data ? todoSummary(todos.data) : null,
+    todoRows: todos.data ? todoRows(todos.data) : [],
     recent: recent.data ?? [],
     recentLoading: recent.isLoading,
   };

@@ -8,7 +8,7 @@ import { formatMoney } from "@/lib/money";
 import { formatDate } from "@/lib/utils";
 import RegisterTrialDrawer from "./RegisterTrialDrawer";
 import { Button } from "@/components/ui/button";
-import EmptyState from "@/components/EmptyState";
+import InfoTip from "@/components/InfoTip";
 import StatusTag, { type StatusTone } from "@/components/StatusTag";
 
 const PAYMENT_LABEL = { CASH: "現金", TRANSFER: "轉帳" } as const;
@@ -31,18 +31,21 @@ const TrialRoster = ({ lesson }: { lesson: Lesson }) => {
   const canRegister = data.trialCards.length > 0;
 
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
+    <section className="flex flex-col gap-2 border-b border-line pb-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <h3 className="text-base font-bold text-neutral-900">體驗名單</h3>
-          <p className="text-[13px] text-neutral-600">
+          <h3 className="flex items-center gap-1 text-[17px] font-semibold text-ink lg:text-base">
+            體驗名單
+            <InfoTip label="體驗名單說明">把 Google 表單或現場報名的人登記進來，上課點名時會自動勾好。</InfoTip>
+          </h3>
+          <p className="text-[13px] text-ink-3">
             {registered.length} 人報名
             {unpaid.length > 0 && <span className="text-warning-900">・{unpaid.length} 人還沒收錢</span>}
             {attended.length > 0 && `・${attended.length} 人已上課`}
           </p>
         </div>
         {canRegister && (
-          <Button type="button" size="sm" onClick={() => setRegistering(true)}>
+          <Button type="button" variant="text" size="sm" onClick={() => setRegistering(true)}>
             <Plus className="size-4" />
             登記體驗
           </Button>
@@ -50,11 +53,7 @@ const TrialRoster = ({ lesson }: { lesson: Lesson }) => {
       </div>
 
       {registered.length === 0 ? (
-        <EmptyState
-          kind="inline"
-          title="還沒有人報名"
-          description="把 Google 表單或現場報名的人登記進來，上課點名時會自動勾好。"
-        />
+        <p className="text-[13px] text-ink-3">還沒有人報名</p>
       ) : (
         <ul className="flex flex-col">
           {registered.map((entry) => (
@@ -111,7 +110,7 @@ const EntryRow = ({ entry }: { entry: TrialEntry }) => {
     <li>
       <Link
         href={`/students/${entry.student.id}`}
-        className="flex items-center gap-3 py-2.5 border-b border-neutral-100 last:border-b-0 hover:bg-neutral-50 -mx-2 px-2 rounded-lg"
+        className="flex items-center gap-3 py-2.5 border-b border-line last:border-b-0 hover:bg-neutral-50 -mx-2 px-2 rounded-lg"
       >
         <img src={entry.student.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
         <span className="flex-1 min-w-0 flex flex-col">

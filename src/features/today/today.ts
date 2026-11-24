@@ -88,38 +88,33 @@ export const termProgressLabel = (period: AgendaPeriod): string => {
 export const countToday = (periods: { startTime: string }[], now: Date): number =>
   periods.filter((period) => isSameDay(period.startTime, now)).length;
 
-export interface TodoSummary {
+export interface TodoRow {
+  key: "unpaid" | "unbound" | "renewal" | "reminders";
   count: number;
+  /** 數字後面那句話：「筆未付款」「位學生該續卡」。 */
   text: string;
-  /** 有要處理的（未付款、點名沒課卡）才用醒目色；只有提醒就淡一點。 */
-  urgent: boolean;
 }
 
-/** 待處理那一列：沒事就不出現（null）。數字跟鈴鐺同一個。 */
-export const todoSummary = (
+/**
+ * 今天頁「待處理」的列：一種一列，數字獨立出來（琥珀大字），各自點得進去。
+ * 「還沒點名」不在這裡——它來自課程
+ * 議程（`buildToday().overdue`），跟課程列表頂部的提醒同一個定義。
+ */
+export const todoRows = (
   todos: Pick<
     Todos,
-    | "unpaidCards"
-    | "unpaidDropIns"
-    | "unpaidEnrollments"
-    | "unboundAttendance"
-    | "needsRenewal"
-    | "urgentCount"
-    | "reminderCount"
+    "unpaidCards" | "unpaidDropIns" | "unpaidEnrollments" | "unboundAttendance" | "needsRenewal" | "reminderCount"
   >
-): TodoSummary | null => {
-  if (todos.urgentCount === 0 && todos.reminderCount === 0) return null;
+): TodoRow[] => {
   const unpaid =
     todos.unpaidCards.length + (todos.unpaidDropIns?.length ?? 0) + (todos.unpaidEnrollments?.length ?? 0);
-  const parts = [
-    unpaid > 0 && `${unpaid} 筆未付款`,
-    todos.unboundAttendance.length > 0 && `${todos.unboundAttendance.length} 筆點名沒課卡`,
-    todos.needsRenewal.length > 0 && `${todos.needsRenewal.length} 位該續卡`,
-  ].filter(Boolean);
-  const urgent = todos.urgentCount > 0;
-  return {
-    count: urgent ? todos.urgentCount : todos.reminderCount,
-    text: parts.length > 0 ? `待處理：${parts.join("、")}` : `${todos.reminderCount} 件提醒`,
-    urgent,
-  };
+  const rows: TodoRow[] = [];
+  if (unpaid > 0) rows.push({ key: "unpaid", count: unpaid, text: "筆未付款" });
+  if (todos.unboundAttendance.length > 0)
+    rows.push({ key: "unbound", count: todos.unboundAttendance.length, text: "筆點名沒有課卡" });
+  if (todos.needsRenewal.length > 0)
+    rows.push({ key: "renewal", count: todos.needsRenewal.length, text: "位學生該續卡" });
+  const others = todos.reminderCount - todos.needsRenewal.length;
+  if (others > 0) rows.push({ key: "reminders", count: others, text: "件其他提醒" });
+  return rows;
 };

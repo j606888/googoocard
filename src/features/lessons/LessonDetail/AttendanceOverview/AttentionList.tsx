@@ -43,7 +43,7 @@ const AttentionList = ({
   return (
     <section>
       <div className="flex items-center gap-2 mb-2.5">
-        <h3 className="text-base font-bold text-neutral-900">需要注意</h3>
+        <h3 className="text-[17px] font-semibold text-ink">需要注意</h3>
         <span className="text-sm text-neutral-500">{items.length}</span>
       </div>
 
@@ -51,7 +51,7 @@ const AttentionList = ({
         className={
           expanded
             ? "grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2.5 [&>li]:rounded-xl [&>li]:border [&>li]:border-neutral-200 [&>li]:bg-white"
-            : "divide-y divide-neutral-200 rounded-2xl border border-neutral-200 bg-white"
+            : "divide-y divide-line"
         }
       >
         {shown.map((item) => (
@@ -151,7 +151,7 @@ const AttentionRow = ({
       <span className="flex-1" />
 
       {kind === "consecutive_absence" ? (
-        <Button asChild variant="secondary" size="sm" className="gap-0.5 pr-2.5">
+        <Button asChild variant="text" size="sm" className="gap-0.5 pr-2.5">
           <Link href={studentDetailHref(student.id, pathname)}>
             看學生
             <ChevronRight className="size-4" />
@@ -161,7 +161,7 @@ const AttentionRow = ({
         <BuyCardDrawer
           student={student}
           trigger={(open) => (
-            <Button type="button" variant="secondary" size="sm" onClick={open}>
+            <Button type="button" variant="text" size="sm" onClick={open}>
               買卡
             </Button>
           )}

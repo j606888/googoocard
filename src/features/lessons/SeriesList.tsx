@@ -15,7 +15,7 @@ import {
   useRenameLessonGroupMutation,
 } from "@/store/slices/lessonGroups";
 import { Button } from "@/components/ui/button";
-import DanceStyleBar from "@/components/DanceStyleBar";
+import DanceStyleDot from "@/components/DanceStyleDot";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import type { LessonSummary } from "@/store/slices/lessons";
 import { needsNextPeriod } from "./lessonGrouping";
@@ -32,33 +32,12 @@ import {
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
-/** 桌面的欄位：課種｜舞種·分部｜這一期｜學生｜下一堂｜動作。手機是一張卡：色塊＋名稱＋兩行摘要。 */
+/**
+ * 桌面的欄位：課種＋老師｜舞種·這一期｜幾位學生｜下一堂｜動作。不放表頭——每一格都寫成
+ * 一句話（「Bachata · 第 7 期，上了 0 / 5 堂」「5 位學生」「下一堂 …」）。手機收成名稱下面兩行。
+ */
 const COLS =
-  "lg:grid lg:grid-cols-[minmax(0,2.6fr)_minmax(0,1fr)_minmax(0,1.2fr)_56px_minmax(0,1.2fr)_128px] lg:gap-3";
-
-/** 進度條最多畫幾格；堂數更多的課只寫數字。 */
-const MAX_SEGMENTS = 12;
-
-/** 固定堂數的課：上過的填滿、下一堂用珊瑚橘、還沒到的留灰。 */
-const ProgressSegments = ({ lesson }: { lesson: LessonSummary }) => {
-  if (lesson.kind !== "fixed" || lesson.totalPeriods < 2 || lesson.totalPeriods > MAX_SEGMENTS) return null;
-  return (
-    <span aria-hidden="true" className="flex shrink-0 gap-1">
-      {Array.from({ length: lesson.totalPeriods }, (_, i) => (
-        <span
-          key={i}
-          className={`h-1.5 w-4 rounded-full ${
-            i < lesson.attendedCount
-              ? "bg-primary-800"
-              : i === lesson.attendedCount && lesson.nextSessionDate
-                ? "bg-accent-500"
-                : "bg-neutral-200"
-          }`}
-        />
-      ))}
-    </span>
-  );
-};
+  "lg:grid lg:grid-cols-[minmax(0,2.2fr)_minmax(0,2fr)_88px_minmax(0,1.3fr)_128px] lg:gap-4";
 
 const day = (iso: string, now: Date) => {
   const date = new Date(iso);
@@ -87,8 +66,9 @@ const peopleLabel = (lesson: LessonSummary) => {
   return [teachers, assistants && `小幫手 ${assistants}`].filter(Boolean).join(" · ");
 };
 
-const styleLabel = (lesson: LessonSummary) =>
-  [danceStyleMeta(lesson.danceStyle).label, lesson.location?.name].filter(Boolean).join(" · ");
+/** 「Bachata · 第 7 期，上了 0 / 5 堂」：舞種名跟這一期放一起，分部已經是區塊標題。 */
+const styleTermLabel = (lesson: LessonSummary | null, series: LessonSeries) =>
+  [lesson ? danceStyleMeta(lesson.danceStyle).label : null, termSummary(series)].filter(Boolean).join(" · ");
 
 const TermRow = ({ term, series, now }: { term: SeriesTerm; series: LessonSeries; now: Date }) => {
   const { lesson, number } = term;
@@ -98,10 +78,10 @@ const TermRow = ({ term, series, now }: { term: SeriesTerm; series: LessonSeries
     <li>
       <Link
         href={`/lessons/${lesson.id}`}
-        className={`flex min-h-12 items-center gap-3 border-t border-neutral-100 bg-neutral-50 px-4 py-2 text-[13px] text-neutral-700 hover:bg-neutral-100 ${COLS}`}
+        className={`flex min-h-12 items-center gap-3 border-t border-line py-2 pl-5 pr-2 text-[13px] text-ink-2 hover:bg-primary-50 lg:pl-0 ${COLS}`}
       >
-        <span className="min-w-0 flex-1 lg:pl-12">
-          <span className="font-semibold text-neutral-900">{title}</span>
+        <span className="min-w-0 flex-1 lg:pl-5">
+          <span className="font-semibold text-ink">{title}</span>
           {number !== null && lesson.name !== series.name && (
             <span className="ml-2 text-neutral-600">{lesson.name}</span>
           )}
@@ -109,9 +89,10 @@ const TermRow = ({ term, series, now }: { term: SeriesTerm; series: LessonSeries
             {rangeLabel(lesson, now)} · {termProgress(lesson)}
           </span>
         </span>
-        <span className="hidden truncate tabular-nums lg:block">{rangeLabel(lesson, now)}</span>
-        <span className="hidden truncate lg:block">{termProgress(lesson)}</span>
-        <span className="hidden tabular-nums lg:block">{lesson.studentCount}</span>
+        <span className="hidden truncate tabular-nums lg:block">
+          {rangeLabel(lesson, now)} · {termProgress(lesson)}
+        </span>
+        <span className="hidden tabular-nums lg:block">{lesson.studentCount} 位學生</span>
         <span className={`shrink-0 font-medium ${running ? "text-primary-700" : "text-neutral-600"}`}>
           {running ? "進行中" : "已結束"}
         </span>
@@ -177,79 +158,58 @@ const SeriesRow = ({
       ? differenceInCalendarDays(new Date(lead.nextSessionDate), now) === 0
       : false;
   const next = lead && series.key !== UNCLASSIFIED_KEY ? nextLabel(lead, now) : "";
-  const termTitle =
-    series.active.length === 1 && lead
-      ? lead.kind === "ongoing"
-        ? "持續開課"
-        : series.lead?.number != null
-          ? `第 ${series.lead.number} 期`
-          : null
-      : null;
-
+  const people = lead && running ? peopleLabel(lead) : "";
   const cells = (
     <>
       <span className="flex min-w-0 flex-1 items-center gap-3">
-        <DanceStyleBar style={lead?.danceStyle} className="lg:h-9" />
+        <DanceStyleDot style={lead?.danceStyle} />
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className="truncate text-[17px] font-bold text-neutral-900 lg:text-[15px] lg:font-semibold">
-              {series.name}
-              {lead && running && (
-                <span className="ml-2 hidden text-[13px] font-normal text-neutral-600 lg:inline">
-                  {peopleLabel(lead)}
+          <span className="block truncate text-base font-medium text-ink lg:text-[15px]">
+            {series.name}
+            {people && <span className="ml-2 hidden text-[13px] font-normal text-ink-3 lg:inline">老師 {people}</span>}
+          </span>
+          {/* 手機的兩行摘要：舞種·這一期·幾位學生；下一堂·老師。 */}
+          <span className="block truncate text-[13px] text-ink-2 lg:hidden">
+            {[styleTermLabel(lead, series), running && `${students} 位學生`].filter(Boolean).join(" · ")}
+          </span>
+          {(next || people) && (
+            <span className="block truncate text-[13px] text-ink-2 lg:hidden">
+              {next && (
+                <span className={nextToday ? "font-semibold text-primary-800" : ""}>
+                  {nextToday
+                    ? `今天 ${format(new Date(lead!.nextSessionDate!), "HH:mm")}`
+                    : next === "還沒排"
+                      ? "還沒排下一堂"
+                      : running
+                        ? `下一堂 ${next}`
+                        : next}
                 </span>
               )}
-            </span>
-          </span>
-          {/* 手機的兩行摘要：在哪、誰教、下一堂；這一期上到哪。 */}
-          <span className="block truncate text-[13px] text-neutral-600 lg:hidden">
-            {nextToday && (
-              <span className="mr-1.5 rounded-full bg-accent-100 px-2 py-0.5 text-[11px] font-bold text-accent-900">
-                今天 {format(new Date(lead!.nextSessionDate!), "HH:mm")}
-              </span>
-            )}
-            {running && lead
-              ? // 下一堂排最前面：這一行會截字，被截掉的應該是老師名字而不是時間。
-                [!nextToday && next && `下一堂 ${next}`, lead.location?.name, peopleLabel(lead)]
-                  .filter(Boolean)
-                  .join(" · ")
-              : [termSummary(series), next].filter(Boolean).join(" · ")}
-          </span>
-          {running && lead && (
-            <span className="mt-1.5 flex items-center gap-2 text-xs text-neutral-600 lg:hidden">
-              {termTitle ? (
-                <>
-                  <span className="shrink-0 font-bold text-primary-900">{termTitle}</span>
-                  <ProgressSegments lesson={lead} />
-                  <span className="truncate">
-                    {lead.kind === "ongoing"
-                      ? `已上 ${lead.attendedCount} 堂`
-                      : `已上 ${lead.attendedCount} / ${lead.totalPeriods} 堂`}
-                  </span>
-                </>
-              ) : (
-                <span className="truncate">{termSummary(series)}</span>
-              )}
+              {next && people && " · "}
+              {people && `老師 ${people}`}
             </span>
           )}
         </span>
       </span>
-      <span className="hidden truncate text-[13px] text-neutral-700 lg:block">
-        {lead ? styleLabel(lead) : ""}
+      <span className="hidden truncate text-[13px] text-ink-2 lg:block">{styleTermLabel(lead, series)}</span>
+      <span className="hidden text-[13px] tabular-nums text-ink-2 lg:block">{running ? `${students} 位學生` : ""}</span>
+      <span
+        className={`hidden truncate text-[13px] tabular-nums lg:block ${
+          nextToday ? "font-semibold text-primary-800" : "text-ink-2"
+        }`}
+      >
+        {next && (running ? (next === "還沒排" ? "還沒排下一堂" : `下一堂 ${next}`) : next)}
       </span>
-      <span className="hidden truncate text-[13px] text-neutral-700 lg:block">{termSummary(series)}</span>
-      <span className="hidden text-sm tabular-nums lg:block">{running ? students : ""}</span>
-      <span className="hidden truncate text-[13px] tabular-nums text-neutral-700 lg:block">{next}</span>
       {/* 列尾動作疊在這一格上面（見下方）；手機只留展開鈕的位置。 */}
       <span aria-hidden="true" className={`shrink-0 lg:w-[128px] max-lg:w-8`} />
     </>
   );
 
-  const rowClass = `flex min-h-14 w-full cursor-pointer items-center gap-3 p-3 text-left hover:bg-neutral-50 lg:px-4 lg:py-2 ${COLS}`;
+  const rowClass = `flex min-h-16 w-full cursor-pointer items-center gap-3 py-3 text-left hover:bg-primary-50 lg:min-h-13 lg:py-2.5 ${COLS}`;
   const schedule = lead && series.active.length === 1 && needsNextPeriod(lead);
 
   return (
-    <li className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white lg:overflow-visible lg:rounded-none lg:border-0 lg:border-t lg:first:border-t-0">
+    <li className="relative border-t border-line first:border-t-0">
       {direct ? (
         <Link href={`/lessons/${direct.id}`} className={rowClass}>
           {cells}
@@ -267,10 +227,10 @@ const SeriesRow = ({
       )}
 
       {/* 動作疊在列尾：放在列的連結／按鈕裡面會變成互動元素包互動元素。 */}
-      <div className="absolute top-2.5 right-2 flex h-9 items-center gap-1 lg:right-3">
+      <div className="absolute top-3 right-0 flex h-9 items-center gap-1 lg:top-2.5">
         {schedule ? (
           <Button
-            variant="secondary"
+            variant="text"
             size="sm"
             className="gap-1 max-lg:hidden"
             onClick={() => onSchedule(lead)}
@@ -316,7 +276,7 @@ const SeriesRow = ({
             ))}
           </ul>
           {series.groupId !== null && (
-            <div className="flex flex-wrap items-center gap-1 border-t border-neutral-100 bg-neutral-50 px-4 py-1.5 lg:pl-16">
+            <div className="flex flex-wrap items-center gap-1 border-t border-line py-1.5 pl-3 lg:pl-3">
               <Button variant="ghost" size="sm" className="gap-1 text-primary-700" asChild>
                 <Link href={`/lessons/groups/${series.groupId}`}>
                   <BookOpenText className="size-4" />
@@ -418,13 +378,10 @@ const SeriesList = ({
   const [scheduling, setScheduling] = useState<LessonSummary | null>(null);
   if (sections) {
     return (
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-6">
         {sections.map((section) => (
-          <section key={section.location?.id ?? "none"} className="flex flex-col gap-2">
-            <h3 className="text-sm font-semibold text-neutral-800">
-              {section.location?.name ?? "未設分部"}
-              <span className="ml-2 font-normal text-neutral-600">{section.series.length} 個課種開課中</span>
-            </h3>
+          <section key={section.location?.id ?? "none"} className="flex flex-col">
+            <h3 className="text-[13px] font-semibold text-ink-2">{section.location?.name ?? "未設分部"}</h3>
             <SeriesTable series={section.series} now={now} onSchedule={setScheduling} />
           </section>
         ))}
@@ -450,18 +407,8 @@ const SeriesTable = ({
   onSchedule: (lesson: LessonSummary) => void;
 }) => {
   return (
-    <div className="lg:overflow-hidden lg:rounded-2xl lg:border lg:border-neutral-200 lg:bg-white">
-      <div
-        className={`hidden h-10 items-center bg-neutral-50 px-4 text-xs font-medium text-neutral-600 ${COLS}`}
-      >
-        <span>課種</span>
-        <span>舞種 · 分部</span>
-        <span>這一期</span>
-        <span>學生</span>
-        <span>下一堂</span>
-        <span />
-      </div>
-      <ul className="flex flex-col gap-2.5 lg:block">
+    <div>
+      <ul>
         {series.map((item) => (
           <SeriesRow key={item.key} series={item} now={now} onSchedule={onSchedule} />
         ))}

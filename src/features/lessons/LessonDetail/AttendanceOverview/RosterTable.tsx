@@ -13,7 +13,7 @@ import {
 } from "@/domains/attendance/rosterInsights";
 import { studentDetailHref } from "@/lib/studentNav";
 import EmptyState from "@/components/EmptyState";
-import FilterChip from "@/components/FilterChip";
+import SegmentedTabs from "@/components/SegmentedTabs";
 import SortMenu, { type SortOption } from "@/components/SortMenu";
 
 const SORTS: SortOption<RosterSort>[] = [
@@ -87,35 +87,33 @@ const RosterTable = ({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2.5">
-        <h2 className="mr-1 text-[15px] font-bold text-neutral-900">
-          名單 <span className="font-medium text-neutral-500">{rows.length} 位</span>
+        <h2 className="mr-1 text-base font-semibold text-ink">
+          名單 <span className="font-normal text-ink-3">{rows.length} 位</span>
         </h2>
-        <FilterChip size="sm" active={!onlyAttention} onClick={() => setOnlyAttention(false)} count={rows.length}>
-          全部
-        </FilterChip>
-        <FilterChip
-          size="sm"
-          active={onlyAttention}
-          onClick={() => setOnlyAttention(true)}
-          count={attentionIds.size}
-        >
-          需要注意
-        </FilterChip>
+        <SegmentedTabs
+          ariaLabel="名單範圍"
+          value={onlyAttention ? "attention" : "all"}
+          onChange={(value) => setOnlyAttention(value === "attention")}
+          options={[
+            { value: "all", label: "全部" },
+            { value: "attention", label: "需要注意", hint: attentionIds.size },
+          ]}
+        />
         <span className="flex-1" />
-        <label className="flex h-9 w-48 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 focus-within:border-primary-500">
-          <Search className="size-4 shrink-0 text-neutral-400" />
+        <label className="flex h-9 w-48 items-center gap-2 rounded-lg bg-band px-3 focus-within:ring-[3px] focus-within:ring-primary-300">
+          <Search className="size-4 shrink-0 text-ink-3" />
           <input
             aria-label="搜尋學生"
             placeholder="搜尋學生"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ink-3"
           />
         </label>
         <SortMenu sort={sort} options={SORTS} onChange={setSort} />
       </div>
 
-      <div className="max-h-[600px] overflow-auto rounded-2xl border border-neutral-200 bg-white">
+      <div className="max-h-[600px] overflow-auto">
         <table className="w-max min-w-full table-fixed border-separate border-spacing-0 text-[13px]">
           <thead>
             <tr>

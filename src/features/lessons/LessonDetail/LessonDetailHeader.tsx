@@ -14,7 +14,7 @@ import { weeklyScheduleLabel } from "../lessonSchedule";
 
 /**
  * Desktop lesson header: breadcrumb, the name with its status, and one quiet
- * line of facts. The old tinted block with a row of stat pills is gone — the
+ * line of facts. 去框線改版：「編輯」是文字按鈕，唯一實心的是「點名 · 今天」。 The old tinted block with a row of stat pills is gone — the
  * numbers now live next to what they describe (rate on the chart, headcount on
  * the roster, period count on the period column).
  */
@@ -49,32 +49,32 @@ const LessonDetailHeader = ({
 
   return (
     <header className="flex flex-col gap-3.5">
-      <nav aria-label="麵包屑" className="flex items-center gap-2 text-sm text-neutral-500">
-        <Link href="/lessons" className="flex items-center gap-1 hover:text-neutral-800">
+      <nav aria-label="麵包屑" className="flex items-center gap-2 text-[13px] text-ink-3">
+        <Link href="/lessons" className="flex items-center gap-1 hover:text-ink">
           <ArrowLeft className="size-4" />
           課程
         </Link>
         {lesson.group && lesson.group.name !== lesson.name && (
           <>
             <span aria-hidden="true">/</span>
-            <Link href={`/lessons/groups/${lesson.group.id}`} className="hover:text-neutral-800">
+            <Link href={`/lessons/groups/${lesson.group.id}`} className="hover:text-ink">
               {lesson.group.name}
             </Link>
           </>
         )}
         <span aria-hidden="true">/</span>
-        <span className="max-w-xs truncate text-neutral-800">{lesson.name}</span>
+        <span className="max-w-xs truncate text-ink-2">{lesson.name}</span>
       </nav>
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-2.5">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold text-neutral-900">{lesson.name}</h1>
+            <h1 className="text-[30px] font-semibold leading-tight tracking-[-0.01em] text-ink">{lesson.name}</h1>
             <StatusTag tone={isFinished ? "neutral" : "positive"}>{isFinished ? "已結束" : "進行中"}</StatusTag>
           </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-600">
-            <span className="inline-flex items-center gap-1.5 font-semibold text-neutral-900">
-              <span className="size-2.5 rounded-[3px]" style={style.fill} />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-2">
+            <span className="inline-flex items-center gap-1.5 font-medium text-ink">
+              <span aria-hidden="true" className="size-2 rounded-full" style={style.fill} />
               {[style.label, levelLabel].filter(Boolean).join(" ")}
             </span>
             {facts.map((fact) => (
@@ -82,13 +82,13 @@ const LessonDetailHeader = ({
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-2.5">
-          <Button variant="secondary" onClick={onEdit}>
+        <div className="flex items-center gap-4">
+          <Button variant="text" onClick={onEdit}>
             <PencilLine className="size-4" />
-            編輯課程
+            編輯
           </Button>
           {todayPeriod && (
-            <Button asChild>
+            <Button asChild size="lg">
               <Link href={`/lessons/${lesson.id}/periods/${todayPeriod.id}/check`}>
                 <Check className="size-4" />
                 點名 · 今天 {format(new Date(todayPeriod.startTime), "HH:mm")}

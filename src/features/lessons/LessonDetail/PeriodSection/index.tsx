@@ -61,8 +61,8 @@ const PeriodSection = ({
   return (
     <div className="flex flex-col px-5 pt-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-[15px] font-bold text-neutral-900">
-          時段 <span className="font-medium text-neutral-600">{periods.length} 堂</span>
+        <h3 className="text-[17px] font-semibold text-ink">
+          時段 <span className="font-normal text-ink-3">{periods.length} 堂</span>
         </h3>
         <AddPeriodForm lessonId={lesson.id} periods={periods} />
       </div>
@@ -83,7 +83,7 @@ const PeriodSection = ({
               看更早的 {timeline.earlierHidden} 堂
             </Button>
           )}
-          <ol className="mt-1.5 flex flex-col gap-1.5">
+          <ol className="mt-1 flex flex-col">
             {timeline.rows.map(({ period, number }) =>
               period.id === timeline.focusId ? (
                 <FocusPeriodCard key={period.id} period={period} number={number} />
@@ -157,18 +157,18 @@ export const PeriodColumn = ({
   return (
     <section
       aria-labelledby="period-column-title"
-      className={`flex flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white ${className}`}
+      className={`flex flex-col ${className}`}
     >
-      <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
-        <h2 id="period-column-title" className="text-[15px] font-bold text-neutral-900">
-          時段 <span className="font-medium text-neutral-500">{periods.length} 堂</span>
+      <div className="flex items-center justify-between pb-1">
+        <h2 id="period-column-title" className="text-base font-semibold text-ink">
+          時段 <span className="font-normal text-ink-3">{periods.length} 堂</span>
         </h2>
         <AddPeriodForm lessonId={lesson.id} periods={periods} />
       </div>
       {periods.length === 0 ? (
-        <p className="px-4 py-6 text-sm text-neutral-500">還沒有排任何時段</p>
+        <p className="py-6 text-sm text-ink-3">還沒有排任何時段</p>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-3">
+        <div className="-mx-2.5 min-h-0 flex-1 overflow-y-auto px-2.5 pb-3">
           {months.map((month) => {
             const counts = month.periods
               .map((p) => headcounts.get(p.id))
@@ -380,7 +380,7 @@ const DensePeriodRow = ({
       <span className="w-20 shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-neutral-900">
         {format(startTime, "M/d")}（{WEEKDAYS[startTime.getDay()]}）
       </span>
-      <span className="min-w-0 flex-1 whitespace-nowrap text-xs tabular-nums text-neutral-500">
+      <span className="min-w-0 flex-1 truncate text-xs tabular-nums text-ink-3">
         {format(startTime, "HH:mm")}–{format(new Date(period.endTime), "HH:mm")}
       </span>
       {attended ? (
@@ -389,7 +389,7 @@ const DensePeriodRow = ({
         // 今天的是「點名」、過期的是「補點名」——兩顆長得一樣就容易點到錯的日期。
         <Button
           size="sm"
-          variant={today ? "primary" : "secondary"}
+          variant={today ? "primary" : "text"}
           className="h-8 px-2.5"
           onClick={(e) => {
             e.stopPropagation();
@@ -441,12 +441,8 @@ const FocusPeriodCard = ({ period, number }: { period: Period; number: number })
   return (
     <li
       aria-label={isDue ? "還沒點名" : "下一堂"}
-      className={`my-1 flex items-center gap-2.5 rounded-2xl border-2 py-3 pr-1.5 pl-3 ${
-        today
-          ? "border-primary-900 bg-white"
-          : isDue
-            ? "border-warning-300 bg-warning-50"
-            : "border-primary-300 bg-primary-50"
+      className={`-mx-3 my-1 flex items-center gap-2.5 rounded-xl py-3 pr-1.5 pl-3 ${
+        isDue && !today ? "bg-warning-100" : "bg-primary-50"
       }`}
     >
       {/* 今天要上的在跳舞、忘記點的嚇一跳、還沒到的站著等。 */}
@@ -501,8 +497,8 @@ const PeriodRow = ({
 
   return (
     <li
-      className={`flex min-h-13 items-center gap-2.5 rounded-xl pr-2 pl-3 ${
-        attended ? "cursor-pointer bg-neutral-50" : ""
+      className={`-mx-2 flex min-h-13 items-center gap-2.5 rounded-lg border-b border-line pr-1 pl-2 last:border-b-0 ${
+        attended ? "cursor-pointer hover:bg-primary-50" : ""
       }`}
       onClick={attended ? handleViewAttendance : undefined}
     >
@@ -540,7 +536,7 @@ const PeriodRow = ({
         </span>
       ) : overdue ? (
         // 醒目的那張卡只有一張；其他已經到了卻沒點名的時段也要有入口，不然只能從今天頁繞。
-        <Button variant={today ? "primary" : "secondary"} size="sm" onClick={handleCheck}>
+        <Button variant={today ? "primary" : "text"} size="sm" onClick={handleCheck}>
           {today ? "點名" : "補點名"}
         </Button>
       ) : (

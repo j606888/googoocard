@@ -154,10 +154,10 @@ export const splitSeries = (series: LessonSeries[]) => {
 /** 一期的進度：「3 / 5 堂」「持續開課 · 已上 5 堂」。 */
 export const termProgress = (lesson: LessonSummary): string =>
   lesson.kind === "ongoing"
-    ? `持續開課 · 已上 ${lesson.attendedCount} 堂`
-    : `${lesson.attendedCount} / ${lesson.totalPeriods} 堂`;
+    ? `持續開課，已上 ${lesson.attendedCount} 堂`
+    : `上了 ${lesson.attendedCount} / ${lesson.totalPeriods} 堂`;
 
-/** 課種那一列的摘要：「第 2 期 · 3 / 5 堂」「2 期進行中」「共 3 期」。 */
+/** 課種那一列的摘要：「第 2 期，上了 3 / 5 堂」「2 期進行中」「共 3 期」。數字寫成一句話，不靠表頭。 */
 export const termSummary = (series: LessonSeries): string => {
   if (series.active.length > 1) return `${series.active.length} 期進行中`;
   const term = series.lead;
@@ -165,7 +165,7 @@ export const termSummary = (series: LessonSeries): string => {
   if (series.active.length === 0) return `共 ${series.terms.length} 期`;
   const progress = termProgress(term.lesson);
   return term.number !== null && term.lesson.kind !== "ongoing"
-    ? `第 ${term.number} 期 · ${progress}`
+    ? `第 ${term.number} 期，${progress}`
     : progress;
 };
 

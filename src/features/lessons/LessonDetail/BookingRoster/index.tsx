@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { type BookingRoster as Roster, type BookingStatus, Lesson, useGetLessonBookingsQuery } from "@/store/slices/lessons";
 import { Button } from "@/components/ui/button";
-import EmptyState from "@/components/EmptyState";
+import InfoTip from "@/components/InfoTip";
 import StatusTag from "@/components/StatusTag";
 import { cn } from "@/lib/utils";
 import BookingDrawer from "./BookingDrawer";
@@ -35,14 +35,16 @@ const BookingRoster = ({ lesson }: { lesson: Lesson }) => {
   if (!hasOpen && students.length === 0) return null;
 
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
+    <section className="flex flex-col gap-2 border-b border-line pb-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="text-base font-bold text-neutral-900">預計會來</h3>
-          <p className="text-[13px] text-neutral-600">先登記誰會來，點名時標「預計今天會到」，不會自動勾、也不收錢。</p>
+          <h3 className="flex items-center gap-1 text-[17px] font-semibold text-ink lg:text-base">
+            預計會來
+            <InfoTip label="預計會來說明">先登記誰會來（先上一堂、用課卡、還沒付都可以），點名時標「預計今天會到」、排在最上面；不會自動勾、也不收錢。</InfoTip>
+          </h3>
         </div>
         {hasOpen && (
-          <Button type="button" size="sm" onClick={() => setRegistering(true)}>
+          <Button type="button" variant="text" size="sm" onClick={() => setRegistering(true)}>
             <Plus className="size-4" />
             登記
           </Button>
@@ -50,16 +52,12 @@ const BookingRoster = ({ lesson }: { lesson: Lesson }) => {
       </div>
 
       {students.length === 0 ? (
-        <EmptyState
-          kind="inline"
-          title="還沒有人登記"
-          description="知道誰會來（先上一堂、用課卡、還沒付都可以）就先登記，點名時會排在最上面。"
-        />
+        <p className="text-[13px] text-ink-3">還沒有人登記</p>
       ) : (
         <>
           <ul className="flex flex-col">
             {students.map((entry) => (
-              <li key={entry.student.id} className="-mx-2 border-b border-neutral-100 last:border-b-0">
+              <li key={entry.student.id} className="-mx-2 border-b border-line last:border-b-0">
                 <button
                   type="button"
                   onClick={() => setEditing(entry)}
