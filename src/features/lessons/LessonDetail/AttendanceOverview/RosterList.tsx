@@ -41,7 +41,7 @@ const RosterList = ({ rows }: { rows: RosterRow[] }) => {
   if (rows.length === 0) {
     return (
       <section>
-        <h3 className="text-base font-bold text-neutral-900 mb-2.5">名單</h3>
+        <h3 className="mb-2.5 text-[17px] font-semibold text-ink">名單</h3>
         <EmptyState kind="inline" title="還沒有學生加入這門課" />
       </section>
     );
@@ -60,13 +60,13 @@ const RosterList = ({ rows }: { rows: RosterRow[] }) => {
   return (
     <section>
       <div className="flex items-center justify-between gap-2 mb-2.5">
-        <h3 className="text-base font-bold text-neutral-900">
+        <h3 className="text-[17px] font-semibold text-ink">
           名單 <span className="font-medium text-neutral-500">{rows.length} 位</span>
         </h3>
         <SortMenu sort={sort} options={SORTS} onChange={setSort} />
       </div>
 
-      <div className="border border-neutral-200 rounded-2xl overflow-hidden">
+      <div className="overflow-hidden">
         <div className="flex h-9 items-center gap-2.5 bg-neutral-50 px-3.5 text-[13px] text-neutral-500">
           <span className="flex-1">學生</span>
           <span className="w-[76px]">出席</span>

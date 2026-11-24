@@ -1,5 +1,4 @@
 import { useParams } from "next/navigation";
-import LessonTabs from "./LessonTabs";
 import {
   useGetLessonQuery,
   useGetLessonStudentsQuery,
@@ -17,17 +16,10 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import PeriodRecordSheet from "./PeriodRecordSheet";
 import StudentSheet from "@/features/students/StudentSheet";
 import { Button } from "@/components/ui/button";
-import StatTile from "@/components/StatTile";
 import { formatMoney } from "@/lib/money";
 import TermHeader from "./TermHeader";
 import PastTerms from "./PastTerms";
 import { useTermPage } from "./useTermPage";
-
-/** 手機的兩個分頁。課程設定不是分頁——從頁首的 ⋯ 進去（`activeTab === "settings"`）。 */
-export const TABS = [
-  { name: "時段", query: "periods" },
-  { name: "學生", query: "students" },
-];
 
 const LessonDetail = () => {
   const { id } = useParams();
@@ -106,35 +98,39 @@ const LessonDetail = () => {
           </div>
         ) : (
           <div aria-busy="true">
-            <div className="h-[236px] rounded-b-[28px] bg-primary-900" />
-            <LessonTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            <div className="flex flex-col gap-3 px-5 pt-14 pb-8">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </div>
             <PeriodTimelineSkeleton />
           </div>
         )
       ) : isExpanded ? (
         /* 桌面：整頁一起捲；時段欄黏在畫面上、自己捲。編輯在右側抽屜。 */
-        <div className="flex flex-col gap-7 px-10 pt-7 pb-14">
+        <div className="flex flex-col gap-9 px-12 pt-8 pb-14">
           <div className="max-w-[1240px]">
             <LessonDetailHeader lesson={lesson} onEdit={() => setShowSettings(true)} />
+            {/* 三張統計小卡收成一行灰字（去框線改版：不放統計列）。 */}
             {term.overview && (
-              <dl className="mt-5 grid max-w-[560px] grid-cols-3 gap-3">
-                <StatTile value={term.overview.sessions} label="已上堂數" />
-                <StatTile value={term.overview.average} label="平均出席" />
-                <StatTile
-                  value={term.totalRevenue === undefined ? "…" : `$${formatMoney(term.totalRevenue)}`}
-                  label={term.termNumber !== null ? `第 ${term.termNumber} 期收入` : "累計收入"}
-                />
-              </dl>
+              <p className="mt-4 text-[13px] text-ink-2">
+                {term.termNumber !== null && `第 ${term.termNumber} 期 · `}
+                已上 <b className="font-semibold text-ink">{term.overview.sessions}</b> 堂 · 平均出席{" "}
+                <b className="font-semibold text-ink">{term.overview.average}</b> ·{" "}
+                {term.termNumber !== null ? "這期收入" : "累計收入"}{" "}
+                <b className="font-semibold text-ink">
+                  {term.totalRevenue === undefined ? "…" : `$${formatMoney(term.totalRevenue)}`}
+                </b>
+              </p>
             )}
           </div>
-          <div className="flex max-w-[1240px] items-start gap-6">
+          <div className="flex max-w-[1240px] items-start gap-14">
             <PeriodColumn
               lesson={lesson}
               periods={lesson.periods || []}
               headcounts={headcounts}
               activePeriodId={recordPeriodId}
               onViewRecord={setRecordPeriodId}
-              className="sticky top-6 h-[calc(100vh-3rem)] max-h-[820px] w-[328px] shrink-0"
+              className="sticky top-6 h-[calc(100vh-3rem)] max-h-[820px] w-[300px] shrink-0"
             />
             <div className="min-w-0 flex-1">
               <AttendanceOverview
@@ -177,39 +173,35 @@ const LessonDetail = () => {
           </ResponsiveDialog>
         </div>
       ) : (
-        /* 手機：這一期的頁首（期切換＋三格統計），下面時段／學生兩個分頁；設定從 ⋯ 進。 */
+        /* 手機：這一期的頁首，下面時段、名單一路往下捲；設定從頁首的「編輯」進。 */
         <div className="pb-4">
           <TermHeader lesson={lesson} term={term} onOpenSettings={() => setActiveTab("settings")} />
           {activeTab === "settings" ? (
             <>
               <div className="flex items-center justify-between px-5 pt-3">
-                <h2 className="text-[15px] font-bold text-neutral-900">課程設定</h2>
-                <Button variant="ghost" size="sm" onClick={() => requestTabChange("periods")}>
-                  回時段
+                <h2 className="text-[17px] font-semibold text-ink">編輯課程</h2>
+                <Button variant="text" size="sm" onClick={() => requestTabChange("periods")}>
+                  完成
                 </Button>
               </div>
               <SettingSection lesson={lesson} onDirtyChange={setSettingsDirty} />
             </>
           ) : (
+            /* 去框線改版：不再分「時段／學生」兩個分頁，整頁往下捲；大區塊之間 8px 淺灰帶。 */
             <>
-              <LessonTabs activeTab={activeTab} onTabChange={requestTabChange} />
-              {activeTab === "periods" && (
-                <>
-                  <PeriodSection
-                    lesson={lesson}
-                    periods={lesson?.periods || []}
-                    headcounts={headcounts}
-                    revenues={term.revenues}
-                    termRevenues={term.termRevenues}
-                  />
-                  <PastTerms terms={term.terms} currentLessonId={lesson.id} />
-                </>
-              )}
-              {activeTab === "students" && (
-                <div className="px-5 pb-4">
-                  <AttendanceOverview lesson={lesson} students={students || []} variant="compact" />
-                </div>
-              )}
+              <div aria-hidden="true" className="mt-6 h-2 bg-band" />
+              <PeriodSection
+                lesson={lesson}
+                periods={lesson?.periods || []}
+                headcounts={headcounts}
+                revenues={term.revenues}
+                termRevenues={term.termRevenues}
+              />
+              <PastTerms terms={term.terms} currentLessonId={lesson.id} />
+              <div aria-hidden="true" className="mt-6 h-2 bg-band" />
+              <div className="px-5 pt-6 pb-4">
+                <AttendanceOverview lesson={lesson} students={students || []} variant="compact" />
+              </div>
             </>
           )}
         </div>

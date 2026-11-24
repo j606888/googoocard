@@ -3,11 +3,11 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BookOpenText, ChevronDown, Ellipsis, Plus, Settings } from "lucide-react";
-import DanceStyleBar from "@/components/DanceStyleBar";
+import { BookOpenText, ChevronDown, ChevronLeft, Ellipsis, Plus } from "lucide-react";
+import DanceStyleDot from "@/components/DanceStyleDot";
 import Menu from "@/components/Menu";
-import StatTile from "@/components/StatTile";
-import TodoBell from "@/features/TodoBell";
+import StatusTag from "@/components/StatusTag";
+import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { formatMoney } from "@/lib/money";
 import { lessonPeopleLabel } from "@/lib/teachers";
 import type { Lesson } from "@/store/slices/lessons";
@@ -16,13 +16,13 @@ import { weeklyScheduleLabel } from "../lessonSchedule";
 import type { useTermPage } from "./useTermPage";
 
 const ICON_BUTTON =
-  "grid size-11 shrink-0 cursor-pointer place-items-center rounded-full bg-white/15 text-white hover:bg-white/25";
+  "grid size-11 shrink-0 cursor-pointer place-items-center rounded-lg text-ink-2 hover:bg-primary-50";
 const MENU_ITEM =
   "flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-left text-sm text-neutral-800 hover:bg-neutral-100";
 
 /**
- * 手機的「這一期」頁首：回課程、切換期（看舊的期就在這裡）、這門課是誰教在哪上，
- * 下面三格是這一期到目前為止的樣子。課種動作與課程設定收在 ⋯。
+ * 手機的「這一期」頁首（去框線改版：白底、不再是深綠色塊）：回課程、切換期、編輯，
+ * 這門課是誰教在哪上，下面一行灰字是這一期到目前為止的樣子。開新一期、課種頁收在 ⋯。
  */
 const TermHeader = ({
   lesson,
@@ -40,7 +40,6 @@ const TermHeader = ({
   const [moreOpen, setMoreOpen] = useState(false);
   const running = lesson.status !== "finished";
   const subtitle = [
-    lesson.location?.name,
     weeklyScheduleLabel(lesson.periods ?? []),
     lessonPeopleLabel(lesson.teachers, lesson.assistants),
   ]
@@ -54,37 +53,40 @@ const TermHeader = ({
   };
 
   return (
-    <header className="rounded-b-[28px] bg-primary-900 px-4 pt-2 pb-5 text-white">
-      <div className="flex items-center gap-2">
-        <Link href="/lessons" aria-label="回課程" className={ICON_BUTTON}>
-          <ArrowLeft className="size-5" />
+    <header className="px-5 pt-1">
+      <div className="-mx-2 flex h-12 items-center gap-1">
+        <Link
+          href="/lessons"
+          className="flex h-11 shrink-0 items-center gap-0.5 rounded-lg px-2 text-[15px] font-semibold text-primary-800 hover:bg-primary-50"
+        >
+          <ChevronLeft aria-hidden="true" className="size-5" />
+          課程
         </Link>
-        <div className="flex min-w-0 flex-1 justify-center">
-          {term.termNumber !== null ? (
-            <button
-              ref={switcherRef}
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded={switching}
-              onClick={() => setSwitching(!switching)}
-              className="flex h-11 min-w-0 cursor-pointer items-center gap-1 rounded-full bg-white px-4 text-sm font-bold text-primary-900"
-            >
-              <span className="truncate">
-                第 {term.termNumber} 期 · {running ? "進行中" : "已結束"}
-              </span>
-              <ChevronDown aria-hidden="true" className={`size-4 shrink-0 transition-transform ${switching ? "rotate-180" : ""}`} />
-            </button>
-          ) : (
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
-              {running ? "進行中" : "已結束"}
-            </span>
-          )}
-        </div>
-        <TodoBell className="" tone="onPrimary" />
+        <span className="flex-1" />
+        {term.termNumber !== null && (
+          <button
+            ref={switcherRef}
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={switching}
+            onClick={() => setSwitching(!switching)}
+            className="flex h-11 min-w-0 cursor-pointer items-center gap-1 rounded-lg px-2 text-sm font-medium text-ink-2 hover:bg-primary-50"
+          >
+            <span className="truncate">第 {term.termNumber} 期</span>
+            <ChevronDown aria-hidden="true" className={`size-4 shrink-0 transition-transform ${switching ? "rotate-180" : ""}`} />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          className="flex h-11 shrink-0 cursor-pointer items-center rounded-lg px-2 text-[15px] font-semibold text-primary-800 hover:bg-primary-50"
+        >
+          編輯
+        </button>
         <button
           ref={moreRef}
           type="button"
-          aria-label="更多：課程設定、開新一期"
+          aria-label="更多：開新一期、課種頁"
           aria-haspopup="menu"
           aria-expanded={moreOpen}
           onClick={() => setMoreOpen(!moreOpen)}
@@ -94,24 +96,34 @@ const TermHeader = ({
         </button>
       </div>
 
-      <div className="mt-3.5 flex items-center gap-3">
-        <DanceStyleBar style={lesson.danceStyle} size="lg" />
-        <div className="min-w-0">
-          <h1 className="truncate text-2xl font-bold leading-8">{lesson.name}</h1>
-          {subtitle && <p className="truncate text-[13px] font-medium text-primary-100">{subtitle}</p>}
-        </div>
-      </div>
+      <h1 className="mt-1 flex items-center gap-2.5 text-[28px] font-semibold leading-9 tracking-[-0.01em] text-ink">
+        <span className="min-w-0 break-words">{lesson.name}</span>
+        <StatusTag tone={running ? "positive" : "neutral"}>{running ? "進行中" : "已結束"}</StatusTag>
+      </h1>
+      <p className="mt-1.5 text-sm leading-relaxed text-ink-2">
+        <DanceStyleDot style={lesson.danceStyle} className="mr-1.5 align-middle" />
+        {[danceStyleMeta(lesson.danceStyle).label, lesson.kind === "ongoing" ? "持續開課" : "固定期數", lesson.location?.name]
+          .filter(Boolean)
+          .join(" · ")}
+        {subtitle && (
+          <>
+            <br />
+            {subtitle}
+          </>
+        )}
+      </p>
 
+      {/* 三格統計收成一行灰字（去框線改版：不放統計列）。 */}
       {term.overview && (
-        <dl className="mt-3.5 grid grid-cols-3 gap-2">
-          <StatTile tone="onPrimary" value={term.overview.sessions} label="已上堂數" />
-          <StatTile tone="onPrimary" value={term.overview.average} label="平均出席" />
-          <StatTile
-            tone="onPrimary"
-            value={term.totalRevenue === undefined ? "…" : `$${formatMoney(term.totalRevenue)}`}
-            label={term.termNumber !== null ? "這期收入" : "累計收入"}
-          />
-        </dl>
+        <p className="mt-2.5 text-[13px] text-ink-2">
+          {term.termNumber !== null && `第 ${term.termNumber} 期 · `}
+          已上 <b className="font-semibold text-ink">{term.overview.sessions}</b> 堂 · 平均{" "}
+          <b className="font-semibold text-ink">{term.overview.average}</b> ·{" "}
+          {term.termNumber !== null ? "這期收入" : "累計收入"}{" "}
+          <b className="font-semibold text-ink">
+            {term.totalRevenue === undefined ? "…" : `$${formatMoney(term.totalRevenue)}`}
+          </b>
+        </p>
       )}
 
       <Menu
@@ -146,17 +158,6 @@ const TermHeader = ({
         placement="bottom-end"
         className="z-50 w-52 rounded-2xl border border-neutral-200 bg-white p-1.5 shadow-[0_12px_40px_-12px_rgba(27,94,74,0.45)]"
       >
-        <button
-          type="button"
-          className={MENU_ITEM}
-          onClick={() => {
-            setMoreOpen(false);
-            onOpenSettings();
-          }}
-        >
-          <Settings className="size-4" />
-          課程設定
-        </button>
         {term.summary && (
           <button type="button" className={MENU_ITEM} onClick={openNewTerm}>
             <Plus className="size-4" />
