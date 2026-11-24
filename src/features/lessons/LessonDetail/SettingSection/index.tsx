@@ -4,12 +4,6 @@ import { Lesson } from "@/store/slices/lessons";
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
-import InputField from "@/components/InputField";
-import DanceStyleSelect from "@/features/lessons/newLesson/DanceStyleSelect";
-import { useDanceStyles } from "@/hooks/useDanceStyles";
-import LevelSelect from "@/features/lessons/newLesson/LevelSelect";
-import LessonKindSelect from "@/features/lessons/newLesson/LessonKindSelect";
-import SessionsPerAttendanceSelect from "@/features/lessons/newLesson/SessionsPerAttendanceSelect";
 import DropInPriceField, {
   type DropInPlans,
   buildDropInOptions,
@@ -18,12 +12,25 @@ import DropInPriceField, {
 } from "@/features/lessons/newLesson/DropInPriceField";
 import type { LessonKind } from "@/lib/lessonKind";
 import TermPriceField, { type TermDraft, parseTermDraft, termDraftFrom } from "@/features/lessons/newLesson/TermPriceField";
-import { Switch } from "@/components/ui/switch";
-import TeacherSelect from "@/features/lessons/newLesson/TeacherSelect";
-import AssistantSelect from "@/features/lessons/newLesson/AssistantSelect";
-import CardSelect from "@/features/lessons/newLesson/CardSelect";
 import LessonGroupSelect from "@/features/lessons/newLesson/LessonGroupSelect";
-import LocationSelect from "@/features/lessons/newLesson/LocationSelect";
+import {
+  GROUPED_PAGE_BG,
+  GroupedRow,
+  GroupedSection,
+  InlineInput,
+  SegmentedControl,
+} from "@/features/lessons/newLesson/grouped";
+import {
+  AssistantGroup,
+  CardGroup,
+  DanceStyleGroup,
+  LocationGroup,
+  TeacherGroup,
+  ToggleSwitch,
+} from "@/features/lessons/newLesson/groupedFields";
+import { useDanceStyles } from "@/hooks/useDanceStyles";
+import { DANCE_LEVELS } from "@/lib/danceLevels";
+import StatusTag from "@/components/StatusTag";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { ResponsiveDialogTitle } from "@/components/ResponsiveDialog";
@@ -57,9 +64,9 @@ type FormErrors = Partial<Record<keyof typeof validationErrors, string>>;
 export type SettingTab = "basic" | "cards" | "status";
 
 const TAB_LABELS: Record<SettingTab, string> = {
-  basic: "基本設定",
+  basic: "基本",
   cards: "細節",
-  status: "課程狀態",
+  status: "狀態",
 };
 
 /** Which tab each validation error lives on — a failed save jumps there. */
@@ -303,19 +310,19 @@ const SettingSection = ({
             text: isDrawer ? `${dirtyTabCount} 個分頁有變更` : "有還沒儲存的變更",
             className: "text-warning-900 font-semibold",
           }
-        : { text: "", className: "" };
+        : { text: isDrawer ? "沒有變更" : "", className: "text-ink-3" };
 
   return (
-    <div className={isDrawer ? "flex h-full min-h-0 flex-col" : "flex flex-col"}>
+    <div className={isDrawer ? `flex h-full min-h-0 flex-col ${GROUPED_PAGE_BG}` : `flex flex-col ${GROUPED_PAGE_BG}`}>
       {isDrawer && (
         <div className="flex items-center justify-between px-6 pt-5 pb-2">
           <div className="min-w-0">
-            <ResponsiveDialogTitle className="text-lg font-bold text-neutral-900">編輯課程</ResponsiveDialogTitle>
-            <p className="truncate text-[13px] text-neutral-500">
+            <ResponsiveDialogTitle className="text-lg font-semibold text-ink">編輯課程</ResponsiveDialogTitle>
+            <p className="truncate text-[13px] text-ink-3">
               {[lesson.name, lesson.group?.name].filter(Boolean).join(" · ")}
             </p>
           </div>
-          <Button variant="ghost" size="icon" aria-label="關閉" className="text-neutral-500" onClick={onClose}>
+          <Button variant="ghost" size="icon" aria-label="關閉" className="text-ink-2" onClick={onClose}>
             <X className="size-5" />
           </Button>
         </div>
@@ -324,9 +331,9 @@ const SettingSection = ({
       {/* 手機已經在「設定」分頁裡了——不再疊第二排分頁，三段直接往下排。 */}
       {isDrawer && (
         <SegmentedTabs
-          variant="underline"
+          fill
           ariaLabel="課程設定分頁"
-          className="border-b border-neutral-200 px-4"
+          className="mx-6 mb-1"
           value={tab}
           onChange={setTab}
           options={tabOptions}
@@ -335,69 +342,108 @@ const SettingSection = ({
 
       <div
         className={
-          isDrawer ? "min-h-0 flex-1 overflow-y-auto px-6 py-6" : "flex flex-col gap-7 px-5 pt-5 pb-28"
+          isDrawer ? "min-h-0 flex-1 overflow-y-auto px-6 py-5" : "flex flex-col gap-7 px-4 pt-5 pb-28"
         }
       >
         {/* 抽屜裡三個分頁都保持掛載（只用 hidden 藏起來）：課卡／老師／分部的查詢在開抽屜時就發出，
             切到分頁時不會先空白再跳出來。 */}
-        <div className={isDrawer && tab !== "basic" ? "hidden" : "flex flex-col gap-7"}>
-            {!isDrawer && <h3 className="-mb-3 text-base font-bold text-neutral-900">基本設定</h3>}
-            <section className="flex flex-col gap-4">
-              <LessonGroupSelect groupId={groupId} onChange={setGroupId} />
-              <InputField
-                label="這一期的名稱"
-                placeholder="例：Bachata Lv1"
-                value={lessonName}
-                onChange={(e) => {
-                  clearError("lessonName");
-                  setLessonName(e.target.value);
-                }}
-                error={errors.lessonName}
+        <div className={isDrawer && tab !== "basic" ? "hidden" : "flex flex-col gap-6"}>
+          {!isDrawer && <h3 className="px-4 text-[17px] font-semibold text-ink">基本</h3>}
+          <div className="px-0.5">
+            <LessonGroupSelect groupId={groupId} onChange={setGroupId} />
+          </div>
+          <GroupedSection title="這一期" error={errors.lessonName}>
+            <InlineInput
+              label="名稱"
+              placeholder="例：Bachata Lv1"
+              value={lessonName}
+              onChange={(value) => {
+                clearError("lessonName");
+                setLessonName(value);
+              }}
+            />
+          </GroupedSection>
+          <DanceStyleGroup
+            danceStyleId={danceStyleId}
+            onChange={(value) => {
+              setDanceStyleId(value);
+              clearError("danceStyle");
+            }}
+            error={errors.danceStyle}
+          >
+            {hasLevels && (
+              <GroupedRow label="階級">
+                <SegmentedControl
+                  ariaLabel="階級"
+                  className="w-56"
+                  value={level}
+                  onChange={setLevel}
+                  options={DANCE_LEVELS.map((l) => ({ value: l.value, label: l.label }))}
+                />
+              </GroupedRow>
+            )}
+          </DanceStyleGroup>
+          <GroupedSection
+            title="上課方式"
+            footer={
+              kind === "ongoing"
+                ? "持續開課：一堂一堂往下加，你按結束才結束。"
+                : "固定堂數：先排好幾堂，上完自動結束。"
+            }
+          >
+            <div className="flex flex-col gap-2 px-4 py-3">
+              <span className="text-[15px] text-ink">型態</span>
+              <SegmentedControl
+                ariaLabel="課程型態"
+                value={kind}
+                onChange={setKind}
+                options={[
+                  { value: "fixed", label: "固定堂數" },
+                  { value: "ongoing", label: "持續開課" },
+                ]}
               />
-              <DanceStyleSelect
-                danceStyleId={danceStyleId}
-                onChange={(value) => {
-                  setDanceStyleId(value);
-                  clearError("danceStyle");
-                }}
-                error={errors.danceStyle}
+            </div>
+            <GroupedRow label="每次扣幾格">
+              <SegmentedControl
+                ariaLabel="每次扣幾格"
+                className="w-40"
+                value={sessionsPerAttendance}
+                onChange={setSessionsPerAttendance}
+                options={[1, 2, 3].map((n) => ({ value: n, label: String(n) }))}
               />
-              {hasLevels && <LevelSelect level={level} onChange={setLevel} />}
-            </section>
-            <section className="flex flex-col gap-4 border-t border-neutral-100 pt-6">
-              <LessonKindSelect kind={kind} onChange={setKind} />
-              <SessionsPerAttendanceSelect value={sessionsPerAttendance} onChange={setSessionsPerAttendance} />
-              <CardSelect
-                error={errors.cards}
-                onChange={(value) => {
-                  setSelectedCardIds(value);
-                  clearError("cards");
-                }}
-                selectedCardIds={selectedCardIds}
-                danceStyleId={danceStyleId}
-              />
-            </section>
+            </GroupedRow>
+          </GroupedSection>
+          <CardGroup
+            selectedCardIds={selectedCardIds}
+            onChange={(value) => {
+              setSelectedCardIds(value);
+              clearError("cards");
+            }}
+            danceStyleId={danceStyleId}
+            error={errors.cards}
+          />
         </div>
 
-        <div className={isDrawer && tab !== "cards" ? "hidden" : "flex flex-col gap-7"}>
-            {!isDrawer && <h3 className="-mb-3 border-t border-neutral-100 pt-6 text-base font-bold text-neutral-900">細節</h3>}
-            <section className="flex flex-col gap-4">
-              <LocationSelect locationId={locationId} onChange={setLocationId} />
-              <TeacherSelect
-                error={errors.teachers}
-                onChange={(value) => {
-                  setSelectedTeacherIds(value);
-                  // 同一個人不能又是老師又是小幫手——選成老師就從小幫手拿掉。
-                  setSelectedAssistantIds((prev) => prev.filter((id) => !value.includes(id)));
-                  clearError("teachers");
-                }}
-                selectedTeacherIds={selectedTeacherIds}
-              />
-              <AssistantSelect
-                selectedAssistantIds={selectedAssistantIds}
-                teacherIds={selectedTeacherIds}
-                onChange={setSelectedAssistantIds}
-              />
+        <div className={isDrawer && tab !== "cards" ? "hidden" : "flex flex-col gap-6"}>
+          {!isDrawer && <h3 className="px-4 pt-4 text-[17px] font-semibold text-ink">細節</h3>}
+          <LocationGroup locationId={locationId} onChange={setLocationId} />
+          <TeacherGroup
+            selectedTeacherIds={selectedTeacherIds}
+            onChange={(value) => {
+              setSelectedTeacherIds(value);
+              // 同一個人不能又是老師又是小幫手——選成老師就從小幫手拿掉。
+              setSelectedAssistantIds((prev) => prev.filter((id) => !value.includes(id)));
+              clearError("teachers");
+            }}
+            error={errors.teachers}
+          />
+          <AssistantGroup
+            selectedAssistantIds={selectedAssistantIds}
+            teacherIds={selectedTeacherIds}
+            onChange={setSelectedAssistantIds}
+          />
+          <GroupedSection title="單堂付費" error={errors.dropInPrice}>
+            <div className="px-4 py-3">
               <DropInPriceField
                 enabled={dropInEnabled}
                 amount={dropInAmount}
@@ -414,78 +460,79 @@ const SettingSection = ({
                   setDropInPlans(plans);
                   clearError("dropInPrice");
                 }}
-                error={errors.dropInPrice}
               />
-              <div className="flex flex-col divide-y divide-neutral-100 overflow-hidden rounded-xl border border-neutral-200">
-                <TermPriceField
-                  draft={termDraft}
-                  kind={kind}
-                  periodCount={lesson.periods.length}
-                  lockedReason={
-                    enrolledCount > 0 ? `已有 ${enrolledCount} 人報名，整期價和堂數不能改。` : undefined
-                  }
-                  onChange={(draft) => {
-                    setTermDraft(draft);
-                    setErrors((prev) => ({ ...prev, term: undefined, cards: undefined }));
-                  }}
-                  toggle={(checked, onToggle) => (
-                    <Switch checked={checked} onCheckedChange={onToggle} aria-label="報名整期" />
-                  )}
-                />
-              </div>
-              {errors.term && <p className="-mt-2 text-sm text-danger-700">{errors.term}</p>}
-            </section>
+            </div>
+          </GroupedSection>
+          <GroupedSection title="報名整期" error={errors.term}>
+            <TermPriceField
+              draft={termDraft}
+              kind={kind}
+              periodCount={lesson.periods.length}
+              lockedReason={enrolledCount > 0 ? `已有 ${enrolledCount} 人報名，整期價和堂數不能改。` : undefined}
+              onChange={(draft) => {
+                setTermDraft(draft);
+                setErrors((prev) => ({ ...prev, term: undefined, cards: undefined }));
+              }}
+              toggle={(checked, onToggle) => <ToggleSwitch checked={checked} onChange={onToggle} label="報名整期" />}
+            />
+          </GroupedSection>
         </div>
 
-        <div className={isDrawer && tab !== "status" ? "hidden" : "flex flex-col gap-3"}>
-            <div className="flex items-center gap-4 rounded-xl border border-neutral-200 px-4 py-3.5">
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-neutral-900">{isEndedByHand ? "重新開課" : "結束課程"}</p>
-                <p className="text-[13px] text-neutral-500">
-                  {isEndedByHand
-                    ? "這門課已手動結束；重新開課或排新時段都會回到「進行中」"
-                    : "紀錄都會保留，之後可以重新開課"}
-                </p>
-              </div>
-              <Button variant="secondary" size="sm" onClick={() => setConfirming("end")}>
-                {isEndedByHand ? "重新開課" : "結束課程"}
-              </Button>
-            </div>
-            {hasNoPeriods && (
-              <div className="flex items-center gap-4 rounded-xl border border-danger-100 px-4 py-3.5">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-danger-700">刪除課程</p>
-                  <p className="text-[13px] text-neutral-500">刪除後無法復原</p>
-                </div>
-                <Button
-                  variant="dangerSecondary"
-                  size="sm"
-                  onClick={() => setConfirming("delete")}
-                  disabled={isDeleting}
-                >
-                  刪除
-                </Button>
-              </div>
-            )}
+        <div className={isDrawer && tab !== "status" ? "hidden" : "flex flex-col gap-6"}>
+          {!isDrawer && <h3 className="px-4 pt-4 text-[17px] font-semibold text-ink">狀態</h3>}
+          <GroupedSection title="目前">
+            <GroupedRow label="狀態">
+              <StatusTag tone={lesson.status === "finished" ? "neutral" : "positive"}>
+                {lesson.status === "finished" ? "已結束" : "進行中"}
+              </StatusTag>
+            </GroupedRow>
+          </GroupedSection>
+          <GroupedSection
+            footer={
+              isEndedByHand
+                ? "這門課已手動結束；重新開課或排新時段都會回到「進行中」。"
+                : "紀錄都會保留，之後可以重新開課。"
+            }
+          >
+            <button
+              type="button"
+              onClick={() => setConfirming("end")}
+              className="flex min-h-12 w-full cursor-pointer items-center px-4 text-left text-[15px] font-medium text-warning-800 hover:bg-warning-50"
+            >
+              {isEndedByHand ? "重新開課" : "結束課程"}
+            </button>
+          </GroupedSection>
+          {hasNoPeriods && (
+            <GroupedSection footer="刪除後無法復原，按下去會先再問一次。">
+              <button
+                type="button"
+                onClick={() => setConfirming("delete")}
+                disabled={isDeleting}
+                className="flex min-h-12 w-full cursor-pointer items-center px-4 text-left text-[15px] font-medium text-danger-700 hover:bg-danger-50 disabled:opacity-50"
+              >
+                刪除課程
+              </button>
+            </GroupedSection>
+          )}
         </div>
       </div>
 
       {(isDrawer || isDirty || errorTabs.size > 0) && (
       <div
         data-in-app={isDrawer ? undefined : "flush-bottom"}
-        className={`flex items-center gap-2.5 border-t border-neutral-200 bg-white ${
+        className={`flex items-center gap-2.5 ${
           isDrawer
-            ? "px-6 py-3.5"
+            ? `px-6 py-3.5 ${GROUPED_PAGE_BG}`
             : // Clears the floating BottomNav, like StudentDetail's action bar.
-              "sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] mx-3 rounded-2xl border px-4 py-3 shadow-[0_8px_24px_-12px_rgba(16,28,23,0.25)]"
+              "sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] mx-3 rounded-2xl bg-white px-4 py-3 shadow-[0_8px_24px_-12px_rgba(16,28,23,0.25)]"
         }`}
       >
         <span className={`min-w-0 flex-1 text-[13px] ${footerMessage.className}`}>{footerMessage.text}</span>
-        <Button variant="secondary" onClick={handleCancel} disabled={!isDrawer && !isDirty}>
+        <Button variant="ghost" onClick={handleCancel} disabled={!isDrawer && !isDirty}>
           取消
         </Button>
         <Button onClick={handleSubmit} isLoading={isLoading} disabled={!isDirty}>
-          儲存變更
+          儲存
         </Button>
       </div>
       )}
