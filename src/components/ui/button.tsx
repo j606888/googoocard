@@ -12,6 +12,8 @@ import { cn } from "@/lib/utils"
  * - `ghost` — text-only (取消、清除篩選).
  * - `danger` — solid red, only inside a confirm dialog; `dangerSecondary` everywhere else.
  * - `link` — inline text link.
+ * - `text` — a quiet action that would otherwise be an outline button (「編輯」「加一堂」「登記整期」):
+ *   green semibold text, no box. Keeps one solid `primary` per screen.
  * Sizes: `sm` 36 (dense desktop rows), `md` 44 (default, minimum touch target), `lg` 52 (phone CTAs).
  */
 const buttonVariants = cva(
@@ -27,6 +29,7 @@ const buttonVariants = cva(
         dangerSecondary:
           "bg-white text-danger-700 border-[1.5px] border-danger-200 hover:bg-danger-50",
         link: "text-primary-700 font-medium underline-offset-4 hover:underline",
+        text: "text-primary-800 font-semibold hover:text-primary-900 hover:bg-primary-50",
       },
       size: {
         sm: "h-9 rounded-lg px-3.5 text-sm",
@@ -36,7 +39,10 @@ const buttonVariants = cva(
         iconSm: "size-9 rounded-lg",
       },
     },
-    compoundVariants: [{ variant: "link", class: "h-auto px-0" }],
+    compoundVariants: [
+      { variant: "link", class: "h-auto px-0" },
+      { variant: "text", size: ["sm", "md"], class: "px-2" },
+    ],
     defaultVariants: {
       variant: "primary",
       size: "md",

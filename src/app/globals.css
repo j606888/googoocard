@@ -75,6 +75,15 @@
     --color-primary-100: #E3F7F0;
     --color-primary-50:  #F1FAF6;
 
+    /* 去框線改版（2026-11-24, ~/.claude/plans/quiet-redesign.md）：帶一點綠的墨色文字、
+       細線與淺底。ink-3 是最淺的字，對白底仍 ≥4.5:1——別再用更淺的灰寫字。 */
+    --color-ink:     #14302A;
+    --color-ink-2:   #4A5F58;
+    --color-ink-3:   #56675F;
+    --color-line:    #E6EEEA;
+    --color-surface: #F6F9F7;
+    --color-band:    #F3F6F5;
+
     /* Warning Colors — amber ramp (2026-11-21). Means「要處理」: 待處理、還沒點名、
        未付款、需續約. Deliberately yellow, not orange, so it never reads as a
        dance style (the orange dance-style key has its own dance-orange-* below). */
