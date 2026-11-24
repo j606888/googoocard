@@ -79,6 +79,7 @@ const TermPriceField = ({
   toggle,
   kind,
   periodCount,
+  lockedReason,
 }: {
   draft: TermDraft;
   onChange: (draft: TermDraft) => void;
@@ -87,9 +88,22 @@ const TermPriceField = ({
   kind: string;
   /** 已經排的時段數——超過堂數時提醒（伺服器也會擋）。 */
   periodCount?: number;
+  /** 有值 = 已有人報名，整期價與堂數鎖住（伺服器回 TERM_LOCKED），只顯示不能改。 */
+  lockedReason?: string;
 }) => {
   const parsed = parseTermDraft(draft);
   const ongoing = kind === "ongoing";
+  if (lockedReason) {
+    return (
+      <div className="flex min-h-12 items-center gap-3 px-4 py-2">
+        <span className="flex-1">
+          <span className="block text-[15px] text-neutral-900">報名整期</span>
+          <span className="block text-[13px] text-neutral-500">{lockedReason}</span>
+        </span>
+        <span className="shrink-0 tabular-nums text-[15px] text-neutral-500">{termSummary(draft)}</span>
+      </div>
+    );
+  }
   return (
     <>
       <div className="flex min-h-12 items-center gap-3 px-4 py-2">

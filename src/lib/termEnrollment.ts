@@ -58,15 +58,20 @@ export function enrollmentCoversIndex(periodIndex: number, enrollment: { session
 
 /**
  * 一個點過名的時段，整期攤進來的收入：涵蓋這堂的每筆報名各 price / sessions。
+ *
+ * `paidOtherwise` = 這堂已經用課卡或單堂付了的學生：那堂收入算課卡／單堂，整期讓出這一份
+ * （不會移到別堂）——老師手動綁卡、或報名前已收款的單堂，都不會重複算。
  */
 export function termShareForPeriod(
   periodIndex: number,
-  enrollments: { price: number; sessions: number }[]
+  enrollments: { price: number; sessions: number; studentId?: number }[],
+  paidOtherwise: ReadonlySet<number> = new Set()
 ): { amount: number; count: number } {
   let amount = 0;
   let count = 0;
   for (const enrollment of enrollments) {
     if (!enrollmentCoversIndex(periodIndex, enrollment)) continue;
+    if (enrollment.studentId !== undefined && paidOtherwise.has(enrollment.studentId)) continue;
     amount += termPerSession(enrollment.price, enrollment.sessions);
     count += 1;
   }

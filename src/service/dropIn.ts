@@ -139,8 +139,9 @@ export async function chargeDropIn({
   const option = findDropInOption(options, optionName);
   if (!option) throw badRequest("DROP_IN_OPTION_NOT_FOUND", "This lesson has no such drop-in option");
   const listPrice = option.price;
-  if (record.studentCardId !== null || record.dropInCharge) {
-    throw badRequest("ALREADY_RESOLVED", "Attendance already paid by card or drop-in");
+  // 整期的出席不能再改付單堂（會重複收）；真的要改用卡付就走 consume。
+  if (record.studentCardId !== null || record.dropInCharge || record.enrollmentId !== null) {
+    throw badRequest("ALREADY_RESOLVED", "Attendance already paid by card, drop-in or term");
   }
 
   return prisma.$transaction((tx) =>

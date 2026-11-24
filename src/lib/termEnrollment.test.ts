@@ -41,6 +41,13 @@ describe("termShareForPeriod", () => {
     const total = [0, 1, 2, 3, 4].reduce((sum, i) => sum + termShareForPeriod(i, [{ price: 1600, sessions: 5 }]).amount, 0);
     expect(total).toBe(1600);
   });
+  it("a student who paid this period by card / drop-in gives up their term share", () => {
+    const withIds = [
+      { price: 1600, sessions: 5, studentId: 1 },
+      { price: 1600, sessions: 5, studentId: 2 },
+    ];
+    expect(termShareForPeriod(0, withIds, new Set([2]))).toEqual({ amount: 320, count: 1 });
+  });
 });
 
 describe("exceedsTermSessions", () => {

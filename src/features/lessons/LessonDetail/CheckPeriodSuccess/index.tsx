@@ -215,10 +215,12 @@ const CheckPeriodSuccess = () => {
   const sumIncome = (records: AttendanceRecord[]) => records.reduce((sum, record) => sum + record.income, 0);
   const cardRecords = paidRecords.filter((record) => record.cardName);
   const dropInRecords = paidRecords.filter((record) => record.dropIn);
-  const termIncome = enrolled.reduce((sum, e) => sum + e.perSession, 0);
+  // 這堂已經用課卡／單堂付的整期學生：收入算在課卡／單堂那行，整期不重複算（同 termShareForPeriod）。
+  const termCounted = enrolled.filter((e) => !e.paidOtherwise);
+  const termIncome = termCounted.reduce((sum, e) => sum + e.perSession, 0);
   const income = Math.round(sumIncome(cardRecords) + sumIncome(dropInRecords) + termIncome);
   const termPerSessionLabel = (() => {
-    const prices = [...new Set(enrolled.map((e) => Math.round(e.perSession)))];
+    const prices = [...new Set(termCounted.map((e) => Math.round(e.perSession)))];
     return prices.length === 1 ? `$${formatMoney(prices[0])}` : null;
   })();
   const leaveCount = enrolledMissing.filter((e) => e.onLeave).length;
@@ -339,7 +341,7 @@ const CheckPeriodSuccess = () => {
             <div className="flex items-baseline justify-between gap-3 px-4 py-2.5">
               <span className="flex min-w-0 flex-col">
                 <span className="font-semibold text-neutral-900">
-                  整期 {enrolled.length} 人{termPerSessionLabel && ` × ${termPerSessionLabel}`}
+                  整期 {termCounted.length} 人{termPerSessionLabel && ` × ${termPerSessionLabel}`}
                 </span>
                 <span className="text-xs text-neutral-500">
                   來 {enrolled.length - enrolledMissing.length}

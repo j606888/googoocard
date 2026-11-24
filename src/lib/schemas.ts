@@ -92,14 +92,13 @@ export const registerTrialSchema = z
 
 /**
  * 登記整期（POST /api/lessons/[id]/enrollments）：選既有學生或直接打名字（二擇一）。
- * `price` / `sessions` 省略 = 課程的整期價／堂數；可以個別改（舊生半價），但堂數不能超過課程的。
+ * `price` 省略 = 課程的整期價；可以個別改（舊生半價）。堂數一律 = 課程的（報了就是整期）。
  */
 export const registerEnrollmentSchema = z
   .object({
     studentId: positiveInt.optional(),
     newStudentName: z.string().trim().min(1).max(50).optional(),
     price: money.optional(),
-    sessions: z.coerce.number().int().min(1).max(52).optional(),
     isPaid: z.boolean(),
     paymentMethod: z.enum(PaymentMethod).nullish(),
     paymentReference: z.string().trim().max(20).nullish(),
@@ -110,10 +109,9 @@ export const registerEnrollmentSchema = z
     path: ["studentId"],
   });
 
-/** 改一筆整期報名的價錢／堂數／備註（PATCH /api/lesson-enrollments/[id]）。 */
+/** 改一筆整期報名的價錢／備註（PATCH /api/lesson-enrollments/[id]）。改價會記一筆動態。 */
 export const updateEnrollmentSchema = z.object({
   price: money.optional(),
-  sessions: z.coerce.number().int().min(1).max(52).optional(),
   note: z.string().trim().max(200).nullish(),
 });
 

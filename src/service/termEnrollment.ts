@@ -12,6 +12,7 @@ import {
   termShareForPeriod,
 } from "@/lib/termEnrollment";
 import { createStudent, DEFAULT_STUDENT_AVATAR } from "@/service/student";
+import { refreshNeedsRenewalTag } from "@/service/studentTag";
 
 /**
  * 報名整期（`LessonEnrollment`）。規則見 src/lib/termEnrollment.ts：
@@ -71,19 +72,29 @@ export async function termRevenueByPeriod(periodIds: number[]) {
   const lessons = await prisma.lesson.findMany({
     where: { id: { in: lessonIds } },
     select: {
-      periods: { orderBy: [{ startTime: "asc" }, { id: "asc" }], select: { id: true } },
-      enrollments: { select: { price: true, sessions: true } },
+      periods: {
+        orderBy: [{ startTime: "asc" }, { id: "asc" }],
+        select: { id: true, attendanceRecords: { where: PAID_OTHERWISE, select: { studentId: true } } },
+      },
+      enrollments: { select: { price: true, sessions: true, studentId: true } },
     },
   });
   const wanted = new Set(periodIds);
   for (const lesson of lessons) {
     if (lesson.enrollments.length === 0) continue;
     lesson.periods.forEach((period, index) => {
-      if (wanted.has(period.id)) result.set(period.id, termShareForPeriod(index, lesson.enrollments));
+      if (!wanted.has(period.id)) return;
+      const paidOtherwise = new Set(period.attendanceRecords.map((r) => r.studentId));
+      result.set(period.id, termShareForPeriod(index, lesson.enrollments, paidOtherwise));
     });
   }
   return result;
 }
+
+/** 這筆出席已經用課卡或單堂付了——整期讓出這堂的份（見 termShareForPeriod）。 */
+const PAID_OTHERWISE = {
+  OR: [{ studentCardId: { not: null } }, { dropInCharge: { isNot: null } }],
+} satisfies Prisma.AttendanceRecordWhereInput;
 
 async function loadTermLesson(lessonId: number, classroomId: number) {
   const lesson = await prisma.lesson.findFirst({
@@ -173,10 +184,8 @@ export async function registerEnrollment({
   if (lesson.termPrice === null || lesson.termSessions === null) {
     throw badRequest("TERM_NOT_OFFERED", "This lesson does not offer term enrollment");
   }
-  const sessions = input.sessions ?? lesson.termSessions;
-  if (sessions > lesson.termSessions) {
-    throw badRequest("TERM_SESSIONS_EXCEEDED", "Enrollment cannot cover more sessions than the term");
-  }
+  // 報了就是整期：堂數一律 = 課程的（只能個別改價）。
+  const sessions = lesson.termSessions;
   const price = input.price ?? lesson.termPrice;
 
   let studentId: number;
@@ -201,7 +210,7 @@ export async function registerEnrollment({
   const paymentReference = paymentMethod === "TRANSFER" ? input.paymentReference || null : null;
 
   try {
-    return await prisma.$transaction(async (tx) => {
+    const enrollment = await prisma.$transaction(async (tx) => {
       const enrollment = await tx.lessonEnrollment.create({
         data: {
           lessonId,
@@ -223,6 +232,7 @@ export async function registerEnrollment({
         update: {},
         create: { lessonId, studentId },
       });
+      await adoptEarlierAttendanceInTx(tx, { lessonId, studentId, enrollmentId: enrollment.id, sessions });
       await tx.event.create({
         data: {
           title: "報名整期",
@@ -240,11 +250,59 @@ export async function registerEnrollment({
       });
       return enrollment;
     });
+    // 報名前用課卡上過的堂退了卡：「需續約」可能要拿掉。
+    await refreshNeedsRenewalTag(studentId, classroomId);
+    return enrollment;
   } catch (e) {
     if ((e as { code?: string }).code === "P2002") {
       throw badRequest("ALREADY_ENROLLED", "Student already enrolled in this lesson");
     }
     throw e;
+  }
+}
+
+/**
+ * 晚登記（第一堂之後才報）：這門課涵蓋範圍內、他**報名前**就有的出席改掛這筆報名。
+ *   - 扣了卡 → 退卡（退 sessionsUsed 格），改算整期——整期本來就包含那一堂。
+ *   - 沒收款的單堂 → 刪掉那筆單堂費，改算整期。
+ *   - 已收款的單堂 → 不動（錢已經收了；那堂收入算單堂，整期讓出那一份，見 termShareForPeriod）。
+ *   - 什麼都沒付的（出席沒綁課卡）→ 改算整期。
+ */
+async function adoptEarlierAttendanceInTx(
+  tx: Prisma.TransactionClient,
+  { lessonId, studentId, enrollmentId, sessions }: { lessonId: number; studentId: number; enrollmentId: number; sessions: number }
+) {
+  const covered = new Set((await orderedPeriods(tx, lessonId)).slice(0, sessions).map((p) => p.id));
+  const records = await tx.attendanceRecord.findMany({
+    where: { studentId, lessonPeriod: { lessonId }, enrollmentId: null },
+    select: {
+      id: true,
+      lessonPeriodId: true,
+      studentCardId: true,
+      sessionsUsed: true,
+      dropInCharge: { select: { id: true, isPaid: true } },
+    },
+  });
+  for (const record of records) {
+    if (!covered.has(record.lessonPeriodId)) continue;
+    if (record.dropInCharge?.isPaid) continue;
+    if (record.dropInCharge) {
+      await tx.dropInCharge.delete({ where: { id: record.dropInCharge.id } });
+    }
+    if (record.studentCardId !== null) {
+      await tx.studentCard.update({
+        where: { id: record.studentCardId },
+        data: { remainingSessions: { increment: record.sessionsUsed } },
+      });
+      // 卡又有剩了——拿掉過時的「課卡使用完畢」（同取消出席退卡）。
+      await tx.event.deleteMany({
+        where: { resourceType: "studentCard", title: "課卡使用完畢", resourceId: record.studentCardId },
+      });
+    }
+    await tx.attendanceRecord.update({
+      where: { id: record.id },
+      data: { studentCardId: null, enrollmentId },
+    });
   }
 }
 
@@ -266,16 +324,33 @@ export async function updateEnrollment(
   input: z.infer<typeof updateEnrollmentSchema>
 ) {
   const enrollment = await findEnrollment(id, classroomId);
-  if (input.sessions !== undefined && enrollment.lesson.termSessions !== null && input.sessions > enrollment.lesson.termSessions) {
-    throw badRequest("TERM_SESSIONS_EXCEEDED", "Enrollment cannot cover more sessions than the term");
-  }
-  return prisma.lessonEnrollment.update({
-    where: { id },
-    data: {
-      price: input.price,
-      sessions: input.sessions,
-      note: input.note === undefined ? undefined : input.note || null,
-    },
+  const priceChanged = input.price !== undefined && input.price !== enrollment.price;
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.lessonEnrollment.update({
+      where: { id },
+      data: {
+        price: input.price,
+        note: input.note === undefined ? undefined : input.note || null,
+      },
+    });
+    // 改價會回頭改已點名那幾堂的收入，所以留一筆紀錄；已收款的實收金額不跟著變。
+    if (priceChanged) {
+      await tx.event.create({
+        data: {
+          title: "整期改價",
+          description: [
+            `${enrollment.lesson.name} 整期 $${formatMoney(enrollment.price)} → $${formatMoney(input.price!)}`,
+            enrollment.isPaid && "已收款，實收不變",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          studentId: enrollment.studentId,
+          resourceType: "lessonEnrollment",
+          resourceId: id,
+        },
+      });
+    }
+    return updated;
   });
 }
 
@@ -408,7 +483,7 @@ export async function getPeriodTermInfo(lessonId: number, periodId: number, clas
 
   const covering = await enrollmentsCoveringPeriod(prisma, lessonId, periodId);
   const enrollmentIds = [...covering.values()].map((e) => e.id);
-  const [students, leaves] = await Promise.all([
+  const [students, leaves, paidRecords, payment] = await Promise.all([
     prisma.student.findMany({
       where: { id: { in: [...covering.keys()] } },
       select: { id: true, name: true, avatarUrl: true },
@@ -417,8 +492,18 @@ export async function getPeriodTermInfo(lessonId: number, periodId: number, clas
       where: { lessonPeriodId: periodId, enrollmentId: { in: enrollmentIds } },
       select: { enrollment: { select: { studentId: true } } },
     }),
+    prisma.attendanceRecord.findMany({
+      where: { lessonPeriodId: periodId, studentId: { in: [...covering.keys()] }, ...PAID_OTHERWISE },
+      select: { studentId: true },
+    }),
+    prisma.lessonEnrollment.findMany({
+      where: { id: { in: enrollmentIds } },
+      select: { id: true, isPaid: true, price: true },
+    }),
   ]);
   const onLeave = new Set(leaves.map((l) => l.enrollment.studentId));
+  const paidOtherwise = new Set(paidRecords.map((r) => r.studentId));
+  const paymentById = new Map(payment.map((p) => [p.id, p]));
   const byId = new Map(students.map((s) => [s.id, s]));
 
   // 上一堂：這一堂之前最近一個點過名的時段。
@@ -450,7 +535,16 @@ export async function getPeriodTermInfo(lessonId: number, periodId: number, clas
       .map((e) => {
         const student = byId.get(e.studentId);
         return student
-          ? { enrollmentId: e.id, student, perSession: termPerSession(e.price, e.sessions), onLeave: onLeave.has(e.studentId) }
+          ? {
+              enrollmentId: e.id,
+              student,
+              perSession: termPerSession(e.price, e.sessions),
+              onLeave: onLeave.has(e.studentId),
+              // 這堂已經用課卡／單堂付了：這堂收入算那邊，整期不算這一份。
+              paidOtherwise: paidOtherwise.has(e.studentId),
+              isPaid: paymentById.get(e.id)?.isPaid ?? false,
+              price: e.price,
+            }
           : null;
       })
       .filter((e): e is NonNullable<typeof e> => e !== null)

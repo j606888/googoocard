@@ -114,9 +114,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       where: { id: parseInt(id) },
       select: {
         kind: true,
+        termPrice: true,
         termSessions: true,
         _count: { select: { periods: true, enrollments: true } },
-        enrollments: { select: { sessions: true }, orderBy: { sessions: "desc" }, take: 1 },
       },
     });
     const nextSessions = term === undefined ? current?.termSessions ?? null : term.termSessions;
@@ -127,14 +127,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (exceedsTermSessions(current?._count.periods ?? 0, nextSessions)) {
       return NextResponse.json({ error: "TERM_SESSIONS_EXCEEDED" }, { status: 400 });
     }
-    // 已經有人報整期：不能關掉整期，堂數也不能少於任何一筆報名涵蓋的。
-    if (current && current._count.enrollments > 0) {
-      if (nextSessions === null) {
-        return NextResponse.json({ error: "TERM_HAS_ENROLLMENTS" }, { status: 400 });
-      }
-      if ((current.enrollments[0]?.sessions ?? 0) > nextSessions) {
-        return NextResponse.json({ error: "TERM_SESSIONS_BELOW_ENROLLMENT" }, { status: 400 });
-      }
+    // 已經有人報整期：整期價與堂數都鎖住（報名的堂數 = 課程的；改了會回頭改每堂價）。
+    if (
+      current &&
+      current._count.enrollments > 0 &&
+      term !== undefined &&
+      (term.termPrice !== current.termPrice || term.termSessions !== current.termSessions)
+    ) {
+      return NextResponse.json({ error: "TERM_LOCKED" }, { status: 400 });
     }
   }
 

@@ -16,7 +16,9 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 import { GET as getRoster, POST as postEnrollment } from "@/app/api/lessons/[id]/enrollments/route";
-import { DELETE as deleteEnrollmentRoute } from "@/app/api/lesson-enrollments/[id]/route";
+import { DELETE as deleteEnrollmentRoute, PATCH as patchEnrollment } from "@/app/api/lesson-enrollments/[id]/route";
+import { POST as consumeRoute } from "@/app/api/lessons/[id]/periods/[periodId]/attendance/[studentId]/consume/route";
+import { chargeDropIn } from "@/service/dropIn";
 import { POST as confirmPayment } from "@/app/api/lesson-enrollments/[id]/confirm-payment/route";
 import { POST as postPeriods } from "@/app/api/lessons/[id]/periods/route";
 import { GET as getTerm } from "@/app/api/lessons/[id]/periods/[periodId]/term/route";
@@ -96,8 +98,10 @@ describe("報名整期", () => {
       isPaid: false,
     });
 
-    const tooMany = await enroll(lessonId, { newStudentName: "多報", sessions: 6, isPaid: false });
-    expect(tooMany.status).toBe(400);
+    // 報了就是整期：送了 sessions 也一律 = 課程的堂數。
+    const partial = await enroll(lessonId, { newStudentName: "想報兩堂", sessions: 2, isPaid: true });
+    const partialId = (await partial.json()).enrollmentId;
+    expect((await prisma.lessonEnrollment.findUniqueOrThrow({ where: { id: partialId } })).sessions).toBe(5);
 
     const todos = await getTodos(classroomId);
     expect(todos.unpaidEnrollments.map((e) => e.id)).toEqual([halfId]);
@@ -179,15 +183,116 @@ describe("報名整期", () => {
     expect(await prisma.periodLeave.count()).toBe(0);
   });
 
-  it("每位報名各自 price / sessions，只涵蓋前 N 堂", async () => {
-    const short = await createStudent(classroomId, { name: "三堂" });
-    await enroll(lessonId, { studentId: short.id, price: 900, sessions: 2, isPaid: true });
-    for (const periodId of periodIds) {
-      await takeAttendance({ lessonId, lessonPeriodId: periodId, studentIds: [] });
+  it("改價：每堂收入跟著變（已點名的也會），學生動態記一筆；已收款的照樣算已收", async () => {
+    const s = await createStudent(classroomId, { name: "舊生" });
+    const { enrollmentId } = await (await enroll(lessonId, { studentId: s.id, isPaid: true })).json();
+    await takeAttendance({ lessonId, lessonPeriodId: periodIds[0], studentIds: [] });
+    expect((await getLessonPeriodStats(lessonId)).periods[0].revenue).toBe(320);
+
+    const res = await patchEnrollment(
+      json("PATCH", `/api/lesson-enrollments/${enrollmentId}`, { price: 800, sessions: 2 }),
+      routeParams({ id: String(enrollmentId) })
+    );
+    expect(res.status).toBe(200);
+    expect(await prisma.lessonEnrollment.findUniqueOrThrow({ where: { id: enrollmentId } })).toMatchObject({
+      price: 800,
+      sessions: 5, // 堂數不能個別改
+      isPaid: true,
+    });
+    expect((await getLessonPeriodStats(lessonId)).periods[0].revenue).toBe(160);
+    const event = await prisma.event.findFirstOrThrow({ where: { studentId: s.id, title: "整期改價" } });
+    expect(event.description).toContain("$1,600 → $800");
+    expect(event.description).toContain("已收款，實收不變");
+
+    // 只改備註不記改價。
+    await patchEnrollment(
+      json("PATCH", `/api/lesson-enrollments/${enrollmentId}`, { note: "半價" }),
+      routeParams({ id: String(enrollmentId) })
+    );
+    expect(await prisma.event.count({ where: { studentId: s.id, title: "整期改價" } })).toBe(1);
+  });
+
+  it("晚登記：之前扣的卡退回、沒收的單堂刪掉，都改算整期；已收款的單堂不動、不重複算", async () => {
+    await prisma.lesson.update({ where: { id: lessonId }, data: { dropInPrice: 400 } });
+    const byCard = await createStudent(classroomId, { name: "先用卡" });
+    const unpaidDropIn = await createStudent(classroomId, { name: "單堂沒付" });
+    const paidDropIn = await createStudent(classroomId, { name: "單堂付了" });
+    const sc = await createStudentCard(byCard.id, cardId, { remainingSessions: 8 });
+
+    await takeAttendance({ lessonId, lessonPeriodId: periodIds[0], studentIds: [byCard.id, unpaidDropIn.id, paidDropIn.id] });
+    for (const [student, isPaid] of [[unpaidDropIn, false], [paidDropIn, true]] as const) {
+      await chargeDropIn({
+        classroomId,
+        userId: auth.userId,
+        lessonId,
+        lessonPeriodId: periodIds[0],
+        studentId: student.id,
+        payment: isPaid ? { isPaid: true, paymentMethod: "CASH" } : { isPaid: false },
+      });
     }
-    const stats = await getLessonPeriodStats(lessonId);
-    expect(stats.periods.map((p) => p.revenue)).toEqual([450, 450, 0]);
-    expect(stats.totalRevenue).toBe(900);
+    expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } })).remainingSessions).toBe(7);
+    const cardShare = sc.finalPrice / sc.totalSessions;
+    expect((await getLessonPeriodStats(lessonId)).periods[0].revenue).toBe(Math.round(cardShare + 800));
+
+    for (const s of [byCard, unpaidDropIn, paidDropIn]) await enroll(lessonId, { studentId: s.id, isPaid: true });
+
+    // 卡退回一格、課卡使用完畢不會留著；那筆出席改掛整期。
+    expect((await prisma.studentCard.findUniqueOrThrow({ where: { id: sc.id } })).remainingSessions).toBe(8);
+    const records = await prisma.attendanceRecord.findMany({
+      where: { lessonPeriodId: periodIds[0] },
+      include: { dropInCharge: true },
+    });
+    const byStudent = new Map(records.map((r) => [r.studentId, r]));
+    expect(byStudent.get(byCard.id)).toMatchObject({ studentCardId: null });
+    expect(byStudent.get(byCard.id)!.enrollmentId).not.toBeNull();
+    expect(byStudent.get(unpaidDropIn.id)!.dropInCharge).toBeNull();
+    expect(byStudent.get(unpaidDropIn.id)!.enrollmentId).not.toBeNull();
+    expect(byStudent.get(paidDropIn.id)!.dropInCharge).toMatchObject({ isPaid: true, amount: 400 });
+    expect(byStudent.get(paidDropIn.id)!.enrollmentId).toBeNull();
+
+    // 第 1 堂：兩份整期 + 已收的單堂 $400（他的整期讓出這一份，不重複）。
+    expect((await getLessonPeriodStats(lessonId)).periods[0]).toMatchObject({
+      revenue: 2 * 320 + 400,
+      termRevenue: 640,
+      termEnrolledCount: 2,
+    });
+    const term = await (
+      await getTerm(json("GET", "/x"), routeParams({ id: String(lessonId), periodId: String(periodIds[0]) }))
+    ).json();
+    const paidOtherwise = term.enrolled.filter((e: { paidOtherwise: boolean }) => e.paidOtherwise);
+    expect(paidOtherwise.map((e: { student: { id: number } }) => e.student.id)).toEqual([paidDropIn.id]);
+    expect((await getTodos(classroomId)).unpaidDropIns).toEqual([]);
+  });
+
+  it("整期的出席：手動綁卡改成用卡付（不重複算）；不能改付單堂", async () => {
+    await prisma.lesson.update({ where: { id: lessonId }, data: { dropInPrice: 400 } });
+    const s = await createStudent(classroomId, { name: "整期又綁卡" });
+    const sc = await createStudentCard(s.id, cardId, { remainingSessions: 8 });
+    await enroll(lessonId, { studentId: s.id, isPaid: true });
+    await takeAttendance({ lessonId, lessonPeriodId: periodIds[0], studentIds: [s.id] });
+
+    await expect(
+      chargeDropIn({
+        classroomId,
+        userId: auth.userId,
+        lessonId,
+        lessonPeriodId: periodIds[0],
+        studentId: s.id,
+        payment: { isPaid: false },
+      })
+    ).rejects.toMatchObject({ code: "ALREADY_RESOLVED" });
+
+    const res = await consumeRoute(
+      json("POST", "/x", { studentCardId: sc.id }),
+      routeParams({ id: String(lessonId), periodId: String(periodIds[0]), studentId: String(s.id) })
+    );
+    expect(res.status).toBe(200);
+    const record = await prisma.attendanceRecord.findFirstOrThrow({ where: { lessonPeriodId: periodIds[0] } });
+    expect(record).toMatchObject({ studentCardId: sc.id, enrollmentId: null });
+    expect((await getLessonPeriodStats(lessonId)).periods[0]).toMatchObject({
+      revenue: Math.round(sc.finalPrice / sc.totalSessions),
+      termRevenue: 0,
+    });
   });
 
   it("時段數不能超過整期堂數", async () => {
@@ -248,7 +353,7 @@ describe("報名整期", () => {
     expect(roster.find((r: { id: number }) => r.id === s.id).cardStatus).toMatchObject({ level: "ok", term: true });
   });
 
-  it("開課／改設定：整期要兩個欄位一起、只能固定期數、時段不能比堂數多、有人報了不能關", async () => {
+  it("開課／改設定：整期要兩個欄位一起、只能固定期數、時段不能比堂數多、有人報了就鎖住", async () => {
     const styleId = (await prisma.lesson.findUniqueOrThrow({ where: { id: lessonId } })).danceStyleId;
     const draft = (extra: Record<string, unknown>) => ({
       lessonName: "新的一期",
@@ -270,7 +375,7 @@ describe("報名整期", () => {
     expect(await create({ termPrice: 1600, termSessions: 5 })).toEqual({ message: "Lesson created" });
     expect(await prisma.lesson.count({ where: { termPrice: 1600, termSessions: 5, name: "新的一期" } })).toBe(1);
 
-    // 已經排了 3 堂、有人報名：堂數不能改成 2，也不能關掉整期。
+    // 已經排了 3 堂、有人報名：整期價、堂數都鎖住，也不能關掉整期。
     await enroll(lessonId, { newStudentName: "已報", isPaid: true });
     const update = async (extra: Record<string, unknown>) =>
       (
@@ -280,7 +385,11 @@ describe("報名整期", () => {
         )
       ).json();
     expect((await update({ termPrice: 1600, termSessions: 2 })).error).toBe("TERM_SESSIONS_EXCEEDED");
-    expect((await update({ termPrice: null, termSessions: null })).error).toBe("TERM_HAS_ENROLLMENTS");
-    expect((await update({ termPrice: 2000, termSessions: 6 })).id).toBe(lessonId);
+    expect((await update({ termPrice: null, termSessions: null })).error).toBe("TERM_LOCKED");
+    expect((await update({ termPrice: 2000, termSessions: 6 })).error).toBe("TERM_LOCKED");
+    expect((await update({ termPrice: 2000, termSessions: 5 })).error).toBe("TERM_LOCKED");
+    // 沒改整期（或沒送）照常能存其他設定。
+    expect((await update({ termPrice: 1600, termSessions: 5 })).id).toBe(lessonId);
+    expect((await update({})).id).toBe(lessonId);
   });
 });

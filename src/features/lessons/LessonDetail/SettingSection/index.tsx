@@ -33,6 +33,7 @@ import {
   useDeleteLessonMutation,
   useEndLessonMutation,
   useReopenLessonMutation,
+  useGetLessonEnrollmentsQuery,
 } from "@/store/slices/lessons";
 import { useRouter } from "next/navigation";
 
@@ -119,6 +120,12 @@ const SettingSection = ({
   );
   const [dropInPlans, setDropInPlans] = useState<DropInPlans>(() => dropInPlansFrom(lesson.dropInOptions));
   const [termDraft, setTermDraft] = useState<TermDraft>(() => termDraftFrom(lesson));
+  // 已有人報整期 → 整期價與堂數鎖住（伺服器 TERM_LOCKED）。
+  const { data: enrollmentRoster } = useGetLessonEnrollmentsQuery(
+    { id: lesson.id },
+    { skip: lesson.termPrice == null || lesson.termSessions == null }
+  );
+  const enrolledCount = enrollmentRoster?.enrollments.length ?? 0;
   const [errors, setErrors] = useState<FormErrors>({});
 
   const [updateLesson, { isLoading }] = useUpdateLessonMutation();
@@ -214,13 +221,11 @@ const SettingSection = ({
       toast.error(
         code === "TERM_SESSIONS_EXCEEDED"
           ? "已經排的時段比整期堂數多，先刪掉多的時段"
-          : code === "TERM_HAS_ENROLLMENTS"
-            ? "已經有人報整期，不能關掉整期"
-            : code === "TERM_SESSIONS_BELOW_ENROLLMENT"
-              ? "堂數不能比已報名的人報的少"
-              : code === "TERM_REQUIRES_FIXED"
-                ? "報整期的課要是「固定期數」"
-                : "儲存失敗，請再試一次"
+          : code === "TERM_LOCKED"
+            ? "已經有人報整期，整期價和堂數不能改"
+            : code === "TERM_REQUIRES_FIXED"
+              ? "報整期的課要是「固定期數」"
+              : "儲存失敗，請再試一次"
       );
       return;
     }
@@ -416,6 +421,9 @@ const SettingSection = ({
                   draft={termDraft}
                   kind={kind}
                   periodCount={lesson.periods.length}
+                  lockedReason={
+                    enrolledCount > 0 ? `已有 ${enrolledCount} 人報名，整期價和堂數不能改。` : undefined
+                  }
                   onChange={(draft) => {
                     setTermDraft(draft);
                     setErrors((prev) => ({ ...prev, term: undefined, cards: undefined }));

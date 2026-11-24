@@ -63,7 +63,6 @@ const EnrollmentDrawer = ({
     enrollment ? { kind: "existing", id: enrollment.student.id, name: enrollment.student.name } : null
   );
   const [price, setPrice] = useState(String(enrollment?.price ?? termPrice));
-  const [sessions, setSessions] = useState(String(enrollment?.sessions ?? termSessions));
   const [note, setNote] = useState(enrollment?.note ?? "");
   const [payment, setPayment] = useState<Payment>("CASH");
   const [reference, setReference] = useState("");
@@ -80,18 +79,15 @@ const EnrollmentDrawer = ({
   const exactMatch = suggestions.some((s) => s.name === trimmed);
 
   const priceValue = Number(price) || 0;
-  const sessionsValue = Number(sessions) || 0;
-  const sessionsInvalid = !Number.isInteger(sessionsValue) || sessionsValue < 1 || sessionsValue > termSessions;
-  const perSession = sessionsInvalid ? null : termPerSession(priceValue, sessionsValue);
-  const customised = priceValue !== termPrice || sessionsValue !== termSessions;
+  // 報了就是整期：堂數一律 = 這一期的，只能個別改價。
+  const perSession = termPerSession(priceValue, termSessions);
+  const customised = priceValue !== termPrice;
+  // 已收款後改價：每堂收入會跟著變，實收金額不會——提醒一下，動態會記一筆。
+  const repricingPaid = editing && enrollment.isPaid && priceValue !== enrollment.price;
 
   const handleSubmit = async () => {
     if (!who) {
       setError("請選擇或輸入學員");
-      return;
-    }
-    if (sessionsInvalid) {
-      setError(`堂數要在 1–${termSessions} 堂之間`);
       return;
     }
     try {
@@ -99,7 +95,6 @@ const EnrollmentDrawer = ({
         await updateEnrollment({
           enrollmentId: enrollment.id,
           price: priceValue,
-          sessions: sessionsValue,
           note: note.trim() || null,
         }).unwrap();
         toast.success("已更新");
@@ -108,7 +103,6 @@ const EnrollmentDrawer = ({
           id: lessonId,
           ...(who.kind === "existing" ? { studentId: who.id } : { newStudentName: who.name }),
           price: priceValue,
-          sessions: sessionsValue,
           note: note.trim() || null,
           isPaid: priceValue === 0 || payment !== "UNPAID",
           paymentMethod: payment === "UNPAID" ? null : payment,
@@ -225,7 +219,7 @@ const EnrollmentDrawer = ({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-2">
             <span className="text-sm font-medium text-neutral-900">收費</span>
             <span className="relative">
@@ -239,32 +233,16 @@ const EnrollmentDrawer = ({
               />
             </span>
           </label>
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-neutral-900">堂數</span>
-            <input
-              inputMode="numeric"
-              value={sessions}
-              onChange={(e) => {
-                setSessions(e.target.value.replace(/\D/g, ""));
-                setError(null);
-              }}
-              aria-label="堂數"
-              className={cn(fieldControlClass(sessionsInvalid), "h-12 tabular-nums")}
-            />
-          </label>
         </div>
         <p className="-mt-3 text-[13px] text-neutral-600">
-          {perSession === null ? (
-            `堂數最多 ${termSessions} 堂`
-          ) : (
-            <>
-              每堂 <span className="tabular-nums">${formatMoney(Math.round(perSession))}</span>
-              {customised
-                ? `（這一期是 $${formatMoney(termPrice)} / ${termSessions} 堂）`
-                : "，請假曠課照算"}
-            </>
-          )}
+          整期 {termSessions} 堂，每堂 <span className="tabular-nums">${formatMoney(Math.round(perSession))}</span>
+          {customised ? `（這一期原價 $${formatMoney(termPrice)}）` : "，請假曠課照算"}
         </p>
+        {repricingPaid && (
+          <p className="-mt-2 rounded-lg bg-warning-50 px-3 py-2 text-[13px] text-warning-950">
+            已收 ${formatMoney(enrollment.price)}。改價後這一期每堂收入跟著變（已點名的也會），實收金額不會變；學生動態會記一筆改價。
+          </p>
+        )}
         <FieldError>{error}</FieldError>
 
         <label className="flex flex-col gap-2">

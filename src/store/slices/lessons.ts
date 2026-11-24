@@ -341,7 +341,6 @@ export interface RegisterEnrollmentBody {
   studentId?: number;
   newStudentName?: string;
   price?: number;
-  sessions?: number;
   isPaid: boolean;
   paymentMethod?: "CASH" | "TRANSFER" | null;
   paymentReference?: string | null;
@@ -359,6 +358,11 @@ export interface PeriodTermInfo {
     student: { id: number; name: string; avatarUrl: string };
     perSession: number;
     onLeave: boolean;
+    /** 這堂已經用課卡／單堂付了：這堂收入算那邊，不算整期這一份。 */
+    paidOtherwise: boolean;
+    /** 整期付了沒、整期價（點名時看狀態用）。 */
+    isPaid: boolean;
+    price: number;
   }[];
   previousLeaves: { periodId: number; startTime: string; students: { id: number; name: string }[] } | null;
 }
@@ -563,11 +567,12 @@ const lessonsApi = api.injectEndpoints({
       { id: number } & RegisterEnrollmentBody
     >({
       query: ({ id, ...body }) => ({ url: `lessons/${id}/enrollments`, method: "POST", body }),
-      invalidatesTags: ["Lesson", "Student", "Attendance"],
+      // 晚登記會把之前扣的卡退回去、單堂費刪掉（adoptEarlierAttendanceInTx）。
+      invalidatesTags: ["Lesson", "Student", "StudentCard", "Attendance", "AttendanceRecord"],
     }),
     updateEnrollment: builder.mutation<
       void,
-      { enrollmentId: number; price?: number; sessions?: number; note?: string | null }
+      { enrollmentId: number; price?: number; note?: string | null }
     >({
       query: ({ enrollmentId, ...body }) => ({ url: `lesson-enrollments/${enrollmentId}`, method: "PATCH", body }),
       invalidatesTags: ["Lesson", "Student", "Attendance"],
