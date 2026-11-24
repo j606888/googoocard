@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { ChevronRight, Clock, TriangleAlert } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import DanceStyleBar from "@/components/DanceStyleBar";
-import KiwiMascot from "@/components/KiwiMascot";
+import DanceStyleDot from "@/components/DanceStyleDot";
 import ClassroomSwitcher from "../nav/ClassroomSwitcher";
 import TodoBell, { openTodoBell } from "../TodoBell";
 import { timeLeftLabel } from "../lessons/lessonSchedule";
@@ -16,40 +15,34 @@ import RecentPeriods from "./RecentPeriods";
 import { dayLabel } from "./today";
 import { useToday } from "./useToday";
 
-const Chip = ({ children }: { children: React.ReactNode }) => (
-  <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-medium text-white">
-    {children}
-  </span>
-);
-
 const checkHref = ({ period }: AgendaRow) => `/lessons/${period.lesson.id}/periods/${period.id}/check`;
 
-/** 今天稍後的課：一列一堂，右邊點名。 */
+/** 手機上大區塊之間的 8px 淺灰帶（不是框）；桌面兩欄並排，不需要。 */
+const Band = () => <div aria-hidden="true" className="-mx-5 my-7 h-2 bg-band lg:hidden" />;
+
+/** 今天稍後的課：一列一堂，右邊文字「點名」。 */
 const LaterRow = ({ row, now }: { row: AgendaRow; now: Date }) => {
   const { period, state } = row;
   const taken = Boolean(period.attendanceTakenAt);
-  const people = period.lesson.teachers.map((t) => t.name).join("、");
   const when =
     state === "inClass"
       ? `上課中 · ${timeLeftLabel(new Date(period.endTime), now)}`
-      : `今天 ${format(new Date(period.startTime), "HH:mm")}`;
+      : format(new Date(period.startTime), "HH:mm");
   return (
-    <li className="flex min-h-15 items-center gap-3 rounded-2xl border border-transparent bg-white px-3 py-2 lg:border-neutral-200">
+    <li className="flex min-h-14 items-center gap-3 py-2">
       <Link href={`/lessons/${period.lesson.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-        <DanceStyleBar style={period.lesson.danceStyle} size="sm" />
+        <DanceStyleDot style={period.lesson.danceStyle} />
         <span className="min-w-0">
-          <span className="block truncate text-[15px] font-semibold text-neutral-900">
-            {period.lesson.name}
-          </span>
-          <span className="block truncate text-[13px] tabular-nums text-neutral-600">
-            {[when, people].filter(Boolean).join(" · ")}
+          <span className="block truncate text-[15px] font-medium text-ink">{period.lesson.name}</span>
+          <span className="block truncate text-[13px] tabular-nums text-ink-3">
+            {[when, period.lesson.location?.name].filter(Boolean).join(" · ")}
           </span>
         </span>
       </Link>
       {taken ? (
-        <span className="shrink-0 text-[13px] text-neutral-600">已點名</span>
+        <span className="shrink-0 text-[13px] text-ink-3">已點名</span>
       ) : (
-        <Button asChild variant="secondary" size="sm">
+        <Button asChild variant="text" size="sm">
           <Link href={checkHref(row)}>點名</Link>
         </Button>
       )}
@@ -57,16 +50,39 @@ const LaterRow = ({ row, now }: { row: AgendaRow; now: Date }) => {
   );
 };
 
+const TodoLine = ({
+  count,
+  children,
+  sub,
+}: {
+  count: number;
+  children: React.ReactNode;
+  sub?: string;
+}) => (
+  <>
+    <span className="min-w-7 text-xl font-semibold tabular-nums text-warning-800">{count}</span>
+    <span className="min-w-0 flex-1">
+      <span className="block text-[15px] text-ink">{children}</span>
+      {sub && <span className="block truncate text-[13px] text-ink-3">{sub}</span>}
+    </span>
+    <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-3" />
+  </>
+);
+
+const TODO_ROW = "flex min-h-13 w-full cursor-pointer items-center gap-3 py-2 text-left";
+
 /**
- * 「今天」：登入後的第一頁。先回答「我是誰、我在哪、現在要做什麼」——
- * 問候＋角色，下一堂課是唯一的主角，再來才是待處理與最近上過。
- * 手機與桌面同一棵樹（docs/ui-responsive.md L1）：桌面只是把內容排成兩欄，
+ * 「今天」：登入後的第一頁。先回答「現在要做什麼」——下一堂課是唯一的主角
+ * （時間放大、唯一的實心按鈕），再來才是待處理與最近上過。不包框、不放色塊
+ * （去框線改版，~/.claude/plans/quiet-redesign.md §3.1）。
+ * 手機與桌面同一棵樹（docs/ui-responsive.md L1）：桌面只是把下半部排成兩欄，
  * 教室切換與鈴鐺在側欄，所以頁首那一排只在手機出現。
  */
 const TodayScreen = () => {
   const today = useToday();
   const { view, now } = today;
   const location = view.hero?.period.lesson.location?.name;
+  const oldest = view.overdue[0];
 
   const handleTodos = () => {
     // App 裡鈴鐺是隱藏的（待處理是原生畫面）：交給 App 開。
@@ -77,119 +93,90 @@ const TodayScreen = () => {
     }
   };
 
-  // -mb-24/pb-24: the layout keeps 6rem of white for the bottom nav; pull the grey ground under it.
+  const subline = [
+    today.dateLabel,
+    location,
+    today.todayCount !== null && (today.todayCount > 0 ? `今天教 ${today.todayCount} 堂` : "今天沒有課"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const hasTodos = view.overdue.length > 0 || today.todoRows.length > 0;
+
   return (
-    <div className="-mb-24 flex min-h-screen flex-col bg-neutral-100 pb-24 lg:mb-0 lg:min-h-0 lg:bg-white lg:pb-0">
-      <header className="relative overflow-hidden rounded-b-[32px] bg-primary-900 px-5 pb-14 pt-2 text-white lg:mx-8 lg:mt-6 lg:rounded-3xl lg:px-8 lg:pb-7 lg:pt-7">
-        <div className="flex h-12 items-center lg:hidden">
-          <ClassroomSwitcher tone="onPrimary" />
-          <TodoBell tone="onPrimary" />
-        </div>
-        <p className="mt-2 min-h-5 text-[13px] font-medium text-primary-100 lg:mt-0">
-          {[today.dateLabel, location].filter(Boolean).join(" · ")}
-        </p>
-        <h1 className="mt-0.5 min-h-10 text-[30px] font-bold leading-10">
+    <div className="flex flex-col px-5 pb-10 lg:max-w-[1180px] lg:px-12 lg:pt-9">
+      <div className="flex h-12 items-center lg:hidden">
+        <ClassroomSwitcher />
+        <TodoBell />
+      </div>
+
+      <header className="mt-1 flex flex-col-reverse gap-0.5 lg:mt-0 lg:flex-row lg:items-baseline lg:justify-between">
+        <h1 className="min-h-9 text-[28px] font-semibold leading-9 tracking-[-0.01em] text-ink lg:text-[26px]">
           {today.greeting && `${today.greeting}${today.name ? `，${today.name}` : ""}`}
         </h1>
-        <div className="mt-1.5 flex min-h-6 flex-wrap gap-1.5">
-          {today.roleLabel && <Chip>{today.roleLabel}</Chip>}
-          {today.todayCount !== null && (
-            <Chip>{today.todayCount > 0 ? `今天教 ${today.todayCount} 堂` : "今天沒有課"}</Chip>
-          )}
-        </div>
-        {/* 兩座淡綠山丘＋全彩奇異鳥：今天有課就揮手，沒課就坐著。面向左邊的問候語。 */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-24 -right-16 h-44 w-80 rounded-[50%] bg-white/[0.07] lg:-bottom-36 lg:h-56 lg:w-[420px]"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-24 right-28 h-36 w-60 rounded-[50%] bg-white/[0.05] lg:-bottom-32 lg:right-44 lg:h-44 lg:w-[300px]"
-        />
-        <KiwiMascot
-          pose={view.hero && view.heroIsToday ? "wave" : "sit"}
-          flip
-          className="pointer-events-none absolute bottom-9 right-7 w-[92px] lg:bottom-5 lg:right-14 lg:w-[112px]"
-        />
+        <p className="min-h-5 text-[13px] text-ink-3 lg:text-sm">{subline}</p>
       </header>
 
-      <div className="relative z-10 -mt-9 grid gap-4 px-4 pb-8 lg:mt-6 lg:max-w-[1100px] lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-6 lg:px-8">
-        <div className="flex flex-col gap-3">
-          {today.isLoading ? (
-            <Skeleton aria-busy="true" className="h-56 w-full rounded-3xl bg-white" />
-          ) : (
-            <>
-              <NextLessonHero row={view.hero} now={now} isToday={view.heroIsToday} />
+      <div className="mt-7 lg:mt-10">
+        {today.isLoading ? (
+          <Skeleton aria-busy="true" className="h-56 w-full rounded-2xl" />
+        ) : (
+          <>
+            <NextLessonHero row={view.hero} now={now} isToday={view.heroIsToday} />
+            {view.later.length > 0 && (
+              <ul aria-label="今天稍後的課" className="divide-y divide-line border-b border-line">
+                {view.later.map((row) => (
+                  <LaterRow key={row.period.id} row={row} now={now} />
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
 
-              {view.overdue.length > 0 && (
-                <section
-                  aria-labelledby="overdue-heading"
-                  className="rounded-2xl bg-warning-100 px-3 py-2.5"
-                >
-                  <h2
-                    id="overdue-heading"
-                    className="flex items-center gap-1.5 px-1 text-sm font-bold text-warning-950"
-                  >
-                    <Clock aria-hidden="true" className="size-4" strokeWidth={2.4} />
-                    {view.overdue.length} 堂還沒點名
-                  </h2>
-                  <ul className="mt-1.5 flex flex-col gap-1.5">
-                    {view.overdue.map((row) => (
-                      <li
-                        key={row.period.id}
-                        className="flex min-h-12 items-center gap-3 rounded-xl bg-white px-3 py-1.5"
+      <div className="lg:mt-9 lg:grid lg:grid-cols-2 lg:gap-16">
+        {hasTodos && (
+          <>
+            <Band />
+            <section aria-labelledby="todo-heading">
+              <h2 id="todo-heading" className="mb-1 text-[17px] font-semibold text-ink lg:text-[13px] lg:text-ink-3">
+                待處理
+              </h2>
+              <ul className="divide-y divide-line">
+                {oldest && (
+                  <li>
+                    <Link
+                      href={view.overdue.length === 1 ? checkHref(oldest) : "/lessons"}
+                      className={TODO_ROW}
+                    >
+                      <TodoLine
+                        count={view.overdue.length}
+                        sub={[
+                          dayLabel(new Date(oldest.period.startTime)),
+                          oldest.period.lesson.name,
+                          oldest.period.lesson.location?.name,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       >
-                        <span className="min-w-0 flex-1 truncate text-sm text-neutral-900">
-                          <span className="font-semibold tabular-nums">
-                            {dayLabel(new Date(row.period.startTime))}
-                          </span>{" "}
-                          {row.period.lesson.name}
-                        </span>
-                        <Button asChild variant="secondary" size="sm">
-                          <Link href={checkHref(row)}>補點名</Link>
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-
-              {view.later.length > 0 && (
-                <ul aria-label="今天稍後的課" className="flex flex-col gap-2">
-                  {view.later.map((row) => (
-                    <LaterRow key={row.period.id} row={row} now={now} />
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-4">
-          {today.todo && (
-            <button
-              type="button"
-              onClick={handleTodos}
-              className={`flex min-h-13 w-full cursor-pointer items-center gap-3 rounded-2xl border border-transparent px-3 py-2 text-left lg:border-neutral-200 ${
-                today.todo.urgent ? "bg-warning-100 text-warning-950" : "bg-white text-neutral-800"
-              }`}
-            >
-              {today.todo.urgent && (
-                <TriangleAlert aria-hidden="true" className="size-5 shrink-0" strokeWidth={2.2} />
-              )}
-              <span
-                className={`grid size-7 shrink-0 place-items-center rounded-full text-sm font-bold ${
-                  today.todo.urgent ? "bg-warning-200" : "bg-neutral-100"
-                }`}
-              >
-                {today.todo.count}
-              </span>
-              <span className="min-w-0 flex-1 text-sm font-semibold">{today.todo.text}</span>
-              <ChevronRight aria-hidden="true" className="size-[18px] shrink-0" />
-            </button>
-          )}
-          <RecentPeriods periods={today.recent} isLoading={today.recentLoading} />
-        </div>
+                        堂還沒點名
+                      </TodoLine>
+                    </Link>
+                  </li>
+                )}
+                {today.todoRows.map((row) => (
+                  <li key={row.key}>
+                    <button type="button" onClick={handleTodos} className={TODO_ROW}>
+                      <TodoLine count={row.count}>{row.text}</TodoLine>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </>
+        )}
+        <Band />
+        <RecentPeriods periods={today.recent} isLoading={today.recentLoading} />
       </div>
     </div>
   );
