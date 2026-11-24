@@ -41,7 +41,7 @@ describe("buildSeries", () => {
       [first.id, 1],
     ]);
     expect(series.lead?.lesson.id).toBe(second.id);
-    expect(termSummary(series)).toBe("第 2 期 · 3 / 5 堂");
+    expect(termSummary(series)).toBe("第 2 期，上了 3 / 5 堂");
   });
 
   it("gives each ungrouped running lesson its own row and pools finished ones", () => {
