@@ -67,7 +67,6 @@ const StudentSelectList = ({
     );
   }
 
-  const bookedIds = new Set(bookedStudents.map((s) => s.id));
   const renderRow = (student: Student, inRoster: boolean) => {
     const isChecked = selected.has(student.id);
     // 名冊外的人多半沒有這堂課能用的卡，整串「沒卡」只是雜訊——勾了才標。
@@ -85,7 +84,7 @@ const StudentSelectList = ({
         isSelfCheckIn={selfCheckInStudentIds.includes(student.id)}
         studentNote={studentNotes?.get(student.id)}
         isTrial={trialStudentIds.includes(student.id)}
-        isBooked={bookedIds.has(student.id)}
+        isBooked={bookingNotes?.has(student.id) ?? false}
         bookingNote={bookingNotes?.get(student.id)}
         tag={tag}
         cardLine={cardLine}

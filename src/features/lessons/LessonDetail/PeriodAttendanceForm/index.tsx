@@ -26,7 +26,7 @@ type PeriodAttendanceFormProps = {
   selfCheckInStudentIds?: number[];
   /** 學生 id → 自助簽到時留給老師的話。 */
   studentNotes?: Map<number, string>;
-  /** 在課程頁體驗名單上登記、還沒上過的人——預設勾好並標「體驗報名」。 */
+  /** 在課程頁體驗名單上登記、還沒上過的人——排在「預計今天會到」、標「體驗報名」，不預設勾選。 */
   trialStudentIds?: number[];
   /** `leaveStudentIds` 只在這門課開了整期時才有：沒來的整期學生裡標「請假」的人。 */
   onSubmit: (studentIds: number[], leaveStudentIds?: number[]) => Promise<void>;
@@ -158,8 +158,10 @@ const PeriodAttendanceForm = ({
     />
   );
 
-  const isBooked = (studentId: number) => bookingNotes.has(studentId) && !enrolledIds.has(studentId);
-  const inMainList = (studentId: number) => !enrolledIds.has(studentId) && !bookingNotes.has(studentId);
+  // 預計今天會到 = 預約的人 ＋ 體驗名單上登記的人（整期的人在整期區）。都不預設勾選。
+  const expectedIds = new Set([...bookingNotes.keys(), ...trialStudentIds]);
+  const isBooked = (studentId: number) => expectedIds.has(studentId) && !enrolledIds.has(studentId);
+  const inMainList = (studentId: number) => !enrolledIds.has(studentId) && !expectedIds.has(studentId);
   const bookedStudents = [...rosterStudents, ...otherStudents].filter((student) => isBooked(student.id));
   const canBook = !period.attendanceTakenAt;
   const list = (
