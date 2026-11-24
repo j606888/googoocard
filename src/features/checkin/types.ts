@@ -10,6 +10,8 @@ export interface TodayPeriod {
   alreadyChecked: boolean;
   /** 報了整期、這堂在他報的堂數內：第幾堂（1 起算）。有它就不用付。 */
   termIndex?: number;
+  /** 老師幫他登記了「預計會來」這一堂。只是提示，付費照舊。 */
+  booked?: boolean;
 }
 
 export type TermAttendanceStatus = "present" | "leave" | "absent" | "upcoming" | "outside";

@@ -46,6 +46,7 @@ export async function previewPeriodCards({
     prisma.lessonPeriod.findFirst({
       where: { id: periodId, lessonId },
       select: {
+        bookings: { select: { studentId: true } },
         attendanceRecords: {
           select: {
             studentId: true,
@@ -70,6 +71,8 @@ export async function previewPeriodCards({
       ...lesson.students.map((s) => s.studentId),
       ...recordByStudent.keys(),
       ...covering.keys(),
+      // 預計會來的人：還沒勾就先算好會扣哪張卡，點名頁那一區才看得到卡況。
+      ...period.bookings.map((b) => b.studentId),
       ...extraStudentIds.slice(0, MAX_EXTRA_STUDENTS),
     ]),
   ];

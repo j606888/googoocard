@@ -20,6 +20,8 @@ const StudentOption = ({
   isSelfCheckIn = false,
   studentNote,
   isTrial = false,
+  isBooked = false,
+  bookingNote,
   tag,
   cardLine,
   action,
@@ -31,6 +33,10 @@ const StudentOption = ({
   /** 學生自助簽到時留的話。 */
   studentNote?: string;
   isTrial?: boolean;
+  /** 老師事先登記了「預計會來」這一堂（只是提示，不預設勾選）。 */
+  isBooked?: boolean;
+  /** 預約時寫的備註（「先試第一堂」）。 */
+  bookingNote?: string | null;
   tag?: RowTag;
   /** 「進階6堂 · 扣完剩 3 堂」 */
   cardLine?: string;
@@ -74,12 +80,14 @@ const StudentOption = ({
               {isSelfCheckIn && <StatusTag tone="outline">自助簽到</StatusTag>}
               {student.lineSelfClaimed && <StatusTag tone="warning">自助認領</StatusTag>}
               {isTrial && <StatusTag tone="outline">體驗報名</StatusTag>}
+              {isBooked && <StatusTag tone="outline">預計今天會到</StatusTag>}
               {student.isNewStudent && <StatusTag tone="positive">新學員</StatusTag>}
               {student.note && (
                 <span className="truncate text-sm text-neutral-500">({student.note})</span>
               )}
             </div>
             {cardLine && <p className="truncate text-xs text-neutral-600">{cardLine}</p>}
+            {bookingNote && <p className="truncate text-xs text-neutral-500">預約備註：{bookingNote}</p>}
             {/* 沒卡不擋點名：送出後這個人會進完成頁的「待處理」。先講清楚，老師才敢按完成。 */}
             {needsCard && <p className="truncate text-xs font-medium text-accent-900">沒卡 · 可以先點名再補</p>}
           </div>

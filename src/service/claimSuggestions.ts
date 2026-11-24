@@ -9,7 +9,8 @@ import { bestNameMatch } from "@/lib/nameMatch";
  * with the people already registered for them who haven't bound a LINE yet:
  *
  * - 整期: a `LessonEnrollment` on that lesson;
- * - 體驗: an unused (remaining > 0) trial card of a trial card that lesson takes.
+ * - 體驗: an unused (remaining > 0) trial card of a trial card that lesson takes;
+ * - 預約: a `PeriodBooking` on one of that lesson's periods today (預計會來).
  *
  * Only in-class (not archived), unbound students, and only today's lessons — the user
  * accepted that whoever scans the poster sees today's registered names (2026-11-24),
@@ -21,7 +22,7 @@ export interface ClaimSuggestionStudent {
   id: number;
   name: string;
   avatarUrl: string;
-  kind: "term" | "trial";
+  kind: "term" | "trial" | "booked";
 }
 
 export interface ClaimSuggestionGroup {
@@ -54,8 +55,10 @@ export async function todayClaimSuggestions(
       periods: {
         where: { startTime: { gte: start, lt: end } },
         orderBy: { startTime: "asc" },
-        take: 1,
-        select: { startTime: true },
+        select: {
+          startTime: true,
+          bookings: { where: { student: claimable }, select: { student: { select: studentSelect } } },
+        },
       },
       enrollments: {
         where: { student: claimable },
@@ -84,6 +87,11 @@ export async function todayClaimSuggestions(
       for (const lc of lesson.cards) {
         for (const { student } of lc.card.studentCards) {
           if (!byId.has(student.id)) byId.set(student.id, { ...student, kind: "trial" });
+        }
+      }
+      for (const period of lesson.periods) {
+        for (const { student } of period.bookings) {
+          if (!byId.has(student.id)) byId.set(student.id, { ...student, kind: "booked" });
         }
       }
       return {

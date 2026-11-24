@@ -115,6 +115,25 @@ export const updateEnrollmentSchema = z.object({
   note: z.string().trim().max(200).nullish(),
 });
 
+/**
+ * 預計會來（PeriodBooking）：選既有學生或直接打名字（二擇一）。
+ * 課程頁的登記／修改帶 `periodIds`（還沒點名的堂改成剛好這些；空陣列 = 取消他還沒上的預約）；
+ * 點名頁的「＋ 預計會來」只登記那一堂，不帶 `periodIds`。
+ */
+const bookingWho = {
+  studentId: positiveInt.optional(),
+  newStudentName: z.string().trim().min(1).max(50).optional(),
+  note: z.string().trim().max(200).nullish(),
+};
+const exactlyOneWho = (data: { studentId?: number; newStudentName?: string }) =>
+  (data.studentId === undefined) !== (data.newStudentName === undefined);
+export const setBookingsSchema = z
+  .object({ ...bookingWho, periodIds: z.array(positiveInt).max(60) })
+  .refine(exactlyOneWho, { message: "Pass exactly one of studentId / newStudentName", path: ["studentId"] });
+export const bookPeriodSchema = z
+  .object(bookingWho)
+  .refine(exactlyOneWho, { message: "Pass exactly one of studentId / newStudentName", path: ["studentId"] });
+
 /** 點名送出：出席的人，加上（選填）整期學生裡請假的人。省略 leaveStudentIds = 請假不動。 */
 export const takeAttendanceSchema = z.object({
   studentIds: z.array(positiveInt),

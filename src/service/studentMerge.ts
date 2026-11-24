@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { moveBookingsInTx } from "@/service/periodBooking";
 import prisma from "@/lib/prisma";
 import { ApiError, notFound } from "@/lib/apiError";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
@@ -180,6 +181,9 @@ export async function mergeStudents(
         await tx.lessonEnrollment.delete({ where: { id: e.id } });
       }
     }
+
+    // ----- 預計會來：同一堂兩邊都預約了就留 target 的 -----
+    await moveBookingsInTx(tx, source.id, target.id);
 
     // ----- Plain moves -----
     await tx.studentCard.updateMany({ where: { studentId: source.id }, data: { studentId: target.id } });

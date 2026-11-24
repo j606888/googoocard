@@ -14,7 +14,7 @@ interface SuggestionGroup {
   lessonId: number;
   lessonName: string;
   startTime: string;
-  students: (ClaimCandidate & { kind: "term" | "trial" })[];
+  students: (ClaimCandidate & { kind: "term" | "trial" | "booked" })[];
 }
 interface Suggestions {
   groups: SuggestionGroup[];
@@ -317,7 +317,7 @@ function SuggestionList({
           </h2>
           <SuggestionRow
             student={best}
-            detail={`${bestLesson?.lessonName ?? ""} · ${best.kind === "term" ? "整期" : "體驗"}`}
+            detail={`${bestLesson?.lessonName ?? ""} · ${best.kind === "term" ? "整期" : best.kind === "booked" ? "預約" : "體驗"}`}
             highlighted
             onPick={onPick}
           />

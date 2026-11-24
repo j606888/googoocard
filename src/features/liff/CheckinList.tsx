@@ -596,6 +596,12 @@ function LessonBlock({
               <span className={cn("text-[17px] font-bold", disabled && "text-neutral-500")}>
                 {timeFmt.format(new Date(period.startTime))} {lesson.lessonName}
               </span>
+              {/* 老師幫他登記了預計會來——只是提示，付費照舊。 */}
+              {period.booked && !disabled && (
+                <span className="self-start rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-900">
+                  你預約了今天這堂
+                </span>
+              )}
               <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-neutral-600">
                 <span className="flex items-center gap-1.5">
                   <span aria-hidden className="size-2 rounded-full" style={meta.fill} />

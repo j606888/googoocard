@@ -53,7 +53,7 @@ const TermRoster = ({ lesson }: { lesson: Lesson }) => {
         <EmptyState
           kind="inline"
           title="還沒有人報整期"
-          description="登記之後，點名時他們會自動勾好、不扣課卡；沒來的可以標請假。"
+          description="登記之後，點名時會標「預計今天會到」、不扣課卡；沒來的可以標請假。"
         />
       ) : (
         <>

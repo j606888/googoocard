@@ -28,7 +28,7 @@ const CheckPeriod = () => {
   // Memoize so the array refs stay stable across renders — PeriodAttendanceForm
   // syncs its selection off defaultSelectedIds in an effect, and a fresh array
   // each render would re-fire that effect and wipe the teacher's manual edits.
-  // 課程頁體驗名單上已登記、還沒上過的人也預設勾好——他們上課前就報名收費了。
+  // 課程頁體驗名單上已登記、還沒上過的人（上課前就報名收費了）：點名頁標「體驗報名」。
   const { data: trials, isLoading: isTrialsLoading } = useGetLessonTrialsQuery({ id: Number(id) });
   const trialStudentIds = useMemo(
     () =>
@@ -44,8 +44,10 @@ const CheckPeriod = () => {
     periodId: Number(periodId),
   });
   const defaultSelectedIds = useMemo(
-    () => [...new Set([...(existingRecords ?? []).map((r) => r.studentId), ...trialStudentIds])],
-    [existingRecords, trialStudentIds]
+    // 體驗名單上登記的人也**不預設勾選**（2026-11-24 使用者決定，跟整期、預約一致）——
+    // 他們排在「預計今天會到」那一區、標「體驗報名」，來了老師親手勾。
+    () => [...new Set((existingRecords ?? []).map((r) => r.studentId))],
+    [existingRecords]
   );
   const selfCheckInStudentIds = useMemo(
     () =>
