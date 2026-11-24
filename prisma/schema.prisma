@@ -48,36 +48,37 @@ enum LineMenuMode {
 }
 
 model User {
-  id                      Int                      @id @default(autoincrement())
-  email                   String                   @unique
-  name                    String
-  password                String
-  randomKey               String?                  @unique // one-time key shown on the website; sent to the LINE bot to bind
-  lineUserId              String?                  @unique // bound LINE userId; used for LIFF auto-login
-  googleSub               String?                  @unique // Google 帳號的 sub（Google 登入）
-  appleSub                String?                  @unique // Apple 帳號的 sub（Sign in with Apple）
+  id                         Int                      @id @default(autoincrement())
+  email                      String                   @unique
+  name                       String
+  password                   String
+  randomKey                  String?                  @unique // one-time key shown on the website; sent to the LINE bot to bind
+  lineUserId                 String?                  @unique // bound LINE userId; used for LIFF auto-login
+  googleSub                  String?                  @unique // Google 帳號的 sub（Google 登入）
+  appleSub                   String?                  @unique // Apple 帳號的 sub（Sign in with Apple）
   // 刪帳號時要拿它向 Apple 撤銷授權（App Store 5.1.1(v)）。秘密：永遠不要放進 API 回應
-  appleRefreshToken       String?
-  appleClientId           String? // 拿到 refresh token 的 client（App 的 bundle ID 或網頁的 Services ID）
-  classrooms              Classroom[]              @relation("OwnedClassrooms")
-  memberships             Membership[]
-  purchasedStudentCards   StudentCard[]            @relation("PurchasedStudentCards")
-  confirmedStudentCards   StudentCard[]            @relation("ConfirmedStudentCards")
-  confirmedDropIns        DropInCharge[]           @relation("ConfirmedDropIns")
-  currentClassroomId      Int?
-  currentClassroom        Classroom?               @relation(fields: [currentClassroomId], references: [id])
+  appleRefreshToken          String?
+  appleClientId              String? // 拿到 refresh token 的 client（App 的 bundle ID 或網頁的 Services ID）
+  classrooms                 Classroom[]              @relation("OwnedClassrooms")
+  memberships                Membership[]
+  purchasedStudentCards      StudentCard[]            @relation("PurchasedStudentCards")
+  confirmedStudentCards      StudentCard[]            @relation("ConfirmedStudentCards")
+  confirmedDropIns           DropInCharge[]           @relation("ConfirmedDropIns")
+  currentClassroomId         Int?
+  currentClassroom           Classroom?               @relation(fields: [currentClassroomId], references: [id])
   // 帳號已刪除（匿名化）。非 null = decodeAuthToken 把這個人當成沒登入，
   // 其他裝置上還沒過期的 JWT 也就跟著失效（見 DELETE /api/me）。
-  deletedAt               DateTime?
-  pushTokens              PushToken[]
-  webPushSubscriptions    WebPushSubscription[]
-  notificationPreferences NotificationPreference[]
+  deletedAt                  DateTime?
+  pushTokens                 PushToken[]
+  webPushSubscriptions       WebPushSubscription[]
+  notificationPreferences    NotificationPreference[]
   // 連到的老師資料（每間教室最多一筆，Teacher.userId）
-  teacherProfiles         Teacher[]
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  enrolledLessonEnrollments  LessonEnrollment[] @relation("EnrolledLessonEnrollments")
-  confirmedLessonEnrollments LessonEnrollment[] @relation("ConfirmedLessonEnrollments")
+  teacherProfiles            Teacher[]
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+  enrolledLessonEnrollments  LessonEnrollment[]       @relation("EnrolledLessonEnrollments")
+  confirmedLessonEnrollments LessonEnrollment[]       @relation("ConfirmedLessonEnrollments")
+  createdPeriodBookings      PeriodBooking[]
 }
 
 model Classroom {
@@ -216,6 +217,7 @@ model Student {
   danceQualifications StudentDanceQualification[]
   renewalReminders    RenewalReminder[]
   lessonEnrollments   LessonEnrollment[]
+  periodBookings      PeriodBooking[]
   // 封存（不是刪除）：名單、自助簽到、LIFF、續卡提醒都看不到；課卡、出席、收入照留，可還原。
   archivedAt          DateTime?
   // 合併學員時，被併掉（封存）的那筆指向保留的學員。純 Int、沒有 FK，只供追查。
@@ -296,23 +298,23 @@ model StudentCard {
 }
 
 model Lesson {
-  id                    Int               @id @default(autoincrement())
+  id                    Int                @id @default(autoincrement())
   name                  String
   classroomId           Int
-  classroom             Classroom         @relation(fields: [classroomId], references: [id])
-  status                String            @default("inProgress")
+  classroom             Classroom          @relation(fields: [classroomId], references: [id])
+  status                String             @default("inProgress")
   endAt                 DateTime?
   // "fixed" = a set run of dates, finished once every period is checked;
   // "ongoing" = keeps adding periods, never auto-finishes (src/lib/lessonKind.ts).
-  kind                  String            @default("fixed")
+  kind                  String             @default("fixed")
   // Set when a teacher ends a lesson by hand — finished regardless of kind.
   endedAt               DateTime?
   danceStyleId          Int
-  danceStyle            DanceStyle        @relation(fields: [danceStyleId], references: [id])
+  danceStyle            DanceStyle         @relation(fields: [danceStyleId], references: [id])
   // Level taught (1 = 初階, 2 = 中階, 3 = 進階 — src/lib/danceLevels.ts).
-  level                 Int               @default(1)
+  level                 Int                @default(1)
   // 每次出席扣幾格課卡（外師課常用 2）。點名當下抄到 AttendanceRecord.sessionsUsed。
-  sessionsPerAttendance Int               @default(1)
+  sessionsPerAttendance Int                @default(1)
   // 單堂價（現場付費，不扣課卡）。null = 這堂不開放單堂付費。
   dropInPrice           Int?
   // 單堂方案（src/lib/dropInOptions.ts）：[{ name, price, note? }]，最多 4 個。
@@ -325,17 +327,17 @@ model Lesson {
   enrollments           LessonEnrollment[]
   // 分部（台南／高雄…）。選填；課卡不分部限定。
   locationId            Int?
-  location              Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  location              Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
   groupId               Int?
-  group                 LessonGroup?      @relation(fields: [groupId], references: [id])
+  group                 LessonGroup?       @relation(fields: [groupId], references: [id])
   teachers              LessonTeacher[]
   // 這門課的小幫手（整門課，不分時段）。同一個人不會同時是老師又是小幫手。
   assistants            LessonAssistant[]
   cards                 LessonCard[]
   periods               LessonPeriod[]
   students              LessonStudent[]
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   @@index([classroomId])
   @@index([groupId])
@@ -455,6 +457,7 @@ model LessonPeriod {
   updatedAt         DateTime           @updatedAt
   attendanceTakenAt DateTime?
   leaves            PeriodLeave[]
+  bookings          PeriodBooking[]
 
   // Daily revenue and the calendar both filter a lesson's periods by date.
   @@index([lessonId, startTime])
@@ -474,17 +477,17 @@ model LessonStudent {
 }
 
 model AttendanceRecord {
-  id             Int              @id @default(autoincrement())
+  id             Int               @id @default(autoincrement())
   lessonPeriodId Int
-  lessonPeriod   LessonPeriod     @relation(fields: [lessonPeriodId], references: [id])
+  lessonPeriod   LessonPeriod      @relation(fields: [lessonPeriodId], references: [id])
   studentId      Int
-  student        Student          @relation(fields: [studentId], references: [id])
+  student        Student           @relation(fields: [studentId], references: [id])
   studentCardId  Int?
-  studentCard    StudentCard?     @relation(fields: [studentCardId], references: [id])
-  source         AttendanceSource @default(TEACHER)
+  studentCard    StudentCard?      @relation(fields: [studentCardId], references: [id])
+  source         AttendanceSource  @default(TEACHER)
   // 這筆出席從 studentCard 扣了幾格（扣卡當下抄自 Lesson.sessionsPerAttendance；
   // 沒綁卡時是將來綁卡要扣的格數）。退卡退同樣格數、收入照它認列。
-  sessionsUsed   Int              @default(1)
+  sessionsUsed   Int               @default(1)
   // 這次付單堂（不扣卡）。有它就不算「出席沒綁課卡」。
   dropInCharge   DropInCharge?
   // 報了整期的人來上這門課：不扣卡、不收錢（收入照 LessonEnrollment 每堂攤）。
@@ -492,8 +495,8 @@ model AttendanceRecord {
   enrollment     LessonEnrollment? @relation(fields: [enrollmentId], references: [id])
   // 學生自助簽到時留給老師的話（「想報整期，下課付現」）。只有 source = STUDENT 會有。
   studentNote    String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   // One attendance record per student per period — guards against duplicate
   // self check-ins (LIFF double-tap / concurrent submit) double-charging a card.
@@ -700,4 +703,22 @@ model PeriodLeave {
 
   @@unique([enrollmentId, lessonPeriodId])
   @@index([lessonPeriodId])
+}
+
+// 預計會來（課前登記）：老師事先登記「這位學生這堂會來」。跟付費無關（單堂、課卡、還沒付都可以），
+// 也跟點名分開——點名頁標「預計今天會到」但不預設勾選，事後看得出誰預約了沒來。
+// 只能登記還沒點名的堂。見 src/service/periodBooking.ts。
+model PeriodBooking {
+  id              Int          @id @default(autoincrement())
+  lessonPeriodId  Int
+  lessonPeriod    LessonPeriod @relation(fields: [lessonPeriodId], references: [id], onDelete: Cascade)
+  studentId       Int
+  student         Student      @relation(fields: [studentId], references: [id])
+  note            String?
+  createdByUserId Int?
+  createdBy       User?        @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdAt       DateTime     @default(now())
+
+  @@unique([lessonPeriodId, studentId])
+  @@index([studentId])
 }

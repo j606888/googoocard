@@ -349,6 +349,27 @@ export interface RegisterEnrollmentBody {
   note?: string | null;
 }
 
+/** 預約學生某一堂的狀態（src/service/periodBooking.ts）。`walk_in` = 沒預約但來了。 */
+export type BookingStatus = "booked" | "present" | "no_show" | "walk_in" | null;
+
+/** GET /api/lessons/[id]/bookings——課程頁「預計會來」。 */
+export interface BookingRoster {
+  periods: { id: number; index: number; startTime: string; attendanceTaken: boolean }[];
+  students: {
+    student: { id: number; name: string; avatarUrl: string };
+    note: string | null;
+    /** 每個時段（照 periods 的順序）的狀態。 */
+    statuses: BookingStatus[];
+    counts: { booked: number; present: number; noShow: number };
+  }[];
+}
+
+export interface BookingWho {
+  studentId?: number;
+  newStudentName?: string;
+  note?: string | null;
+}
+
 /** GET /api/lessons/[id]/periods/[periodId]/term——點名頁、點名完成頁用。 */
 export interface PeriodTermInfo {
   offered: boolean;
@@ -560,6 +581,29 @@ const lessonsApi = api.injectEndpoints({
       query: ({ id }) => `lessons/${id}/enrollments`,
       providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
     }),
+    getLessonBookings: builder.query<BookingRoster, { id: number }>({
+      query: ({ id }) => `lessons/${id}/bookings`,
+      providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
+    }),
+    getPeriodBookings: builder.query<
+      { bookings: { note: string | null; student: { id: number; name: string; avatarUrl: string } }[] },
+      { id: number; periodId: number }
+    >({
+      query: ({ id, periodId }) => `lessons/${id}/periods/${periodId}/bookings`,
+      providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
+    }),
+    setStudentBookings: builder.mutation<{ studentId: number }, { id: number; periodIds: number[] } & BookingWho>({
+      query: ({ id, ...body }) => ({ url: `lessons/${id}/bookings`, method: "POST", body }),
+      invalidatesTags: ["Lesson", "Student", "Attendance"],
+    }),
+    bookPeriod: builder.mutation<{ studentId: number }, { id: number; periodId: number } & BookingWho>({
+      query: ({ id, periodId, ...body }) => ({
+        url: `lessons/${id}/periods/${periodId}/bookings`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Lesson", "Student", "Attendance"],
+    }),
     getPeriodTerm: builder.query<PeriodTermInfo, { id: number; periodId: number }>({
       query: ({ id, periodId }) => `lessons/${id}/periods/${periodId}/term`,
       providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
@@ -695,6 +739,10 @@ export const {
   useGetLessonStudentsQuery,
   useGetLessonTrialsQuery,
   useGetLessonEnrollmentsQuery,
+  useGetLessonBookingsQuery,
+  useGetPeriodBookingsQuery,
+  useSetStudentBookingsMutation,
+  useBookPeriodMutation,
   useGetPeriodTermQuery,
   useRegisterEnrollmentMutation,
   useUpdateEnrollmentMutation,

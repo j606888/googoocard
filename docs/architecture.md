@@ -273,6 +273,19 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - LIFF 簽到：`/api/liff/today` 的時段多 `termIndex`、課多 `term`（進度），整期涵蓋的課不用選卡，顯示「已報名整期 · 今天第 n / N 堂」。
 - 測試：`tests/api/term-enrollment.test.ts`、`src/lib/termEnrollment.test.ts`。
 
+## 預計會來（`PeriodBooking`，2026-11-24）
+
+老師事先登記「這位學生這幾堂會來」——先上一堂再決定要不要整期、整期裡某天確定請假所以只登記會來的堂、用課卡、單堂、甚至還沒付錢都可以。邏輯在 `src/service/periodBooking.ts`。
+
+- **跟付費無關、跟點名分開**（使用者決定）：「登記會來」是預期，「點名點到」是事實，兩個都留著。點名頁把預約的人放最上面一區「預計今天會到」，**不預設勾選**（預設勾好容易誤送）；名字旁標「預計今天會到」，下面寫預約備註與會扣哪張卡（`previewPeriodCards` 會把預約的人算進去）。
+- **入口**：課程頁「學生」分頁的「預計會來」（`BookingRoster`：每人一排格子＝預計會來／有來／預約沒來／沒預約但來了），按「登記」選既有學生或打名字建新學生（同名不擋）、勾還沒點名的堂（預設下一堂）、備註；點一列改堂數或「取消他還沒上的預約」（`POST /api/lessons/[id]/bookings`，還沒點名的堂改成剛好 `periodIds`）。點名頁「＋ 預計會來」只登記那一堂（`POST .../periods/[periodId]/bookings`）。
+- **只能登記還沒點名的堂**（`PERIOD_NOT_OPEN`）；只有老師登記（學生在 LINE 預約／取消是第二版）。
+- **預約沒來**：只記錄——點名完成頁列「預約沒來」（算進缺席數）、課程頁格子標紅。**不進待處理、不進正式名單**（`LessonStudent` 照舊在第一次點到時才建）、不記學生動態。不顯示預計人數（使用者決定不用）。
+- **整期學生不用預約**：報了整期就是每堂預計會到（請假的除外），在點名頁的整期區。
+- **LIFF**：`getTodayLessons()` 的時段多 `booked`，預約了的課排最前面、標「你預約了今天這堂」；付費照舊（預約不是付了錢），沒預約的人照樣能簽到。「這是你嗎」（`todayClaimSuggestions`）也列今天預約、還沒綁 LINE 的人（`kind: "booked"`）——老師先建的新同學第一次掃 QR 就能認領自己。
+- 時段刪除 → 預約跟著刪（FK cascade）；改時間 → 預約跟著時段走。合併學員 → 搬到保留的那位，同一堂兩邊都有留一筆（`moveBookingsInTx`）。
+- 測試：`tests/api/period-booking.test.ts`。
+
 ## 一次扣多格（外師課，2026-10）
 
 `Lesson.sessionsPerAttendance`（1–3，預設 1，`src/lib/lessonKind.ts`）＝學生來上一次扣幾堂課卡；開課／課程設定都能改。建出席紀錄時把它抄到 `AttendanceRecord.sessionsUsed`，之後一律看這個快照：扣卡、退卡（取消勾選、重設點名、合併學員）、手動綁卡（consume）、收入（`periodRevenue`）。改課程設定不會改寫已點名的紀錄。

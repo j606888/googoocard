@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { useGetPeriodTermQuery } from "@/store/slices/lessons";
+import { useGetPeriodBookingsQuery, useGetPeriodTermQuery } from "@/store/slices/lessons";
+import PeriodBookingDrawer from "../BookingRoster/PeriodBookingDrawer";
 import TermAttendanceSection, { PreviousLeavesBanner } from "./TermAttendanceSection";
 import { Button } from "@/components/ui/button";
 import SubNavbar from "@/features/SubNavbar";
@@ -93,6 +94,14 @@ const PeriodAttendanceForm = ({
   const setLeave = (studentId: number, onLeave: boolean) =>
     setLeaveOverride((prev) => new Map(prev).set(studentId, onLeave));
 
+  // 預計會來（老師事先登記的）：最上面一區、標「預計今天會到」，不預設勾選。整期的人在整期區。
+  const { data: periodBookings } = useGetPeriodBookingsQuery({ id: Number(id), periodId: Number(periodId) });
+  const bookingNotes = useMemo(
+    () => new Map((periodBookings?.bookings ?? []).map((b) => [b.student.id, b.note])),
+    [periodBookings]
+  );
+  const [isBookOpen, setIsBookOpen] = useState(false);
+
   const desktopHeader = (
     <div className="flex items-center gap-3 px-8 pt-6 pb-4">
       <Link
@@ -149,10 +158,17 @@ const PeriodAttendanceForm = ({
     />
   );
 
+  const isBooked = (studentId: number) => bookingNotes.has(studentId) && !enrolledIds.has(studentId);
+  const inMainList = (studentId: number) => !enrolledIds.has(studentId) && !bookingNotes.has(studentId);
+  const bookedStudents = [...rosterStudents, ...otherStudents].filter((student) => isBooked(student.id));
+  const canBook = !period.attendanceTakenAt;
   const list = (
     <StudentSelectList
-      rosterStudents={rosterStudents.filter((student) => !enrolledIds.has(student.id))}
-      otherStudents={otherStudents.filter((student) => !enrolledIds.has(student.id))}
+      rosterStudents={rosterStudents.filter((student) => inMainList(student.id))}
+      otherStudents={otherStudents.filter((student) => inMainList(student.id))}
+      bookedStudents={bookedStudents}
+      bookingNotes={bookingNotes}
+      onBookClick={canBook ? () => setIsBookOpen(true) : undefined}
       selectedIds={selectedIds}
       keyword={keyword}
       rowTags={rowTags}
@@ -179,6 +195,16 @@ const PeriodAttendanceForm = ({
         onLeaveChange={setLeave}
       />
     ) : null;
+
+  const bookDrawer = canBook ? (
+    <PeriodBookingDrawer
+      lessonId={Number(id)}
+      periodId={Number(periodId)}
+      excludeIds={[...bookingNotes.keys(), ...enrolledIds]}
+      open={isBookOpen}
+      onClose={() => setIsBookOpen(false)}
+    />
+  ) : null;
 
   const review = (
     <AttendanceReview
@@ -231,6 +257,7 @@ const PeriodAttendanceForm = ({
           </div>
         </div>
         {createStudent}
+        {bookDrawer}
       </>
     );
   }
@@ -290,6 +317,7 @@ const PeriodAttendanceForm = ({
         <div className="pb-4">{review}</div>
       </Drawer>
       {createStudent}
+      {bookDrawer}
     </>
   );
 };

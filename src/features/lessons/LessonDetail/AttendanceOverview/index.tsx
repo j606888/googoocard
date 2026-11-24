@@ -11,6 +11,7 @@ import RosterList from "./RosterList";
 import RosterTable from "./RosterTable";
 import TrialRoster from "../TrialRoster";
 import TermRoster from "../TermRoster";
+import BookingRoster from "../BookingRoster";
 
 /**
  * The lesson's attendance at a glance: how is each student tracking (roster)
@@ -55,6 +56,7 @@ const AttendanceOverview = ({
     return (
       <div className="flex flex-col gap-5">
         <TermRoster lesson={lesson} />
+        <BookingRoster lesson={lesson} />
         <TrialRoster lesson={lesson} />
         <AttentionList items={items} acceptedCardNames={acceptedCardNames} />
         <RosterList rows={rows} />
@@ -66,6 +68,7 @@ const AttendanceOverview = ({
   return (
     <div className="flex flex-col gap-7">
       <TermRoster lesson={lesson} />
+      <BookingRoster lesson={lesson} />
       <TrialRoster lesson={lesson} />
       <RosterTable
         rows={rows}

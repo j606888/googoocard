@@ -485,8 +485,8 @@ import `renewalReminder` / `pushMessage` / `findExhaustedRenewableCard`），沒
   注意：整期的收入會回溯（晚登記、改價、退卡改算整期都會改過去那堂）——日結過的那天數字會變，先不處理。
 - **App 待處理清單缺「單堂未付」「整期未付」** — 圖示數字（`total`）有算，原生清單（`mobile/src/app/todos.tsx`）沒列，
   數字會比清單多。2026-11-24 使用者決定先不改 App。
-- **課前報名（預約制）** — 現在是純 walk-in（`getTodayLessons()` 回傳當天所有課），
-  老師無法預估人數。改動較大，會牽動 `LessonStudent` 與整個簽到流程。
+- [x] **課前報名（預約制）** ✅ 2026-11-24 第一版：老師登記「預計會來」（`PeriodBooking`，見 architecture「預計會來」）。
+  刻意不做：預計人數、預約沒來進待處理、預約就進名單。第二版：學生在 LINE 自己預約／取消。
 - [x] **自助購卡對帳 Phase 3** ✅ 2026-10-25 以 `onsite-checkin-newcomer-plan.md` 取代：不做
   `CardOrder`，改在確認收款時記 `paymentMethod` / `paymentReference`（末五碼）/ 收款人
   （`paidByUserId`），加上下課對帳與追帳排序。未付款照算營收。

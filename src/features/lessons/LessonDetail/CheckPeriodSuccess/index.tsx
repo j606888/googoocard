@@ -11,6 +11,7 @@ import {
   useGetLessonQuery,
   useGetLessonStudentsQuery,
   useGetPeriodTermQuery,
+  useGetPeriodBookingsQuery,
 } from "@/store/slices/lessons";
 import StudentInfo from "@/components/StudentInfo";
 import PendingStudents from "./PendingStudents";
@@ -47,6 +48,8 @@ const CheckPeriodSuccess = () => {
   const { data: lesson } = useGetLessonQuery(id as string);
   // 整期：這堂涵蓋的整期學生與每人每堂價——有來沒來都算進這堂收入。
   const { data: term } = useGetPeriodTermQuery({ id: Number(id), periodId: Number(periodId) });
+  // 預計會來的人：點完名沒來 = 「預約沒來」（只記錄，不進待處理）。
+  const { data: periodBookings } = useGetPeriodBookingsQuery({ id: Number(id), periodId: Number(periodId) });
   const { data: rosterStudents, isLoading: isRosterLoading } =
     useGetLessonStudentsQuery({ id: Number(id) });
   const period = lesson?.periods.find(
@@ -122,16 +125,25 @@ const CheckPeriodSuccess = () => {
   // attended).
   const enrolled = useMemo(() => (term?.offered ? term.enrolled : []), [term]);
   const enrolledIds = useMemo(() => new Set(enrolled.map((e) => e.student.id)), [enrolled]);
+  const bookedNoShows = useMemo(() => {
+    if (!period?.attendanceTakenAt) return [];
+    const attended = new Set((attendanceRecords ?? []).map((r) => r.studentId));
+    return (periodBookings?.bookings ?? []).filter(
+      (b) => !attended.has(b.student.id) && !enrolledIds.has(b.student.id)
+    );
+  }, [period, attendanceRecords, periodBookings, enrolledIds]);
+  const bookedNoShowIds = useMemo(() => new Set(bookedNoShows.map((b) => b.student.id)), [bookedNoShows]);
   const absentStudents = useMemo(() => {
     if (!period || !rosterStudents) return [];
     return rosterStudents.filter(
       (student) =>
         !enrolledIds.has(student.id) &&
+        !bookedNoShowIds.has(student.id) &&
         student.attendances.some(
           (a) => a.startTime === period.startTime && a.attendanceStatus === "absent"
         )
     );
-  }, [period, rosterStudents, enrolledIds]);
+  }, [period, rosterStudents, enrolledIds, bookedNoShowIds]);
   // 整期學生裡沒來的：請假或曠課（曠課 = 沒請假）。
   const enrolledMissing = useMemo(() => {
     const attended = new Set((attendanceRecords ?? []).map((r) => r.studentId));
@@ -224,7 +236,8 @@ const CheckPeriodSuccess = () => {
     return prices.length === 1 ? `$${formatMoney(prices[0])}` : null;
   })();
   const leaveCount = enrolledMissing.filter((e) => e.onLeave).length;
-  const absentCount = absentStudents.length + (period?.attendanceTakenAt ? enrolledMissing.length : 0);
+  const absentCount =
+    absentStudents.length + bookedNoShows.length + (period?.attendanceTakenAt ? enrolledMissing.length : 0);
   const headline = summaryHeadline({
     justSubmitted,
     attended: attendanceRecords.length,
@@ -425,6 +438,24 @@ const CheckPeriodSuccess = () => {
                   className="mr-auto"
                 />
                 <StatusTag tone={onLeave ? "warning" : "danger"}>整期 · {onLeave ? "請假" : "曠課"}</StatusTag>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {bookedNoShows.length > 0 && (
+          <div className="flex flex-col gap-2 w-full">
+            {bookedNoShows.map(({ student, note }) => (
+              <div className="flex gap-2 items-center" key={student.id}>
+                <StudentInfo
+                  studentId={student.id}
+                  avatarUrl={student.avatarUrl}
+                  name={student.name}
+                  size="small"
+                  className="mr-auto"
+                />
+                {note && <span className="truncate text-xs text-neutral-500">{note}</span>}
+                <StatusTag tone="danger">預約沒來</StatusTag>
               </div>
             ))}
           </div>

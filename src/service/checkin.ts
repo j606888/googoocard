@@ -22,6 +22,8 @@ export interface TodayPeriod {
   alreadyChecked: boolean;
   /** 報了整期、這堂在他報的堂數內：第幾堂（1 起算）。有它就不用付卡。 */
   termIndex?: number;
+  /** 老師幫他登記了「預計會來」這一堂（PeriodBooking）。只是提示，付費照舊。 */
+  booked?: boolean;
 }
 
 /** 學生自己的整期（LIFF 簽到頁的「已報名整期」）。 */
@@ -200,6 +202,16 @@ export async function getTodayLessons(
         })
       : [];
   const checkedIds = new Set(checkedRecords.map((r) => r.lessonPeriodId));
+  const bookedIds = new Set(
+    studentId && periodIds.length
+      ? (
+          await prisma.periodBooking.findMany({
+            where: { studentId, lessonPeriodId: { in: periodIds } },
+            select: { lessonPeriodId: true },
+          })
+        ).map((b) => b.lessonPeriodId)
+      : []
+  );
 
   const openPeriods = (lesson: (typeof lessons)[number]) =>
     // 老師已定案的時段不收自助簽到；自己簽過的留著顯示「已簽到」。
@@ -221,6 +233,7 @@ export async function getTodayLessons(
             endTime: period.endTime,
             alreadyChecked: checkedIds.has(period.id),
             ...(termIndex !== undefined ? { termIndex: termIndex + 1 } : {}),
+            ...(bookedIds.has(period.id) ? { booked: true } : {}),
           };
         }),
         ...(studentId
@@ -232,6 +245,10 @@ export async function getTodayLessons(
       };
     })
   );
+
+  // 預約了的課排最前面（今天同時有好幾堂時，他不用自己找）；其餘維持原本的順序。
+  const isBooked = (lesson: TodayLesson) => lesson.periods.some((p) => p.booked);
+  today.sort((a, b) => Number(isBooked(b)) - Number(isBooked(a)));
 
   const mine = studentId
     ? await Promise.all([myTermSummaries(studentId), myCardSummaries(studentId)])

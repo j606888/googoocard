@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { Student } from "@/store/slices/students";
 import type { RowTag } from "@/hooks/attendanceFlow";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,9 @@ const StudentSelectList = ({
   selfCheckInStudentIds = [],
   studentNotes,
   trialStudentIds = [],
+  bookedStudents = [],
+  bookingNotes,
+  onBookClick,
   onToggle,
   onSetMany,
   onCreateClick,
@@ -36,6 +39,11 @@ const StudentSelectList = ({
   selfCheckInStudentIds?: number[];
   studentNotes?: Map<number, string>;
   trialStudentIds?: number[];
+  /** 預計今天會到（老師事先登記的）——最上面一區，**不預設勾選**。 */
+  bookedStudents?: Student[];
+  bookingNotes?: Map<number, string | null>;
+  /** 「＋ 預計會來」（只在還沒點名的堂）。 */
+  onBookClick?: () => void;
   onToggle: (studentId: number) => void;
   onSetMany: (studentIds: number[], checked: boolean) => void;
   onCreateClick: () => void;
@@ -59,6 +67,7 @@ const StudentSelectList = ({
     );
   }
 
+  const bookedIds = new Set(bookedStudents.map((s) => s.id));
   const renderRow = (student: Student, inRoster: boolean) => {
     const isChecked = selected.has(student.id);
     // 名冊外的人多半沒有這堂課能用的卡，整串「沒卡」只是雜訊——勾了才標。
@@ -76,6 +85,8 @@ const StudentSelectList = ({
         isSelfCheckIn={selfCheckInStudentIds.includes(student.id)}
         studentNote={studentNotes?.get(student.id)}
         isTrial={trialStudentIds.includes(student.id)}
+        isBooked={bookedIds.has(student.id)}
+        bookingNote={bookingNotes?.get(student.id)}
         tag={tag}
         cardLine={cardLine}
         action={
@@ -100,8 +111,32 @@ const StudentSelectList = ({
   // 這門課還沒有人（第一堂）時，「其他學生」就是全部，不用再按一下才看得到。
   const othersExpanded = isSearching || !showRoster || othersOpen;
 
+  const bookedPresent = bookedStudents.filter((s) => selected.has(s.id)).length;
   return (
     <div className="flex flex-col gap-1.5">
+      {(bookedStudents.length > 0 || (onBookClick && !isSearching)) && (
+        <>
+          <div className="flex h-9 items-center justify-between">
+            <h2 className="text-sm font-bold text-neutral-700">
+              預計今天會到
+              {bookedStudents.length > 0 && (
+                <span className="font-medium text-neutral-500">
+                  {" "}
+                  · {bookedPresent} / {bookedStudents.length}
+                </span>
+              )}
+            </h2>
+            {onBookClick && (
+              <Button variant="ghost" size="sm" className="-mr-2 font-bold text-primary-900" onClick={onBookClick}>
+                <Plus className="size-4" />
+                預計會來
+              </Button>
+            )}
+          </div>
+          {bookedStudents.map((student) => renderRow(student, true))}
+          {(showRoster || otherStudents.length > 0) && <div className="mt-1 border-t border-neutral-200" />}
+        </>
+      )}
       {showRoster && (
         <>
           <div className="flex h-9 items-center justify-between">
