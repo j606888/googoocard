@@ -20,7 +20,8 @@ import { toTaipeiDateKey } from "@/lib/taipei-date";
 import { useSizeClass } from "@/hooks/useMediaQuery";
 import { Button } from "@/components/ui/button";
 import StatusTag from "@/components/StatusTag";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, formatShare } from "@/lib/money";
+import { PeriodSplitBreakdown } from "../RevenueSplitPanel";
 import { ConfirmDropInForm } from "./DropInForm";
 import KiwiMascot from "@/components/KiwiMascot";
 import { headcountByPeriod } from "@/domains/attendance/rosterInsights";
@@ -422,13 +423,23 @@ const CheckPeriodSuccess = () => {
                       剩 {attendanceRecord?.remainingSessions} 堂
                     </span>
                   )}
+              {!attendanceRecord.dropIn && (
+                <span className="w-16 text-right text-sm font-medium tabular-nums text-neutral-900">
+                  {formatShare(
+                    attendanceRecord.enrollment
+                      ? (enrolled.find((e) => e.student.id === attendanceRecord.studentId)?.perSession ??
+                          attendanceRecord.income)
+                      : attendanceRecord.income
+                  )}
+                </span>
+              )}
             </div>
           ))}
         </div>
 
         {period?.attendanceTakenAt && enrolledMissing.length > 0 && (
           <div className="flex flex-col gap-2 w-full">
-            {enrolledMissing.map(({ student, onLeave }) => (
+            {enrolledMissing.map(({ student, onLeave, perSession, paidOtherwise }) => (
               <div className="flex gap-2 items-center" key={student.id}>
                 <StudentInfo
                   studentId={student.id}
@@ -438,6 +449,11 @@ const CheckPeriodSuccess = () => {
                   className="mr-auto"
                 />
                 <StatusTag tone={onLeave ? "warning" : "danger"}>整期 · {onLeave ? "請假" : "曠課"}</StatusTag>
+                {!paidOtherwise && (
+                  <span className="w-16 text-right text-sm font-medium tabular-nums text-neutral-900">
+                    {formatShare(perSession)}
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -476,6 +492,10 @@ const CheckPeriodSuccess = () => {
               </div>
             ))}
           </div>
+        )}
+
+        {period?.attendanceTakenAt && pendingRecords.length === 0 && (
+          <PeriodSplitBreakdown lesson={lesson} income={income} />
         )}
 
         <RenewalNudge

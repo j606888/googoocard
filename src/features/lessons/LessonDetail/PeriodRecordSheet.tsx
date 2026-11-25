@@ -15,7 +15,7 @@ import {
 import SideSheet, { SideSheetTitle } from "@/components/SideSheet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, formatShare } from "@/lib/money";
 import { lessonDropInOptions } from "@/lib/dropInOptions";
 import { toTaipeiDateKey } from "@/lib/taipei-date";
 import PendingStudents from "./CheckPeriodSuccess/PendingStudents";
@@ -28,10 +28,6 @@ const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 // 已解決 = 扣了卡、付了單堂或報了整期（$0 的體驗卡 income 是 0，不能拿 income 判斷）。
 // 跟手機的 CheckPeriodSuccess 同一套。
 const isResolved = (record: AttendanceRecord) => Boolean(record.cardName || record.dropIn || record.enrollment);
-
-/** 這個人在這堂分到的錢：整數照寫，除不盡的（$2000 ÷ 6）留一位小數，才對得起總收入。 */
-const shareText = (amount: number) =>
-  `$${Number.isInteger(amount) ? amount.toLocaleString() : (Math.round(amount * 10) / 10).toLocaleString()}`;
 
 /**
  * 桌面版：已點名時段的紀錄，開在課程頁右側，名單留在原地。
@@ -211,7 +207,7 @@ const PeriodRecordSheet = ({
                     <span className="text-[13px] text-neutral-600">
                       整期
                       <span className="ml-2 inline-block w-16 text-right tabular-nums text-neutral-900">
-                        {shareText(
+                        {formatShare(
                           enrolled.find((e) => e.student.id === record.studentId)?.perSession ?? record.income
                         )}
                       </span>
@@ -238,7 +234,7 @@ const PeriodRecordSheet = ({
                         </span>
                       )}
                       <span className="w-16 text-right text-[13px] tabular-nums text-neutral-900">
-                        {shareText(record.income)}
+                        {formatShare(record.income)}
                       </span>
                     </>
                   )}
@@ -251,7 +247,7 @@ const PeriodRecordSheet = ({
                 {enrolledMissing
                   .map(
                     (e) =>
-                      `${e.student.name}${e.onLeave ? "（請假）" : ""}${e.paidOtherwise ? "" : ` ${shareText(e.perSession)}`}`
+                      `${e.student.name}${e.onLeave ? "（請假）" : ""}${e.paidOtherwise ? "" : ` ${formatShare(e.perSession)}`}`
                   )
                   .join("、")}
               </p>

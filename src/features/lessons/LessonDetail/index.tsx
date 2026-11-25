@@ -19,20 +19,20 @@ import TermRoster from "./TermRoster";
 import BookingRoster from "./BookingRoster";
 import TrialRoster from "./TrialRoster";
 import StudentSheet from "@/features/students/StudentSheet";
-import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/money";
 import TermHeader from "./TermHeader";
 import PastTerms from "./PastTerms";
 import { useTermPage } from "./useTermPage";
 
 type DesktopTab = "periods" | "term" | "bookings" | "students" | "split" | "settings";
+type MobileTab = "periods" | "students" | "split" | "settings";
 
 const LessonDetail = () => {
   const { id } = useParams();
   // 只掛載其中一棵樹。兩棵都掛的話 PeriodSection / AttendanceOverview /
   // SettingSection 會各跑兩次（見 docs/ui-responsive.md 的「代價一」）。
   const isExpanded = useSizeClass() === "expanded";
-  const [activeTab, setActiveTab] = useState("periods");
+  const [activeTab, setActiveTab] = useState<MobileTab>("periods");
   const [desktopTab, setDesktopTab] = useState<DesktopTab>("periods");
   const [settingsDirty, setSettingsDirty] = useState(false);
   // 桌面：時段紀錄與學生詳情開在右側抽屜，名單留在原地。一次只開一個。
@@ -75,7 +75,7 @@ const LessonDetail = () => {
     if (desktopTab === "settings" && tab !== "settings") discardSettingsThen(() => setDesktopTab(tab));
     else setDesktopTab(tab);
   };
-  const requestTabChange = (tab: string) => {
+  const requestTabChange = (tab: MobileTab) => {
     if (activeTab === "settings" && tab !== "settings") discardSettingsThen(() => setActiveTab(tab));
     else setActiveTab(tab);
   };
@@ -203,21 +203,25 @@ const LessonDetail = () => {
       ) : (
         /* 手機：這一期的頁首，下面時段、名單一路往下捲；設定從頁首的「編輯」進。 */
         <div className="pb-4">
-          <TermHeader lesson={lesson} term={term} onOpenSettings={() => setActiveTab("settings")} />
-          {activeTab === "settings" ? (
+          <TermHeader lesson={lesson} term={term} onOpenSettings={() => requestTabChange("settings")} />
+          {/* 手機分頁：時段／學生（名單＋整期＋預計會來）／分潤／設定。 */}
+          <SegmentedTabs<MobileTab>
+            variant="underline"
+            fill
+            ariaLabel="課程分頁"
+            className="mt-4 border-b border-line px-3"
+            value={activeTab}
+            onChange={requestTabChange}
+            options={[
+              { value: "periods", label: "時段" },
+              { value: "students", label: "學生" },
+              { value: "split", label: "分潤" },
+              { value: "settings", label: "設定" },
+            ]}
+          />
+          {activeTab === "settings" && <SettingSection lesson={lesson} onDirtyChange={setSettingsDirty} />}
+          {activeTab === "periods" && (
             <>
-              <div className="flex items-center justify-between px-5 pt-3">
-                <h2 className="text-[17px] font-semibold text-ink">編輯課程</h2>
-                <Button variant="text" size="sm" onClick={() => requestTabChange("periods")}>
-                  完成
-                </Button>
-              </div>
-              <SettingSection lesson={lesson} onDirtyChange={setSettingsDirty} />
-            </>
-          ) : (
-            /* 去框線改版：不再分「時段／學生」兩個分頁，整頁往下捲；大區塊之間 8px 淺灰帶。 */
-            <>
-              <div aria-hidden="true" className="mt-6 h-2 bg-band" />
               <PeriodSection
                 lesson={lesson}
                 periods={lesson?.periods || []}
@@ -226,11 +230,17 @@ const LessonDetail = () => {
                 termRevenues={term.termRevenues}
               />
               <PastTerms terms={term.terms} currentLessonId={lesson.id} />
-              <div aria-hidden="true" className="mt-6 h-2 bg-band" />
-              <div className="px-5 pt-6 pb-4">
-                <AttendanceOverview lesson={lesson} students={students || []} variant="compact" />
-              </div>
             </>
+          )}
+          {activeTab === "students" && (
+            <div className="px-5 pt-6 pb-4">
+              <AttendanceOverview lesson={lesson} students={students || []} variant="compact" />
+            </div>
+          )}
+          {activeTab === "split" && (
+            <div className="px-5 pt-6 pb-4">
+              <RevenueSplitPanel key={lesson.id} lesson={lesson} revenues={term.revenues} />
+            </div>
           )}
         </div>
       )}
