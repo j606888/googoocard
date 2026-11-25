@@ -128,7 +128,7 @@ const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map
             分潤順序
           </h2>
           <p className="mt-1 text-[13px] leading-relaxed text-ink-3">
-            每堂點完名，從上往下一步一步分，拖 <GripVertical className="inline size-3.5 align-[-2px]" /> 改順序。
+            每堂點完名，從上往下一步一步分，用箭頭（電腦也可以拖 <GripVertical className="inline size-3.5 align-[-2px]" />）改順序。
             {sample
               ? `右邊用 ${format(new Date(sample.startTime), "M/d")}（收入 $${formatMoney(sampleIncome)}）試算。`
               : "還沒有點過名的堂，先用 $0 試算。"}
@@ -150,12 +150,12 @@ const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map
                   move(from, index);
                 }}
                 onDragEnd={() => setDragKey(null)}
-                className={`flex min-h-16 items-center gap-3 border-b border-line py-2 pr-1 last:border-b-0 ${
+                className={`flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line py-2 pr-1 last:border-b-0 lg:flex-nowrap ${
                   dragKey === s.key ? "bg-primary-50" : ""
                 }`}
               >
                 <span className="flex shrink-0 items-center text-ink-3">
-                  <GripVertical aria-hidden="true" className="size-4 cursor-grab" />
+                  <GripVertical aria-hidden="true" className="hidden size-4 cursor-grab lg:block" />
                   <span className="flex flex-col">
                     <button
                       type="button"
@@ -185,14 +185,16 @@ const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map
                     placeholder="名稱"
                     maxLength={20}
                     onChange={(e) => patch(s.key, { label: e.target.value })}
-                    className={`${INPUT} w-32`}
+                    className={`${INPUT} min-w-0 flex-1 lg:w-32 lg:flex-none`}
                   />
                 ) : (
-                  <span className="w-32 truncate text-[15px] font-medium text-ink">{s.label}</span>
+                  <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-ink lg:w-32 lg:flex-none">{s.label}</span>
                 )}
+                {/* 手機換行：「從哪裡算＋比例」排到第二行。 */}
+                <span aria-hidden="true" className="order-last h-0 basis-full lg:hidden" />
                 <SegmentedControl
                   ariaLabel={`${s.label || "這一步"}從哪裡算`}
-                  className="w-60 shrink-0"
+                  className="order-last ml-9 min-w-0 flex-1 lg:order-none lg:ml-0 lg:w-60 lg:flex-none lg:shrink-0"
                   value={s.basis}
                   onChange={(basis) => patch(s.key, { basis })}
                   options={(["total", "remaining", "fixed"] as const).map((b) => ({ value: b, label: SPLIT_BASIS_LABEL[b] }))}
@@ -204,7 +206,7 @@ const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map
                     placeholder="500"
                     value={s.amount}
                     onChange={(e) => patch(s.key, { amount: e.target.value.replace(/[^\d]/g, "") })}
-                    className={`${INPUT} w-20 text-right`}
+                    className={`${INPUT} order-last w-20 text-right lg:order-none`}
                   />
                 ) : (
                   <input
@@ -212,10 +214,10 @@ const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map
                     placeholder="1/3"
                     value={s.ratio}
                     onChange={(e) => patch(s.key, { ratio: e.target.value })}
-                    className={`${INPUT} w-20 text-right`}
+                    className={`${INPUT} order-last w-20 text-right lg:order-none`}
                   />
                 )}
-                <span className="ml-auto w-36 text-right leading-tight">
+                <span className="ml-auto text-right leading-tight lg:w-36">
                   {line ? (
                     <>
                       <b className="block text-[15px] font-semibold tabular-nums text-ink">${formatMoney(line.amount)}</b>
@@ -236,16 +238,16 @@ const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map
               </li>
             );
           })}
-          <li className="flex min-h-16 items-center gap-3 py-2 pr-1 pl-[3.25rem]">
-            <span className="text-[15px] font-medium text-ink">剩下的全部歸</span>
+          <li className="flex min-h-16 items-center gap-3 py-2 pr-1 pl-9 lg:pl-[3.25rem]">
+            <span className="shrink-0 text-[15px] font-medium text-ink">剩下的全部歸</span>
             <input
               aria-label="剩下的歸給誰"
               value={remainderLabel}
               maxLength={20}
               onChange={(e) => setRemainderLabel(e.target.value)}
-              className={`${INPUT} w-36`}
+              className={`${INPUT} min-w-0 w-28 lg:w-36`}
             />
-            <span className="ml-auto w-36 text-right leading-tight">
+            <span className="ml-auto text-right leading-tight lg:w-36">
               {preview && (
                 <b
                   className={`block text-[15px] font-semibold tabular-nums ${
@@ -256,11 +258,11 @@ const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map
                 </b>
               )}
             </span>
-            <span className="size-8 shrink-0" />
+            <span className="hidden size-8 shrink-0 lg:block" />
           </li>
         </ol>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Select<string>
             aria-label="加一步"
             size="sm"
