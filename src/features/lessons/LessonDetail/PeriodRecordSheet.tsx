@@ -10,6 +10,7 @@ import {
   type Lesson,
   type LessonStudent,
   useGetAttendanceQuery,
+  useGetPeriodTermQuery,
 } from "@/store/slices/lessons";
 import SideSheet, { SideSheetTitle } from "@/components/SideSheet";
 import { Button } from "@/components/ui/button";
@@ -23,8 +24,9 @@ import { DropInStatus } from "./CheckPeriodSuccess";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
-// 已解決 = 扣了卡或付了單堂（$0 的體驗卡 income 是 0，不能拿 income 判斷）。
-const isResolved = (record: AttendanceRecord) => Boolean(record.cardName || record.dropIn);
+// 已解決 = 扣了卡、付了單堂或報了整期（$0 的體驗卡 income 是 0，不能拿 income 判斷）。
+// 跟手機的 CheckPeriodSuccess 同一套。
+const isResolved = (record: AttendanceRecord) => Boolean(record.cardName || record.dropIn || record.enrollment);
 
 /**
  * 桌面版：已點名時段的紀錄，開在課程頁右側，名單留在原地。
@@ -68,11 +70,26 @@ const PeriodRecordSheet = ({
     { skip: periodId == null }
   );
 
+  // 整期：這堂涵蓋的整期學生與每人每堂價——有來沒來都算進這堂收入。
+  const { currentData: term } = useGetPeriodTermQuery(
+    { id: lesson.id, periodId: periodId as number },
+    { skip: periodId == null }
+  );
+
   const pending = records?.filter((record) => !isResolved(record)) ?? [];
   const resolved = records?.filter(isResolved) ?? [];
-  const income = Math.round(resolved.reduce((sum, record) => sum + record.income, 0));
+  // 這堂收入 = 課卡／單堂（有來才算）＋ 整期（報名的人每人一份，來不來都算；
+  // 這堂已用課卡／單堂付的整期學生不重複算）。同 CheckPeriodSuccess 與收入頁。
+  const enrolled = term?.offered ? term.enrolled : [];
+  const income = Math.round(
+    resolved.filter((record) => !record.enrollment).reduce((sum, record) => sum + record.income, 0) +
+      enrolled.filter((e) => !e.paidOtherwise).reduce((sum, e) => sum + e.perSession, 0)
+  );
+  const attendedIds = new Set((records ?? []).map((record) => record.studentId));
+  const enrolledMissing = enrolled.filter((e) => !attendedIds.has(e.student.id));
   const absent = period
     ? students.filter((student) =>
+        !enrolled.some((e) => e.student.id === student.id) &&
         student.attendances.some(
           (a) => a.startTime === period.startTime && a.attendanceStatus === "absent"
         )
@@ -185,7 +202,9 @@ const PeriodRecordSheet = ({
                   >
                     {record.studentName}
                   </button>
-                  {record.dropIn ? (
+                  {record.enrollment && !record.cardName && !record.dropIn ? (
+                    <span className="text-[13px] text-neutral-600">整期</span>
+                  ) : record.dropIn ? (
                     <DropInStatus
                       dropIn={record.dropIn}
                       options={dropInOptions}
@@ -211,6 +230,12 @@ const PeriodRecordSheet = ({
                 </li>
               ))}
             </ul>
+            {enrolledMissing.length > 0 && (
+              <p className="text-[13px] text-neutral-600">
+                整期沒來：
+                {enrolledMissing.map((e) => `${e.student.name}${e.onLeave ? "（請假）" : ""}`).join("、")}
+              </p>
+            )}
             {absent.length > 0 && (
               <p className="text-[13px] text-neutral-600">
                 缺席：{absent.map((student) => student.name).join("、")}
