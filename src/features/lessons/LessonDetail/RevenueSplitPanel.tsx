@@ -190,6 +190,8 @@ const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map
                 ) : (
                   <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-ink lg:w-32 lg:flex-none">{s.label}</span>
                 )}
+                {/* 手機換行：「從哪裡算＋比例」排到第二行。 */}
+                <span aria-hidden="true" className="order-last h-0 basis-full lg:hidden" />
                 <SegmentedControl
                   ariaLabel={`${s.label || "這一步"}從哪裡算`}
                   className="order-last ml-9 min-w-0 flex-1 lg:order-none lg:ml-0 lg:w-60 lg:flex-none lg:shrink-0"
