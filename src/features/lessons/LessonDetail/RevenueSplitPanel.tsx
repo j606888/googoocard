@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowDown, ArrowUp, GripVertical, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight, GripVertical, PencilLine, X } from "lucide-react";
 import { toast } from "sonner";
 import { type Lesson, useUpdateRevenueSplitMutation } from "@/store/slices/lessons";
 import { Button } from "@/components/ui/button";
@@ -65,14 +66,28 @@ const INPUT =
 /**
  * 桌面課程頁「分潤」分頁：一堂收入照順序一步一步分，剩下的歸水庫（src/lib/revenueSplit.ts）。
  * 每一步明寫從「總收入／剩下的／固定 $」算，旁邊用最近一堂的收入試算。
+ *
+ * 有規則時預設唯讀，按「編輯」才出現控制項——整頁都是一碰就改的分段控制與叉叉，
+ * 手滑就改掉了（2026-11-26 使用者要求）。還沒設定過的課直接是編輯狀態。
  */
-const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map<number, number> }) => {
+const RevenueSplitPanel = ({
+  lesson,
+  revenues,
+  onViewPeriod,
+}: {
+  lesson: Lesson;
+  revenues: Map<number, number>;
+  /** 桌面：在原地開那堂的點名紀錄側欄。沒給（手機）就連到那堂的點名結果頁。 */
+  onViewPeriod?: (periodId: number) => void;
+}) => {
   const saved = useMemo(() => parseRevenueSplit(lesson.revenueSplit), [lesson.revenueSplit]);
   const [steps, setSteps] = useState<DraftStep[]>(() => toDraft(saved));
   const [remainderLabel, setRemainderLabel] = useState(
     () => saved?.remainderLabel ?? defaultRemainderLabel(lesson.location?.name)
   );
   const [dragKey, setDragKey] = useState<number | null>(null);
+  const hasSaved = Boolean(saved && saved.steps.length > 0);
+  const [editing, setEditing] = useState(!hasSaved);
   const [updateSplit, { isLoading }] = useUpdateRevenueSplitMutation();
 
   const draft = fromDraft(steps, remainderLabel);
@@ -115,26 +130,84 @@ const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map
     try {
       await updateSplit({ id: lesson.id, split: draft.steps.length > 0 ? draft : null }).unwrap();
       toast.success("分潤規則已儲存");
+      if (draft.steps.length > 0) setEditing(false);
     } catch {
       toast.error("儲存失敗，請再試一次");
     }
+  };
+
+  const cancel = () => {
+    setSteps(toDraft(saved));
+    setRemainderLabel(saved?.remainderLabel ?? defaultRemainderLabel(lesson.location?.name));
+    setEditing(!hasSaved);
   };
 
   return (
     <div className="flex max-w-[760px] flex-col gap-10">
       <section aria-labelledby="split-rule-title" className="flex flex-col gap-3">
         <div>
-          <h2 id="split-rule-title" className="text-base font-semibold text-ink">
-            分潤順序
-          </h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="split-rule-title" className="text-base font-semibold text-ink">
+              分潤順序
+            </h2>
+            {!editing && (
+              <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+                <PencilLine className="size-4" />
+                編輯
+              </Button>
+            )}
+          </div>
           <p className="mt-1 text-[13px] leading-relaxed text-ink-3">
-            每堂點完名，從上往下一步一步分，用箭頭（電腦也可以拖 <GripVertical className="inline size-3.5 align-[-2px]" />）改順序。
+            每堂點完名，從上往下一步一步分
+            {editing ? (
+              <>
+                ，用箭頭（電腦也可以拖 <GripVertical className="inline size-3.5 align-[-2px]" />）改順序。
+              </>
+            ) : (
+              "。"
+            )}
             {sample
               ? `右邊用 ${format(new Date(sample.startTime), "M/d")}（收入 $${formatMoney(sampleIncome)}）試算。`
               : "還沒有點過名的堂，先用 $0 試算。"}
           </p>
         </div>
 
+        {!editing && (
+          <ol className="border-y border-neutral-300">
+            {steps.map((s, index) => {
+              const line = preview?.lines[index];
+              return (
+                <li key={s.key} className="flex min-h-14 items-center gap-3 border-b border-line py-2">
+                  <span className="w-4 shrink-0 text-[13px] tabular-nums text-ink-3">{index + 1}</span>
+                  <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-ink">{s.label}</span>
+                  <span className="text-right leading-tight">
+                    <b className="block text-[15px] font-semibold tabular-nums text-ink">
+                      ${formatMoney(line?.amount ?? 0)}
+                    </b>
+                    <span className="text-xs text-ink-3">{line?.formula}</span>
+                  </span>
+                </li>
+              );
+            })}
+            <li className="flex min-h-14 items-center gap-3 py-2 pl-7">
+              <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-ink">
+                剩下的全部歸 {remainderLabel}
+              </span>
+              {preview && (
+                <b
+                  className={`text-[15px] font-semibold tabular-nums ${
+                    preview.remainder.amount < 0 ? "text-danger-700" : "text-ink"
+                  }`}
+                >
+                  ${formatMoney(preview.remainder.amount)}
+                </b>
+              )}
+            </li>
+          </ol>
+        )}
+
+        {editing && (
+        <>
         <ol className="border-y border-neutral-300">
           {steps.map((s, index) => {
             const line = preview?.lines[index];
@@ -278,6 +351,11 @@ const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map
           />
           <span className="flex-1" />
           {draft === null && steps.length > 0 && <span className="text-[13px] text-warning-800">有一步還沒填好</span>}
+          {(hasSaved || steps.length > 0) && (
+            <Button variant="secondary" onClick={cancel} disabled={isLoading}>
+              取消
+            </Button>
+          )}
           <Button onClick={save} isLoading={isLoading} disabled={!dirty || draft === null}>
             儲存
           </Button>
@@ -285,6 +363,8 @@ const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map
         <p className="text-[13px] leading-relaxed text-ink-3">
           「總收入」不管前面扣了什麼；「剩下的」是前面扣完之後。每一步捨去到整數元，零頭留給最後。開新一期會沿用這組規則。
         </p>
+        </>
+        )}
       </section>
 
       {rule && rule.steps.length > 0 && (
@@ -292,7 +372,7 @@ const RevenueSplitPanel = ({ lesson, revenues }: { lesson: Lesson; revenues: Map
           <h2 id="split-table-title" className="mb-2 text-base font-semibold text-ink">
             每一堂分到多少
           </h2>
-          <SplitTable lesson={lesson} rule={rule} revenues={revenues} />
+          <SplitTable lesson={lesson} rule={rule} revenues={revenues} onViewPeriod={onViewPeriod} />
         </section>
       )}
     </div>
@@ -303,10 +383,12 @@ const SplitTable = ({
   lesson,
   rule,
   revenues,
+  onViewPeriod,
 }: {
   lesson: Lesson;
   rule: RevenueSplit;
   revenues: Map<number, number>;
+  onViewPeriod?: (periodId: number) => void;
 }) => {
   const rows = (lesson.periods ?? []).map((p) => ({
     period: p,
@@ -315,9 +397,65 @@ const SplitTable = ({
   const done = rows.flatMap((r) => (r.split ? [r.split] : []));
   const total = (pick: (s: ReturnType<typeof computeSplit>) => number) => done.reduce((sum, s) => sum + pick(s), 0);
   const cell = "h-11 px-3 text-right tabular-nums";
+  const dateOf = (period: { startTime: string }) => format(new Date(period.startTime), "M/d");
+  const recordHref = (periodId: number) => `/lessons/${lesson.id}/periods/${periodId}/check-success`;
 
   return (
-    <div className="overflow-x-auto">
+    <>
+      {/* 手機：一堂一張直式的小卡——六欄的表只能橫捲，看不到全貌。點進去是那堂的點名結果。 */}
+      <ol className="flex flex-col border-y border-neutral-300 lg:hidden">
+        {rows.map(({ period, split }) =>
+          split ? (
+            <li key={period.id} className="border-b border-line last:border-b-0">
+              <Link href={recordHref(period.id)} className="flex flex-col gap-1 py-3 text-sm">
+                <span className="flex items-center justify-between font-semibold text-ink">
+                  <span className="tabular-nums">{dateOf(period)}</span>
+                  <span className="flex items-center gap-1 tabular-nums">
+                    收入 ${formatMoney(split.income)}
+                    <ChevronRight className="size-4 text-ink-3" />
+                  </span>
+                </span>
+                {split.lines.map((l, i) => (
+                  <span key={i} className="flex justify-between pr-5 text-ink-3">
+                    <span>{l.label}</span>
+                    <span className="tabular-nums text-ink">${formatMoney(l.amount)}</span>
+                  </span>
+                ))}
+                <span className="flex justify-between pr-5 text-ink-3">
+                  <span>{split.remainder.label}</span>
+                  <span className={`tabular-nums ${split.remainder.amount < 0 ? "text-danger-700" : "text-ink"}`}>
+                    ${formatMoney(split.remainder.amount)}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          ) : (
+            <li key={period.id} className="flex justify-between border-b border-line py-3 text-sm last:border-b-0">
+              <span className="font-semibold tabular-nums text-ink-3">{dateOf(period)}</span>
+              <span className="text-ink-3">還沒點名</span>
+            </li>
+          )
+        )}
+        {done.length > 0 && (
+          <li className="flex flex-col gap-1 py-3 text-sm font-semibold text-ink">
+            <span className="flex justify-between">
+              <span>合計</span>
+              <span className="tabular-nums">收入 ${formatMoney(total((s) => s.income))}</span>
+            </span>
+            {rule.steps.map((s, i) => (
+              <span key={i} className="flex justify-between font-normal">
+                <span>{s.label}</span>
+                <span className="tabular-nums">${formatMoney(total((x) => x.lines[i]?.amount ?? 0))}</span>
+              </span>
+            ))}
+            <span className="flex justify-between font-normal">
+              <span>{rule.remainderLabel}</span>
+              <span className="tabular-nums">${formatMoney(total((x) => x.remainder.amount))}</span>
+            </span>
+          </li>
+        )}
+      </ol>
+    <div className="hidden overflow-x-auto lg:block">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b border-neutral-300 text-xs text-ink-3">
@@ -334,7 +472,23 @@ const SplitTable = ({
         <tbody>
           {rows.map(({ period, split }) => (
             <tr key={period.id} className="border-b border-line">
-              <td className="h-11 pr-3 font-medium tabular-nums">{format(new Date(period.startTime), "M/d")}</td>
+              <td className="h-11 pr-3 font-medium tabular-nums">
+                {!split ? (
+                  dateOf(period)
+                ) : onViewPeriod ? (
+                  <button
+                    type="button"
+                    onClick={() => onViewPeriod(period.id)}
+                    className="cursor-pointer text-primary-800 underline-offset-4 hover:underline"
+                  >
+                    {dateOf(period)}
+                  </button>
+                ) : (
+                  <Link href={recordHref(period.id)} className="text-primary-800 underline-offset-4 hover:underline">
+                    {dateOf(period)}
+                  </Link>
+                )}
+              </td>
               {split ? (
                 <>
                   <td className={cell}>${formatMoney(split.income)}</td>
@@ -369,6 +523,7 @@ const SplitTable = ({
         </tbody>
       </table>
     </div>
+    </>
   );
 };
 

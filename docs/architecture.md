@@ -245,7 +245,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
   底下「其他期」橫向一排（`PastTerms`）。兩個外殼共用 `useTermPage()`：三格統計（`termOverview()`）、
   每堂收入、同課種各期。收入來自 `GET /api/lessons/[id]/period-stats`（`src/service/lessonStats.ts`，
   只算已點名的時段、走 `periodRevenue()`；整期收入先加總再取整）。桌面外殼只多了頁首下那一排統計，
-  時段欄維持新到舊＋月份分組。**停課沒有紀錄**（就是改期或刪掉時段），畫面上不顯示。
+  時段欄月份分組：固定期數由舊到新（像課表，上過的在上、還沒上的在下），持續開課的維持新到舊（2026-11-26）。「分潤」分頁有規則時預設唯讀、按「編輯」才能改；「每一堂分到多少」的日期點了開那堂的點名紀錄（手機是一堂一張直式小卡，連到點名結果頁）。手機點名結果頁的「收入明細（截圖用）」（`PeriodShareSummary`）把這堂每個人怎麼付、算多少、怎麼分排成一個畫面，給夥伴對帳。**停課沒有紀錄**（就是改期或刪掉時段），畫面上不顯示。
 - **課種頁**（`/lessons/groups/[id]`，`GroupDetail`）：共幾期、各分部各幾期、開課中／已停；每一期點開看
   上過課的學生（`GET /api/lesson-groups/[id]/students`，`LessonStudent`）。
 - **翻新精靈**（`/lessons/organize`，`OrganizeWizard` + `seriesSuggest.ts`）：把改版前的課整理成課種，

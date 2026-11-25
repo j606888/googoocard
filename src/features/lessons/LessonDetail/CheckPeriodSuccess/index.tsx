@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, PencilLine, ReceiptText } from "lucide-react";
 import SubNavbar from "@/features/SubNavbar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
@@ -28,6 +28,7 @@ import { headcountByPeriod } from "@/domains/attendance/rosterInsights";
 import { useGetLessonAgendaQuery } from "@/store/slices/lessons";
 import { buildToday } from "@/features/today/today";
 import RenewalNudge from "./RenewalNudge";
+import PeriodShareSummary, { type ShareRow } from "./PeriodShareSummary";
 import { headcountDeltaLabel, renewalCandidates, summaryHeadline } from "./periodSummary";
 import { type DropInOption, lessonDropInOptions } from "@/lib/dropInOptions";
 
@@ -41,6 +42,7 @@ const CheckPeriodSuccess = () => {
   // that celebratory moment from browsing back to this same record later
   // (period timeline, unpaid bell, income calendar all link here plainly).
   const justSubmitted = searchParams.get("justSubmitted") === "1";
+  const [shareOpen, setShareOpen] = useState(false);
 
   const { data: attendanceRecords } = useGetAttendanceQuery({
     id: Number(id),
@@ -246,6 +248,29 @@ const CheckPeriodSuccess = () => {
   });
   const renewals = renewalCandidates(attendanceRecords, isLatest);
   const editHref = `/lessons/${id}/periods/${periodId}/check-edit`;
+  // 截圖給夥伴的明細：來的人怎麼付、各算多少；整期沒來的也列（錢照算）。
+  const perSessionOf = (studentId: number) => enrolled.find((e) => e.student.id === studentId)?.perSession;
+  const shareRows: ShareRow[] = [
+    ...paidRecords.map((r) => ({
+      key: `a${r.studentId}`,
+      name: r.studentName,
+      how: r.dropIn
+        ? `單堂${r.dropIn.optionName ? ` · ${r.dropIn.optionName}` : ""}${r.dropIn.isPaid ? "" : "（未付）"}`
+        : r.cardName
+          ? `${r.cardName}${r.sessionsUsed > 1 ? ` −${r.sessionsUsed}` : ""}`
+          : "整期",
+      amount: r.dropIn || r.cardName ? r.income : (perSessionOf(r.studentId) ?? r.income),
+    })),
+    ...pendingRecords.map((r) => ({ key: `p${r.studentId}`, name: r.studentName, how: "還沒綁課卡", amount: null })),
+    ...(period?.attendanceTakenAt ? enrolledMissing : [])
+      .filter((e) => !e.paidOtherwise)
+      .map((e) => ({
+        key: `m${e.student.id}`,
+        name: e.student.name,
+        how: `整期 · ${e.onLeave ? "請假" : "曠課"}`,
+        amount: e.perSession,
+      })),
+  ];
   const tile = "flex flex-1 flex-col-reverse gap-0.5 rounded-2xl bg-white px-1 py-2.5 shadow-[0_8px_20px_rgba(20,35,29,0.10)] lg:border lg:border-neutral-200 lg:shadow-none";
 
   return (
@@ -381,6 +406,21 @@ const CheckPeriodSuccess = () => {
           </div>
         )}
         {!isExpanded && showPager && <div className="-my-2 flex justify-center">{periodPager}</div>}
+        {!isExpanded && period?.attendanceTakenAt && (
+          <Button variant="secondary" className="w-full" onClick={() => setShareOpen(true)}>
+            <ReceiptText className="size-4" />
+            收入明細（截圖用）
+          </Button>
+        )}
+        {shareOpen && (
+          <PeriodShareSummary
+            lesson={lesson}
+            when={when}
+            rows={shareRows}
+            income={income}
+            onClose={() => setShareOpen(false)}
+          />
+        )}
 
         {pendingRecords.length > 0 && (
           <PendingStudents records={pendingRecords} lesson={lesson} periodId={Number(periodId)} />

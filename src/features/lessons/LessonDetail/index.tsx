@@ -174,7 +174,14 @@ const LessonDetail = () => {
                 onOpenStudent={openStudent}
               />
             )}
-            {desktopTab === "split" && <RevenueSplitPanel key={lesson.id} lesson={lesson} revenues={term.revenues} />}
+            {desktopTab === "split" && (
+              <RevenueSplitPanel
+                key={lesson.id}
+                lesson={lesson}
+                revenues={term.revenues}
+                onViewPeriod={setRecordPeriodId}
+              />
+            )}
             {desktopTab === "settings" && (
               <div className="max-w-[720px] overflow-hidden rounded-xl">
                 <SettingSection
