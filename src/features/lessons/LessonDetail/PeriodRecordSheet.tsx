@@ -29,6 +29,10 @@ const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 // 跟手機的 CheckPeriodSuccess 同一套。
 const isResolved = (record: AttendanceRecord) => Boolean(record.cardName || record.dropIn || record.enrollment);
 
+/** 這個人在這堂分到的錢：整數照寫，除不盡的（$2000 ÷ 6）留一位小數，才對得起總收入。 */
+const shareText = (amount: number) =>
+  `$${Number.isInteger(amount) ? amount.toLocaleString() : (Math.round(amount * 10) / 10).toLocaleString()}`;
+
 /**
  * 桌面版：已點名時段的紀錄，開在課程頁右側，名單留在原地。
  * 上一堂／下一堂只在「已點名」的時段之間移動。
@@ -204,7 +208,14 @@ const PeriodRecordSheet = ({
                     {record.studentName}
                   </button>
                   {record.enrollment && !record.cardName && !record.dropIn ? (
-                    <span className="text-[13px] text-neutral-600">整期</span>
+                    <span className="text-[13px] text-neutral-600">
+                      整期
+                      <span className="ml-2 inline-block w-16 text-right tabular-nums text-neutral-900">
+                        {shareText(
+                          enrolled.find((e) => e.student.id === record.studentId)?.perSession ?? record.income
+                        )}
+                      </span>
+                    </span>
                   ) : record.dropIn ? (
                     <DropInStatus
                       dropIn={record.dropIn}
@@ -226,6 +237,9 @@ const PeriodRecordSheet = ({
                           剩 {record.remainingSessions} 堂
                         </span>
                       )}
+                      <span className="w-16 text-right text-[13px] tabular-nums text-neutral-900">
+                        {shareText(record.income)}
+                      </span>
                     </>
                   )}
                 </li>
@@ -234,7 +248,12 @@ const PeriodRecordSheet = ({
             {enrolledMissing.length > 0 && (
               <p className="text-[13px] text-neutral-600">
                 整期沒來：
-                {enrolledMissing.map((e) => `${e.student.name}${e.onLeave ? "（請假）" : ""}`).join("、")}
+                {enrolledMissing
+                  .map(
+                    (e) =>
+                      `${e.student.name}${e.onLeave ? "（請假）" : ""}${e.paidOtherwise ? "" : ` ${shareText(e.perSession)}`}`
+                  )
+                  .join("、")}
               </p>
             )}
             {absent.length > 0 && (
