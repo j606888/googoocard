@@ -427,6 +427,11 @@ const lessonsApi = api.injectEndpoints({
       query: () => "lessons/agenda",
       providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
     }),
+    /** 課程列表週曆：start = 台北時間的週日（YYYY-MM-DD）。 */
+    getLessonWeek: builder.query<{ periods: AgendaPeriod[]; myTeacherId: number | null }, string>({
+      query: (start) => `lessons/week?start=${start}`,
+      providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
+    }),
     getRecentPeriods: builder.query<RecentPeriod[], { limit?: number } | void>({
       query: (args) => `lessons/recent${args?.limit ? `?limit=${args.limit}` : ""}`,
       providesTags: ["Lesson", "Attendance", "AttendanceRecord", "StudentCard"],
@@ -756,6 +761,7 @@ export const {
   useUpdateEnrollmentMutation,
   useDeleteEnrollmentMutation,
   useUpdateRevenueSplitMutation,
+  useGetLessonWeekQuery,
   useConfirmEnrollmentPaymentMutation,
   useRegisterTrialMutation,
   useCreatePeriodMutation,

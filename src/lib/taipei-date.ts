@@ -26,3 +26,16 @@ export function parseTaipeiMonthRange(monthKey: string): { start: Date; end: Dat
   const end = new Date(Date.UTC(year, month, 1, 0, -TAIPEI_OFFSET_MINUTES, 0, 0));
   return { start, end };
 }
+
+/** 日期字串加減天數：「2026-11-22」+ 7 →「2026-11-29」。 */
+export function addDaysToDateKey(dateKey: string, days: number): string {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
+/** 台北時間那一週的週日（週曆從週日排到週六）。 */
+export function taipeiWeekStartKey(date: Date): string {
+  const key = toTaipeiDateKey(date);
+  const weekday = new Date(`${key}T00:00:00Z`).getUTCDay();
+  return addDaysToDateKey(key, -weekday);
+}

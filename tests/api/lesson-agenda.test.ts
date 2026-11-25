@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import prisma from "@/lib/prisma";
 import { resetDb, createClassroom, createLesson, createLessonGroup, createStudent } from "../factories";
-import { getLessonAgenda } from "@/service/lessonAgenda";
+import { getLessonAgenda, getWeekPeriods } from "@/service/lessonAgenda";
 
 const NOW = new Date("2026-10-29T07:20:00Z");
 const h = (iso: string) => new Date(iso);
@@ -118,5 +118,30 @@ describe("getLessonAgenda", () => {
       groupId: null,
       termNumber: null,
     });
+  });
+});
+
+describe("getWeekPeriods", () => {
+  it("一週（台北週日 00:00 起 7 天）的每一堂，含已點名、已結束的課，不含別的教室", async () => {
+    await resetDb();
+    const classroomId = (await createClassroom()).id;
+    const { lesson } = await createLesson(classroomId, { name: "Bachata" });
+    // 2026-11-22（日）00:00 台北 = 2026-11-21T16:00Z
+    const before = await addPeriod(lesson.id, "2026-11-21T15:00:00Z", "2026-11-21T15:59:00Z");
+    const sunday = await addPeriod(lesson.id, "2026-11-22T06:00:00Z", "2026-11-22T07:00:00Z", true);
+    const saturday = await addPeriod(lesson.id, "2026-11-28T15:00:00Z", "2026-11-28T15:30:00Z");
+    const next = await addPeriod(lesson.id, "2026-11-28T16:00:00Z", "2026-11-28T17:00:00Z");
+    const { lesson: finished } = await createLesson(classroomId, { name: "Done" });
+    await prisma.lesson.update({ where: { id: finished.id }, data: { status: "finished" } });
+    const finishedPeriod = await addPeriod(finished.id, "2026-11-24T11:00:00Z", "2026-11-24T12:00:00Z", true);
+    const other = (await createClassroom({ name: "Other", email: "other@test.local" })).id;
+    const { lesson: foreign } = await createLesson(other, { name: "Foreign" });
+    await addPeriod(foreign.id, "2026-11-24T11:00:00Z", "2026-11-24T12:00:00Z");
+
+    const { periods } = await getWeekPeriods(classroomId, new Date("2026-11-21T16:00:00Z"));
+    const ids = periods.map((p) => p.id);
+    expect(ids).toEqual([sunday.id, finishedPeriod.id, saturday.id]);
+    expect(ids).not.toContain(before.id);
+    expect(ids).not.toContain(next.id);
   });
 });
