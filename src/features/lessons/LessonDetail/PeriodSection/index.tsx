@@ -117,9 +117,10 @@ const PeriodSection = ({
 };
 
 /**
- * Desktop: one dense line per period, grouped by month, newest month on top.
- * The column has a fixed height and scrolls on its own, so an ongoing class
- * with twenty-odd periods never pushes anything off the page.
+ * Desktop: one dense line per period, grouped by month.
+ * Fixed-term lessons read like a timetable — oldest first, so the periods
+ * already taught sit above the ones still to come (a term is at most a handful
+ * of periods). Ongoing lessons grow without end, so they stay newest first.
  */
 export const PeriodColumn = ({
   lesson,
@@ -145,7 +146,7 @@ export const PeriodColumn = ({
   const { firstPendingPeriodId } = periodMarkers(periods);
 
   const months: { key: string; label: string; periods: Period[] }[] = [];
-  for (const period of [...periods].reverse()) {
+  for (const period of lesson.kind === "fixed" ? periods : [...periods].reverse()) {
     const start = new Date(period.startTime);
     const key = format(start, "yyyy-MM");
     let month = months.at(-1);
