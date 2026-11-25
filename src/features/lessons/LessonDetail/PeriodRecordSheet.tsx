@@ -20,6 +20,7 @@ import { lessonDropInOptions } from "@/lib/dropInOptions";
 import { toTaipeiDateKey } from "@/lib/taipei-date";
 import PendingStudents from "./CheckPeriodSuccess/PendingStudents";
 import DayCollections from "./CheckPeriodSuccess/DayCollections";
+import { PeriodSplitBreakdown } from "./RevenueSplitPanel";
 import { DropInStatus } from "./CheckPeriodSuccess";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -241,6 +242,7 @@ const PeriodRecordSheet = ({
                 缺席：{absent.map((student) => student.name).join("、")}
               </p>
             )}
+            {pending.length === 0 && <PeriodSplitBreakdown lesson={lesson} income={income} />}
             {period && <DayCollections date={toTaipeiDateKey(new Date(period.startTime))} />}
           </div>
         )}

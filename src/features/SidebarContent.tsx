@@ -67,8 +67,8 @@ const SidebarContent = ({ onClose }: SidebarContentProps) => {
         onClick={onClose}
         className={`flex h-11 items-center gap-3.5 rounded-xl px-3 transition-colors ${
           active
-            ? "bg-primary-100 font-semibold text-primary-900"
-            : "text-ink-2 hover:bg-primary-50 hover:text-primary-900"
+            ? "bg-primary-100 font-semibold text-primary-900 lg:bg-white lg:shadow-[0_1px_2px_rgba(20,48,42,0.08)]"
+            : "text-ink-2 hover:bg-primary-50 hover:text-primary-900 lg:hover:bg-white/60"
         }`}
       >
         <link.icon className={`h-5 w-5 ${active ? "text-primary-700" : ""}`} />

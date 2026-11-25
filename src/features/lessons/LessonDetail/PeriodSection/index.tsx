@@ -127,12 +127,15 @@ export const PeriodColumn = ({
   headcounts,
   activePeriodId,
   onViewRecord,
+  revenues,
   className = "",
 }: {
   lesson: Lesson;
   periods: Period[];
   /** Attended count per period id (taken periods only). */
   headcounts: Map<number, number>;
+  /** 桌面「時段」分頁：每堂收入（已點名的堂）。給了就多一欄收入、列變寬。 */
+  revenues?: Map<number, number>;
   /** The period whose record is open in the side sheet. */
   activePeriodId?: number | null;
   /** Open a taken period's record in place instead of navigating to its page. */
@@ -192,6 +195,7 @@ export const PeriodColumn = ({
                       canCheck={period.id === firstPendingPeriodId}
                       active={period.id === activePeriodId}
                       onViewRecord={onViewRecord}
+                      revenue={revenues ? (revenues.get(period.id) ?? null) : undefined}
                     />
                   ))}
                 </ol>
@@ -344,13 +348,17 @@ const DensePeriodRow = ({
   canCheck,
   active = false,
   onViewRecord,
+  revenue,
 }: {
   period: Period;
   attended: number | undefined;
   canCheck: boolean;
   active?: boolean;
   onViewRecord?: (periodId: number) => void;
+  /** undefined = 不顯示收入欄（窄的時段欄）；null = 這堂還沒有收入。 */
+  revenue?: number | null;
 }) => {
+  const wide = revenue !== undefined;
   const { menuOpen, handleCheck, handleViewAttendance, menuButton, overlays } =
     usePeriodActions(period, onViewRecord);
   const startTime = new Date(period.startTime);
@@ -362,7 +370,7 @@ const DensePeriodRow = ({
 
   return (
     <li
-      className={`group flex h-11 items-center gap-2.5 rounded-lg px-1.5 ${
+      className={`group flex items-center gap-2.5 px-1.5 ${wide ? "h-12 border-b border-line" : "h-11 rounded-lg"} ${
         active ? "bg-primary-50" : today && !attended ? "bg-warning-50" : ""
       } ${onRowClick ? "cursor-pointer hover:bg-neutral-50" : ""}`}
       onClick={onRowClick}
@@ -380,11 +388,11 @@ const DensePeriodRow = ({
       <span className="w-20 shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-neutral-900">
         {format(startTime, "M/d")}（{WEEKDAYS[startTime.getDay()]}）
       </span>
-      <span className="min-w-0 flex-1 truncate text-xs tabular-nums text-ink-3">
+      <span className={`min-w-0 truncate tabular-nums text-ink-3 ${wide ? "w-28 text-sm" : "flex-1 text-xs"}`}>
         {format(startTime, "HH:mm")}–{format(new Date(period.endTime), "HH:mm")}
       </span>
       {attended ? (
-        <span className="text-[13px] tabular-nums text-neutral-600">{attendedCount ?? 0} 人</span>
+        <span className={`tabular-nums text-neutral-600 ${wide ? "w-20 text-sm" : "text-[13px]"}`}>{attendedCount ?? 0} 人</span>
       ) : (canCheck || today) && isDue ? (
         // 今天的是「點名」、過期的是「補點名」——兩顆長得一樣就容易點到錯的日期。
         <Button
@@ -404,6 +412,11 @@ const DensePeriodRow = ({
         <span className="text-[13px] text-neutral-600">下一堂</span>
       ) : (
         <span className="text-[13px] text-neutral-400">未來</span>
+      )}
+      {wide && (
+        <span className="ml-auto w-24 text-right text-sm tabular-nums text-ink">
+          {attended && revenue != null ? `$${formatMoney(revenue)}` : <span className="text-ink-3">—</span>}
+        </span>
       )}
       {menuButton(
         `size-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 ${menuOpen ? "opacity-100" : ""}`

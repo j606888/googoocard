@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { type EnrollmentRoster, Lesson, useGetLessonEnrollmentsQuery } from "@/store/slices/lessons";
+import {
+  type EnrollmentRoster,
+  type TermAttendanceStatus,
+  Lesson,
+  useGetLessonEnrollmentsQuery,
+} from "@/store/slices/lessons";
+import { format } from "date-fns";
 import { formatMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import InfoTip from "@/components/InfoTip";
@@ -18,7 +24,18 @@ type Enrollment = EnrollmentRoster["enrollments"][number];
  * 整期名單（只在開了報名整期的課出現）：老師登記、記收款；每人一排出缺勤格子，
  * 請假／曠課一眼看得到。收入照整期每堂攤，跟有沒有來無關。
  */
-const TermRoster = ({ lesson }: { lesson: Lesson }) => {
+const PAYMENT_LABEL = { CASH: "現金", TRANSFER: "轉帳" } as const;
+
+/** 表格裡一格出缺勤：有來 ●、請假「假」、曠課 ✕、還沒上 ○。 */
+const STATUS_CELL: Record<TermAttendanceStatus, { mark: string; className: string }> = {
+  present: { mark: "●", className: "text-primary-700" },
+  leave: { mark: "假", className: "text-warning-800 font-semibold" },
+  absent: { mark: "✕", className: "text-danger-700 font-semibold" },
+  upcoming: { mark: "○", className: "text-neutral-300" },
+  outside: { mark: "", className: "" },
+};
+
+const TermRoster = ({ lesson, variant = "list" }: { lesson: Lesson; variant?: "list" | "table" }) => {
   const offered = lesson.termPrice != null && lesson.termSessions != null;
   const { data } = useGetLessonEnrollmentsQuery({ id: lesson.id }, { skip: !offered });
   const [registering, setRegistering] = useState(false);
@@ -33,7 +50,7 @@ const TermRoster = ({ lesson }: { lesson: Lesson }) => {
   const firstPeriodTaken = data.periods[0]?.attendanceTaken ?? false;
 
   return (
-    <section className="flex flex-col gap-2 border-b border-line pb-6">
+    <section className={`flex flex-col gap-2 ${variant === "table" ? "" : "border-b border-line pb-6"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h3 className="flex items-center gap-1 text-[17px] font-semibold text-ink lg:text-base">
@@ -54,11 +71,86 @@ const TermRoster = ({ lesson }: { lesson: Lesson }) => {
 
       {enrollments.length === 0 ? (
         <p className="text-[13px] text-ink-3">還沒有人報整期</p>
+      ) : variant === "table" ? (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-neutral-300 text-left text-xs text-ink-3">
+                  <th className="h-10 pr-3 font-normal">學生</th>
+                  {data.periods.slice(0, data.termSessions ?? undefined).map((p) => (
+                    <th key={p.id} className="h-10 w-14 text-center font-normal tabular-nums">
+                      {format(new Date(p.startTime), "M/d")}
+                    </th>
+                  ))}
+                  <th className="h-10 w-24 pr-3 text-right font-normal">價格</th>
+                  <th className="h-10 w-48 px-3 font-normal">付款</th>
+                  <th className="h-10 font-normal">備註</th>
+                </tr>
+              </thead>
+              <tbody>
+                {enrollments.map((e) => (
+                  <tr key={e.id} className="border-b border-line hover:bg-surface">
+                    <td className="h-12 pr-3">
+                      <button
+                        type="button"
+                        onClick={() => setEditing(e)}
+                        className="flex cursor-pointer items-center gap-2.5 text-left font-medium text-ink hover:text-primary-800"
+                      >
+                        <img src={e.student.avatarUrl} alt="" className="size-7 shrink-0 rounded-full object-cover" />
+                        {e.student.name}
+                      </button>
+                    </td>
+                    {data.periods.slice(0, data.termSessions ?? undefined).map((p, index) => {
+                      const cell = STATUS_CELL[e.statuses[index] ?? "upcoming"];
+                      return (
+                        <td key={p.id} className={`h-12 text-center ${cell.className}`} title={TERM_STATUS_META[e.statuses[index] ?? "upcoming"].label}>
+                          {cell.mark}
+                        </td>
+                      );
+                    })}
+                    <td className="h-12 pr-3 text-right tabular-nums">${formatMoney(e.price)}</td>
+                    <td className="h-12 px-3">
+                      {e.isPaid ? (
+                        <span className="text-ink-2">
+                          已付
+                          {e.paymentMethod && ` · ${PAYMENT_LABEL[e.paymentMethod]}`}
+                          {e.paymentReference && ` ${e.paymentReference}`}
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="cursor-pointer font-semibold text-danger-700 hover:underline"
+                          onClick={() =>
+                            setPaying({
+                              studentId: e.student.id,
+                              studentCardId: 0,
+                              enrollmentId: e.id,
+                              studentName: e.student.name,
+                              cardName: `${lesson.name} 整期`,
+                              finalPrice: e.price,
+                            })
+                          }
+                        >
+                          未付，記收款
+                        </button>
+                      )}
+                    </td>
+                    <td className="h-12 max-w-72 truncate text-ink-3" title={e.note ?? undefined}>
+                      {e.note}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-ink-3">● 有來　假 請假　✕ 曠課　○ 還沒上 · 點名字可以改價格或備註</p>
+        </>
       ) : (
         <>
           <ul className="flex flex-col">
             {enrollments.map((e) => (
-              <li key={e.id} className="-mx-2 flex items-center gap-3 rounded-lg border-b border-line px-2 py-2.5 last:border-b-0">
+              <li key={e.id} className="flex items-center gap-3 border-b border-line py-2.5 last:border-b-0">
                 <button
                   type="button"
                   onClick={() => setEditing(e)}

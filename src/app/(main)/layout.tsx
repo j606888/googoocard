@@ -9,7 +9,7 @@ export default function MainLayout({
 }) {
   return (
     <div className="flex min-h-screen bg-white">
-      <aside className="hidden lg:flex lg:w-64 lg:flex-shrink-0 lg:flex-col lg:sticky lg:top-0 lg:h-screen bg-surface">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-shrink-0 lg:flex-col lg:sticky lg:top-0 lg:h-screen bg-[#EBF0ED] border-r border-[#D5E0DB]">
         <DesktopSidebar />
       </aside>
       <div className="flex flex-col flex-1 min-w-0 pb-24 lg:pb-0" data-in-app="no-bottom-pad">

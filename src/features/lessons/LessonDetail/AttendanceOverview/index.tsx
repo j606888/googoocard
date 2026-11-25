@@ -25,9 +25,12 @@ const AttendanceOverview = ({
   variant = "expanded",
   onViewPeriod,
   onOpenStudent,
+  rosters = true,
 }: {
   lesson: Lesson;
   students: LessonStudent[];
+  /** 整期／預計會來／體驗名單。桌面「學生紀錄」分頁只要出席表，名單在自己的分頁。 */
+  rosters?: boolean;
   /** `compact` = the phone 學生 tab: slimmer chart and roster. */
   variant?: "compact" | "expanded";
   /** Desktop: open a taken period's record / a student in a side sheet. */
@@ -67,9 +70,13 @@ const AttendanceOverview = ({
   // Desktop: the roster comes first; 需要注意 moves to the bottom and lists everyone.
   return (
     <div className="flex flex-col gap-7">
-      <TermRoster lesson={lesson} />
-      <BookingRoster lesson={lesson} />
-      <TrialRoster lesson={lesson} />
+      {rosters && (
+        <>
+          <TermRoster lesson={lesson} />
+          <BookingRoster lesson={lesson} />
+          <TrialRoster lesson={lesson} />
+        </>
+      )}
       <RosterTable
         rows={rows}
         attentionIds={attentionIds}
