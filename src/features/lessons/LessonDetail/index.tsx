@@ -11,9 +11,13 @@ import LessonDetailHeader from "./LessonDetailHeader";
 import AttendanceOverview from "./AttendanceOverview";
 import { useSizeClass } from "@/hooks/useMediaQuery";
 import { headcountByPeriod } from "@/domains/attendance/rosterInsights";
-import ResponsiveDialog from "@/components/ResponsiveDialog";
+import SegmentedTabs from "@/components/SegmentedTabs";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import PeriodRecordSheet from "./PeriodRecordSheet";
+import RevenueSplitPanel from "./RevenueSplitPanel";
+import TermRoster from "./TermRoster";
+import BookingRoster from "./BookingRoster";
+import TrialRoster from "./TrialRoster";
 import StudentSheet from "@/features/students/StudentSheet";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/money";
@@ -21,13 +25,15 @@ import TermHeader from "./TermHeader";
 import PastTerms from "./PastTerms";
 import { useTermPage } from "./useTermPage";
 
+type DesktopTab = "periods" | "term" | "bookings" | "students" | "split" | "settings";
+
 const LessonDetail = () => {
   const { id } = useParams();
   // 只掛載其中一棵樹。兩棵都掛的話 PeriodSection / AttendanceOverview /
   // SettingSection 會各跑兩次（見 docs/ui-responsive.md 的「代價一」）。
   const isExpanded = useSizeClass() === "expanded";
   const [activeTab, setActiveTab] = useState("periods");
-  const [showSettings, setShowSettings] = useState(false);
+  const [desktopTab, setDesktopTab] = useState<DesktopTab>("periods");
   const [settingsDirty, setSettingsDirty] = useState(false);
   // 桌面：時段紀錄與學生詳情開在右側抽屜，名單留在原地。一次只開一個。
   const [recordPeriodId, setRecordPeriodId] = useState<number | null>(null);
@@ -65,7 +71,10 @@ const LessonDetail = () => {
     }
     setPendingDiscard(() => action);
   };
-  const requestCloseSettings = () => discardSettingsThen(() => setShowSettings(false));
+  const requestDesktopTab = (tab: DesktopTab) => {
+    if (desktopTab === "settings" && tab !== "settings") discardSettingsThen(() => setDesktopTab(tab));
+    else setDesktopTab(tab);
+  };
   const requestTabChange = (tab: string) => {
     if (activeTab === "settings" && tab !== "settings") discardSettingsThen(() => setActiveTab(tab));
     else setActiveTab(tab);
@@ -106,11 +115,10 @@ const LessonDetail = () => {
           </div>
         )
       ) : isExpanded ? (
-        /* 桌面：整頁一起捲；時段欄黏在畫面上、自己捲。編輯在右側抽屜。 */
-        <div className="flex flex-col gap-9 px-12 pt-8 pb-14">
+        /* 桌面：頁首下面一排分頁，一次只看一種東西（時段／整期名單／預計會來／學生紀錄／分潤／設定）。 */
+        <div className="flex flex-col px-12 pt-8 pb-14">
           <div className="max-w-[1240px]">
-            <LessonDetailHeader lesson={lesson} onEdit={() => setShowSettings(true)} />
-            {/* 三張統計小卡收成一行灰字（去框線改版：不放統計列）。 */}
+            <LessonDetailHeader lesson={lesson} onEdit={() => requestDesktopTab("settings")} />
             {term.overview && (
               <p className="mt-4 text-[13px] text-ink-2">
                 {term.termNumber !== null && `第 ${term.termNumber} 期 · `}
@@ -122,24 +130,61 @@ const LessonDetail = () => {
                 </b>
               </p>
             )}
-          </div>
-          <div className="flex max-w-[1240px] items-start gap-14">
-            <PeriodColumn
-              lesson={lesson}
-              periods={lesson.periods || []}
-              headcounts={headcounts}
-              activePeriodId={recordPeriodId}
-              onViewRecord={setRecordPeriodId}
-              className="sticky top-6 h-[calc(100vh-3rem)] max-h-[820px] w-[300px] shrink-0"
+            <SegmentedTabs<DesktopTab>
+              variant="underline"
+              ariaLabel="課程分頁"
+              className="mt-6 border-b border-line"
+              value={desktopTab}
+              onChange={requestDesktopTab}
+              options={[
+                { value: "periods", label: "時段", hint: String(lesson.periods?.length ?? 0) },
+                ...(lesson.termPrice != null ? [{ value: "term" as const, label: "整期名單" }] : []),
+                { value: "bookings", label: "預計會來" },
+                { value: "students", label: "學生紀錄" },
+                { value: "split", label: "分潤" },
+                { value: "settings", label: "設定" },
+              ]}
             />
-            <div className="min-w-0 flex-1">
+          </div>
+          <div className="max-w-[1240px] pt-7">
+            {desktopTab === "periods" && (
+              <PeriodColumn
+                lesson={lesson}
+                periods={lesson.periods || []}
+                headcounts={headcounts}
+                revenues={term.revenues}
+                activePeriodId={recordPeriodId}
+                onViewRecord={setRecordPeriodId}
+                className="max-w-[760px]"
+              />
+            )}
+            {desktopTab === "term" && <TermRoster lesson={lesson} variant="table" />}
+            {desktopTab === "bookings" && (
+              <div className="flex max-w-[860px] flex-col gap-7">
+                <BookingRoster lesson={lesson} />
+                <TrialRoster lesson={lesson} />
+              </div>
+            )}
+            {desktopTab === "students" && (
               <AttendanceOverview
                 lesson={lesson}
                 students={students || []}
+                rosters={false}
                 onViewPeriod={setRecordPeriodId}
                 onOpenStudent={openStudent}
               />
-            </div>
+            )}
+            {desktopTab === "split" && <RevenueSplitPanel key={lesson.id} lesson={lesson} revenues={term.revenues} />}
+            {desktopTab === "settings" && (
+              <div className="max-w-[720px] overflow-hidden rounded-xl">
+                <SettingSection
+                  key={lesson.id}
+                  lesson={lesson}
+                  onDirtyChange={setSettingsDirty}
+                  onDone={() => setSettingsDirty(false)}
+                />
+              </div>
+            )}
           </div>
           <PeriodRecordSheet
             lesson={lesson}
@@ -154,23 +199,6 @@ const LessonDetail = () => {
             onClose={() => setSheetStudentId(null)}
             from={`/lessons/${lesson.id}`}
           />
-          <ResponsiveDialog
-            open={showSettings}
-            onClose={requestCloseSettings}
-            desktop="side"
-            className="w-[620px] p-0 min-h-0"
-          >
-            <SettingSection
-              lesson={lesson}
-              variant="drawer"
-              onClose={requestCloseSettings}
-              onDone={() => {
-                setSettingsDirty(false);
-                setShowSettings(false);
-              }}
-              onDirtyChange={setSettingsDirty}
-            />
-          </ResponsiveDialog>
         </div>
       ) : (
         /* 手機：這一期的頁首，下面時段、名單一路往下捲；設定從頁首的「編輯」進。 */

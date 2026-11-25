@@ -290,6 +290,15 @@ export async function POST(request: Request) {
     );
   }
 
+  // 開新一期：同課種上一期設過分潤，就沿用（src/lib/revenueSplit.ts）。
+  const previousSplit = draftLesson.groupId
+    ? await prisma.lesson.findFirst({
+        where: { groupId: draftLesson.groupId, classroomId: classroomId!, revenueSplit: { not: Prisma.DbNull } },
+        orderBy: { createdAt: "desc" },
+        select: { revenueSplit: true },
+      })
+    : null;
+
   const lesson = await prisma.$transaction(async (tx) => {
     const lesson = await tx.lesson.create({
       data: {
@@ -306,6 +315,7 @@ export async function POST(request: Request) {
         termSessions: term?.termSessions ?? null,
         groupId: draftLesson.groupId ?? null,
         locationId: draftLesson.locationId ?? null,
+        revenueSplit: previousSplit?.revenueSplit ?? Prisma.DbNull,
       },
     });
 

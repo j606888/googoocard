@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MoreHorizontal, Plus, Search, Sparkles } from "lucide-react";
-import AgendaList, { OverdueNotice } from "./AgendaList";
+import { OverdueNotice } from "./AgendaList";
+import WeekCalendar from "./WeekCalendar";
 import SeriesList from "./SeriesList";
 import { useLessonsList } from "./useLessonsList";
 import { useLessonAgenda } from "./useLessonAgenda";
 import { useLessonScope } from "./useLessonScope";
 import { unorganizedLessonCount } from "./seriesSuggest";
-import { sectionByLocation } from "./lessonSeries";
+import { isMyLesson, sectionByLocation } from "./lessonSeries";
+import type { AgendaPeriod } from "@/store/slices/lessons";
 import Drawer from "@/components/Drawer";
 import Menu from "@/components/Menu";
 import EmptyState from "@/components/EmptyState";
@@ -27,12 +29,37 @@ import { useGetClassroomsQuery } from "@/store/slices/classrooms";
 /** Select 的值不能是 null，用 0 代表「全部」。 */
 const ALL = 0;
 
+type ViewMode = "week" | "list";
+const VIEW_KEY = "lesson-view";
+
+/** 週曆／列表：記在這台裝置上；沒選過的話電腦看週曆、手機看列表。 */
+const useViewMode = (isExpanded: boolean) => {
+  const [saved, setSaved] = useState<ViewMode | null>(null);
+  useEffect(() => {
+    try {
+      const value = localStorage.getItem(VIEW_KEY);
+      if (value === "week" || value === "list") setSaved(value);
+    } catch {
+      // Storage unavailable — fall back to the per-device default.
+    }
+  }, []);
+  const choose = (mode: ViewMode) => {
+    setSaved(mode);
+    try {
+      localStorage.setItem(VIEW_KEY, mode);
+    } catch {
+      // ignore
+    }
+  };
+  return [saved ?? (isExpanded ? "week" : "list"), choose] as const;
+};
+
 /**
  * 課程列表（去框線改版 v2，~/.claude/plans/quiet-redesign.md §3.2）。
  * - 還沒點名的課：頁首下一條琥珀提醒，不限天數（`OverdueNotice`）。
- * - 「接下來 7 天」：上課中＋今天以後的課。
- * - 「所有課程」：依課種排，一個課種一列，點了直接進正在開的那一期。
- * 兩區之間是 8px 淺灰帶，不是框。
+ * - 「週曆」：一週（日～六）有哪些課（`WeekCalendar`），取代原本的「接下來 7 天」。
+ * - 「列表」：依課種排，一個課種一列，點了直接進正在開的那一期。
+ * 週曆／列表二選一，記在裝置上（電腦預設週曆、手機預設列表）。
  *
  * 最上面的「我的課／全部」與分部篩整頁，記在裝置上（`useLessonScope`）。
  * 只掛一棵樹（docs/ui-responsive.md）：手機與桌面差在搜尋的位置與欄位多寡。
@@ -55,7 +82,13 @@ const LessonsList = () => {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLButtonElement>(null);
   const overdueRows = agenda.rows.filter((row) => row.state === "overdue");
-  const upcomingRows = agenda.rows.filter((row) => row.state !== "overdue");
+  const [view, setView] = useViewMode(isExpanded);
+  const weekFilter = useCallback(
+    (period: AgendaPeriod) =>
+      (scope.locationId === null || period.lesson.location?.id === scope.locationId) &&
+      (!agenda.mine || agenda.myTeacherId === null || isMyLesson(period.lesson, agenda.myTeacherId)),
+    [scope.locationId, agenda.mine, agenda.myTeacherId]
+  );
 
   const unorganized = useMemo(
     () => unorganizedLessonCount(list.allLessons, list.groups),
@@ -199,6 +232,15 @@ const LessonsList = () => {
       <div className="flex w-full flex-col gap-6 px-5 pt-3 pb-10 lg:max-w-[1280px] lg:px-12 lg:pt-8">
         <div className="flex flex-wrap items-center gap-2.5 lg:gap-4">
           <h1 className="mr-2 hidden text-[26px] font-semibold text-ink lg:block">課程</h1>
+          <SegmentedTabs
+            ariaLabel="顯示方式"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: "week", label: "週曆" },
+              { value: "list", label: "列表" },
+            ]}
+          />
           {scopeBar}
           <span className="ml-auto flex items-center gap-1 lg:gap-2">
             {moreMenu}
@@ -221,16 +263,14 @@ const LessonsList = () => {
         ) : (
           <>
             <OverdueNotice rows={overdueRows} />
-            <AgendaList
-              rows={upcomingRows}
-              now={agenda.now}
-              isLoading={agenda.isLoading}
-              hiddenCount={agenda.hiddenCount}
-              onShowAll={() => setScope({ mine: false, locationId: null })}
-            />
-
-            <div aria-hidden="true" className="-mx-5 h-2 bg-band lg:-mx-12" />
-
+            {view === "week" ? (
+              <WeekCalendar
+                now={agenda.now}
+                isExpanded={isExpanded}
+                showLocation={allLocations.length > 1 && scope.locationId === null}
+                filter={weekFilter}
+              />
+            ) : (
             <section aria-labelledby="series-heading" className="flex flex-col gap-3">
               {unorganized > 0 && (
                 <button
@@ -338,6 +378,7 @@ const LessonsList = () => {
               )}
 
             </section>
+            )}
           </>
         )}
 

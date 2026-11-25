@@ -524,7 +524,7 @@ const SettingSection = ({
           isDrawer
             ? `px-6 py-3.5 ${GROUPED_PAGE_BG}`
             : // Clears the floating BottomNav, like StudentDetail's action bar.
-              "sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] mx-3 rounded-2xl bg-white px-4 py-3 shadow-[0_8px_24px_-12px_rgba(16,28,23,0.25)]"
+              "sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 mx-3 rounded-2xl bg-white px-4 py-3 shadow-[0_8px_24px_-12px_rgba(16,28,23,0.25)]"
         }`}
       >
         <span className={`min-w-0 flex-1 text-[13px] ${footerMessage.className}`}>{footerMessage.text}</span>

@@ -1,4 +1,5 @@
 import type { DropInOption } from "@/lib/dropInOptions";
+import type { RevenueSplit } from "@/lib/revenueSplit";
 import { Student } from "./students";
 import { api } from "../api";
 import { Card } from "./cards";
@@ -38,6 +39,8 @@ export interface Lesson {
   /** 報名整期：整期價與堂數；null = 不開放（src/lib/termEnrollment.ts）。 */
   termPrice: number | null;
   termSessions: number | null;
+  /** 每堂分潤規則（src/lib/revenueSplit.ts）；沒設定是 null。讀的時候用 parseRevenueSplit()。 */
+  revenueSplit?: unknown;
   cards: Card[];
   groupId: number | null;
   group: { id: number; name: string } | null;
@@ -332,6 +335,7 @@ export interface EnrollmentRoster {
     note: string | null;
     isPaid: boolean;
     paymentMethod: "CASH" | "TRANSFER" | null;
+    paymentReference: string | null;
     createdAt: string;
     /** 每個時段（照 periods 的順序）的狀態。 */
     statuses: TermAttendanceStatus[];
@@ -421,6 +425,11 @@ const lessonsApi = api.injectEndpoints({
     }),
     getLessonAgenda: builder.query<{ periods: AgendaPeriod[]; myTeacherId: number | null }, void>({
       query: () => "lessons/agenda",
+      providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
+    }),
+    /** 課程列表週曆：start = 台北時間的週日（YYYY-MM-DD）。 */
+    getLessonWeek: builder.query<{ periods: AgendaPeriod[]; myTeacherId: number | null }, string>({
+      query: (start) => `lessons/week?start=${start}`,
       providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
     }),
     getRecentPeriods: builder.query<RecentPeriod[], { limit?: number } | void>({
@@ -623,6 +632,10 @@ const lessonsApi = api.injectEndpoints({
       query: ({ enrollmentId, ...body }) => ({ url: `lesson-enrollments/${enrollmentId}`, method: "PATCH", body }),
       invalidatesTags: ["Lesson", "Student", "Attendance"],
     }),
+    updateRevenueSplit: builder.mutation<void, { id: number; split: RevenueSplit | null }>({
+      query: ({ id, split }) => ({ url: `lessons/${id}/revenue-split`, method: "PUT", body: split }),
+      invalidatesTags: ["Lesson"],
+    }),
     deleteEnrollment: builder.mutation<void, { enrollmentId: number }>({
       query: ({ enrollmentId }) => ({ url: `lesson-enrollments/${enrollmentId}`, method: "DELETE" }),
       invalidatesTags: ["Lesson", "Student", "Attendance"],
@@ -747,6 +760,8 @@ export const {
   useRegisterEnrollmentMutation,
   useUpdateEnrollmentMutation,
   useDeleteEnrollmentMutation,
+  useUpdateRevenueSplitMutation,
+  useGetLessonWeekQuery,
   useConfirmEnrollmentPaymentMutation,
   useRegisterTrialMutation,
   useCreatePeriodMutation,

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
 import { locationSummarySelect } from "@/lib/locations";
@@ -118,6 +119,13 @@ export async function getLessonAgenda(classroomId: number, now = new Date(), use
   const periods = [...started, ...upcoming, ...myUpcoming].filter((p) =>
     seen.has(p.id) ? false : (seen.add(p.id), true)
   );
+  return { myTeacherId: myTeacher?.id ?? null, periods: await toAgendaPeriods(classroomId, periods) };
+}
+
+type SelectedPeriod = Prisma.LessonPeriodGetPayload<{ select: typeof periodSelect }>;
+
+/** 撈到的時段 → 前端的 AgendaPeriod（第 N 堂、第 N 期、出席的人）。 */
+async function toAgendaPeriods(classroomId: number, periods: SelectedPeriod[]) {
   const lessonIds = [...new Set(periods.map((p) => p.lessonId))];
 
   // 「第 N 堂」要知道整門課的時段順序：一次撈這幾門課的所有時段 id。
@@ -138,29 +146,43 @@ export async function getLessonAgenda(classroomId: number, now = new Date(), use
     periods.map((p) => p.lesson.groupId)
   );
 
-  return {
-    myTeacherId: myTeacher?.id ?? null,
-    periods: periods.map(({ lesson, attendanceRecords, lessonId, ...period }) => {
-      const order = orderByLesson.get(lessonId) ?? [];
-      return {
-        ...period,
-        number: order.indexOf(period.id) + 1,
-        attendeeIds: attendanceRecords.map((r) => r.studentId),
-        selfCheckInCount: attendanceRecords.filter((r) => r.source === "STUDENT").length,
-        lesson: {
-          id: lesson.id,
-          name: lesson.name,
-          kind: lesson.kind,
-          groupId: lesson.groupId,
-          termNumber: termByLesson.get(lesson.id) ?? null,
-          danceStyle: lesson.danceStyle,
-          location: lesson.location,
-          teachers: lesson.teachers.map(({ teacher }) => teacher),
-          assistants: lesson.assistants.map(({ teacher }) => teacher),
-          studentCount: lesson._count.students,
-          totalPeriods: order.length,
-        },
-      };
+  return periods.map(({ lesson, attendanceRecords, lessonId, ...period }) => {
+    const order = orderByLesson.get(lessonId) ?? [];
+    return {
+      ...period,
+      number: order.indexOf(period.id) + 1,
+      attendeeIds: attendanceRecords.map((r) => r.studentId),
+      selfCheckInCount: attendanceRecords.filter((r) => r.source === "STUDENT").length,
+      lesson: {
+        id: lesson.id,
+        name: lesson.name,
+        kind: lesson.kind,
+        groupId: lesson.groupId,
+        termNumber: termByLesson.get(lesson.id) ?? null,
+        danceStyle: lesson.danceStyle,
+        location: lesson.location,
+        teachers: lesson.teachers.map(({ teacher }) => teacher),
+        assistants: lesson.assistants.map(({ teacher }) => teacher),
+        studentCount: lesson._count.students,
+        totalPeriods: order.length,
+      },
+    };
+  });
+}
+
+/**
+ * 課程列表的「週曆」：[start, start + 7 天) 之間開始的每一堂，不管課程結束了沒
+ * （翻回上週也看得到）。`start` 由前端給（台北時間的週日 00:00）。
+ */
+export async function getWeekPeriods(classroomId: number, start: Date, userId?: number) {
+  const end = new Date(start.getTime() + 7 * DAY_MS);
+  const [myTeacher, periods] = await Promise.all([
+    userId ? prisma.teacher.findFirst({ where: { classroomId, userId }, select: { id: true } }) : null,
+    prisma.lessonPeriod.findMany({
+      where: { lesson: { classroomId }, startTime: { gte: start, lt: end } },
+      orderBy: [{ startTime: "asc" }, { id: "asc" }],
+      select: periodSelect,
     }),
-  };
+  ]);
+  return { myTeacherId: myTeacher?.id ?? null, periods: await toAgendaPeriods(classroomId, periods) };
 }

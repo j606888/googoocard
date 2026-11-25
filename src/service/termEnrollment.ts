@@ -157,6 +157,7 @@ export async function getEnrollmentRoster(lessonId: number, classroomId: number)
         note: e.note,
         isPaid: e.isPaid,
         paymentMethod: e.paymentMethod,
+        paymentReference: e.paymentReference,
         createdAt: e.createdAt,
         statuses,
         counts: {

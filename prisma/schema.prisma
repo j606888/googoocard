@@ -325,6 +325,9 @@ model Lesson {
   termPrice             Int?
   termSessions          Int?
   enrollments           LessonEnrollment[]
+  // 每堂分潤（src/lib/revenueSplit.ts）：{ steps, remainderLabel }，照順序把一堂收入分掉，
+  // 剩下的歸 remainderLabel（台南水庫…）。null = 沒設定。開新一期（同課種）沒帶就沿用上一期的。
+  revenueSplit          Json?
   // 分部（台南／高雄…）。選填；課卡不分部限定。
   locationId            Int?
   location              Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
