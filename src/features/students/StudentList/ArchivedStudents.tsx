@@ -19,7 +19,7 @@ const ArchivedRow = ({ student }: { student: Student }) => {
   const [setArchived, { isLoading }] = useSetStudentArchivedMutation();
 
   return (
-    <li className="flex items-center gap-3 py-2.5 border-b border-neutral-100 last:border-b-0">
+    <li className="flex min-h-13 items-center gap-3 py-2">
       <img
         src={student.avatarUrl}
         alt=""
@@ -29,14 +29,14 @@ const ArchivedRow = ({ student }: { student: Student }) => {
         href={`/students/${student.id}`}
         className="flex-1 min-w-0 flex items-center gap-2 hover:underline"
       >
-        <span className="font-medium truncate">{student.name}</span>
-        <span className="text-[11px] font-mono text-neutral-500 shrink-0">
+        <span className="text-[15px] font-medium text-ink truncate">{student.name}</span>
+        <span className="text-[13px] tabular-nums text-ink-3 shrink-0">
           #{student.number}
         </span>
       </Link>
       <Button
         type="button"
-        variant="secondary"
+        variant="text"
         size="sm"
         isLoading={isLoading}
         onClick={async () => {
@@ -71,7 +71,7 @@ const ArchivedStudents = ({ className = "" }: { className?: string }) => {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`w-full flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-800 cursor-pointer ${className}`}
+          className={`flex min-h-11 w-full items-center gap-2 text-sm text-ink-3 hover:text-ink cursor-pointer ${className}`}
         >
           <Archive className="w-4 h-4" />
           已封存 {archived.length} 位
@@ -88,20 +88,20 @@ const ArchivedStudents = ({ className = "" }: { className?: string }) => {
             type="button"
             variant="ghost"
             size="iconSm"
-            className="absolute -right-2 -top-1.5 text-neutral-500"
+            className="absolute -right-2 -top-1.5 text-ink-3"
             onClick={() => setOpen(false)}
             aria-label="關閉"
           >
             <X className="w-6 h-6" />
           </Button>
         </div>
-        <p className="text-sm text-neutral-500 mb-2">
+        <p className="text-sm text-ink-3 mb-2">
           還原後會回到名單，課卡和出席紀錄都還在。
         </p>
         {archived.length === 0 && (
           <EmptyState kind="inline" title="沒有封存的學生了" className="my-2" />
         )}
-        <ul className="max-h-[60vh] overflow-y-auto">
+        <ul className="max-h-[60vh] divide-y divide-line overflow-y-auto">
           {archived.map((student) => (
             <ArchivedRow key={student.id} student={student} />
           ))}

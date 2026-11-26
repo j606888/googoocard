@@ -4,13 +4,18 @@ import { decodeAuthToken } from "@/lib/auth";
 import { toTaipeiDateKey } from "@/lib/taipei-date";
 import { periodRevenue } from "@/lib/income";
 import { termRevenueByPeriod } from "@/service/termEnrollment";
+import { parseLocationFilter } from "../../locationFilter";
 
-export async function GET() {
+export async function GET(request: Request) {
   const { classroomId } = await decodeAuthToken();
+  const locationFilter = parseLocationFilter(new URL(request.url).searchParams);
+  if (!locationFilter) {
+    return NextResponse.json({ error: "Invalid locationId" }, { status: 400 });
+  }
 
   const periods = await prisma.lessonPeriod.findMany({
     where: {
-      lesson: { classroomId: classroomId! },
+      lesson: { classroomId: classroomId!, ...locationFilter },
       attendanceTakenAt: { not: null },
     },
     select: {

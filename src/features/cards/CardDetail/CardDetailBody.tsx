@@ -10,18 +10,17 @@ import {
   useEnableCardMutation,
   useExpireCardMutation,
 } from "@/store/slices/cards";
-import { danceStyleMeta } from "@/lib/danceStyleColors";
-import { cn, formatDate } from "@/lib/utils";
-import SortMenu from "@/components/SortMenu";
+import { formatDate } from "@/lib/utils";
+import { formatMoney } from "@/lib/money";
 import { studentDetailHref } from "@/lib/studentNav";
 import CardSerial from "@/components/CardSerial";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import DanceStyleDot from "@/components/DanceStyleDot";
 import EmptyState from "@/components/EmptyState";
-import FilterChip from "@/components/FilterChip";
-import StatusTag from "@/components/StatusTag";
-import { fieldControlClass } from "@/components/Field";
 import InfoTip from "@/components/InfoTip";
 import MenuItem from "@/components/MenuItem";
+import SegmentedTabs from "@/components/SegmentedTabs";
+import Select from "@/components/Select";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -64,7 +63,7 @@ export const cardFromDetail = (detail: CardDetail): Card => ({
 
 /**
  * 一個課卡方案的詳情：開放購買開關、價格與累積賣出、編輯／⋯（複製、刪除）、持卡學生。
- * 桌面在右側抽屜裡、手機是整頁，兩邊渲染同一份。
+ * 桌面在右側抽屜裡、手機是整頁，兩邊渲染同一份。去框線：價格是大字＋一行說明，不包底色塊。
  */
 const CardDetailBody = ({
   detail,
@@ -103,18 +102,22 @@ const CardDetailBody = ({
     onDeleted();
   };
 
+  const priceMeta = [
+    card.sessions !== 1 ? `每堂 $${formatMoney(perSessionPrice(card))}` : null,
+    `累積賣出 ${purchasedCount} 張`,
+    `共 $${formatMoney(totalRevenue)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1.5 min-w-0">
-          <h2 className="text-2xl font-bold text-neutral-900 break-words">{card.name}</h2>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-neutral-600">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h2 className="break-words text-[22px] font-semibold text-ink">{card.name}</h2>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-3">
             <span className="inline-flex items-center gap-1.5">
-              <span
-                aria-hidden
-                className={`size-2 rounded-full ${card.danceStyle ? "" : "bg-neutral-400"}`}
-                style={card.danceStyle ? danceStyleMeta(card.danceStyle).fill : undefined}
-              />
+              <DanceStyleDot style={card.danceStyle} />
               {card.danceStyle?.name ?? "不限舞種"}
             </span>
             {kindInfo && (
@@ -132,16 +135,16 @@ const CardDetailBody = ({
           aria-label="開放購買"
           disabled={isEnabling}
           onClick={toggleOpen}
-          className="shrink-0 flex items-center gap-2 min-h-11 px-1 text-[13px] text-neutral-700 cursor-pointer disabled:opacity-50"
+          className="flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-lg px-1 text-[13px] text-ink-2 outline-none focus-visible:ring-[3px] focus-visible:ring-primary-300 disabled:opacity-50"
         >
           {isOpen ? "開放購買" : "已下架"}
           <span
-            className={`w-11 h-6 rounded-full p-0.5 flex items-center transition-colors ${
+            className={`flex h-6 w-11 items-center rounded-full p-0.5 transition-colors ${
               isOpen ? "bg-primary-700" : "bg-neutral-300"
             }`}
           >
             <span
-              className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+              className={`size-5 rounded-full bg-white shadow-sm transition-transform ${
                 isOpen ? "translate-x-5" : ""
               }`}
             />
@@ -150,8 +153,8 @@ const CardDetailBody = ({
       </div>
 
       {confirmArchive && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-warning-300 bg-warning-50 p-4">
-          <p className="text-sm leading-relaxed text-warning-950">
+        <div className="mt-4 flex flex-col gap-2.5 rounded-xl bg-warning-100 px-4 py-3 text-warning-950">
+          <p className="text-sm leading-relaxed">
             下架「{card.name}」？學生之後買不到這個方案；手上還有的 {activeHolderCount}{" "}
             張照常使用。
           </p>
@@ -166,47 +169,40 @@ const CardDetailBody = ({
             >
               下架
             </Button>
-            <Button variant="ghost" size="sm" className="bg-white" onClick={() => setConfirmArchive(false)}>
+            <Button variant="text" size="sm" onClick={() => setConfirmArchive(false)}>
               先不要
             </Button>
           </div>
         </div>
       )}
 
-      <div className="flex flex-col gap-2 rounded-2xl bg-neutral-50 px-5 py-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight">${card.price.toLocaleString()}</span>
-            <span className="text-sm text-neutral-500">/ {card.sessions} 堂</span>
-            {oldPrices && (
-              <InfoTip label="已發出的卡的價格" className="self-center">
-                已發出的卡，用的是當時的價格。{oldPrices}。
-              </InfoTip>
-            )}
-          </div>
-          {card.sessions !== 1 && (
-            <span className="text-sm font-semibold text-primary-900">
-              單堂 ${perSessionPrice(card).toLocaleString()}
-            </span>
+      <div className="mt-5 flex flex-col gap-1">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[28px] font-semibold tabular-nums tracking-tight text-ink">
+            ${formatMoney(card.price)}
+          </span>
+          <span className="text-[15px] tabular-nums text-ink-2">{card.sessions} 堂</span>
+          {oldPrices && (
+            <InfoTip label="已發出的卡的價格" className="self-center">
+              已發出的卡，用的是當時的價格。{oldPrices}。
+            </InfoTip>
           )}
         </div>
-        <p className="text-[13px] text-neutral-500">
-          累積賣出 {purchasedCount} 張 · ${totalRevenue.toLocaleString()}
-        </p>
+        <p className="text-[13px] tabular-nums text-ink-3">{priceMeta}</p>
       </div>
 
-      <div className="flex gap-2">
-        <Button variant="secondary" onClick={onEdit} className="flex-1">
+      <div className="mt-3 -ml-2 flex items-center gap-1">
+        <Button variant="text" size="sm" onClick={onEdit}>
           <Pencil className="size-4" />
           編輯
         </Button>
         <Popover open={moreOpen} onOpenChange={setMoreOpen}>
           <PopoverTrigger asChild>
-            <Button variant="secondary" size="icon" aria-label="更多動作" className="border-neutral-300 text-neutral-700">
+            <Button variant="ghost" size="icon" aria-label="更多動作" className="text-ink-2">
               <Ellipsis className="size-5" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-64 p-1.5">
+          <PopoverContent align="start" className="w-64 p-1.5">
             <MenuItem
               icon={<Copy className="size-4" aria-hidden />}
               onClick={() => {
@@ -231,6 +227,9 @@ const CardDetailBody = ({
           </PopoverContent>
         </Popover>
       </div>
+
+      <div aria-hidden className="-mx-5 my-6 h-2 bg-band lg:hidden" />
+      <div className="hidden lg:block lg:h-8" aria-hidden />
 
       <Holders holders={holders} isTrial={kind === "trial"} cardId={card.id} />
 
@@ -276,11 +275,11 @@ const Holders = ({
   }, [holders, query, sort, filter]);
 
   // 只列有人的篩選；快用完、未付款都沒人時整排不放。
-  const chips: { value: HolderFilter; label: string; count: number }[] = [
-    { value: "all" as const, label: "全部", count: holders.length },
-    { value: "runningOut" as const, label: "快用完", count: runningOut },
-    { value: "unpaid" as const, label: "未付款", count: unpaid },
-  ].filter((chip) => chip.value === "all" || chip.count > 0);
+  const filters: { value: HolderFilter; label: string; hint: number }[] = [
+    { value: "all" as const, label: "全部", hint: holders.length },
+    { value: "runningOut" as const, label: "快用完", hint: runningOut },
+    { value: "unpaid" as const, label: "未付款", hint: unpaid },
+  ].filter((option) => option.value === "all" || option.hint > 0);
 
   const emptyText =
     holders.length === 0
@@ -294,36 +293,40 @@ const Holders = ({
           : "找不到符合的學生。";
 
   return (
-    <div className="flex flex-col gap-3 border-t border-neutral-100 pt-4">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-base font-bold">
-          持卡中的學生 <span className="font-medium text-neutral-500">{holders.length}</span>
+    <section aria-labelledby={`card-holders-${cardId}`} className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 id={`card-holders-${cardId}`} className="text-[17px] font-semibold text-ink">
+          持卡中的學生
         </h3>
-        {holders.length > 1 && <SortMenu sort={sort} options={HOLDER_SORT_OPTIONS} onChange={setSort} />}
+        <span className="text-[13px] tabular-nums text-ink-3">{holders.length} 位</span>
       </div>
-      {chips.length > 1 && (
-        <div className="flex flex-wrap gap-1.5">
-          {chips.map((chip) => (
-            <FilterChip
-              key={chip.value}
-              active={filter === chip.value}
-              count={chip.count}
-              onClick={() => setFilter(chip.value)}
-            >
-              {chip.label}
-            </FilterChip>
-          ))}
+      {(filters.length > 1 || holders.length > 1) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          {filters.length > 1 && (
+            <SegmentedTabs ariaLabel="持卡學生篩選" value={filter} onChange={setFilter} options={filters} />
+          )}
+          {holders.length > 1 && (
+            <Select
+              size="plain"
+              aria-label="排序"
+              className="w-auto"
+              value={sort}
+              onChange={setSort}
+              options={HOLDER_SORT_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+            />
+          )}
         </div>
       )}
       {holders.length > 8 && (
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-ink-3" />
           <input
+            type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="搜尋學生姓名"
             aria-label="搜尋學生姓名"
-            className={cn(fieldControlClass(), "h-11 pl-10")}
+            className="h-11 w-full rounded-lg bg-band pr-3 pl-10 text-[15px] text-ink outline-none placeholder:text-ink-3 focus-visible:ring-[3px] focus-visible:ring-primary-300 lg:text-sm"
           />
         </div>
       )}
@@ -336,7 +339,7 @@ const Holders = ({
             title={emptyText}
             action={
               <Button
-                variant="secondary"
+                variant="text"
                 size="sm"
                 onClick={() => {
                   setFilter("all");
@@ -349,35 +352,36 @@ const Holders = ({
           />
         )
       ) : (
-        <ul className="flex flex-col">
+        <ul className="divide-y divide-line border-b border-line">
           {visible.map((holder) => {
             const low = isRunningOut(holder);
             return (
               <li key={holder.id}>
                 <Link
                   href={studentDetailHref(holder.studentId, `/cards/${cardId}`)}
-                  className="flex items-center gap-3 py-2.5 border-b border-neutral-100 hover:bg-neutral-50 -mx-2 px-2 rounded-lg"
+                  className="-mx-3 flex min-h-14 items-center gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-primary-50"
                 >
                   <img
                     src={holder.student.avatarUrl}
                     alt=""
-                    className="w-9 h-9 rounded-full object-cover shrink-0"
+                    className="size-9 shrink-0 rounded-full object-cover"
                   />
-                  <span className="flex-1 min-w-0 flex flex-col gap-0.5">
-                    <span className="flex items-center gap-1.5 text-[15px]">
-                      <span className="font-semibold truncate">{holder.student.name}</span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate text-[15px] font-medium text-ink">{holder.student.name}</span>
                       <CardSerial serialNumber={holder.serialNumber} />
-                      {!holder.isPaid && <StatusTag tone="danger">未付款</StatusTag>}
                     </span>
-                    <span className="text-xs text-neutral-500">
+                    <span className="truncate text-[13px] tabular-nums text-ink-3">
                       {formatDate(holder.createdAt, "M/d")} 購買
+                      {!holder.isPaid && <span className="font-semibold text-warning-800"> · 未付款</span>}
+                      {low && <span className="font-semibold text-warning-800"> · 快用完</span>}
                     </span>
                   </span>
-                  <span className="shrink-0 text-right">
-                    <span className={`text-[17px] font-bold ${low ? "text-warning-950" : "text-neutral-900"}`}>
-                      {holder.remainingSessions}
+                  <span className="shrink-0 text-right tabular-nums">
+                    <span className={`text-[15px] font-semibold ${low ? "text-warning-800" : "text-ink"}`}>
+                      剩 {holder.remainingSessions}
                     </span>
-                    <span className="text-[13px] text-neutral-500"> / {holder.totalSessions}</span>
+                    <span className="text-[13px] text-ink-3"> / {holder.totalSessions} 堂</span>
                   </span>
                 </Link>
               </li>
@@ -385,35 +389,37 @@ const Holders = ({
           })}
         </ul>
       )}
-    </div>
+    </section>
   );
 };
 
 /** `CardDetailBody` while the detail loads — same blocks, data skeleton-ed. */
 export const CardDetailSkeleton = () => (
-  <div className="flex flex-col gap-5" aria-busy="true">
+  <div className="flex flex-col" aria-busy="true">
     <div className="flex items-start justify-between gap-3">
       <div className="flex flex-col gap-2.5">
         <Skeleton className="h-7 w-44" />
         <Skeleton className="h-3.5 w-20" />
       </div>
-      <Skeleton className="h-6 w-11 shrink-0 mt-2.5" />
+      <Skeleton className="mt-2.5 h-6 w-11 shrink-0" />
     </div>
-    <Skeleton className="h-[96px] w-full rounded-2xl" />
-    <div className="flex gap-2">
-      <Skeleton className="h-11 flex-1 rounded-xl" />
-      <Skeleton className="size-11 rounded-xl" />
+    <div className="mt-5 flex flex-col gap-2">
+      <Skeleton className="h-8 w-32" />
+      <Skeleton className="h-3.5 w-52" />
     </div>
-    <div className="flex flex-col gap-3 border-t border-neutral-100 pt-4">
-      <h3 className="text-base font-bold">持卡中的學生</h3>
+    <Skeleton className="mt-4 h-5 w-20" />
+    <div aria-hidden className="-mx-5 my-6 h-2 bg-band lg:hidden" />
+    <div className="hidden lg:block lg:h-8" aria-hidden />
+    <h3 className="text-[17px] font-semibold text-ink">持卡中的學生</h3>
+    <div className="mt-3 divide-y divide-line">
       {["w-24", "w-16", "w-20"].map((width, i) => (
-        <div key={i} className={`flex items-center gap-3 py-2.5 ${i === 2 ? "opacity-50" : ""}`}>
-          <Skeleton className="size-9 shrink-0" />
+        <div key={i} className={`flex min-h-14 items-center gap-3 py-2 ${i === 2 ? "opacity-50" : ""}`}>
+          <Skeleton className="size-9 shrink-0 rounded-full" />
           <div className="flex flex-1 flex-col gap-2">
             <Skeleton className={`h-3.5 ${width}`} />
             <Skeleton className="h-3 w-16" />
           </div>
-          <Skeleton className="h-5 w-10" />
+          <Skeleton className="h-5 w-14" />
         </div>
       ))}
     </div>

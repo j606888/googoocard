@@ -11,13 +11,15 @@ const IncomePage = () => {
   const [unpaidOpen, setUnpaidOpen] = useState(false);
   const { data: unpaidCards, isLoading: unpaidLoading } = useGetUnpaidStudentCardsQuery();
   const unpaidCount = unpaidCards?.length ?? 0;
+  const unpaidTotal = unpaidCards?.reduce((sum, card) => sum + card.finalPrice, 0) ?? 0;
 
   return (
     <>
       <Navbar />
-      <div className="px-5 py-3 lg:px-8 lg:py-6 w-full max-w-[1120px]">
+      <div className="flex w-full flex-col px-5 pt-3 pb-10 lg:max-w-[1180px] lg:px-12 lg:pt-9">
         <IncomeCalendar
           unpaidCount={unpaidCount}
+          unpaidTotal={unpaidTotal}
           unpaidLoading={unpaidLoading}
           onOpenUnpaid={() => setUnpaidOpen(true)}
         />
@@ -27,7 +29,7 @@ const IncomePage = () => {
         open={unpaidOpen}
         onClose={() => setUnpaidOpen(false)}
         onSubmit={() => setUnpaidOpen(false)}
-        title="未付款"
+        title="未付款課卡"
         submitText="關閉"
       >
         <UnpaidTab />

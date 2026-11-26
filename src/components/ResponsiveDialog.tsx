@@ -24,6 +24,7 @@ const ResponsiveDialog = ({
   children,
   label,
   desktop = "panel",
+  initialFocus = "first",
   className = "",
 }: {
   open: boolean;
@@ -39,6 +40,12 @@ const ResponsiveDialog = ({
    * 背景調暗不模糊，看詳情時還瞄得到後面的列表。手機兩種都是底部抽屜。
    */
   desktop?: "panel" | "side";
+  /**
+   * 打開時 focus 放哪：`first`（預設，Radix 的行為）第一個可 focus 的元素；
+   * `container` 對話框本身——第一個元素是「✕」時用這個，免得用滑鼠打開就在 ✕ 上亮一圈
+   * focus ring。按 Tab 一樣從第一個元素開始，鍵盤的 focus ring 不受影響。
+   */
+  initialFocus?: "first" | "container";
   /**
    * 加在面板上的額外 class（例如改最大寬度或內距）。
    * 用 `cn()` 合併，所以會蓋掉下面同族的預設值——Tailwind 的優先序看的是
@@ -56,6 +63,7 @@ const ResponsiveDialog = ({
       : isExpanded
         ? "rd-panel fixed left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-[480px] max-h-[85vh] rounded-2xl"
         : "rd-sheet fixed bottom-0 left-0 right-0 rounded-t-2xl max-w-[480px] mx-auto",
+    initialFocus === "container" && "outline-none",
     className
   );
 
@@ -69,6 +77,14 @@ const ResponsiveDialog = ({
           className={panelClassName}
           aria-describedby={undefined}
           onEscapeKeyDown={keepOpenOnSelectEscape}
+          onOpenAutoFocus={
+            initialFocus === "container"
+              ? (e) => {
+                  e.preventDefault();
+                  (e.currentTarget as HTMLElement | null)?.focus();
+                }
+              : undefined
+          }
           // sonner 的 toast 在右下角，正好蓋住側邊抽屜的底部；點到它不該被當成點外面而關掉
           onInteractOutside={(e) => {
             if ((e.target as Element | null)?.closest?.("[data-sonner-toaster]")) e.preventDefault();

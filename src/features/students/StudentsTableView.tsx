@@ -25,7 +25,6 @@ const StudentsTableView = () => {
   const { selectedId, select, clear } = useSelectionMirroredToUrl("sel");
   const [visible, setVisible] = useState<Student[]>([]);
 
-
   const handleSelect = useCallback((next: Student) => select(next.id), [select]);
 
   const index = selectedId == null ? -1 : visible.findIndex((s) => s.id === selectedId);
@@ -50,7 +49,7 @@ const StudentsTableView = () => {
               type="button"
               variant="ghost"
               size="iconSm"
-              className="text-neutral-500"
+              className="text-ink-3"
               aria-label="上一位學生"
               title="上一位（↑）"
               disabled={!prev}
@@ -62,7 +61,7 @@ const StudentsTableView = () => {
               type="button"
               variant="ghost"
               size="iconSm"
-              className="text-neutral-500"
+              className="text-ink-3"
               aria-label="下一位學生"
               title="下一位（↓）"
               disabled={!next}
@@ -71,7 +70,7 @@ const StudentsTableView = () => {
               <ChevronDown className="w-5 h-5" />
             </Button>
             {index >= 0 && (
-              <span className="ml-1.5 text-[13px] text-neutral-500 tabular-nums">
+              <span className="ml-1.5 text-[13px] text-ink-3 tabular-nums">
                 第 {index + 1} / {visible.length} 位
               </span>
             )}

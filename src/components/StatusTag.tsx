@@ -9,7 +9,7 @@ const TONES = {
   /** 未付 $X、已過期 */
   danger: "bg-danger-50 text-danger-700",
   /** 已封存、已停用 */
-  neutral: "bg-neutral-100 text-neutral-600",
+  neutral: "bg-band text-ink-2",
   /** Where something came from: 自助簽到、體驗報名 */
   outline: "bg-white text-primary-900 border border-primary-300",
 } as const;

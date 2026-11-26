@@ -4,7 +4,6 @@ import Link from "next/link";
 import DataView, { DataViewColumn } from "@/components/DataView";
 import { Student } from "@/store/slices/students";
 import { cn } from "@/lib/utils";
-import StatusTag from "@/components/StatusTag";
 import LineBoundIcon from "@/components/LineBoundIcon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatMoney } from "@/lib/money";
@@ -14,6 +13,7 @@ import { DanceBadges } from "./DanceBadge";
 import {
   ACTIVE_DAYS,
   LOW_REMAINING_SESSIONS,
+  NEEDS_RENEWAL_LABEL,
   NEEDS_RENEWAL_TAG,
   ROSTER_WEEKS,
   daysSinceLastAttend,
@@ -55,7 +55,8 @@ const COLUMN_LAYOUT = {
 } as const;
 
 /**
- * 學生名單的表格（手機是卡片、桌面是表格，同一份 DOM，見 `DataView`）。
+ * 學生名單（手機是兩行的清單列、桌面是表格，同一份 DOM，見 `DataView`）。
+ * 狀態用字寫（已經沒卡、未付 $X），不用膠囊；要處理的事才上琥珀色。
  *
  * 整列可點：primary 那格是真的 `<Link>`（手機，進整頁詳情）或 `<button>`
  * （桌面，開右側抽屜），用 `after:absolute after:inset-0` 撐滿整列，鍵盤也點得到。
@@ -73,7 +74,7 @@ const StudentTable = ({
   hideHeader?: boolean;
 }) => {
   const stretched =
-    "flex items-center gap-3 min-w-0 text-left cursor-pointer after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-primary-700 focus-visible:after:ring-inset";
+    "flex items-center gap-3 min-w-0 text-left cursor-pointer after:absolute after:inset-0 after:content-[''] after:rounded-xl focus-visible:outline-none focus-visible:after:ring-[3px] focus-visible:after:ring-primary-300 focus-visible:after:ring-inset";
 
   const columns: DataViewColumn<Student>[] = [
     {
@@ -86,12 +87,10 @@ const StudentTable = ({
           <>
             <img src={student.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
             <span className="flex items-center gap-1.5 min-w-0">
-              <span className="text-[15px] font-semibold text-neutral-900 truncate">{student.name}</span>
-              <span className="text-[11px] font-mono text-neutral-500 shrink-0">#{student.number}</span>
+              <span className="text-[15px] font-medium text-ink truncate">{student.name}</span>
+              <span className="text-[13px] tabular-nums text-ink-3 shrink-0">#{student.number}</span>
               {student.lineBound !== undefined && <LineBoundIcon bound={student.lineBound} />}
-              {otherTag && (
-                <StatusTag tone="neutral">{otherTag.name}</StatusTag>
-              )}
+              {otherTag && <span className="text-[13px] text-ink-3 truncate">{otherTag.name}</span>}
             </span>
           </>
         );
@@ -116,8 +115,8 @@ const StudentTable = ({
       ...COLUMN_LAYOUT.styles,
       hideOnMobile: (student) => Object.keys(student.danceLevels ?? {}).length === 0,
       render: (student) => (
-        <span className="flex flex-wrap gap-1">
-          <DanceBadges levels={student.danceLevels} />
+        <span className="flex flex-wrap gap-x-3 gap-y-1">
+          <DanceBadges levels={student.danceLevels} variant="plain" />
         </span>
       ),
     },
@@ -131,10 +130,10 @@ const StudentTable = ({
             className={cn(
               "tabular-nums",
               remaining === 0
-                ? "text-neutral-500"
+                ? "text-ink-3"
                 : remaining <= LOW_REMAINING_SESSIONS
-                  ? "text-danger-700 font-semibold"
-                  : "text-neutral-900 lg:font-semibold"
+                  ? "text-warning-800 font-semibold"
+                  : "text-ink"
             )}
           >
             剩 {remaining} 堂
@@ -148,7 +147,7 @@ const StudentTable = ({
       render: (student) => {
         const days = daysSinceLastAttend(student);
         return (
-          <span className={days === null || days > ACTIVE_DAYS ? "text-neutral-500" : ""}>
+          <span className={cn("tabular-nums", (days === null || days > ACTIVE_DAYS) && "text-ink-3")}>
             {lastAttendLabel(days)}
           </span>
         );
@@ -166,12 +165,14 @@ const StudentTable = ({
       render: (student) => {
         const needsRenewal = student.tags?.some((tag) => tag.name === NEEDS_RENEWAL_TAG);
         const unpaid = student.unpaidAmount ?? 0;
+        const states = [
+          needsRenewal && NEEDS_RENEWAL_LABEL,
+          student.hasUnpaidCard && `未付${unpaid > 0 ? ` $${formatMoney(unpaid)}` : ""}`,
+        ].filter(Boolean);
+        if (states.length === 0) return null;
         return (
-          <span className="flex flex-wrap justify-end lg:justify-start gap-1">
-            {needsRenewal && <StatusTag tone="warning">需續約</StatusTag>}
-            {student.hasUnpaidCard && (
-              <StatusTag tone="danger">未付{unpaid > 0 ? ` $${formatMoney(unpaid)}` : ""}</StatusTag>
-            )}
+          <span className="text-[13px] font-semibold tabular-nums whitespace-nowrap text-warning-800">
+            {states.join(" · ")}
           </span>
         );
       },
@@ -184,12 +185,8 @@ const StudentTable = ({
       rows={students}
       rowKey={(student) => student.id}
       hideHeader={hideHeader}
-      className="rounded-none border-x-0 lg:rounded-2xl lg:border-x"
       rowClassName={(student) =>
-        cn(
-          "hover:bg-neutral-50",
-          student.id === selectedId && "bg-primary-50 hover:bg-primary-50"
-        )
+        cn("hover:bg-primary-50", student.id === selectedId && "bg-primary-50")
       }
     />
   );
@@ -216,7 +213,7 @@ export const StudentTableSkeleton = () => {
     {
       key: "styles",
       ...COLUMN_LAYOUT.styles,
-      render: () => <Skeleton className="h-5 w-12 rounded-sm" />,
+      render: () => <Skeleton className="h-3 w-12" />,
     },
     { key: "remaining", ...COLUMN_LAYOUT.remaining, render: () => <Skeleton className="h-3 w-12" /> },
     { key: "last", ...COLUMN_LAYOUT.last, render: () => <Skeleton className="h-3 w-14" /> },
@@ -238,7 +235,7 @@ export const StudentTableSkeleton = () => {
       key: "status",
       ...COLUMN_LAYOUT.status,
       role: "trailing",
-      render: (i) => (i % 2 === 0 ? <Skeleton className="h-5.5 w-14" /> : null),
+      render: (i) => (i % 2 === 0 ? <Skeleton className="h-3 w-14" /> : null),
     },
   ];
 
@@ -247,7 +244,6 @@ export const StudentTableSkeleton = () => {
       columns={columns}
       rows={SKELETON_ROWS}
       rowKey={(i) => i}
-      className="rounded-none border-x-0 lg:rounded-2xl lg:border-x"
       rowClassName={(i) => SKELETON_OPACITY[i]}
     />
   );

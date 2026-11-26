@@ -13,18 +13,18 @@ const MonthSwitcher = ({
 }) => {
   const isCurrent = month >= currentMonthKey();
   return (
-    <div className="flex items-center gap-2">
+    <div className="-ml-3 flex items-center gap-1">
       <Button
-        variant="secondary"
+        variant="ghost"
         size="icon"
         aria-label="上個月"
         onClick={() => onChange(shiftMonth(month, -1))}
       >
         <ChevronLeft />
       </Button>
-      <span className="min-w-[7.5rem] text-center font-semibold text-neutral-900 tabular-nums">{monthLabel(month)}</span>
+      <span className="min-w-[7.5rem] text-center text-[15px] font-semibold tabular-nums text-ink">{monthLabel(month)}</span>
       <Button
-        variant="secondary"
+        variant="ghost"
         size="icon"
         aria-label="下個月"
         disabled={isCurrent}

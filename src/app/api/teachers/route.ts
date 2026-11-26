@@ -34,7 +34,7 @@ export const GET = apiRoute(async ({ classroomId }) => {
 });
 
 export const POST = apiRoute(async ({ request, classroomId }) => {
-  const { name, color, icon, locationIds, note, kind } = await parseBody(
+  const { name, color, locationIds, note, kind } = await parseBody(
     request,
     createTeacherSchema
   );
@@ -52,7 +52,6 @@ export const POST = apiRoute(async ({ request, classroomId }) => {
       classroomId,
       name,
       color: color ?? firstFreeTeacherColor(taken),
-      icon: icon ?? null,
       locations: { connect: locations.map((id) => ({ id })) },
       note: note ?? null,
       kind: kind ?? "TEACHER",

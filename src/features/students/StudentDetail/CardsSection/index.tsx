@@ -9,17 +9,17 @@ import EndedCardsTable from "./EndedCardsTable";
 import EmptyCards from "./EmptyCards";
 import { isCardEnded } from "./cardStatus";
 import EmptyState from "@/components/EmptyState";
+import { Band } from "../ProfilePanels";
 
 const SectionHeading = ({ title, hint }: { title: string; hint: string }) => (
-  <h3 className="m-0 text-[15px] font-bold text-neutral-900">
-    {title}
-    <span className="ml-1.5 text-[13px] font-medium text-neutral-600">{hint}</span>
-  </h3>
+  <div className="flex items-baseline justify-between gap-3">
+    <h3 className="m-0 text-[17px] font-semibold text-ink">{title}</h3>
+    <span className="text-[13px] tabular-nums text-ink-3">{hint}</span>
+  </div>
 );
 
 /**
- * 課卡分頁：有效課卡的摘要卡網格、已結束的卡的表格、一份詳情對話框。
- * 網格依自己的寬度排欄（手機一欄、分割檢視兩欄、寬螢幕更多），不靠呼叫端傳欄數。
+ * 課卡分頁：有效課卡一張一列（整列寬、細線分隔）、已結束的卡的精簡清單、一份詳情對話框。
  */
 const CardsSection = ({
   student,
@@ -72,33 +72,37 @@ const CardsSection = ({
   }
 
   return (
-    <div className="@container flex flex-col gap-6">
-      <section className="flex flex-col gap-3">
+    <div className="@container flex flex-col">
+      <section className="flex flex-col gap-1">
         <SectionHeading
           title="有效課卡"
-          hint={activeCards.length === 0 ? "沒有" : `${activeCards.length} 張 · 剩 ${remaining} 堂`}
+          hint={activeCards.length === 0 ? "沒有" : `${activeCards.length} 張 · 共剩 ${remaining} 堂`}
         />
         {activeCards.length > 0 ? (
-          <div className="grid gap-3 items-start grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
+          <ul className="m-0 p-0 list-none divide-y divide-line border-b border-line">
             {activeCards.map((studentCard) => (
-              <StudentCard
-                key={studentCard.id}
-                studentCard={studentCard}
-                highlighted={focusCardId === studentCard.id}
-                onOpen={openCard}
-              />
+              <li key={studentCard.id}>
+                <StudentCard
+                  studentCard={studentCard}
+                  highlighted={focusCardId === studentCard.id}
+                  onOpen={openCard}
+                />
+              </li>
             ))}
-          </div>
+          </ul>
         ) : (
           <EmptyState kind="inline" title="沒有有效課卡" />
         )}
       </section>
 
       {endedCards.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <SectionHeading title="已結束" hint={`${endedCards.length} 張`} />
-          <EndedCardsTable studentCards={endedCards} highlightedId={focusCardId} onOpen={openCard} />
-        </section>
+        <>
+          <Band />
+          <section className="flex flex-col gap-1 lg:mt-9">
+            <SectionHeading title="已結束" hint={`${endedCards.length} 張`} />
+            <EndedCardsTable studentCards={endedCards} highlightedId={focusCardId} onOpen={openCard} />
+          </section>
+        </>
       )}
 
       <CardDetailDialog

@@ -13,10 +13,10 @@ export default function SettingsTabs() {
   const pathname = usePathname();
 
   return (
-    <div className="px-4 pt-3 lg:px-8 lg:pt-6">
-      <p className="text-[13px] font-medium text-neutral-500">教室設定</p>
-      <nav aria-label="教室設定" className="-mx-4 overflow-x-auto px-4 lg:mx-0 lg:px-0">
-        <div className="flex w-max gap-1 border-b border-neutral-200 lg:w-auto">
+    <div className="px-5 pt-3 lg:px-12 lg:pt-6">
+      <p className="text-[13px] font-medium text-ink-3">教室設定</p>
+      <nav aria-label="教室設定" className="-mx-5 overflow-x-auto px-5 lg:mx-0 lg:px-0">
+        <div className="flex w-max min-w-full gap-1 border-b border-line lg:w-auto">
           {SETTINGS_LINKS.map((link) => {
             const active = pathname.startsWith(link.href);
             return (
@@ -27,7 +27,7 @@ export default function SettingsTabs() {
                 className={`-mb-px inline-flex min-h-11 items-center whitespace-nowrap border-b-2 px-3.5 text-sm transition-colors ${
                   active
                     ? "border-primary-600 font-bold text-primary-900"
-                    : "border-transparent font-medium text-neutral-500 hover:text-neutral-800"
+                    : "border-transparent font-medium text-ink-3 hover:text-ink"
                 }`}
               >
                 {link.name}

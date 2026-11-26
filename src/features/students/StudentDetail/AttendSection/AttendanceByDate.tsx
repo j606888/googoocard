@@ -4,27 +4,24 @@ import type { StudentAttendance } from "@/store/slices/students";
 import DanceBadge from "../../StudentList/DanceBadge";
 import { formatCardSerial } from "@/lib/cardSerial";
 import { formatMoney } from "@/lib/money";
+import { Button } from "@/components/ui/button";
 import { attendanceSourceLabel, groupByMonth, takeMonthsUntil } from "./attendanceInsights";
-import StatusTag, { type StatusTone } from "@/components/StatusTag";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 /** 第一次先列到這麼多筆（整月為單位），其餘收在「載入更早的紀錄」後面。 */
 const INITIAL_ROWS = 20;
 
-const SOURCE_TONE: Record<"self" | "teacher" | "pending", StatusTone> = {
-  self: "outline",
-  teacher: "neutral",
-  pending: "warning",
+/** 來源寫成字：待老師確認是要處理的事（琥珀），其餘是淡字。 */
+const SOURCE_CLASS: Record<"self" | "teacher" | "pending", string> = {
+  self: "text-ink-2",
+  teacher: "text-ink-3",
+  pending: "font-semibold text-warning-800",
 };
 
 export const SourcePill = ({ attendance }: { attendance: Pick<StudentAttendance, "source" | "pending"> }) => {
   const { label, tone } = attendanceSourceLabel(attendance);
-  return (
-    <StatusTag tone={SOURCE_TONE[tone]} className="justify-self-start">
-      {label}
-    </StatusTag>
-  );
+  return <span className={`justify-self-start text-[13px] ${SOURCE_CLASS[tone]}`}>{label}</span>;
 };
 
 const ROW_COLS = "@lg:grid-cols-[88px_minmax(0,1.4fr)_minmax(0,1fr)_104px]";
@@ -42,54 +39,54 @@ const AttendanceByDate = ({ attendances }: { attendances: StudentAttendance[] })
 
   return (
     <div className="@container">
-      <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+      <div className="flex flex-col gap-6">
         {visibleGroups.map((group) => (
           <section key={group.key}>
-            <h4 className="m-0 flex items-center justify-between px-4 py-2 bg-neutral-50 border-y first:border-t-0 border-neutral-100 text-xs font-semibold text-neutral-700">
+            <h4 className="m-0 flex items-baseline justify-between pb-1 text-[13px] font-semibold text-ink-2">
               {group.label}
-              <span className="font-medium text-neutral-500">{group.attendances.length} 堂</span>
+              <span className="font-normal tabular-nums text-ink-3">{group.attendances.length} 堂</span>
             </h4>
-            <ul className="m-0 p-0 list-none">
+            <ul className="m-0 p-0 list-none divide-y divide-line border-y border-line">
               {group.attendances.map((attendance, index) => {
                 const at = new Date(attendance.startTime);
                 const serial = attendance.studentCard ? formatCardSerial(attendance.studentCard.serialNumber) : null;
                 return (
                   <li
                     key={`${attendance.lessonId}-${attendance.startTime}-${index}`}
-                    className={`grid grid-cols-[52px_minmax(0,1fr)_auto] ${ROW_COLS} gap-3 items-center px-4 py-2.5 border-t first:border-t-0 border-neutral-100 text-[13px] text-neutral-700`}
+                    className={`grid min-h-14 grid-cols-[52px_minmax(0,1fr)_auto] ${ROW_COLS} gap-3 items-center py-2 text-[13px] text-ink-2`}
                   >
                     <span className="leading-tight">
-                      <span className="block text-[15px] font-semibold text-neutral-900 tabular-nums">{format(at, "M/d")}</span>
-                      <span className="block text-xs text-neutral-500">
+                      <span className="block text-[15px] font-medium text-ink tabular-nums">{format(at, "M/d")}</span>
+                      <span className="block text-[13px] text-ink-3">
                         週{WEEKDAYS[at.getDay()]}
                         <span className="hidden @lg:inline"> {format(at, "HH:mm")}</span>
                       </span>
                     </span>
                     <span className="min-w-0">
-                      <span className="flex items-center gap-1.5 flex-wrap font-semibold text-neutral-900">
+                      <span className="flex items-center gap-1.5 flex-wrap text-[15px] font-medium text-ink">
                         <span className="truncate">{attendance.lessonName}</span>
                         {attendance.danceStyle && <DanceBadge style={attendance.danceStyle} />}
                       </span>
                       {/* 窄槽位：時間和卡號併到課名下面 */}
-                      <span className="@lg:hidden block text-xs text-neutral-500 tabular-nums">
+                      <span className="@lg:hidden block text-[13px] text-ink-3 tabular-nums">
                         {format(at, "HH:mm")} · {dropInLabel(attendance) ?? serial ?? "未扣卡"}
                       </span>
                     </span>
-                    <span className="hidden @lg:block min-w-0 truncate text-xs">
+                    <span className="hidden @lg:block min-w-0 truncate">
                       {attendance.dropIn ? (
-                        <span className={attendance.dropIn.isPaid ? "text-neutral-700" : "font-semibold text-warning-950"}>
+                        <span className={attendance.dropIn.isPaid ? "text-ink-2" : "font-semibold text-warning-800"}>
                           {dropInLabel(attendance)}
                         </span>
                       ) : attendance.studentCard ? (
                         <>
                           {attendance.studentCard.name}{" "}
-                          <span className="text-neutral-500 tabular-nums">{serial}</span>
+                          <span className="text-ink-3 tabular-nums">{serial}</span>
                           {attendance.sessionsUsed > 1 && (
-                            <span className="text-neutral-500"> · 扣 {attendance.sessionsUsed} 堂</span>
+                            <span className="text-ink-3"> · 扣 {attendance.sessionsUsed} 堂</span>
                           )}
                         </>
                       ) : (
-                        <span className="text-neutral-500">未扣卡</span>
+                        <span className="text-ink-3">未扣卡</span>
                       )}
                     </span>
                     <SourcePill attendance={attendance} />
@@ -99,16 +96,12 @@ const AttendanceByDate = ({ attendances }: { attendances: StudentAttendance[] })
             </ul>
           </section>
         ))}
-        {hiddenCount > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowAll(true)}
-            className="w-full py-2.5 text-sm font-semibold text-primary-900 hover:bg-neutral-50 cursor-pointer border-t border-neutral-100"
-          >
-            載入更早的紀錄（{hiddenCount} 筆）
-          </button>
-        )}
       </div>
+      {hiddenCount > 0 && (
+        <Button type="button" variant="text" size="sm" className="mt-2 -ml-2" onClick={() => setShowAll(true)}>
+          載入更早的紀錄（{hiddenCount} 筆）
+        </Button>
+      )}
     </div>
   );
 };

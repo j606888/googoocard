@@ -14,7 +14,7 @@ export interface Membership {
     email: string;
   };
   /** The person (Teacher row) this member is linked to (Teacher.userId), or null. */
-  teacher: (TeacherSummary & { icon: string | null; kind: TeacherKind }) | null;
+  teacher: (TeacherSummary & { kind: TeacherKind }) | null;
 }
 
 export interface InviteToken {

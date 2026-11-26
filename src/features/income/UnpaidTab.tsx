@@ -1,80 +1,67 @@
 "use client";
 
 import { useState } from "react";
-import { CircleDollarSign } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { useGetUnpaidStudentCardsQuery } from "@/store/slices/students";
 import { formatMoney } from "@/lib/money";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import EmptyState from "@/components/EmptyState";
 import ConfirmPaymentDrawer, {
   ConfirmPaymentTarget,
 } from "@/features/students/ConfirmPaymentDrawer";
 
+/** 未付款課卡清單（收入頁抽屜的內容）：一列一張，右邊文字按鈕「確認付款」。 */
 export default function UnpaidTab() {
   const { data: cards, isLoading } = useGetUnpaidStudentCardsQuery();
   const [paying, setPaying] = useState<ConfirmPaymentTarget | null>(null);
 
   if (isLoading) {
     return (
-      <div
-        className="border border-neutral-200 rounded-2xl bg-white overflow-hidden"
-        aria-busy="true"
-        aria-label="載入未付款清單中"
-      >
-        <div className="divide-y divide-neutral-200">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-3 px-3 py-2.5">
-              <Skeleton className="w-20 shrink-0 h-3.5" />
-              <div className="min-w-0 flex-1 flex flex-col gap-1.5">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-3 w-28" />
-              </div>
-              <Skeleton className="shrink-0 h-5 w-14" />
-              <Skeleton className="shrink-0 h-9 w-[104px] rounded-lg" />
+      <div className="divide-y divide-line" aria-busy="true" aria-label="載入未付款清單中">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="flex min-h-14 items-center gap-3 py-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-3 w-36" />
             </div>
-          ))}
-        </div>
+            <Skeleton className="h-4 w-14 shrink-0" />
+            <Skeleton className="h-4 w-16 shrink-0" />
+          </div>
+        ))}
       </div>
     );
   }
 
   if (!cards || cards.length === 0) {
-    return (
-      <EmptyState
-        kind="inline"
-        icon={<CircleDollarSign />}
-        title="沒有未付款的課卡"
-        description="所有課卡都已收款。"
-      />
-    );
+    return <p className="py-3 text-[15px] text-ink-3">所有課卡都已收款，沒有要追的錢。</p>;
   }
 
+  const total = cards.reduce((sum, card) => sum + card.finalPrice, 0);
+
   return (
-    <div className="border border-neutral-200 rounded-2xl bg-white overflow-hidden">
-      <div className="divide-y divide-neutral-200">
+    <>
+      <p className="mb-1 text-[13px] tabular-nums text-ink-3">
+        {cards.length} 張 · 共 ${formatMoney(total)}
+      </p>
+      <ul className="divide-y divide-line border-b border-line">
         {cards.map((card) => (
-          <div key={card.id} className="flex items-center gap-3 px-3 py-2.5">
-            <div className="w-20 shrink-0 text-xs text-neutral-500">
-              {formatDate(card.createdAt)}
-            </div>
+          <li key={card.id} className="flex min-h-14 items-center gap-3 py-2">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-neutral-900 truncate">
-                {card.student.name}
-              </p>
-              <p className="text-xs text-neutral-500 truncate">
-                {card.card.name}
-                {card.purchasedBy?.name ? ` · ${card.purchasedBy.name}` : ""}
+              <p className="truncate text-[15px] font-medium text-ink">{card.student.name}</p>
+              <p className="truncate text-[13px] tabular-nums text-ink-3">
+                {[formatDate(card.createdAt), card.card.name, card.purchasedBy?.name]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
             </div>
-            <div className="shrink-0 text-right text-base font-bold text-danger-700">
+            <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink">
               ${formatMoney(card.finalPrice)}
-            </div>
+            </span>
             <Button
-              variant="secondary"
+              variant="text"
               size="sm"
-              className="gap-1"
+              className="-mr-2 min-h-11 lg:min-h-9"
+              aria-label={`確認付款：${card.student.name} ${card.card.name}`}
               onClick={() =>
                 setPaying({
                   studentId: card.studentId,
@@ -86,13 +73,12 @@ export default function UnpaidTab() {
                 })
               }
             >
-              <CircleDollarSign className="size-4" />
-              <span>確認付款</span>
+              確認付款
             </Button>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
       <ConfirmPaymentDrawer target={paying} onClose={() => setPaying(null)} />
-    </div>
+    </>
   );
 }

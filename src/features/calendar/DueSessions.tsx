@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { AlarmClock, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { CalendarPeriod } from "@/store/slices/lessons";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -11,38 +11,39 @@ interface DueSessionsProps {
   onSelectDay: (day: Date) => void;
 }
 
-/** Desktop side panel: this month's sessions that still need attendance. */
+/** Desktop side column: this month's sessions that still need attendance — a headed hairline list, amber text. */
 const DueSessions = ({ due, onSelectDay }: DueSessionsProps) => {
   if (due.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-warning-300 bg-warning-50 p-4">
-      <div className="mb-1.5 flex items-center gap-2 text-warning-950">
-        <AlarmClock className="h-4 w-4" />
-        <h3 className="font-semibold">還沒點名</h3>
-        <span className="ml-auto text-sm font-semibold">{due.length} 堂</span>
+    <section aria-labelledby="due-sessions-heading">
+      <div className="mb-2 flex items-baseline gap-2">
+        <h2 id="due-sessions-heading" className="text-[17px] font-semibold text-ink">
+          還沒點名
+        </h2>
+        <span className="ml-auto text-[13px] font-semibold tabular-nums text-warning-800">{due.length} 堂</span>
       </div>
-      <div className="flex flex-col">
+      <ul className="divide-y divide-line border-b border-line">
         {due.map((p) => {
           const start = new Date(p.startTime);
           return (
-            <button
-              key={p.periodId}
-              onClick={() => onSelectDay(start)}
-              className="flex min-h-11 items-center gap-3 rounded-lg px-2 text-left cursor-pointer hover:bg-warning-100"
-            >
-              <span className="w-20 shrink-0 whitespace-nowrap text-sm font-semibold text-warning-950 tabular-nums">
-                {format(start, "M/d")} 週{WEEKDAYS[start.getDay()]}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm text-neutral-900">
-                {p.lessonName}
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-warning-950" />
-            </button>
+            <li key={p.periodId}>
+              <button
+                type="button"
+                onClick={() => onSelectDay(start)}
+                className="-mx-3 flex min-h-12 w-[calc(100%+1.5rem)] cursor-pointer items-center gap-3 rounded-xl px-3 text-left hover:bg-primary-50"
+              >
+                <span className="w-20 shrink-0 whitespace-nowrap text-[13px] font-semibold tabular-nums text-warning-800">
+                  {format(start, "M/d")} 週{WEEKDAYS[start.getDay()]}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{p.lessonName}</span>
+                <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-3" />
+              </button>
+            </li>
           );
         })}
-      </div>
-    </div>
+      </ul>
+    </section>
   );
 };
 

@@ -10,7 +10,7 @@ export type Attention =
 
 /**
  * 這位學生現在最該處理的一件事；沒有就回 null。
- * 一次只講一件，優先順序：未付款 > 需續約 > 有卡沒來。
+ * 一次只講一件，優先順序：未付款 > 已經沒卡 > 有卡沒來。
  */
 export function attentionFor(student: StudentWithDetail, now = new Date()): Attention | null {
   const unpaid = student.studentCards.filter((card) => !card.isPaid);

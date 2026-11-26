@@ -2,7 +2,7 @@
 
 import { isSameMonth, format } from "date-fns";
 import { CalendarPeriod } from "@/store/slices/lessons";
-import { danceStyleMeta } from "@/lib/danceStyleColors";
+import DanceStyleDot from "@/components/DanceStyleDot";
 import { sessionState } from "./status";
 
 interface DayCellProps {
@@ -15,13 +15,14 @@ interface DayCellProps {
   now: Date;
 }
 
-const MAX_DOTS = 3;
-const MAX_CHIPS = 3;
+/** 一格最多畫幾個點（手機兩排）；再多的堂數寫在 aria-label 與下方當日清單。 */
+const MAX_DOTS = 8;
 
 /**
- * One day of the month grid. Phone: number + dance-style dots (the day's list
- * sits below the grid). Desktop (`lg:`): a taller cell that lists the sessions
- * themselves as chips, so the month reads without clicking each day.
+ * One day of the month grid: the date and one dance-style dot per session —
+ * no times or counts written in the cell; the selected day's list (below on
+ * phones, right column on desktop) carries the details. Days with a session
+ * still waiting for attendance get a small amber mark (also in the aria-label).
  */
 const DayCell = ({
   day,
@@ -35,104 +36,48 @@ const DayCell = ({
   const inMonth = isSameMonth(day, viewMonth);
   const hasDue = periods.some((p) => sessionState(p, now) === "due");
   const dots = periods.slice(0, MAX_DOTS);
-  const extraDots = periods.length - dots.length;
-  const chips = periods.slice(0, MAX_CHIPS);
-  const extraChips = periods.length - chips.length;
-
-  const cellTone = selected
-    ? "bg-primary-900 text-white lg:bg-primary-50 lg:text-neutral-900 lg:ring-2 lg:ring-inset lg:ring-primary-700"
-    : isToday
-    ? "bg-primary-50 hover:bg-primary-100 lg:bg-white lg:hover:bg-neutral-50"
-    : "hover:bg-neutral-100 lg:hover:bg-neutral-50";
 
   const numberTone = isToday
-    ? selected
-      ? "text-white lg:bg-primary-900"
-      : "text-primary-900 font-bold lg:bg-primary-900 lg:text-white"
+    ? "bg-primary-900 font-semibold text-white"
     : selected
-    ? "text-white lg:text-neutral-900"
-    : "text-neutral-700";
+    ? "font-semibold text-primary-900"
+    : inMonth
+    ? "text-ink"
+    : "text-ink-3";
 
   return (
     <button
+      type="button"
       onClick={() => onSelect(day)}
       aria-label={`${format(day, "M 月 d 日")}，${periods.length} 堂課${hasDue ? "，有待點名" : ""}`}
       aria-pressed={selected}
-      className={`relative flex flex-col items-center gap-1 min-h-14 pb-1.5 rounded-lg pt-1.5 transition-colors lg:items-stretch lg:min-h-28 lg:rounded-none lg:p-2 lg:text-left lg:border-b lg:border-r lg:border-neutral-100 lg:[&:nth-child(7n)]:border-r-0 lg:[&:nth-last-child(-n+7)]:border-b-0 ${cellTone} ${
-        inMonth ? "" : "opacity-40 lg:opacity-100 lg:bg-neutral-50/70 lg:text-neutral-400"
+      className={`relative flex min-h-14 cursor-pointer flex-col items-center gap-1.5 rounded-lg pb-2 pt-1.5 transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-primary-300 lg:min-h-20 lg:items-start lg:rounded-none lg:px-2 lg:pt-2 ${
+        selected ? "bg-primary-50" : "hover:bg-primary-50/60"
       }`}
     >
       <span
-        className={`text-xs font-medium leading-none lg:self-start lg:flex lg:items-center lg:justify-center lg:min-w-6 lg:h-6 lg:px-1.5 lg:rounded-full lg:text-[13px] lg:font-semibold ${numberTone} ${
-          inMonth ? "" : "lg:text-neutral-400"
-        }`}
+        className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[13px] leading-none tabular-nums ${numberTone}`}
       >
         {format(day, "d")}
       </span>
 
-      {/* Phone: dance-style dots */}
-      <div className="flex items-center gap-0.5 h-2 lg:hidden">
+      <span
+        aria-hidden="true"
+        className={`flex max-w-full flex-wrap justify-center gap-1 px-1 lg:justify-start lg:px-0 ${
+          inMonth ? "" : "opacity-50"
+        }`}
+      >
         {dots.map((p) => (
-          <span
-            key={p.periodId}
-            className={`w-1.5 h-1.5 rounded-full ${selected ? "bg-white/90" : ""}`}
-            style={selected ? undefined : danceStyleMeta(p.danceStyle).fill}
-          />
+          <DanceStyleDot key={p.periodId} style={p.danceStyle} />
         ))}
-        {extraDots > 0 && (
-          <span
-            className={`text-[9px] leading-none ${
-              selected ? "text-white/90" : "text-neutral-500"
-            }`}
-          >
-            +{extraDots}
-          </span>
-        )}
-      </div>
+      </span>
 
       {hasDue && (
         <span
-          className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ring-[1.5px] lg:hidden ${
-            selected ? "bg-white ring-primary-900" : "bg-warning-500 ring-white"
-          }`}
+          aria-hidden="true"
+          className="absolute right-1 top-1 size-1.5 rounded-full bg-warning-500 lg:right-2 lg:top-2"
         />
       )}
-
-      {/* Desktop: the sessions themselves */}
-      <div className="hidden lg:flex flex-col gap-1 min-w-0">
-        {chips.map((p) => {
-          const style = danceStyleMeta(p.danceStyle);
-          const state = sessionState(p, now);
-          return (
-            <span
-              key={p.periodId}
-              title={p.lessonName}
-              className={`flex items-center gap-1.5 min-w-0 rounded-sm px-1.5 py-0.5 text-xs leading-snug ${
-                state === "due"
-                  ? "bg-white text-warning-950 ring-[1.5px] ring-inset ring-warning-400"
-                  : state === "taken" ? "opacity-60" : ""
-              }`}
-              style={state === "due" ? undefined : style.chip}
-            >
-              {/* 舞種縮寫：格子窄、課名放不下，靠顏色＋縮寫分辨舞種 */}
-              <span
-                className="shrink-0 rounded-[3px] px-1 text-[10px] font-semibold leading-4"
-                style={{ ...style.fill, ...style.onFill }}
-              >
-                {style.abbr}
-              </span>
-              <span className="shrink-0 tabular-nums opacity-80">
-                {format(new Date(p.startTime), "HH:mm")}
-              </span>
-              {/* 格子太窄，課名只會被截成一個字——寬螢幕才顯示，其餘看右邊當日清單。 */}
-              <span className="hidden truncate font-medium 2xl:inline">{p.lessonName}</span>
-            </span>
-          );
-        })}
-        {extraChips > 0 && (
-          <span className="px-1.5 text-[11px] text-neutral-500">+{extraChips} 堂</span>
-        )}
-      </div>
     </button>
   );
 };

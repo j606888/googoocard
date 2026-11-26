@@ -1,11 +1,15 @@
-import { Info, Minus, Plus } from "lucide-react";
+import { useId } from "react";
+import { Check, Info, Minus, Plus } from "lucide-react";
 import { useGetCardsQuery } from "@/store/slices/cards";
 import { useDanceStyles } from "@/hooks/useDanceStyles";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
+import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
-import { FieldError, fieldControlClass } from "@/components/Field";
+import DanceStyleDot from "@/components/DanceStyleDot";
+import { FieldError } from "@/components/Field";
 import { Button } from "@/components/ui/button";
 import { NoDanceStylesNotice } from "@/features/lessons/newLesson/DanceStyleSelect";
+import { GROUP_CARD } from "@/features/lessons/newLesson/grouped";
 import { cardKind, CardKind, perSessionPrice } from "../cardInsights";
 import type { CardFormState } from "./useCardForm";
 
@@ -28,14 +32,89 @@ const KIND_OPTIONS: { value: CardKind; title: string; description: string }[] = 
   },
 ];
 
-const sectionTitle = "text-[15px] font-bold text-neutral-900";
-const fieldLabel = "text-sm font-medium text-neutral-900";
-/** A boxed control whose real input sits inside (prefix, stepper buttons). */
-const boxedControl = (error?: string) =>
-  cn(
-    fieldControlClass(!!error),
-    "flex items-center h-12 focus-within:border-primary-700 focus-within:ring-[3px] focus-within:ring-primary-100"
-  );
+/**
+ * 一組設定（Apple 設定頁的做法，跟新增課程同一套 `GROUP_CARD`）：上方小標、
+ * 白色群組裡細線分隔的列、下方註解。抽屜窄，一律單欄（不用 `GroupedSection` 的桌面兩欄）。
+ */
+const FormGroup = ({
+  title,
+  titleId,
+  footer,
+  error,
+  invalid,
+  role,
+  children,
+}: {
+  title: string;
+  titleId?: string;
+  footer?: React.ReactNode;
+  error?: string;
+  /** 群組外框標紅（錯誤寫在下面）。 */
+  invalid?: boolean;
+  role?: "radiogroup" | "group";
+  children: React.ReactNode;
+}) => (
+  <section className="flex flex-col gap-1.5">
+    <h3 id={titleId} className="px-4 text-[13px] text-ink-3">
+      {title}
+    </h3>
+    <div
+      role={role}
+      aria-labelledby={role ? titleId : undefined}
+      className={cn(GROUP_CARD, (invalid || error) && "ring-1 ring-danger-500")}
+    >
+      {children}
+    </div>
+    {error && (
+      <div className="px-4">
+        <FieldError>{error}</FieldError>
+      </div>
+    )}
+    {footer && <div className="px-4 text-[13px] leading-relaxed text-ink-3">{footer}</div>}
+  </section>
+);
+
+/** 單選的一列：整列可點，選到的右邊一個 ✓（同 `CheckRow`，但語意是 radio）。 */
+const RadioRow = ({
+  checked,
+  disabled = false,
+  onSelect,
+  leading,
+  hint,
+  children,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onSelect: () => void;
+  leading?: React.ReactNode;
+  hint?: string;
+  children: React.ReactNode;
+}) => (
+  <button
+    type="button"
+    role="radio"
+    aria-checked={checked}
+    aria-disabled={disabled || undefined}
+    onClick={() => !disabled && onSelect()}
+    className={cn(
+      "flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left outline-none focus-visible:bg-primary-50",
+      disabled ? "cursor-not-allowed" : "cursor-pointer hover:bg-neutral-50 active:bg-neutral-100"
+    )}
+  >
+    {leading}
+    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <span className={cn("text-[15px]", disabled ? "text-ink-3" : "text-ink", checked && "font-medium")}>
+        {children}
+      </span>
+      {hint && <span className="text-[13px] leading-relaxed text-ink-3">{hint}</span>}
+    </span>
+    <Check
+      aria-hidden="true"
+      strokeWidth={2.5}
+      className={cn("size-5 shrink-0 text-primary-700", !checked && "invisible")}
+    />
+  </button>
+);
 
 /**
  * 課卡方案表單的欄位。狀態全在 `useCardForm`，這裡只負責長相——
@@ -43,109 +122,97 @@ const boxedControl = (error?: string) =>
  */
 const CardFormFields = ({ form }: { form: CardFormState }) => {
   const { values, errors, name, issuedCount, setValue, setKind, setName, resetName } = form;
+  const id = useId();
 
   return (
     <div className="flex flex-col gap-7">
       {issuedCount > 0 && (
-        <div className="flex gap-3 items-start rounded-2xl bg-primary-50 px-4 py-3.5">
-          <Info className="w-4.5 h-4.5 shrink-0 mt-0.5 text-primary-700" aria-hidden />
-          <p className="text-[13px] leading-relaxed text-neutral-700">
-            改了只套用在<b>之後的購買</b>。學生手上已經買的 {issuedCount}{" "}
+        <p className="flex items-start gap-2 px-4 text-[13px] leading-relaxed text-ink-2">
+          <Info className="mt-0.5 size-4 shrink-0 text-primary-700" aria-hidden />
+          <span>
+            改了只套用在<b className="font-semibold text-ink">之後的購買</b>。學生手上已經買的 {issuedCount}{" "}
             張，堂數和價格都照當時的算，不會跟著變。
-          </p>
-        </div>
+          </span>
+        </p>
       )}
 
-      <fieldset className="flex flex-col gap-2.5">
-        <legend className={`${sectionTitle} mb-2.5`}>這張卡給誰買？</legend>
-        <div role="radiogroup" aria-label="這張卡給誰買" className="flex flex-col gap-2.5">
-          {KIND_OPTIONS.map((option) => {
-            const selected = values.kind === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() => setKind(option.value)}
-                className={`flex gap-3 items-start w-full text-left px-4 py-3.5 rounded-xl border transition-colors cursor-pointer ${
-                  selected
-                    ? "border-primary-700 bg-primary-50 ring-1 ring-primary-700"
-                    : "border-neutral-200 bg-white hover:border-neutral-300"
-                }`}
-              >
-                <span
-                  className={`mt-0.5 w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center ${
-                    selected ? "border-primary-700" : "border-neutral-400"
-                  }`}
-                >
-                  {selected && <span className="w-2.5 h-2.5 rounded-full bg-primary-700" />}
-                </span>
-                <span className="flex flex-col gap-1">
-                  <span className="text-[15px] font-semibold text-neutral-900">{option.title}</span>
-                  <span className="text-[13px] leading-relaxed text-neutral-600">
-                    {option.description}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
+      <FormGroup title="這張卡給誰買？" titleId={`${id}-kind`} role="radiogroup">
+        {KIND_OPTIONS.map((option) => (
+          <RadioRow
+            key={option.value}
+            checked={values.kind === option.value}
+            onSelect={() => setKind(option.value)}
+            hint={option.description}
+          >
+            {option.title}
+          </RadioRow>
+        ))}
+      </FormGroup>
 
       <DanceStyleField
         value={values.danceStyleId}
         required={values.kind === "practice"}
         error={errors.danceStyleId}
-        onChange={(id) => setValue("danceStyleId", id)}
+        onChange={(styleId) => setValue("danceStyleId", styleId)}
       />
 
-      <fieldset className="flex flex-col gap-3">
-        <legend className={`${sectionTitle} mb-2.5`}>堂數與價格</legend>
-        <div className="grid grid-cols-2 gap-3">
+      <section className="flex flex-col gap-1.5">
+        <h3 className="px-4 text-[13px] text-ink-3">堂數與價格</h3>
+        <div className={cn(GROUP_CARD, (errors.sessions || errors.price) && "ring-1 ring-danger-500")}>
           <SessionsStepper
+            labelId={`${id}-sessions`}
             value={values.sessions}
-            error={errors.sessions}
+            invalid={!!errors.sessions}
             onChange={(next) => setValue("sessions", next)}
           />
-          <label className="flex flex-col gap-1.5">
-            <span className={fieldLabel}>總價</span>
-            <span className={cn(boxedControl(errors.price), "gap-1.5")}>
-              <span className="text-neutral-500">$</span>
+          <label className="flex min-h-12 items-center gap-3 px-4">
+            <span className="shrink-0 text-[15px] text-ink">總價</span>
+            <span className="flex min-w-0 flex-1 items-center justify-end gap-1">
+              <span className="text-[17px] text-ink-3">$</span>
               <input
                 value={values.price}
                 inputMode="numeric"
                 aria-invalid={errors.price ? true : undefined}
                 onChange={(e) => setValue("price", e.target.value.replace(/\D/g, ""))}
-                className="flex-1 min-w-0 bg-transparent text-[17px] font-semibold outline-none"
+                placeholder="0"
+                className="w-28 min-w-0 bg-transparent text-right text-[17px] font-semibold tabular-nums text-ink outline-none placeholder:text-ink-3"
               />
             </span>
-            <FieldError>{errors.price}</FieldError>
           </label>
+          <PerSessionRow form={form} />
         </div>
-        <PriceLadder form={form} />
-      </fieldset>
+        {(errors.sessions || errors.price) && (
+          <div className="flex flex-col gap-0.5 px-4">
+            <FieldError>{errors.sessions}</FieldError>
+            <FieldError>{errors.price}</FieldError>
+          </div>
+        )}
+      </section>
 
-      <div className="flex flex-col gap-2">
-        <label className="flex flex-col gap-1.5">
-          <span className={sectionTitle}>名稱</span>
-          <input
-            value={name}
-            aria-invalid={errors.name ? true : undefined}
-            onChange={(e) => setName(e.target.value)}
-            className={cn(fieldControlClass(!!errors.name), "h-12")}
-          />
-        </label>
-        <FieldError>{errors.name}</FieldError>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-neutral-500">學生在 LINE 上看到的就是這個名字</span>
-          {values.nameEdited && (
-            <Button variant="link" onClick={resetName} className="min-h-9 text-xs font-semibold">
-              改回自動名稱
-            </Button>
-          )}
-        </div>
-      </div>
+      <PriceLadder form={form} />
+
+      <FormGroup
+        title="名稱"
+        error={errors.name}
+        footer={
+          <span className="flex items-center justify-between gap-2">
+            <span>學生在 LINE 上看到的就是這個名字</span>
+            {values.nameEdited && (
+              <Button variant="link" onClick={resetName} className="min-h-9 text-[13px] font-semibold">
+                改回自動名稱
+              </Button>
+            )}
+          </span>
+        }
+      >
+        <input
+          value={name}
+          aria-label="名稱"
+          aria-invalid={errors.name ? true : undefined}
+          onChange={(e) => setName(e.target.value)}
+          className="min-h-12 w-full bg-transparent px-4 text-[15px] text-ink outline-none placeholder:text-ink-3"
+        />
+      </FormGroup>
     </div>
   );
 };
@@ -162,6 +229,7 @@ const DanceStyleField = ({
   onChange: (id: number | null) => void;
 }) => {
   const { styles, byId, isLoading } = useDanceStyles();
+  const id = useId();
   // 封存的舞種不提供選擇，除非這張卡本來就掛著它。
   const current = value !== null ? byId.get(value) : undefined;
   const choices = current?.archivedAt ? [...styles, current] : styles;
@@ -170,101 +238,94 @@ const DanceStyleField = ({
     return required ? <NoDanceStylesNotice label="用在哪個舞種？" /> : null;
   }
 
-  const chip = (selected: boolean, disabled = false) =>
-    `flex items-center gap-2 min-h-11 px-3.5 rounded-xl border text-sm font-medium transition-colors ${
-      disabled
-        ? "border-neutral-200 bg-neutral-50 text-neutral-400 cursor-not-allowed"
-        : selected
-          ? "border-primary-700 ring-1 ring-primary-700 bg-primary-50 text-neutral-900 cursor-pointer"
-          : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 cursor-pointer"
-    }`;
-
   return (
-    <fieldset className="flex flex-col gap-2.5">
-      <legend className={`${sectionTitle} mb-2.5`}>用在哪個舞種？</legend>
-      <div role="radiogroup" aria-label="舞種" className="flex flex-wrap gap-2">
-        {choices.map((style) => {
-          const meta = danceStyleMeta(style);
-          return (
-            <button
-              key={style.id}
-              type="button"
-              role="radio"
-              aria-checked={value === style.id}
-              onClick={() => onChange(style.id)}
-              className={chip(value === style.id)}
-            >
-              <span className="w-2.5 h-2.5 rounded-full" style={meta.fill} />
-              {meta.label}
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          role="radio"
-          aria-checked={value === null}
-          aria-disabled={required}
-          onClick={() => !required && onChange(null)}
-          className={chip(value === null && !required, required)}
+    <FormGroup
+      title="用在哪個舞種？"
+      titleId={`${id}-style`}
+      role="radiogroup"
+      error={error}
+      footer={required ? "複習卡一定要指定舞種。" : "一般方案的舞種只是分組用，不限制能用在哪種課。"}
+    >
+      {choices.map((style) => (
+        <RadioRow
+          key={style.id}
+          checked={value === style.id}
+          onSelect={() => onChange(style.id)}
+          leading={<DanceStyleDot style={style} />}
         >
-          <span className="w-2.5 h-2.5 rounded-full bg-neutral-400" />
-          不限舞種
-        </button>
-      </div>
-      {required ? (
-        <span className="text-xs text-neutral-500">複習卡一定要指定舞種。</span>
-      ) : (
-        <span className="text-xs text-neutral-500">一般方案的舞種只是分組用，不限制能用在哪種課。</span>
-      )}
-      <FieldError>{error}</FieldError>
-    </fieldset>
+          {danceStyleMeta(style).label}
+        </RadioRow>
+      ))}
+      <RadioRow
+        checked={value === null && !required}
+        disabled={required}
+        onSelect={() => onChange(null)}
+        leading={<DanceStyleDot style={null} />}
+      >
+        不限舞種
+      </RadioRow>
+    </FormGroup>
   );
 };
 
 const SessionsStepper = ({
+  labelId,
   value,
-  error,
+  invalid,
   onChange,
 }: {
+  labelId: string;
   value: string;
-  error?: string;
+  invalid: boolean;
   onChange: (next: string) => void;
 }) => {
   const count = Number(value) || 0;
   const step = (delta: number) => onChange(String(Math.min(99, Math.max(1, count + delta))));
   const button =
-    "w-11 h-full flex items-center justify-center bg-neutral-50 text-neutral-700 hover:bg-neutral-100 cursor-pointer";
+    "flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-primary-700 outline-none hover:bg-primary-50 focus-visible:ring-[3px] focus-visible:ring-primary-300";
   return (
-    <div className="flex flex-col gap-1.5">
-      <span id="card-sessions-label" className={fieldLabel}>
+    <div className="flex min-h-12 items-center gap-3 pr-1.5 pl-4">
+      <span id={labelId} className="shrink-0 text-[15px] text-ink">
         堂數
       </span>
-      <div
-        role="group"
-        aria-labelledby="card-sessions-label"
-        className={cn(boxedControl(error), "px-0 overflow-hidden")}
-      >
+      <div role="group" aria-labelledby={labelId} className="flex flex-1 items-center justify-end gap-0.5">
         <button type="button" aria-label="少一堂" onClick={() => step(-1)} className={button}>
-          <Minus className="w-4 h-4" />
+          <Minus className="size-4" />
         </button>
         <input
           value={value}
           inputMode="numeric"
           aria-label="堂數"
+          aria-invalid={invalid || undefined}
           onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
-          className="flex-1 min-w-0 text-center text-[17px] font-semibold outline-none"
+          className="w-12 min-w-0 bg-transparent text-center text-[17px] font-semibold tabular-nums text-ink outline-none"
         />
+        <span className="text-[15px] text-ink-3">堂</span>
         <button type="button" aria-label="多一堂" onClick={() => step(1)} className={button}>
-          <Plus className="w-4 h-4" />
+          <Plus className="size-4" />
         </button>
       </div>
-      <FieldError>{error}</FieldError>
+    </div>
+  );
+};
+
+/** 群組最後一列：這個方案換算成每堂多少（價格、堂數都填了才出現）。 */
+const PerSessionRow = ({ form }: { form: CardFormState }) => {
+  const price = Number(form.values.price);
+  const sessions = Number(form.values.sessions);
+  if (!(price > 0 && sessions > 0)) return null;
+  return (
+    <div className="flex min-h-12 items-center gap-3 px-4">
+      <span className="shrink-0 text-[15px] text-ink">每堂</span>
+      <span className="flex-1 text-right text-[17px] font-semibold tabular-nums text-primary-800">
+        ${formatMoney(perSessionPrice({ price, sessions }))}
+      </span>
     </div>
   );
 };
 
 /**
- * 單堂價 ＋ 跟同舞種其他一般方案的比較。定價時真正在比的是單堂價，
+ * 跟同舞種其他一般方案比每堂多少。定價時真正在比的是每堂價，
  * 不該等送出、回到列表才看得出「16 堂反而比 8 堂貴」。
  */
 const PriceLadder = ({ form }: { form: CardFormState }) => {
@@ -285,6 +346,8 @@ const PriceLadder = ({ form }: { form: CardFormState }) => {
             (card.danceStyleId ?? null) === values.danceStyleId
         )
       : [];
+  if (siblings.length === 0) return null;
+
   const rows = [
     ...siblings.map((card) => ({ key: card.id, label: card.name, per: perSessionPrice(card), me: false })),
     { key: "me", label: `${name || "這個方案"}（這張）`, per: current, me: true },
@@ -292,36 +355,31 @@ const PriceLadder = ({ form }: { form: CardFormState }) => {
   const max = Math.max(...rows.map((row) => row.per), 1);
 
   return (
-    <div className="rounded-2xl border border-neutral-200 overflow-hidden">
-      <div className="flex items-baseline justify-between px-4 py-3 bg-primary-50">
-        <span className="text-[13px] text-primary-900">單堂</span>
-        <span className="text-[22px] font-bold text-primary-900">${current.toLocaleString()}</span>
-      </div>
-      {siblings.length > 0 && (
-        <div className="px-4 py-3 flex flex-col gap-2">
-          <span className="text-xs text-neutral-500">跟同舞種的其他方案比（堂數越多，單堂通常越便宜）</span>
-          {rows.map((row) => (
-            <div
-              key={row.key}
-              className={`grid grid-cols-[minmax(0,1fr)_88px] gap-2.5 items-center text-[13px] ${
-                row.me ? "font-bold text-neutral-900" : "text-neutral-700"
-              }`}
-            >
-              <span className="flex flex-col gap-1 min-w-0">
-                <span className="truncate">{row.label}</span>
-                <span className="block h-1.5 rounded-full bg-neutral-100 overflow-hidden">
-                  <span
-                    className={`block h-full rounded-full ${row.me ? "bg-primary-700" : "bg-neutral-300"}`}
-                    style={{ width: `${Math.round((row.per / max) * 100)}%` }}
-                  />
-                </span>
-              </span>
-              <span className="text-right">單堂 ${row.per.toLocaleString()}</span>
-            </div>
-          ))}
+    <FormGroup title="跟同舞種的其他方案比" footer="堂數越多，每堂通常越便宜。">
+      {rows.map((row) => (
+        <div key={row.key} className="grid min-h-12 grid-cols-[minmax(0,1fr)_96px] items-center gap-3 px-4 py-2">
+          <span className="flex min-w-0 flex-col gap-1.5">
+            <span className={cn("truncate text-[15px]", row.me ? "font-semibold text-ink" : "text-ink-2")}>
+              {row.label}
+            </span>
+            <span aria-hidden className="block h-1 overflow-hidden rounded-full bg-band">
+              <span
+                className={`block h-full rounded-full ${row.me ? "bg-primary-700" : "bg-neutral-300"}`}
+                style={{ width: `${Math.round((row.per / max) * 100)}%` }}
+              />
+            </span>
+          </span>
+          <span
+            className={cn(
+              "text-right text-[13px] tabular-nums",
+              row.me ? "font-semibold text-ink" : "text-ink-2"
+            )}
+          >
+            每堂 ${formatMoney(row.per)}
+          </span>
         </div>
-      )}
-    </div>
+      ))}
+    </FormGroup>
   );
 };
 

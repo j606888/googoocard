@@ -18,7 +18,7 @@ import DanceStyleForm from "./DanceStyleForm";
 
 type FormState = { open: false } | { open: true; style?: DanceStyle; key: number };
 
-const iconButton = "text-neutral-500 disabled:opacity-30 disabled:hover:bg-transparent";
+const iconButton = "text-ink-3 disabled:opacity-30 disabled:hover:bg-transparent";
 
 /** 每列寬度不同、越往下越淡。 */
 const SKELETON_ROWS = [
@@ -31,7 +31,7 @@ const SKELETON_ROWS = [
 const RowsSkeleton = () => (
   <ul className="flex flex-col">
     {SKELETON_ROWS.map((row, i) => (
-      <li key={i} className={`flex h-14 items-center gap-2 border-b border-neutral-200 ${row.fade}`}>
+      <li key={i} className={`flex h-14 items-center gap-2 border-b border-line ${row.fade}`}>
         <Skeleton className="size-3 shrink-0" />
         <Skeleton className={`h-3.5 ${row.width}`} />
       </li>
@@ -76,15 +76,15 @@ const DanceStyleList = () => {
 
   return (
     <>
-      <div className="w-full px-5 py-3 lg:max-w-[720px] lg:px-8 lg:py-6">
+      <div className="w-full px-5 pb-10 pt-3 lg:max-w-[720px] lg:px-12 lg:pt-9">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-2xl font-bold text-neutral-900">舞種</h2>
+          <h2 className="text-[26px] font-semibold text-ink">舞種</h2>
           <Button type="button" onClick={() => openForm()}>
             <Plus />
             新增舞種
           </Button>
         </div>
-        <p className="text-sm text-neutral-600 mb-4">
+        <p className="text-sm text-ink-2 mb-4">
           開課、複習卡和學生資格都從這裡選舞種。封存的舞種不會出現在選單，但舊課和舊卡照常顯示。
         </p>
 
@@ -100,7 +100,7 @@ const DanceStyleList = () => {
             return (
               <li
                 key={style.id}
-                className="flex items-center gap-2 py-2.5 border-b border-neutral-200"
+                className="flex items-center gap-2 py-2.5 border-b border-line"
               >
                 <span
                   className="min-w-8 shrink-0 rounded-md px-1.5 text-center text-xs font-semibold leading-6"
@@ -108,7 +108,7 @@ const DanceStyleList = () => {
                 >
                   {meta.abbr}
                 </span>
-                <span className="font-medium text-neutral-900 truncate">{style.name}</span>
+                <span className="font-medium text-ink truncate">{style.name}</span>
                 {style.hasLevels && (
                   <StatusTag tone="neutral">分階</StatusTag>
                 )}
@@ -167,7 +167,7 @@ const DanceStyleList = () => {
             <button
               type="button"
               onClick={() => setShowArchived((v) => !v)}
-              className="flex min-h-11 items-center gap-1 text-sm font-medium text-neutral-600 cursor-pointer"
+              className="flex min-h-11 items-center gap-1 text-sm font-medium text-ink-2 cursor-pointer"
               aria-expanded={showArchived}
             >
               {showArchived ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -180,7 +180,7 @@ const DanceStyleList = () => {
                   return (
                     <li
                       key={style.id}
-                      className="flex items-center gap-2 py-2.5 border-b border-neutral-200 text-neutral-500"
+                      className="flex items-center gap-2 py-2.5 border-b border-line text-ink-3"
                     >
                       <span
                         className="min-w-8 shrink-0 rounded-md px-1.5 text-center text-xs font-semibold leading-6 opacity-50"

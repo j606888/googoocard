@@ -1,164 +1,141 @@
 import Link from "next/link";
-import { format } from "date-fns";
-import { ChevronDown, ChevronRight, Send } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import DanceStyleDot from "@/components/DanceStyleDot";
 import { Button } from "@/components/ui/button";
-import StatusTag from "@/components/StatusTag";
-import { danceStyleMeta } from "@/lib/danceStyleColors";
-import type { DanceStyleSummary } from "@/lib/danceStyles";
-import type { TeacherOverviewRow } from "@/store/slices/teachers";
+import type { OverviewLesson, TeacherOverviewRow } from "@/store/slices/teachers";
 import TeacherAvatar from "./TeacherAvatar";
-import { periodLabel } from "./format";
-
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
-
-/** 「週四 20:30」：第一堂的星期與時間。 */
-const slotLabel = (iso: string | null) => {
-  if (!iso) return null;
-  const date = new Date(iso);
-  return `週${WEEKDAYS[date.getDay()]} ${format(date, "HH:mm")}`;
-};
-
-/** 桌面版的欄位：老師、下一堂、進行中、帳號、展開箭頭。表頭（`TeacherList`）用同一組。 */
-export const TEACHER_ROW_COLUMNS =
-  "lg:grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_96px_minmax(0,1fr)_24px] lg:gap-4";
+import { capLessons, lessonMeta } from "./teacherLessons";
 
 /**
- * 老師列表的一列：按一下展開，看他教的、協助的進行中課程（各自的時段），再進細節頁。
+ * 一列的欄位。手機：頭像｜內容（名字、課、帳號往下疊）｜›。
+ * 電腦：頭像｜名字｜教的課｜帳號｜›，同一棵樹只換格線（docs/ui-responsive.md L1）。
+ */
+const ROW_GRID =
+  "grid grid-cols-[36px_minmax(0,1fr)_16px] gap-x-3 lg:grid-cols-[36px_200px_minmax(0,1fr)_132px_16px] lg:gap-x-5";
+
+/**
+ * 老師列表的一列：這個人是誰、教哪些課（不用展開就看得到）、有沒有帳號。
+ * 整列點下去進細節頁；「邀請」是列上唯一另外的動作。
  */
 const TeacherRow = ({
   teacher,
-  open,
-  onToggle,
-  accountLabel,
+  showLocation,
+  isMe,
   onInvite,
 }: {
   teacher: TeacherOverviewRow;
-  open: boolean;
-  onToggle: () => void;
-  /** 「你」／email／null = 沒有帳號。 */
-  accountLabel: string | null;
+  /** 教室有兩個以上分部時，每堂課後面才寫分部。 */
+  showLocation: boolean;
+  isMe: boolean;
   /** 管理員才有：邀請沒帳號的老師加入。 */
   onInvite?: () => void;
 }) => {
   const archived = Boolean(teacher.archivedAt);
-  const { nextPeriod, activeLessons, assistedLessons } = teacher;
-  const panelId = `teacher-${teacher.id}-lessons`;
+  const { activeLessons, assistedLessons, nextPeriod } = teacher;
+  const hasAccount = teacher.userId !== null;
+  const meta = [
+    teacher.locations.map((location) => location.name).join("、"),
+    teacher.kind === "ASSISTANT" ? "小幫手" : teacher.kind === "BOTH" ? "也當小幫手" : null,
+    archived ? "已封存" : null,
+  ].filter(Boolean);
 
   return (
-    <li className={open ? "bg-neutral-50/70" : undefined}>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={onToggle}
-        className={`flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left hover:bg-neutral-50 lg:px-5 ${TEACHER_ROW_COLUMNS} lg:items-center`}
-      >
-        <span className="flex min-w-0 flex-1 items-center gap-3">
-          <TeacherAvatar name={teacher.name} color={teacher.color} icon={teacher.icon} size="sm" muted={archived} />
-          <span className="flex min-w-0 flex-col gap-0.5">
-            <span className="flex items-center gap-2">
-              <span className="truncate font-semibold text-neutral-900">{teacher.name}</span>
-              {archived && <StatusTag tone="neutral">已封存</StatusTag>}
-            </span>
-            {/* 手機：分部那一行換成下一堂。 */}
-            <span className="truncate text-xs text-neutral-500 lg:hidden">
-              {nextPeriod
-                ? `${nextPeriod.ongoing ? "上課中" : periodLabel(nextPeriod.startTime)} · ${nextPeriod.lessonName}`
-                : "目前沒有排課"}
-            </span>
-            {teacher.locations.length > 0 && (
-              <span className="hidden truncate text-xs text-neutral-500 lg:block">
-                {teacher.locations.map((l) => l.name).join("、")}
-              </span>
-            )}
-          </span>
-        </span>
+    <li>
+      {/* 細線留在 li 上；滑過去的淡綠底往左右各多出 12px。 */}
+      <div className={`relative -mx-3 items-start rounded-xl px-3 py-3 hover:bg-primary-50 ${ROW_GRID}`}>
+        <TeacherAvatar name={teacher.name} color={teacher.color} size="sm" muted={archived} />
 
-        <span className="hidden min-w-0 flex-col gap-0.5 lg:flex">
-          {nextPeriod ? (
-            <>
-              <span className={`truncate text-sm ${nextPeriod.ongoing ? "font-semibold text-primary-700" : ""}`}>
-                {nextPeriod.ongoing ? "上課中" : periodLabel(nextPeriod.startTime)}
-              </span>
-              <span className="truncate text-xs text-neutral-500">{nextPeriod.lessonName}</span>
-            </>
-          ) : (
-            <span className="text-sm text-neutral-500">目前沒有排課</span>
-          )}
-        </span>
-
-        <span className="hidden text-sm lg:block">
-          {activeLessons.length > 0 ? `${activeLessons.length} 門` : "—"}
-        </span>
-
-        <span
-          className={`hidden truncate text-[13px] lg:block ${accountLabel ? "text-primary-700" : "text-neutral-500"}`}
-        >
-          {accountLabel ?? "沒有帳號"}
-        </span>
-
-        <ChevronDown
-          aria-hidden="true"
-          className={`size-5 shrink-0 text-neutral-500 transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-
-      {open && (
-        <div id={panelId} className="grid gap-5 px-4 pt-1 pb-4 lg:grid-cols-2 lg:pr-5 lg:pl-[68px]">
-          <LessonGroup title="教的課" lessons={activeLessons} empty="沒有進行中的課" />
-          <div className="flex flex-col gap-3">
-            <LessonGroup title="協助的課" lessons={assistedLessons} empty="—" />
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="secondary" size="sm" asChild>
-                <Link href={`/teachers/${teacher.id}`}>
-                  看 {teacher.name} 的細節
-                  <ChevronRight className="size-4" />
-                </Link>
-              </Button>
-              {!accountLabel && onInvite && !archived && (
-                <Button variant="ghost" size="sm" className="gap-1" onClick={onInvite}>
-                  <Send className="size-3.5" />
-                  邀請加入
-                </Button>
+        <div className="flex min-h-9 min-w-0 flex-col justify-center">
+          <Link
+            href={`/teachers/${teacher.id}`}
+            className="truncate text-[15px] font-medium text-ink outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-[3px] focus-visible:after:ring-primary-300"
+          >
+            {teacher.name}
+          </Link>
+          {(meta.length > 0 || nextPeriod?.ongoing) && (
+            <p className="truncate text-[13px] text-ink-3">
+              {nextPeriod?.ongoing && (
+                <span className="font-semibold text-primary-800">上課中{meta.length > 0 && " · "}</span>
               )}
-            </div>
-          </div>
+              {meta.join(" · ")}
+            </p>
+          )}
         </div>
-      )}
+
+        <div className="col-start-2 mt-2 flex min-w-0 flex-col gap-0.5 lg:col-start-3 lg:row-start-1 lg:mt-0 lg:py-1.5">
+          {activeLessons.length === 0 && assistedLessons.length === 0 ? (
+            <p className="text-[13px] leading-6 text-ink-3">目前沒有排課</p>
+          ) : (
+            <>
+              {activeLessons.length > 0 && (
+                <LessonLines label={`${teacher.name} 教的課`} lessons={activeLessons} showLocation={showLocation} />
+              )}
+              {assistedLessons.length > 0 && (
+                <>
+                  <p
+                    aria-hidden="true"
+                    className={`text-[13px] font-semibold text-ink-2 ${activeLessons.length > 0 ? "mt-1.5" : ""}`}
+                  >
+                    協助
+                  </p>
+                  <LessonLines
+                    label={`${teacher.name} 協助的課`}
+                    lessons={assistedLessons}
+                    showLocation={showLocation}
+                  />
+                </>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="col-start-2 mt-1 flex min-h-9 items-center gap-1 text-[13px] lg:col-start-4 lg:row-start-1 lg:mt-0">
+          <span className="text-ink-3">{hasAccount ? (isMe ? "已加入（你）" : "已加入") : "還沒邀請"}</span>
+          {!hasAccount && onInvite && !archived && (
+            <Button
+              variant="text"
+              size="sm"
+              className="relative z-10 min-h-11 lg:min-h-9"
+              aria-label={`邀請 ${teacher.name} 加入`}
+              onClick={onInvite}
+            >
+              邀請
+            </Button>
+          )}
+        </div>
+
+        <ChevronRight
+          aria-hidden="true"
+          className="col-start-3 row-start-1 mt-2.5 size-4 text-ink-3 lg:col-start-5"
+        />
+      </div>
     </li>
   );
 };
 
-const LessonGroup = ({
-  title,
+/** 一組課：一行一堂——舞種圓點、課名、「週四 20:30 · 台南」。超過三堂收成「還有 N 門」。 */
+const LessonLines = ({
+  label,
   lessons,
-  empty,
+  showLocation,
 }: {
-  title: string;
-  lessons: { id: number; name: string; danceStyle: DanceStyleSummary; firstStart: string | null }[];
-  empty: string;
-}) => (
-  <div className="flex flex-col gap-1">
-    <span className="text-xs text-neutral-500">{title}</span>
-    {lessons.length === 0 ? (
-      <span className="py-1.5 text-sm text-neutral-500">{empty}</span>
-    ) : (
-      <ul className="flex flex-col">
-        {lessons.map((lesson) => (
-          <li key={lesson.id}>
-            <Link
-              href={`/lessons/${lesson.id}`}
-              className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm hover:bg-white"
-            >
-              <span className="size-2 shrink-0 rounded-full" style={danceStyleMeta(lesson.danceStyle).fill} />
-              <span className="flex-1 truncate">{lesson.name}</span>
-              <span className="shrink-0 text-xs text-neutral-500">{slotLabel(lesson.firstStart) ?? ""}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    )}
-  </div>
-);
+  label: string;
+  lessons: OverviewLesson[];
+  showLocation: boolean;
+}) => {
+  const { shown, more } = capLessons(lessons);
+  return (
+    <ul aria-label={label} className="flex min-w-0 flex-col">
+      {shown.map((lesson) => (
+        <li key={lesson.id} className="flex min-w-0 items-center gap-2 leading-6">
+          <DanceStyleDot style={lesson.danceStyle} />
+          <span className="truncate text-sm text-ink">{lesson.name}</span>
+          <span className="shrink-0 text-[13px] tabular-nums text-ink-3">{lessonMeta(lesson, showLocation)}</span>
+        </li>
+      ))}
+      {more > 0 && <li className="pl-4 text-[13px] leading-6 text-ink-3">還有 {more} 門</li>}
+    </ul>
+  );
+};
 
 export default TeacherRow;

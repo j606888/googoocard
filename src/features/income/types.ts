@@ -1,4 +1,5 @@
 import type { DanceStyleSummary } from "@/lib/danceStyles";
+import type { LocationSummary } from "@/lib/locations";
 
 export interface IncomeRecord {
   id: number;
@@ -19,6 +20,8 @@ export interface DailySummaryPeriod {
   lessonName: string;
   /** 每次出席扣幾格（外師課 = 2）。 */
   sessionsPerAttendance: number;
+  /** 這堂課的分部；沒指定是 null。 */
+  location: LocationSummary | null;
   attendanceCount: number;
   revenue: number;
   pendingStudents: string[];
@@ -78,4 +81,6 @@ export interface SessionMonthlyResponse {
   month: string;
   totalRevenue: number;
   byDanceStyle: { danceStyle: DanceStyleSummary; revenue: number }[];
+  /** 依分部（課程的分部），金額大的在前；`location: null` = 未指定分部。 */
+  byLocation: { location: LocationSummary | null; revenue: number }[];
 }

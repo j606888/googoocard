@@ -42,14 +42,14 @@ const DangerZone = ({ role }: { role: string }) => {
 
   if (isClassroomsLoading) {
     return (
-      <section className="mt-4 flex flex-col gap-2 lg:mt-6">
-        <h3 className="mx-1 text-[13px] font-medium text-danger-700 lg:mx-0">危險操作</h3>
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-danger-200 bg-white p-3.5 lg:gap-4 lg:px-5 lg:py-4">
+      <section className="mt-9 flex flex-col">
+        <h2 className="mb-1 text-[17px] font-semibold text-ink">危險操作</h2>
+        <div className="flex flex-wrap items-center gap-3 border-y border-line py-3 lg:gap-4">
           <div className="flex min-w-[min(100%,16rem)] flex-1 flex-col gap-2">
             <Skeleton className="h-4 w-20" />
             <Skeleton className="h-3 w-64 max-w-full" />
           </div>
-          <Skeleton className="h-11 w-28 shrink-0 rounded-xl" />
+          <Skeleton className="h-9 w-24 shrink-0 rounded-lg" />
         </div>
       </section>
     );
@@ -80,12 +80,12 @@ const DangerZone = ({ role }: { role: string }) => {
 
   return (
     <>
-      <section className="mt-4 flex flex-col gap-2 lg:mt-6">
-        <h3 className="mx-1 text-[13px] font-medium text-danger-700 lg:mx-0">危險操作</h3>
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-danger-200 bg-white p-3.5 lg:gap-4 lg:px-5 lg:py-4">
+      <section className="mt-9 flex flex-col">
+        <h2 className="mb-1 text-[17px] font-semibold text-ink">危險操作</h2>
+        <div className="flex flex-wrap items-center gap-3 border-y border-line py-3 lg:gap-4">
           <div className="flex min-w-[min(100%,16rem)] flex-1 flex-col gap-0.5">
-            <span className="font-medium text-neutral-900">{isOwner ? "刪除教室" : "退出教室"}</span>
-            <span className="text-[13px] leading-relaxed text-neutral-500">
+            <span className="text-[15px] font-medium text-ink">{isOwner ? "刪除教室" : "退出教室"}</span>
+            <span className="text-[13px] leading-relaxed text-ink-3">
               {isOwner
                 ? "整間教室會被封存：所有成員都看不到它，牆上的簽到 QR 也會失效。"
                 : `你將失去 ${classroom.name} 的存取權，之後可以請管理員再邀請你回來。`}
@@ -93,9 +93,10 @@ const DangerZone = ({ role }: { role: string }) => {
           </div>
           <Button
             type="button"
-            variant="dangerSecondary"
+            variant="text"
+            size="sm"
             onClick={() => setOpen(true)}
-            className="shrink-0"
+            className="-mr-2 shrink-0 text-danger-700 hover:bg-danger-50 hover:text-danger-700"
           >
             {isOwner ? "刪除教室…" : "退出…"}
           </Button>
@@ -116,11 +117,11 @@ const DangerZone = ({ role }: { role: string }) => {
       >
         {isOwner ? (
           <>
-            <p className="mb-3 text-sm text-neutral-600">
-              <span className="font-semibold text-neutral-900">{classroom.name}</span>{" "}
+            <p className="mb-3 text-sm text-ink-2">
+              <span className="font-semibold text-ink">{classroom.name}</span>{" "}
               以及裡面的所有資料都會被封存：
             </p>
-            <ul className="mb-4 space-y-1 rounded-xl bg-neutral-50 p-3 text-sm text-neutral-700">
+            <ul className="mb-4 space-y-1 rounded-xl bg-surface p-3 text-sm text-ink-2">
               <li>{detail?.counts.students ?? "—"} 位學生</li>
               <li>{detail?.counts.lessons ?? "—"} 堂課程</li>
               <li>{detail?.counts.studentCards ?? "—"} 張學生課卡</li>
@@ -139,9 +140,9 @@ const DangerZone = ({ role }: { role: string }) => {
             </div>
           </>
         ) : (
-          <p className="text-sm text-neutral-600">
+          <p className="text-sm text-ink-2">
             你將被移出{" "}
-            <span className="font-semibold text-neutral-900">{classroom.name}</span>
+            <span className="font-semibold text-ink">{classroom.name}</span>
             ，並失去其中學生、課程與收入資料的存取權。
           </p>
         )}

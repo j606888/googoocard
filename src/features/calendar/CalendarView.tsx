@@ -14,7 +14,7 @@ import {
   format,
   isSameDay,
 } from "date-fns";
-import { AlarmClock, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useGetCalendarPeriodsQuery, CalendarPeriod } from "@/store/slices/lessons";
 import { danceStyleMeta } from "@/lib/danceStyleColors";
 import FilterChip from "@/components/FilterChip";
@@ -114,10 +114,22 @@ const CalendarView = () => {
     isSameDay(selectedDay, new Date()) &&
     startOfMonth(new Date()).getTime() === viewMonth.getTime();
 
+  const summaryLine = [
+    `本月 ${summary.total} 堂`,
+    `已點名 ${summary.taken} 堂`,
+    summary.attendees > 0 && `出席 ${summary.attendees} 人次`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <div className="w-full max-w-[1120px] px-5 py-3 lg:px-8 lg:py-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3 lg:mb-4">
-        <h2 className="text-2xl font-bold text-neutral-900">行事曆</h2>
+    <div className="flex w-full flex-col px-5 pb-10 pt-3 lg:max-w-[1180px] lg:px-12 lg:pt-9">
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-2 lg:mb-6">
+        <div className="min-w-0">
+          <h1 className="text-[26px] font-semibold text-ink">行事曆</h1>
+          {/* 這個月一眼看完：一行字，不放統計格。 */}
+          <p className="min-h-5 text-[13px] tabular-nums text-ink-3">{loading ? "" : summaryLine}</p>
+        </div>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -127,7 +139,7 @@ const CalendarView = () => {
           >
             <ChevronLeft className="size-5" />
           </Button>
-          <span className="min-w-28 text-center font-semibold text-neutral-900">
+          <span className="min-w-28 text-center text-[15px] font-semibold tabular-nums text-ink">
             {format(viewMonth, "yyyy 年 M 月")}
           </span>
           <Button
@@ -138,30 +150,28 @@ const CalendarView = () => {
           >
             <ChevronRight className="size-5" />
           </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={goToday}
-            disabled={viewingToday}
-            className="ml-1"
-          >
+          <Button variant="text" size="sm" onClick={goToday} disabled={viewingToday} className="ml-1">
             今天
           </Button>
         </div>
-      </div>
+      </header>
 
-      {!loading && (
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
-          {/* Month at a glance: one line on phones, stat pills on desktop */}
-          <p className="text-xs text-neutral-500 lg:hidden">
-            本月 {summary.total} 堂 · 已點名 {summary.taken}
-          </p>
-          <div className="hidden lg:flex flex-wrap gap-2">
-            <SummaryPill label="本月課堂" value={summary.total} />
-            <SummaryPill label="已點名" value={summary.taken} />
-            <SummaryPill label="出席人次" value={summary.attendees} />
-            <SummaryPill label="待點名" value={summary.due.length} warn={summary.due.length > 0} />
-          </div>
+      {!loading && (summary.due.length > 0 || styleOptions.length > 1) && (
+        <div className={`mb-4 flex flex-col gap-3 ${styleOptions.length > 1 ? "" : "lg:hidden"}`}>
+          {/* 手機：還沒點名的課用一條琥珀提醒，一路跳到下一堂。電腦版在右欄列出來。 */}
+          {summary.due.length > 0 && (
+            <button
+              type="button"
+              onClick={goToNextDue}
+              className="flex min-h-13 w-full cursor-pointer items-center gap-3 rounded-xl bg-warning-100 px-4 py-2.5 text-left text-warning-950 hover:bg-warning-200/60 lg:hidden"
+            >
+              <b className="min-w-0 flex-1 font-semibold">{summary.due.length} 堂還沒點名</b>
+              <span className="flex shrink-0 items-center gap-1 text-sm font-semibold">
+                跳到下一堂
+                <ChevronRight aria-hidden="true" className="size-4" />
+              </span>
+            </button>
+          )}
 
           {styleOptions.length > 1 && (
             <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:px-0" role="group" aria-label="舞種篩選">
@@ -180,23 +190,10 @@ const CalendarView = () => {
               ))}
             </div>
           )}
-
-          {summary.due.length > 0 && (
-            <button
-              onClick={goToNextDue}
-              className="flex min-h-12 items-center gap-2.5 rounded-xl border border-warning-300 bg-warning-50 px-3 text-left text-warning-950 cursor-pointer lg:hidden"
-            >
-              <AlarmClock className="h-[18px] w-[18px] shrink-0" />
-              <span className="flex-1 text-sm">
-                <b className="font-semibold">{summary.due.length} 堂</b>還沒點名 · 跳到下一堂
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0" />
-            </button>
-          )}
         </div>
       )}
 
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-x-16">
         <MonthGrid
           days={days}
           viewMonth={viewMonth}
@@ -206,10 +203,12 @@ const CalendarView = () => {
           loading={loading}
         />
 
-        <div className="flex flex-col gap-4 lg:sticky lg:top-6">
+        <div aria-hidden className="-mx-5 my-7 h-2 bg-band lg:hidden" />
+
+        <div className="flex flex-col lg:sticky lg:top-6">
           <DaySessionList day={selectedDay} periods={selectedPeriods} loading={loading} />
           {!loading && (
-            <div className="hidden lg:block">
+            <div className="hidden lg:mt-9 lg:block">
               <DueSessions due={summary.due} onSelectDay={selectDay} />
             </div>
           )}
@@ -218,16 +217,5 @@ const CalendarView = () => {
     </div>
   );
 };
-
-const SummaryPill = ({ label, value, warn }: { label: string; value: number; warn?: boolean }) => (
-  <div
-    className={`flex items-baseline gap-2 rounded-xl px-4 py-2 ${
-      warn ? "bg-warning-50 text-warning-950" : "bg-neutral-50 text-neutral-900"
-    }`}
-  >
-    <span className={`text-sm ${warn ? "" : "text-neutral-500"}`}>{label}</span>
-    <span className="text-lg font-semibold tabular-nums">{value}</span>
-  </div>
-);
 
 export default CalendarView;

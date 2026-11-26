@@ -1,6 +1,7 @@
 import { formatMoney } from "@/lib/money";
 import { isValidTermPrice, isValidTermSessions, termPerSession } from "@/lib/termEnrollment";
 import { cn } from "@/lib/utils";
+import { useRowPad } from "./grouped";
 
 /**
  * 報名整期：開關＋整期價＋堂數，下面寫「每堂 $320」。新增課程（分組清單風格）與課程設定抽屜共用，
@@ -49,8 +50,10 @@ const NumberInput = ({
   prefix?: string;
   suffix?: string;
   invalid?: boolean;
-}) => (
-  <label className="flex min-h-12 items-center gap-3 px-4">
+}) => {
+  const pad = useRowPad();
+  return (
+  <label className={cn("flex min-h-12 items-center gap-3", pad)}>
     <span className="shrink-0 text-[15px] text-neutral-900">{label}</span>
     <span className="flex min-w-0 flex-1 items-center justify-end gap-1 text-[15px]">
       {prefix && <span className="text-neutral-500">{prefix}</span>}
@@ -71,7 +74,8 @@ const NumberInput = ({
       {suffix && <span className="text-neutral-500">{suffix}</span>}
     </span>
   </label>
-);
+  );
+};
 
 const TermPriceField = ({
   draft,
@@ -93,9 +97,10 @@ const TermPriceField = ({
 }) => {
   const parsed = parseTermDraft(draft);
   const ongoing = kind === "ongoing";
+  const pad = useRowPad();
   if (lockedReason) {
     return (
-      <div className="flex min-h-12 items-center gap-3 px-4 py-2">
+      <div className={cn("flex min-h-12 items-center gap-3 py-2", pad)}>
         <span className="flex-1">
           <span className="block text-[15px] text-neutral-900">報名整期</span>
           <span className="block text-[13px] text-neutral-500">{lockedReason}</span>
@@ -106,7 +111,7 @@ const TermPriceField = ({
   }
   return (
     <>
-      <div className="flex min-h-12 items-center gap-3 px-4 py-2">
+      <div className={cn("flex min-h-12 items-center gap-3 py-2", pad)}>
         <span className="flex-1">
           <span className="block text-[15px] text-neutral-900">報名整期</span>
           <span className="block text-[13px] text-neutral-500">
@@ -131,7 +136,7 @@ const TermPriceField = ({
             invalid={draft.sessions !== "" && !isValidTermSessions(Number(draft.sessions))}
             onChange={(sessions) => onChange({ ...draft, sessions })}
           />
-          <div className="flex min-h-12 items-center gap-3 px-4 text-[15px]">
+          <div className={cn("flex min-h-12 items-center gap-3 text-[15px]", pad)}>
             <span className="flex-1 text-neutral-900">每堂</span>
             <span className="tabular-nums text-neutral-500">
               {parsed?.termPrice != null && parsed.termSessions
@@ -142,7 +147,8 @@ const TermPriceField = ({
           {parsed?.termSessions != null && periodCount !== undefined && periodCount !== parsed.termSessions && (
             <p
               className={cn(
-                "px-4 py-2.5 text-[13px]",
+                "py-2.5 text-[13px]",
+                pad === "px-0" ? "rounded-lg px-3" : "px-4",
                 periodCount > parsed.termSessions ? "bg-danger-50 text-danger-700" : "bg-warning-50 text-warning-900"
               )}
             >

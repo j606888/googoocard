@@ -39,16 +39,19 @@ export const Panel = ({
   action?: ReactNode;
   children: ReactNode;
 }) => (
-  <section className="bg-white border border-neutral-200 rounded-2xl p-4 flex flex-col gap-3">
-    <div className="flex items-center justify-between gap-2">
-      <h3 className="text-sm font-bold text-neutral-900">{title}</h3>
+  <section className="flex flex-col gap-3">
+    <div className="flex min-h-11 items-center justify-between gap-2">
+      <h3 className="text-[17px] font-semibold text-ink">{title}</h3>
       {action}
     </div>
     {children}
   </section>
 );
 
-const linkButton = cn(buttonVariants({ variant: "link" }), "text-xs font-semibold px-1 py-1");
+/** 手機上大區塊之間的 8px 淺底帶（不是框）；桌面靠留白分開。 */
+export const Band = () => <div aria-hidden="true" className="-mx-5 my-7 h-2 bg-band lg:hidden" />;
+
+const linkButton = cn(buttonVariants({ variant: "text", size: "sm" }), "-mx-2");
 
 /** 舞種資格: each click saves (PATCH danceLevels) — no separate 儲存. */
 const QualificationPanel = ({ student }: { student: StudentWithDetail }) => {
@@ -67,7 +70,7 @@ const QualificationPanel = ({ student }: { student: StudentWithDetail }) => {
   return (
     <Panel title="舞種資格">
       <QualificationLevels levels={levels} onPick={handlePick} dense disabled={isLoading} />
-      <p className="text-xs text-neutral-600">過課後才能買該舞種的複習卡，只能用在不高於這個程度的課。</p>
+      <p className="text-[13px] text-ink-3">過課後才能買該舞種的複習卡，只能用在不高於這個程度的課。</p>
     </Panel>
   );
 };
@@ -75,7 +78,7 @@ const QualificationPanel = ({ student }: { student: StudentWithDetail }) => {
 const LineStatus = ({ studentId, studentName }: { studentId: number; studentName: string }) => {
   const { data, isLoading } = useGetStudentLineBindLinkQuery({ id: studentId });
   const [confirmUnbind, setConfirmUnbind] = useState(false);
-  if (isLoading || !data) return <span className="text-neutral-500">—</span>;
+  if (isLoading || !data) return <span className="text-ink-3">—</span>;
   if (data.bound) {
     return (
       <span className="flex items-center gap-2 flex-wrap">
@@ -91,10 +94,10 @@ const LineStatus = ({ studentId, studentName }: { studentId: number; studentName
       </span>
     );
   }
-  if (!data.deepLink) return <span className="text-neutral-600">尚未設定 LINE 官方帳號</span>;
+  if (!data.deepLink) return <span className="text-ink-2">尚未設定 LINE 官方帳號</span>;
   return (
     <span className="flex items-center gap-2 flex-wrap">
-      <span className="text-neutral-600">未綁定</span>
+      <span className="text-ink-2">未綁定</span>
       <button
         type="button"
         className={linkButton}
@@ -106,6 +109,14 @@ const LineStatus = ({ studentId, studentName }: { studentId: number; studentName
     </span>
   );
 };
+
+/** 學生資料的一列：左邊標籤、右邊內容，列與列之間一條細線。 */
+const InfoRow = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div className="grid min-h-12 grid-cols-[72px_minmax(0,1fr)] items-center gap-3 py-2">
+    <dt className="text-[13px] text-ink-3">{label}</dt>
+    <dd className="m-0 min-w-0">{children}</dd>
+  </div>
+);
 
 const InfoPanel = ({ student }: { student: StudentWithDetail }) => {
   const tags = (student.tags ?? []).filter((tag) => tag.name !== "Needs Renewal");
@@ -124,39 +135,35 @@ const InfoPanel = ({ student }: { student: StudentWithDetail }) => {
         />
       }
     >
-      <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-2 text-sm m-0">
-        <dt className="text-neutral-600">加入</dt>
-        <dd className="m-0">{format(new Date(student.createdAt), "yyyy/MM/dd")}</dd>
-        <dt className="text-neutral-600">LINE</dt>
-        <dd className="m-0">
+      <dl className="m-0 divide-y divide-line border-y border-line text-[15px] text-ink">
+        <InfoRow label="加入">
+          <span className="tabular-nums">{format(new Date(student.createdAt), "yyyy/MM/dd")}</span>
+        </InfoRow>
+        <InfoRow label="LINE">
           <LineStatus studentId={student.id} studentName={student.name} />
-        </dd>
+        </InfoRow>
         {lineBind?.bound && (
-          <>
-            <dt className="text-neutral-600">LINE 名稱</dt>
-            <dd className="m-0">
-              {lineBind.lineDisplayName ?? <span className="text-neutral-500">學生下次打開 LINE 裡的頁面時會帶入</span>}
-            </dd>
-          </>
+          <InfoRow label="LINE 名稱">
+            {lineBind.lineDisplayName ?? <span className="text-ink-3">學生下次打開 LINE 裡的頁面時會帶入</span>}
+          </InfoRow>
         )}
         {tags.length > 0 && (
-          <>
-            <dt className="text-neutral-600">標籤</dt>
-            <dd className="m-0 flex flex-wrap gap-1">
+          <InfoRow label="標籤">
+            <span className="flex flex-wrap gap-1">
               {tags.map((tag) => (
                 <StatusTag key={tag.id} tone="neutral">
                   {tag.name}
                 </StatusTag>
               ))}
-            </dd>
-          </>
+            </span>
+          </InfoRow>
+        )}
+        {student.note && (
+          <InfoRow label="備註">
+            <span className="whitespace-pre-line text-ink-2">{student.note}</span>
+          </InfoRow>
         )}
       </dl>
-      {student.note && (
-        <p className="text-sm bg-neutral-50 rounded-xl px-3 py-2.5 text-neutral-700 whitespace-pre-line">
-          備註：{student.note}
-        </p>
-      )}
     </Panel>
   );
 };
@@ -174,7 +181,7 @@ const PublicPagePanel = ({ student }: { student: StudentWithDetail }) => (
       </button>
     }
   >
-    <p className="text-xs text-neutral-600">學生可以自己查剩餘堂數與出席紀錄。</p>
+    <p className="text-[13px] text-ink-3">學生可以自己查剩餘堂數與出席紀錄。</p>
   </Panel>
 );
 
@@ -191,22 +198,22 @@ const SetupStep = ({
   hint?: string;
   action?: ReactNode;
 }) => (
-  <li className="grid grid-cols-[24px_1fr] gap-2.5 items-start text-[13px]">
+  <li className="grid grid-cols-[24px_1fr] gap-2.5 items-start text-[15px]">
     <span
       aria-hidden="true"
       className={`w-[22px] h-[22px] rounded-full border-2 grid place-items-center text-xs ${
-        done ? "bg-primary-900 border-primary-900 text-white" : "border-neutral-300 text-neutral-600"
+        done ? "bg-primary-900 border-primary-900 text-white" : "border-ink-3/40 text-ink-2"
       }`}
     >
       {done ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : index}
     </span>
     <div className="min-w-0">
-      <div className={done ? "text-neutral-500 line-through" : "font-semibold text-neutral-900"}>
+      <div className={done ? "text-ink-3 line-through" : "font-semibold text-ink"}>
         {title}
         {done && <span className="sr-only">（已完成）</span>}
       </div>
-      {!done && hint && <div className="text-xs text-neutral-600 mt-0.5">{hint}</div>}
-      {!done && action && <div className="mt-1 -ml-1">{action}</div>}
+      {!done && hint && <div className="text-[13px] text-ink-3 mt-0.5">{hint}</div>}
+      {!done && action && <div className="mt-1">{action}</div>}
     </div>
   </li>
 );
@@ -294,9 +301,11 @@ const SetupPanel = ({ student }: { student: StudentWithDetail }) => {
 const ProfilePanels = ({ student }: { student: StudentWithDetail }) => {
   const isNew = student.studentCards.length === 0;
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col lg:gap-9">
       {isNew ? <SetupPanel student={student} /> : <QualificationPanel student={student} />}
+      <Band />
       <InfoPanel student={student} />
+      <Band />
       <PublicPagePanel student={student} />
     </div>
   );

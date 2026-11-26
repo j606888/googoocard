@@ -16,7 +16,7 @@ import {
 import { copyText, publicPageUrl } from "./ProfilePanels";
 
 const itemClass =
-  "flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-left hover:bg-neutral-50 cursor-pointer";
+  "flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-left hover:bg-surface cursor-pointer";
 
 /**
  * The header's ⋯: 複製公開頁連結／複製 LINE 綁定連結（或解除綁定）／合併到另一位學員／封存（或還原）學生.
@@ -78,7 +78,7 @@ const StudentActionsMenu = ({
             copyText(publicPageUrl(student), "已複製公開頁連結");
           }}
         >
-          <Link2 className="w-4 h-4 text-neutral-500" />
+          <Link2 className="w-4 h-4 text-ink-3" />
           複製公開頁連結
         </button>
         {lineBind && !lineBind.bound && lineBind.deepLink && (
@@ -90,7 +90,7 @@ const StudentActionsMenu = ({
               copyText(lineBind.deepLink!, "已複製 LINE 綁定連結");
             }}
           >
-            <MessageCircle className="w-4 h-4 text-neutral-500" />
+            <MessageCircle className="w-4 h-4 text-ink-3" />
             複製 LINE 綁定連結
           </button>
         )}
@@ -103,7 +103,7 @@ const StudentActionsMenu = ({
               setConfirmUnbind(true);
             }}
           >
-            <Link2Off className="w-4 h-4 text-neutral-500" />
+            <Link2Off className="w-4 h-4 text-ink-3" />
             解除 LINE 綁定
           </button>
         )}
@@ -116,11 +116,11 @@ const StudentActionsMenu = ({
               setMergeOpen(true);
             }}
           >
-            <Merge className="w-4 h-4 text-neutral-500" />
+            <Merge className="w-4 h-4 text-ink-3" />
             合併到另一位學員
           </button>
         )}
-        <div className="h-px bg-neutral-100 my-1" />
+        <div className="h-px bg-band my-1" />
         {archived ? (
           <button
             type="button"
@@ -130,7 +130,7 @@ const StudentActionsMenu = ({
               restore();
             }}
           >
-            <ArchiveRestore className="w-4 h-4 text-neutral-500" />
+            <ArchiveRestore className="w-4 h-4 text-ink-3" />
             還原學生
           </button>
         ) : (

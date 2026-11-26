@@ -1,45 +1,50 @@
-import { danceStyleClasses } from "@/lib/danceStyleColors";
+import { danceStyleTones } from "@/lib/danceStyleColors";
 import { teacherInitial } from "@/lib/teachers";
-import { teacherIconGlyph } from "./teacherIcons";
+import { cn } from "@/lib/utils";
 
 const SIZES = {
-  sm: "w-9 h-9 text-sm",
-  md: "w-12 h-12 text-lg",
-  lg: "w-16 h-16 text-2xl",
+  /** 36 — list rows, pickers. */
+  sm: "size-9 text-[15px]",
+  /** 48 — team rows. */
+  md: "size-12 text-lg",
+  /** 64 — the teacher's own page. */
+  lg: "size-16 text-2xl",
 };
 
-const ICON_SIZES = { sm: "size-[18px]", md: "size-6", lg: "size-8" };
-
 /**
- * The teacher's avatar on their palette colour: the initial on the solid colour, or —
- * with an icon — a single-colour line icon on a pale tint of it (`badge` = light bg + dark text).
+ * The one teacher avatar: a circle in a pale tint of the teacher's colour with the first
+ * character of the name in the same hue's dark ink — the same look at every size, and colour
+ * is the only thing a teacher chooses. Tones are derived from the colour (`chip`), not the
+ * static `badge` classes (those collide for periwinkle／indigo, navy／blue…); the letter's
+ * contrast is asserted for every palette key in `src/lib/teachers.test.ts`.
  */
 const TeacherAvatar = ({
   name,
   color,
-  icon,
   size = "md",
   muted = false,
+  className,
 }: {
   name: string;
+  /** A palette key; anything unknown draws neutral gray. */
   color: string;
-  icon?: string | null;
   size?: keyof typeof SIZES;
   /** Archived teachers fade out. */
   muted?: boolean;
-}) => {
-  const glyph = teacherIconGlyph(icon);
-  const palette = danceStyleClasses(color);
-  return (
-    <span
-      aria-hidden="true"
-      className={`${SIZES[size]} ${glyph ? palette.badge : `${palette.bg} text-white`} ${
-        muted ? "opacity-50" : ""
-      } rounded-full shrink-0 flex items-center justify-center font-semibold leading-none`}
-    >
-      {glyph ? <glyph.Icon className={ICON_SIZES[size]} strokeWidth={1.75} /> : teacherInitial(name)}
-    </span>
-  );
-};
+  className?: string;
+}) => (
+  <span
+    aria-hidden="true"
+    style={danceStyleTones(color).chip}
+    className={cn(
+      SIZES[size],
+      "flex shrink-0 items-center justify-center rounded-full font-semibold leading-none",
+      muted && "opacity-50",
+      className
+    )}
+  >
+    {teacherInitial(name)}
+  </span>
+);
 
 export default TeacherAvatar;

@@ -109,16 +109,16 @@ const TransferCard = ({
     >
       <div className="flex flex-col gap-5">
         <div className="flex flex-col">
-          <div className="flex items-center gap-3 border border-neutral-200 rounded-2xl px-4 py-3.5">
+          <div className="flex items-center gap-3 bg-surface rounded-2xl px-4 py-3.5">
             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-              <span className="text-[13px] text-neutral-500">{studentName} 的</span>
-              <span className="text-[15px] font-bold text-neutral-900 truncate">
+              <span className="text-[13px] text-ink-3">{studentName} 的</span>
+              <span className="text-[15px] font-bold text-ink truncate">
                 {studentCard.card.name}{" "}
-                <span className="text-[13px] font-semibold text-neutral-500 tabular-nums">{serial}</span>
+                <span className="text-[13px] font-semibold text-ink-3 tabular-nums">{serial}</span>
               </span>
             </div>
             <div className="flex flex-col items-end gap-1.5 shrink-0">
-              <span className="text-[15px] font-bold text-neutral-900">剩 {sessions} 堂</span>
+              <span className="text-[15px] font-bold text-ink">剩 {sessions} 堂</span>
               <SessionDots total={studentCard.totalSessions} remaining={sessions} size="sm" />
             </div>
           </div>
@@ -129,7 +129,7 @@ const TransferCard = ({
           <div className="flex flex-col gap-2.5">
             <FieldLabel htmlFor="transfer-search">給誰</FieldLabel>
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-[18px] text-neutral-500" aria-hidden />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-[18px] text-ink-3" aria-hidden />
               <input
                 id="transfer-search"
                 type="search"
@@ -159,17 +159,17 @@ const TransferCard = ({
                         selected
                           ? "border-[1.5px] border-primary-700 bg-primary-50"
                           : allowed
-                            ? "border border-neutral-200 bg-white hover:border-primary-300 cursor-pointer"
-                            : "border border-dashed border-neutral-300 bg-neutral-50 cursor-not-allowed"
+                            ? "border border-line bg-white hover:border-primary-300 cursor-pointer"
+                            : "border border-dashed border-neutral-300 bg-surface cursor-not-allowed"
                       )}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={student.avatarUrl} alt="" className="size-10 rounded-full object-cover shrink-0" />
                       <span className="flex-1 min-w-0 flex flex-col gap-0.5">
-                        <span className={cn("text-[15px] font-semibold truncate", allowed ? "text-neutral-900" : "text-neutral-600")}>
+                        <span className={cn("text-[15px] font-semibold truncate", allowed ? "text-ink" : "text-ink-2")}>
                           {student.name}
                         </span>
-                        <span className={cn("text-[13px]", allowed ? "text-neutral-500" : "text-danger-700")}>
+                        <span className={cn("text-[13px]", allowed ? "text-ink-3" : "text-danger-700")}>
                           {!allowed
                             ? `還沒有 ${styleName} 資格，不能用複習卡`
                             : student.lastAttendAt
@@ -197,8 +197,8 @@ const TransferCard = ({
         </div>
 
         {recipient && (
-          <div className="bg-neutral-50 rounded-2xl p-4 flex flex-col gap-3 text-sm text-neutral-900">
-            <span className="text-[13px] font-semibold text-neutral-700">轉讓之後</span>
+          <div className="bg-surface rounded-2xl p-4 flex flex-col gap-3 text-sm text-ink">
+            <span className="text-[13px] font-semibold text-ink-2">轉讓之後</span>
             <div className="flex gap-2.5 items-start">
               <span aria-hidden className="size-[22px] rounded-full bg-primary-100 text-primary-900 flex items-center justify-center shrink-0">
                 <Plus className="size-3.5" strokeWidth={2.6} />
@@ -208,14 +208,14 @@ const TransferCard = ({
               </span>
             </div>
             <div className="flex gap-2.5 items-start">
-              <span aria-hidden className="size-[22px] rounded-full bg-neutral-200 text-neutral-700 flex items-center justify-center shrink-0">
+              <span aria-hidden className="size-[22px] rounded-full bg-neutral-200 text-ink-2 flex items-center justify-center shrink-0">
                 <Minus className="size-3.5" strokeWidth={2.6} />
               </span>
               <span>
                 <strong>{studentName}</strong> 的 {serial} 結束，標記「已轉讓 {sessions} 堂 → {recipient.name}」
               </span>
             </div>
-            <span className="text-xs text-neutral-500">新卡不算新營收；付款紀錄留在原卡。</span>
+            <span className="text-xs text-ink-3">新卡不算新營收；付款紀錄留在原卡。</span>
           </div>
         )}
 

@@ -51,16 +51,21 @@ export default function SegmentedTabs<T extends string>({
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => onChange(option.value)}
-              className={`${fill ? "flex-1" : ""} -mb-px min-h-11 px-3.5 text-sm border-b-2 transition-colors cursor-pointer ${
+              onClick={(event) => {
+                // 滑鼠／手指點完就放掉焦點；否則之後按任何鍵，Chrome 會讓 :focus-visible 成立、冒出一圈框。
+                // 鍵盤觸發的 click（detail 為 0）保留焦點框。
+                if (event.detail !== 0) event.currentTarget.blur();
+                onChange(option.value);
+              }}
+              className={`${fill ? "flex-1" : ""} -mb-px min-h-11 px-3.5 text-sm border-b-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary-300 ${
                 active
                   ? "border-primary-600 text-primary-900 font-bold"
-                  : "border-transparent text-neutral-500 font-medium hover:text-neutral-800"
+                  : "border-transparent text-ink-3 font-medium hover:text-ink"
               }`}
             >
               {option.label}
               {option.hint !== undefined && (
-                <span className="ml-1 text-xs font-normal text-neutral-500">{option.hint}</span>
+                <span className="ml-1 text-xs font-normal tabular-nums text-ink-3">{option.hint}</span>
               )}
             </button>
           );
@@ -73,7 +78,7 @@ export default function SegmentedTabs<T extends string>({
     <div
       role="group"
       aria-label={ariaLabel}
-      className={`${fill ? "flex" : "inline-flex"} gap-1 bg-neutral-100 rounded-xl p-1 ${className}`}
+      className={`${fill ? "flex" : "inline-flex"} gap-1 bg-band rounded-xl p-1 ${className}`}
     >
       {options.map((option) => {
         const active = option.value === value;
@@ -82,16 +87,21 @@ export default function SegmentedTabs<T extends string>({
             key={option.value}
             type="button"
             aria-pressed={active}
-            onClick={() => onChange(option.value)}
-            className={`${fill ? "flex-1" : ""} px-3.5 py-1.5 text-sm rounded-lg transition-colors cursor-pointer ${
+            onClick={(event) => {
+                // 滑鼠／手指點完就放掉焦點；否則之後按任何鍵，Chrome 會讓 :focus-visible 成立、冒出一圈框。
+                // 鍵盤觸發的 click（detail 為 0）保留焦點框。
+                if (event.detail !== 0) event.currentTarget.blur();
+                onChange(option.value);
+              }}
+            className={`${fill ? "flex-1" : ""} px-3.5 py-1.5 text-sm rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary-300 ${
               active
-                ? "bg-white text-neutral-900 font-semibold shadow-sm"
-                : "text-neutral-600 hover:text-neutral-900"
+                ? "bg-white text-ink font-semibold shadow-sm"
+                : "text-ink-2 hover:text-ink"
             }`}
           >
             {option.label}
             {option.hint !== undefined && (
-              <span className="ml-1 text-xs font-normal text-neutral-500">{option.hint}</span>
+              <span className="ml-1 text-xs font-normal tabular-nums text-ink-3">{option.hint}</span>
             )}
           </button>
         );

@@ -4,18 +4,24 @@ import { decodeAuthToken } from "@/lib/auth";
 import { toTaipeiDateKey, parseTaipeiDateRange } from "@/lib/taipei-date";
 import { periodRevenue } from "@/lib/income";
 import { termRevenueByPeriod } from "@/service/termEnrollment";
+import { locationSummarySelect } from "@/lib/locations";
+import { parseLocationFilter } from "../locationFilter";
 
 export async function GET(request: Request) {
   const { classroomId } = await decodeAuthToken();
   const { searchParams } = new URL(request.url);
   const dateParam = searchParams.get("date");
+  const locationFilter = parseLocationFilter(searchParams);
+  if (!locationFilter) {
+    return NextResponse.json({ error: "Invalid locationId" }, { status: 400 });
+  }
 
   let selectedDate = dateParam;
 
   if (!selectedDate) {
     const latestPeriod = await prisma.lessonPeriod.findFirst({
       where: {
-        lesson: { classroomId: classroomId! },
+        lesson: { classroomId: classroomId!, ...locationFilter },
         attendanceTakenAt: { not: null },
       },
       select: { startTime: true },
@@ -33,16 +39,29 @@ export async function GET(request: Request) {
 
   const lessonPeriods = await prisma.lessonPeriod.findMany({
     where: {
-      lesson: { classroomId: classroomId! },
+      lesson: { classroomId: classroomId!, ...locationFilter },
       attendanceTakenAt: { not: null },
       startTime: { gte: start, lt: end },
     },
-    include: {
-      lesson: true,
+    // Select, never `lesson: true` / `student: true`: the Student row carries
+    // `lineBindKey`, `randomKey` and `lineUserId`.
+    select: {
+      id: true,
+      lessonId: true,
+      lesson: {
+        select: {
+          name: true,
+          sessionsPerAttendance: true,
+          location: { select: locationSummarySelect },
+        },
+      },
       attendanceRecords: {
-        include: {
-          student: true,
-          studentCard: true,
+        select: {
+          studentCardId: true,
+          enrollmentId: true,
+          sessionsUsed: true,
+          student: { select: { name: true } },
+          studentCard: { select: { finalPrice: true, totalSessions: true } },
           dropInCharge: { select: { amount: true } },
         },
       },
@@ -68,6 +87,7 @@ export async function GET(request: Request) {
       periodId: period.id,
       lessonName: period.lesson.name,
       sessionsPerAttendance: period.lesson.sessionsPerAttendance,
+      location: period.lesson.location,
       attendanceCount: period.attendanceRecords.length,
       revenue,
       // 整期攤進這堂的部分（已含在 revenue 裡）：幾個人報整期、共多少。

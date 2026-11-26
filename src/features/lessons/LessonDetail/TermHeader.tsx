@@ -4,15 +4,10 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookOpenText, ChevronDown, ChevronLeft, Ellipsis, Plus } from "lucide-react";
-import DanceStyleDot from "@/components/DanceStyleDot";
 import Menu from "@/components/Menu";
-import StatusTag from "@/components/StatusTag";
-import { danceStyleMeta } from "@/lib/danceStyleColors";
-import { formatMoney } from "@/lib/money";
-import { lessonPeopleLabel } from "@/lib/teachers";
 import type { Lesson } from "@/store/slices/lessons";
 import { stashLessonClone } from "../lessonClone";
-import { weeklyScheduleLabel } from "../lessonSchedule";
+import { LessonInfoTip, LessonStatusText } from "./LessonDetailHeader";
 import type { useTermPage } from "./useTermPage";
 
 const ICON_BUTTON =
@@ -21,17 +16,16 @@ const MENU_ITEM =
   "flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-left text-sm text-neutral-800 hover:bg-neutral-100";
 
 /**
- * 手機的「這一期」頁首（去框線改版：白底、不再是深綠色塊）：回課程、切換期、編輯，
- * 這門課是誰教在哪上，下面一行灰字是這一期到目前為止的樣子。開新一期、課種頁收在 ⋯。
+ * 手機的「這一期」頁首（去框線改版：白底）：回課程、切換期、⋯（開新一期、課種頁），下面只有課名＋狀態，
+ * 分頁列緊接著。誰教、在哪、幾點收在課名旁的 ⓘ 和「設定」分頁；這一期上到哪、收多少在「時段」分頁標題下。
+ * 編輯＝「設定」分頁，頁首不再放一顆。
  */
 const TermHeader = ({
   lesson,
   term,
-  onOpenSettings,
 }: {
   lesson: Lesson;
   term: ReturnType<typeof useTermPage>;
-  onOpenSettings: () => void;
 }) => {
   const router = useRouter();
   const switcherRef = useRef<HTMLButtonElement>(null);
@@ -39,12 +33,6 @@ const TermHeader = ({
   const [switching, setSwitching] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const running = lesson.status !== "finished";
-  const subtitle = [
-    weeklyScheduleLabel(lesson.periods ?? []),
-    lessonPeopleLabel(lesson.teachers, lesson.assistants),
-  ]
-    .filter(Boolean)
-    .join(" · ");
 
   const openNewTerm = () => {
     if (!term.summary) return;
@@ -77,13 +65,6 @@ const TermHeader = ({
           </button>
         )}
         <button
-          type="button"
-          onClick={onOpenSettings}
-          className="flex h-11 shrink-0 cursor-pointer items-center rounded-lg px-2 text-[15px] font-semibold text-primary-800 hover:bg-primary-50"
-        >
-          編輯
-        </button>
-        <button
           ref={moreRef}
           type="button"
           aria-label="更多：開新一期、課種頁"
@@ -96,35 +77,11 @@ const TermHeader = ({
         </button>
       </div>
 
-      <h1 className="mt-1 flex items-center gap-2.5 text-[28px] font-semibold leading-9 tracking-[-0.01em] text-ink">
+      <h1 className="mt-1 flex items-center gap-1.5 text-[28px] font-semibold leading-9 tracking-[-0.01em] text-ink">
         <span className="min-w-0 break-words">{lesson.name}</span>
-        <StatusTag tone={running ? "positive" : "neutral"}>{running ? "進行中" : "已結束"}</StatusTag>
+        <LessonInfoTip lesson={lesson} />
+        <LessonStatusText finished={!running} />
       </h1>
-      <p className="mt-1.5 text-sm leading-relaxed text-ink-2">
-        <DanceStyleDot style={lesson.danceStyle} className="mr-1.5 align-middle" />
-        {[danceStyleMeta(lesson.danceStyle).label, lesson.kind === "ongoing" ? "持續開課" : "固定期數", lesson.location?.name]
-          .filter(Boolean)
-          .join(" · ")}
-        {subtitle && (
-          <>
-            <br />
-            {subtitle}
-          </>
-        )}
-      </p>
-
-      {/* 三格統計收成一行灰字（去框線改版：不放統計列）。 */}
-      {term.overview && (
-        <p className="mt-2.5 text-[13px] text-ink-2">
-          {term.termNumber !== null && `第 ${term.termNumber} 期 · `}
-          已上 <b className="font-semibold text-ink">{term.overview.sessions}</b> 堂 · 平均{" "}
-          <b className="font-semibold text-ink">{term.overview.average}</b> ·{" "}
-          {term.termNumber !== null ? "這期收入" : "累計收入"}{" "}
-          <b className="font-semibold text-ink">
-            {term.totalRevenue === undefined ? "…" : `$${formatMoney(term.totalRevenue)}`}
-          </b>
-        </p>
-      )}
 
       <Menu
         open={switching}

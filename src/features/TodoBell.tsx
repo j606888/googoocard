@@ -540,7 +540,7 @@ const RemindersTab = ({ todos, onNavigate }: { todos: Todos; onNavigate: () => v
           久未上課 {todos.inactiveRenewalCount} 位
         </p>
         <p className="text-xs text-neutral-600">
-          課卡用完、超過 7 天沒來，不列在這裡；在學生列表用「需續約」篩選查看
+          課卡用完、超過 7 天沒來，不列在這裡；在學生列表用「已經沒卡」篩選查看
         </p>
       </div>
     )}

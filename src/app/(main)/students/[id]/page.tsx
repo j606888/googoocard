@@ -35,7 +35,7 @@ const StudentPage = () => {
             <Link
               href={backHref}
               aria-label="返回學生列表"
-              className="w-11 h-11 grid place-items-center rounded-xl text-neutral-900"
+              className="w-11 h-11 grid place-items-center rounded-xl text-ink"
             >
               <ChevronLeft className="w-6 h-6" />
             </Link>
@@ -58,7 +58,7 @@ const StudentPage = () => {
       />
       <AttentionBar
         student={student}
-        className={sizeClass === "compact" ? "px-4 pt-3 bg-white" : "px-8 pt-4 bg-white"}
+        className={sizeClass === "compact" ? "px-5 pt-3" : "px-8 pt-4"}
       />
       <StudentDetail student={student} />
     </>

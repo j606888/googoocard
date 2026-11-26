@@ -100,8 +100,8 @@ const StudentDetail = ({
     // 沒有任何課卡時，課卡分頁的空狀態自己有「購買第一張課卡」，不再疊一顆。
     const showBuyCta = mobileTab === "cards" && !student.archivedAt && student.studentCards.length > 0;
     return (
-      <div className="flex flex-col flex-1 bg-neutral-50">
-        <div className="bg-white border-b border-neutral-200 pt-3">
+      <div className="flex flex-col flex-1">
+        <div className="border-b border-line pt-3">
           <SegmentedTabs
             variant="underline"
             ariaLabel="學生資料分頁"
@@ -111,7 +111,7 @@ const StudentDetail = ({
             fill
           />
         </div>
-        <div className="flex-1 px-4 py-4">
+        <div className="flex-1 px-5 pt-5 pb-10">
           {mobileTab === "cards" && (
             <CardsSection key={student.id} student={student} studentCards={student.studentCards} />
           )}
@@ -121,7 +121,7 @@ const StudentDetail = ({
         </div>
         {showBuyCta && (
           // 固定在底部導覽列上方（導覽列約 5rem 高，含外距）；App 裡沒有網頁的導覽列，貼底（flush-bottom）
-          <div data-in-app="flush-bottom" className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] px-4 pt-2 pb-3">
+          <div data-in-app="flush-bottom" className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] px-5 pt-2 pb-3">
             <BuyCard student={student} variant="cta" />
           </div>
         )}
@@ -142,7 +142,7 @@ const StudentDetail = ({
 
   return (
     <div ref={rootRef} className={isPane ? "flex flex-col flex-1 min-h-0" : "flex flex-col flex-1"}>
-      <div className="flex-none bg-white border-b border-neutral-200 px-6 pt-3">
+      <div className="flex-none border-b border-line px-6 pt-3">
         <SegmentedTabs
           variant="underline"
           ariaLabel="學生資料分頁"
@@ -151,10 +151,10 @@ const StudentDetail = ({
           onChange={handleTabClick}
         />
       </div>
-      <div className={isPane ? "flex-1 min-h-0 overflow-y-auto bg-neutral-50" : "flex-1 bg-neutral-50"}>
+      <div className={isPane ? "flex-1 min-h-0 overflow-y-auto" : "flex-1"}>
         <div
-          className={`px-6 py-6 ${
-            withSidePanel ? "grid grid-cols-[minmax(0,1fr)_300px] gap-6 items-start" : ""
+          className={`px-6 pt-6 pb-10 ${
+            withSidePanel ? "grid grid-cols-[minmax(0,1fr)_300px] gap-x-16 items-start" : ""
           }`}
         >
           <div className="min-w-0">
@@ -182,7 +182,7 @@ const StudentDetail = ({
 const AttendInsightPanels = ({ student }: { student: StudentWithDetail }) => {
   const attendances = flattenAttendances(student.attendancesByDate);
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-9">
       <Panel title={`近 ${INSIGHT_WEEKS} 週出席`}>
         <WeeklyHeatGrid attendances={attendances} />
       </Panel>

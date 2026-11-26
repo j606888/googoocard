@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 const NOTIFICATION_TYPES: { type: TodoType; label: string; hint: string }[] = [
   { type: "UNPAID_CARD", label: "待確認收款", hint: "學生在 LINE 自助購買課卡時" },
-  { type: "NEEDS_RENEWAL", label: "需續約", hint: "學生的課卡剛用完時" },
+  { type: "NEEDS_RENEWAL", label: "已經沒卡", hint: "學生的課卡剛用完時" },
   { type: "UNBOUND_ATTENDANCE", label: "出席沒有課卡", hint: "學生自助簽到但沒有可用的課卡時" },
 ];
 

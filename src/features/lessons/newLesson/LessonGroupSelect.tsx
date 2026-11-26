@@ -14,9 +14,12 @@ import Field, { FieldLabel } from "@/components/Field";
 const LessonGroupSelect = ({
   groupId,
   onChange,
+  hideLabel = false,
 }: {
   groupId: number | null;
   onChange: (value: number | null) => void;
+  /** 外面已經有「課種」這個名稱了（課程設定的一列）——不再印一次。 */
+  hideLabel?: boolean;
 }) => {
   const { data: groups } = useGetLessonGroupsQuery();
   const [newGroupModalOpen, setNewGroupModalOpen] = useState(false);
@@ -37,7 +40,7 @@ const LessonGroupSelect = ({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <FieldLabel>課種</FieldLabel>
+      {!hideLabel && <FieldLabel>課種</FieldLabel>}
       <MultiSelect
         options={groupOptions}
         values={groupId !== null ? [groupId] : []}

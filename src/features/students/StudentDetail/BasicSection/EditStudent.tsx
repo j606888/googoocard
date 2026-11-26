@@ -92,7 +92,7 @@ const EditStudent = ({
     }
   };
 
-  // 「需續約」由系統依剩餘堂數維護（refreshNeedsRenewalTag），手動加減會被下一次刷新蓋掉。
+  // 「已經沒卡」（Needs Renewal）由系統依剩餘堂數維護（refreshNeedsRenewalTag），手動加減會被下一次刷新蓋掉。
   const studentTags = student.tags ?? [];
   const addableTags = allTags.filter(
     (tag) => tag.name !== NEEDS_RENEWAL_TAG && !studentTags.some((st) => st.id === tag.id)
@@ -109,7 +109,7 @@ const EditStudent = ({
           size="iconSm"
           onClick={handleOpen}
           aria-label={`編輯 ${student.name}`}
-          className="text-neutral-500"
+          className="text-ink-3"
         >
           <SquarePen className="w-5 h-5" />
         </Button>
@@ -157,10 +157,10 @@ const EditStudent = ({
             error={errors.name}
           />
 
-          <section className="flex flex-col gap-3 border-t border-neutral-100 pt-4">
+          <section className="flex flex-col gap-3 border-t border-line pt-4">
             <div className="flex items-baseline justify-between gap-2">
-              <h3 className="text-sm font-bold text-neutral-700">舞種資格</h3>
-              <span className="text-xs text-neutral-500">決定能買哪些複習卡</span>
+              <h3 className="text-sm font-bold text-ink-2">舞種資格</h3>
+              <span className="text-xs text-ink-3">決定能買哪些複習卡</span>
             </div>
             <QualificationLevels
               levels={danceLevels}
@@ -170,10 +170,10 @@ const EditStudent = ({
             />
           </section>
 
-          <section className="flex flex-col gap-2 border-t border-neutral-100 pt-4">
+          <section className="flex flex-col gap-2 border-t border-line pt-4">
             <div className="flex items-baseline justify-between gap-2">
-              <h3 className="text-sm font-bold text-neutral-700">標籤</h3>
-              <span className="text-xs text-neutral-500">改了馬上生效</span>
+              <h3 className="text-sm font-bold text-ink-2">標籤</h3>
+              <span className="text-xs text-ink-3">改了馬上生效</span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {studentTags.map((tag) =>
@@ -184,14 +184,14 @@ const EditStudent = ({
                 ) : (
                   <span
                     key={tag.id}
-                    className="inline-flex items-center gap-1 text-xs pl-2.5 pr-1.5 py-1 rounded-full border border-neutral-300 text-neutral-700"
+                    className="inline-flex items-center gap-1 text-xs pl-2.5 pr-1.5 py-1 rounded-full border border-neutral-300 text-ink-2"
                   >
                     {tag.name}
                     <button
                       type="button"
                       aria-label={`移除 ${tag.name}`}
                       onClick={() => handleRemoveTag(tag.id)}
-                      className="p-0.5 text-neutral-500 hover:text-danger-700 cursor-pointer"
+                      className="p-0.5 text-ink-3 hover:text-danger-700 cursor-pointer"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -203,7 +203,7 @@ const EditStudent = ({
                   key={tag.id}
                   type="button"
                   onClick={() => handleAddTag(tag.name)}
-                  className="inline-flex items-center gap-1 text-xs text-neutral-600 border border-dashed border-neutral-300 px-2.5 py-1 rounded-full hover:border-primary-300 hover:text-primary-700 cursor-pointer"
+                  className="inline-flex items-center gap-1 text-xs text-ink-2 border border-dashed border-neutral-300 px-2.5 py-1 rounded-full hover:border-primary-300 hover:text-primary-700 cursor-pointer"
                 >
                   <Plus className="w-3 h-3" />
                   {tag.name}
@@ -235,10 +235,10 @@ const EditStudent = ({
                 新增
               </Button>
             </div>
-            <p className="text-xs text-neutral-500">「需續約」由系統自動標記</p>
+            <p className="text-xs text-ink-3">「已經沒卡」由系統自動標記</p>
           </section>
 
-          <div className="flex flex-col gap-1.5 border-t border-neutral-100 pt-4">
+          <div className="flex flex-col gap-1.5 border-t border-line pt-4">
             <FieldLabel htmlFor={noteId} hint="（學生看不到）">
               備註
             </FieldLabel>

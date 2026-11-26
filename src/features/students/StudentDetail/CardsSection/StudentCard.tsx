@@ -1,54 +1,32 @@
 import { isToday } from "date-fns";
-import { Forward, Repeat2 } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { StudentCardWithCard } from "@/store/slices/students";
 import { formatMoney } from "@/lib/money";
 import { formatCardSerial } from "@/lib/cardSerial";
-import { danceStyleMeta } from "@/lib/danceStyleColors";
+import DanceStyleDot from "@/components/DanceStyleDot";
 import { cn } from "@/lib/utils";
-import StatusTag from "@/components/StatusTag";
 import SessionDots from "./SessionDots";
 import { isLowRemaining, lastUsedAt, shortDate } from "./cardStatus";
 
-/** 卡名下面那一行：這張卡從哪來（轉讓／轉換／買的），複習卡帶舞種。 */
-export const CardOrigin = ({ studentCard }: { studentCard: StudentCardWithCard }) => {
+/** 這張卡哪一天、怎麼來的：「8/9 買」「王小明 轉入 · 8/9」「由 #A0030 轉換 · 8/9」。 */
+export function cardOriginLabel(studentCard: StudentCardWithCard): string {
   const date = shortDate(studentCard.createdAt);
   const from = studentCard.transferredFrom;
   if (studentCard.origin === "TRANSFER" && from) {
-    return (
-      <span className="flex items-center gap-1 text-[13px] font-medium text-primary-900 min-w-0">
-        <Forward className="size-3.5 shrink-0" aria-hidden />
-        <span className="truncate">
-          {from.student ? from.student.name : formatCardSerial(from.serialNumber)} 轉入 · {date}
-        </span>
-      </span>
-    );
+    return `${from.student ? from.student.name : formatCardSerial(from.serialNumber)} 轉入 · ${date}`;
   }
   const convertedFrom = studentCard.convertedFrom ?? [];
   if (convertedFrom.length > 0) {
-    return (
-      <span className="flex items-center gap-1 text-[13px] text-neutral-500 min-w-0">
-        <Repeat2 className="size-3.5 shrink-0" aria-hidden />
-        <span className="truncate">
-          由 {convertedFrom.map((card) => formatCardSerial(card.serialNumber)).join("、")} 轉換 · {date}
-        </span>
-      </span>
-    );
+    return `由 ${convertedFrom.map((card) => formatCardSerial(card.serialNumber)).join("、")} 轉換 · ${date}`;
   }
-  const style = studentCard.card.isPracticeCard ? studentCard.card.danceStyle : null;
-  return (
-    <span className="flex items-center gap-1.5 text-[13px] text-neutral-500 min-w-0">
-      {style && <span className="size-2 rounded-full shrink-0" style={danceStyleMeta(style).fill} aria-hidden />}
-      <span className="truncate">
-        {style ? `${style.name} · ` : ""}
-        {date} 購買
-      </span>
-    </span>
-  );
-};
+  return `${date} 買`;
+}
 
 /**
- * 有效課卡的票根：卡名與編號、來源、大字剩餘堂數＋每堂一顆圓點，虛線下面只放
- * 需要注意的事（未付、快用完）與上次上課。整張是一顆按鈕，點了開 CardDetailDialog。
+ * 有效課卡的一列（不是一張框起來的票根）。固定的閱讀順序回答三件事：
+ * 第一行卡名＋編號，右邊是這一列唯一的大字「剩 N 堂」；第二行什麼時候買的 ·
+ * 付款了沒 · 上次什麼時候來 · 快用完；右邊數字下面一堂一顆圓點。
+ * 未付款、快用完都只是列裡的琥珀色文字。整列是一顆按鈕，點了開 CardDetailDialog。
  */
 const StudentCard = ({
   studentCard,
@@ -64,53 +42,71 @@ const StudentCard = ({
   const unpaid = studentCard.isPaid === false;
   const lastUse = lastUsedAt(studentCard);
   const serial = formatCardSerial(studentCard.serialNumber);
+  const { remainingSessions: remaining, totalSessions: total } = studentCard;
+  const style = studentCard.card.isPracticeCard ? studentCard.card.danceStyle : null;
+  const origin = cardOriginLabel(studentCard);
+  const payment = unpaid ? `未付 $${formatMoney(studentCard.finalPrice)}` : "已付款";
+  const lastUseLabel = lastUse === null ? "還沒用過" : `上次 ${isToday(lastUse) ? "今天" : shortDate(lastUse)}`;
+  const sessionsLabel = `剩 ${remaining} 堂，共 ${total} 堂`;
 
   return (
     <button
       type="button"
       id={`student-card-${studentCard.id}`}
       onClick={() => onOpen(studentCard)}
-      aria-label={`${studentCard.card.name} ${serial}，剩 ${studentCard.remainingSessions} 堂${unpaid ? "，未付款" : ""}，查看詳情`}
+      aria-label={[
+        `${studentCard.card.name} ${serial}`,
+        sessionsLabel,
+        low ? "快用完" : null,
+        origin,
+        payment,
+        lastUseLabel,
+        "查看詳情",
+      ]
+        .filter(Boolean)
+        .join("，")}
       className={cn(
-        "flex flex-col w-full rounded-2xl border bg-white text-left scroll-mt-4 cursor-pointer transition-[box-shadow,border-color] duration-300 hover:border-primary-300",
-        highlighted ? "border-primary-700 ring-4 ring-primary-100" : "border-neutral-200"
+        "-mx-3 flex w-[calc(100%+1.5rem)] min-h-16 items-center gap-3 rounded-xl px-3 py-3.5 text-left scroll-mt-4 cursor-pointer transition-colors duration-300 hover:bg-primary-50 outline-none focus-visible:ring-[3px] focus-visible:ring-primary-300",
+        highlighted && "bg-primary-50"
       )}
     >
-      <div className="flex flex-col gap-4 px-5 pt-[18px] pb-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-col gap-1 min-w-0">
-            <span className="text-[15px] font-bold text-neutral-900 truncate">{studentCard.card.name}</span>
-            <CardOrigin studentCard={studentCard} />
-          </div>
-          <span className="shrink-0 text-[13px] font-semibold text-neutral-500 tabular-nums">{serial}</span>
-        </div>
-        <div className="flex items-end justify-between gap-3">
-          <div className="flex items-baseline gap-1.5 leading-none tabular-nums">
-            <span className="text-[40px] font-extrabold tracking-tight text-neutral-900">
-              {studentCard.remainingSessions}
-            </span>
-            <span className="text-sm font-medium text-neutral-600">/ {studentCard.totalSessions} 堂</span>
-          </div>
-          <SessionDots
-            total={studentCard.totalSessions}
-            remaining={studentCard.remainingSessions}
-            low={low}
-            // 8 堂以上改小圓點，12 堂也排得進一行
-            size={studentCard.totalSessions > 8 ? "sm" : "md"}
-            className="pb-1.5 justify-end flex-nowrap"
-          />
-        </div>
-      </div>
-      <div aria-hidden className="mx-3.5 border-t-[1.5px] border-dashed border-neutral-200" />
-      <div className="flex items-center justify-between gap-2 min-h-[26px] px-5 pt-3 pb-3.5">
-        <span className="flex items-center gap-1.5">
-          {unpaid && <StatusTag tone="warning">未付 ${formatMoney(studentCard.finalPrice)}</StatusTag>}
-          {low && <StatusTag tone="warning">快用完</StatusTag>}
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="truncate text-base font-semibold text-ink">{studentCard.card.name}</span>
+          <span className="shrink-0 text-[13px] tabular-nums text-ink-3">{serial}</span>
         </span>
-        <span className="text-[13px] text-neutral-500 tabular-nums">
-          {lastUse === null ? "還沒用過" : `上次 ${isToday(lastUse) ? "今天" : shortDate(lastUse)}`}
+        <span className="text-[13px] leading-snug tabular-nums text-ink-3">
+          {style && (
+            <>
+              <DanceStyleDot style={style} className="mr-1.5 align-middle" />
+              {style.name}
+              {" · "}
+            </>
+          )}
+          {origin}
+          {" · "}
+          <span className={cn("whitespace-nowrap", unpaid && "font-semibold text-warning-800")}>{payment}</span>
+          {" · "}
+          {lastUseLabel}
+          {low && (
+            <>
+              {" · "}
+              <span className="whitespace-nowrap font-semibold text-warning-800">快用完</span>
+            </>
+          )}
         </span>
-      </div>
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-2">
+        <span className="flex items-baseline gap-1 whitespace-nowrap leading-none tabular-nums">
+          <span className="text-[13px] text-ink-2">剩</span>
+          <span className={cn("text-[26px] font-semibold tracking-tight", low ? "text-warning-800" : "text-ink")}>
+            {remaining}
+          </span>
+          <span className="text-[13px] text-ink-3">/ {total} 堂</span>
+        </span>
+        <SessionDots total={total} remaining={remaining} low={low} align="end" />
+      </span>
+      <ChevronRight aria-hidden className="size-4 shrink-0 text-ink-3" />
     </button>
   );
 };

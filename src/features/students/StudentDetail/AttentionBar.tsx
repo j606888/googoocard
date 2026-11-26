@@ -10,7 +10,8 @@ import { attentionFor } from "./attention";
 
 /**
  * 學生詳情頁首下方的一條提醒（右側抽屜與手機詳情頁共用）。
- * 需續約不放按鈕——頁首／課卡分頁本來就有「購買課卡」。
+ * 已經沒卡不放按鈕——頁首／課卡分頁本來就有「購買課卡」。
+ * 未付款、已經沒卡要處理，用琥珀色條；有卡沒來只是提醒，一行淡字。
  */
 const AttentionBar = ({
   student,
@@ -23,19 +24,28 @@ const AttentionBar = ({
   const attention = student.archivedAt ? null : attentionFor(student);
   if (!attention) return null;
 
-  const tone =
-    attention.kind === "idle"
-      ? "border-warning-300 bg-warning-50 text-warning-950"
-      : "border-danger-200 bg-danger-50 text-danger-700";
+  const needsAction = attention.kind !== "idle";
   const payCard = attention.kind === "unpaid" ? attention.card : null;
 
   return (
     <div className={className}>
-      <div role="status" className={cn("flex items-center gap-3 rounded-xl border px-4 py-2.5 text-sm", tone)}>
-        <AlertCircle className="w-4 h-4 shrink-0" />
-        <span className="flex-1 font-semibold">{attention.message}</span>
+      <div
+        role="status"
+        className={cn(
+          "flex min-h-11 items-center gap-3 text-sm",
+          needsAction ? "rounded-xl bg-warning-100 px-4 py-2 text-warning-950" : "text-ink-2"
+        )}
+      >
+        <AlertCircle aria-hidden="true" className="size-4 shrink-0" />
+        <span className={cn("flex-1", needsAction && "font-semibold")}>{attention.message}</span>
         {payCard && (
-          <Button type="button" size="sm" onClick={() => setPaying(true)}>
+          <Button
+            type="button"
+            variant="text"
+            size="sm"
+            className="-mr-2 text-warning-950 hover:bg-warning-200/60 hover:text-warning-950"
+            onClick={() => setPaying(true)}
+          >
             確認收款
           </Button>
         )}

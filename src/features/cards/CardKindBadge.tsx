@@ -1,13 +1,17 @@
-import StatusTag, { type StatusTone } from "@/components/StatusTag";
 import type { CardKind } from "./cardInsights";
 
-const KIND_STYLE: Record<CardKind, { label: string; tone: StatusTone }> = {
-  general: { label: "一般", tone: "neutral" },
-  practice: { label: "複習", tone: "warning" },
-  trial: { label: "體驗", tone: "positive" },
+const KIND_LABEL: Record<CardKind, string> = {
+  general: "一般",
+  practice: "複習",
+  trial: "體驗",
 };
 
-/** 方案種類的小標籤。列表上一般方案不顯示（大多數都是），只標複習／體驗。 */
+/**
+ * 方案種類的小標籤：淡底深字、不靠顏色分辨（字本身就說了是哪一種）。
+ * 列表上一般方案不顯示（大多數都是），只標複習／體驗。
+ */
 export const CardKindBadge = ({ kind, label }: { kind: CardKind; label?: string }) => (
-  <StatusTag tone={KIND_STYLE[kind].tone}>{label ?? KIND_STYLE[kind].label}</StatusTag>
+  <span className="inline-flex h-5.5 shrink-0 items-center whitespace-nowrap rounded-md bg-band px-1.5 text-xs font-semibold text-ink-2">
+    {label ?? KIND_LABEL[kind]}
+  </span>
 );
