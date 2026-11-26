@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { danceStyleSummarySelect } from "@/lib/danceStyles";
 import { locationSummarySelect } from "@/lib/locations";
 import { teacherSummarySelect } from "@/lib/teachers";
+import { parseTaipeiDateRange, toTaipeiDateKey } from "@/lib/taipei-date";
 
 /** 往後帶幾天內開始的時段（本週課表）。 */
 export const AGENDA_UPCOMING_DAYS = 7;
@@ -17,6 +18,7 @@ const periodSelect = {
   endTime: true,
   attendanceTakenAt: true,
   attendanceRecords: { select: { studentId: true, source: true } },
+  _count: { select: { bookings: true } },
   lesson: {
     select: {
       id: true,
@@ -27,7 +29,7 @@ const periodSelect = {
       location: { select: locationSummarySelect },
       teachers: { select: { teacher: { select: teacherSummarySelect } }, orderBy: { id: "asc" } },
       assistants: { select: { teacher: { select: teacherSummarySelect } }, orderBy: { id: "asc" } },
-      _count: { select: { students: true } },
+      _count: { select: { students: true, enrollments: true } },
     },
   },
 } as const;
@@ -64,6 +66,7 @@ async function termNumbersFor(classroomId: number, groupIds: (number | null)[]) 
  * - 已開始、還沒點名的（→ 還沒點名、上課中還沒點）
  * - 正在上的，不管點過沒（→ 上課中，補勾遲到）
  * - 往後 7 天內開始的每一堂（→ 下一堂、本週課表）
+ * - 今天（台北）已經上完、點過名的（→ 今天頁「全教室今天的課」；`agendaRows()` 不列它們）
  *
  * 只撈「可能相關」的集合；排成還沒點名／上課中／接下來由前端的 `agendaRows()`
  * （`src/features/lessons/useLessonAgenda.ts`）照當下時間決定。
@@ -77,12 +80,14 @@ export async function getLessonAgenda(classroomId: number, now = new Date(), use
   const myTeacher = userId
     ? await prisma.teacher.findFirst({ where: { classroomId, userId }, select: { id: true } })
     : null;
+  const { start: todayStart } = parseTaipeiDateRange(toTaipeiDateKey(now));
   const [started, upcoming, myUpcoming] = await Promise.all([
     prisma.lessonPeriod.findMany({
       where: {
         lesson: lessonWhere,
         startTime: { lte: now },
-        OR: [{ attendanceTakenAt: null }, { endTime: { gt: now } }],
+        // 今天的課點完名、下課了也留著：今天頁給管理員看「今天全部的課」。
+        OR: [{ attendanceTakenAt: null }, { endTime: { gt: now } }, { startTime: { gte: todayStart } }],
       },
       orderBy: { startTime: "desc" },
       take: STARTED_TAKE,
@@ -122,6 +127,34 @@ export async function getLessonAgenda(classroomId: number, now = new Date(), use
   return { myTeacherId: myTeacher?.id ?? null, periods: await toAgendaPeriods(classroomId, periods) };
 }
 
+/**
+ * 每門課體驗名單上「已登記、還沒上」的人數——同 `getTrialRoster()` 的 registered：
+ * 手上有這門課掛的體驗卡、還沒用掉、沒過期的在籍學生。
+ */
+async function trialRegisteredCounts(lessonIds: number[]) {
+  const counts = new Map<number, number>();
+  const links = await prisma.lessonCard.findMany({
+    where: { lessonId: { in: lessonIds }, card: { isTrial: true } },
+    select: { lessonId: true, cardId: true },
+  });
+  if (links.length === 0) return counts;
+  const held = await prisma.studentCard.groupBy({
+    by: ["cardId"],
+    where: {
+      cardId: { in: [...new Set(links.map((l) => l.cardId))] },
+      remainingSessions: { gt: 0 },
+      expiredAt: null,
+      student: { archivedAt: null },
+    },
+    _count: { _all: true },
+  });
+  const byCard = new Map(held.map((h) => [h.cardId, h._count._all]));
+  for (const { lessonId, cardId } of links) {
+    counts.set(lessonId, (counts.get(lessonId) ?? 0) + (byCard.get(cardId) ?? 0));
+  }
+  return counts;
+}
+
 type SelectedPeriod = Prisma.LessonPeriodGetPayload<{ select: typeof periodSelect }>;
 
 /** 撈到的時段 → 前端的 AgendaPeriod（第 N 堂、第 N 期、出席的人）。 */
@@ -146,13 +179,19 @@ async function toAgendaPeriods(classroomId: number, periods: SelectedPeriod[]) {
     periods.map((p) => p.lesson.groupId)
   );
 
-  return periods.map(({ lesson, attendanceRecords, lessonId, ...period }) => {
+  const trialByLesson = await trialRegisteredCounts(lessonIds);
+
+  return periods.map(({ lesson, attendanceRecords, lessonId, _count, ...period }) => {
     const order = orderByLesson.get(lessonId) ?? [];
     return {
       ...period,
       number: order.indexOf(period.id) + 1,
       attendeeIds: attendanceRecords.map((r) => r.studentId),
       selfCheckInCount: attendanceRecords.filter((r) => r.source === "STUDENT").length,
+      // 今天頁「這堂的準備」：老師登記預計會來的、報了整期的、體驗名單上還沒上的。
+      bookingCount: _count.bookings,
+      enrolledCount: lesson._count.enrollments,
+      trialCount: trialByLesson.get(lessonId) ?? 0,
       lesson: {
         id: lesson.id,
         name: lesson.name,

@@ -17,6 +17,8 @@ export interface Todos {
     totalSessions: number;
     createdAt: string;
     student: TodoStudent;
+    /** 這張卡在哪幾堂被扣過（今天頁「下課要收的錢」認今天的課）；舊版 API 沒有。 */
+    usedIn?: { lessonId: number; lessonPeriodId: number; startTime: string }[];
   }[];
   /** 付單堂但還沒收到錢 */
   unpaidDropIns: {
@@ -41,7 +43,7 @@ export interface Todos {
     lessonId: number;
     lessonName: string;
   }[];
-  /** 需續約、且近 30 天有來上課的人（更久沒來的只在 inactiveRenewalCount） */
+  /** 已經沒卡（沒有任何能用的卡、不在整期期間）且近 7 天有來上課的人（更久沒來的只在 inactiveRenewalCount） */
   needsRenewal: {
     student: TodoStudent;
     since: string;
@@ -86,12 +88,15 @@ export interface Todos {
   total: number;
 }
 
+/** `mine` = 我教的＋我當小幫手的課；`all` = 全教室。 */
+export type TodoScope = "mine" | "all";
+
 const todosApi = api.injectEndpoints({
   endpoints: (builder) => ({
     // 「待處理」由收款、續卡、點名綁卡等狀態推導而來，任一邊變動都要重抓。
     // 學生在 LIFF 自助買卡／簽到不會觸發本頁的 mutation，所以另外靠 refetchOnFocus。
-    getTodos: builder.query<Todos, void>({
-      query: () => "todos",
+    getTodos: builder.query<Todos, TodoScope>({
+      query: (scope) => (scope === "mine" ? "todos?scope=mine" : "todos"),
       providesTags: ["Lesson", "Student", "StudentCard", "AttendanceRecord", "Tag"],
     }),
   }),

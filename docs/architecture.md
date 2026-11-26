@@ -202,9 +202,19 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - **畫面**：`src/features/today/TodayScreen.tsx`，唯一的 hook 是 `useToday.ts`，純推導在 `today.ts`（有單元測試）。手機與桌面同一棵樹（`docs/ui-responsive.md` L1）：手機是綠色頁首（教室切換＋鈴鐺）壓著主角卡，桌面把同一份內容排成兩欄，教室切換與鈴鐺在側欄所以頁首那一排 `lg:hidden`。
 - **頁首**：問候語（依瀏覽器時刻）＋名字、角色（`roleLabel`）、「今天教 N 堂」（`GET /api/me/lessons`，上完的也算；沒連老師資料的成員不顯示）、下一堂課的分部（資料裡沒有「這個人屬於哪個分部」，所以用主角那堂的；沒課就不顯示）。日期與問候語**掛上之後才算**——伺服器在 UTC，SSR 算出來會跟台北差一天。
 - **主角卡**（`buildToday()`）：有自己的課（教的＋協助的）就只看自己的，沒有才看全教室。上課中還沒點名的 → 不然下一堂。**只有今天的課才給「開始點名」**，別天的只帶去課程頁（點錯日期在 production 出過兩次，見「老師會被帶到哪一個時段」）。資料同課程列表的 `GET /api/lessons/agenda`，這支為此多回 `selfCheckInCount`、`lesson.groupId`、`lesson.termNumber`（第幾期，伺服器照 `termNumbers()` 同一套排法算——今天頁不該為了期數去撈全教室的課）。
-- **還沒點名**：已下課沒點名的全部列在主角卡下面（手機的課程頁已經沒有「接下來」那張表，這裡是唯一看得到的地方）。
-- **待處理那一列**（`todoSummary()`）：數字跟鈴鐺同一個；點下去 `openTodoBell()`（`src/features/TodoBell.tsx`）發一個 window 事件，畫面上看得到的那顆鈴鐺打開（側欄與手機頁首各掛一顆，用 `offsetParent` 分辨）。App 裡鈴鐺是隱藏的，沒人接就 `postMessage('app:todos')` 交給原生待處理頁。
-- **最近上過**：`GET /api/lessons/recent?limit=`（`src/service/recentPeriods.ts`）——最近點過名的時段，帶出席人數與這堂收入（`periodRevenue()`，跟收入頁、點名完成頁同一支），一點就到 `check-success`。
+- **這堂的準備**（2026-11-26，`prepParts()`）：主角卡右邊那行寫「整期 6 · 預計會來 3 · 體驗 2 · 已自助簽到 4」，只列有數字的，全是 0 才退回「名單 N 位學生」。`GET /api/lessons/agenda` 的時段為此多回 `bookingCount`（`PeriodBooking`）、`enrolledCount`（`LessonEnrollment`）、`trialCount`（體驗名單上已登記還沒上的，同 `getTrialRoster()` 的 registered）。
+- **誰看到什麼**（2026-11-26）：不照角色名稱切（老師／小幫手／管理員權限幾乎一樣，管理員也會教課），照「今天要做的事」疊區塊：
+
+  | 區塊 | 誰看得到 | 內容 |
+  |---|---|---|
+  | 待處理 | 有自己的課的人 | 我的課還沒點名的（`view.overdue`）＋我的課範圍的待處理（`GET /api/todos?scope=mine`）：未付款、點名沒課卡、已經沒卡、體驗後還沒買卡 |
+  | 下課要收的錢 | 同上（小幫手排在待處理前面，`collectFirst`） | `collectToday()`：我的課範圍的未付款裡屬於今天的——單堂＝今天的時段；課卡＝今天買的或今天被扣過（`unpaidCards[].usedIn`）；整期＝那門課今天有上。課卡與整期就地開 `ConfirmPaymentDrawer`，單堂帶去點名結果頁（那裡可以改價） |
+  | 全教室 | 管理員（`isAdminRole`） | 今天每一堂與點名狀態（`view.allToday`：已點名／上課中／還沒點名／還沒開始；議程 API 為此多帶今天已上完點過名的時段）、全教室還沒點名的（`view.allOverdue`）、全教室的未付款與點名沒課卡 |
+  | 追蹤 | 管理員 | 全教室的提醒類：已經沒卡、體驗後還沒買卡、可能重複、LINE 自助認領 |
+
+  管理員自己沒有課時主角卡已經在看全教室，「待處理」那一區跟全教室重複所以不列。桌面兩欄：管理員左邊是自己的、右邊是全教室；其他人把手上的區塊左右分開。
+- **待處理的每一列**（`todoRows()`）：一種一列、帶 `tab`（要處理／提醒）；點下去 `openTodoBell({ scope, tab })`（`src/features/TodoBell.tsx`）發一個 window 事件，畫面上看得到的那顆鈴鐺打開並停在同一個範圍（側欄與手機頁首各掛一顆，用 `offsetParent` 分辨）。App 裡鈴鐺是隱藏的，沒人接就 `postMessage('app:todos')` 交給原生待處理頁（原生頁是全教室）。
+- **「最近上過」已移除**（2026-11-26，使用者：從來不看）：`GET /api/lessons/recent`、`src/service/recentPeriods.ts` 一起刪掉；點名紀錄從課程頁進。
 - **導向守門**：以前寫在 `Navbar` 裡的「沒登入 → `/login`、沒教室 → `/onboarding`」抽成 `src/hooks/useClassroomGuard.ts`，今天頁不掛 `Navbar` 也一樣有。
 - **品牌層**：`globals.css` 多一組 `accent-*`（奇異鳥的珊瑚橘）＝「現在／今天／要注意」；`accent-500` 只當底色，文字用 900/950 配 50/100。課的色塊是 `src/components/DanceStyleTile.tsx`（舞種色＋`seriesInitials()` 的兩個字母）。
 - **奇異鳥插圖**（`KiwiMascot`，全彩、18 個姿勢）：姿勢跟著狀態走，不是裝飾——今天頁頁首今天有課 `wave`／沒課 `sit`（站在珊瑚橘圓底上）、沒排課的卡 `sleep`；這一期頁醒目的那張卡今天 `dance`／忘記點 `surprised`／還沒到 `stand`；點名完成頁全員到齊 `jump`／有人缺席 `happy`／回頭看紀錄 `proud`。單色的 `KiwiLogo` 只留給 logo。
@@ -266,7 +276,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - **一筆報名** = `LessonEnrollment(lessonId, studentId)`（unique）：`price` 預設抄課程的，可以個別改（舊生半價）；**`sessions` 一律 = 課程的堂數**（報了就是整期，不能個別改——2026-11-24 使用者決定；欄位留著給以後的插班）。改價（`PATCH`）在學生動態記一筆「整期改價 $A → $B」（已收款的加註「實收不變」，畫面也提醒）——改價會回頭改已點名那幾堂的收入。收款欄位同課卡（`isPaid`／`paymentMethod`／`paymentReference`／`paidByUserId`），沒付進待處理「整期未付」（`todos.unpaidEnrollments`，算進紅色數字），確認收款 `POST /api/lesson-enrollments/[id]/confirm-payment`（`ConfirmPaymentDrawer` 帶 `enrollmentId`）。
 - **只有老師登記**（這一期頁「學生」分頁的整期名單，`TermRoster`）：`GET/POST /api/lessons/[id]/enrollments`、`PATCH/DELETE /api/lesson-enrollments/[id]`。LINE 不賣整期。**沒有插班**：第一堂上過才登記也一樣收整期、每一堂都照算（畫面黃字提醒；過去那幾堂的收入會在登記當下變多，使用者接受）。**晚登記會接手之前的出席**（`adoptEarlierAttendanceInTx()`，同一個 transaction）：涵蓋範圍內、報名前就有的出席改掛這筆報名——扣了卡的**退卡**（退 `sessionsUsed` 格、清掉過時的「課卡使用完畢」）、沒收款的單堂費**刪掉**、什麼都沒付的直接掛上；**已收款的單堂不動**（錢收了；要折抵就老師手動改價）。登記後 `refreshNeedsRenewalTag()`。取消報名只給「登記錯了」用——已有出席掛在這筆報名上就 409（`ENROLLMENT_IN_USE`）；中途不來就讓他一直是曠課，**不退費**。
 - **涵蓋哪幾堂**：這門課照時間排的前 `sessions` 個時段（`enrollmentsCoveringPeriod()`）。點名引擎（`processStudentAttendance`）、自助簽到（`selfCheckIn`，結果 `status: "enrolled"`）、點名頁預覽（`CardPreview.kind = "enrolled"`）都先看這個：涵蓋的那堂一律掛 `AttendanceRecord.enrollmentId`、**不扣卡**（手上有課卡也一樣，整期優先），`requireCard` 也不擋。`UNRESOLVED_ATTENDANCE` 多了 `enrollmentId: null`，所以整期的出席不算「點名沒課卡」。整期的出席**不能改付單堂**（`chargeDropIn` → `ALREADY_RESOLVED`）；**手動綁卡（consume）照樣能綁**（永不阻擋），綁了就清掉 `enrollmentId`，這堂改成用卡付。
-- **收入**：每個點過名的時段，涵蓋它的每筆報名各認列 price / sessions，**不管有沒有來**（`termShareForPeriod()` / `termRevenueByPeriod()`）。**例外：這位學生這堂已經用課卡或單堂付了**（老師手動 consume 綁卡、或報名前已收款的單堂）→ 那堂算課卡／單堂，整期讓出那一份（不移到別堂），所以不會重複算；`GET .../periods/[periodId]/term` 的 `enrolled[].paidOtherwise` 標出這些人，點名完成頁照同一條規則。加在 `periodRevenue()` 之外——收入頁（每日、每日列表、月營收依舞種）、這一期統計（`period-stats` 多回 `termRevenue`／`termEnrolledCount`）、今天頁「最近上過」、點名完成頁全部一致；完成頁另外列「整期 N 人 × $X」「課卡」「單堂」三行。`GET .../attendance` 對整期紀錄回 `enrollment` 與每堂價當 `income`（前端算完成頁收入時不用它，改用 term 資訊算全員，因為沒來的人也算）。
+- **收入**：每個點過名的時段，涵蓋它的每筆報名各認列 price / sessions，**不管有沒有來**（`termShareForPeriod()` / `termRevenueByPeriod()`）。**例外：這位學生這堂已經用課卡或單堂付了**（老師手動 consume 綁卡、或報名前已收款的單堂）→ 那堂算課卡／單堂，整期讓出那一份（不移到別堂），所以不會重複算；`GET .../periods/[periodId]/term` 的 `enrolled[].paidOtherwise` 標出這些人，點名完成頁照同一條規則。加在 `periodRevenue()` 之外——收入頁（每日、每日列表、月營收依舞種）、這一期統計（`period-stats` 多回 `termRevenue`／`termEnrolledCount`）、點名完成頁全部一致；完成頁另外列「整期 N 人 × $X」「課卡」「單堂」三行。`GET .../attendance` 對整期紀錄回 `enrollment` 與每堂價當 `income`（前端算完成頁收入時不用它，改用 term 資訊算全員，因為沒來的人也算）。
 - **請假／曠課**（只給整期學生）：只存請假（`PeriodLeave(enrollmentId, lessonPeriodId)`）；**曠課不存**＝報了整期、那堂點完名、沒出席也沒請假。點名送出多帶 `leaveStudentIds`（`takeAttendanceSchema`），`syncPeriodLeavesInTx()` 在同一個 transaction 重寫這堂的請假（有來的一律清掉；省略 = 只清有來的）。重設時段會清掉請假。點名頁整期學生獨立一區，標「預計今天會到」與「整期已付／整期未付 $X」，**不預設勾選**（2026-11-24 使用者決定：會不會來跟點到是兩回事，預設勾好容易誤送）；沒勾的出現「請假／曠課」（預設曠課，事先請假的帶入請假）；頁首提醒「上一堂誰請假」（`GET .../periods/[periodId]/term` 的 `previousLeaves`）。**沒有補課機制**——老師請他們提早來補進度就好。
 - **名冊**：`/api/lessons/[id]/students` 對報整期的人回 `cardStatus.term = true`、`level: "ok"`（不會被列成「沒有可用的卡」），名冊標「整期」。
 - 合併學員：同一門課兩邊都報了就留 target 的，source 那筆的出席改掛 target 的報名。
@@ -565,14 +575,17 @@ https://claude.ai/artifact/CXhjEmTYUz9MDHurt4zNdH
 
 - `Tag` / `StudentTag`：教室層級的自由標籤，學生編輯頁可增刪。
 - **"Needs Renewal"** 由系統自動維護（`src/service/studentTag.ts` 的
-  `refreshNeedsRenewalTag`）：學生最新一張多堂卡用完 → 自動加 tag，買新卡/退堂 → 自動移除。
-  觸發點：點名（含取消勾選退堂）、買卡、課卡轉換／轉讓、停用課卡、合併學員。**不要手動增刪這個 tag 的邏輯**，改
+  `refreshNeedsRenewalTag`）：學生**手上沒有任何能用的卡**（買過多堂卡、現在全用完，也不在整期報名期間）→ 自動加 tag，買新卡/退堂 → 自動移除。
+  觸發點：點名（含取消勾選退堂）、買卡、課卡轉換／轉讓、停用課卡、合併學員、整期報名／取消報名、課程結束或重開（`refreshLesson()` 狀態改變時 `refreshNeedsRenewalForLesson()`）。**不要手動增刪這個 tag 的邏輯**，改
   `findExhaustedRenewableCard` 即可（見下一節）。
 
 ## 續卡提醒推播（每日 cron）
 
 判定的**唯一出處**是 `src/service/studentTag.ts` 的 **`findExhaustedRenewableCard(studentId)`**：
-未過期、非單堂卡（`totalSessions > 1`）、同卡種中最新的一張，且剩餘堂數為 0 → 回傳那張卡。
+**手上沒有任何能用的卡**才算（2026-11-26 改；以前是「同卡種最新那張剩 0」，A 卡用完但還有 B 卡的人也被列進來）：
+還有任何一張沒過期、有剩餘堂數的卡（未付款、體驗卡都算）→ null；正在整期報名期間（那門課 `status = inProgress`）→ null；
+否則回傳最近買的那張用完的多堂卡（`totalSessions > 1`、非體驗卡）——只有體驗卡或只付過單堂的人沒有這種卡，所以不算「續」。
+舊規則留下的 tag 由 migration `20261126000000_prune_needs_renewal_tags` 清一次。
 `refreshNeedsRenewalTag()`（"Needs Renewal" tag）、續卡推播與老師端「需續約」App 推播都建立在它之上。
 **要改續卡規則就改這個函式，不要在別處另寫一套。**
 
@@ -637,7 +650,7 @@ build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
 | 類別（`TodoType`） | 怎麼算 | 處理完 | 推播觸發點 |
 |---|---|---|---|
 | `UNPAID_CARD` 待確認收款 | `StudentCard.isPaid = false`（封存學生照列，欠款還是欠款），**拖越久排越前**，附已用堂數 | 確認付款 | 學生在 LIFF 自助買卡、或自助點名時當場買卡（體驗課卡不在學生端賣） |
-| `NEEDS_RENEWAL` 需續約 | 「Needs Renewal」tag，排除封存學生；**只列 30 天內有來上課的**（`RENEWAL_ACTIVE_DAYS`），更久沒來的只回 `inactiveRenewalCount`。每列附 `lastAttendedAt`、`lineBound`、`lastRemindedAt`（這次用完後的 LINE 續卡提醒） | 買新卡 → tag 移除 | `refreshNeedsRenewalTag()` 裡 tag **這次才加上**（`createMany skipDuplicates` 的 count = 1） |
+| `NEEDS_RENEWAL` 需續約 | 「Needs Renewal」tag（＝已經沒卡），排除封存學生；**只列 7 天內有來上課的**（`RENEWAL_ACTIVE_DAYS`，2026-11-26 從 30 天改短：使用者只想提醒「上週有來、現在真的沒卡」的人），更久沒來的只回 `inactiveRenewalCount`。查詢時再擋一次「手上有能用的卡／在整期期間」，tag 慢一拍也不會列錯。畫面上叫「已經沒卡」。每列附 `lastAttendedAt`、`lineBound`、`lastRemindedAt`（這次用完後的 LINE 續卡提醒） | 買新卡 → tag 移除 | `refreshNeedsRenewalTag()` 裡 tag **這次才加上**（`createMany skipDuplicates` 的 count = 1） |
 | `UNBOUND_ATTENDANCE` 出席沒綁課卡 | `AttendanceRecord.studentCardId = null` | 綁上課卡 | `selfCheckIn()` 有時段是 `no_card`（LIFF 開了 `requireCard`，實際上只剩不帶 `requireCard` 的呼叫會發生） |
 | 體驗後還沒買卡（**不是** `TodoType`、不推播） | 14 天內（`TRIAL_FOLLOW_UP_DAYS`）用體驗卡上過課、沒有任何非體驗卡的在籍學生，`trialFollowUps` | 買正式卡，或過了 14 天 | 無 |
 | 可能重複（**不是** `TodoType`、不推播） | 同教室、在籍、名字相同（trim、不分大小寫）的學生組，`findPossibleDuplicates()` | 合併學員或改名 | 無 |
@@ -646,6 +659,11 @@ build 設定」沒有實證，不值得為一個還沒要開的功能冒險。
 需續約、體驗後沒買卡、可能重複是「值得知道」的 → `reminderCount`。**紅色數字只算 `urgentCount`**：
 鈴鐺、App 圖示、推播 badge（`countTodos()`）、Badging API 都是；`total` 留著等於 `urgentCount`（舊版 App 拿它設圖示）。
 只剩提醒時鈴鐺顯示灰點、不顯示數字；底部「學生」分頁與側欄不再掛需續約人數（同一畫面兩個數字會打架，改看學生列表的篩選 chip）。
+
+**範圍：我的課 vs. 全教室**（2026-11-26）。`GET /api/todos?scope=mine` → `getTodos(classroomId, now, { teacherId })` 只留「我的課」＝這位成員連著的 `Teacher` 教的＋當小幫手的課（`myLessonWhere()`）：
+單堂未付、整期未付、出席沒綁卡、體驗後沒買卡看那堂課是不是我的；需續約看 7 天內有沒有來過我的課；**課卡未付沒記在哪堂課買的，用「這張卡在我的課被扣過」判斷**——在學生頁買了還沒用的未付卡只有全教室看得到（使用者同意的取捨）；可能重複、LINE 自助認領是整間教室的事，我的課不列。
+鈴鐺右上可切「我的課／全教室」，管理員預設全教室、老師與小幫手預設我的課，數字跟著目前的範圍；今天頁的列點下去用 `openTodoBell({ scope, tab })` 停在同一個範圍。
+**推播 badge、`countTodos()`、App 的原生待處理頁不分範圍，一律全教室**（省略 `scope`）。
 
 鈴鐺分「要處理／提醒」兩頁。要處理的兩類**就地處理**，不用回課程頁：「補卡」開 `BindAttendanceCardDialog`
 （跟點名完成頁的「未綁定課卡學生」同一套 `PendingRecordAction`，`ExpandableAction inline` 攤開）、

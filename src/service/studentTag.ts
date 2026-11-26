@@ -31,28 +31,50 @@ async function ensureNeedsRenewalTag(classroomId: number) {
 }
 
 /**
- * 找出「害這位學生需要續卡」的那張卡：未過期、非單堂卡、同卡種中最新的一張，
- * 且剩餘堂數為 0。沒有就回傳 null。
+ * 找出「害這位學生需要續卡」的那張卡；不用續就回傳 null。
+ *
+ * 規則（2026-11-26 改）：**手上沒有任何能用的卡**才算——
+ *  - 還有任何一張沒過期、有剩餘堂數的卡（未付款的也算、體驗卡也算）→ 不用續；
+ *    以前只看「同卡種最新那張剩 0」，A 卡用完但還有 B 卡的人也被列進來。
+ *  - 正在整期報名期間（那門課還沒結束）→ 不用續，上課不扣卡。
+ *  - 從沒買過多堂卡的人（只有體驗卡、只付單堂）→ 不算「續」卡。
+ * 回傳的是最近買的那張用完的多堂卡（推播與 LINE 提醒要寫卡名）。
  *
  * 這是續卡判定的**唯一**出處——「Needs Renewal」tag 與續卡提醒推播
  * （src/service/renewalReminder.ts）都建立在它之上。要改規則就改這裡，
  * 不要在別處另寫一套。
  */
 export async function findExhaustedRenewableCard(studentId: number) {
-  const studentCards = await prisma.studentCard.findMany({
-    where: { studentId, expiredAt: null },
-    include: { card: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const [studentCards, activeEnrollment] = await Promise.all([
+    prisma.studentCard.findMany({
+      where: { studentId, expiredAt: null },
+      include: { card: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.lessonEnrollment.findFirst({
+      where: { studentId, lesson: ACTIVE_LESSON },
+      select: { id: true },
+    }),
+  ]);
+  if (activeEnrollment) return null;
+  if (studentCards.some((sc) => sc.remainingSessions > 0)) return null;
+  return studentCards.find((sc) => sc.totalSessions > 1 && !sc.card.isTrial) ?? null;
+}
 
-  const renewableCards = studentCards.filter((sc) => sc.totalSessions > 1);
-  const latestCardByType = new Map<number, (typeof renewableCards)[number]>();
-  for (const sc of renewableCards) {
-    if (!latestCardByType.has(sc.cardId)) {
-      latestCardByType.set(sc.cardId, sc);
-    }
-  }
-  return [...latestCardByType.values()].find((sc) => sc.remainingSessions === 0) ?? null;
+/** 還沒結束的課——整期報名在這段期間內算「有課可上」。 */
+export const ACTIVE_LESSON = { status: "inProgress" } as const;
+
+/** 一門課結束（或重開）時，整期學生的「需續約」要重算：報名期間不算沒卡。 */
+export async function refreshNeedsRenewalForLesson(lessonId: number) {
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    select: { classroomId: true, enrollments: { select: { studentId: true } } },
+  });
+  if (!lesson || lesson.enrollments.length === 0) return;
+  await refreshNeedsRenewalTags(
+    lesson.enrollments.map((e) => e.studentId),
+    lesson.classroomId
+  );
 }
 
 export async function refreshNeedsRenewalTag(studentId: number, classroomId: number) {
