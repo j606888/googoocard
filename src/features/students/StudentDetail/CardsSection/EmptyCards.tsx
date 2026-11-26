@@ -7,7 +7,7 @@ import { formatMoney } from "@/lib/money";
 import { BuyCardDialog, buyBlockedReason } from "./BuyCard";
 import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/EmptyState";
-import StatusTag from "@/components/StatusTag";
+import { ChevronRight } from "lucide-react";
 
 /** 快選最多列這麼多種常用卡。 */
 const QUICK_PICK_COUNT = 4;
@@ -39,34 +39,35 @@ const TeacherEmptyCards = ({ student }: { student: StudentWithDetail }) => {
   };
 
   return (
-    <section className="bg-white border border-neutral-200 rounded-2xl p-6 @md:p-8 flex flex-col gap-5">
+    <section className="flex flex-col gap-4">
       <div>
-        <h3 className="m-0 text-lg @md:text-xl font-bold text-neutral-900">{student.name}還沒有課卡</h3>
-        <p className="m-0 mt-1 text-sm text-neutral-600">
+        <h3 className="m-0 text-[17px] font-semibold text-ink">{student.name}還沒有課卡</h3>
+        <p className="m-0 mt-1 text-[13px] text-ink-3">
           買了卡才能扣堂數。選一張常用的直接開始，或打開完整的購買表單。
         </p>
       </div>
       {!archived && quickPicks.length > 0 && (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
+        <ul className="m-0 p-0 list-none divide-y divide-line border-y border-line">
           {quickPicks.map((card) => (
-            <button
-              key={card.id}
-              type="button"
-              onClick={() => openBuy(card.id)}
-              className="flex flex-col gap-1 p-3.5 rounded-xl border border-neutral-300 bg-white text-left cursor-pointer hover:border-primary-300 hover:bg-primary-50"
-            >
-              <span className="text-[15px] font-bold text-neutral-900 flex items-center gap-1.5 flex-wrap">
-                {card.name}
-                {card.isPracticeCard && (
-                  <StatusTag tone="warning">複習</StatusTag>
-                )}
-              </span>
-              <span className="text-[13px] text-neutral-600 tabular-nums">
-                {card.sessions} 堂 · ${formatMoney(card.price)}
-              </span>
-            </button>
+            <li key={card.id}>
+              <button
+                type="button"
+                onClick={() => openBuy(card.id)}
+                className="-mx-3 flex min-h-13 w-[calc(100%+1.5rem)] items-center gap-3 rounded-xl px-3 py-2 text-left cursor-pointer hover:bg-primary-50 outline-none focus-visible:ring-[3px] focus-visible:ring-primary-300"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-medium text-ink">{card.name}</span>
+                  <span className="block truncate text-[13px] tabular-nums text-ink-3">
+                    {[card.isPracticeCard ? "複習卡" : null, `${card.sessions} 堂`, `$${formatMoney(card.price)}`]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </span>
+                <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-3" />
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
       {!archived && (
         <div>

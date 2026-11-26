@@ -278,8 +278,8 @@ describe("課程小幫手", () => {
       ).json();
       expect(detail.lessons.map((l: { name: string }) => l.name)).toEqual(["Amy 教的"]);
       expect(detail.assistedLessons.map((l: { name: string; status: string }) => [l.name, l.status])).toEqual([
-        ["結束的協助", "finished"],
         ["Amy 協助的", "inProgress"],
+        ["結束的協助", "finished"],
       ]);
       expect(detail.stats.sessions).toBe(0);
       expect(detail.periods).toEqual([]);

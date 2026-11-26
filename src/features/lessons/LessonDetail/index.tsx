@@ -80,6 +80,20 @@ const LessonDetail = () => {
     else setActiveTab(tab);
   };
 
+  // 這一期到目前為止的樣子——講的是時段，所以掛在「時段」分頁的標題下，不佔頁首。
+  const termNote = term.overview
+    ? [
+        term.termNumber !== null ? `第 ${term.termNumber} 期` : null,
+        `已上 ${term.overview.sessions}${lesson?.kind === "fixed" ? " 堂" : ""}`,
+        `平均出席 ${term.overview.average}`,
+        `${term.termNumber !== null ? "這期收入" : "累計收入"} ${
+          term.totalRevenue === undefined ? "…" : `$${formatMoney(term.totalRevenue)}`
+        }`,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : undefined;
+
   return (
     <>
       {isLessonLoading || isStudentsLoading || !lesson ? (
@@ -88,14 +102,9 @@ const LessonDetail = () => {
             <div className="flex flex-col gap-3.5">
               <Skeleton className="h-3.5 w-40" />
               <Skeleton className="h-9 w-56" />
-              <div className="flex gap-3">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-16" />
-              </div>
             </div>
             <div className="flex max-w-[1240px] items-start gap-6">
-              <div className="w-[328px] shrink-0 rounded-2xl border border-neutral-200 py-4">
+              <div className="w-[328px] shrink-0 py-4">
                 <PeriodTimelineSkeleton />
               </div>
               <div className="flex-1 flex flex-col gap-4">
@@ -118,33 +127,24 @@ const LessonDetail = () => {
         /* 桌面：頁首下面一排分頁，一次只看一種東西（時段／整期名單／預計會來／學生紀錄／分潤／設定）。 */
         <div className="flex flex-col px-12 pt-8 pb-14">
           <div className="max-w-[1240px]">
-            <LessonDetailHeader lesson={lesson} onEdit={() => requestDesktopTab("settings")} />
-            {term.overview && (
-              <p className="mt-4 text-[13px] text-ink-2">
-                {term.termNumber !== null && `第 ${term.termNumber} 期 · `}
-                已上 <b className="font-semibold text-ink">{term.overview.sessions}</b> 堂 · 平均出席{" "}
-                <b className="font-semibold text-ink">{term.overview.average}</b> ·{" "}
-                {term.termNumber !== null ? "這期收入" : "累計收入"}{" "}
-                <b className="font-semibold text-ink">
-                  {term.totalRevenue === undefined ? "…" : `$${formatMoney(term.totalRevenue)}`}
-                </b>
-              </p>
-            )}
-            <SegmentedTabs<DesktopTab>
-              variant="underline"
-              ariaLabel="課程分頁"
-              className="mt-6 border-b border-line"
-              value={desktopTab}
-              onChange={requestDesktopTab}
-              options={[
-                { value: "periods", label: "時段", hint: String(lesson.periods?.length ?? 0) },
-                ...(lesson.termPrice != null ? [{ value: "term" as const, label: "整期名單" }] : []),
-                { value: "bookings", label: "預計會來" },
-                { value: "students", label: "學生紀錄" },
-                { value: "split", label: "分潤" },
-                { value: "settings", label: "設定" },
-              ]}
-            />
+            <LessonDetailHeader lesson={lesson} />
+            <div onClick={blurAfterPointerClick}>
+              <SegmentedTabs<DesktopTab>
+                variant="underline"
+                ariaLabel="課程分頁"
+                className="mt-2 border-b border-line"
+                value={desktopTab}
+                onChange={requestDesktopTab}
+                options={[
+                  { value: "periods", label: "時段", hint: String(lesson.periods?.length ?? 0) },
+                  ...(lesson.termPrice != null ? [{ value: "term" as const, label: "整期名單" }] : []),
+                  { value: "bookings", label: "預計會來" },
+                  { value: "students", label: "學生紀錄" },
+                  { value: "split", label: "分潤" },
+                  { value: "settings", label: "設定" },
+                ]}
+              />
+            </div>
           </div>
           <div className="max-w-[1240px] pt-7">
             {desktopTab === "periods" && (
@@ -153,6 +153,7 @@ const LessonDetail = () => {
                 periods={lesson.periods || []}
                 headcounts={headcounts}
                 revenues={term.revenues}
+                note={termNote}
                 activePeriodId={recordPeriodId}
                 onViewRecord={setRecordPeriodId}
                 className="max-w-[760px]"
@@ -183,14 +184,7 @@ const LessonDetail = () => {
               />
             )}
             {desktopTab === "settings" && (
-              <div className="max-w-[720px] overflow-hidden rounded-xl">
-                <SettingSection
-                  key={lesson.id}
-                  lesson={lesson}
-                  onDirtyChange={setSettingsDirty}
-                  onDone={() => setSettingsDirty(false)}
-                />
-              </div>
+              <SettingSection key={lesson.id} lesson={lesson} onDirtyChange={setSettingsDirty} />
             )}
           </div>
           <PeriodRecordSheet
@@ -208,24 +202,26 @@ const LessonDetail = () => {
           />
         </div>
       ) : (
-        /* 手機：這一期的頁首，下面時段、名單一路往下捲；設定從頁首的「編輯」進。 */
+        /* 手機：頁首只有課名＋狀態，分頁緊接在下面；設定就是「設定」分頁。 */
         <div className="pb-4">
-          <TermHeader lesson={lesson} term={term} onOpenSettings={() => requestTabChange("settings")} />
+          <TermHeader lesson={lesson} term={term} />
           {/* 手機分頁：時段／學生（名單＋整期＋預計會來）／分潤／設定。 */}
-          <SegmentedTabs<MobileTab>
-            variant="underline"
-            fill
-            ariaLabel="課程分頁"
-            className="mt-4 border-b border-line px-3"
-            value={activeTab}
-            onChange={requestTabChange}
-            options={[
-              { value: "periods", label: "時段" },
-              { value: "students", label: "學生" },
-              { value: "split", label: "分潤" },
-              { value: "settings", label: "設定" },
-            ]}
-          />
+          <div onClick={blurAfterPointerClick}>
+            <SegmentedTabs<MobileTab>
+              variant="underline"
+              fill
+              ariaLabel="課程分頁"
+              className="mt-2 border-b border-line px-3"
+              value={activeTab}
+              onChange={requestTabChange}
+              options={[
+                { value: "periods", label: "時段" },
+                { value: "students", label: "學生" },
+                { value: "split", label: "分潤" },
+                { value: "settings", label: "設定" },
+              ]}
+            />
+          </div>
           {activeTab === "settings" && <SettingSection lesson={lesson} onDirtyChange={setSettingsDirty} />}
           {activeTab === "periods" && (
             <>
@@ -235,6 +231,7 @@ const LessonDetail = () => {
                 headcounts={headcounts}
                 revenues={term.revenues}
                 termRevenues={term.termRevenues}
+                note={termNote}
               />
               <PastTerms terms={term.terms} currentLessonId={lesson.id} />
             </>
@@ -267,6 +264,16 @@ const LessonDetail = () => {
       />
     </>
   );
+};
+
+/**
+ * 用滑鼠／手指點完分頁後把焦點放掉。不放的話焦點留在那顆分頁上，之後只要按任何一個鍵
+ * （連截圖的 ⌘⇧4 都算），Chrome 就當成鍵盤操作、`:focus-visible` 成立，分頁外面冒出一圈框。
+ * 鍵盤操作（Enter／Space 觸發的 click，`detail` 是 0）不受影響，焦點框照常。
+ */
+const blurAfterPointerClick = (event: React.MouseEvent<HTMLElement>) => {
+  if (event.detail === 0) return;
+  (event.target as HTMLElement).closest<HTMLElement>('[role="tab"]')?.blur();
 };
 
 const TIMELINE_FADE = ["", "", "opacity-75", "opacity-50", "opacity-25"];

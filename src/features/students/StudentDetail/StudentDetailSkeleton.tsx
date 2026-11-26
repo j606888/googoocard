@@ -6,23 +6,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const TAB_LABELS = ["課卡", "出席", "動態"];
 
-/** 一張有效課卡的形狀：卡名、編號、狀態、大字剩餘、進度條、金額。 */
-const CardSkeleton = ({ className = "" }: { className?: string }) => (
-  <div className={`flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4 ${className}`}>
-    <div className="flex items-start justify-between gap-2">
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-3.5 w-28" />
-        <Skeleton className="h-3 w-36" />
-      </div>
-      <Skeleton className="h-5.5 w-14" />
+/** 一列有效課卡的形狀：卡名＋編號、一行說明，右邊大字剩餘與圓點。沒有框。 */
+const CardRowSkeleton = ({ className = "" }: { className?: string }) => (
+  <li className={`flex min-h-16 items-center justify-between gap-3 py-3.5 ${className}`}>
+    <div className="flex flex-col gap-2.5">
+      <Skeleton className="h-4 w-32" />
+      <Skeleton className="h-3 w-48" />
     </div>
-    <Skeleton className="h-7 w-20" />
-    <Skeleton className="h-1.5 w-full" />
-    <div className="flex justify-between">
-      <Skeleton className="h-3 w-24" />
-      <Skeleton className="h-3 w-12" />
+    <div className="flex flex-col items-end gap-2.5">
+      <Skeleton className="h-6 w-20" />
+      <Skeleton className="h-3 w-28" />
     </div>
-  </div>
+  </li>
 );
 
 /**
@@ -41,14 +36,14 @@ const StudentDetailSkeleton = ({
   return (
     <div className="flex flex-col flex-1">
       <div
-        className={`@container flex-none bg-white ${
-          compact ? "px-4 pt-1" : variant === "pane" ? "px-6 pt-5" : "px-8 pt-5"
+        className={`@container flex-none ${
+          compact ? "px-5 pt-1" : variant === "pane" ? "px-6 pt-5" : "px-8 pt-5"
         }`}
       >
         {variant === "page" && backHref && (
           <Link
             href={backHref}
-            className="inline-flex items-center gap-1 text-sm text-neutral-600 hover:text-neutral-900 mb-3"
+            className="inline-flex min-h-11 items-center gap-1 -mt-2 mb-1 text-sm text-ink-2 hover:text-ink"
           >
             <ArrowLeft className="w-4 h-4" />
             學生
@@ -68,13 +63,13 @@ const StudentDetailSkeleton = ({
         </div>
       </div>
 
-      <div className={`flex-none bg-white border-b border-neutral-200 pt-3 ${compact ? "" : "px-6"}`}>
+      <div className={`flex-none border-b border-line pt-3 ${compact ? "" : "px-6"}`}>
         <div className={`flex gap-1 ${compact ? "" : "w-fit"}`}>
           {(compact ? [...TAB_LABELS, "資料"] : TAB_LABELS).map((label, i) => (
             <span
               key={label}
               className={`${compact ? "flex-1 text-center" : ""} -mb-px min-h-11 px-3.5 text-sm leading-11 border-b-2 ${
-                i === 0 ? "border-primary-600 text-primary-900 font-bold" : "border-transparent text-neutral-500 font-medium"
+                i === 0 ? "border-primary-600 text-primary-900 font-bold" : "border-transparent text-ink-3 font-medium"
               }`}
             >
               {label}
@@ -83,12 +78,12 @@ const StudentDetailSkeleton = ({
         </div>
       </div>
 
-      <div className={`flex-1 bg-neutral-50 ${compact ? "px-4 py-4" : "px-6 py-6"}`} aria-hidden="true">
-        <Skeleton className="h-3.5 w-36 mb-3" />
-        <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
-          <CardSkeleton />
-          <CardSkeleton className="opacity-50" />
-        </div>
+      <div className={`flex-1 ${compact ? "px-5 pt-5" : "px-6 pt-6"}`} aria-hidden="true">
+        <Skeleton className="h-5 w-24 mb-1" />
+        <ul className="m-0 p-0 list-none divide-y divide-line border-b border-line">
+          <CardRowSkeleton />
+          <CardRowSkeleton className="opacity-50" />
+        </ul>
       </div>
     </div>
   );

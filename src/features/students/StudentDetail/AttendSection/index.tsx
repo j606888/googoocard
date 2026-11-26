@@ -1,14 +1,18 @@
 import { useMemo, useState } from "react";
 import { StudentWithDetail } from "@/store/slices/students";
 import SegmentedTabs, { type SegmentedOption } from "@/components/SegmentedTabs";
-import FilterChip from "@/components/FilterChip";
+import Select from "@/components/Select";
 import AttendanceByLesson from "./AttendanceByLesson";
 import AttendanceByDate from "./AttendanceByDate";
 import { WeeklyHeatGrid } from "./AttendInsights";
 import { INSIGHT_WEEKS, countByStyle, flattenAttendances } from "./attendanceInsights";
 import EmptyState from "@/components/EmptyState";
+import { Band } from "../ProfilePanels";
 
 type AttendView = "by_date" | "by_lesson";
+
+/** Select 的值不能是 "all"／null，用 0 代表「所有舞種」（舞種 id 從 1 起）。 */
+const ALL_STYLES = 0;
 
 const VIEWS: SegmentedOption<AttendView>[] = [
   { label: "依日期", value: "by_date" },
@@ -39,36 +43,35 @@ const AttendSection = ({ student, summary = false }: { student: StudentWithDetai
   return (
     <div className="flex flex-col gap-3">
       {summary && (
-        <section className="bg-white border border-neutral-200 rounded-2xl p-4 flex flex-col gap-2">
-          <h3 className="m-0 text-sm font-bold text-neutral-900 flex items-center justify-between">
-            近 {INSIGHT_WEEKS} 週
-            <span className="text-xs font-normal text-neutral-500">累計 {overview.attendedCount} 堂</span>
-          </h3>
-          <WeeklyHeatGrid attendances={all} />
-        </section>
+        <>
+          <section className="flex flex-col gap-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="m-0 text-[17px] font-semibold text-ink">近 {INSIGHT_WEEKS} 週</h3>
+              <span className="text-[13px] tabular-nums text-ink-3">累計 {overview.attendedCount} 堂</span>
+            </div>
+            <WeeklyHeatGrid attendances={all} />
+          </section>
+          <Band />
+          <h3 className="m-0 text-[17px] font-semibold text-ink lg:mt-6">出席紀錄</h3>
+        </>
       )}
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <SegmentedTabs ariaLabel="出席紀錄的顯示方式" options={VIEWS} value={view} onChange={setView} />
         {view === "by_date" && styleCounts.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto max-w-full">
-            <FilterChip size="sm" active={styleId === "all"} onClick={() => setStyleId("all")}>
-              全部
-            </FilterChip>
-            {styleCounts
-              .filter((entry) => entry.style)
-              .map(({ style, count }) => (
-                <FilterChip
-                  key={style!.id}
-                  size="sm"
-                  active={styleId === style!.id}
-                  count={count}
-                  onClick={() => setStyleId(style!.id)}
-                >
-                  {style!.name}
-                </FilterChip>
-              ))}
-          </div>
+          <Select
+            size="plain"
+            aria-label="舞種"
+            className="w-auto"
+            value={styleId === "all" ? ALL_STYLES : styleId}
+            onChange={(value) => setStyleId(value === ALL_STYLES ? "all" : value)}
+            options={[
+              { value: ALL_STYLES, label: "所有舞種", hint: `${all.length}` },
+              ...styleCounts
+                .filter((entry) => entry.style)
+                .map(({ style, count }) => ({ value: style!.id, label: style!.name, hint: `${count}` })),
+            ]}
+          />
         )}
       </div>
 

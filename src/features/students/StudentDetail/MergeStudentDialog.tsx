@@ -20,16 +20,16 @@ import {
 const SideCard = ({ side, label, keep }: { side: MergeSide; label: string; keep: boolean }) => (
   <div
     className={`flex flex-col gap-1.5 rounded-xl bg-white p-3 ${
-      keep ? "border-2 border-primary-700" : "border border-neutral-200"
+      keep ? "border-2 border-primary-700" : "border border-line"
     }`}
   >
-    <p className={`text-xs ${keep ? "font-medium text-primary-900" : "text-neutral-500"}`}>{label}</p>
+    <p className={`text-xs ${keep ? "font-medium text-primary-900" : "text-ink-3"}`}>{label}</p>
     <div className="flex items-center gap-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={side.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
       <span className="truncate font-semibold">{side.name}</span>
     </div>
-    <p className="text-xs leading-relaxed text-neutral-600">
+    <p className="text-xs leading-relaxed text-ink-2">
       #{side.number} · {formatDate(side.createdAt)} 建立
       <br />
       {side.lineBound ? `已綁 LINE${side.lineDisplayName ? `「${side.lineDisplayName}」` : ""}` : "未綁 LINE"}
@@ -62,7 +62,7 @@ const KeepChoice = ({
         <label
           key={side}
           className={`flex min-w-0 cursor-pointer items-center gap-2 rounded-xl bg-white p-2.5 text-sm ${
-            value === side ? "border-2 border-primary-700" : "border border-neutral-200"
+            value === side ? "border-2 border-primary-700" : "border border-line"
           }`}
         >
           <input
@@ -179,12 +179,12 @@ const MergeStudentDialog = ({
                   <button
                     type="button"
                     onClick={() => setTargetId(s.id)}
-                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left hover:bg-neutral-50 cursor-pointer"
+                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left hover:bg-surface cursor-pointer"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={s.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
                     <span className="flex-1 truncate">{s.name}</span>
-                    <span className="font-mono text-xs text-neutral-500">#{s.number}</span>
+                    <span className="font-mono text-xs text-ink-3">#{s.number}</span>
                   </button>
                 </li>
               ))}
@@ -210,7 +210,7 @@ const MergeStudentDialog = ({
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={preview[side].avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
-                    <span className="truncate text-neutral-600">
+                    <span className="truncate text-ink-2">
                       {preview[side].avatarIsLine ? "LINE 大頭照" : side === "source" ? "併掉這筆的" : "保留這筆的"}
                     </span>
                   </>
@@ -227,7 +227,7 @@ const MergeStudentDialog = ({
               />
             )}
 
-            <div className="flex flex-col gap-2 rounded-xl bg-neutral-50 p-3 text-sm">
+            <div className="flex flex-col gap-2 rounded-xl bg-surface p-3 text-sm">
               <p className="font-semibold">合併後</p>
               <p className="flex gap-2">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
@@ -242,7 +242,7 @@ const MergeStudentDialog = ({
             </div>
 
             {(preview.clashes.length > 0 || preview.lineConflict) && (
-              <div className="flex flex-col gap-2 rounded-xl border border-warning-300 bg-warning-50 p-3 text-sm text-warning-950">
+              <div className="flex flex-col gap-2 rounded-xl bg-warning-100 p-3 text-sm text-warning-950">
                 <p className="font-semibold">需要你確認</p>
                 {preview.clashes.map((c, i) => (
                   <p key={i} className="leading-relaxed">

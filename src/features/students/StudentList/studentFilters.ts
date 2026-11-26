@@ -4,12 +4,10 @@ import { differenceInCalendarDays } from "date-fns";
 import { weeklyCounts } from "../StudentDetail/AttendSection/attendanceInsights";
 
 export interface StudentFilters {
-  tags: string[]; // tag name，例 ["Needs Renewal", "未繳費"]
+  tags: string[]; // tag name，例 ["Needs Renewal"]
   qualifications: number[]; // danceStyleId
-  lessonIds: number[];
-  inActiveLesson: boolean;
-  recentlyAttended: boolean; // 近 RECENT_ATTEND_DAYS 天內有上過課
-  noActiveCard: boolean; // 手上沒有任何剩餘堂數
+  /** 名單上方的「上的課」：一次只看一堂進行中的課；null = 所有課。 */
+  lessonId: number | null;
   lowRemaining: boolean; // 還有堂數、但剩 ≤ LOW_REMAINING_SESSIONS
   unpaid: boolean; // 有未付款的課卡
   lineUnbound: boolean; // 還沒綁定 LINE
@@ -18,21 +16,15 @@ export interface StudentFilters {
 export const EMPTY_FILTERS: StudentFilters = {
   tags: [],
   qualifications: [],
-  lessonIds: [],
-  inActiveLesson: false,
-  recentlyAttended: false,
-  noActiveCard: false,
+  lessonId: null,
   lowRemaining: false,
   unpaid: false,
   lineUnbound: false,
 };
 
-/** 「近期上課」的界線；也是名單列上「N 天前」轉為提醒色的門檻。 */
-export const RECENT_ATTEND_DAYS = 7;
-
 /**
- * 「剩 ≤2 堂」快篩的門檻，也是名單上堂數轉紅的門檻。
- * 只算還有堂數的人——剩 0 堂的歸「無課卡」，不然這顆 chip 會被沒買卡的人灌滿。
+ * 「剩 2 堂以下」篩選的門檻，也是名單上堂數轉提醒色的門檻。
+ * 只算還有堂數的人——剩 0 堂的是「已經沒卡」，不然這個條件會被沒買卡的人灌滿。
  */
 export const LOW_REMAINING_SESSIONS = 2;
 
@@ -65,8 +57,8 @@ export const daysSinceLastAttend = (student: Student): number | null =>
     : null;
 
 /**
- * 名單分區的界線：這麼多天內有出席算「在上課」。比 `RECENT_ATTEND_DAYS`
- * （快篩「近 7 天有上課」）寬——分區要回答的是「這個人還在不在」，不是「這週有沒有來」。
+ * 名單分區的界線：這麼多天內有出席算「在上課」——分區要回答的是
+ * 「這個人還在不在」，不是「這週有沒有來」。
  */
 export const ACTIVE_DAYS = 30;
 
@@ -125,26 +117,38 @@ export const saveActivityView = (classroomId: number, view: ActivityView) => {
 
 const storageKey = (classroomId: number) => `student-filters:${classroomId}`;
 
-export const loadStudentFilters = (classroomId: number): StudentFilters => {
+/**
+ * 讀回存過的篩選。舊版存的條件（`lessonIds`、`inActiveLesson`、`recentlyAttended`、
+ * `noActiveCard`）畫面上已經沒有開關了：一律不讀，免得名單被一個關不掉的條件默默濾掉。
+ */
+export const parseStudentFilters = (raw: string | null): StudentFilters => {
+  if (!raw) return EMPTY_FILTERS;
   try {
-    const raw = localStorage.getItem(storageKey(classroomId));
-    if (!raw) return EMPTY_FILTERS;
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return EMPTY_FILTERS;
+    const saved = parsed as Record<string, unknown>;
     return {
-      tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+      tags: Array.isArray(saved.tags)
+        ? saved.tags.filter((tag): tag is string => typeof tag === "string")
+        : [],
       // Filters saved before dance styles were classroom data hold enum names
       // ("BACHATA"); those would match no one, so only style ids survive.
-      qualifications: Array.isArray(parsed.qualifications)
-        ? parsed.qualifications.filter((q: unknown) => typeof q === "number")
+      qualifications: Array.isArray(saved.qualifications)
+        ? saved.qualifications.filter((q): q is number => typeof q === "number")
         : [],
-      lessonIds: Array.isArray(parsed.lessonIds) ? parsed.lessonIds : [],
-      inActiveLesson: Boolean(parsed.inActiveLesson),
-      recentlyAttended: Boolean(parsed.recentlyAttended),
-      noActiveCard: Boolean(parsed.noActiveCard),
-      lowRemaining: Boolean(parsed.lowRemaining),
-      unpaid: Boolean(parsed.unpaid),
-      lineUnbound: Boolean(parsed.lineUnbound),
+      lessonId: typeof saved.lessonId === "number" ? saved.lessonId : null,
+      lowRemaining: saved.lowRemaining === true,
+      unpaid: saved.unpaid === true,
+      lineUnbound: saved.lineUnbound === true,
     };
+  } catch {
+    return EMPTY_FILTERS;
+  }
+};
+
+export const loadStudentFilters = (classroomId: number): StudentFilters => {
+  try {
+    return parseStudentFilters(localStorage.getItem(storageKey(classroomId)));
   } catch {
     return EMPTY_FILTERS;
   }
@@ -158,16 +162,45 @@ export const saveStudentFilters = (classroomId: number, filters: StudentFilters)
   }
 };
 
+/**
+ * 拿掉已經選不到的條件：課結束了、標籤刪了、舞種沒人有資格了——畫面上沒有對應的
+ * 開關可以關，留著只會讓名單莫名其妙變短。哪一類的選項還沒載入（`undefined`）就先不動它。
+ */
+export const pruneStudentFilters = (
+  f: StudentFilters,
+  available: { lessonIds?: number[]; tagNames?: string[]; qualificationIds?: number[] }
+): StudentFilters => {
+  const { lessonIds, tagNames, qualificationIds } = available;
+  const lessonId =
+    f.lessonId !== null && lessonIds && !lessonIds.includes(f.lessonId) ? null : f.lessonId;
+  const tags = tagNames ? f.tags.filter((tag) => tagNames.includes(tag)) : f.tags;
+  const qualifications = qualificationIds
+    ? f.qualifications.filter((id) => qualificationIds.includes(id))
+    : f.qualifications;
+  // 沒變就回原物件，呼叫端的 useMemo 才不會白跑。
+  if (
+    lessonId === f.lessonId &&
+    tags.length === f.tags.length &&
+    qualifications.length === f.qualifications.length
+  )
+    return f;
+  return { ...f, lessonId, tags, qualifications };
+};
+
 export const countActiveFilters = (f: StudentFilters): number =>
   f.tags.length +
   f.qualifications.length +
-  f.lessonIds.length +
-  (f.inActiveLesson ? 1 : 0) +
-  (f.recentlyAttended ? 1 : 0) +
-  (f.noActiveCard ? 1 : 0) +
+  (f.lessonId !== null ? 1 : 0) +
   (f.lowRemaining ? 1 : 0) +
   (f.unpaid ? 1 : 0) +
   (f.lineUnbound ? 1 : 0);
+
+/**
+ * 這位學生在不在這堂（進行中的）課裡：近 63 天有來過那堂課，或報名了整期。
+ * 判斷在伺服器做（`recentLessonIds`，GET /api/students）。
+ */
+export const isInLesson = (student: Student, lessonId: number): boolean =>
+  student.recentLessonIds?.includes(lessonId) ?? false;
 
 export const applyStudentFilters = (
   students: Student[],
@@ -181,22 +214,25 @@ export const applyStudentFilters = (
       !f.qualifications.some((q) => s.danceQualifications?.includes(q))
     )
       return false;
-    if (f.lessonIds.length > 0 && !f.lessonIds.some((id) => s.activeLessonIds.includes(id)))
-      return false;
-    if (f.inActiveLesson && !s.isInActiveLesson) return false;
-    if (f.recentlyAttended) {
-      const days = daysSinceLastAttend(s);
-      if (days === null || days > RECENT_ATTEND_DAYS) return false;
-    }
-    if (f.noActiveCard && remainingSessions(s) > 0) return false;
+    if (f.lessonId !== null && !isInLesson(s, f.lessonId)) return false;
     if (f.lowRemaining && !isLowRemaining(s)) return false;
     if (f.unpaid && !s.hasUnpaidCard) return false;
     if (f.lineUnbound && s.lineBound !== false) return false;
     return true;
   });
 
+/** 「上的課」選單上一堂課的名字；教室有兩個以上分部時才帶分部，免得每一項都多一截。 */
+export const lessonOptionLabel = (
+  lesson: { name: string; location?: { name: string } | null },
+  showLocation: boolean
+): string =>
+  showLocation && lesson.location ? `${lesson.name} · ${lesson.location.name}` : lesson.name;
+
+/** 系統標籤「Needs Renewal」在畫面上的說法——跟今天頁同一個詞。 */
+export const NEEDS_RENEWAL_LABEL = "已經沒卡";
+
 export const tagLabel = (name: string): string =>
-  name === NEEDS_RENEWAL_TAG ? "需續約" : name;
+  name === NEEDS_RENEWAL_TAG ? NEEDS_RENEWAL_LABEL : name;
 
 export type StudentSort = "name" | "number" | "remaining" | "lastAttend";
 

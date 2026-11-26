@@ -208,8 +208,8 @@ export const BuyCardDialog = ({
       footerStart={
         selectedCardId && (
           <div className="leading-tight">
-            <div className="text-lg font-bold text-neutral-900 tabular-nums">${formatMoney(price)}</div>
-            <div className="text-xs text-neutral-500">
+            <div className="text-lg font-bold text-ink tabular-nums">${formatMoney(price)}</div>
+            <div className="text-xs text-ink-3">
               {sessions} 堂 · {PAYMENT_LABEL[payment]}
             </div>
           </div>
@@ -221,7 +221,7 @@ export const BuyCardDialog = ({
           <legend className="w-full flex justify-between text-sm font-semibold mb-2">
             卡種
             {boughtCardIds.size > 0 && (
-              <span className="font-normal text-xs text-neutral-500">上次買的在最前面</span>
+              <span className="font-normal text-xs text-ink-3">上次買的在最前面</span>
             )}
           </legend>
           <div className="flex flex-col gap-2">
@@ -233,7 +233,7 @@ export const BuyCardDialog = ({
                   key={card.id}
                   className={`flex items-center gap-2.5 min-h-12 px-3 py-2.5 rounded-xl border ${
                     blockedReason
-                      ? "bg-neutral-50 border-neutral-200 text-neutral-400 cursor-not-allowed"
+                      ? "bg-surface border-line text-ink-3 cursor-not-allowed"
                       : selected
                         ? "border-primary-700 ring-1 ring-primary-700 bg-primary-50 cursor-pointer"
                         : "border-neutral-300 cursor-pointer hover:border-primary-400"
@@ -262,7 +262,7 @@ export const BuyCardDialog = ({
                         </span>
                       )}
                     </span>
-                    <span className={`block text-xs ${blockedReason ? "text-warning-950" : "text-neutral-500"}`}>
+                    <span className={`block text-xs ${blockedReason ? "text-warning-950" : "text-ink-3"}`}>
                       {blockedReason ??
                         [`${card.sessions} 堂`, boughtCardIds.has(card.id) ? "買過" : null]
                           .filter(Boolean)
@@ -325,7 +325,7 @@ export const BuyCardDialog = ({
             </div>
 
             <div>
-              <div className="text-sm font-medium text-neutral-900 mb-1.5">付款</div>
+              <div className="text-sm font-medium text-ink mb-1.5">付款</div>
               <SegmentedTabs
                 ariaLabel="付款方式"
                 options={PAYMENT_OPTIONS}
@@ -333,7 +333,7 @@ export const BuyCardDialog = ({
                 onChange={setPayment}
                 fill
               />
-              {payment === "UNPAID" && <p className="mt-1.5 text-xs text-neutral-500">尚未付款，卡片照樣可以用</p>}
+              {payment === "UNPAID" && <p className="mt-1.5 text-xs text-ink-3">尚未付款，卡片照樣可以用</p>}
             </div>
 
             {payment === "TRANSFER" && (

@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { danceStyleSummarySelect, type DanceStyleSummary } from "@/lib/danceStyles";
 import { parseTaipeiMonthRange } from "@/lib/taipei-date";
+import { locationSummarySelect } from "@/lib/locations";
 import { teacherPayloadSelect } from "@/lib/teachers";
 import {
   monthlyTrend,
@@ -52,18 +53,70 @@ function trendWindow(month: string) {
   };
 }
 
-/** 「協助」清單的一堂課。 */
-const assistedLessonSelect = {
+/** 老師列表上的一堂課：課名、舞種、分部，加上最近一個時段（沒有還沒上的時段時拿來當「週四 20:30」）。 */
+const overviewLessonSelect = {
   id: true,
   name: true,
   status: true,
   danceStyle: { select: danceStyleSummarySelect },
+  location: { select: locationSummarySelect },
+  periods: { select: { startTime: true }, orderBy: { startTime: "desc" }, take: 1 },
 } as const;
 
-/** 列表展開時顯示「週四 20:30」用：第一堂的開始時間。 */
-const firstPeriodSelect = {
-  periods: { select: { startTime: true }, orderBy: { startTime: "asc" }, take: 1 },
+/** 細節頁的一堂課（教的、協助的同一個形狀）。 */
+const detailLessonSelect = {
+  id: true,
+  name: true,
+  status: true,
+  kind: true,
+  level: true,
+  danceStyle: { select: danceStyleSummarySelect },
+  location: { select: locationSummarySelect },
+  periods: {
+    select: {
+      startTime: true,
+      attendanceTakenAt: true,
+      _count: { select: { attendanceRecords: true } },
+    },
+  },
 } as const;
+
+type DetailLesson = {
+  id: number;
+  name: string;
+  status: string;
+  kind: string;
+  level: number;
+  danceStyle: DanceStyleSummary;
+  location: { id: number; name: string } | null;
+  periods: { startTime: Date; attendanceTakenAt: Date | null; _count: { attendanceRecords: number } }[];
+};
+
+function toLessonRow(lesson: DetailLesson, now: Date) {
+  const taught = lesson.periods.filter((p) => p.attendanceTakenAt);
+  const attendance = taught.reduce((sum, p) => sum + p._count.attendanceRecords, 0);
+  const starts = lesson.periods.map((p) => p.startTime.getTime());
+  const nextStart = starts.filter((t) => t >= now.getTime()).sort((a, b) => a - b)[0];
+  return {
+    id: lesson.id,
+    name: lesson.name,
+    status: lesson.status,
+    kind: lesson.kind,
+    level: lesson.level,
+    danceStyle: lesson.danceStyle,
+    location: lesson.location,
+    totalPeriods: lesson.periods.length,
+    taughtCount: taught.length,
+    avgAttendance: taught.length > 0 ? roundOne(attendance / taught.length) : null,
+    firstStart: starts.length > 0 ? new Date(Math.min(...starts)) : null,
+    lastStart: starts.length > 0 ? new Date(Math.max(...starts)) : null,
+    nextStart: nextStart !== undefined ? new Date(nextStart) : null,
+  };
+}
+
+/** Most recent first: by last period, lessons without periods last. */
+const byLastStart = (a: { lastStart: Date | null }, b: { lastStart: Date | null }) =>
+  (b.lastStart?.getTime() ?? 0) - (a.lastStart?.getTime() ?? 0);
 
 /**
  * Every teacher of the classroom with the in-progress lessons they teach and
@@ -79,23 +132,13 @@ export async function getTeachersOverview(classroomId: number, now = new Date())
         ...teacherPayloadSelect,
         userId: true,
         lessons: {
-          select: {
-            lesson: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                danceStyle: { select: danceStyleSummarySelect },
-                ...firstPeriodSelect,
-              },
-            },
-          },
+          select: { lesson: { select: overviewLessonSelect } },
           orderBy: { lessonId: "asc" },
         },
         // 當小幫手的進行中課程——另外列在「協助」，不算教課。
         assistedLessons: {
           where: { lesson: { status: "inProgress" } },
-          select: { lesson: { select: { ...assistedLessonSelect, ...firstPeriodSelect } } },
+          select: { lesson: { select: overviewLessonSelect } },
           orderBy: { lessonId: "asc" },
         },
       },
@@ -116,6 +159,20 @@ export async function getTeachersOverview(classroomId: number, now = new Date())
     }),
   ]);
 
+  // 每堂課「現在」的時段：還沒上完的下一堂，沒有就用最近一堂——不是開課第一堂（可能早就過了）。
+  const nextStartByLesson = new Map<number, Date>();
+  for (const period of upcoming) {
+    if (!nextStartByLesson.has(period.lesson.id)) nextStartByLesson.set(period.lesson.id, period.startTime);
+  }
+  const toOverviewLesson = (lesson: (typeof teachers)[number]["lessons"][number]["lesson"]) => ({
+    id: lesson.id,
+    name: lesson.name,
+    status: lesson.status,
+    danceStyle: lesson.danceStyle,
+    location: lesson.location,
+    slotStart: nextStartByLesson.get(lesson.id) ?? lesson.periods[0]?.startTime ?? null,
+  });
+
   const rows = teachers.map(({ lessons, assistedLessons, ...teacher }) => {
     const next = upcoming.find((period) =>
       period.lesson.teachers.some((link) => link.teacherId === teacher.id)
@@ -126,16 +183,8 @@ export async function getTeachersOverview(classroomId: number, now = new Date())
       lessonCount: lessons.length,
       activeLessons: lessons
         .filter(({ lesson }) => lesson.status === "inProgress")
-        .map(({ lesson }) => ({
-          id: lesson.id,
-          name: lesson.name,
-          danceStyle: lesson.danceStyle,
-          firstStart: lesson.periods[0]?.startTime ?? null,
-        })),
-      assistedLessons: assistedLessons.map(({ lesson: { periods, ...lesson } }) => ({
-        ...lesson,
-        firstStart: periods[0]?.startTime ?? null,
-      })),
+        .map(({ lesson }) => toOverviewLesson(lesson)),
+      assistedLessons: assistedLessons.map(({ lesson }) => toOverviewLesson(lesson)),
       nextPeriod: next
         ? {
             startTime: next.startTime,
@@ -172,33 +221,10 @@ export async function getTeacherDetail(
     where: { id: teacherId, classroomId },
     select: {
       ...teacherPayloadSelect,
-        userId: true,
-      lessons: {
-        select: {
-          lesson: {
-            select: {
-              id: true,
-              name: true,
-              status: true,
-              kind: true,
-              level: true,
-              danceStyle: { select: danceStyleSummarySelect },
-              periods: {
-                select: {
-                  startTime: true,
-                  attendanceTakenAt: true,
-                  _count: { select: { attendanceRecords: true } },
-                },
-              },
-            },
-          },
-        },
-      },
+      userId: true,
+      lessons: { select: { lesson: { select: detailLessonSelect } } },
       // 當小幫手的課（全部狀態）——不進下面任何統計。
-      assistedLessons: {
-        select: { lesson: { select: assistedLessonSelect } },
-        orderBy: { lessonId: "desc" },
-      },
+      assistedLessons: { select: { lesson: { select: detailLessonSelect } } },
     },
   });
   if (!teacher) return null;
@@ -240,30 +266,8 @@ export async function getTeacherDetail(
     stats: summarizeMonth(inMonth.map(toStatPeriod), now),
     previousMonthAttendance: trend[trend.length - 2]?.attendance ?? 0,
     trend,
-    lessons: lessons
-      .map(({ lesson }) => {
-        const taught = lesson.periods.filter((p) => p.attendanceTakenAt);
-        const attendance = taught.reduce((sum, p) => sum + p._count.attendanceRecords, 0);
-        const starts = lesson.periods.map((p) => p.startTime.getTime());
-        const nextStart = starts.filter((t) => t >= now.getTime()).sort((a, b) => a - b)[0];
-        return {
-          id: lesson.id,
-          name: lesson.name,
-          status: lesson.status,
-          kind: lesson.kind,
-          level: lesson.level,
-          danceStyle: lesson.danceStyle,
-          totalPeriods: lesson.periods.length,
-          taughtCount: taught.length,
-          avgAttendance: taught.length > 0 ? roundOne(attendance / taught.length) : null,
-          firstStart: starts.length > 0 ? new Date(Math.min(...starts)) : null,
-          lastStart: starts.length > 0 ? new Date(Math.max(...starts)) : null,
-          nextStart: nextStart !== undefined ? new Date(nextStart) : null,
-        };
-      })
-      // Most recent first: by last period, lessons without periods last.
-      .sort((a, b) => (b.lastStart?.getTime() ?? 0) - (a.lastStart?.getTime() ?? 0)),
-    assistedLessons: assistedLessons.map(({ lesson }) => lesson),
+    lessons: lessons.map(({ lesson }) => toLessonRow(lesson, now)).sort(byLastStart),
+    assistedLessons: assistedLessons.map(({ lesson }) => toLessonRow(lesson, now)).sort(byLastStart),
     periods: inMonth.map((period) => ({
       id: period.id,
       startTime: period.startTime,

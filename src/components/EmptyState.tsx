@@ -18,7 +18,8 @@ const KiwiIllustration = ({ pose }: { pose: KiwiPose }) => (
  * - `page` — nothing exists yet (還沒有課程): kiwi illustration, one-line why, the primary action.
  *   Pick a `pose` that fits what is missing (dance for 舞種, card for 課卡…); default `card`.
  * - `filtered` — a search/filter matched nothing: a small puzzled kiwi, how to recover, usually 「清除篩選」.
- * - `inline` — an empty section inside a card or tab (還沒有出席紀錄): dashed box, one row.
+ * - `inline` — an empty section inside a list or tab (還沒有出席紀錄): one unboxed ink-3 line;
+ *   give it a `variant="text"` Button as `action`.
  * No tinted background box. Put the action in `action` (a `Button`); `page` wants `size="md"` on
  * desktop and full-width `size="lg"` on phones — the caller decides.
  */
@@ -43,23 +44,15 @@ export default function EmptyState({
 }) {
   if (kind === "inline") {
     return (
-      <div
-        className={cn(
-          "flex items-center gap-3 rounded-xl border-[1.5px] border-dashed border-neutral-200 p-4",
-          className
-        )}
-      >
+      <div className={cn("flex min-h-12 items-center gap-3 py-2.5", className)}>
         {icon && (
-          <span
-            aria-hidden="true"
-            className="size-9 shrink-0 rounded-full bg-primary-50 text-primary-700 grid place-items-center [&_svg]:size-[18px]"
-          >
+          <span aria-hidden="true" className="shrink-0 text-ink-3 [&_svg]:size-[18px]">
             {icon}
           </span>
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <p className="text-sm font-semibold text-neutral-900">{title}</p>
-          {description && <p className="text-[13px] text-neutral-500">{description}</p>}
+          <p className="text-sm text-ink-3">{title}</p>
+          {description && <p className="text-[13px] text-ink-3">{description}</p>}
         </div>
         {action}
       </div>
@@ -69,9 +62,9 @@ export default function EmptyState({
   if (kind === "filtered") {
     return (
       <div className={cn("flex flex-col items-center gap-3 px-4 py-10 text-center", className)}>
-<KiwiMascot pose={pose ?? "confused"} className="h-[76px] w-auto" />
-        <p className="text-base font-bold text-neutral-900">{title}</p>
-        {description && <p className="text-sm text-neutral-600">{description}</p>}
+        <KiwiMascot pose={pose ?? "confused"} className="h-[76px] w-auto" />
+        <p className="text-base font-bold text-ink">{title}</p>
+        {description && <p className="text-sm text-ink-2">{description}</p>}
         {action}
       </div>
     );
@@ -81,9 +74,9 @@ export default function EmptyState({
     <div className={cn("flex flex-col items-center gap-5 px-6 py-12 text-center", className)}>
       <KiwiIllustration pose={pose ?? "card"} />
       <div className="flex flex-col items-center gap-2">
-        <p className="text-xl font-bold text-neutral-900">{title}</p>
+        <p className="text-xl font-bold text-ink">{title}</p>
         {description && (
-          <p className="max-w-[340px] text-[15px] leading-relaxed text-neutral-600">{description}</p>
+          <p className="max-w-[340px] text-[15px] leading-relaxed text-ink-2">{description}</p>
         )}
       </div>
       {action}

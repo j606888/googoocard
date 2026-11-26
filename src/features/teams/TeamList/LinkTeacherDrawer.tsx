@@ -87,7 +87,7 @@ export default function LinkTeacherDrawer({
             key={teacher.id}
             checked={choice === `t${teacher.id}`}
             onSelect={() => setChoice(`t${teacher.id}`)}
-            avatar={<TeacherAvatar name={teacher.name} color={teacher.color} icon={teacher.icon} size="sm" />}
+            avatar={<TeacherAvatar name={teacher.name} color={teacher.color} size="sm" />}
             title={teacher.name}
             detail={[
               teacher.locations.map((l) => l.name).join("、"),

@@ -28,24 +28,26 @@ const IpadDisplayCard = ({ displayUrl, classroomName }: { displayUrl: string; cl
   };
 
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border border-primary-100 bg-primary-50 p-5 print:hidden">
+    <section aria-labelledby="ipad-display-heading" className="flex flex-col gap-4 border-t border-line pt-6 lg:border-0 lg:pt-0 print:hidden">
       <div className="flex items-center gap-2">
-        <Tablet className="size-5 text-primary-900" aria-hidden />
-        <h2 className="flex-1 text-base font-bold text-primary-900">iPad 門口顯示</h2>
+        <Tablet className="size-5 text-ink-2" aria-hidden />
+        <h2 id="ipad-display-heading" className="flex-1 text-[17px] font-semibold text-ink">
+          iPad 門口顯示
+        </h2>
         <button
           type="button"
           aria-label="設定步驟"
           aria-expanded={showSteps}
           onClick={() => setShowSteps((v) => !v)}
           className={cn(
-            "grid size-9 cursor-pointer place-items-center rounded-full text-primary-900 hover:bg-primary-100",
-            showSteps && "bg-primary-100"
+            "grid size-9 cursor-pointer place-items-center rounded-full text-ink-3 hover:bg-primary-50 hover:text-ink",
+            showSteps && "bg-primary-50 text-ink"
           )}
         >
           <Info className="size-5" aria-hidden />
         </button>
       </div>
-      <p className="-mt-2 text-sm leading-relaxed text-neutral-600">
+      <p className="-mt-2 text-[13px] leading-relaxed text-ink-3">
         讓 iPad 整天顯示大大的簽到 QR，不用登入、沒有側邊欄。
       </p>
 
@@ -59,7 +61,7 @@ const IpadDisplayCard = ({ displayUrl, classroomName }: { displayUrl: string; cl
             href={displayUrl}
             target="_blank"
             rel="noopener"
-            className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary-900 text-sm font-semibold text-white hover:bg-primary-800"
+            className="flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-primary-800 hover:bg-primary-50 hover:text-primary-900"
           >
             <ExternalLink className="size-4" aria-hidden />
             開啟獨立顯示
@@ -67,7 +69,7 @@ const IpadDisplayCard = ({ displayUrl, classroomName }: { displayUrl: string; cl
           <button
             type="button"
             onClick={handleCopy}
-            className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary-100 bg-white text-sm font-semibold text-primary-900 hover:bg-primary-50"
+            className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl text-sm font-semibold text-primary-800 hover:bg-primary-50 hover:text-primary-900"
           >
             <Copy className="size-4" aria-hidden />
             複製顯示頁連結
@@ -76,9 +78,9 @@ const IpadDisplayCard = ({ displayUrl, classroomName }: { displayUrl: string; cl
       </div>
 
       {showSteps && (
-        <div className="flex flex-col gap-3 rounded-xl bg-white p-4">
-          <p className="text-sm font-bold text-primary-900">第一次設定（約 2 分鐘）</p>
-          <ol className="flex flex-col gap-3 text-sm leading-relaxed text-neutral-700">
+        <div className="flex flex-col gap-3 rounded-xl bg-surface p-4">
+          <p className="text-sm font-semibold text-ink">第一次設定（約 2 分鐘）</p>
+          <ol className="flex flex-col gap-3 text-sm leading-relaxed text-ink-2">
             {setupSteps(classroomName).map((step, i) => (
               <li key={i} className="flex gap-3">
                 <StepNumber n={i + 1} />
@@ -88,12 +90,12 @@ const IpadDisplayCard = ({ displayUrl, classroomName }: { displayUrl: string; cl
             <li className="flex gap-3">
               <StepNumber n={5} muted />
               <span>
-                <span className="text-neutral-500">（選用）</span>設定 → 輔助使用 → <b>引導使用模式</b>
+                <span className="text-ink-3">（選用）</span>設定 → 輔助使用 → <b>引導使用模式</b>
                 打開；之後在簽到畫面連按三下頂端按鈕，學生就跳不出這個畫面
               </span>
             </li>
           </ol>
-          <p className="border-t border-neutral-100 pt-3 text-xs leading-relaxed text-neutral-500">
+          <p className="border-t border-line pt-3 text-xs leading-relaxed text-ink-3">
             按「重新產生 QR Code」後，iPad 上會顯示「已失效」，重新掃一次上面的 QR 即可。
           </p>
         </div>
@@ -106,7 +108,7 @@ const StepNumber = ({ n, muted }: { n: number; muted?: boolean }) => (
   <span
     className={cn(
       "grid size-6 flex-none place-items-center rounded-full text-xs font-bold",
-      muted ? "bg-neutral-100 text-neutral-500" : "bg-primary-100 text-primary-900"
+      muted ? "bg-band text-ink-3" : "bg-primary-100 text-primary-900"
     )}
   >
     {n}

@@ -1,44 +1,48 @@
 import type { Prisma } from "@prisma/client";
-import { PALETTE_COLORS, type DanceStyleColor, type PaletteColor } from "@/lib/danceStyles";
+import { PALETTE_COLORS, type PaletteColor } from "@/lib/danceStyles";
 import { locationSummarySelect } from "@/lib/locations";
 
-// Teachers reuse the dance-style palette keys (and `danceStyleClasses()` for the
-// Tailwind classes), so a teacher's colour can't drift from what the UI knows.
-// They also get the extra cool colours dance styles don't offer.
+// Teachers reuse the dance-style palette keys, so a teacher's colour can't drift from
+// what the UI knows. The avatar (`TeacherAvatar`) is the only thing drawn from it:
+// colour is the one choice — the icon picker was removed 2026-11-26 (`Teacher.icon`
+// stays in the DB, unused and never returned).
 export const TEACHER_COLORS = PALETTE_COLORS;
 export type TeacherColor = PaletteColor;
 
 /**
- * Line icons a teacher may show on their avatar instead of their initial (`Teacher.icon`).
- * Stored as these keys; drawn by `TEACHER_ICON_GLYPHS` (`features/teachers/teacherIcons.tsx`).
- * Replaced the emoji set on 2026-11-11 (migration `20261111180000_teacher_line_icons`).
+ * The swatches the teacher form offers. No orange/red (they read as 警告／錯誤, same as
+ * `DANCE_STYLE_PRESETS`) and one of each near-identical pair — on the avatar's pale tint
+ * periwinkle≈indigo, navy≈blue, plum／violet≈purple, midnight≈slate, emerald≈green, cyan≈sky.
+ * Every key in `TEACHER_COLORS` stays valid: a teacher already on a dropped colour keeps it
+ * (the form lists it as an extra swatch) until someone picks another.
  */
-export const TEACHER_ICONS = [
-  "star", "sparkles", "flame", "zap", "moon", "sun",
-  "cloud", "waves", "leaf", "mountain", "music", "headphones",
-  "crown", "gem", "heart", "smile", "cat", "paw",
-  "bird", "feather", "rocket", "coffee", "umbrella", "anchor",
-  "compass", "footprints",
-] as const;
-export type TeacherIcon = (typeof TEACHER_ICONS)[number];
-
-/** The order new teachers take colours in — the migration that added `color`
- * assigned existing teachers in this same order. */
-export const TEACHER_COLOR_ORDER: readonly DanceStyleColor[] = [
+export const TEACHER_COLOR_PRESETS = [
+  "green",
+  "teal",
+  "sky",
   "blue",
-  "orange",
+  "indigo",
+  "purple",
+  "pink",
+  "slate",
+  "stone",
+] as const satisfies readonly TeacherColor[];
+
+/** The order new teachers take colours in: the presets, neighbours in hue kept apart. */
+export const TEACHER_COLOR_ORDER: readonly TeacherColor[] = [
+  "blue",
   "purple",
   "teal",
   "pink",
   "indigo",
-  "red",
   "green",
+  "sky",
   "slate",
   "stone",
 ];
 
 /** First colour no active teacher uses yet, so a new teacher starts distinguishable. */
-export function firstFreeTeacherColor(taken: { color: string }[]): DanceStyleColor {
+export function firstFreeTeacherColor(taken: { color: string }[]): TeacherColor {
   const used = new Set(taken.map((teacher) => teacher.color));
   return TEACHER_COLOR_ORDER.find((color) => !used.has(color)) ?? TEACHER_COLOR_ORDER[0];
 }
@@ -81,7 +85,6 @@ export const teacherSummarySelect = {
 /** The teacher's own fields in API responses — a `select`, never a spread row. */
 export const teacherPayloadSelect = {
   ...teacherSummarySelect,
-  icon: true,
   note: true,
   kind: true,
   archivedAt: true,

@@ -28,7 +28,7 @@ import AssignLocationDrawer from "./AssignLocationDrawer";
 
 type FormState = { open: false } | { open: true; location?: Location; key: number };
 
-const iconButton = "text-neutral-500 disabled:opacity-30 disabled:hover:bg-transparent";
+const iconButton = "text-ink-3 disabled:opacity-30 disabled:hover:bg-transparent";
 
 /** 每列寬度不同、越往下越淡。 */
 const SKELETON_ROWS = [
@@ -41,7 +41,7 @@ const SKELETON_ROWS = [
 const RowsSkeleton = () => (
   <ul className="flex flex-col">
     {SKELETON_ROWS.map((row, i) => (
-      <li key={i} className={`flex h-14 items-center gap-2 border-b border-neutral-200 ${row.fade}`}>
+      <li key={i} className={`flex h-14 items-center gap-2 border-b border-line ${row.fade}`}>
         <Skeleton className="size-3 shrink-0" />
         <Skeleton className={`h-3.5 ${row.width}`} />
       </li>
@@ -95,35 +95,35 @@ const LocationList = () => {
 
   return (
     <>
-      <div className="w-full px-5 py-3 lg:max-w-[720px] lg:px-8 lg:py-6">
+      <div className="w-full px-5 pb-10 pt-3 lg:max-w-[720px] lg:px-12 lg:pt-9">
         <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-neutral-900">分部</h2>
+          <h2 className="text-[26px] font-semibold text-ink">分部</h2>
           <Button type="button" onClick={() => openForm()}>
             <Plus />
             新增分部
           </Button>
         </div>
-        <p className="mb-4 text-sm text-neutral-600">
+        <p className="mb-4 text-sm text-ink-2">
           同一間教室的不同上課地點。開課時可以選分部，課表和 LINE 會依分部顯示；課卡各分部通用。
         </p>
 
-        <label className="mb-5 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4 cursor-pointer">
+        <label className="mb-6 flex min-h-14 cursor-pointer items-center gap-4 border-y border-line py-3">
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-[15px] font-medium text-ink">在 LINE 官方帳號公開課表與價目表</span>
+            <span className="text-[13px] leading-relaxed text-ink-3">
+              開啟後，還沒綁定的人在 LINE 點「課表」「價目表」也看得到這間教室的課。已綁定的學生不受影響。
+            </span>
+          </span>
           {isLoading ? (
-            <Skeleton className="mt-0.5 h-[1.15rem] w-8 shrink-0" />
+            <Skeleton className="h-[1.15rem] w-8 shrink-0" />
           ) : (
             <Switch
               checked={data?.lineListed ?? false}
               disabled={savingSettings}
               onCheckedChange={setLineListed}
-              className="mt-0.5"
+              className="shrink-0"
             />
           )}
-          <span className="flex flex-col gap-0.5">
-            <span className="font-medium text-neutral-900">在 LINE 官方帳號公開課表與價目表</span>
-            <span className="text-[13px] leading-relaxed text-neutral-500">
-              開啟後，還沒綁定的人在 LINE 點「課表」「價目表」也看得到這間教室的課。已綁定的學生不受影響。
-            </span>
-          </span>
         </label>
 
         {isLoading && <RowsSkeleton />}
@@ -134,12 +134,12 @@ const LocationList = () => {
 
         <ul className="flex flex-col">
           {active.map((location, index) => (
-            <li key={location.id} className="flex items-center gap-2 border-b border-neutral-200 py-2.5">
-              <MapPin className="h-4 w-4 shrink-0 text-neutral-500" />
+            <li key={location.id} className="flex items-center gap-2 border-b border-line py-2.5">
+              <MapPin className="h-4 w-4 shrink-0 text-ink-3" />
               <span className="flex min-w-0 flex-col">
-                <span className="truncate font-medium text-neutral-900">{location.name}</span>
+                <span className="truncate font-medium text-ink">{location.name}</span>
                 {location.address && (
-                  <span className="truncate text-xs text-neutral-500">{location.address}</span>
+                  <span className="truncate text-xs text-ink-3">{location.address}</span>
                 )}
               </span>
               <div className="ml-auto flex shrink-0 items-center">
@@ -207,7 +207,7 @@ const LocationList = () => {
             <button
               type="button"
               onClick={() => setShowArchived((v) => !v)}
-              className="flex min-h-11 items-center gap-1 text-sm font-medium text-neutral-600 cursor-pointer"
+              className="flex min-h-11 items-center gap-1 text-sm font-medium text-ink-2 cursor-pointer"
               aria-expanded={showArchived}
             >
               {showArchived ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -218,7 +218,7 @@ const LocationList = () => {
                 {archived.map((location) => (
                   <li
                     key={location.id}
-                    className="flex items-center gap-2 border-b border-neutral-200 py-2.5 text-neutral-500"
+                    className="flex items-center gap-2 border-b border-line py-2.5 text-ink-3"
                   >
                     <MapPin className="h-4 w-4 shrink-0 opacity-50" />
                     <span className="truncate">{location.name}</span>

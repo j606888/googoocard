@@ -43,7 +43,10 @@ const PeriodSection = ({
   headcounts,
   revenues,
   termRevenues,
+  note,
 }: {
+  /** 標題下的一行灰字：這一期上到哪、平均幾人、收多少。 */
+  note?: React.ReactNode;
   lesson: Lesson;
   periods: Period[];
   /** Attended count per period id (taken periods only). */
@@ -66,6 +69,7 @@ const PeriodSection = ({
         </h3>
         <AddPeriodForm lessonId={lesson.id} periods={periods} />
       </div>
+      {note && <p className="text-[13px] tabular-nums text-ink-3">{note}</p>}
       {periods.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8">
           <KiwiMascot pose="stand-34" className="w-20" />
@@ -129,8 +133,11 @@ export const PeriodColumn = ({
   activePeriodId,
   onViewRecord,
   revenues,
+  note,
   className = "",
 }: {
+  /** 標題下的一行灰字：這一期上到哪、平均幾人、收多少。 */
+  note?: React.ReactNode;
   lesson: Lesson;
   periods: Period[];
   /** Attended count per period id (taken periods only). */
@@ -164,9 +171,12 @@ export const PeriodColumn = ({
       className={`flex flex-col ${className}`}
     >
       <div className="flex items-center justify-between pb-1">
-        <h2 id="period-column-title" className="text-base font-semibold text-ink">
-          時段 <span className="font-normal text-ink-3">{periods.length} 堂</span>
-        </h2>
+        <div className="min-w-0">
+          <h2 id="period-column-title" className="text-[17px] font-semibold text-ink">
+            時段 <span className="font-normal text-ink-3">{periods.length} 堂</span>
+          </h2>
+          {note && <p className="mt-0.5 text-[13px] tabular-nums text-ink-3">{note}</p>}
+        </div>
         <AddPeriodForm lessonId={lesson.id} periods={periods} />
       </div>
       {periods.length === 0 ? (

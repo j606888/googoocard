@@ -6,8 +6,6 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import {
   Ban,
-  Check,
-  CircleDollarSign,
   Ellipsis,
   Forward,
   PencilLine,
@@ -56,13 +54,11 @@ const fullDate = (value: string | number) => format(new Date(value), "yyyy/M/d")
 const paymentMethodLabel = (method: string | null | undefined) =>
   method === "TRANSFER" ? "轉帳" : method === "CASH" ? "現金" : null;
 
-const actionButton =
-  "flex-1 min-w-0 h-11 rounded-xl border border-primary-300 bg-white text-primary-900 text-sm font-semibold flex items-center justify-center gap-1.5 cursor-pointer hover:bg-primary-50 transition-colors";
-
 /**
- * 一張課卡的詳情：票根（剩幾堂、每堂一顆圓點、購買／售價／剩餘價值）、收款、
- * 「紀錄」時間線（購買、收款、上課、轉換、轉讓、停用排成一條），以及
- * 轉讓／轉換／備註，停用與刪除收在「⋯」。手機是底部面板、桌面是置中對話框。
+ * 一張課卡的詳情，沒有框：大字剩幾堂＋每堂一顆圓點、一列一件的事實清單
+ * （購買日／售價／付款／剩餘價值／來源／備註）、「紀錄」時間線（購買、收款、上課、
+ * 轉換、轉讓、停用排成一條），底下轉讓／轉換／備註是文字按鈕，停用與刪除收在「⋯」；
+ * 未付款時「確認收款」是唯一的實心按鈕。手機是底部面板、桌面是置中對話框。
  *
  * 一個課卡分頁只掛一份：`studentCard` 由呼叫端依選到的 id 從最新資料找出來，
  * 所以 mutation 後畫面會跟著更新。
@@ -156,7 +152,7 @@ const CardDetailDialog = ({
   /** 另一位學生的卡：老師端連到那位學生，公開頁只寫編號。 */
   const otherStudentCard = (link: { serialNumber: number; student?: { id: number; name: string } }) =>
     link.student && !isPublic ? (
-      <Link href={`/students/${link.student.id}`} className="text-primary-700 hover:text-primary-900 font-semibold">
+      <Link href={`/students/${link.student.id}`} className="text-primary-800 hover:text-primary-900 font-semibold">
         {link.student.name} {formatCardSerial(link.serialNumber)}
       </Link>
     ) : (
@@ -169,7 +165,7 @@ const CardDetailDialog = ({
       <button
         type="button"
         onClick={() => jump(link.id)}
-        className="text-primary-700 hover:text-primary-900 font-semibold cursor-pointer"
+        className="text-primary-800 hover:text-primary-900 font-semibold cursor-pointer"
       >
         {formatCardSerial(link.serialNumber)}
       </button>
@@ -285,145 +281,135 @@ const CardDetailDialog = ({
     }
   };
 
-  const startLabel = isPurchase ? "購買" : studentCard.origin === "TRANSFER" ? "轉入" : "轉換";
+  const startLabel = isPurchase ? "購買日" : studentCard.origin === "TRANSFER" ? "轉入日" : "轉換日";
   const priceLabel = isPurchase ? "售價" : "帶入價值";
   const endAt = studentCard.expiredAt ?? (lastUse !== null ? lastUse : null);
+  const paidDetail = [
+    "已收款",
+    paymentMethodLabel(studentCard.paymentMethod),
+    studentCard.paymentReference ? `末五碼 ${studentCard.paymentReference}` : null,
+    studentCard.paidBy?.name ? `${studentCard.paidBy.name} 收` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const sessionsLabel = ended
+    ? `上了 ${usedSessions} 堂，共 ${studentCard.totalSessions} 堂`
+    : `剩 ${studentCard.remainingSessions} 堂，共 ${studentCard.totalSessions} 堂`;
+
+  const dots = (
+    <SessionDots
+      total={studentCard.totalSessions}
+      remaining={studentCard.remainingSessions}
+      outcome={outcome}
+      low={low}
+      size="lg"
+      label={sessionsLabel}
+    />
+  );
 
   return (
     <>
       <ResponsiveDialog
         open={open}
         onClose={onClose}
+        initialFocus="container"
         className="p-0 min-h-0 max-h-[90vh] max-w-[560px] overflow-hidden"
       >
-        <div className="flex-none flex flex-col gap-1.5 px-6 pt-5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0 text-[13px] text-neutral-600">
-              <span className="shrink-0 rounded-sm bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-700 tabular-nums">
-                {serial}
-              </span>
-              <span className="truncate">{studentName}</span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {outcome && <StatusTag tone="neutral">{OUTCOME_TAG[outcome]}</StatusTag>}
-              <Button
-                type="button"
-                variant="ghost"
-                size="iconSm"
-                onClick={onClose}
-                aria-label="關閉"
-                className="-mr-2 text-neutral-500"
-              >
-                <X className="size-5" />
-              </Button>
-            </div>
+        <div className="flex-none flex items-start justify-between gap-3 px-6 pt-5">
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="m-0 truncate text-[13px] tabular-nums text-ink-3">
+              {serial} · {studentName}
+              {outcome && ` · ${OUTCOME_TAG[outcome]}`}
+            </p>
+            <ResponsiveDialogTitle className="m-0 text-xl font-semibold leading-tight text-ink">
+              {studentCard.card.name}
+            </ResponsiveDialogTitle>
           </div>
-          <ResponsiveDialogTitle
-            className={cn("text-[22px] font-extrabold leading-tight", ended ? "text-neutral-700" : "text-neutral-900")}
+          <Button
+            type="button"
+            variant="ghost"
+            size="iconSm"
+            onClick={onClose}
+            aria-label="關閉"
+            className="-mt-1 -mr-2 shrink-0 text-ink-3"
           >
-            {studentCard.card.name}
-          </ResponsiveDialogTitle>
+            <X className="size-5" />
+          </Button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-5 pb-6 flex flex-col gap-4">
-          {/* 票根 */}
-          <div
-            className={cn(
-              "rounded-2xl border flex flex-col",
-              ended ? "bg-neutral-50 border-neutral-200" : "bg-primary-50 border-primary-100"
-            )}
-          >
-            <div className="px-5 py-5 flex flex-col gap-4">
-              {ended && outcome ? (
-                <EndedHero
-                  outcome={outcome}
-                  remaining={studentCard.remainingSessions}
-                  total={studentCard.totalSessions}
-                  link={
-                    outcome === "transferred" && transferredTo
-                      ? otherStudentCard(transferredTo)
-                      : outcome === "converted" && convertedTo
-                        ? sameStudentCard(convertedTo)
-                        : null
-                  }
-                />
-              ) : (
-                <div className="flex items-end justify-between gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[13px] font-semibold text-primary-900">剩餘</span>
-                    <div className="flex items-baseline gap-2 leading-none tabular-nums">
-                      <span
-                        className={cn(
-                          "text-[56px] font-extrabold tracking-tight",
-                          low ? "text-warning-950" : "text-primary-900"
-                        )}
-                      >
-                        {studentCard.remainingSessions}
-                      </span>
-                      <span className="text-base font-semibold text-primary-900">/ {studentCard.totalSessions} 堂</span>
-                    </div>
-                  </div>
-                  <span className="pb-1.5 text-[13px] text-neutral-700">已上 {usedSessions} 堂</span>
-                </div>
-              )}
-              <SessionDots
-                total={studentCard.totalSessions}
-                remaining={studentCard.remainingSessions}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-5 pb-6 flex flex-col">
+          {/* 這張卡現在的樣子：大字堂數、一堂一顆圓點 */}
+          <div className="flex flex-col gap-3">
+            {ended && outcome ? (
+              <EndedHero
                 outcome={outcome}
-                low={low}
-                size="lg"
+                remaining={studentCard.remainingSessions}
+                total={studentCard.totalSessions}
+                dots={dots}
+                link={
+                  outcome === "transferred" && transferredTo
+                    ? otherStudentCard(transferredTo)
+                    : outcome === "converted" && convertedTo
+                      ? sameStudentCard(convertedTo)
+                      : null
+                }
               />
-            </div>
-            <div
-              aria-hidden
-              className={cn(
-                "mx-4 border-t-[1.5px] border-dashed",
-                ended ? "border-neutral-200" : "border-primary-300"
-              )}
-            />
-            <dl className="m-0 px-5 pt-3.5 pb-4 grid grid-cols-3 gap-3">
-              <Stat label={startLabel} value={fullDate(studentCard.createdAt)} />
-              <Stat label={priceLabel} value={`$${formatMoney(studentCard.finalPrice)}`} />
-              {ended ? (
-                <Stat label="結束" value={endAt !== null ? fullDate(endAt) : "—"} />
-              ) : (
-                <Stat label="剩餘價值" value={`$${formatMoney(residualValueOf(studentCard))}`} />
-              )}
-            </dl>
+            ) : (
+              <div className="flex items-baseline gap-1.5 leading-none tabular-nums">
+                <span className="text-[15px] text-ink-2">剩</span>
+                <span
+                  className={cn("text-[44px] font-semibold tracking-tight", low ? "text-warning-800" : "text-ink")}
+                >
+                  {studentCard.remainingSessions}
+                </span>
+                <span className="text-[15px] text-ink-3">/ {studentCard.totalSessions} 堂</span>
+                {low && <span className="ml-1.5 text-[13px] font-semibold text-warning-800">快用完</span>}
+              </div>
+            )}
+            {!ended && dots}
+            {!ended && <p className="m-0 text-[13px] tabular-nums text-ink-3">已上 {usedSessions} 堂</p>}
           </div>
 
-          {/* 收款：未付款只在這裡出現一次，按鈕就在旁邊 */}
-          {!isPublic && isUnpaid && (
-            <div className="flex items-center gap-3 rounded-xl border border-warning-200 bg-warning-50 px-4 py-3.5">
-              <CircleDollarSign className="size-[22px] shrink-0 text-warning-950" aria-hidden />
-              <div className="flex-1 min-w-0 flex flex-col gap-0.5 text-warning-950">
-                <span className="text-[15px] font-bold">還沒收款 ${formatMoney(studentCard.finalPrice)}</span>
-                {!ended && <span className="text-[13px]">收款後才能轉讓或轉換</span>}
-              </div>
-              <Button type="button" onClick={() => setPendingAction("pay")} className="shrink-0">
-                確認收款
-              </Button>
-            </div>
-          )}
-          {!isPublic && !isUnpaid && isPurchase && studentCard.finalPrice > 0 && (
-            <p className="m-0 flex items-center gap-2 text-sm text-neutral-600">
-              <Check className="size-[18px] shrink-0 text-primary-700" strokeWidth={2.2} aria-hidden />
-              <span>
-                已收款 ${formatMoney(studentCard.finalPrice)}
-                {paymentMethodLabel(studentCard.paymentMethod) ? ` · ${paymentMethodLabel(studentCard.paymentMethod)}` : ""}
-                {studentCard.paidBy?.name ? ` · ${studentCard.paidBy.name} 收` : ""}
-              </span>
-            </p>
-          )}
+          {/* 這張卡的事實：一列一件，細線分隔 */}
+          <dl className="m-0 mt-5 divide-y divide-line border-y border-line">
+            <Fact label={startLabel}>{fullDate(studentCard.createdAt)}</Fact>
+            {transferredFrom && <Fact label="來源">從 {otherStudentCard(transferredFrom)} 轉入</Fact>}
+            {convertedFrom.length > 0 && (
+              <Fact label="來源">
+                由{" "}
+                {convertedFrom.map((from, index) => (
+                  <span key={from.id}>
+                    {index > 0 && "、"}
+                    {sameStudentCard(from)}
+                  </span>
+                ))}{" "}
+                轉換
+              </Fact>
+            )}
+            <Fact label={priceLabel}>${formatMoney(studentCard.finalPrice)}</Fact>
+            {/* 未付款只在這裡寫一次，「確認收款」是底下唯一的實心按鈕 */}
+            {!isPublic && isUnpaid && (
+              <Fact label="付款" hint={!ended ? "收款後才能轉讓或轉換" : undefined}>
+                <span className="font-semibold text-warning-800">未付款 ${formatMoney(studentCard.finalPrice)}</span>
+              </Fact>
+            )}
+            {!isPublic && !isUnpaid && isPurchase && studentCard.finalPrice > 0 && (
+              <Fact label="付款">{paidDetail}</Fact>
+            )}
+            {ended ? (
+              <Fact label="結束日">{endAt !== null ? fullDate(endAt) : "—"}</Fact>
+            ) : (
+              <Fact label="剩餘價值">${formatMoney(residualValueOf(studentCard))}</Fact>
+            )}
+            {studentCard.note && (
+              <Fact label="備註">
+                <span className="whitespace-pre-line font-normal">{studentCard.note}</span>
+              </Fact>
+            )}
+          </dl>
 
-          {studentCard.note && (
-            <p className="m-0 text-sm text-neutral-700 whitespace-pre-line bg-neutral-50 rounded-xl px-3.5 py-2.5">
-              {studentCard.note}
-            </p>
-          )}
-
-          <section className="flex flex-col gap-3 mt-2">
-            <h3 className="m-0 text-[15px] font-bold text-neutral-900">紀錄</h3>
+          <section className="mt-7 flex flex-col gap-3">
+            <h3 className="m-0 text-[15px] font-semibold text-ink">紀錄</h3>
             <ol className="m-0 p-0 list-none flex flex-col">
               {shownEntries.map((entry, index) => {
                 const { title, meta, tag } = describe(entry);
@@ -434,16 +420,16 @@ const CardDetailDialog = ({
                     className="grid grid-cols-[48px_16px_minmax(0,1fr)_auto] gap-x-3 items-start"
                   >
                     <div className="flex flex-col pt-px">
-                      <span className="text-sm font-bold text-neutral-900 tabular-nums">{format(entry.at, "M/d")}</span>
-                      <span className="text-xs text-neutral-500">週{WEEKDAYS[new Date(entry.at).getDay()]}</span>
+                      <span className="text-sm font-semibold text-ink tabular-nums">{format(entry.at, "M/d")}</span>
+                      <span className="text-xs text-ink-3">週{WEEKDAYS[new Date(entry.at).getDay()]}</span>
                     </div>
                     <div aria-hidden className="flex flex-col items-center self-stretch pt-[5px]">
                       <span className={cn("size-2.5 rounded-full box-border shrink-0", nodeClass(entry))} />
-                      {!isLast && <span className="w-0.5 flex-1 bg-neutral-100 mt-1" />}
+                      {!isLast && <span className="w-px flex-1 bg-line mt-1" />}
                     </div>
                     <div className={cn("flex flex-col gap-0.5 min-w-0", !isLast && "pb-5")}>
-                      <span className="text-sm font-semibold text-neutral-900">{title}</span>
-                      {meta && <span className="text-[13px] text-neutral-500">{meta}</span>}
+                      <span className="text-sm font-medium text-ink">{title}</span>
+                      {meta && <span className="text-[13px] tabular-nums text-ink-3">{meta}</span>}
                     </div>
                     <span>{tag}</span>
                   </li>
@@ -453,9 +439,9 @@ const CardDetailDialog = ({
             {hiddenEntries > 0 && (
               <Button
                 type="button"
-                variant="secondary"
+                variant="text"
                 size="sm"
-                className="self-start"
+                className="-ml-2 self-start"
                 onClick={() => setShowAllEntries(true)}
               >
                 再顯示 {hiddenEntries} 筆
@@ -465,42 +451,38 @@ const CardDetailDialog = ({
         </div>
 
         {!isPublic && (
-          <div className="flex-none flex gap-2 border-t border-neutral-100 px-6 pt-4 pb-5">
+          <div className="flex-none flex items-center gap-1 border-t border-line px-4 py-3">
             {canTransfer && (
-              <button type="button" className={actionButton} onClick={() => setTransferOpen(true)}>
-                <Forward className="size-[17px] shrink-0" aria-hidden />
+              <Button type="button" variant="text" onClick={() => setTransferOpen(true)}>
+                <Forward className="size-[17px]" aria-hidden />
                 轉讓
-              </button>
+              </Button>
             )}
             {canMove && (
-              <button type="button" className={actionButton} onClick={() => setConvertOpen(true)}>
-                <Repeat2 className="size-[17px] shrink-0" aria-hidden />
+              <Button type="button" variant="text" onClick={() => setConvertOpen(true)}>
+                <Repeat2 className="size-[17px]" aria-hidden />
                 轉換
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               type="button"
-              className={actionButton}
+              variant="text"
               onClick={() => {
                 setNoteDraft(studentCard.note ?? "");
                 setNoteOpen(true);
               }}
             >
-              <PencilLine className="size-[17px] shrink-0" aria-hidden />
+              <PencilLine className="size-[17px]" aria-hidden />
               {studentCard.note ? "編輯備註" : "備註"}
-            </button>
+            </Button>
             {(canExpire || canDelete) && (
               <Popover open={moreOpen} onOpenChange={setMoreOpen}>
                 <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="更多操作"
-                    className="size-11 shrink-0 rounded-xl border border-neutral-300 bg-white text-neutral-700 flex items-center justify-center cursor-pointer hover:bg-neutral-50"
-                  >
+                  <Button type="button" variant="ghost" size="icon" aria-label="更多操作" className="text-ink-2">
                     <Ellipsis className="size-[18px]" />
-                  </button>
+                  </Button>
                 </PopoverTrigger>
-                <PopoverContent align="end" side="top" className="w-60 p-1.5">
+                <PopoverContent align="start" side="top" className="w-60 p-1.5">
                   {canExpire && (
                     <MenuItem
                       icon={<Ban className="size-4" aria-hidden />}
@@ -526,6 +508,11 @@ const CardDetailDialog = ({
                   )}
                 </PopoverContent>
               </Popover>
+            )}
+            {isUnpaid && (
+              <Button type="button" onClick={() => setPendingAction("pay")} className="ml-auto">
+                確認收款
+              </Button>
             )}
           </div>
         )}
@@ -597,29 +584,36 @@ const CardDetailDialog = ({
           placeholder="例：朋友介紹、先繳一半"
           onChange={(e) => setNoteDraft(e.target.value)}
         />
-        <p className="text-xs text-neutral-500 mt-1">留白即清除備註。</p>
+        <p className="text-xs text-ink-3 mt-1">留白即清除備註。</p>
       </Drawer>
     </>
   );
 };
 
-const Stat = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex flex-col gap-0.5 min-w-0">
-    <dt className="text-xs text-neutral-600">{label}</dt>
-    <dd className="m-0 text-[15px] font-bold text-neutral-900 tabular-nums truncate">{value}</dd>
+/** 一件事實一列：左邊名稱（淺字）、右邊內容；`hint` 是內容下面的一行說明。 */
+const Fact = ({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) => (
+  <div className="flex items-baseline justify-between gap-6 py-2.5">
+    <dt className="shrink-0 text-sm text-ink-3">{label}</dt>
+    <dd className="m-0 flex min-w-0 flex-col items-end gap-0.5 text-right text-sm font-medium tabular-nums text-ink">
+      <span className="min-w-0 break-words">{children}</span>
+      {hint && <span className="text-[13px] font-normal text-ink-3">{hint}</span>}
+    </dd>
   </div>
 );
 
-/** 已結束的卡的票根上半：怎麼結束的、那幾堂、轉去哪裡。 */
+/** 已結束的卡的開頭：怎麼結束的、那幾堂、轉去哪裡。 */
 const EndedHero = ({
   outcome,
   remaining,
   total,
+  dots,
   link,
 }: {
   outcome: CardOutcome;
   remaining: number;
   total: number;
+  /** 圓點排在大字和說明中間，跟有效的卡同一個順序。 */
+  dots: React.ReactNode;
   link: React.ReactNode;
 }) => {
   const used = total - remaining;
@@ -631,24 +625,23 @@ const EndedHero = ({
   }[outcome];
 
   return (
-    <div className="flex items-end justify-between gap-4">
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-semibold text-neutral-600">{label}</span>
-        <div className="flex items-baseline gap-2 leading-none tabular-nums">
-          <span className="text-[44px] font-extrabold tracking-tight text-neutral-900">{sessions}</span>
-          <span className="text-base font-semibold text-neutral-700">堂</span>
-        </div>
-        {legend && <span className="text-[13px] text-neutral-600">{legend}</span>}
+    <div className="flex flex-col gap-3">
+      <div className="flex items-baseline gap-1.5 leading-none tabular-nums">
+        <span className="text-[15px] text-ink-2">{label}</span>
+        <span className="text-[44px] font-semibold tracking-tight text-ink">{sessions}</span>
+        <span className="text-[15px] text-ink-3">堂</span>
       </div>
-      {link && (
-        <span className="flex items-center gap-1.5 h-10 rounded-xl border border-primary-300 bg-white px-3.5 text-sm text-primary-900">
-          {outcome === "transferred" ? (
-            <Forward className="size-4 shrink-0" aria-hidden />
-          ) : (
-            <Repeat2 className="size-4 shrink-0" aria-hidden />
+      {dots}
+      {(legend || link) && (
+        <p className="m-0 text-[13px] tabular-nums text-ink-3">
+          {legend}
+          {legend && link && " · "}
+          {link && (
+            <>
+              {outcome === "transferred" ? "給" : "轉成"} {link}
+            </>
           )}
-          {link}
-        </span>
+        </p>
       )}
     </div>
   );

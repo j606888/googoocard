@@ -13,21 +13,22 @@ import EditStudent from "./BasicSection/EditStudent";
 import BuyCard from "./CardsSection/BuyCard";
 import StudentActionsMenu from "./StudentActionsMenu";
 import { DanceBadges } from "../StudentList/DanceBadge";
-import { NEEDS_RENEWAL_TAG, tagLabel } from "../StudentList/studentFilters";
+import { NEEDS_RENEWAL_TAG } from "../StudentList/studentFilters";
 import { Button, buttonVariants } from "@/components/ui/button";
 import StatusTag from "@/components/StatusTag";
 
 const ArchivedBanner = ({ student }: { student: StudentWithDetail }) => {
   const [setArchived, { isLoading }] = useSetStudentArchivedMutation();
   return (
-    <div className="mb-4 flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm text-neutral-700">
-      <Archive className="w-4 h-4 shrink-0" />
+    <div className="mb-4 flex min-h-11 items-center gap-3 border-b border-line pb-2 text-sm text-ink-2">
+      <Archive aria-hidden="true" className="size-4 shrink-0 text-ink-3" />
       <span className="flex-1">這位學生已封存，不會出現在名單、自助簽到和 LINE。</span>
       <Button
         type="button"
-        variant="link"
+        variant="text"
+        size="sm"
         isLoading={isLoading}
-        className="text-sm font-semibold"
+        className="-mr-2"
         onClick={async () => {
           try {
             await setArchived({ id: student.id, archived: false }).unwrap();
@@ -54,13 +55,13 @@ const LineUnboundBadge = ({ student }: { student: StudentWithDetail }) => {
   if (!data || data.bound) return null;
   const tag = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold";
   if (!data.deepLink) {
-    return <span className={`${tag} bg-neutral-100 text-neutral-600`}>未綁 LINE</span>;
+    return <span className={`${tag} bg-band text-ink-2`}>未綁 LINE</span>;
   }
   return (
     <LineBindQrButton
       deepLink={data.deepLink}
       studentName={student.name}
-      className={`${tag} bg-neutral-100 text-neutral-700 hover:bg-[#06C755] hover:text-white transition-colors`}
+      className={`${tag} bg-band text-ink-2 hover:bg-[#06C755] hover:text-white transition-colors`}
     >
       <QrCode className="w-3.5 h-3.5" />
       未綁 LINE · 綁定 QR
@@ -68,7 +69,7 @@ const LineUnboundBadge = ({ student }: { student: StudentWithDetail }) => {
   );
 };
 
-/** 舞種資格（全名）、需續約、其他標籤、未綁 LINE——三種頁首共用。 */
+/** 舞種資格（全名）、已經沒卡、其他標籤、未綁 LINE——三種頁首共用。 */
 const StudentBadges = ({ student }: { student: StudentWithDetail }) => {
   const tags = student.tags ?? [];
   const needsRenewal = tags.some((tag) => tag.name === NEEDS_RENEWAL_TAG);
@@ -76,9 +77,8 @@ const StudentBadges = ({ student }: { student: StudentWithDetail }) => {
   return (
     <>
       <DanceBadges levels={student.danceLevels} variant="full" />
-      {needsRenewal && (
-        <StatusTag tone="warning">{tagLabel(NEEDS_RENEWAL_TAG)}</StatusTag>
-      )}
+      {/* 系統標籤「Needs Renewal」畫面上一律叫「已經沒卡」 */}
+      {needsRenewal && <span className="text-[13px] font-semibold text-warning-800">已經沒卡</span>}
       {otherTags.map((tag) => (
         <StatusTag key={tag.id} tone="neutral">
           {tag.name}
@@ -100,7 +100,7 @@ const CompactHeader = ({
   student: StudentWithDetail;
   backHref: string;
 }) => (
-  <div className="bg-white">
+  <div>
     <div className="flex items-center justify-between px-2 py-1.5">
       <Link href={backHref} aria-label="返回學生列表" className={iconButton}>
         <ChevronLeft className="w-6 h-6" />
@@ -117,15 +117,15 @@ const CompactHeader = ({
         <StudentActionsMenu student={student} buttonClassName={iconButton} />
       </div>
     </div>
-    <div className="px-4 pt-1">
+    <div className="px-5 pt-1">
       {student.archivedAt && <ArchivedBanner student={student} />}
       <div className="flex items-center gap-3.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={student.avatarUrl} alt="" className="w-14 h-14 rounded-full object-cover shrink-0" />
         <div className="min-w-0">
-          <h1 className="text-[21px] font-bold text-neutral-900 flex items-baseline gap-2 flex-wrap">
+          <h1 className="text-[26px] font-semibold text-ink flex items-baseline gap-2 flex-wrap">
             {student.name}
-            <span className="text-xs font-mono font-medium text-neutral-500">#{student.number}</span>
+            <span className="text-[13px] font-medium tabular-nums text-ink-3">#{student.number}</span>
           </h1>
           <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
             <StudentBadges student={student} />
@@ -137,7 +137,7 @@ const CompactHeader = ({
 );
 
 const moreButton =
-  "inline-flex items-center justify-center size-11 rounded-xl border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-primary-300";
+  "inline-flex items-center justify-center size-11 rounded-xl text-ink-2 hover:bg-primary-50 hover:text-ink cursor-pointer transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-primary-300";
 
 /**
  * 學生詳情的頁首：大頭貼、姓名（旁邊一支編輯鉛筆）、舞種資格與標籤，右邊是
@@ -166,11 +166,11 @@ const StudentDetailHeader = ({
   const isPane = variant === "pane";
 
   return (
-    <div className={`@container flex-none bg-white ${isPane ? "px-6 pt-5" : "px-8 pt-5"}`}>
+    <div className={`@container flex-none ${isPane ? "px-6 pt-5" : "px-8 pt-5"}`}>
       {!isPane && (
         <Link
           href={backHref}
-          className="inline-flex items-center gap-1 text-sm text-neutral-600 hover:text-neutral-900 mb-3"
+          className="inline-flex min-h-11 items-center gap-1 -mt-2 mb-1 text-sm text-ink-2 hover:text-ink"
         >
           <ArrowLeft className="w-4 h-4" />
           {backLabel(backHref)}
@@ -184,15 +184,15 @@ const StudentDetailHeader = ({
         <img
           src={student.avatarUrl}
           alt=""
-          className={`${isPane ? "w-14 h-14" : "w-16 h-16"} rounded-full object-cover ring-2 ring-primary-100 shrink-0`}
+          className={`${isPane ? "w-14 h-14" : "w-16 h-16"} rounded-full object-cover shrink-0`}
         />
         <div className="flex-1 min-w-40">
           <div className="flex items-center gap-1 flex-wrap">
             <h1
-              className={`${isPane ? "text-xl" : "text-2xl"} font-bold text-neutral-900 flex items-baseline gap-2 flex-wrap`}
+              className={`${isPane ? "text-[22px]" : "text-[26px]"} font-semibold text-ink flex items-baseline gap-2 flex-wrap`}
             >
               {student.name}
-              <span className="text-sm font-mono font-medium text-neutral-500">#{student.number}</span>
+              <span className="text-[13px] font-medium tabular-nums text-ink-3">#{student.number}</span>
             </h1>
             <EditStudent
               student={student}
@@ -201,7 +201,7 @@ const StudentDetailHeader = ({
                   type="button"
                   aria-label="編輯學生資料"
                   title="編輯學生資料"
-                  className={`${buttonVariants({ variant: "ghost", size: "iconSm" })} text-neutral-400 hover:text-neutral-700`}
+                  className={`${buttonVariants({ variant: "ghost", size: "iconSm" })} text-ink-3 hover:text-ink`}
                   onClick={open}
                 >
                   <SquarePen className="w-4 h-4" />

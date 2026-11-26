@@ -1,5 +1,5 @@
 import { useState } from "react";
-import FilterChip from "@/components/FilterChip";
+import SegmentedTabs, { type SegmentedOption } from "@/components/SegmentedTabs";
 import { useGetStudentEventsQuery } from "@/store/slices/students";
 import {
   EventFilter,
@@ -14,8 +14,8 @@ import EmptyState from "@/components/EmptyState";
 
 /** Mirrors the loaded timeline: one day heading + a few EventRows. */
 const EventTimelineSkeleton = () => (
-  <div className="bg-white border border-neutral-200 rounded-2xl px-5 pt-1 pb-3" aria-hidden="true">
-    <div className="pt-3.5 pb-1">
+  <div aria-hidden="true">
+    <div className="pb-1">
       <Skeleton className="h-4 w-24" />
     </div>
     {[0, 1, 2, 3].map((i) => (
@@ -31,7 +31,7 @@ const EventTimelineSkeleton = () => (
   </div>
 );
 
-const FILTERS: { label: string; value: EventFilter }[] = [
+const FILTERS: SegmentedOption<EventFilter>[] = [
   { label: "全部", value: "all" },
   { label: "課卡", value: "card" },
   { label: "上課", value: "lesson" },
@@ -47,30 +47,25 @@ const EventTimeline = ({ studentId }: { studentId: number }) => {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-1.5 flex-wrap">
-        {FILTERS.map((filter) => (
-          <FilterChip
-            key={filter.value}
-            size="sm"
-            active={activeFilter === filter.value}
-            onClick={() => setActiveFilter(filter.value)}
-          >
-            {filter.label}
-          </FilterChip>
-        ))}
-      </div>
+      <SegmentedTabs
+        ariaLabel="動態分類"
+        options={FILTERS}
+        value={activeFilter}
+        onChange={setActiveFilter}
+        className="self-start"
+      />
 
       {isLoading ? (
         <EventTimelineSkeleton />
       ) : groups.length === 0 ? (
         <EmptyState kind="inline" title="這個分類還沒有紀錄" />
       ) : (
-        <div className="bg-white border border-neutral-200 rounded-2xl px-5 pt-1 pb-3">
+        <div className="flex flex-col gap-5">
           {groups.map((group) => (
-            <section key={group.key}>
-              <h4 className="m-0 pt-3.5 pb-1 text-xs font-bold text-neutral-700 flex items-center gap-2">
+            <section key={group.key} className="border-b border-line pb-1">
+              <h4 className="m-0 pb-1 text-[13px] font-semibold text-ink-2 flex items-center gap-2">
                 {group.dayLabel}
-                {group.relative && <span className="font-medium text-neutral-500">· {group.relative}</span>}
+                {group.relative && <span className="font-normal text-ink-3">· {group.relative}</span>}
               </h4>
               {group.rows.map((row) =>
                 "checkin" in row ? (

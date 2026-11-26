@@ -1,4 +1,5 @@
 import Drawer from "@/components/Drawer";
+import { GROUPED_PAGE_BG } from "@/features/lessons/newLesson/grouped";
 import CardFormFields from "./CardFormFields";
 import { CardFormTarget, useCardForm } from "./useCardForm";
 
@@ -42,7 +43,8 @@ const CardFormDrawer = ({
       submitText={SUBMIT_TEXT[target.mode]}
       secondaryText="取消"
     >
-      <form className="mb-6" onSubmit={(e) => e.preventDefault()}>
+      {/* 分組清單畫在鼠尾草底上，白色群組才分得出來（同新增課程）。 */}
+      <form className={`mb-6 rounded-2xl px-3 py-5 ${GROUPED_PAGE_BG}`} onSubmit={(e) => e.preventDefault()}>
         <CardFormFields form={form} />
       </form>
     </Drawer>

@@ -100,7 +100,7 @@ const QualificationLevels = ({
             <div
               role="radiogroup"
               aria-label={`${meta.label} 已完成階級`}
-              className="flex-1 grid gap-0 rounded-xl bg-neutral-100 p-0.5"
+              className="flex-1 grid gap-0 rounded-xl bg-band p-0.5"
               style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
             >
               {options.map((option) => {
@@ -128,9 +128,9 @@ const QualificationLevels = ({
                     onClick={() => onPick(danceStyle.id, option.value, danceStyle.hasLevels)}
                     className={`h-9 ${dense ? "text-xs" : "text-sm"} rounded-lg cursor-pointer transition-colors disabled:cursor-wait ${
                       !checked
-                        ? "text-neutral-600"
+                        ? "text-ink-2"
                         : option.value === 0
-                          ? "bg-white text-neutral-800 font-semibold shadow-sm"
+                          ? "bg-white text-ink-2 font-semibold shadow-sm"
                           : "bg-primary-900 text-white font-semibold"
                     }`}
                   >

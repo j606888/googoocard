@@ -62,7 +62,7 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - **細節頁分四個分頁**（`?tab=`，預設課程）：課程（進行中／已結束／協助）、時段（某個月的時段與點名狀態）、數字（月統計＋近 6 個月＋常來的學生）、資料（名字、頭像、身分、分部、帳號、備註，編輯／封存／刪除在這裡）。頂端只留頭像、名字、一行摘要。
 - **總覽只回答三件事**：這位老師教哪些進行中的課（`activeLessons`）、上課中／下一堂（`nextPeriod`，`ongoing` = 現在正在上）、屬於哪些分部。排序：下一堂越近越前面。統計卡、月份切換、每卡三個數字、近 6 個月長條圖都刻意拿掉了（2026-11-10）——每月數字只留在詳情頁。
 - **分部**（`Teacher.locations`，多對多 `_LocationToTeacher`）是**純標示**：不限制排課、不影響金流，也不從課程推導。寫入用 `locationIds`（整份取代），以 `requireLocationsInClassroom()` 驗證（400 `LOCATION_NOT_FOUND`）。
-- **圖示**（`Teacher.icon`）是 `TEACHER_ICONS`（`src/lib/teachers.ts`）裡的一個 key（`star`、`footprints`…），由 `features/teachers/teacherIcons.tsx` 畫成 lucide 單色線條，放在代表色的淡底上（`danceStyleClasses(color).badge`）；`null` = 實心色底＋名字第一個字。2026-11-11 從 emoji 換過來（migration `20261111180000_teacher_line_icons` 把舊 emoji 對到最接近的圖示，對不到的清成 `null`）。
+- **頭像只選顏色**（2026-11-26）：`TeacherAvatar` 一律是代表色的淡底圓形＋名字第一個字（`danceStyleTones(color).chip`）。自選圖示已移除：`Teacher.icon` 欄位還留在資料庫但不再讀寫（API 收到 `icon` 會直接丟掉），`teacherIcons.tsx`／`TEACHER_ICONS` 已刪。表單色票只給 `TEACHER_COLOR_PRESETS`（9 色，沒有橘／紅和幾乎撞色的那幾個）；舊鍵仍然有效，已經是橘／紅的老師維持原色。列表每一列直接列出教的課與協助的課（各最多 3 堂），不再就地展開。
 - **只算已點名的時段**（`attendanceTakenAt` 有值）——跟收入頁同一條規則。學生自助簽到在老師定案前不算；時段結束了還沒點名的算「待點名」。月份以台北時間切。
 - 一堂課有兩位老師時，**兩位都各算一堂**。
 - 老師「教的舞種」**從老師教過的課推導**，不存資料表——不用維護，也不會跟實際排課不一致。
@@ -390,6 +390,10 @@ Classroom（頂層容器，所有實體都屬於一間教室）
 - `POST /api/locations/assign { locationId, lessonIds }`：把勾選的課一次標上分部——舊資料的批次整理，只改本教室、**還沒設定分部**的課。UI 是勾選清單（`AssignLocationDrawer`），「依星期」「依老師」只是快速勾選：同一天兩個分部都有課（週二台南、高雄各一班）所以不能只看星期。
 - **課卡不分部限定**：點名、選卡、購卡規則完全沒變。
 - `Classroom.lineListed`（分部頁上的開關，`PATCH /api/locations/settings`）＝在 LINE 官方帳號公開課表與價目表，見下一節。
+
+### 收入依分部（2026-11-26）
+
+只有**課程收入**（已點名時段的 `periodRevenue` + `termRevenueByPeriod`）依 `lesson.locationId` 拆，沒設分部的課歸「未指定分部」；各分部加總 = 當月課程收入。**課卡收入不分部**（課卡各分部通用，系統沒記在哪裡買的），選了分部時課卡分頁仍是整間教室的數字並寫明。`GET /api/income/session-monthly/[month]` 多回 `byLocation`；`daily-summary/list`、`daily-summary`、`session-monthly/[month]` 接受 `?locationId=<id>|none`（`src/app/api/income/locationFilter.ts`，格式不對回 400）。收入頁只有在教室有 2 個以上未封存分部時才出現分部切換。
 
 ## LINE（只給學生用，2026-10）
 
@@ -839,6 +843,8 @@ JWT 帶著 `classroomId`、活 30 天、而且無法撤銷。只信 JWT 的話�
 進入 `/students/[id]` 的連結可帶 `?from=<encodedPath>`，返回鍵讀它決定回哪：有就回該頁、沒有（或非站內路徑）fallback 回 `/students`。helper 在 `src/lib/studentNav.ts`（`studentDetailHref` / `resolveBackHref`）。目前 check-success（`StudentInfo`）、課程詳情（`AttendanceOverview/RosterList`／`RosterTable`、`AttentionList`）與老師詳情（`TeacherDetail`）的入口會帶來源；桌面分割檢視的「完整頁面」帶 `/students?sel=<id>`，返回時會回到同一位學生被選取的名單；手機列表不帶、維持回 `/students`。未來其他頁面要此行為，連結改用 `studentDetailHref(id, pathname)` 即可。
 
 ## 學生頁版面（全寬名單＋右側抽屜，2026-10-26 改版）
+
+**篩選（2026-11-26 整理）**：名單上方只有活躍度分區、「上的課」和「已經沒卡」（＝ Needs Renewal 標籤，畫面一律寫「已經沒卡」）。「上這堂課」＝課程進行中，而且學生近 63 天在這堂課有出席紀錄或有報名整期——`GET /api/students` 回 `recentLessonIds`（舊的 `activeLessonIds`／`isInActiveLesson`／`?needsRenewal` 已移除）。抽屜留排序、舞種資格、剩 2 堂以下／未付款／未綁 LINE；自由標籤篩選只在教室真的有自訂標籤時出現。近 7 天有上課、上課中、沒有課卡三個條件已刪。
 
 `/students` 依寬度掛載**其中一棵樹**（`useSizeClass()`，≥1024px）——不是用 CSS 藏，因為兩棵都掛的話兩份篩選狀態會各自寫 localStorage 而分岔。設計稿：https://claude.ai/artifact/5K55zKbFRV5ef7NUGSmahz（方向 A）。
 

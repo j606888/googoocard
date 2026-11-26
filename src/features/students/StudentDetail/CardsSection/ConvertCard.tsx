@@ -154,16 +154,16 @@ const ConvertCard = ({
         <div className="flex flex-col gap-6 text-sm">
           {/* 要轉換的卡 */}
           <section className="flex flex-col gap-2">
-            <p className="text-xs font-medium text-neutral-500">要轉換的卡</p>
-            <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3.5">
+            <p className="text-xs font-medium text-ink-3">要轉換的卡</p>
+            <div className="flex items-center gap-3 rounded-2xl bg-surface p-3.5">
               <div className="flex-1 min-w-0 flex flex-col gap-1">
                 <div className="flex items-center gap-2 min-w-0">
                   <CardSerial serialNumber={studentCard.serialNumber} />
-                  <span className="font-semibold text-neutral-900 truncate">
+                  <span className="font-semibold text-ink truncate">
                     {studentCard.card.name}
                   </span>
                 </div>
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs text-ink-3">
                   {studentCard.totalSessions} 堂 · {money(studentCard.finalPrice)} ·{" "}
                   {formatDate(studentCard.createdAt)} 購買
                 </p>
@@ -173,20 +173,20 @@ const ConvertCard = ({
                   <span className="text-2xl font-bold text-primary-900">
                     {studentCard.remainingSessions}
                   </span>
-                  <span className="text-sm text-neutral-500">/{studentCard.totalSessions}</span>
+                  <span className="text-sm text-ink-3">/{studentCard.totalSessions}</span>
                 </div>
-                <div className="text-[11px] text-neutral-500 mt-1">剩餘堂數</div>
+                <div className="text-[11px] text-ink-3 mt-1">剩餘堂數</div>
               </div>
             </div>
-            <p className="text-xs text-neutral-600">
-              剩餘價值 <strong className="text-neutral-900">{money(residualValue)}</strong>
+            <p className="text-xs text-ink-2">
+              剩餘價值 <strong className="text-ink">{money(residualValue)}</strong>
               ，會整筆帶到新卡。
             </p>
           </section>
 
           {/* 轉換成 */}
           <section className="flex flex-col gap-2">
-            <p className="text-xs font-medium text-neutral-500">轉換成</p>
+            <p className="text-xs font-medium text-ink-3">轉換成</p>
             {cardOptions.length === 0 && (
               <EmptyState kind="inline" title="教室裡沒有其他啟用中的卡種" />
             )}
@@ -209,10 +209,10 @@ const ConvertCard = ({
                     }}
                     className={`flex items-center gap-3 w-full rounded-xl border p-3 text-left transition-colors ${
                       reason
-                        ? "border-neutral-200 bg-neutral-50 opacity-60 cursor-not-allowed"
+                        ? "border-line bg-surface opacity-60 cursor-not-allowed"
                         : selected
                           ? "border-primary-700 ring-1 ring-primary-700 bg-primary-50 cursor-pointer"
-                          : "border-neutral-200 bg-white hover:border-primary-300 cursor-pointer"
+                          : "border-line bg-white hover:border-primary-300 cursor-pointer"
                     }`}
                   >
                     <span
@@ -224,7 +224,7 @@ const ConvertCard = ({
                     </span>
                     <span className="flex-1 min-w-0 flex flex-col gap-0.5">
                       <span className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-semibold text-neutral-900">{card.name}</span>
+                        <span className="font-semibold text-ink">{card.name}</span>
                         {card.isPracticeCard && card.danceStyle && (
                           <span
                             className="text-[11px] font-medium px-2 py-px rounded-full"
@@ -234,15 +234,15 @@ const ConvertCard = ({
                           </span>
                         )}
                       </span>
-                      <span className="text-xs text-neutral-500">
+                      <span className="text-xs text-ink-3">
                         {card.sessions} 堂 · {money(card.price)}
                       </span>
                       {reason && <span className="text-xs text-danger-700">{reason}</span>}
                     </span>
                     {!reason && (
                       <span className="shrink-0 text-right leading-tight">
-                        <span className="block text-[11px] text-neutral-500">約可換</span>
-                        <span className="block font-semibold text-neutral-900">
+                        <span className="block text-[11px] text-ink-3">約可換</span>
+                        <span className="block font-semibold text-ink">
                           {formatExact(s.exact, s.isExact)} 堂
                         </span>
                       </span>
@@ -257,18 +257,18 @@ const ConvertCard = ({
             <section className="flex flex-col gap-4">
               {/* 前後比較 */}
               <div className="flex flex-col gap-2">
-                <p className="text-xs font-medium text-neutral-500">轉換前後比較</p>
-                <div className="rounded-2xl border border-neutral-200 overflow-hidden">
-                  <div className="grid grid-cols-[72px_1fr_20px_1fr] items-center px-3.5 py-2 bg-neutral-50 border-b border-neutral-200 text-[11px] text-neutral-500">
+                <p className="text-xs font-medium text-ink-3">轉換前後比較</p>
+                <div className="border-y border-line">
+                  <div className="grid grid-cols-[72px_1fr_20px_1fr] items-center py-2 border-b border-line text-[11px] text-ink-3">
                     <span />
                     <span>舊卡剩餘</span>
                     <span />
                     <span>新卡</span>
                   </div>
-                  <div className="grid grid-cols-[72px_1fr_20px_1fr] items-center px-3.5 py-3 border-b border-neutral-100">
-                    <span className="text-xs text-neutral-500">堂數</span>
+                  <div className="grid grid-cols-[72px_1fr_20px_1fr] items-center py-3 border-b border-line">
+                    <span className="text-xs text-ink-3">堂數</span>
                     <span className="font-semibold">{studentCard.remainingSessions} 堂</span>
-                    <span className="text-neutral-400" aria-hidden>→</span>
+                    <span className="text-ink-3" aria-hidden>→</span>
                     <span className="flex items-center gap-1.5">
                       <span className="font-bold text-primary-900">
                         {sessionsValid ? `${sessions} 堂` : "—"}
@@ -281,10 +281,10 @@ const ConvertCard = ({
                       )}
                     </span>
                   </div>
-                  <div className="grid grid-cols-[72px_1fr_20px_1fr] items-center px-3.5 py-3">
-                    <span className="text-xs text-neutral-500">卡片價值</span>
+                  <div className="grid grid-cols-[72px_1fr_20px_1fr] items-center py-3">
+                    <span className="text-xs text-ink-3">卡片價值</span>
                     <span className="font-semibold">{money(residualValue)}</span>
-                    <span className="text-neutral-400" aria-hidden>→</span>
+                    <span className="text-ink-3" aria-hidden>→</span>
                     <span className="flex items-center gap-1.5">
                       <span className="font-semibold">
                         {sessionsValid ? money(targetListValue) : "—"}
@@ -295,7 +295,7 @@ const ConvertCard = ({
                     </span>
                   </div>
                 </div>
-                <p className="text-[11px] text-neutral-500">
+                <p className="text-[11px] text-ink-3">
                   新卡價值以 {target.name} 的牌價計；入帳仍沿用舊卡剩餘 {money(residualValue)}
                   ，不會重複計入營收。
                 </p>
@@ -311,7 +311,7 @@ const ConvertCard = ({
                       aria-label="減少一堂"
                       disabled={!sessionsValid || sessions <= 1}
                       onClick={() => setSessions(sessions - 1)}
-                      className="w-11 h-11 flex items-center justify-center bg-neutral-50 text-neutral-700 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="w-11 h-11 flex items-center justify-center bg-surface text-ink-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Minus className="w-4 h-4" />
                     </button>
@@ -325,13 +325,13 @@ const ConvertCard = ({
                         setSessionsOverride(e.target.value);
                         setError("");
                       }}
-                      className="w-16 h-11 border-x border-neutral-200 text-center text-base font-semibold text-neutral-900 outline-none focus:bg-primary-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-16 h-11 border-x border-line text-center text-base font-semibold text-ink outline-none focus:bg-primary-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <button
                       type="button"
                       aria-label="增加一堂"
                       onClick={() => setSessions(sessionsValid ? sessions + 1 : suggestion.suggested)}
-                      className="w-11 h-11 flex items-center justify-center bg-neutral-50 text-neutral-700 cursor-pointer"
+                      className="w-11 h-11 flex items-center justify-center bg-surface text-ink-2 cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -351,7 +351,7 @@ const ConvertCard = ({
                 {suggestion.isExact ? (
                   <div
                     role="status"
-                    className="flex gap-2.5 rounded-xl border border-primary-300 bg-primary-50 px-3.5 py-3 text-xs leading-relaxed text-primary-900"
+                    className="flex gap-2.5 rounded-xl bg-primary-50 px-3.5 py-3 text-xs leading-relaxed text-primary-900"
                   >
                     <CircleCheck className="w-4 h-4 shrink-0 mt-px" />
                     <span>
@@ -362,7 +362,7 @@ const ConvertCard = ({
                 ) : (
                   <div
                     role="status"
-                    className="flex gap-2.5 rounded-xl border border-warning-300 bg-warning-50 px-3.5 py-3 text-xs leading-relaxed text-warning-950"
+                    className="flex gap-2.5 rounded-xl bg-warning-100 px-3.5 py-3 text-xs leading-relaxed text-warning-950"
                   >
                     <CircleAlert className="w-4 h-4 shrink-0 mt-px" />
                     <span>
@@ -395,14 +395,14 @@ const ConvertCard = ({
                   placeholder={defaultNote}
                   onChange={(e) => setNote(e.target.value)}
                 />
-                <p className="text-[11px] text-neutral-500">留白就用上面的預設文字。</p>
+                <p className="text-[11px] text-ink-3">留白就用上面的預設文字。</p>
               </div>
             </section>
           )}
 
           <div className="flex flex-col gap-1">
             {error && <p className="text-[13px] text-danger-700">{error}</p>}
-            <p className="text-xs text-neutral-500 text-center">
+            <p className="text-xs text-ink-3 text-center">
               轉換後 {sourceSerial} 會停用，並標記「已轉換」
             </p>
           </div>

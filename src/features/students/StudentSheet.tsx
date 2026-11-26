@@ -11,7 +11,7 @@ import { studentDetailHref } from "@/lib/studentNav";
 import { Button, buttonVariants } from "@/components/ui/button";
 import SideSheet from "@/components/SideSheet";
 
-const barIcon = `${buttonVariants({ variant: "ghost", size: "iconSm" })} text-neutral-500`;
+const barIcon = `${buttonVariants({ variant: "ghost", size: "iconSm" })} text-ink-3`;
 
 /**
  * 桌面版的學生詳情抽屜：細頂列（左邊由呼叫端放上一位／下一位之類的導覽，
@@ -45,7 +45,7 @@ const StudentSheet = ({
       label={student ? student.name : "學生詳情"}
       className="w-[600px]"
     >
-      <div className="flex-none flex items-center justify-between h-13 pl-3 pr-2.5 bg-white border-b border-neutral-100">
+      <div className="flex-none flex items-center justify-between h-13 pl-3 pr-2.5 border-b border-line">
         <div className="flex items-center gap-0.5">{leading}</div>
         <div className="flex items-center gap-0.5">
           {student && (
@@ -65,7 +65,7 @@ const StudentSheet = ({
             onClick={onClose}
             aria-label="關閉"
             title="關閉（Esc）"
-            className="text-neutral-500"
+            className="text-ink-3"
           >
             <X className="w-5 h-5" />
           </Button>
@@ -78,7 +78,7 @@ const StudentSheet = ({
         ) : (
           <>
             <StudentDetailHeader student={student} variant="pane" />
-            <AttentionBar student={student} className="flex-none px-6 pt-3 bg-white" />
+            <AttentionBar student={student} className="flex-none px-6 pt-3" />
             <StudentDetail student={student} variant="pane" />
           </>
         )}

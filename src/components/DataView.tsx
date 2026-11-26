@@ -3,7 +3,8 @@
 import { cn } from "@/lib/utils";
 
 /**
- * 同一份 DOM，手機是卡片、桌面是表格。
+ * 同一份 DOM，手機是兩行的清單列、桌面是表格。沒有外框、沒有灰底表頭：
+ * 表頭是一行小字加一條細線，列與列之間也只有細線（去框線改版）。
  *
  * 作法沿用 `GroupRow` 原本的寫法（這個元件就是把它抽成通用能力）：
  * 手機把中間幾格包進一個會換行的 meta 行，桌面用 `lg:contents` 把那層
@@ -42,12 +43,12 @@ const Cell = <T,>({
 }) => (
   <div
     className={cn(
-      "flex items-center gap-1.5 min-w-0 text-xs lg:text-sm text-neutral-700",
+      "flex items-center gap-1.5 min-w-0 text-[13px] lg:text-sm text-ink-2",
       column.hideOnMobile?.(row) && "max-lg:hidden"
     )}
   >
     {column.mobileLabel && (
-      <span className="lg:hidden text-neutral-400 shrink-0">
+      <span className="lg:hidden text-ink-3 shrink-0">
         {column.mobileLabel}
       </span>
     )}
@@ -73,7 +74,7 @@ const DataView = <T,>({
    * 撐滿整列（每一列都是 `relative`）。
    */
   onRowClick?: (row: T) => void;
-  /** 個別列的額外樣式，例如選取中。 */
+  /** 個別列的額外樣式，例如選取中、滑過的底色。底色左右各多出 12px，字仍對齊表頭。 */
   rowClassName?: (row: T) => string | undefined;
   /** 同一張表拆成好幾段時（例如分區），只讓第一段顯示表頭。 */
   hideHeader?: boolean;
@@ -93,15 +94,12 @@ const DataView = <T,>({
     "grid grid-cols-[var(--dv-cols-compact)] lg:grid-cols-[var(--dv-cols-expanded)] gap-x-3 gap-y-2 lg:gap-3";
 
   return (
-    <div className={cn("rounded-2xl border border-neutral-200 bg-white overflow-hidden", className)}>
+    <div className={className}>
       {/* 表頭只有桌面有；手機的小標在每一格裡面 */}
       {!hideHeader && (
         <div
           style={trackVars}
-          className={cn(
-            grid,
-            "hidden lg:grid px-4.5 py-2.5 bg-neutral-50 border-b border-neutral-100 text-xs font-semibold text-neutral-500"
-          )}
+          className={cn(grid, "hidden lg:grid border-b border-line pb-2 text-[13px] text-ink-3")}
         >
           {columns.map((c) => (
             <div key={c.key}>{c.header}</div>
@@ -110,33 +108,35 @@ const DataView = <T,>({
       )}
 
       {rows.map((row) => (
-        <div
-          key={rowKey(row)}
-          style={trackVars}
-          className={cn(
-            grid,
-            "relative items-center px-3.5 py-3 lg:px-4.5 lg:py-3.5 border-b border-neutral-100 last:border-b-0 transition-colors",
-            onRowClick && "cursor-pointer hover:bg-neutral-50",
-            rowClassName?.(row)
-          )}
-          onClick={onRowClick ? () => onRowClick(row) : undefined}
-        >
-          {primary && <div className="min-w-0">{primary.render(row)}</div>}
+        // 細線畫在外層、底色畫在內層：底色才能左右多出一點空氣又不把線一起拉寬。
+        <div key={rowKey(row)} className="border-b border-line last:border-b-0">
+          <div
+            style={trackVars}
+            className={cn(
+              grid,
+              "relative -mx-3 items-center rounded-xl px-3 py-3 lg:py-2.5 transition-colors",
+              onRowClick && "cursor-pointer hover:bg-primary-50",
+              rowClassName?.(row)
+            )}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+          >
+            {primary && <div className="min-w-0">{primary.render(row)}</div>}
 
-          {/* 手機：一條會換行的 meta 行。桌面：contents 溶掉這層包裝，
-              下面每一格直接掉進自己的欄位。 */}
-          <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 lg:contents">
-            {meta.map((c) => (
-              <Cell key={c.key} column={c} row={row} />
-            ))}
-          </div>
-
-          {/* 手機：用 grid 座標釘在第一列右邊，DOM 順序（與 tab 順序）不變。 */}
-          {trailing && (
-            <div className="col-start-2 row-start-1 lg:col-auto lg:row-auto flex items-center justify-end lg:justify-between gap-2 min-w-0">
-              {trailing.render(row)}
+            {/* 手機：一條會換行的 meta 行。桌面：contents 溶掉這層包裝，
+                下面每一格直接掉進自己的欄位。 */}
+            <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 lg:contents">
+              {meta.map((c) => (
+                <Cell key={c.key} column={c} row={row} />
+              ))}
             </div>
-          )}
+
+            {/* 手機：用 grid 座標釘在第一列右邊，DOM 順序（與 tab 順序）不變。 */}
+            {trailing && (
+              <div className="col-start-2 row-start-1 lg:col-auto lg:row-auto flex items-center justify-end lg:justify-between gap-2 min-w-0">
+                {trailing.render(row)}
+              </div>
+            )}
+          </div>
         </div>
       ))}
     </div>

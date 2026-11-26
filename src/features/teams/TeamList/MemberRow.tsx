@@ -3,21 +3,14 @@ import Link from "next/link";
 import { Crown, Link2, MoreHorizontal, Pencil, ShieldCheck, UserMinus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import StatusTag, { type StatusTone } from "@/components/StatusTag";
 import TeacherAvatar from "@/features/teachers/TeacherAvatar";
 import { roleLabel } from "@/lib/roles";
 import type { Membership } from "@/store/slices/memberships";
 import { isLinkedTeacher } from "./teacherLink";
 
 const menuItem =
-  "flex h-11 w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 text-left text-sm hover:bg-neutral-100";
-
-const ROLE_TONES: Record<string, StatusTone> = {
-  owner: "warning",
-  admin: "warning",
-  teacher: "positive",
-  assistant: "neutral",
-};
+  "flex h-11 w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 text-left text-sm";
+const menuItemNormal = `${menuItem} text-ink hover:bg-primary-50`;
 
 export interface MemberActions {
   /** 編輯自己那筆人員資料（名字、顏色、分部）。 */
@@ -61,7 +54,7 @@ const MemberRow = ({
   const teacherCell = linked ? (
     <Link
       href={`/teachers/${person!.id}`}
-      className="relative inline-flex items-center gap-1.5 text-sm text-neutral-800 hover:underline"
+      className="relative inline-flex items-center gap-1.5 text-[13px] text-ink-2 hover:underline lg:text-sm"
     >
       老師 {person!.name}
     </Link>
@@ -69,39 +62,39 @@ const MemberRow = ({
     <button
       type="button"
       onClick={() => actions.onLinkTeacher!(membership)}
-      className="inline-flex h-9 items-center rounded-lg border border-dashed border-warning-400 px-3 text-[13px] font-semibold text-warning-900 hover:bg-warning-50"
+      className="-mx-2 inline-flex h-9 cursor-pointer items-center rounded-lg px-2 text-[13px] font-semibold text-warning-800 hover:bg-warning-100"
     >
       還沒連 · 連到老師
     </button>
   ) : needsLink ? (
-    <span className="text-sm text-warning-900">還沒連到老師</span>
+    <span className="text-[13px] font-semibold text-warning-800 lg:text-sm">還沒連到老師</span>
   ) : (
-    <span className="text-sm text-neutral-500">不教課</span>
+    <span className="text-[13px] text-ink-3 lg:text-sm">不教課</span>
   );
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_96px_180px_40px] lg:gap-4 lg:px-5">
+    <li className="flex min-h-14 items-center gap-3 py-2.5 lg:grid lg:grid-cols-[minmax(0,1fr)_96px_180px_40px] lg:gap-4">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         {person ? (
-          <TeacherAvatar name={person.name} color={person.color} icon={person.icon} />
+          <TeacherAvatar name={person.name} color={person.color} />
         ) : (
           <TeacherAvatar name={membership.user.name} color="neutral" />
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <div className="flex items-center gap-2">
-            <span className="truncate font-medium text-neutral-900">{membership.user.name}</span>
-            {isMe && <StatusTag tone="positive">你</StatusTag>}
+            <span className="truncate text-[15px] font-medium text-ink">{membership.user.name}</span>
+            {isMe && <span className="shrink-0 text-[13px] text-ink-3">（你）</span>}
           </div>
-          <span className="truncate text-xs text-neutral-500 lg:text-sm">{membership.user.email}</span>
+          <span className="truncate text-[13px] text-ink-3">{membership.user.email}</span>
           {/* 手機：老師身分放在 email 下面。 */}
-          <div className="mt-1 lg:hidden">{teacherCell}</div>
+          <div className="lg:hidden">{teacherCell}</div>
         </div>
       </div>
 
-      <StatusTag tone={ROLE_TONES[membership.role] ?? "neutral"} className="shrink-0 lg:justify-self-start">
+      <span className="inline-flex shrink-0 items-center gap-1 text-[13px] text-ink-2 lg:justify-self-start lg:text-sm">
         {isOwner && <Crown aria-label="建立者" className="h-3.5 w-3.5" />}
         {roleLabel(membership.role)}
-      </StatusTag>
+      </span>
 
       <div className="hidden lg:block">{teacherCell}</div>
 
@@ -112,32 +105,32 @@ const MemberRow = ({
             variant="ghost"
             size="icon"
             aria-label={`${membership.user.name} 的更多操作`}
-            className="-mr-2 text-neutral-600 data-[state=open]:bg-neutral-100"
+            className="-mr-2 text-ink-2 data-[state=open]:bg-primary-50"
           >
             <MoreHorizontal className="size-5" />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="flex w-56 flex-col p-1.5">
           {actions.onLinkTeacher && (
-            <button type="button" className={menuItem} onClick={run(() => actions.onLinkTeacher!(membership))}>
+            <button type="button" className={menuItemNormal} onClick={run(() => actions.onLinkTeacher!(membership))}>
               <Link2 className="h-4 w-4" />
               {linked ? "改連到別的老師" : "連到老師"}
             </button>
           )}
           {person && (
-            <button type="button" className={menuItem} onClick={run(() => actions.onEditPerson(membership))}>
+            <button type="button" className={menuItemNormal} onClick={run(() => actions.onEditPerson(membership))}>
               <Pencil className="h-4 w-4" />
               編輯名字與顏色
             </button>
           )}
           {canChangeRole && (
-            <button type="button" className={menuItem} onClick={run(() => actions.onChangeRole!(membership))}>
+            <button type="button" className={menuItemNormal} onClick={run(() => actions.onChangeRole!(membership))}>
               <ShieldCheck className="h-4 w-4" />
               改角色
             </button>
           )}
           {canTransfer && (
-            <button type="button" className={menuItem} onClick={run(() => actions.onTransfer!(membership))}>
+            <button type="button" className={menuItemNormal} onClick={run(() => actions.onTransfer!(membership))}>
               <Crown className="h-4 w-4" />
               把教室交給他
             </button>

@@ -1,25 +1,15 @@
 "use client";
-import LocationBadge from "@/components/LocationBadge";
 
+import Link from "next/link";
 import { differenceInMinutes, format, isToday } from "date-fns";
-import { useRouter } from "next/navigation";
-import { Check, AlarmClock, Clock, CalendarOff, GraduationCap } from "lucide-react";
+import { CalendarOff, ChevronRight } from "lucide-react";
 import { CalendarPeriod } from "@/store/slices/lessons";
-import { danceStyleMeta } from "@/lib/danceStyleColors";
 import { Skeleton } from "@/components/ui/skeleton";
+import DanceStyleDot from "@/components/DanceStyleDot";
 import EmptyState from "@/components/EmptyState";
-import StatusTag from "@/components/StatusTag";
-import { sessionState } from "./status";
+import { sessionState, type SessionState } from "./status";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
-
-const formatTime = (value: string) => {
-  const date = new Date(value);
-  const hours = date.getHours();
-  const period = hours < 12 ? "上午" : "下午";
-  const h12 = hours % 12 === 0 ? 12 : hours % 12;
-  return `${period} ${h12}:${format(date, "mm")}`;
-};
 
 interface DaySessionListProps {
   day: Date;
@@ -27,126 +17,83 @@ interface DaySessionListProps {
   loading?: boolean;
 }
 
+/** 還沒點名的直接進點名頁，其他進課程頁。 */
+const hrefFor = (p: CalendarPeriod, state: SessionState) =>
+  state === "due" ? `/lessons/${p.lessonId}/periods/${p.periodId}/check` : `/lessons/${p.lessonId}`;
+
+/** 狀態寫成字：要動作的是琥珀色，其餘是淡字。 */
+const StateText = ({ p, state }: { p: CalendarPeriod; state: SessionState }) =>
+  state === "due" ? (
+    <span className="text-[13px] font-semibold text-warning-800">去點名</span>
+  ) : state === "taken" ? (
+    <span className="text-[13px] tabular-nums text-ink-3">已點名 · {p.attendeeCount} 人</span>
+  ) : (
+    <span className="text-[13px] text-ink-3">未開始</span>
+  );
+
+/** 選到的那天：標題＋細線清單，一堂一列（時間、舞種點、課名，下面一行分部 · 老師）。 */
 const DaySessionList = ({ day, periods, loading }: DaySessionListProps) => {
-  const router = useRouter();
   const now = new Date();
 
-  const handleClick = (p: CalendarPeriod) => {
-    if (sessionState(p, now) === "due") {
-      router.push(`/lessons/${p.lessonId}/periods/${p.periodId}/check`);
-    } else {
-      router.push(`/lessons/${p.lessonId}`);
-    }
-  };
-
   return (
-    <div className="mt-5 border-t border-neutral-200 pt-4 lg:mt-0 lg:rounded-2xl lg:border lg:p-4">
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-neutral-700 mb-3 lg:text-base lg:text-neutral-900">
-        <span>
-          {format(day, "M/d")} ({WEEKDAYS[day.getDay()]})
-        </span>
-        {isToday(day) && (
-          <StatusTag tone="positive">今天</StatusTag>
-        )}
+    <section aria-labelledby="day-sessions-heading">
+      <div className="mb-2 flex items-baseline gap-2">
+        <h2 id="day-sessions-heading" className="text-[17px] font-semibold tabular-nums text-ink">
+          {format(day, "M/d")}（{WEEKDAYS[day.getDay()]}）
+        </h2>
+        {isToday(day) && <span className="text-[13px] font-semibold text-primary-800">今天</span>}
         {!loading && periods.length > 0 && (
-          <span className="ml-auto text-xs font-medium text-neutral-500">
-            {periods.length} 堂
-          </span>
+          <span className="ml-auto text-[13px] tabular-nums text-ink-3">{periods.length} 堂</span>
         )}
-      </h3>
+      </div>
 
       {loading ? (
-        <div className="flex flex-col gap-2.5">
-          {[0, 1].map((i) => (
-            <div
-              key={i}
-              className="flex items-stretch rounded-2xl border border-neutral-200 bg-white overflow-hidden"
-            >
-              <Skeleton className="w-1.5 shrink-0 rounded-none" />
-              <div className="flex flex-col gap-2 p-3 flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-5 w-14 rounded-full" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-5 flex-1 max-w-40" />
-                  <Skeleton className="h-4 w-16 ml-auto" />
-                </div>
-              </div>
-            </div>
-          ))}
+        <div aria-busy="true" className="flex flex-col gap-2">
+          <Skeleton className="h-13 w-full rounded-xl" />
+          <Skeleton className="h-13 w-full rounded-xl opacity-60" />
         </div>
       ) : periods.length === 0 ? (
         <EmptyState kind="inline" icon={<CalendarOff />} title="這天沒有課程" />
       ) : (
-        <div className="flex flex-col gap-2.5">
+        <ul className="divide-y divide-line border-b border-line">
           {periods.map((p) => {
-            const style = danceStyleMeta(p.danceStyle);
             const state = sessionState(p, now);
             const minutes = differenceInMinutes(new Date(p.endTime), new Date(p.startTime));
+            const meta = [
+              `${format(new Date(p.startTime), "HH:mm")}–${format(new Date(p.endTime), "HH:mm")}`,
+              minutes > 0 && `${minutes} 分`,
+              p.location?.name,
+              p.teacherNames.length > 0 && `老師 ${p.teacherNames.join("、")}`,
+            ]
+              .filter(Boolean)
+              .join(" · ");
             return (
-              <button
-                key={p.periodId}
-                onClick={() => handleClick(p)}
-                className={`group flex items-stretch gap-0 rounded-2xl border bg-white overflow-hidden text-left cursor-pointer transition-colors ${
-                  state === "due"
-                    ? "border-warning-400 hover:border-warning-500"
-                    : "border-neutral-200 hover:border-neutral-300"
-                }`}
-              >
-                <div className="w-1.5 shrink-0" style={style.fill} />
-                <div className="flex flex-col gap-1.5 p-3 flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-neutral-600 tabular-nums">
-                      {formatTime(p.startTime)} – {format(new Date(p.endTime), "HH:mm")}
-                    </span>
-                    {minutes > 0 && (
-                      <span className="text-xs text-neutral-500">{minutes} 分</span>
-                    )}
-                    <LocationBadge location={p.location} className="ml-auto" />
-                    <span
-                      className={`${p.location ? "" : "ml-auto "}text-xs font-medium px-2 py-0.5 rounded-full`}
-                      style={style.chip}
-                    >
-                      {style.label}
-                    </span>
-                  </div>
-                  <span className="font-semibold text-neutral-900 truncate">
-                    {p.lessonName}
+              <li key={p.periodId}>
+                <Link
+                  href={hrefFor(p, state)}
+                  className="-mx-3 flex min-h-14 items-center gap-3 rounded-xl px-3 py-2 hover:bg-primary-50"
+                >
+                  <span className="w-11 shrink-0 text-[15px] font-medium tabular-nums text-ink-2">
+                    {format(new Date(p.startTime), "HH:mm")}
                   </span>
-                  <div className="flex items-center gap-2 min-w-0">
-                    {p.teacherNames.length > 0 && (
-                      <span className="flex items-center gap-1 min-w-0 text-xs text-neutral-500">
-                        <GraduationCap className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{p.teacherNames.join("、")}</span>
-                      </span>
-                    )}
-                    {state === "taken" && (
-                      <span className="ml-auto flex items-center gap-1 shrink-0 text-xs font-medium text-primary-700">
-                        <Check className="w-3.5 h-3.5" />
-                        已點名 · {p.attendeeCount} 人
-                      </span>
-                    )}
-                    {state === "due" && (
-                      <span className="ml-auto flex items-center gap-1 shrink-0 rounded-full bg-primary-900 px-2.5 py-1 text-xs font-semibold text-white group-hover:bg-primary-700">
-                        <AlarmClock className="w-3.5 h-3.5" />
-                        去點名
-                      </span>
-                    )}
-                    {state === "upcoming" && (
-                      <span className="ml-auto flex items-center gap-1 shrink-0 text-xs font-medium text-neutral-500">
-                        <Clock className="w-3.5 h-3.5" />
-                        未開始
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </button>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2.5">
+                      <DanceStyleDot style={p.danceStyle} />
+                      <span className="truncate text-[15px] font-medium text-ink">{p.lessonName}</span>
+                    </span>
+                    <span className="block truncate text-[13px] tabular-nums text-ink-3">{meta}</span>
+                  </span>
+                  <span className="shrink-0">
+                    <StateText p={p} state={state} />
+                  </span>
+                  <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-3" />
+                </Link>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
-    </div>
+    </section>
   );
 };
 

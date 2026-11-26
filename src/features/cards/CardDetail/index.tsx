@@ -15,7 +15,7 @@ const CardDetail = ({ detail }: { detail: CardDetailType }) => {
   const [form, setForm] = useState<"edit" | "duplicate" | null>(null);
 
   return (
-    <div className="w-full px-5 py-5">
+    <div className="w-full px-5 pt-3 pb-10">
       <CardDetailBody
         detail={detail}
         onEdit={() => setForm("edit")}

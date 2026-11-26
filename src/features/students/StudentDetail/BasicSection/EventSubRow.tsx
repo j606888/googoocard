@@ -9,7 +9,7 @@ import { presentEvent } from "./EventTimeline.helpers";
 const EventSubRow = ({ event }: { event: EventType }) => {
   const { title, description } = presentEvent(event);
   return (
-    <div className="flex items-center gap-2 pl-11 -mt-1 pb-2 text-xs text-neutral-500">
+    <div className="flex items-center gap-2 pl-11 -mt-1 pb-2 text-[13px] text-ink-3">
       <SquareDashed className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
       <p className="m-0 truncate">
         {title}

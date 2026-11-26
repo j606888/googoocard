@@ -71,7 +71,7 @@ export default function InviteDrawer({
       >
         <RolePicker legend="他加入後是什麼角色？" value={role} onChange={setRole} />
         {person ? (
-          <p className="text-xs leading-relaxed text-neutral-500">
+          <p className="text-xs leading-relaxed text-ink-3">
             連結只能用一次，傳給 {person.name} 本人。他加入後帳號就連到老師 {person.name}，
             他教的、協助的課都會變成「我的課」。
           </p>
@@ -87,7 +87,7 @@ export default function InviteDrawer({
               value={maxUses}
               onChange={(e) => setMaxUses(Number(e.target.value))}
             />
-            <p className="text-xs leading-relaxed text-neutral-500">
+            <p className="text-xs leading-relaxed text-ink-3">
               要邀請老師頁上已經有的老師，請從他的卡片按「邀請」，加入後就會自動連到那位老師。
               用這條連結加入的人，之後也可以在團隊頁「連到老師」。
             </p>

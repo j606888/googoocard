@@ -37,7 +37,7 @@ const LineBindQrButton = ({
             type="button"
             variant="ghost"
             size="iconSm"
-            className="absolute -right-2 -top-1.5 text-neutral-500"
+            className="absolute -right-2 -top-1.5 text-ink-3"
             onClick={() => setOpen(false)}
             aria-label="關閉"
           >
@@ -46,7 +46,7 @@ const LineBindQrButton = ({
         </div>
         <div className="flex flex-col items-center gap-4 pb-4">
           <QRCodeSVG value={deepLink} size={240} marginSize={2} />
-          <p className="text-sm text-neutral-600 text-center leading-relaxed">
+          <p className="text-sm text-ink-2 text-center leading-relaxed">
             請學生用 LINE 掃描，打開聊天室後按「傳送」就完成綁定。
           </p>
         </div>

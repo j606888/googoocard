@@ -3,7 +3,7 @@ import type { DanceStyleSummary } from '@/lib/danceStyles';
 import type { LocationSummary } from '@/lib/locations';
 import type { MonthSummary, PeriodState } from '@/lib/teacherStats';
 import type { LessonKind } from '@/lib/lessonKind';
-import type { TeacherColor, TeacherIcon, TeacherKind } from '@/lib/teachers';
+import type { TeacherColor, TeacherKind } from '@/lib/teachers';
 
 /** What lessons embed about their teachers. */
 export interface TeacherSummary {
@@ -14,8 +14,6 @@ export interface TeacherSummary {
 
 /** The teacher's own fields, as every teacher endpoint returns them. */
 export interface TeacherProfile extends TeacherSummary {
-  /** Emoji shown on the avatar instead of the initial. */
-  icon: string | null;
   /** 這位老師上課的分部（純標示）。 */
   locations: LocationSummary[];
   note: string | null;
@@ -37,10 +35,10 @@ export interface TeacherOverviewRow extends TeacherProfile {
   /** 連到的帳號（團隊成員），沒帳號是 null。 */
   userId: number | null;
   lessonCount: number;
-  /** In-progress lessons this teacher teaches; `firstStart` = the first period (for「週四 20:30」). */
-  activeLessons: { id: number; name: string; danceStyle: DanceStyleSummary; firstStart: string | null }[];
+  /** In-progress lessons this teacher teaches. */
+  activeLessons: OverviewLesson[];
   /** In-progress lessons this person assists (課程小幫手) — never counted as teaching. */
-  assistedLessons: (AssistedLesson & { firstStart: string | null })[];
+  assistedLessons: OverviewLesson[];
   /** The period under way (`ongoing`) or the next one; null when nothing is scheduled. */
   nextPeriod: {
     startTime: string;
@@ -51,12 +49,15 @@ export interface TeacherOverviewRow extends TeacherProfile {
   } | null;
 }
 
-/** A lesson someone is 小幫手 of — listed under「協助」, outside every stat. */
-export interface AssistedLesson {
+/** One lesson on a list row. */
+export interface OverviewLesson {
   id: number;
   name: string;
   status: string;
   danceStyle: DanceStyleSummary;
+  location: LocationSummary | null;
+  /** The lesson's current slot (for「週四 20:30」): its next period, else its latest one. */
+  slotStart: string | null;
 }
 
 export interface TeachersOverview {
@@ -72,6 +73,7 @@ export interface TeacherLessonRow {
   kind: LessonKind;
   level: number;
   danceStyle: DanceStyleSummary;
+  location: LocationSummary | null;
   totalPeriods: number;
   taughtCount: number;
   avgAttendance: number | null;
@@ -89,8 +91,8 @@ export interface TeacherDetail {
   previousMonthAttendance: number;
   trend: { month: string; sessions: number; attendance: number }[];
   lessons: TeacherLessonRow[];
-  /** Every lesson this person assists, any status — not part of `stats`／`trend`／`lessons`. */
-  assistedLessons: AssistedLesson[];
+  /** Every lesson this person assists, any status, same shape — not part of `stats`／`trend`. */
+  assistedLessons: TeacherLessonRow[];
   periods: {
     id: number;
     startTime: string;
@@ -106,8 +108,6 @@ export interface TeacherDetail {
 export interface TeacherFields {
   name?: string;
   color?: TeacherColor;
-  /** null = back to the initial. */
-  icon?: TeacherIcon | null;
   /** Replaces the whole list. */
   locationIds?: number[];
   /** Blank clears it. */

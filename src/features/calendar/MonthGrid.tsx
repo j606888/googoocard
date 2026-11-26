@@ -27,21 +27,19 @@ const MonthGrid = ({
 
   return (
     <div
-      className={`lg:min-w-0 lg:rounded-2xl lg:border lg:border-neutral-200 lg:overflow-hidden ${
-        loading ? "opacity-60 transition-opacity" : ""
-      }`}
+      className={`border-b border-line lg:min-w-0 ${loading ? "opacity-60 transition-opacity" : ""}`}
     >
-      <div className="grid grid-cols-7 mb-1 lg:mb-0 lg:bg-neutral-50 lg:border-b lg:border-neutral-200">
+      <div className="grid grid-cols-7 border-b border-line">
         {WEEKDAYS.map((d) => (
           <div
             key={d}
-            className="text-center text-xs font-medium text-neutral-500 py-1 lg:text-left lg:px-3 lg:py-2.5 lg:text-neutral-500"
+            className="py-1.5 text-center text-xs font-medium text-ink-3 lg:px-2 lg:py-2 lg:text-left lg:text-[13px]"
           >
             {d}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-0.5 lg:gap-0">
+      <div className="grid grid-cols-7 [&>*:nth-child(n+8)]:border-t [&>*]:border-line">
         {days.map((day) => (
           <DayCell
             key={day.toISOString()}

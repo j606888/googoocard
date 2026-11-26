@@ -39,11 +39,11 @@ export const WeeklyHeatGrid = ({ attendances, now = new Date() }: { attendances:
           />
         ))}
       </div>
-      <div className="flex justify-between text-[11px] text-neutral-500">
+      <div className="flex justify-between text-[13px] text-ink-3">
         <span>{format(firstWeek, "M 月")}</span>
         <span>本週</span>
       </div>
-      <p className="m-0 text-xs text-neutral-600">
+      <p className="m-0 text-[13px] text-ink-2">
         {average ? `${average}。` : `近 ${INSIGHT_WEEKS} 週沒有出席。`}
         {average && gap !== null && gap >= 14 && `最久 ${gap} 天沒來。`}
       </p>
@@ -61,9 +61,9 @@ export const StyleBars = ({ attendances }: { attendances: StudentAttendance[] })
       {counts.map(({ style, count }) => (
         <li key={style?.id ?? "none"} className="grid grid-cols-[minmax(64px,auto)_1fr_32px] gap-2 items-center">
           <span className="justify-self-start">
-            {style ? <DanceBadge style={style} variant="full" /> : <span className="text-xs text-neutral-500">未分類</span>}
+            {style ? <DanceBadge style={style} variant="full" /> : <span className="text-[13px] text-ink-3">未分類</span>}
           </span>
-          <span className="block h-2 rounded-full bg-neutral-100 overflow-hidden">
+          <span className="block h-2 rounded-full bg-band overflow-hidden">
             <span
               className={`block h-full rounded-full ${style ? "" : "bg-neutral-400"}`}
               style={{
@@ -72,7 +72,7 @@ export const StyleBars = ({ attendances }: { attendances: StudentAttendance[] })
               }}
             />
           </span>
-          <span className="text-right tabular-nums text-neutral-700">{count}</span>
+          <span className="text-right tabular-nums text-ink-2">{count}</span>
         </li>
       ))}
     </ul>

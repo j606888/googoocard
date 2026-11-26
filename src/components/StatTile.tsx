@@ -19,12 +19,12 @@ const StatTile = ({
   <div
     className={cn(
       "min-w-0 rounded-2xl px-3 py-2.5",
-      tone === "onPrimary" ? "bg-white/15 text-white" : "border border-neutral-200 bg-white text-neutral-900",
+      tone === "onPrimary" ? "bg-white/15 text-white" : "border border-line bg-white text-ink",
       className
     )}
   >
     <dd className="truncate text-xl font-bold tabular-nums">{value}</dd>
-    <dt className={cn("truncate text-xs", tone === "onPrimary" ? "text-primary-100" : "text-neutral-600")}>
+    <dt className={cn("truncate text-xs", tone === "onPrimary" ? "text-primary-100" : "text-ink-2")}>
       {label}
     </dt>
   </div>

@@ -7,6 +7,7 @@ import {
   createCard,
   createLesson,
   createStudentCard,
+  createLocation,
 } from "../factories";
 
 const auth = vi.hoisted(() => ({ userId: 1, classroomId: 0 }));
@@ -22,10 +23,12 @@ async function createTakenPeriod(
   classroomId: number,
   {
     lessonName = "Lesson",
+    locationId = null,
     startTime,
     records,
   }: {
     lessonName?: string;
+    locationId?: number | null;
     startTime: string;
     records: Array<{
       studentName: string;
@@ -33,7 +36,7 @@ async function createTakenPeriod(
     }>;
   }
 ) {
-  const { lesson } = await createLesson(classroomId, { name: lessonName });
+  const { lesson } = await createLesson(classroomId, { name: lessonName, locationId });
   const period = await prisma.lessonPeriod.create({
     data: {
       lessonId: lesson.id,
@@ -61,11 +64,14 @@ async function createTakenPeriod(
   return period;
 }
 
-function getRequest(date?: string) {
-  const url = date
-    ? `http://test.local/api/income/daily-summary?date=${date}`
-    : "http://test.local/api/income/daily-summary";
-  return new Request(url, { method: "GET" });
+function getRequest(date?: string, locationId?: number | string) {
+  const params = new URLSearchParams();
+  if (date) params.set("date", date);
+  if (locationId !== undefined) params.set("locationId", String(locationId));
+  const query = params.toString();
+  return new Request(`http://test.local/api/income/daily-summary${query ? `?${query}` : ""}`, {
+    method: "GET",
+  });
 }
 
 describe("GET /api/income/daily-summary", () => {
@@ -197,5 +203,122 @@ describe("GET /api/income/daily-summary", () => {
     const body = await res.json();
     expect(body.periods).toHaveLength(1);
     expect(body.totalRevenue).toBe(500);
+  });
+
+  describe("分部", () => {
+    let tainanId: number;
+    let kaohsiungId: number;
+
+    // 6/1：台南 500、高雄 1000、未指定分部 250。6/10：只有台南。
+    beforeEach(async () => {
+      tainanId = (await createLocation(classroomId, { name: "台南" })).id;
+      kaohsiungId = (await createLocation(classroomId, { name: "高雄", sortOrder: 1 })).id;
+      await createTakenPeriod(classroomId, {
+        lessonName: "台南課",
+        locationId: tainanId,
+        startTime: "2026-06-01T02:00:00Z",
+        records: [{ studentName: "A", card: { finalPrice: 3000, totalSessions: 6 } }],
+      });
+      await createTakenPeriod(classroomId, {
+        lessonName: "高雄課",
+        locationId: kaohsiungId,
+        startTime: "2026-06-01T03:00:00Z",
+        records: [{ studentName: "B", card: { finalPrice: 6000, totalSessions: 6 } }],
+      });
+      await createTakenPeriod(classroomId, {
+        lessonName: "沒分部的課",
+        startTime: "2026-06-01T04:00:00Z",
+        records: [{ studentName: "C", card: { finalPrice: 1500, totalSessions: 6 } }],
+      });
+      await createTakenPeriod(classroomId, {
+        lessonName: "台南課 6/10",
+        locationId: tainanId,
+        startTime: "2026-06-10T02:00:00Z",
+        records: [{ studentName: "D", card: { finalPrice: 3000, totalSessions: 6 } }],
+      });
+    });
+
+    it("每個時段帶出 location（只有 id、name；沒指定是 null）", async () => {
+      const body = await (await GET(getRequest("2026-06-01"))).json();
+      expect(body.totalRevenue).toBe(1750);
+      expect(body.periods.map((p: { location: unknown }) => p.location)).toEqual([
+        { id: tainanId, name: "台南" },
+        { id: kaohsiungId, name: "高雄" },
+        null,
+      ]);
+    });
+
+    it("回應不夾帶整列 lesson／student", async () => {
+      const body = await (await GET(getRequest("2026-06-01"))).json();
+      expect(Object.keys(body.periods[0]).sort()).toEqual(
+        [
+          "attendanceCount",
+          "lessonId",
+          "lessonName",
+          "location",
+          "pendingStudents",
+          "periodId",
+          "revenue",
+          "sessionsPerAttendance",
+          "termEnrolledCount",
+          "termRevenue",
+        ].sort()
+      );
+    });
+
+    it("?locationId=<id> → 只有那個分部的時段", async () => {
+      const body = await (await GET(getRequest("2026-06-01", kaohsiungId))).json();
+      expect(body.periods).toHaveLength(1);
+      expect(body.periods[0].lessonName).toBe("高雄課");
+      expect(body.totalRevenue).toBe(1000);
+    });
+
+    it("?locationId=none → 只有沒指定分部的時段", async () => {
+      const body = await (await GET(getRequest("2026-06-01", "none"))).json();
+      expect(body.periods).toHaveLength(1);
+      expect(body.periods[0].lessonName).toBe("沒分部的課");
+      expect(body.totalRevenue).toBe(250);
+    });
+
+    it("無 date ＋ locationId → 預設日期是那個分部最近一次已點名的日子", async () => {
+      const body = await (await GET(getRequest(undefined, kaohsiungId))).json();
+      expect(body.selectedDate).toBe("2026-06-01");
+      expect(body.periods.map((p: { lessonName: string }) => p.lessonName)).toEqual(["高雄課"]);
+    });
+
+    it("locationId 格式不對 → 400", async () => {
+      for (const bad of ["abc", "0", "-3", "2.5", "99999999999"]) {
+        const res = await GET(getRequest("2026-06-01", bad));
+        expect(res.status).toBe(400);
+      }
+    });
+
+    it("跨教室隔離：帶別間教室的分部 id 拿不到任何時段", async () => {
+      const otherUser = await prisma.user.create({
+        data: { email: "other-loc@test.local", name: "Other", password: "x" },
+      });
+      const otherClassroom = await prisma.classroom.create({
+        data: { ownerId: otherUser.id, name: "Other Classroom" },
+      });
+      const otherLocation = await createLocation(otherClassroom.id, { name: "台北" });
+      await createTakenPeriod(otherClassroom.id, {
+        lessonName: "別人的課",
+        locationId: otherLocation.id,
+        startTime: "2026-06-01T02:00:00Z",
+        records: [{ studentName: "別人", card: { finalPrice: 9000, totalSessions: 6 } }],
+      });
+      await createTakenPeriod(otherClassroom.id, {
+        lessonName: "別人沒分部的課",
+        startTime: "2026-06-01T02:00:00Z",
+        records: [{ studentName: "別人2", card: { finalPrice: 9000, totalSessions: 6 } }],
+      });
+
+      const filtered = await (await GET(getRequest("2026-06-01", otherLocation.id))).json();
+      expect(filtered.periods).toEqual([]);
+      expect(filtered.totalRevenue).toBe(0);
+
+      const none = await (await GET(getRequest("2026-06-01", "none"))).json();
+      expect(none.periods.map((p: { lessonName: string }) => p.lessonName)).toEqual(["沒分部的課"]);
+    });
   });
 });

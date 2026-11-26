@@ -19,7 +19,7 @@ export default function RolePicker({
 }) {
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="mb-1.5 text-sm font-medium text-neutral-900">{legend}</legend>
+      <legend className="mb-1.5 text-sm font-medium text-ink">{legend}</legend>
       {ASSIGNABLE_ROLES.map((role) => {
         const checked = role === value;
         return (
@@ -27,7 +27,7 @@ export default function RolePicker({
             key={role}
             className={cn(
               "flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3.5",
-              checked ? "border-primary-900 bg-primary-50 ring-1 ring-primary-900" : "border-neutral-200"
+              checked ? "border-primary-900 bg-primary-50 ring-1 ring-primary-900" : "border-line"
             )}
           >
             <input
@@ -39,8 +39,8 @@ export default function RolePicker({
               className="mt-0.5 size-5 shrink-0 accent-primary-900"
             />
             <span className="flex flex-col gap-0.5">
-              <span className="text-[15px] font-bold text-neutral-900">{ROLE_LABELS[role]}</span>
-              <span className="text-[13px] leading-relaxed text-neutral-500">{ROLE_DESCRIPTIONS[role]}</span>
+              <span className="text-[15px] font-bold text-ink">{ROLE_LABELS[role]}</span>
+              <span className="text-[13px] leading-relaxed text-ink-3">{ROLE_DESCRIPTIONS[role]}</span>
             </span>
           </label>
         );

@@ -22,8 +22,10 @@ export interface Student {
   classroom: Classroom;
   studentCards: StudentCardWithCard[];
   tags: StudentTag[];
-  isInActiveLesson: boolean;
-  activeLessonIds: number[];
+  /**
+   * 這位學生「在上」的進行中課程：近 63 天有出席那堂課、或報名了整期。只有名單 API 會帶。
+   */
+  recentLessonIds?: number[];
   /** 有資格的舞種 id。 */
   danceQualifications: number[];
   /** 各舞種（以 danceStyleId 為 key）已完成階級（1=初階）；見 src/domains/qualification。 */
@@ -273,18 +275,15 @@ const studentsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     getStudents: builder.query<
       Student[],
-      { query?: string; needsRenewal?: boolean; sort?: "name" | "number"; archived?: boolean } | void
+      { query?: string; sort?: "name" | "number"; archived?: boolean } | void
     >({
-      query: ({ query, needsRenewal, sort, archived } = {}) => {
+      query: ({ query, sort, archived } = {}) => {
         const searchParams = new URLSearchParams();
         if (archived) {
           searchParams.set("archived", "1");
         }
         if (query) {
           searchParams.set("query", query);
-        }
-        if (needsRenewal) {
-          searchParams.set("needsRenewal", "true");
         }
         if (sort) {
           searchParams.set("sort", sort);

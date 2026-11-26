@@ -14,7 +14,18 @@ import { useLocations } from "@/hooks/useLocations";
 import { useGetCardsQuery } from "@/store/slices/cards";
 import { useGetLessonGroupsQuery, type LessonGroup } from "@/store/slices/lessonGroups";
 import { useGetTeachersQuery } from "@/store/slices/teachers";
-import { ActionRow, CheckRow, GROUP_CARD, GroupedRow, GroupedSection, InlineInput, SegmentedControl, TRACK_BG } from "./grouped";
+import {
+  ActionRow,
+  CheckRow,
+  GROUP_CARD,
+  GroupedRow,
+  GroupedSection,
+  InlineInput,
+  SectionAction,
+  SegmentedControl,
+  TRACK_BG,
+  useRowPad,
+} from "./grouped";
 import type { SeriesChoice } from "./SeriesPicker";
 
 /**
@@ -342,19 +353,60 @@ export const DanceStyleGroup = ({
   );
 };
 
+/**
+ * `selectedOnly`（課卡／老師／小幫手共用）：平常只列出已經勾的，標題旁按「更改」才展開全部可選的，
+ * 按「完成」收回去。課程頁「設定」分頁用；新增課程精靈不開（要挑的時候本來就該全部攤開）。
+ */
+const useSelectedOnly = (selectedOnly: boolean, hasSelection: boolean, addLabel: string) => {
+  const [expanded, setExpanded] = useState(false);
+  return {
+    listOpen: !selectedOnly || expanded,
+    action: selectedOnly ? (
+      <SectionAction expanded={expanded} onClick={() => setExpanded(!expanded)}>
+        {expanded ? "完成" : hasSelection ? "更改" : addLabel}
+      </SectionAction>
+    ) : undefined,
+  };
+};
+
+/** 收起來時的一列：只是顯示，不能點。 */
+const SelectedRow = ({
+  leading,
+  hint,
+  muted,
+  children,
+}: {
+  leading?: React.ReactNode;
+  hint?: string;
+  muted?: boolean;
+  children: React.ReactNode;
+}) => {
+  const pad = useRowPad();
+  return (
+    <div className={cn("flex min-h-12 items-center gap-3 py-1.5", pad)}>
+      {leading}
+      <span className={cn("min-w-0 flex-1 truncate text-[15px]", muted ? "text-ink-3" : "text-ink")}>{children}</span>
+      {hint && <span className="shrink-0 text-[13px] text-ink-3">{hint}</span>}
+    </div>
+  );
+};
+
 export const CardGroup = ({
   selectedCardIds,
   onChange,
   danceStyleId,
   error,
+  selectedOnly = false,
 }: {
   selectedCardIds: number[];
   onChange: (ids: number[]) => void;
   danceStyleId: number | null;
   error?: string;
+  selectedOnly?: boolean;
 }) => {
-  const { data: cards } = useGetCardsQuery();
+  const { data: cards, isLoading } = useGetCardsQuery();
   const [creating, setCreating] = useState(false);
+  const { listOpen, action } = useSelectedOnly(selectedOnly, selectedCardIds.length > 0, "＋ 加課卡");
   // 跟 CardSelect 一樣：在售的卡＋學生手上還有的停用卡＋已選的；別的舞種的複習卡不列。
   const candidates = [
     ...(cards?.activeCards ?? []),
@@ -381,18 +433,32 @@ export const CardGroup = ({
     onChange(selectedCardIds.includes(id) ? selectedCardIds.filter((x) => x !== id) : [...selectedCardIds, id]);
 
   return (
-    <GroupedSection title="收哪些課卡" error={error} footer="可以複選。開放單堂付費的課可以不收課卡。">
-      {candidates.map((card) => (
-        <CheckRow
-          key={card.id}
-          checked={selectedCardIds.includes(card.id)}
-          onToggle={() => toggle(card.id)}
-          hint={card.expiredAt ? "已停用" : undefined}
-        >
-          {card.name}
-        </CheckRow>
-      ))}
-      <ActionRow onClick={() => setCreating(true)}>＋ 新增課卡</ActionRow>
+    <GroupedSection
+      title="收哪些課卡"
+      error={error}
+      footer="可以複選。開放單堂付費的課可以不收課卡。"
+      action={action}
+    >
+      {listOpen
+        ? candidates.map((card) => (
+            <CheckRow
+              key={card.id}
+              checked={selectedCardIds.includes(card.id)}
+              onToggle={() => toggle(card.id)}
+              hint={card.expiredAt ? "已停用" : undefined}
+            >
+              {card.name}
+            </CheckRow>
+          ))
+        : candidates
+            .filter((card) => selectedCardIds.includes(card.id))
+            .map((card) => (
+              <SelectedRow key={card.id} hint={card.expiredAt ? "已停用" : undefined}>
+                {card.name}
+              </SelectedRow>
+            ))}
+      {!listOpen && !isLoading && selectedCardIds.length === 0 && <SelectedRow muted>不收課卡</SelectedRow>}
+      {listOpen && <ActionRow onClick={() => setCreating(true)}>＋ 新增課卡</ActionRow>}
       {creating && (
         <CardFormDrawer
           target={{ mode: "new", danceStyleId }}
@@ -437,31 +503,46 @@ export const TeacherGroup = ({
   selectedTeacherIds,
   onChange,
   error,
+  selectedOnly = false,
 }: {
   selectedTeacherIds: number[];
   onChange: (ids: number[]) => void;
   error?: string;
+  selectedOnly?: boolean;
 }) => {
-  const { data: teachers = [] } = useGetTeachersQuery();
+  const { data: teachers = [], isLoading } = useGetTeachersQuery();
   const [formKey, setFormKey] = useState<number | null>(null);
+  const { listOpen, action } = useSelectedOnly(selectedOnly, selectedTeacherIds.length > 0, "＋ 加老師");
   const options = teachers.filter(
     (t) => (!t.archivedAt && canTeach(t.kind)) || selectedTeacherIds.includes(t.id)
   );
   const toggle = (id: number) =>
     onChange(selectedTeacherIds.includes(id) ? selectedTeacherIds.filter((x) => x !== id) : [...selectedTeacherIds, id]);
   return (
-    <GroupedSection title="老師" error={error} footer="可以複選。">
-      {options.map((teacher) => (
-        <CheckRow
-          key={teacher.id}
-          checked={selectedTeacherIds.includes(teacher.id)}
-          onToggle={() => toggle(teacher.id)}
-          leading={<TeacherAvatar name={teacher.name} color={teacher.color} icon={teacher.icon} size="sm" />}
-        >
-          {teacher.name}
-        </CheckRow>
-      ))}
-      <ActionRow onClick={() => setFormKey(Date.now())}>＋ 新增老師</ActionRow>
+    <GroupedSection title="老師" error={error} footer={selectedOnly ? undefined : "可以複選。"} action={action}>
+      {listOpen
+        ? options.map((teacher) => (
+            <CheckRow
+              key={teacher.id}
+              checked={selectedTeacherIds.includes(teacher.id)}
+              onToggle={() => toggle(teacher.id)}
+              leading={<TeacherAvatar name={teacher.name} color={teacher.color} size="sm" />}
+            >
+              {teacher.name}
+            </CheckRow>
+          ))
+        : options
+            .filter((teacher) => selectedTeacherIds.includes(teacher.id))
+            .map((teacher) => (
+              <SelectedRow
+                key={teacher.id}
+                leading={<TeacherAvatar name={teacher.name} color={teacher.color} size="sm" />}
+              >
+                {teacher.name}
+              </SelectedRow>
+            ))}
+      {!listOpen && !isLoading && selectedTeacherIds.length === 0 && <SelectedRow muted>還沒選老師</SelectedRow>}
+      {listOpen && <ActionRow onClick={() => setFormKey(Date.now())}>＋ 新增老師</ActionRow>}
       {formKey !== null && (
         <TeacherForm
           key={formKey}
@@ -478,12 +559,15 @@ export const AssistantGroup = ({
   selectedAssistantIds,
   teacherIds,
   onChange,
+  selectedOnly = false,
 }: {
   selectedAssistantIds: number[];
   teacherIds: number[];
   onChange: (ids: number[]) => void;
+  selectedOnly?: boolean;
 }) => {
   const { data: teachers = [] } = useGetTeachersQuery();
+  const { listOpen, action } = useSelectedOnly(selectedOnly, selectedAssistantIds.length > 0, "＋ 加小幫手");
   const options = assistantsFirst(teachers).filter(
     (t) => !teacherIds.includes(t.id) && (!t.archivedAt || selectedAssistantIds.includes(t.id))
   );
@@ -493,17 +577,29 @@ export const AssistantGroup = ({
       selectedAssistantIds.includes(id) ? selectedAssistantIds.filter((x) => x !== id) : [...selectedAssistantIds, id]
     );
   return (
-    <GroupedSection title="小幫手（選填）">
-      {options.map((teacher) => (
-        <CheckRow
-          key={teacher.id}
-          checked={selectedAssistantIds.includes(teacher.id)}
-          onToggle={() => toggle(teacher.id)}
-          leading={<TeacherAvatar name={teacher.name} color={teacher.color} icon={teacher.icon} size="sm" />}
-        >
-          {teacher.name}
-        </CheckRow>
-      ))}
+    <GroupedSection title="小幫手（選填）" action={action}>
+      {listOpen
+        ? options.map((teacher) => (
+            <CheckRow
+              key={teacher.id}
+              checked={selectedAssistantIds.includes(teacher.id)}
+              onToggle={() => toggle(teacher.id)}
+              leading={<TeacherAvatar name={teacher.name} color={teacher.color} size="sm" />}
+            >
+              {teacher.name}
+            </CheckRow>
+          ))
+        : options
+            .filter((teacher) => selectedAssistantIds.includes(teacher.id))
+            .map((teacher) => (
+              <SelectedRow
+                key={teacher.id}
+                leading={<TeacherAvatar name={teacher.name} color={teacher.color} size="sm" />}
+              >
+                {teacher.name}
+              </SelectedRow>
+            ))}
+      {!listOpen && selectedAssistantIds.length === 0 && <SelectedRow muted>沒有小幫手</SelectedRow>}
     </GroupedSection>
   );
 };

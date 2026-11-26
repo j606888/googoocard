@@ -3,7 +3,7 @@ import { PaymentMethod, TodoType } from "@prisma/client";
 import { ABBREVIATION_MAX, isDanceStyleColor } from "@/lib/danceStyles";
 import { isExpoPushToken } from "@/lib/expoPush";
 import { ASSIGNABLE_ROLES } from "@/lib/roles";
-import { TEACHER_COLORS, TEACHER_ICONS, TEACHER_KINDS } from "@/lib/teachers";
+import { TEACHER_COLORS, TEACHER_KINDS } from "@/lib/teachers";
 
 /**
  * Request schemas for the routes with money or card-balance semantics.
@@ -292,14 +292,13 @@ const teacherNote = z
   .transform((note) => note || null);
 
 const teacherColor = z.enum(TEACHER_COLORS);
-/** `null` goes back to the initial. */
-const teacherIcon = z.enum(TEACHER_ICONS).nullable();
+// No `icon`: the avatar icon was removed (2026-11-26). Old clients may still send one —
+// these objects are non-strict, so it is dropped rather than rejected.
 
 export const createTeacherSchema = z.object({
   name: teacherName,
   /** Omitted: the first palette colour no active teacher uses. */
   color: teacherColor.optional(),
-  icon: teacherIcon.optional(),
   /** 這位老師上課的分部；整份取代。 */
   locationIds: z.array(positiveInt).max(50).optional(),
   note: teacherNote.nullish(),
@@ -309,7 +308,6 @@ export const createTeacherSchema = z.object({
 export const updateTeacherSchema = z.object({
   name: teacherName.optional(),
   color: teacherColor.optional(),
-  icon: teacherIcon.optional(),
   /** 這位老師上課的分部；整份取代。 */
   locationIds: z.array(positiveInt).max(50).optional(),
   note: teacherNote.nullish(),

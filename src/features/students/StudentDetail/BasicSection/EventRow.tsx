@@ -11,10 +11,10 @@ const EventRow = ({ event }: { event: EventType }) => {
         <Icon className="w-4 h-4" />
       </span>
       <span className="min-w-0">
-        <span className="block text-sm font-semibold text-neutral-900">{title}</span>
-        {description && <span className="block text-[13px] text-neutral-600 mt-0.5">{description}</span>}
+        <span className="block text-[15px] font-medium text-ink">{title}</span>
+        {description && <span className="block text-[13px] text-ink-3 mt-0.5">{description}</span>}
       </span>
-      <time className="text-xs text-neutral-500 whitespace-nowrap pt-0.5 tabular-nums">
+      <time className="text-[13px] text-ink-3 whitespace-nowrap pt-0.5 tabular-nums">
         {formatDate(event.createdAt, "HH:mm")}
       </time>
     </div>

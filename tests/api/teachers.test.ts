@@ -86,7 +86,6 @@ describe("/api/teachers", () => {
         "activeLessonCount",
         "archivedAt",
         "color",
-        "icon",
         "id",
         "kind",
         "lessonCount",
@@ -109,8 +108,9 @@ describe("/api/teachers", () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    // orange is free again: its teacher is archived.
-    expect(body).toMatchObject({ name: "Nini", color: "orange", note: null, archivedAt: null });
+    // Next in the order after blue. Orange (free: its teacher is archived) is never handed out
+    // any more — it reads as 警告.
+    expect(body).toMatchObject({ name: "Nini", color: "purple", note: null, archivedAt: null });
     const row = await prisma.teacher.findUniqueOrThrow({ where: { id: body.id } });
     expect(row.classroomId).toBe(classroomId);
   });
@@ -142,7 +142,7 @@ describe("/api/teachers", () => {
     expect((await res.json()).archivedAt).toBeNull();
   });
 
-  it("POST / PATCH take a line icon, a cool colour and the branches", async () => {
+  it("POST / PATCH take a cool colour and the branches", async () => {
     const tainan = await createLocation(classroomId, { name: "台南", sortOrder: 0 });
     const kaohsiung = await createLocation(classroomId, { name: "高雄", sortOrder: 1 });
 
@@ -150,7 +150,6 @@ describe("/api/teachers", () => {
       jsonRequest("POST", {
         name: "Sean",
         color: "sky",
-        icon: "star",
         locationIds: [kaohsiung.id, tainan.id],
       }),
       routeParams({})
@@ -159,7 +158,6 @@ describe("/api/teachers", () => {
     expect(res.status).toBe(200);
     expect(created).toMatchObject({
       color: "sky",
-      icon: "star",
       locations: [
         { id: tainan.id, name: "台南" },
         { id: kaohsiung.id, name: "高雄" },
@@ -167,27 +165,50 @@ describe("/api/teachers", () => {
     });
     const id = String(created.id);
 
-    // The list replaces; a null icon goes back to the initial.
-    res = await PATCH(
-      jsonRequest("PATCH", { icon: null, locationIds: [kaohsiung.id] }),
-      routeParams({ id })
-    );
-    expect(await res.json()).toMatchObject({ icon: null, locations: [{ id: kaohsiung.id }] });
+    // The list replaces.
+    res = await PATCH(jsonRequest("PATCH", { locationIds: [kaohsiung.id] }), routeParams({ id }));
+    expect(await res.json()).toMatchObject({ locations: [{ id: kaohsiung.id }] });
 
     // Fields left out stay as they are.
     res = await PATCH(jsonRequest("PATCH", { name: "Sean W" }), routeParams({ id }));
     expect(await res.json()).toMatchObject({ name: "Sean W", locations: [{ id: kaohsiung.id }] });
   });
 
-  it("rejects an icon outside the list and another classroom's branch", async () => {
+  it("icon is ignored: old clients that still send one get no 400, nothing is stored or returned", async () => {
+    // The avatar icon was removed (2026-11-26); the column stays, unused.
+    let res = await POST(jsonRequest("POST", { name: "Nini", icon: "star" }), routeParams({}));
+    const created = await res.json();
+    expect(res.status).toBe(200);
+    expect(created).not.toHaveProperty("icon");
+    expect((await prisma.teacher.findUniqueOrThrow({ where: { id: created.id } })).icon).toBeNull();
+
+    // A teacher who had one keeps the stored value untouched; it never comes back out.
+    await prisma.teacher.update({ where: { id: created.id }, data: { icon: "cat" } });
+    for (const icon of ["paw", "🦊", null]) {
+      res = await PATCH(jsonRequest("PATCH", { name: "Nini W", icon }), routeParams({ id: String(created.id) }));
+      expect(res.status).toBe(200);
+      expect(await res.json()).not.toHaveProperty("icon");
+    }
+    expect((await prisma.teacher.findUniqueOrThrow({ where: { id: created.id } })).icon).toBe("cat");
+  });
+
+  it("an old orange / red teacher stays valid and can still be saved with that colour", async () => {
+    const old = await createTeacher(classroomId, "Old", { color: "orange" });
+    const res = await PATCH(
+      jsonRequest("PATCH", { name: "Old W", color: "orange" }),
+      routeParams({ id: String(old.id) })
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ name: "Old W", color: "orange" });
+    expect((await POST(jsonRequest("POST", { name: "Red", color: "red" }), routeParams({}))).status).toBe(200);
+  });
+
+  it("rejects another classroom's branch", async () => {
     const other = await createClassroom({ name: "Other", email: "other@test.local" });
     const theirs = await createLocation(other.id, { name: "台北" });
     const sean = await createTeacher(classroomId, "Sean");
     const id = String(sean.id);
 
-    expect((await POST(jsonRequest("POST", { name: "Nini", icon: "x" }), routeParams({}))).status).toBe(400);
-    // 舊的 emoji 已經不在清單上（2026-11 換成線條圖示）。
-    expect((await POST(jsonRequest("POST", { name: "Nini", icon: "⭐" }), routeParams({}))).status).toBe(400);
     const res = await POST(
       jsonRequest("POST", { name: "Nini", locationIds: [theirs.id] }),
       routeParams({})
@@ -246,7 +267,7 @@ describe("GET /api/teachers/overview", () => {
     const idle = await createTeacher(classroomId, "Idle");
     await prisma.teacher.update({
       where: { id: kathy.id },
-      data: { icon: "🦊", locations: { connect: { id: tainan.id } } },
+      data: { locations: { connect: { id: tainan.id } } },
     });
 
     const { lesson: bachata } = await createLesson(classroomId, { name: "Bachata 初階" });
@@ -287,9 +308,18 @@ describe("GET /api/teachers/overview", () => {
       "Salsa 練習夜",
     ]);
     expect(seanRow.activeLessons[1].danceStyle).toMatchObject({ name: "Salsa", color: "orange" });
+    // The slot is the lesson's next period, not its first ever (2026-06-04, long past).
+    expect(seanRow.activeLessons[0]).toMatchObject({
+      slotStart: "2099-02-01T12:00:00.000Z",
+      location: null,
+    });
+    expect(Object.keys(seanRow.activeLessons[0]).sort()).toEqual(
+      ["danceStyle", "id", "location", "name", "slotStart", "status"].sort()
+    );
     expect(seanRow.nextPeriod).toMatchObject({ lessonName: "Salsa 練習夜", ongoing: true });
 
-    expect(kathyRow).toMatchObject({ icon: "🦊", locations: [{ id: tainan.id, name: "台南" }] });
+    expect(kathyRow).toMatchObject({ locations: [{ id: tainan.id, name: "台南" }] });
+    expect(kathyRow).not.toHaveProperty("icon");
     expect(kathyRow.nextPeriod).toMatchObject({ lessonId: salsaNight.id, ongoing: true });
 
     expect(idleRow).toMatchObject({ id: idle.id, activeLessons: [], nextPeriod: null });
