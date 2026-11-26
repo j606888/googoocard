@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { endOfDay, isSameDay } from "date-fns";
 import { deriveLessonStatus } from "@/lib/lessonKind";
+import { refreshNeedsRenewalForLesson } from "@/service/studentTag";
 
 type SummarizablePeriod = {
   id: number;
@@ -114,15 +115,18 @@ export const refreshLesson = async (lessonId: number) => {
 
   // Status is rewritten even with no periods: switching kind or ending /
   // reopening a lesson must take effect before anything is scheduled.
+  const status = deriveLessonStatus({
+    kind: lesson.kind,
+    endedAt: lesson.endedAt,
+    allAttendanceChecked: summary.allAttendanceChecked,
+  });
   await prisma.lesson.update({
     where: { id: lessonId },
     data: {
       ...(summary.lastPeriodEnd ? { endAt: summary.lastPeriodEnd } : {}),
-      status: deriveLessonStatus({
-        kind: lesson.kind,
-        endedAt: lesson.endedAt,
-        allAttendanceChecked: summary.allAttendanceChecked,
-      }),
+      status,
     },
   });
+  // 整期報名期間不算「沒卡」：課結束／重開時，整期學生的需續約要跟著重算。
+  if (status !== lesson.status) await refreshNeedsRenewalForLesson(lessonId);
 };

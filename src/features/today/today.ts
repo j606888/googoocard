@@ -25,6 +25,12 @@ export const dayLabel = (date: Date): string =>
 
 const isSameDay = (iso: string, now: Date) => differenceInCalendarDays(new Date(iso), now) === 0;
 
+/** 今天的一堂課與它的點名狀態（管理員的「全教室」區塊）。 */
+export interface TodayLesson {
+  period: AgendaPeriod;
+  status: "taken" | "inClass" | "overdue" | "upcoming";
+}
+
 export interface TodayView {
   /** 有自己的課就只看自己的（我教的＋我當小幫手的），沒有才看全教室。 */
   scope: "mine" | "all";
@@ -36,6 +42,10 @@ export interface TodayView {
   later: AgendaRow[];
   /** 已經下課、還沒點名的，舊的在前。 */
   overdue: AgendaRow[];
+  /** 全教室：已經下課、還沒點名的（不分是不是我的課）。 */
+  allOverdue: AgendaRow[];
+  /** 全教室今天的每一堂（上完的也在），照時間排。 */
+  allToday: TodayLesson[];
 }
 
 export const buildToday = (
@@ -56,13 +66,49 @@ export const buildToday = (
     active.find((row) => row.state === "upcoming") ??
     null;
 
+  const t = now.getTime();
+  const allToday = periods
+    .filter((period) => isSameDay(period.startTime, now))
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime() || a.id - b.id)
+    .map((period): TodayLesson => {
+      const start = new Date(period.startTime).getTime();
+      const end = new Date(period.endTime).getTime();
+      const status = period.attendanceTakenAt
+        ? "taken"
+        : start > t
+          ? "upcoming"
+          : t < end
+            ? "inClass"
+            : "overdue";
+      return { period, status };
+    });
+
   return {
     scope,
     hero,
     heroIsToday: hero !== null && isSameDay(hero.period.startTime, now),
     later: active.filter((row) => row !== hero && isSameDay(row.period.startTime, now)),
     overdue,
+    allOverdue: all.filter((row) => row.state === "overdue"),
+    allToday,
   };
+};
+
+/**
+ * 主角卡的「這堂的準備」：誰會來、來了幾個。只列有數字的；全部是 0 就退回名單人數。
+ * 「整期 6 · 預計會來 3 · 體驗 2 · 已自助簽到 4」
+ */
+export const prepParts = (period: AgendaPeriod): string[] => {
+  const arrived = period.attendeeIds.length;
+  const parts = [
+    period.enrolledCount > 0 && `整期 ${period.enrolledCount}`,
+    period.bookingCount > 0 && `預計會來 ${period.bookingCount}`,
+    period.trialCount > 0 && `體驗 ${period.trialCount}`,
+    period.selfCheckInCount > 0
+      ? `已自助簽到 ${period.selfCheckInCount}`
+      : arrived > 0 && `已簽到 ${arrived}`,
+  ].filter((part): part is string => Boolean(part));
+  return parts.length > 0 ? parts : [`名單 ${period.lesson.studentCount} 位學生`];
 };
 
 /** 主角卡上的小標：「上課中 · 還有 20 分鐘」「下一堂 · 還有 42 分鐘」「下一堂 · 明天（五）」。 */
@@ -89,32 +135,109 @@ export const countToday = (periods: { startTime: string }[], now: Date): number 
   periods.filter((period) => isSameDay(period.startTime, now)).length;
 
 export interface TodoRow {
-  key: "unpaid" | "unbound" | "renewal" | "reminders";
+  key: "unpaid" | "unbound" | "renewal" | "trial" | "duplicates" | "claims";
   count: number;
-  /** 數字後面那句話：「筆未付款」「位學生該續卡」。 */
+  /** 數字後面那句話：「筆未付款」「位學生已經沒卡」。 */
   text: string;
+  /** 點下去鈴鐺開哪一頁：要處理（要補的）或提醒（要追蹤的）。 */
+  tab: "urgent" | "reminders";
 }
+
+type TodoCounts = Pick<
+  Todos,
+  | "unpaidCards"
+  | "unpaidDropIns"
+  | "unpaidEnrollments"
+  | "unboundAttendance"
+  | "needsRenewal"
+  | "trialFollowUps"
+  | "possibleDuplicates"
+  | "lineSelfClaims"
+>;
 
 /**
  * 今天頁「待處理」的列：一種一列，數字獨立出來（琥珀大字），各自點得進去。
- * 「還沒點名」不在這裡——它來自課程
- * 議程（`buildToday().overdue`），跟課程列表頂部的提醒同一個定義。
+ * 給的是哪個範圍的待處理（我的課／全教室）就算哪個範圍。
+ * 「還沒點名」不在這裡——它來自課程議程（`buildToday().overdue`），
+ * 跟課程列表頂部的提醒同一個定義。
  */
-export const todoRows = (
-  todos: Pick<
-    Todos,
-    "unpaidCards" | "unpaidDropIns" | "unpaidEnrollments" | "unboundAttendance" | "needsRenewal" | "reminderCount"
-  >
-): TodoRow[] => {
+export const todoRows = (todos: TodoCounts): TodoRow[] => {
   const unpaid =
     todos.unpaidCards.length + (todos.unpaidDropIns?.length ?? 0) + (todos.unpaidEnrollments?.length ?? 0);
-  const rows: TodoRow[] = [];
-  if (unpaid > 0) rows.push({ key: "unpaid", count: unpaid, text: "筆未付款" });
-  if (todos.unboundAttendance.length > 0)
-    rows.push({ key: "unbound", count: todos.unboundAttendance.length, text: "筆點名沒有課卡" });
-  if (todos.needsRenewal.length > 0)
-    rows.push({ key: "renewal", count: todos.needsRenewal.length, text: "位學生該續卡" });
-  const others = todos.reminderCount - todos.needsRenewal.length;
-  if (others > 0) rows.push({ key: "reminders", count: others, text: "件其他提醒" });
-  return rows;
+  const all: TodoRow[] = [
+    { key: "unpaid", count: unpaid, text: "筆未付款", tab: "urgent" },
+    { key: "unbound", count: todos.unboundAttendance.length, text: "筆點名沒有課卡", tab: "urgent" },
+    { key: "renewal", count: todos.needsRenewal.length, text: "位學生已經沒卡", tab: "reminders" },
+    { key: "trial", count: todos.trialFollowUps.length, text: "位體驗後還沒買卡", tab: "reminders" },
+    { key: "duplicates", count: todos.possibleDuplicates.length, text: "組同名學員可能重複", tab: "reminders" },
+    { key: "claims", count: todos.lineSelfClaims?.length ?? 0, text: "位學生自己綁了 LINE，等你確認", tab: "reminders" },
+  ];
+  return all.filter((row) => row.count > 0);
 };
+
+/** 「下課要收的錢」的一筆：今天的課帶出來、還沒收的錢。 */
+export type CollectItem = {
+  key: string;
+  student: Todos["unpaidCards"][number]["student"];
+  /** 「10 堂卡」「單堂 · 學生價」「Salsa 初階 整期」 */
+  label: string;
+  amount: number;
+} & (
+  | { kind: "card"; studentCardId: number; serialNumber: number }
+  | { kind: "enrollment"; enrollmentId: number }
+  /** 單堂在點名結果頁收（可以當場改價）。 */
+  | { kind: "dropIn"; href: string }
+);
+
+/**
+ * 今天的課要收的錢，從（我的課範圍的）待處理挑出來：
+ *  - 單堂：那堂課是今天的
+ *  - 課卡：今天買的，或今天被扣過（課卡沒記在哪堂課買的）
+ *  - 整期：那門課今天有上（`todayLessonIds`）
+ */
+export const collectToday = (
+  todos: Pick<Todos, "unpaidCards" | "unpaidDropIns" | "unpaidEnrollments">,
+  now: Date,
+  todayLessonIds: ReadonlySet<number>
+): CollectItem[] => [
+  ...todos.unpaidCards
+    .filter(
+      (card) =>
+        isSameDay(card.createdAt, now) || (card.usedIn ?? []).some((use) => isSameDay(use.startTime, now))
+    )
+    .map(
+      (card): CollectItem => ({
+        key: `card-${card.id}`,
+        kind: "card",
+        student: card.student,
+        label: card.cardName,
+        amount: card.finalPrice,
+        studentCardId: card.id,
+        serialNumber: card.serialNumber,
+      })
+    ),
+  ...(todos.unpaidDropIns ?? [])
+    .filter((charge) => isSameDay(charge.lessonPeriodStartTime, now))
+    .map(
+      (charge): CollectItem => ({
+        key: `dropin-${charge.id}`,
+        kind: "dropIn",
+        student: charge.student,
+        label: ["單堂", charge.optionName].filter(Boolean).join(" · "),
+        amount: charge.amount,
+        href: `/lessons/${charge.lessonId}/periods/${charge.lessonPeriodId}/check-success`,
+      })
+    ),
+  ...(todos.unpaidEnrollments ?? [])
+    .filter((enrollment) => todayLessonIds.has(enrollment.lessonId))
+    .map(
+      (enrollment): CollectItem => ({
+        key: `enrollment-${enrollment.id}`,
+        kind: "enrollment",
+        student: enrollment.student,
+        label: `${enrollment.lessonName} 整期`,
+        amount: enrollment.price,
+        enrollmentId: enrollment.id,
+      })
+    ),
+];

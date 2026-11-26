@@ -376,6 +376,8 @@ export async function deleteEnrollment(id: number, classroomId: number) {
       },
     }),
   ]);
+  // 不再是整期學生：手上沒卡的話要回到「需續約」。
+  await refreshNeedsRenewalTag(enrollment.studentId, classroomId);
 }
 
 export async function confirmEnrollmentPayment({

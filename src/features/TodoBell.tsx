@@ -10,7 +10,9 @@ import CardSerial from "@/components/CardSerial";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import StatusTag from "@/components/StatusTag";
 import { Button } from "@/components/ui/button";
-import { useGetTodosQuery, type Todos, type TodoStudent } from "@/store/slices/todos";
+import { useGetTodosQuery, type Todos, type TodoScope, type TodoStudent } from "@/store/slices/todos";
+import { useGetClassroomsQuery } from "@/store/slices/classrooms";
+import { isAdminRole } from "@/lib/roles";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
@@ -36,8 +38,8 @@ const OPEN_EVENT = "googoocard:open-todos";
  * one that is actually on screen answers. Returns false when none did — inside
  * the iOS App the bell is hidden, and the caller hands over to the native list.
  */
-export const openTodoBell = (): boolean => {
-  const event = new Event(OPEN_EVENT, { cancelable: true });
+export const openTodoBell = (detail: { scope?: TodoScope; tab?: Tab } = {}): boolean => {
+  const event = new CustomEvent(OPEN_EVENT, { cancelable: true, detail });
   window.dispatchEvent(event);
   return event.defaultPrevented;
 };
@@ -46,7 +48,9 @@ export const openTodoBell = (): boolean => {
  * 「待處理」（src/service/todos.ts），跟 App 的待處理分頁與推播 badge 同一份資料。
  * 分兩頁：
  *  - 要處理：點名沒課卡、買卡未付款——紅色數字只算這兩類，可以就地「補卡」「確認收款」
- *  - 提醒：需續約（近 30 天有來）、體驗後還沒買卡、可能重複、LINE 自助認領——只顯示灰點
+ *  - 提醒：已經沒卡（近 7 天有來）、體驗後還沒買卡、可能重複、LINE 自助認領——只顯示灰點
+ * 範圍：「我的課」（我教的＋我當小幫手的）或「全教室」，誰都能切；管理員預設全教室，
+ * 老師與小幫手預設我的課。鈴鐺上的數字跟著目前的範圍。
  */
 const TodoBell = ({
   className = "ml-auto",
@@ -61,9 +65,16 @@ const TodoBell = ({
   // 對話框掛在 Popover 外面：Popover 一被點到外面就會關掉，掛在裡面會連對話框一起卸載。
   const [payTarget, setPayTarget] = useState<ConfirmPaymentTarget | null>(null);
   const [bindTarget, setBindTarget] = useState<BindCardTarget | null>(null);
-  const { data: todos, isLoading } = useGetTodosQuery(undefined, {
+  const { data: classrooms } = useGetClassroomsQuery();
+  const role = classrooms?.classrooms.find((c) => c.id === classrooms.currentClassroomId)?.role;
+  // 沒動過切換就照角色；role 還沒載入時先不查，免得先抓全教室再換成我的課。
+  const [pickedScope, setPickedScope] = useState<TodoScope | null>(null);
+  const scope: TodoScope = pickedScope ?? (isAdminRole(role) ? "all" : "mine");
+  const { data: todos, isLoading: todosLoading } = useGetTodosQuery(scope, {
     refetchOnFocus: true,
+    skip: !role,
   });
+  const isLoading = todosLoading || !role;
 
   // 加到主畫面的網站：圖示上的數字跟著「要處理」（推播來時 public/sw.js 也會設）。
   const urgentCount = todos?.urgentCount;
@@ -80,7 +91,9 @@ const TodoBell = ({
       // offsetParent is null while the bell is display:none (the other breakpoint's copy).
       if (!triggerRef.current?.offsetParent) return;
       event.preventDefault();
-      setTab(hasUrgent || !hasReminders ? "urgent" : "reminders");
+      const detail = (event as CustomEvent<{ scope?: TodoScope; tab?: Tab }>).detail ?? {};
+      if (detail.scope) setPickedScope(detail.scope);
+      setTab(detail.tab ?? (hasUrgent || !hasReminders ? "urgent" : "reminders"));
       setOpen(true);
     };
     window.addEventListener(OPEN_EVENT, onOpen);
@@ -150,7 +163,27 @@ const TodoBell = ({
         </PopoverTrigger>
         <PopoverContent className="mr-3 mt-2 w-[min(24rem,calc(100vw-1.5rem))] p-0">
           <div className="flex flex-col max-h-[min(560px,calc(100dvh-6rem))]">
-            <div className="px-3 pt-3 pb-2">
+            <div className="flex items-center justify-between px-4 pt-3">
+              <h2 className="text-[15px] font-semibold text-neutral-900">待處理</h2>
+              <div role="group" aria-label="待處理範圍" className="flex gap-3 text-[13px]">
+                {SCOPE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={scope === option.value}
+                    onClick={() => setPickedScope(option.value)}
+                    className={`min-h-8 cursor-pointer ${
+                      scope === option.value
+                        ? "font-semibold text-primary-900"
+                        : "text-neutral-500 hover:text-neutral-800"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="px-3 pt-1 pb-2">
               <SegmentedTabs
                 ariaLabel="待處理分類"
                 fill
@@ -205,6 +238,11 @@ const TodoBell = ({
     </>
   );
 };
+
+const SCOPE_OPTIONS: { value: TodoScope; label: string }[] = [
+  { value: "mine", label: "我的課" },
+  { value: "all", label: "全教室" },
+];
 
 const UrgentTab = ({
   todos,
@@ -405,7 +443,7 @@ const UrgentTab = ({
             </span>
             <span className="text-xs text-neutral-600">
               {[
-                todos.needsRenewal.length > 0 && `下次會沒卡 ${todos.needsRenewal.length}`,
+                todos.needsRenewal.length > 0 && `已經沒卡 ${todos.needsRenewal.length}`,
                 otherReminders > 0 && `其他 ${otherReminders}`,
               ]
                 .filter(Boolean)
@@ -436,8 +474,8 @@ const RemindersTab = ({ todos, onNavigate }: { todos: Todos; onNavigate: () => v
     </TodoSection>
 
     <TodoSection
-      title="下次上課會沒卡"
-      hint="課卡用完、近 30 天有來上課"
+      title="已經沒卡"
+      hint="近 7 天有來上課，手上沒有能用的課卡"
       count={todos.needsRenewal.length}
     >
       {todos.needsRenewal.map((item) => (
@@ -502,7 +540,7 @@ const RemindersTab = ({ todos, onNavigate }: { todos: Todos; onNavigate: () => v
           久未上課 {todos.inactiveRenewalCount} 位
         </p>
         <p className="text-xs text-neutral-600">
-          課卡用完、超過 30 天沒來，不列在這裡；在學生列表用「需續約」篩選查看
+          課卡用完、超過 7 天沒來，不列在這裡；在學生列表用「需續約」篩選查看
         </p>
       </div>
     )}

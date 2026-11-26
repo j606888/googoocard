@@ -109,6 +109,12 @@ export interface AgendaPeriod {
   attendeeIds: number[];
   /** How many of those checked themselves in (LINE). */
   selfCheckInCount: number;
+  /** 老師登記「預計會來」的人數。 */
+  bookingCount: number;
+  /** 報了整期的人數。 */
+  enrolledCount: number;
+  /** 體驗名單上已登記、還沒上的人數。 */
+  trialCount: number;
   lesson: {
     id: number;
     name: string;
@@ -124,22 +130,6 @@ export interface AgendaPeriod {
     assistants: TeacherSummary[];
     studentCount: number;
     totalPeriods: number;
-  };
-}
-
-/** One row of GET /lessons/recent — a period whose attendance was taken. */
-export interface RecentPeriod {
-  id: number;
-  startTime: string;
-  endTime: string;
-  attendeeCount: number;
-  /** Same figure as the period summary and the income page (`periodRevenue`). */
-  revenue: number;
-  lesson: {
-    id: number;
-    name: string;
-    danceStyle: DanceStyleSummary;
-    location: LocationSummary | null;
   };
 }
 
@@ -431,10 +421,6 @@ const lessonsApi = api.injectEndpoints({
     getLessonWeek: builder.query<{ periods: AgendaPeriod[]; myTeacherId: number | null }, string>({
       query: (start) => `lessons/week?start=${start}`,
       providesTags: ["Lesson", "Attendance", "AttendanceRecord"],
-    }),
-    getRecentPeriods: builder.query<RecentPeriod[], { limit?: number } | void>({
-      query: (args) => `lessons/recent${args?.limit ? `?limit=${args.limit}` : ""}`,
-      providesTags: ["Lesson", "Attendance", "AttendanceRecord", "StudentCard"],
     }),
     getLessonPeriodStats: builder.query<LessonPeriodStats, number>({
       query: (id) => `lessons/${id}/period-stats`,
@@ -739,7 +725,6 @@ export const {
   useGetLessonQuery,
   useGetCalendarPeriodsQuery,
   useGetLessonAgendaQuery,
-  useGetRecentPeriodsQuery,
   useGetLessonPeriodStatsQuery,
   useGetAttendanceCardPreviewQuery,
   useLazyGetAttendanceQuery,

@@ -70,7 +70,7 @@ src/
 ├── app/
 │   ├── (auth)/           # login/, signup/, onboarding/ (route group)
 │   ├── (main)/           # Teacher app (route group with sidebar/BottomNav layout):
-│   │   ├── today/        # 今天 — the landing page after login (next lesson, to-dos, recent periods)
+│   │   ├── today/        # 今天 — the landing page after login (next lesson, money to collect, to-dos; admins also get 全教室)
 │   │   ├── lessons/      # Lesson management UI
 │   │   ├── cards/        # Student card (payment package) UI
 │   │   ├── students/     # Student management UI
@@ -128,8 +128,8 @@ mobile/                   # Teacher iOS App (Expo) — own package.json/tsconfig
 - `Location` — a classroom's 分部 (台南／高雄…): `name`, optional `address`, `sortOrder`, `archivedAt`, managed on `/locations` like dance styles. `Lesson.locationId` is optional; embed via `locationSummarySelect` (`src/lib/locations.ts`). Cards are **not** location-bound. `Classroom.lineListed` = schedule/prices public on the LINE bot. See "分部" in `docs/architecture.md`.
 - `Teacher` — a **person on the classroom's roster** (團隊名冊): instructor, helper, or a member who doesn't teach. Not a `User`; `userId` links it to that member's account. **Every member has exactly one** (auto-created on joining by `ensurePerson()`, `src/service/team.ts`); people without an account (外師) are rows with `userId = null` and can be invited from their card on `/teachers`. Has a `kind` (`TEACHER` / `ASSISTANT` / `BOTH` / `NONE` = 不上課, hidden from both lesson pickers and the teachers page), a palette-key `color` (`TEACHER_COLORS` = the dance-style keys + teacher-only cool ones), an optional line `icon` (`TEACHER_ICONS` keys, drawn by `teacherIcons.tsx` as a lucide glyph on the colour's pale tint), `locations` (many-to-many 分部, a label only — never restricts scheduling), `note`, `archivedAt`. Archived, deleted only if it never had a lesson. `/teachers` lists only people who teach (`TEACHER`/`BOTH`, shells without an account included) and is where they are created/edited/archived/invited; `/teams` lists accounts only, each optionally linked to a teacher ("連到老師" merges the auto-created record via `mergePersonInto()`); monthly stats on `/teachers/[id]` (attendance-taken periods only) — see "老師頁" and "老師頁＝會教課的人，團隊頁＝有帳號的人" in `docs/architecture.md`.
 - `Event` — audit log for student milestones (sign-in, card exhausted); `resourceType`/`resourceId` reference the source record
-- `PushToken` / `WebPushSubscription` / `NotificationPreference` — teacher push (App via Expo, browsers via Web Push). The "待處理" list itself has no table: it's derived live by `src/service/todos.ts` (unpaid cards, Needs Renewal tag, attendance with no card).
-- `Tag` / `StudentTag` — classroom-scoped free-form student tags. The "Needs Renewal" tag is system-maintained by `refreshNeedsRenewalTag()` (`src/service/studentTag.ts`), refreshed on attendance/purchase/expire — don't add/remove it manually.
+- `PushToken` / `WebPushSubscription` / `NotificationPreference` — teacher push (App via Expo, browsers via Web Push). The "待處理" list itself has no table: it's derived live by `src/service/todos.ts` (unpaid cards, Needs Renewal tag, attendance with no card). `GET /api/todos?scope=mine` narrows it to the caller's lessons (taught + assisted) — the bell switches 我的課／全教室, the 今天 page shows 我的課 to everyone and adds 全教室／追蹤 for admins; push badges stay classroom-wide. See "今天頁" in `docs/architecture.md`.
+- `Tag` / `StudentTag` — classroom-scoped free-form student tags. The "Needs Renewal" tag is system-maintained by `refreshNeedsRenewalTag()` (`src/service/studentTag.ts`), refreshed on attendance/purchase/expire/enrollment/lesson end — don't add/remove it manually. Rule (2026-11-26): the student has **no usable card at all** (any unexpired card with sessions left counts, unpaid and trial included) and no enrollment in a lesson still in progress; shown as「已經沒卡」.
 
 ### Practice-Card Qualification (複習卡資格)
 

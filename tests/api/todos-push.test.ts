@@ -56,6 +56,8 @@ import {
 import { POST as LIFF_BUY } from "@/app/api/liff/student-cards/route";
 import { notifyClassroom } from "@/service/push";
 import { refreshNeedsRenewalTag } from "@/service/studentTag";
+import { getTodos } from "@/service/todos";
+import { refreshLesson } from "@/service/lesson";
 import { selfCheckIn } from "@/domains/attendance/attendance.service";
 
 const TOKEN_A = "ExponentPushToken[aaa]";
@@ -198,11 +200,170 @@ describe("GET /api/todos（追帳與可能重複）", () => {
   });
 });
 
+describe("已經沒卡（需續約的規則）", () => {
+  const renewalNames = async () =>
+    (await getTodos(classroomId)).needsRenewal.map((r) => r.student.name);
+
+  it("還有別張能用的卡就不算；那張也用完才算", async () => {
+    const cardA = await createCard(classroomId, { name: "A 卡" });
+    const cardB = await createCard(classroomId, { name: "B 卡" });
+    const student = await createStudent(classroomId, { name: "兩張卡" });
+    const usedUp = await createStudentCard(student.id, cardA.id, { remainingSessions: 0 });
+    const other = await createStudentCard(student.id, cardB.id, { remainingSessions: 3 });
+    await attendRecently(student.id, usedUp.id, 2);
+
+    await refreshNeedsRenewalTag(student.id, classroomId);
+    expect(await renewalNames()).toEqual([]);
+
+    await prisma.studentCard.update({ where: { id: other.id }, data: { remainingSessions: 0 } });
+    await refreshNeedsRenewalTag(student.id, classroomId);
+    expect(await renewalNames()).toEqual(["兩張卡"]);
+  });
+
+  it("tag 還掛著、但手上已經有能用的卡：名單照樣不列", async () => {
+    const card = await createCard(classroomId);
+    const student = await createStudent(classroomId);
+    const usedUp = await createStudentCard(student.id, card.id, { remainingSessions: 0 });
+    await attendRecently(student.id, usedUp.id, 2);
+    await refreshNeedsRenewalTag(student.id, classroomId);
+    // 故意不刷新 tag。
+    await createStudentCard(student.id, card.id, { remainingSessions: 5 });
+    expect(await renewalNames()).toEqual([]);
+  });
+
+  it("整期報名期間不算沒卡，課結束之後才算", async () => {
+    const card = await createCard(classroomId);
+    const student = await createStudent(classroomId, { name: "整期生" });
+    const usedUp = await createStudentCard(student.id, card.id, { remainingSessions: 0 });
+    await attendRecently(student.id, usedUp.id, 2);
+    const { lesson } = await createLesson(classroomId);
+    await prisma.lessonEnrollment.create({
+      data: { lessonId: lesson.id, studentId: student.id, price: 2400, sessions: 6, isPaid: true },
+    });
+
+    await refreshNeedsRenewalTag(student.id, classroomId);
+    expect(await renewalNames()).toEqual([]);
+
+    // 手動結束這門課 → refreshLesson 連整期學生的 tag 一起重算。
+    await prisma.lesson.update({ where: { id: lesson.id }, data: { endedAt: new Date() } });
+    await refreshLesson(lesson.id);
+    expect(await renewalNames()).toEqual(["整期生"]);
+  });
+
+  it("只有體驗卡、沒買過多堂卡的人不算續卡", async () => {
+    const trial = await createCard(classroomId, { name: "體驗課", isTrial: true, sessions: 1 });
+    const student = await createStudent(classroomId);
+    const used = await createStudentCard(student.id, trial.id, { remainingSessions: 0, totalSessions: 1 });
+    await attendRecently(student.id, used.id, 1);
+    await refreshNeedsRenewalTag(student.id, classroomId);
+    expect(await renewalNames()).toEqual([]);
+  });
+});
+
+describe("GET /api/todos?scope=mine（我的課）", () => {
+  const getMine = async () =>
+    (
+      await GET_TODOS(new Request("http://test.local/api/todos?scope=mine"), { params: Promise.resolve({}) })
+    ).json();
+
+  /** 一門有一堂（幾天前）的課；`teacherId` 教，`assistantId` 當小幫手。 */
+  async function lessonOf({ teacherId, assistantId }: { teacherId?: number; assistantId?: number }, daysAgo = 1) {
+    const { lesson } = await createLesson(classroomId);
+    if (teacherId) await prisma.lessonTeacher.create({ data: { lessonId: lesson.id, teacherId } });
+    if (assistantId) await prisma.lessonAssistant.create({ data: { lessonId: lesson.id, teacherId: assistantId } });
+    const startTime = new Date(Date.now() - daysAgo * 86_400_000);
+    const period = await prisma.lessonPeriod.create({
+      data: { lessonId: lesson.id, startTime, endTime: new Date(startTime.getTime() + 3_600_000), attendanceTakenAt: startTime },
+    });
+    return { lesson, period };
+  }
+
+  it("只留我教的＋我當小幫手的課；全教室才有的（沒用過的未付卡、可能重複）不列", async () => {
+    const me = await prisma.teacher.create({ data: { name: "我", classroomId, userId: auth.userId } });
+    const other = await prisma.teacher.create({ data: { name: "別人", classroomId } });
+    const taught = await lessonOf({ teacherId: me.id });
+    const assisted = await lessonOf({ teacherId: other.id, assistantId: me.id });
+    const theirs = await lessonOf({ teacherId: other.id });
+    const card = await createCard(classroomId);
+
+    // 出席沒綁卡：三堂各一位。
+    const names = ["我教的", "我協助的", "別人的"];
+    const students = await Promise.all(names.map((name) => createStudent(classroomId, { name })));
+    for (const [i, { period }] of [taught, assisted, theirs].entries()) {
+      await prisma.attendanceRecord.create({ data: { lessonPeriodId: period.id, studentId: students[i].id } });
+    }
+
+    // 未付的卡：一張在我的課扣過、一張在別人的課扣過、一張還沒用。
+    const payers = await Promise.all(["用在我的課", "用在別人的課", "還沒用"].map((name) => createStudent(classroomId, { name })));
+    const [mineCard, theirCard] = await Promise.all(
+      payers.slice(0, 2).map((s) => createStudentCard(s.id, card.id, { isPaid: false }))
+    );
+    await createStudentCard(payers[2].id, card.id, { isPaid: false });
+    await prisma.attendanceRecord.create({
+      data: { lessonPeriodId: taught.period.id, studentId: payers[0].id, studentCardId: mineCard.id },
+    });
+    await prisma.attendanceRecord.create({
+      data: { lessonPeriodId: theirs.period.id, studentId: payers[1].id, studentCardId: theirCard.id },
+    });
+
+    // 整期未付：我的課一筆、別人的課一筆。
+    await prisma.lessonEnrollment.create({
+      data: { lessonId: assisted.lesson.id, studentId: payers[0].id, price: 2400, sessions: 6 },
+    });
+    await prisma.lessonEnrollment.create({
+      data: { lessonId: theirs.lesson.id, studentId: payers[1].id, price: 2400, sessions: 6 },
+    });
+
+    // 已經沒卡：一位來過我的課、一位只來過別人的課。
+    const renewers = await Promise.all(["來過我的課", "只來別人的課"].map((name) => createStudent(classroomId, { name })));
+    for (const [i, { period }] of [taught, theirs].entries()) {
+      const usedUp = await createStudentCard(renewers[i].id, card.id, { remainingSessions: 0 });
+      await prisma.attendanceRecord.create({
+        data: { lessonPeriodId: period.id, studentId: renewers[i].id, studentCardId: usedUp.id },
+      });
+      await refreshNeedsRenewalTag(renewers[i].id, classroomId);
+    }
+
+    // 可能重複：整間教室的事。
+    await createStudent(classroomId, { name: "我教的" });
+
+    const mine = await getMine();
+    const studentNames = (rows: { student: { name: string } }[]) => rows.map((r) => r.student.name).sort();
+    expect(studentNames(mine.unboundAttendance)).toEqual(["我協助的", "我教的"]);
+    expect(studentNames(mine.unpaidCards)).toEqual(["用在我的課"]);
+    expect(mine.unpaidCards[0].usedIn).toEqual([
+      { lessonId: taught.lesson.id, lessonPeriodId: taught.period.id, startTime: taught.period.startTime.toISOString() },
+    ]);
+    expect(studentNames(mine.unpaidEnrollments)).toEqual(["用在我的課"]);
+    expect(studentNames(mine.needsRenewal)).toEqual(["來過我的課"]);
+    expect(mine.possibleDuplicates).toEqual([]);
+    expect(mine.inactiveRenewalCount).toBe(0);
+    expect(mine.urgentCount).toBe(4);
+
+    const all = await (
+      await GET_TODOS(new Request("http://test.local/api/todos"), { params: Promise.resolve({}) })
+    ).json();
+    expect(all.unboundAttendance).toHaveLength(3);
+    expect(all.unpaidCards).toHaveLength(3);
+    expect(all.needsRenewal).toHaveLength(2);
+    expect(all.possibleDuplicates).toHaveLength(1);
+  });
+
+  it("沒連老師資料的人：我的課是空的", async () => {
+    const card = await createCard(classroomId);
+    const student = await createStudent(classroomId);
+    await createStudentCard(student.id, card.id, { isPaid: false });
+    const mine = await getMine();
+    expect(mine.unpaidCards).toEqual([]);
+    expect(mine.total).toBe(0);
+  });
+});
+
 describe("GET /api/todos（提醒）", () => {
   const getTodos = async () =>
     (await GET_TODOS(new Request("http://test.local/api/todos"), { params: Promise.resolve({}) })).json();
 
-  it("需續約只列 30 天內有來上課的人，更久沒來的只算人數；不進紅色數字", async () => {
+  it("需續約只列 7 天內有來上課的人，更久沒來的只算人數；不進紅色數字", async () => {
     const card = await createCard(classroomId);
     const recent = await createStudent(classroomId, { name: "最近有來" });
     const recentCard = await createStudentCard(recent.id, card.id, { remainingSessions: 0 });
@@ -211,7 +372,7 @@ describe("GET /api/todos（提醒）", () => {
 
     const gone = await createStudent(classroomId, { name: "很久沒來" });
     const goneCard = await createStudentCard(gone.id, card.id, { remainingSessions: 0 });
-    await attendRecently(gone.id, goneCard.id, 45);
+    await attendRecently(gone.id, goneCard.id, 10);
     await refreshNeedsRenewalTag(gone.id, classroomId);
 
     const never = await createStudent(classroomId, { name: "沒出席紀錄" });

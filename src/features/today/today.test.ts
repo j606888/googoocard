@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
 import type { AgendaPeriod } from "@/store/slices/lessons";
+import type { Todos } from "@/store/slices/todos";
 import {
   buildToday,
+  collectToday,
   countToday,
   greeting,
   heroBadge,
+  prepParts,
   termProgressLabel,
   todoRows,
 } from "./today";
@@ -37,6 +40,9 @@ const period = (
   number: 3,
   attendeeIds: [],
   selfCheckInCount: 0,
+  bookingCount: 0,
+  enrolledCount: 0,
+  trialCount: 0,
   lesson: {
     id: 1,
     name: "Bachata LV1",
@@ -162,7 +168,9 @@ describe("todoRows", () => {
     unpaidEnrollments: [],
     unboundAttendance: [],
     needsRenewal: [],
-    reminderCount: 0,
+    trialFollowUps: [],
+    possibleDuplicates: [],
+    lineSelfClaims: [],
   };
   const items = (n: number) => Array.from({ length: n }) as never[];
 
@@ -170,7 +178,7 @@ describe("todoRows", () => {
     expect(todoRows(base)).toEqual([]);
   });
 
-  it("gives each kind its own row, unpaid first, and lumps the remaining reminders", () => {
+  it("gives each kind its own row — to-dos first, then the follow-ups", () => {
     expect(
       todoRows({
         ...base,
@@ -178,13 +186,111 @@ describe("todoRows", () => {
         unpaidEnrollments: items(1),
         unboundAttendance: items(2),
         needsRenewal: items(9),
-        reminderCount: 11,
+        trialFollowUps: items(1),
+        possibleDuplicates: items(1),
       })
     ).toEqual([
-      { key: "unpaid", count: 2, text: "筆未付款" },
-      { key: "unbound", count: 2, text: "筆點名沒有課卡" },
-      { key: "renewal", count: 9, text: "位學生該續卡" },
-      { key: "reminders", count: 2, text: "件其他提醒" },
+      { key: "unpaid", count: 2, text: "筆未付款", tab: "urgent" },
+      { key: "unbound", count: 2, text: "筆點名沒有課卡", tab: "urgent" },
+      { key: "renewal", count: 9, text: "位學生已經沒卡", tab: "reminders" },
+      { key: "trial", count: 1, text: "位體驗後還沒買卡", tab: "reminders" },
+      { key: "duplicates", count: 1, text: "組同名學員可能重複", tab: "reminders" },
+    ]);
+  });
+});
+
+describe("buildToday — 全教室", () => {
+  it("lists every period of today with its status, finished ones included, and all overdue ones", () => {
+    const done = period(at(26, 10), { taken: true, teacherIds: [2] });
+    const forgotten = period(at(26, 14), { teacherIds: [2] });
+    const running = period(at(26, 18, 30), { teacherIds: [1] });
+    const later = period(at(26, 20), { teacherIds: [2] });
+    const yesterday = period(at(25, 20), { teacherIds: [2] });
+    const tomorrow = period(at(27, 20), { teacherIds: [2] });
+
+    const view = buildToday([later, tomorrow, running, forgotten, done, yesterday], NOW, 1);
+    expect(view.allToday.map((item) => [item.period.id, item.status])).toEqual([
+      [done.id, "taken"],
+      [forgotten.id, "overdue"],
+      [running.id, "inClass"],
+      [later.id, "upcoming"],
+    ]);
+    // 我的課只有 running；全教室的還沒點名不分是誰的課。
+    expect(view.overdue).toEqual([]);
+    expect(view.allOverdue.map((row) => row.period.id)).toEqual([yesterday.id, forgotten.id]);
+  });
+});
+
+describe("prepParts", () => {
+  it("names only the groups that have someone, self check-ins over plain arrivals", () => {
+    expect(
+      prepParts({ ...period(at(26, 20)), enrolledCount: 6, bookingCount: 3, trialCount: 2, selfCheckInCount: 4 })
+    ).toEqual(["整期 6", "預計會來 3", "體驗 2", "已自助簽到 4"]);
+    expect(prepParts({ ...period(at(26, 20)), attendeeIds: [1, 2] })).toEqual(["已簽到 2"]);
+  });
+
+  it("falls back to the roster size when nothing is known", () => {
+    expect(prepParts(period(at(26, 20)))).toEqual(["名單 8 位學生"]);
+  });
+});
+
+describe("collectToday", () => {
+  const student = { id: 1, name: "小美", avatarUrl: "" };
+  const card = (over: Partial<Todos["unpaidCards"][number]>): Todos["unpaidCards"][number] => ({
+    id: nextId++,
+    serialNumber: 1,
+    cardName: "10 堂卡",
+    finalPrice: 3000,
+    purchaseSource: "STAFF",
+    usedSessions: 0,
+    totalSessions: 10,
+    createdAt: at(20, 12).toISOString(),
+    student,
+    usedIn: [],
+    ...over,
+  });
+
+  it("keeps cards bought or used today, today's drop-ins, and unpaid terms of lessons held today", () => {
+    const boughtToday = card({ createdAt: at(26, 18).toISOString() });
+    const usedToday = card({
+      usedIn: [{ lessonId: 5, lessonPeriodId: 9, startTime: at(26, 17).toISOString() }],
+    });
+    const old = card({ usedIn: [{ lessonId: 5, lessonPeriodId: 8, startTime: at(19, 17).toISOString() }] });
+    const dropIn = (day: number): Todos["unpaidDropIns"][number] => ({
+      id: day,
+      amount: 400,
+      optionName: "學生價",
+      createdAt: at(day, 19).toISOString(),
+      student,
+      lessonId: 5,
+      lessonName: "Salsa",
+      lessonPeriodId: 9,
+      lessonPeriodStartTime: at(day, 17).toISOString(),
+    });
+    const enrollment = (lessonId: number): Todos["unpaidEnrollments"][number] => ({
+      id: lessonId,
+      price: 2400,
+      sessions: 6,
+      createdAt: at(1, 12).toISOString(),
+      student,
+      lessonId,
+      lessonName: `課 ${lessonId}`,
+    });
+
+    const items = collectToday(
+      {
+        unpaidCards: [boughtToday, usedToday, old],
+        unpaidDropIns: [dropIn(26), dropIn(19)],
+        unpaidEnrollments: [enrollment(5), enrollment(6)],
+      },
+      NOW,
+      new Set([5])
+    );
+    expect(items.map((item) => [item.key, item.label, item.amount])).toEqual([
+      [`card-${boughtToday.id}`, "10 堂卡", 3000],
+      [`card-${usedToday.id}`, "10 堂卡", 3000],
+      ["dropin-26", "單堂 · 學生價", 400],
+      ["enrollment-5", "課 5 整期", 2400],
     ]);
   });
 });

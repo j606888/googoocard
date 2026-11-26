@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import DanceStyleDot from "@/components/DanceStyleDot";
 import KiwiMascot from "@/components/KiwiMascot";
 import type { AgendaRow } from "../lessons/useLessonAgenda";
-import { heroBadge, termProgressLabel } from "./today";
+import { heroBadge, prepParts, termProgressLabel } from "./today";
 
 /**
  * 今天頁的主角：下一堂（或上課中還沒點名的那一堂）。不包卡片——時間放大當主角，
@@ -41,19 +41,8 @@ const NextLessonHero = ({
   const taken = Boolean(period.attendanceTakenAt);
   const lessonHref = `/lessons/${lesson.id}`;
   const people = lesson.teachers.map((t) => t.name).join("、");
-  const arrived = period.attendeeIds.length;
-  const headcount =
-    period.selfCheckInCount > 0 ? (
-      <>
-        已有 <b className="font-semibold text-ink">{period.selfCheckInCount}</b> 人自助簽到
-      </>
-    ) : arrived > 0 ? (
-      <>
-        已簽到 <b className="font-semibold text-ink">{arrived}</b> 位
-      </>
-    ) : (
-      `名單 ${lesson.studentCount} 位學生`
-    );
+  // 這堂的準備：整期、預計會來、體驗、已簽到——進點名頁之前就知道會來多少人。
+  const headcount = prepParts(period).join(" · ");
 
   return (
     <section
